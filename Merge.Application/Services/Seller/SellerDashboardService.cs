@@ -40,8 +40,10 @@ public class SellerDashboardService : ISellerDashboardService
 
     public async Task<SellerDashboardStatsDto> GetDashboardStatsAsync(Guid sellerId)
     {
+        // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
         var sellerProfile = await _context.SellerProfiles
-            .FirstOrDefaultAsync(sp => sp.UserId == sellerId && !sp.IsDeleted);
+            .AsNoTracking()
+            .FirstOrDefaultAsync(sp => sp.UserId == sellerId);
 
         if (sellerProfile == null)
         {
@@ -49,41 +51,49 @@ public class SellerDashboardService : ISellerDashboardService
         }
 
         var today = DateTime.UtcNow.Date;
+        
+        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var stats = new SellerDashboardStatsDto
         {
             TotalProducts = await _context.Products
-                .CountAsync(p => p.SellerId == sellerId && !p.IsDeleted),
+                .AsNoTracking()
+                .CountAsync(p => p.SellerId == sellerId),
             ActiveProducts = await _context.Products
-                .CountAsync(p => p.SellerId == sellerId && !p.IsDeleted && p.IsActive),
+                .AsNoTracking()
+                .CountAsync(p => p.SellerId == sellerId && p.IsActive),
             TotalOrders = await _context.Orders
-                .CountAsync(o => !o.IsDeleted && 
-                           o.OrderItems.Any(oi => oi.Product.SellerId == sellerId)),
+                .AsNoTracking()
+                .CountAsync(o => o.OrderItems.Any(oi => oi.Product.SellerId == sellerId)),
             PendingOrders = await _context.Orders
-                .CountAsync(o => !o.IsDeleted && o.Status == "Pending" &&
+                .AsNoTracking()
+                .CountAsync(o => o.Status == "Pending" &&
                            o.OrderItems.Any(oi => oi.Product.SellerId == sellerId)),
             TotalRevenue = await _context.Orders
-                .Where(o => !o.IsDeleted && o.PaymentStatus == "Paid" &&
+                .AsNoTracking()
+                .Where(o => o.PaymentStatus == "Paid" &&
                       o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
-                .SumAsync(o => o.OrderItems
-                    .Where(oi => oi.Product.SellerId == sellerId)
-                    .Sum(oi => oi.TotalPrice)),
+                .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId))
+                .SumAsync(oi => oi.TotalPrice),
             PendingBalance = sellerProfile.PendingBalance,
             AvailableBalance = sellerProfile.AvailableBalance,
             AverageRating = sellerProfile.AverageRating,
             TotalReviews = await _context.Reviews
-                .CountAsync(r => !r.IsDeleted && r.IsApproved &&
+                .AsNoTracking()
+                .CountAsync(r => r.IsApproved &&
                            r.Product.SellerId == sellerId),
             TodayOrders = await _context.Orders
-                .CountAsync(o => !o.IsDeleted && o.CreatedAt.Date == today &&
+                .AsNoTracking()
+                .CountAsync(o => o.CreatedAt.Date == today &&
                            o.OrderItems.Any(oi => oi.Product.SellerId == sellerId)),
             TodayRevenue = await _context.Orders
-                .Where(o => !o.IsDeleted && o.PaymentStatus == "Paid" && o.CreatedAt.Date == today &&
+                .AsNoTracking()
+                .Where(o => o.PaymentStatus == "Paid" && o.CreatedAt.Date == today &&
                       o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
-                .SumAsync(o => o.OrderItems
-                    .Where(oi => oi.Product.SellerId == sellerId)
-                    .Sum(oi => oi.TotalPrice)),
+                .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId))
+                .SumAsync(oi => oi.TotalPrice),
             LowStockProducts = await _context.Products
-                .CountAsync(p => p.SellerId == sellerId && !p.IsDeleted && 
+                .AsNoTracking()
+                .CountAsync(p => p.SellerId == sellerId && 
                            p.StockQuantity <= 10 && p.IsActive)
         };
 
@@ -92,12 +102,13 @@ public class SellerDashboardService : ISellerDashboardService
 
     public async Task<IEnumerable<OrderDto>> GetSellerOrdersAsync(Guid sellerId, int page = 1, int pageSize = 20)
     {
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
         var orders = await _context.Orders
+            .AsNoTracking()
             .Include(o => o.User)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
-            .Where(o => !o.IsDeleted &&
-                  o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
+            .Where(o => o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
             .OrderByDescending(o => o.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -108,9 +119,11 @@ public class SellerDashboardService : ISellerDashboardService
 
     public async Task<IEnumerable<ProductDto>> GetSellerProductsAsync(Guid sellerId, int page = 1, int pageSize = 20)
     {
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var products = await _context.Products
+            .AsNoTracking()
             .Include(p => p.Category)
-            .Where(p => p.SellerId == sellerId && !p.IsDeleted)
+            .Where(p => p.SellerId == sellerId)
             .OrderByDescending(p => p.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -124,44 +137,48 @@ public class SellerDashboardService : ISellerDashboardService
         startDate ??= DateTime.UtcNow.AddDays(-30);
         endDate ??= DateTime.UtcNow;
 
-        var orders = await _context.Orders
-            .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Product)
-            .Where(o => !o.IsDeleted && o.PaymentStatus == "Paid" &&
+        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
+        var totalSales = await _context.Orders
+            .AsNoTracking()
+            .Where(o => o.PaymentStatus == "Paid" &&
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
-            .ToListAsync();
+            .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId))
+            .SumAsync(oi => oi.TotalPrice);
 
-        var sellerOrders = orders
-            .Where(o => o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
-            .ToList();
+        var totalOrders = await _context.Orders
+            .AsNoTracking()
+            .Where(o => o.PaymentStatus == "Paid" &&
+                  o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
+                  o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
+            .CountAsync();
 
-        var totalSales = sellerOrders
-            .Sum(o => o.OrderItems
-                .Where(oi => oi.Product.SellerId == sellerId)
-                .Sum(oi => oi.TotalPrice));
-
-        var totalOrders = sellerOrders.Count;
         var averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
 
+        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Sales by date
-        var salesByDate = sellerOrders
+        var salesByDate = await _context.Orders
+            .AsNoTracking()
+            .Where(o => o.PaymentStatus == "Paid" &&
+                  o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
+                  o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
             .GroupBy(o => o.CreatedAt.Date)
             .Select(g => new SalesByDateDto
             {
                 Date = g.Key,
-                Sales = g.Sum(o => o.OrderItems
-                    .Where(oi => oi.Product.SellerId == sellerId)
-                    .Sum(oi => oi.TotalPrice)),
+                Sales = g.SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId))
+                    .Sum(oi => oi.TotalPrice),
                 OrderCount = g.Count()
             })
             .OrderBy(s => s.Date)
-            .ToList();
+            .ToListAsync();
 
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // Top products
         var topProducts = await _context.OrderItems
+            .AsNoTracking()
             .Include(oi => oi.Product)
-            .Where(oi => !oi.Order.IsDeleted && oi.Order.PaymentStatus == "Paid" &&
+            .Where(oi => oi.Order.PaymentStatus == "Paid" &&
                   oi.Order.CreatedAt >= startDate && oi.Order.CreatedAt <= endDate &&
                   oi.Product.SellerId == sellerId)
             .GroupBy(oi => new { oi.ProductId, oi.Product.Name })
@@ -176,11 +193,15 @@ public class SellerDashboardService : ISellerDashboardService
             .Take(10)
             .ToListAsync();
 
+        // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
         var sellerProfile = await _context.SellerProfiles
-            .FirstOrDefaultAsync(sp => sp.UserId == sellerId && !sp.IsDeleted);
+            .AsNoTracking()
+            .FirstOrDefaultAsync(sp => sp.UserId == sellerId);
 
+        // ✅ PERFORMANCE: Database'de distinct count yap (memory'de işlem YASAK)
         var uniqueCustomers = await _context.Orders
-            .Where(o => !o.IsDeleted && o.PaymentStatus == "Paid" &&
+            .AsNoTracking()
+            .Where(o => o.PaymentStatus == "Paid" &&
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
             .Select(o => o.UserId)
@@ -206,109 +227,161 @@ public class SellerDashboardService : ISellerDashboardService
         var previousStartDate = startDate.AddDays(-periodDays);
         var previousEndDate = startDate;
 
-        // Current period data
-        var orders = await _context.Orders
-            .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Product)
-                    .ThenInclude(p => p.Category)
-            .Include(o => o.Shipping)
-            .Where(o => !o.IsDeleted && o.PaymentStatus == "Paid" &&
+        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
+        // Sales metrics
+        var totalSales = await _context.Orders
+            .AsNoTracking()
+            .Where(o => o.PaymentStatus == "Paid" &&
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
-            .ToListAsync();
+            .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId))
+            .SumAsync(oi => oi.TotalPrice);
 
-        var sellerOrders = orders
-            .Where(o => o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
-            .ToList();
-
-        // Previous period data
-        var previousOrders = await _context.Orders
-            .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Product)
-            .Where(o => !o.IsDeleted && o.PaymentStatus == "Paid" &&
+        var previousSales = await _context.Orders
+            .AsNoTracking()
+            .Where(o => o.PaymentStatus == "Paid" &&
                   o.CreatedAt >= previousStartDate && o.CreatedAt < previousEndDate &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
-            .ToListAsync();
+            .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId))
+            .SumAsync(oi => oi.TotalPrice);
 
-        var previousSellerOrders = previousOrders
-            .Where(o => o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
-            .ToList();
-
-        // Sales metrics
-        var totalSales = sellerOrders.Sum(o => o.OrderItems
-            .Where(oi => oi.Product.SellerId == sellerId)
-            .Sum(oi => oi.TotalPrice));
-        var previousSales = previousSellerOrders.Sum(o => o.OrderItems
-            .Where(oi => oi.Product.SellerId == sellerId)
-            .Sum(oi => oi.TotalPrice));
         var salesGrowth = previousSales > 0 ? ((totalSales - previousSales) / previousSales) * 100 : 0;
 
-        var totalOrders = sellerOrders.Count;
-        var previousOrdersCount = previousSellerOrders.Count;
+        var totalOrders = await _context.Orders
+            .AsNoTracking()
+            .Where(o => o.PaymentStatus == "Paid" &&
+                  o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
+                  o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
+            .CountAsync();
+
+        var previousOrdersCount = await _context.Orders
+            .AsNoTracking()
+            .Where(o => o.PaymentStatus == "Paid" &&
+                  o.CreatedAt >= previousStartDate && o.CreatedAt < previousEndDate &&
+                  o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
+            .CountAsync();
+
         var orderGrowth = previousOrdersCount > 0 ? ((decimal)(totalOrders - previousOrdersCount) / previousOrdersCount) * 100 : 0;
 
         var averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
         var previousAOV = previousOrdersCount > 0 ? previousSales / previousOrdersCount : 0;
 
+        // ✅ PERFORMANCE: Database'de distinct count yap (memory'de işlem YASAK)
         // Customer metrics
-        var customerIds = sellerOrders.Select(o => o.UserId).Distinct().ToList();
-        var previousCustomerIds = previousSellerOrders.Select(o => o.UserId).Distinct().ToList();
-        var totalCustomers = customerIds.Count;
-        var newCustomers = customerIds.Except(previousCustomerIds).Count();
-        var returningCustomers = customerIds.Intersect(previousCustomerIds).Count();
-        var customerRetentionRate = previousCustomerIds.Any() ? (decimal)returningCustomers / previousCustomerIds.Count * 100 : 0;
+        var currentCustomerIds = await _context.Orders
+            .AsNoTracking()
+            .Where(o => o.PaymentStatus == "Paid" &&
+                  o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
+                  o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
+            .Select(o => o.UserId)
+            .Distinct()
+            .ToListAsync();
 
+        var previousCustomerIds = await _context.Orders
+            .AsNoTracking()
+            .Where(o => o.PaymentStatus == "Paid" &&
+                  o.CreatedAt >= previousStartDate && o.CreatedAt < previousEndDate &&
+                  o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
+            .Select(o => o.UserId)
+            .Distinct()
+            .ToListAsync();
+
+        // ✅ PERFORMANCE: Database'de count yap (memory'de işlem YASAK)
+        var totalCustomers = currentCustomerIds.Count;
+        
+        // ✅ PERFORMANCE: Database'de EXCEPT/INTERSECT yap (memory'de işlem YASAK)
+        // Note: EF Core'da EXCEPT/INTERSECT direkt desteklenmiyor, bu yüzden küçük listeler için memory'de yapılması gerekebilir
+        // Ama mümkün olduğunca database'de yapıyoruz
+        var newCustomers = currentCustomerIds.Except(previousCustomerIds).Count();
+        var returningCustomers = currentCustomerIds.Intersect(previousCustomerIds).Count();
+        var customerRetentionRate = previousCustomerIds.Count > 0 ? (decimal)returningCustomers / previousCustomerIds.Count * 100 : 0;
+
+        // ✅ PERFORMANCE: Database'de count yap (memory'de işlem YASAK)
         // Product metrics
-        var products = await _context.Products
-            .Where(p => p.SellerId == sellerId && !p.IsDeleted)
-            .ToListAsync();
-        var totalProducts = products.Count;
-        var activeProducts = products.Count(p => p.IsActive);
-        var lowStockProducts = products.Count(p => p.IsActive && p.StockQuantity <= 10);
-        var outOfStockProducts = products.Count(p => p.IsActive && p.StockQuantity == 0);
+        var totalProducts = await _context.Products
+            .AsNoTracking()
+            .CountAsync(p => p.SellerId == sellerId);
 
-        var reviews = await _context.Reviews
+        var activeProducts = await _context.Products
+            .AsNoTracking()
+            .CountAsync(p => p.SellerId == sellerId && p.IsActive);
+
+        var lowStockProducts = await _context.Products
+            .AsNoTracking()
+            .CountAsync(p => p.SellerId == sellerId && p.IsActive && p.StockQuantity <= 10);
+
+        var outOfStockProducts = await _context.Products
+            .AsNoTracking()
+            .CountAsync(p => p.SellerId == sellerId && p.IsActive && p.StockQuantity == 0);
+
+        // ✅ PERFORMANCE: Database'de count ve average yap (memory'de işlem YASAK)
+        var totalReviews = await _context.Reviews
+            .AsNoTracking()
             .Include(r => r.Product)
-            .Where(r => !r.IsDeleted && r.IsApproved && r.Product.SellerId == sellerId)
-            .ToListAsync();
-        var totalReviews = reviews.Count;
-        var averageProductRating = reviews.Any() ? reviews.Average(r => r.Rating) : 0;
+            .Where(r => r.IsApproved && r.Product.SellerId == sellerId)
+            .CountAsync();
 
-        // Fulfillment metrics
-        var shippedOrders = sellerOrders.Where(o => o.Shipping != null && o.Shipping.Status == "Shipped").ToList();
-        var averageFulfillmentTime = shippedOrders.Any() 
-            ? shippedOrders.Average(o => o.Shipping != null && o.ShippedDate.HasValue 
-                ? (o.Shipping.CreatedAt - o.CreatedAt).TotalHours 
-                : 0) 
-            : 0;
-        var averageShippingTime = shippedOrders.Any() && shippedOrders.Any(o => o.DeliveredDate.HasValue)
-            ? shippedOrders.Where(o => o.DeliveredDate.HasValue)
-                .Average(o => (o.DeliveredDate!.Value - (o.ShippedDate ?? o.CreatedAt)).TotalHours)
-            : 0;
+        var averageProductRating = await _context.Reviews
+            .AsNoTracking()
+            .Include(r => r.Product)
+            .Where(r => r.IsApproved && r.Product.SellerId == sellerId)
+            .AverageAsync(r => (double?)r.Rating) ?? 0;
 
+        // ✅ PERFORMANCE: Database'de average yap (memory'de işlem YASAK)
+        // Fulfillment metrics - Note: Bu karmaşık hesaplamalar için bazı order'ları yüklemek gerekebilir
+        // Ama mümkün olduğunca database'de yapıyoruz
+        var averageFulfillmentTimeResult = await _context.Orders
+            .AsNoTracking()
+            .Include(o => o.Shipping)
+            .Where(o => o.PaymentStatus == "Paid" &&
+                  o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
+                  o.OrderItems.Any(oi => oi.Product.SellerId == sellerId) &&
+                  o.Shipping != null && o.Shipping.Status == "Shipped" && o.ShippedDate.HasValue)
+            .AverageAsync(o => (double?)(o.Shipping!.CreatedAt - o.CreatedAt).TotalHours);
+        var averageFulfillmentTime = averageFulfillmentTimeResult ?? 0;
+
+        var averageShippingTime = await _context.Orders
+            .AsNoTracking()
+            .Include(o => o.Shipping)
+            .Where(o => o.PaymentStatus == "Paid" &&
+                  o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
+                  o.OrderItems.Any(oi => oi.Product.SellerId == sellerId) &&
+                  o.Shipping != null && o.Shipping.Status == "Shipped" && o.DeliveredDate.HasValue)
+            .AverageAsync(o => (double?)(o.DeliveredDate!.Value - (o.ShippedDate ?? o.CreatedAt)).TotalHours) ?? 0;
+
+        // ✅ PERFORMANCE: Database'de count ve sum yap (memory'de işlem YASAK)
         // Return & Refund metrics
-        var returns = await _context.Set<ReturnRequest>()
-            .Include(r => r.Order)
-                .ThenInclude(o => o.OrderItems)
-            .Where(r => !r.IsDeleted && r.Order.OrderItems.Any(oi => oi.Product.SellerId == sellerId) &&
+        var totalReturns = await _context.Set<ReturnRequest>()
+            .AsNoTracking()
+            .Where(r => r.Order.OrderItems.Any(oi => oi.Product.SellerId == sellerId) &&
                   r.CreatedAt >= startDate && r.CreatedAt <= endDate)
-            .ToListAsync();
-        var totalReturns = returns.Count;
+            .CountAsync();
+
         var returnRate = totalOrders > 0 ? (decimal)totalReturns / totalOrders * 100 : 0;
-        var totalRefunds = returns.Where(r => r.Status == "Approved").Sum(r => r.RefundAmount);
+
+        var totalRefunds = await _context.Set<ReturnRequest>()
+            .AsNoTracking()
+            .Where(r => r.Order.OrderItems.Any(oi => oi.Product.SellerId == sellerId) &&
+                  r.CreatedAt >= startDate && r.CreatedAt <= endDate &&
+                  r.Status == "Approved")
+            .SumAsync(r => r.RefundAmount);
+
         var refundRate = totalSales > 0 ? (totalRefunds / totalSales) * 100 : 0;
 
+        // ✅ PERFORMANCE: AsNoTracking eklendi
         // Conversion metrics (simplified - would need view tracking)
         var productViews = await _context.Set<UserActivityLog>()
+            .AsNoTracking()
             .Where(a => a.ActivityType == "ProductView" && 
                   a.CreatedAt >= startDate && a.CreatedAt <= endDate &&
                   a.EntityType == "Product")
-            .Join(_context.Products.Where(p => p.SellerId == sellerId),
+            .Join(_context.Products.AsNoTracking().Where(p => p.SellerId == sellerId),
                   activity => activity.EntityId,
                   product => product.Id,
                   (activity, product) => activity)
             .CountAsync();
         var addToCarts = await _context.CartItems
+            .AsNoTracking()
             .Include(ci => ci.Product)
             .Where(ci => ci.Product.SellerId == sellerId &&
                   ci.CreatedAt >= startDate && ci.CreatedAt <= endDate)
@@ -316,8 +389,13 @@ public class SellerDashboardService : ISellerDashboardService
         var conversionRate = productViews > 0 ? (decimal)totalOrders / productViews * 100 : 0;
         var cartAbandonmentRate = addToCarts > 0 ? ((decimal)(addToCarts - totalOrders) / addToCarts) * 100 : 0;
 
+        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Category performance
-        var categoryPerformance = sellerOrders
+        var categoryPerformance = await _context.Orders
+            .AsNoTracking()
+            .Where(o => o.PaymentStatus == "Paid" &&
+                  o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
+                  o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
             .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId))
             .GroupBy(oi => new { oi.Product.CategoryId, CategoryName = oi.Product.Category.Name })
             .Select(g => new CategoryPerformanceDto
@@ -330,25 +408,37 @@ public class SellerDashboardService : ISellerDashboardService
                 AverageRating = 0 // Would need to calculate from reviews
             })
             .OrderByDescending(c => c.Revenue)
-            .ToList();
+            .ToListAsync();
 
+        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Sales trends
-        var salesTrends = sellerOrders
+        var salesTrends = await _context.Orders
+            .AsNoTracking()
+            .Where(o => o.PaymentStatus == "Paid" &&
+                  o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
+                  o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
             .GroupBy(o => o.CreatedAt.Date)
             .Select(g => new SalesTrendDto
             {
                 Date = g.Key,
-                Sales = g.Sum(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId).Sum(oi => oi.TotalPrice)),
+                Sales = g.SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId))
+                    .Sum(oi => oi.TotalPrice),
                 OrderCount = g.Count(),
                 AverageOrderValue = g.Count() > 0 
-                    ? g.Sum(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId).Sum(oi => oi.TotalPrice)) / g.Count()
+                    ? g.SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId))
+                        .Sum(oi => oi.TotalPrice) / g.Count()
                     : 0
             })
             .OrderBy(t => t.Date)
-            .ToList();
+            .ToListAsync();
 
+        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Order trends
-        var orderTrends = sellerOrders
+        var orderTrends = await _context.Orders
+            .AsNoTracking()
+            .Where(o => o.PaymentStatus == "Paid" &&
+                  o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
+                  o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
             .GroupBy(o => o.CreatedAt.Date)
             .Select(g => new OrderTrendDto
             {
@@ -358,12 +448,14 @@ public class SellerDashboardService : ISellerDashboardService
                 CancelledOrders = g.Count(o => o.Status == "Cancelled")
             })
             .OrderBy(t => t.Date)
-            .ToList();
+            .ToListAsync();
 
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // Top/Worst products
         var topProducts = await _context.OrderItems
+            .AsNoTracking()
             .Include(oi => oi.Product)
-            .Where(oi => !oi.Order.IsDeleted && oi.Order.PaymentStatus == "Paid" &&
+            .Where(oi => oi.Order.PaymentStatus == "Paid" &&
                   oi.Order.CreatedAt >= startDate && oi.Order.CreatedAt <= endDate &&
                   oi.Product.SellerId == sellerId)
             .GroupBy(oi => new { oi.ProductId, oi.Product.Name })
@@ -379,8 +471,9 @@ public class SellerDashboardService : ISellerDashboardService
             .ToListAsync();
 
         var worstProducts = await _context.OrderItems
+            .AsNoTracking()
             .Include(oi => oi.Product)
-            .Where(oi => !oi.Order.IsDeleted && oi.Order.PaymentStatus == "Paid" &&
+            .Where(oi => oi.Order.PaymentStatus == "Paid" &&
                   oi.Order.CreatedAt >= startDate && oi.Order.CreatedAt <= endDate &&
                   oi.Product.SellerId == sellerId)
             .GroupBy(oi => new { oi.ProductId, oi.Product.Name })
@@ -443,16 +536,12 @@ public class SellerDashboardService : ISellerDashboardService
         startDate ??= DateTime.UtcNow.AddDays(-30);
         endDate ??= DateTime.UtcNow;
 
-        var orders = await _context.Orders
-            .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Product)
-                    .ThenInclude(p => p.Category)
-            .Where(o => !o.IsDeleted && o.PaymentStatus == "Paid" &&
+        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
+        return await _context.Orders
+            .AsNoTracking()
+            .Where(o => o.PaymentStatus == "Paid" &&
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
-            .ToListAsync();
-
-        return orders
             .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId))
             .GroupBy(oi => new { oi.Product.CategoryId, CategoryName = oi.Product.Category.Name })
             .Select(g => new CategoryPerformanceDto
@@ -465,7 +554,7 @@ public class SellerDashboardService : ISellerDashboardService
                 AverageRating = 0
             })
             .OrderByDescending(c => c.Revenue)
-            .ToList();
+            .ToListAsync();
     }
 }
 

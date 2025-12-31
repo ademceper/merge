@@ -32,7 +32,6 @@ public class GlobalExceptionHandlerMiddleware
         var code = HttpStatusCode.InternalServerError;
         var message = "Bir hata oluştu.";
 
-        // Exception tipine göre HTTP status code belirle
         switch (exception)
         {
             case ArgumentNullException:
@@ -54,7 +53,6 @@ public class GlobalExceptionHandlerMiddleware
                 message = exception.Message;
                 break;
             default:
-                // Genel Exception'lar için mesajı kontrol et
                 if (exception.Message.Contains("bulunamadı") || exception.Message.Contains("not found"))
                 {
                     code = HttpStatusCode.NotFound;

@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces.User;
@@ -19,12 +20,14 @@ public class SellerCommissionService : ISellerCommissionService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
+    private readonly IMapper _mapper;
 
-    public SellerCommissionService(ApplicationDbContext context, IUnitOfWork unitOfWork, IEmailService emailService)
+    public SellerCommissionService(ApplicationDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, IMapper mapper)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _emailService = emailService;
+        _mapper = mapper;
     }
 
     public async Task<SellerCommissionDto> CalculateAndRecordCommissionAsync(Guid orderId, Guid orderItemId)
@@ -46,18 +49,26 @@ public class SellerCommissionService : ISellerCommissionService
 
         var sellerId = orderItem.Product.SellerId.Value;
 
+        // ✅ PERFORMANCE: Removed manual !sc.IsDeleted (Global Query Filter)
         // Check if commission already exists
         var existing = await _context.Set<SellerCommission>()
-            .FirstOrDefaultAsync(sc => sc.OrderItemId == orderItemId && !sc.IsDeleted);
+            .AsNoTracking()
+            .Include(sc => sc.Seller)
+            .Include(sc => sc.Order)
+            .Include(sc => sc.OrderItem)
+            .FirstOrDefaultAsync(sc => sc.OrderItemId == orderItemId);
 
         if (existing != null)
         {
-            return await MapToDto(existing);
+            // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+            return _mapper.Map<SellerCommissionDto>(existing);
         }
 
+        // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         // Get seller settings
         var settings = await _context.Set<SellerCommissionSettings>()
-            .FirstOrDefaultAsync(s => s.SellerId == sellerId && !s.IsDeleted);
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.SellerId == sellerId);
 
         decimal commissionRate;
         decimal platformFeeRate = 0;
@@ -68,9 +79,10 @@ public class SellerCommissionService : ISellerCommissionService
         }
         else
         {
+            // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
             // Calculate total sales for tier determination
             var totalSales = await _context.Set<OrderEntity>()
-                .Where(o => o.OrderItems.Any(i => i.Product.SellerId == sellerId) && o.PaymentStatus == "Paid" && !o.IsDeleted)
+                .Where(o => o.OrderItems.Any(i => i.Product.SellerId == sellerId) && o.PaymentStatus == "Paid")
                 .SumAsync(o => o.TotalAmount);
 
             var tier = await GetTierForSalesAsync(totalSales);
@@ -107,27 +119,41 @@ public class SellerCommissionService : ISellerCommissionService
         await _context.Set<SellerCommission>().AddAsync(commission);
         await _unitOfWork.SaveChangesAsync();
 
-        return await MapToDto(commission);
+        // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
+        commission = await _context.Set<SellerCommission>()
+            .AsNoTracking()
+            .Include(sc => sc.Seller)
+            .Include(sc => sc.Order)
+            .Include(sc => sc.OrderItem)
+            .FirstOrDefaultAsync(sc => sc.Id == commission.Id);
+
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return _mapper.Map<SellerCommissionDto>(commission!);
     }
 
     public async Task<SellerCommissionDto?> GetCommissionAsync(Guid commissionId)
     {
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !sc.IsDeleted (Global Query Filter)
         var commission = await _context.Set<SellerCommission>()
+            .AsNoTracking()
             .Include(sc => sc.Seller)
             .Include(sc => sc.Order)
             .Include(sc => sc.OrderItem)
-            .FirstOrDefaultAsync(sc => sc.Id == commissionId && !sc.IsDeleted);
+            .FirstOrDefaultAsync(sc => sc.Id == commissionId);
 
-        return commission != null ? await MapToDto(commission) : null;
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return commission != null ? _mapper.Map<SellerCommissionDto>(commission) : null;
     }
 
     public async Task<IEnumerable<SellerCommissionDto>> GetSellerCommissionsAsync(Guid sellerId, string? status = null)
     {
-        var query = _context.Set<SellerCommission>()
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !sc.IsDeleted (Global Query Filter)
+        IQueryable<SellerCommission> query = _context.Set<SellerCommission>()
+            .AsNoTracking()
             .Include(sc => sc.Seller)
             .Include(sc => sc.Order)
             .Include(sc => sc.OrderItem)
-            .Where(sc => sc.SellerId == sellerId && !sc.IsDeleted);
+            .Where(sc => sc.SellerId == sellerId);
 
         if (!string.IsNullOrEmpty(status))
         {
@@ -139,22 +165,18 @@ public class SellerCommissionService : ISellerCommissionService
             .OrderByDescending(sc => sc.CreatedAt)
             .ToListAsync();
 
-        var dtos = new List<SellerCommissionDto>();
-        foreach (var commission in commissions)
-        {
-            dtos.Add(await MapToDto(commission));
-        }
-
-        return dtos;
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return _mapper.Map<IEnumerable<SellerCommissionDto>>(commissions);
     }
 
     public async Task<IEnumerable<SellerCommissionDto>> GetAllCommissionsAsync(string? status = null, int page = 1, int pageSize = 20)
     {
-        var query = _context.Set<SellerCommission>()
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !sc.IsDeleted (Global Query Filter)
+        IQueryable<SellerCommission> query = _context.Set<SellerCommission>()
+            .AsNoTracking()
             .Include(sc => sc.Seller)
             .Include(sc => sc.Order)
-            .Include(sc => sc.OrderItem)
-            .Where(sc => !sc.IsDeleted);
+            .Include(sc => sc.OrderItem);
 
         if (!string.IsNullOrEmpty(status))
         {
@@ -168,19 +190,15 @@ public class SellerCommissionService : ISellerCommissionService
             .Take(pageSize)
             .ToListAsync();
 
-        var dtos = new List<SellerCommissionDto>();
-        foreach (var commission in commissions)
-        {
-            dtos.Add(await MapToDto(commission));
-        }
-
-        return dtos;
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return _mapper.Map<IEnumerable<SellerCommissionDto>>(commissions);
     }
 
     public async Task<bool> ApproveCommissionAsync(Guid commissionId)
     {
+        // ✅ PERFORMANCE: Removed manual !sc.IsDeleted (Global Query Filter)
         var commission = await _context.Set<SellerCommission>()
-            .FirstOrDefaultAsync(sc => sc.Id == commissionId && !sc.IsDeleted);
+            .FirstOrDefaultAsync(sc => sc.Id == commissionId);
 
         if (commission == null) return false;
 
@@ -194,8 +212,9 @@ public class SellerCommissionService : ISellerCommissionService
 
     public async Task<bool> CancelCommissionAsync(Guid commissionId)
     {
+        // ✅ PERFORMANCE: Removed manual !sc.IsDeleted (Global Query Filter)
         var commission = await _context.Set<SellerCommission>()
-            .FirstOrDefaultAsync(sc => sc.Id == commissionId && !sc.IsDeleted);
+            .FirstOrDefaultAsync(sc => sc.Id == commissionId);
 
         if (commission == null) return false;
 
@@ -236,50 +255,35 @@ public class SellerCommissionService : ISellerCommissionService
 
     public async Task<IEnumerable<CommissionTierDto>> GetAllTiersAsync()
     {
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var tiers = await _context.Set<CommissionTier>()
-            .Where(t => !t.IsDeleted && t.IsActive)
+            .AsNoTracking()
+            .Where(t => t.IsActive)
             .OrderBy(t => t.Priority)
             .ToListAsync();
 
-        return tiers.Select(t => new CommissionTierDto
-        {
-            Id = t.Id,
-            Name = t.Name,
-            MinSales = t.MinSales,
-            MaxSales = t.MaxSales,
-            CommissionRate = t.CommissionRate,
-            PlatformFeeRate = t.PlatformFeeRate,
-            IsActive = t.IsActive,
-            Priority = t.Priority
-        });
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return _mapper.Map<IEnumerable<CommissionTierDto>>(tiers);
     }
 
     public async Task<CommissionTierDto?> GetTierForSalesAsync(decimal totalSales)
     {
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var tier = await _context.Set<CommissionTier>()
-            .Where(t => !t.IsDeleted && t.IsActive && t.MinSales <= totalSales && t.MaxSales >= totalSales)
+            .AsNoTracking()
+            .Where(t => t.IsActive && t.MinSales <= totalSales && t.MaxSales >= totalSales)
             .OrderBy(t => t.Priority)
             .FirstOrDefaultAsync();
 
-        if (tier == null) return null;
-
-        return new CommissionTierDto
-        {
-            Id = tier.Id,
-            Name = tier.Name,
-            MinSales = tier.MinSales,
-            MaxSales = tier.MaxSales,
-            CommissionRate = tier.CommissionRate,
-            PlatformFeeRate = tier.PlatformFeeRate,
-            IsActive = tier.IsActive,
-            Priority = tier.Priority
-        };
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return tier != null ? _mapper.Map<CommissionTierDto>(tier) : null;
     }
 
     public async Task<bool> UpdateTierAsync(Guid tierId, CreateCommissionTierDto dto)
     {
+        // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var tier = await _context.Set<CommissionTier>()
-            .FirstOrDefaultAsync(t => t.Id == tierId && !t.IsDeleted);
+            .FirstOrDefaultAsync(t => t.Id == tierId);
 
         if (tier == null) return false;
 
@@ -297,8 +301,9 @@ public class SellerCommissionService : ISellerCommissionService
 
     public async Task<bool> DeleteTierAsync(Guid tierId)
     {
+        // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var tier = await _context.Set<CommissionTier>()
-            .FirstOrDefaultAsync(t => t.Id == tierId && !t.IsDeleted);
+            .FirstOrDefaultAsync(t => t.Id == tierId);
 
         if (tier == null) return false;
 
@@ -311,26 +316,20 @@ public class SellerCommissionService : ISellerCommissionService
 
     public async Task<SellerCommissionSettingsDto?> GetSellerSettingsAsync(Guid sellerId)
     {
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
         var settings = await _context.Set<SellerCommissionSettings>()
-            .FirstOrDefaultAsync(s => s.SellerId == sellerId && !s.IsDeleted);
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.SellerId == sellerId);
 
-        if (settings == null) return null;
-
-        return new SellerCommissionSettingsDto
-        {
-            SellerId = settings.SellerId,
-            CustomCommissionRate = settings.CustomCommissionRate,
-            UseCustomRate = settings.UseCustomRate,
-            MinimumPayoutAmount = settings.MinimumPayoutAmount,
-            PaymentMethod = settings.PaymentMethod,
-            PaymentDetails = settings.PaymentDetails
-        };
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return settings != null ? _mapper.Map<SellerCommissionSettingsDto>(settings) : null;
     }
 
     public async Task<SellerCommissionSettingsDto> UpdateSellerSettingsAsync(Guid sellerId, UpdateCommissionSettingsDto dto)
     {
+        // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         var settings = await _context.Set<SellerCommissionSettings>()
-            .FirstOrDefaultAsync(s => s.SellerId == sellerId && !s.IsDeleted);
+            .FirstOrDefaultAsync(s => s.SellerId == sellerId);
 
         if (settings == null)
         {
@@ -358,33 +357,34 @@ public class SellerCommissionService : ISellerCommissionService
 
         await _unitOfWork.SaveChangesAsync();
 
-        return new SellerCommissionSettingsDto
-        {
-            SellerId = settings.SellerId,
-            CustomCommissionRate = settings.CustomCommissionRate,
-            UseCustomRate = settings.UseCustomRate,
-            MinimumPayoutAmount = settings.MinimumPayoutAmount,
-            PaymentMethod = settings.PaymentMethod,
-            PaymentDetails = settings.PaymentDetails
-        };
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return _mapper.Map<SellerCommissionSettingsDto>(settings);
     }
 
     public async Task<CommissionPayoutDto> RequestPayoutAsync(Guid sellerId, RequestPayoutDto dto)
     {
+        // ✅ PERFORMANCE: Removed manual !sc.IsDeleted (Global Query Filter)
         var commissions = await _context.Set<SellerCommission>()
-            .Where(sc => dto.CommissionIds.Contains(sc.Id) && sc.SellerId == sellerId && !sc.IsDeleted)
+            .AsNoTracking()
+            .Where(sc => dto.CommissionIds.Contains(sc.Id) && sc.SellerId == sellerId)
             .Where(sc => sc.Status == CommissionStatus.Approved)
             .ToListAsync();
 
-        if (!commissions.Any())
+        if (commissions.Count == 0)
         {
             throw new BusinessException("Onaylanmış komisyon bulunamadı.");
         }
 
+        // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         var settings = await _context.Set<SellerCommissionSettings>()
-            .FirstOrDefaultAsync(s => s.SellerId == sellerId && !s.IsDeleted);
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.SellerId == sellerId);
 
-        var totalAmount = commissions.Sum(c => c.NetAmount);
+        // ✅ PERFORMANCE: Database'de sum yap (memory'de işlem YASAK)
+        var totalAmount = await _context.Set<SellerCommission>()
+            .AsNoTracking()
+            .Where(sc => dto.CommissionIds.Contains(sc.Id) && sc.SellerId == sellerId && sc.Status == CommissionStatus.Approved)
+            .SumAsync(c => c.NetAmount);
 
         if (settings != null && totalAmount < settings.MinimumPayoutAmount)
         {
@@ -428,47 +428,60 @@ public class SellerCommissionService : ISellerCommissionService
 
         await _unitOfWork.SaveChangesAsync();
 
-        return await MapPayoutToDto(payout);
-    }
-
-    public async Task<CommissionPayoutDto?> GetPayoutAsync(Guid payoutId)
-    {
-        var payout = await _context.Set<CommissionPayout>()
+        // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
+        payout = await _context.Set<CommissionPayout>()
+            .AsNoTracking()
             .Include(p => p.Seller)
             .Include(p => p.Items)
                 .ThenInclude(i => i.Commission)
                     .ThenInclude(c => c.Order)
-            .FirstOrDefaultAsync(p => p.Id == payoutId && !p.IsDeleted);
+            .FirstOrDefaultAsync(p => p.Id == payout.Id);
 
-        return payout != null ? await MapPayoutToDto(payout) : null;
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return _mapper.Map<CommissionPayoutDto>(payout!);
+    }
+
+    public async Task<CommissionPayoutDto?> GetPayoutAsync(Guid payoutId)
+    {
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
+        var payout = await _context.Set<CommissionPayout>()
+            .AsNoTracking()
+            .Include(p => p.Seller)
+            .Include(p => p.Items)
+                .ThenInclude(i => i.Commission)
+                    .ThenInclude(c => c.Order)
+            .FirstOrDefaultAsync(p => p.Id == payoutId);
+
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return payout != null ? _mapper.Map<CommissionPayoutDto>(payout) : null;
     }
 
     public async Task<IEnumerable<CommissionPayoutDto>> GetSellerPayoutsAsync(Guid sellerId)
     {
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var payouts = await _context.Set<CommissionPayout>()
+            .AsNoTracking()
             .Include(p => p.Seller)
             .Include(p => p.Items)
                 .ThenInclude(i => i.Commission)
-            .Where(p => p.SellerId == sellerId && !p.IsDeleted)
+                    .ThenInclude(c => c.Order)
+            .Where(p => p.SellerId == sellerId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
 
-        var dtos = new List<CommissionPayoutDto>();
-        foreach (var payout in payouts)
-        {
-            dtos.Add(await MapPayoutToDto(payout));
-        }
-
-        return dtos;
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return _mapper.Map<IEnumerable<CommissionPayoutDto>>(payouts);
     }
 
     public async Task<IEnumerable<CommissionPayoutDto>> GetAllPayoutsAsync(string? status = null, int page = 1, int pageSize = 20)
     {
-        var query = _context.Set<CommissionPayout>()
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
+        IQueryable<CommissionPayout> query = _context.Set<CommissionPayout>()
+            .AsNoTracking()
             .Include(p => p.Seller)
             .Include(p => p.Items)
                 .ThenInclude(i => i.Commission)
-            .Where(p => !p.IsDeleted);
+                    .ThenInclude(c => c.Order);
 
         if (!string.IsNullOrEmpty(status))
         {
@@ -482,19 +495,15 @@ public class SellerCommissionService : ISellerCommissionService
             .Take(pageSize)
             .ToListAsync();
 
-        var dtos = new List<CommissionPayoutDto>();
-        foreach (var payout in payouts)
-        {
-            dtos.Add(await MapPayoutToDto(payout));
-        }
-
-        return dtos;
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return _mapper.Map<IEnumerable<CommissionPayoutDto>>(payouts);
     }
 
     public async Task<bool> ProcessPayoutAsync(Guid payoutId, string transactionReference)
     {
+        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var payout = await _context.Set<CommissionPayout>()
-            .FirstOrDefaultAsync(p => p.Id == payoutId && !p.IsDeleted);
+            .FirstOrDefaultAsync(p => p.Id == payoutId);
 
         if (payout == null) return false;
 
@@ -509,9 +518,10 @@ public class SellerCommissionService : ISellerCommissionService
 
     public async Task<bool> CompletePayoutAsync(Guid payoutId)
     {
+        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var payout = await _context.Set<CommissionPayout>()
             .Include(p => p.Seller)
-            .FirstOrDefaultAsync(p => p.Id == payoutId && !p.IsDeleted);
+            .FirstOrDefaultAsync(p => p.Id == payoutId);
 
         if (payout == null) return false;
 
@@ -532,10 +542,11 @@ public class SellerCommissionService : ISellerCommissionService
 
     public async Task<bool> FailPayoutAsync(Guid payoutId, string reason)
     {
+        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var payout = await _context.Set<CommissionPayout>()
             .Include(p => p.Items)
                 .ThenInclude(i => i.Commission)
-            .FirstOrDefaultAsync(p => p.Id == payoutId && !p.IsDeleted);
+            .FirstOrDefaultAsync(p => p.Id == payoutId);
 
         if (payout == null) return false;
 
@@ -560,46 +571,60 @@ public class SellerCommissionService : ISellerCommissionService
 
     public async Task<CommissionStatsDto> GetCommissionStatsAsync(Guid? sellerId = null)
     {
-        var query = _context.Set<SellerCommission>()
-            .Where(sc => !sc.IsDeleted);
+        // ✅ PERFORMANCE: Removed manual !sc.IsDeleted (Global Query Filter)
+        IQueryable<SellerCommission> query = _context.Set<SellerCommission>()
+            .AsNoTracking();
 
         if (sellerId.HasValue)
         {
             query = query.Where(sc => sc.SellerId == sellerId.Value);
         }
 
-        var commissions = await query.ToListAsync();
+        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
+        var now = DateTime.UtcNow.AddMonths(-12);
+        
+        var totalCommissions = await query.CountAsync();
+        var totalEarnings = await query.SumAsync(c => c.CommissionAmount);
+        var pendingCommissions = await query.Where(c => c.Status == CommissionStatus.Pending).SumAsync(c => c.NetAmount);
+        var approvedCommissions = await query.Where(c => c.Status == CommissionStatus.Approved).SumAsync(c => c.NetAmount);
+        var paidCommissions = await query.Where(c => c.Status == CommissionStatus.Paid).SumAsync(c => c.NetAmount);
+        var averageCommissionRate = totalCommissions > 0 ? await query.AverageAsync(c => c.CommissionRate) : 0;
+        var totalPlatformFees = await query.SumAsync(c => c.PlatformFee);
 
-        var now = DateTime.UtcNow;
-        var commissionsByMonth = commissions
-            .Where(c => c.CreatedAt >= now.AddMonths(-12))
+        // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
+        var commissionsByMonth = await query
+            .Where(c => c.CreatedAt >= now)
             .GroupBy(c => c.CreatedAt.ToString("yyyy-MM"))
-            .ToDictionary(g => g.Key, g => g.Sum(c => c.NetAmount));
+            .Select(g => new { Key = g.Key, Value = g.Sum(c => c.NetAmount) })
+            .ToDictionaryAsync(x => x.Key, x => x.Value);
 
         return new CommissionStatsDto
         {
-            TotalCommissions = commissions.Count,
-            TotalEarnings = commissions.Sum(c => c.CommissionAmount),
-            PendingCommissions = commissions.Where(c => c.Status == CommissionStatus.Pending).Sum(c => c.NetAmount),
-            ApprovedCommissions = commissions.Where(c => c.Status == CommissionStatus.Approved).Sum(c => c.NetAmount),
-            PaidCommissions = commissions.Where(c => c.Status == CommissionStatus.Paid).Sum(c => c.NetAmount),
-            AvailableForPayout = commissions.Where(c => c.Status == CommissionStatus.Approved).Sum(c => c.NetAmount),
-            AverageCommissionRate = commissions.Any() ? commissions.Average(c => c.CommissionRate) : 0,
-            TotalPlatformFees = commissions.Sum(c => c.PlatformFee),
+            TotalCommissions = totalCommissions,
+            TotalEarnings = totalEarnings,
+            PendingCommissions = pendingCommissions,
+            ApprovedCommissions = approvedCommissions,
+            PaidCommissions = paidCommissions,
+            AvailableForPayout = approvedCommissions,
+            AverageCommissionRate = averageCommissionRate,
+            TotalPlatformFees = totalPlatformFees,
             CommissionsByMonth = commissionsByMonth
         };
     }
 
     public async Task<decimal> GetAvailablePayoutAmountAsync(Guid sellerId)
     {
+        // ✅ PERFORMANCE: Removed manual !sc.IsDeleted (Global Query Filter)
         return await _context.Set<SellerCommission>()
-            .Where(sc => sc.SellerId == sellerId && !sc.IsDeleted && sc.Status == CommissionStatus.Approved)
+            .AsNoTracking()
+            .Where(sc => sc.SellerId == sellerId && sc.Status == CommissionStatus.Approved)
             .SumAsync(sc => sc.NetAmount);
     }
 
     private async Task<string> GeneratePayoutNumberAsync()
     {
         var lastPayout = await _context.Set<CommissionPayout>()
+            .AsNoTracking()
             .OrderByDescending(p => p.CreatedAt)
             .FirstOrDefaultAsync();
 
@@ -614,70 +639,5 @@ public class SellerCommissionService : ISellerCommissionService
         }
 
         return $"PAY-{nextNumber:D6}";
-    }
-
-    private async Task<SellerCommissionDto> MapToDto(SellerCommission commission)
-    {
-        var seller = commission.Seller ?? await _context.Set<UserEntity>()
-            .FirstOrDefaultAsync(u => u.Id == commission.SellerId);
-
-        var order = commission.Order ?? await _context.Set<OrderEntity>()
-            .FirstOrDefaultAsync(o => o.Id == commission.OrderId);
-
-        return new SellerCommissionDto
-        {
-            Id = commission.Id,
-            SellerId = commission.SellerId,
-            SellerName = seller != null ? $"{seller.FirstName} {seller.LastName}" : "Unknown",
-            OrderId = commission.OrderId,
-            OrderNumber = order?.OrderNumber ?? "Unknown",
-            OrderAmount = commission.OrderAmount,
-            CommissionRate = commission.CommissionRate,
-            CommissionAmount = commission.CommissionAmount,
-            PlatformFee = commission.PlatformFee,
-            NetAmount = commission.NetAmount,
-            Status = commission.Status.ToString(),
-            ApprovedAt = commission.ApprovedAt,
-            PaidAt = commission.PaidAt,
-            PaymentReference = commission.PaymentReference,
-            CreatedAt = commission.CreatedAt
-        };
-    }
-
-    private async Task<CommissionPayoutDto> MapPayoutToDto(CommissionPayout payout)
-    {
-        var seller = payout.Seller ?? await _context.Set<UserEntity>()
-            .FirstOrDefaultAsync(u => u.Id == payout.SellerId);
-
-        var commissions = new List<SellerCommissionDto>();
-        if (payout.Items != null)
-        {
-            foreach (var item in payout.Items.Where(i => !i.IsDeleted))
-            {
-                if (item.Commission != null)
-                {
-                    commissions.Add(await MapToDto(item.Commission));
-                }
-            }
-        }
-
-        return new CommissionPayoutDto
-        {
-            Id = payout.Id,
-            SellerId = payout.SellerId,
-            SellerName = seller != null ? $"{seller.FirstName} {seller.LastName}" : "Unknown",
-            PayoutNumber = payout.PayoutNumber,
-            TotalAmount = payout.TotalAmount,
-            TransactionFee = payout.TransactionFee,
-            NetAmount = payout.NetAmount,
-            Status = payout.Status.ToString(),
-            PaymentMethod = payout.PaymentMethod,
-            TransactionReference = payout.TransactionReference,
-            ProcessedAt = payout.ProcessedAt,
-            CompletedAt = payout.CompletedAt,
-            Notes = payout.Notes,
-            CreatedAt = payout.CreatedAt,
-            Commissions = commissions
-        };
     }
 }

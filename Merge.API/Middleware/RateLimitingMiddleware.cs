@@ -30,10 +30,8 @@ public class RateLimitingMiddleware
             {
                 var now = DateTime.UtcNow;
 
-                // Clean up old requests
                 requestInfo.RequestTimes.RemoveAll(t => now - t > rateLimitAttribute.TimeWindow);
 
-                // Check if limit is exceeded
                 if (requestInfo.RequestTimes.Count >= rateLimitAttribute.MaxRequests)
                 {
                     rateLimitExceeded = true;
@@ -69,21 +67,18 @@ public class RateLimitingMiddleware
 
     private string GetClientIdentifier(HttpContext context)
     {
-        // Try to get user ID from claims
         var userId = context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (!string.IsNullOrEmpty(userId))
         {
             return $"user_{userId}";
         }
 
-        // Fallback to IP address
         var ipAddress = context.Connection.RemoteIpAddress?.ToString();
         if (!string.IsNullOrEmpty(ipAddress))
         {
             return $"ip_{ipAddress}";
         }
 
-        // Last resort: session ID or random
         return $"session_{context.Session?.Id ?? Guid.NewGuid().ToString()}";
     }
 }

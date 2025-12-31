@@ -766,6 +766,50 @@ public class MappingProfile : Profile
                     ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Metadata)
                     : null;
             });
+
+        // Seller domain mappings
+        CreateMap<SellerTransaction, SellerTransactionDto>();
+
+        CreateMap<SellerInvoice, SellerInvoiceDto>()
+            .ForMember(dest => dest.SellerName, opt => opt.MapFrom(src => 
+                src.Seller != null ? $"{src.Seller.FirstName} {src.Seller.LastName}" : string.Empty))
+            .AfterMap((src, dest) =>
+            {
+                dest.Items = !string.IsNullOrEmpty(src.InvoiceData)
+                    ? JsonSerializer.Deserialize<List<InvoiceItemDto>>(src.InvoiceData)
+                    : new List<InvoiceItemDto>();
+            });
+
+        CreateMap<SellerCommission, SellerCommissionDto>()
+            .ForMember(dest => dest.SellerName, opt => opt.MapFrom(src => 
+                src.Seller != null ? $"{src.Seller.FirstName} {src.Seller.LastName}" : "Unknown"))
+            .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => 
+                src.Order != null ? src.Order.OrderNumber : "Unknown"))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
+
+        CreateMap<CommissionPayout, CommissionPayoutDto>()
+            .ForMember(dest => dest.SellerName, opt => opt.MapFrom(src => 
+                src.Seller != null ? $"{src.Seller.FirstName} {src.Seller.LastName}" : "Unknown"))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+            .ForMember(dest => dest.Commissions, opt => opt.MapFrom(src => 
+                src.Items != null && src.Items.Any() 
+                    ? src.Items.Where(i => !i.IsDeleted && i.Commission != null).Select(i => i.Commission!)
+                    : new List<SellerCommission>()));
+
+        CreateMap<CommissionTier, CommissionTierDto>();
+
+        CreateMap<SellerCommissionSettings, SellerCommissionSettingsDto>();
+
+        CreateMap<Store, StoreDto>()
+            .ForMember(dest => dest.SellerName, opt => opt.MapFrom(src => 
+                src.Seller != null ? $"{src.Seller.FirstName} {src.Seller.LastName}" : string.Empty))
+            .ForMember(dest => dest.ProductCount, opt => opt.Ignore()) // Will be set in StoreService after batch loading
+            .AfterMap((src, dest) =>
+            {
+                dest.Settings = !string.IsNullOrEmpty(src.Settings)
+                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Settings)
+                    : null;
+            });
     }
 }
 

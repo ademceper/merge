@@ -16,7 +16,6 @@ public class IpWhitelistMiddleware
         _next = next;
         _logger = logger;
 
-        // Get allowed IPs from configuration
         var allowedIPs = configuration.GetSection("Security:AllowedIPs").Get<string[]>() ?? Array.Empty<string>();
         _allowedIPs = new HashSet<string>(allowedIPs);
     }
@@ -50,7 +49,6 @@ public class IpWhitelistMiddleware
 
     private bool IsIpAllowed(IPAddress ipAddress)
     {
-        // If no whitelist configured, allow all (dev mode)
         if (_allowedIPs.Count == 0)
         {
             return true;
@@ -58,19 +56,15 @@ public class IpWhitelistMiddleware
 
         var ipString = ipAddress.ToString();
 
-        // Check for exact match
         if (_allowedIPs.Contains(ipString))
         {
             return true;
         }
 
-        // Check for localhost
         if (IPAddress.IsLoopback(ipAddress))
         {
             return true;
         }
-
-        // Check for CIDR ranges (simplified, you can use a library for full CIDR support)
         foreach (var allowedIp in _allowedIPs)
         {
             if (allowedIp.Contains("/"))
