@@ -1,0 +1,152 @@
+using AutoMapper;
+using CartEntity = Merge.Domain.Entities.Cart;
+using Microsoft.EntityFrameworkCore;
+using Merge.Application.Interfaces.Cart;
+using Merge.Application.Exceptions;
+using Merge.Domain.Entities;
+using Merge.Infrastructure.Data;
+using Merge.Infrastructure.Repositories;
+using ProductEntity = Merge.Domain.Entities.Product;
+using Merge.Application.DTOs.Product;
+using Microsoft.Extensions.Logging;
+
+
+namespace Merge.Application.Services.Cart;
+
+public class WishlistService : IWishlistService
+{
+    private readonly IRepository<Wishlist> _wishlistRepository;
+    private readonly IRepository<ProductEntity> _productRepository;
+    private readonly ApplicationDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
+    private readonly ILogger<WishlistService> _logger;
+
+    public WishlistService(
+        IRepository<Wishlist> wishlistRepository,
+        IRepository<ProductEntity> productRepository,
+        ApplicationDbContext context,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        ILogger<WishlistService> logger)
+    {
+        _wishlistRepository = wishlistRepository;
+        _productRepository = productRepository;
+        _context = context;
+        _unitOfWork = unitOfWork;
+        _mapper = mapper;
+        _logger = logger;
+    }
+
+    public async Task<IEnumerable<ProductDto>> GetWishlistAsync(Guid userId)
+    {
+        _logger.LogInformation("Retrieving wishlist for user {UserId}", userId);
+
+        // ✅ PERFORMANCE FIX: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE FIX: Removed manual !w.IsDeleted check (Global Query Filter handles it)
+        // ✅ PERFORMANCE FIX: Removed manual !p.IsDeleted check (Global Query Filter handles it)
+        var wishlistItems = await _context.Wishlists
+            .AsNoTracking()
+            .Include(w => w.Product)
+                .ThenInclude(p => p.Category)
+            .Where(w => w.UserId == userId)
+            .Select(w => w.Product)
+            .Where(p => p.IsActive)
+            .ToListAsync();
+
+        _logger.LogInformation("Retrieved {Count} items from wishlist for user {UserId}",
+            wishlistItems.Count, userId);
+
+        return _mapper.Map<IEnumerable<ProductDto>>(wishlistItems);
+    }
+
+    public async Task<bool> AddToWishlistAsync(Guid userId, Guid productId)
+    {
+        _logger.LogInformation("Adding product {ProductId} to wishlist for user {UserId}",
+            productId, userId);
+
+        // ✅ PERFORMANCE FIX: AsNoTracking for read-only check
+        // ✅ PERFORMANCE FIX: Removed manual !w.IsDeleted check (Global Query Filter handles it)
+        var existing = await _context.Wishlists
+            .AsNoTracking()
+            .FirstOrDefaultAsync(w => w.UserId == userId && w.ProductId == productId);
+
+        if (existing != null)
+        {
+            _logger.LogWarning(
+                "Product {ProductId} already exists in wishlist for user {UserId}",
+                productId, userId);
+            return false; // Zaten favorilerde
+        }
+
+        // ✅ PERFORMANCE: AsNoTracking for read-only product query
+        var product = await _context.Products
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == productId);
+        if (product == null || !product.IsActive)
+        {
+            _logger.LogWarning(
+                "Product {ProductId} not found or inactive for user {UserId}",
+                productId, userId);
+            throw new NotFoundException("Ürün", productId);
+        }
+
+        var wishlist = new Wishlist
+        {
+            UserId = userId,
+            ProductId = productId
+        };
+
+        await _wishlistRepository.AddAsync(wishlist);
+        await _unitOfWork.SaveChangesAsync(); // ✅ CRITICAL FIX: Explicit SaveChanges via UnitOfWork
+
+        _logger.LogInformation("Successfully added product {ProductId} to wishlist for user {UserId}",
+            productId, userId);
+
+        return true;
+    }
+
+    public async Task<bool> RemoveFromWishlistAsync(Guid userId, Guid productId)
+    {
+        _logger.LogInformation("Removing product {ProductId} from wishlist for user {UserId}",
+            productId, userId);
+
+        // ✅ PERFORMANCE FIX: Removed manual !w.IsDeleted check (Global Query Filter handles it)
+        var wishlist = await _context.Wishlists
+            .FirstOrDefaultAsync(w => w.UserId == userId && w.ProductId == productId);
+
+        if (wishlist == null)
+        {
+            _logger.LogWarning(
+                "Wishlist item not found for product {ProductId} and user {UserId}",
+                productId, userId);
+            return false;
+        }
+
+        await _wishlistRepository.DeleteAsync(wishlist);
+        await _unitOfWork.SaveChangesAsync(); // ✅ CRITICAL FIX: Explicit SaveChanges via UnitOfWork
+
+        _logger.LogInformation("Successfully removed product {ProductId} from wishlist for user {UserId}",
+            productId, userId);
+
+        return true;
+    }
+
+    public async Task<bool> IsInWishlistAsync(Guid userId, Guid productId)
+    {
+        _logger.LogDebug("Checking if product {ProductId} is in wishlist for user {UserId}",
+            productId, userId);
+
+        // ✅ PERFORMANCE FIX: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE FIX: Removed manual !w.IsDeleted check (Global Query Filter handles it)
+        var exists = await _context.Wishlists
+            .AsNoTracking()
+            .AnyAsync(w => w.UserId == userId && w.ProductId == productId);
+
+        _logger.LogDebug("Product {ProductId} exists in wishlist for user {UserId}: {Exists}",
+            productId, userId, exists);
+
+        return exists;
+    }
+}
+

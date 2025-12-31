@@ -1,0 +1,315 @@
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using PaymentEntity = Merge.Domain.Entities.Payment;
+using OrderEntity = Merge.Domain.Entities.Order;
+using Merge.Application.Interfaces.User;
+using Merge.Application.Interfaces.Payment;
+using Merge.Application.Exceptions;
+using Merge.Domain.Entities;
+using Merge.Infrastructure.Data;
+using Merge.Infrastructure.Repositories;
+using System.Text.Json;
+using Merge.Application.DTOs.Payment;
+
+
+namespace Merge.Application.Services.Payment;
+
+public class PaymentMethodService : IPaymentMethodService
+{
+    private readonly ApplicationDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
+
+    public PaymentMethodService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    {
+        _context = context;
+        _unitOfWork = unitOfWork;
+        _mapper = mapper;
+    }
+
+    public async Task<PaymentMethodDto> CreatePaymentMethodAsync(CreatePaymentMethodDto dto)
+    {
+        // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
+        // Check if code already exists
+        var existing = await _context.Set<PaymentMethod>()
+            .FirstOrDefaultAsync(pm => pm.Code == dto.Code);
+
+        if (existing != null)
+        {
+            throw new BusinessException($"Bu kod ile ödeme yöntemi zaten mevcut: '{dto.Code}'");
+        }
+
+        // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
+        // If this is default, unset other default methods
+        if (dto.IsDefault)
+        {
+            var existingDefault = await _context.Set<PaymentMethod>()
+                .Where(pm => pm.IsDefault)
+                .ToListAsync();
+
+            foreach (var method in existingDefault)
+            {
+                method.IsDefault = false;
+            }
+        }
+
+        var paymentMethod = new PaymentMethod
+        {
+            Name = dto.Name,
+            Code = dto.Code,
+            Description = dto.Description,
+            IconUrl = dto.IconUrl,
+            IsActive = dto.IsActive,
+            RequiresOnlinePayment = dto.RequiresOnlinePayment,
+            RequiresManualVerification = dto.RequiresManualVerification,
+            MinimumAmount = dto.MinimumAmount,
+            MaximumAmount = dto.MaximumAmount,
+            ProcessingFee = dto.ProcessingFee,
+            ProcessingFeePercentage = dto.ProcessingFeePercentage,
+            Settings = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null,
+            DisplayOrder = dto.DisplayOrder,
+            IsDefault = dto.IsDefault
+        };
+
+        await _context.Set<PaymentMethod>().AddAsync(paymentMethod);
+        await _unitOfWork.SaveChangesAsync();
+
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return _mapper.Map<PaymentMethodDto>(paymentMethod);
+    }
+
+    public async Task<PaymentMethodDto?> GetPaymentMethodByIdAsync(Guid id)
+    {
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !pm.IsDeleted (Global Query Filter)
+        var paymentMethod = await _context.Set<PaymentMethod>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(pm => pm.Id == id);
+
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return paymentMethod != null ? _mapper.Map<PaymentMethodDto>(paymentMethod) : null;
+    }
+
+    public async Task<PaymentMethodDto?> GetPaymentMethodByCodeAsync(string code)
+    {
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !pm.IsDeleted (Global Query Filter)
+        var paymentMethod = await _context.Set<PaymentMethod>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(pm => pm.Code == code && pm.IsActive);
+
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return paymentMethod != null ? _mapper.Map<PaymentMethodDto>(paymentMethod) : null;
+    }
+
+    public async Task<IEnumerable<PaymentMethodDto>> GetAllPaymentMethodsAsync(bool? isActive = null)
+    {
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !pm.IsDeleted (Global Query Filter)
+        var query = _context.Set<PaymentMethod>()
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(pm => pm.IsActive == isActive.Value);
+        }
+
+        var methods = await query
+            .OrderBy(pm => pm.DisplayOrder)
+            .ThenBy(pm => pm.Name)
+            .ToListAsync();
+
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        // ✅ PERFORMANCE: ToListAsync() sonrası Select(MapToDto) YASAK - AutoMapper kullan
+        return _mapper.Map<IEnumerable<PaymentMethodDto>>(methods);
+    }
+
+    public async Task<IEnumerable<PaymentMethodDto>> GetAvailablePaymentMethodsAsync(decimal orderAmount)
+    {
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !pm.IsDeleted (Global Query Filter)
+        var methods = await _context.Set<PaymentMethod>()
+            .AsNoTracking()
+            .Where(pm => pm.IsActive &&
+                  (!pm.MinimumAmount.HasValue || orderAmount >= pm.MinimumAmount.Value) &&
+                  (!pm.MaximumAmount.HasValue || orderAmount <= pm.MaximumAmount.Value))
+            .OrderBy(pm => pm.DisplayOrder)
+            .ThenBy(pm => pm.Name)
+            .ToListAsync();
+
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        // ✅ PERFORMANCE: ToListAsync() sonrası Select(MapToDto) YASAK - AutoMapper kullan
+        return _mapper.Map<IEnumerable<PaymentMethodDto>>(methods);
+    }
+
+    public async Task<bool> UpdatePaymentMethodAsync(Guid id, UpdatePaymentMethodDto dto)
+    {
+        // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
+        var paymentMethod = await _context.Set<PaymentMethod>()
+            .FirstOrDefaultAsync(pm => pm.Id == id);
+
+        if (paymentMethod == null) return false;
+
+        if (!string.IsNullOrEmpty(dto.Name))
+        {
+            paymentMethod.Name = dto.Name;
+        }
+
+        if (dto.Description != null)
+        {
+            paymentMethod.Description = dto.Description;
+        }
+
+        if (dto.IconUrl != null)
+        {
+            paymentMethod.IconUrl = dto.IconUrl;
+        }
+
+        if (dto.IsActive.HasValue)
+        {
+            paymentMethod.IsActive = dto.IsActive.Value;
+        }
+
+        if (dto.RequiresOnlinePayment.HasValue)
+        {
+            paymentMethod.RequiresOnlinePayment = dto.RequiresOnlinePayment.Value;
+        }
+
+        if (dto.RequiresManualVerification.HasValue)
+        {
+            paymentMethod.RequiresManualVerification = dto.RequiresManualVerification.Value;
+        }
+
+        if (dto.MinimumAmount.HasValue)
+        {
+            paymentMethod.MinimumAmount = dto.MinimumAmount.Value;
+        }
+
+        if (dto.MaximumAmount.HasValue)
+        {
+            paymentMethod.MaximumAmount = dto.MaximumAmount.Value;
+        }
+
+        if (dto.ProcessingFee.HasValue)
+        {
+            paymentMethod.ProcessingFee = dto.ProcessingFee.Value;
+        }
+
+        if (dto.ProcessingFeePercentage.HasValue)
+        {
+            paymentMethod.ProcessingFeePercentage = dto.ProcessingFeePercentage.Value;
+        }
+
+        if (dto.Settings != null)
+        {
+            paymentMethod.Settings = JsonSerializer.Serialize(dto.Settings);
+        }
+
+        if (dto.DisplayOrder.HasValue)
+        {
+            paymentMethod.DisplayOrder = dto.DisplayOrder.Value;
+        }
+
+        if (dto.IsDefault.HasValue && dto.IsDefault.Value)
+        {
+            // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
+            // Unset other default methods
+            var existingDefault = await _context.Set<PaymentMethod>()
+                .Where(pm => pm.IsDefault && pm.Id != id)
+                .ToListAsync();
+
+            foreach (var method in existingDefault)
+            {
+                method.IsDefault = false;
+            }
+
+            paymentMethod.IsDefault = true;
+        }
+        else if (dto.IsDefault.HasValue && !dto.IsDefault.Value)
+        {
+            paymentMethod.IsDefault = false;
+        }
+
+        paymentMethod.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.SaveChangesAsync();
+
+        return true;
+    }
+
+    public async Task<bool> DeletePaymentMethodAsync(Guid id)
+    {
+        // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
+        var paymentMethod = await _context.Set<PaymentMethod>()
+            .FirstOrDefaultAsync(pm => pm.Id == id);
+
+        if (paymentMethod == null) return false;
+
+        // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
+        // Check if method is used in any orders
+        var hasOrders = await _context.Orders
+            .AsNoTracking()
+            .AnyAsync(o => o.PaymentMethod == paymentMethod.Code);
+
+        if (hasOrders)
+        {
+            // Soft delete - just mark as inactive
+            paymentMethod.IsActive = false;
+            paymentMethod.IsDefault = false;
+        }
+        else
+        {
+            // Hard delete if no orders
+            paymentMethod.IsDeleted = true;
+        }
+
+        paymentMethod.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.SaveChangesAsync();
+
+        return true;
+    }
+
+    public async Task<bool> SetDefaultPaymentMethodAsync(Guid id)
+    {
+        // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
+        var paymentMethod = await _context.Set<PaymentMethod>()
+            .FirstOrDefaultAsync(pm => pm.Id == id);
+
+        if (paymentMethod == null) return false;
+
+        // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
+        // Unset other default methods
+        var existingDefault = await _context.Set<PaymentMethod>()
+            .Where(pm => pm.IsDefault && pm.Id != id)
+            .ToListAsync();
+
+        foreach (var method in existingDefault)
+        {
+            method.IsDefault = false;
+        }
+
+        paymentMethod.IsDefault = true;
+        paymentMethod.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.SaveChangesAsync();
+
+        return true;
+    }
+
+    public async Task<decimal> CalculateProcessingFeeAsync(Guid paymentMethodId, decimal amount)
+    {
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !pm.IsDeleted (Global Query Filter)
+        var paymentMethod = await _context.Set<PaymentMethod>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(pm => pm.Id == paymentMethodId && pm.IsActive);
+
+        if (paymentMethod == null)
+        {
+            throw new NotFoundException("Ödeme yöntemi", paymentMethodId);
+        }
+
+        var fee = paymentMethod.ProcessingFee ?? 0;
+        if (paymentMethod.ProcessingFeePercentage.HasValue)
+        {
+            fee += amount * (paymentMethod.ProcessingFeePercentage.Value / 100);
+        }
+
+        return Math.Round(fee, 2);
+    }
+}
+

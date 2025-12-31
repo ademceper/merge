@@ -1,0 +1,51 @@
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+
+namespace Merge.API.Controllers;
+
+public abstract class BaseController : ControllerBase
+{
+    protected Guid GetUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            throw new UnauthorizedAccessException("Kullanıcı kimliği bulunamadı.");
+        }
+        return userId;
+    }
+
+    protected Guid? GetUserIdOrNull()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            return null;
+        }
+        return userId;
+    }
+
+    protected bool TryGetUserId(out Guid userId)
+    {
+        userId = Guid.Empty;
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out userId))
+        {
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// ModelState validation kontrolü yapar. Geçersizse BadRequest döner.
+    /// </summary>
+    protected ActionResult ValidateModelState()
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+        return null;
+    }
+}
+

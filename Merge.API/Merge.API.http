@@ -1,0 +1,6 @@
+@Merge.API_HostAddress = http://localhost:5063
+
+GET {{Merge.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
