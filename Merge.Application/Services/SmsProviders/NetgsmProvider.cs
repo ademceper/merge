@@ -1,3 +1,4 @@
+using Merge.Application.Exceptions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.SmsProviders;
@@ -19,6 +20,23 @@ public class NetgsmProvider : ISmsProvider
 
     public async Task<SmsSendResult> SendSmsAsync(SmsMessage message)
     {
+        // ✅ ARCHITECTURE: Null check (ZORUNLU)
+        if (message == null)
+        {
+            throw new ArgumentNullException(nameof(message));
+        }
+
+        // ✅ ARCHITECTURE: Input validation
+        if (string.IsNullOrWhiteSpace(message.To))
+        {
+            throw new ValidationException("Telefon numarası boş olamaz.");
+        }
+
+        if (string.IsNullOrWhiteSpace(message.Message))
+        {
+            throw new ValidationException("SMS mesajı boş olamaz.");
+        }
+
         _logger.LogInformation("Netgsm SMS sending started. To: {To}", message.To);
         
         var username = _configuration["SmsProviders:Netgsm:Username"];

@@ -17,6 +17,12 @@ public class ShippingProviderFactory
 
     public IShippingProvider GetProvider(string providerName)
     {
+        // ✅ ARCHITECTURE: Null check (ZORUNLU)
+        if (string.IsNullOrWhiteSpace(providerName))
+        {
+            throw new ArgumentNullException(nameof(providerName));
+        }
+
         return providerName.ToUpper() switch
         {
             "YURTICI" or "YURTICI KARGO" => _serviceProvider.GetRequiredService<YurticiProvider>(),

@@ -114,6 +114,19 @@ public class SubscriptionsController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
+        // ✅ ARCHITECTURE: Authorization check - kullanıcı sadece kendi subscription'ını güncelleyebilir
+        var userId = GetUserId();
+        var subscription = await _subscriptionService.GetUserSubscriptionByIdAsync(id);
+        if (subscription == null)
+        {
+            return NotFound();
+        }
+
+        if (subscription.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
+        {
+            return Forbid();
+        }
+
         var success = await _subscriptionService.UpdateUserSubscriptionAsync(id, dto);
         if (!success)
         {
@@ -129,6 +142,19 @@ public class SubscriptionsController : BaseController
         {
             var validationResult = ValidateModelState();
             if (validationResult != null) return validationResult;
+        }
+
+        // ✅ ARCHITECTURE: Authorization check - kullanıcı sadece kendi subscription'ını iptal edebilir
+        var userId = GetUserId();
+        var subscription = await _subscriptionService.GetUserSubscriptionByIdAsync(id);
+        if (subscription == null)
+        {
+            return NotFound();
+        }
+
+        if (subscription.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
+        {
+            return Forbid();
         }
 
         var success = await _subscriptionService.CancelUserSubscriptionAsync(id, dto?.Reason);
@@ -155,6 +181,19 @@ public class SubscriptionsController : BaseController
     [HttpGet("subscriptions/{id}/payments")]
     public async Task<ActionResult<IEnumerable<SubscriptionPaymentDto>>> GetSubscriptionPayments(Guid id)
     {
+        // ✅ ARCHITECTURE: Authorization check - kullanıcı sadece kendi subscription'ının payment'larını görebilir
+        var userId = GetUserId();
+        var subscription = await _subscriptionService.GetUserSubscriptionByIdAsync(id);
+        if (subscription == null)
+        {
+            return NotFound();
+        }
+
+        if (subscription.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
+        {
+            return Forbid();
+        }
+
         var payments = await _subscriptionService.GetSubscriptionPaymentsAsync(id);
         return Ok(payments);
     }

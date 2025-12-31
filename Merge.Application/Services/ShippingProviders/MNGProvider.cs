@@ -1,6 +1,7 @@
 using Merge.Application.DTOs;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.ShippingProviders;
+using Merge.Application.Exceptions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -21,6 +22,18 @@ public class MNGProvider : IShippingProvider
 
     public async Task<ShippingProviderResponseDto> CreateShipmentAsync(ShippingProviderRequestDto request)
     {
+        // ✅ ARCHITECTURE: Null check (ZORUNLU)
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        // ✅ ARCHITECTURE: Input validation
+        if (string.IsNullOrWhiteSpace(request.OrderNumber))
+        {
+            throw new ValidationException("Sipariş numarası boş olamaz.");
+        }
+
         _logger.LogInformation("MNG Kargo shipment creation started for order {OrderNumber}", request.OrderNumber);
         
         var apiKey = _configuration["ShippingProviders:MNG:ApiKey"];
@@ -60,6 +73,12 @@ public class MNGProvider : IShippingProvider
 
     public async Task<ShippingTrackingDto> GetTrackingAsync(string trackingNumber)
     {
+        // ✅ ARCHITECTURE: Null check (ZORUNLU)
+        if (string.IsNullOrWhiteSpace(trackingNumber))
+        {
+            throw new ArgumentNullException(nameof(trackingNumber));
+        }
+
         _logger.LogInformation("MNG Kargo tracking check. TrackingNumber: {TrackingNumber}", trackingNumber);
         
         await Task.Delay(100);
@@ -84,6 +103,12 @@ public class MNGProvider : IShippingProvider
 
     public async Task<ShippingLabelDto> GetShippingLabelAsync(string trackingNumber)
     {
+        // ✅ ARCHITECTURE: Null check (ZORUNLU)
+        if (string.IsNullOrWhiteSpace(trackingNumber))
+        {
+            throw new ArgumentNullException(nameof(trackingNumber));
+        }
+
         _logger.LogInformation("MNG Kargo label generation. TrackingNumber: {TrackingNumber}", trackingNumber);
         
         await Task.Delay(100);
@@ -98,6 +123,12 @@ public class MNGProvider : IShippingProvider
 
     public async Task<bool> CancelShipmentAsync(string trackingNumber)
     {
+        // ✅ ARCHITECTURE: Null check (ZORUNLU)
+        if (string.IsNullOrWhiteSpace(trackingNumber))
+        {
+            throw new ArgumentNullException(nameof(trackingNumber));
+        }
+
         _logger.LogInformation("MNG Kargo shipment cancellation. TrackingNumber: {TrackingNumber}", trackingNumber);
         
         await Task.Delay(100);
@@ -107,6 +138,12 @@ public class MNGProvider : IShippingProvider
 
     public async Task<decimal> CalculateShippingCostAsync(ShippingCostRequestDto request)
     {
+        // ✅ ARCHITECTURE: Null check (ZORUNLU)
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
         _logger.LogInformation("MNG Kargo cost calculation");
         
         await Task.Delay(50);

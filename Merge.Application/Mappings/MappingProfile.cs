@@ -23,6 +23,7 @@ using Merge.Application.DTOs.LiveCommerce;
 using Merge.Application.DTOs.Organization;
 using Merge.Application.DTOs.Search;
 using Merge.Application.DTOs.Security;
+using Merge.Application.DTOs.Subscription;
 using System.Text.Json;
 
 namespace Merge.Application.Mappings;
@@ -810,6 +811,33 @@ public class MappingProfile : Profile
                     ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Settings)
                     : null;
             });
+
+        // Subscription Domain Mappings
+        CreateMap<SubscriptionPlan, SubscriptionPlanDto>()
+            .ForMember(dest => dest.Features, opt => opt.Ignore()) // Will be set in AfterMap
+            .ForMember(dest => dest.SubscriberCount, opt => opt.Ignore()) // Will be set in SubscriptionService after batch loading
+            .AfterMap((src, dest) =>
+            {
+                dest.Features = !string.IsNullOrEmpty(src.Features)
+                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Features)
+                    : null;
+            });
+
+        CreateMap<UserSubscription, UserSubscriptionDto>()
+            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src =>
+                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty))
+            .ForMember(dest => dest.PlanName, opt => opt.MapFrom(src =>
+                src.SubscriptionPlan != null ? src.SubscriptionPlan.Name : string.Empty))
+            .ForMember(dest => dest.IsTrial, opt => opt.MapFrom(src => src.Status == "Trial"))
+            .ForMember(dest => dest.DaysRemaining, opt => opt.MapFrom(src =>
+                src.EndDate > DateTime.UtcNow ? (int)(src.EndDate - DateTime.UtcNow).TotalDays : 0))
+            .ForMember(dest => dest.RecentPayments, opt => opt.Ignore()); // Will be set in SubscriptionService after batch loading
+
+        CreateMap<SubscriptionPayment, SubscriptionPaymentDto>();
+
+        CreateMap<SubscriptionUsage, SubscriptionUsageDto>()
+            .ForMember(dest => dest.Remaining, opt => opt.MapFrom(src =>
+                src.Limit.HasValue ? src.Limit.Value - src.UsageCount : (int?)null));
     }
 }
 

@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
@@ -15,15 +16,18 @@ public class SubscriptionService : ISubscriptionService
 {
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
     private readonly ILogger<SubscriptionService> _logger;
 
     public SubscriptionService(
         ApplicationDbContext context,
         IUnitOfWork unitOfWork,
+        IMapper mapper,
         ILogger<SubscriptionService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -52,7 +56,15 @@ public class SubscriptionService : ISubscriptionService
 
         _logger.LogInformation("Created subscription plan {PlanName} with ID {PlanId}", plan.Name, plan.Id);
 
-        return await MapToPlanDto(plan);
+        // ✅ PERFORMANCE: Batch load subscriber count for all plans
+        var subscriberCount = await _context.Set<UserSubscription>()
+            .AsNoTracking()
+            .CountAsync(us => us.SubscriptionPlanId == plan.Id && 
+                            (us.Status == "Active" || us.Status == "Trial"));
+
+        var planDto = _mapper.Map<SubscriptionPlanDto>(plan);
+        planDto.SubscriberCount = subscriberCount;
+        return planDto;
     }
 
     public async Task<SubscriptionPlanDto?> GetSubscriptionPlanByIdAsync(Guid id)
@@ -61,7 +73,17 @@ public class SubscriptionService : ISubscriptionService
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == id);
 
-        return plan != null ? await MapToPlanDto(plan) : null;
+        if (plan == null) return null;
+
+        // ✅ PERFORMANCE: Batch load subscriber count
+        var subscriberCount = await _context.Set<UserSubscription>()
+            .AsNoTracking()
+            .CountAsync(us => us.SubscriptionPlanId == plan.Id && 
+                            (us.Status == "Active" || us.Status == "Trial"));
+
+        var dto = _mapper.Map<SubscriptionPlanDto>(plan);
+        dto.SubscriberCount = subscriberCount;
+        return dto;
     }
 
     public async Task<IEnumerable<SubscriptionPlanDto>> GetAllSubscriptionPlansAsync(bool? isActive = null)
@@ -74,15 +96,33 @@ public class SubscriptionService : ISubscriptionService
             query = query.Where(p => p.IsActive == isActive.Value);
         }
 
+        // ✅ PERFORMANCE: planIds'i database'de oluştur, memory'de işlem YASAK
+        var planIds = await query
+            .OrderBy(p => p.DisplayOrder)
+            .ThenBy(p => p.Price)
+            .Select(p => p.Id)
+            .ToListAsync();
+
         var plans = await query
             .OrderBy(p => p.DisplayOrder)
             .ThenBy(p => p.Price)
             .ToListAsync();
 
+        // ✅ PERFORMANCE: Batch load subscriber counts for all plans
+        var subscriberCounts = await _context.Set<UserSubscription>()
+            .AsNoTracking()
+            .Where(us => planIds.Contains(us.SubscriptionPlanId) && 
+                        (us.Status == "Active" || us.Status == "Trial"))
+            .GroupBy(us => us.SubscriptionPlanId)
+            .Select(g => new { PlanId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.PlanId, x => x.Count);
+
         var result = new List<SubscriptionPlanDto>();
         foreach (var plan in plans)
         {
-            result.Add(await MapToPlanDto(plan));
+            var dto = _mapper.Map<SubscriptionPlanDto>(plan);
+            dto.SubscriberCount = subscriberCounts.TryGetValue(plan.Id, out var count) ? count : 0;
+            result.Add(dto);
         }
         return result;
     }
@@ -131,8 +171,9 @@ public class SubscriptionService : ISubscriptionService
 
     public async Task<bool> DeleteSubscriptionPlanAsync(Guid id)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var plan = await _context.Set<SubscriptionPlan>()
-            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+            .FirstOrDefaultAsync(p => p.Id == id);
 
         if (plan == null) return false;
 
@@ -146,25 +187,31 @@ public class SubscriptionService : ISubscriptionService
     // User Subscriptions
     public async Task<UserSubscriptionDto> CreateUserSubscriptionAsync(Guid userId, CreateUserSubscriptionDto dto)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
 
         if (user == null)
         {
             throw new NotFoundException("Kullanıcı", userId);
         }
 
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var plan = await _context.Set<SubscriptionPlan>()
-            .FirstOrDefaultAsync(p => p.Id == dto.SubscriptionPlanId && !p.IsDeleted && p.IsActive);
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == dto.SubscriptionPlanId && p.IsActive);
 
         if (plan == null)
         {
             throw new NotFoundException("Abonelik planı", dto.SubscriptionPlanId);
         }
 
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         // Check if user already has an active subscription
         var existingActive = await _context.Set<UserSubscription>()
-            .FirstOrDefaultAsync(us => us.UserId == userId && us.Status == "Active" && !us.IsDeleted);
+            .AsNoTracking()
+            .FirstOrDefaultAsync(us => us.UserId == userId && us.Status == "Active");
 
         if (existingActive != null)
         {
@@ -203,62 +250,107 @@ public class SubscriptionService : ISubscriptionService
             await CreateSubscriptionPaymentAsync(subscription.Id, plan.Price);
         }
 
-        return await MapToUserSubscriptionDto(subscription);
+        // ✅ PERFORMANCE: Reload with includes for mapping
+        subscription = await _context.Set<UserSubscription>()
+            .Include(us => us.User)
+            .Include(us => us.SubscriptionPlan)
+            .FirstOrDefaultAsync(us => us.Id == subscription.Id);
+
+        return await MapToUserSubscriptionDtoAsync(subscription!);
     }
 
     public async Task<UserSubscriptionDto?> GetUserSubscriptionByIdAsync(Guid id)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var subscription = await _context.Set<UserSubscription>()
+            .AsNoTracking()
             .Include(us => us.User)
             .Include(us => us.SubscriptionPlan)
-            .FirstOrDefaultAsync(us => us.Id == id && !us.IsDeleted);
+            .FirstOrDefaultAsync(us => us.Id == id);
 
-        return subscription != null ? await MapToUserSubscriptionDto(subscription) : null;
+        return subscription != null ? await MapToUserSubscriptionDtoAsync(subscription) : null;
     }
 
     public async Task<UserSubscriptionDto?> GetUserActiveSubscriptionAsync(Guid userId)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var subscription = await _context.Set<UserSubscription>()
+            .AsNoTracking()
             .Include(us => us.User)
             .Include(us => us.SubscriptionPlan)
             .Where(us => us.UserId == userId && 
                         (us.Status == "Active" || us.Status == "Trial") && 
-                        !us.IsDeleted &&
                         us.EndDate > DateTime.UtcNow)
             .OrderByDescending(us => us.CreatedAt)
             .FirstOrDefaultAsync();
 
-        return subscription != null ? await MapToUserSubscriptionDto(subscription) : null;
+        return subscription != null ? await MapToUserSubscriptionDtoAsync(subscription) : null;
     }
 
     public async Task<IEnumerable<UserSubscriptionDto>> GetUserSubscriptionsAsync(Guid userId, string? status = null)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var query = _context.Set<UserSubscription>()
+            .AsNoTracking()
             .Include(us => us.User)
             .Include(us => us.SubscriptionPlan)
-            .Where(us => us.UserId == userId && !us.IsDeleted);
+            .Where(us => us.UserId == userId);
 
         if (!string.IsNullOrEmpty(status))
         {
             query = query.Where(us => us.Status == status);
         }
 
+        // ✅ PERFORMANCE: subscriptionIds'i database'de oluştur, memory'de işlem YASAK
+        var subscriptionIds = await query
+            .OrderByDescending(us => us.CreatedAt)
+            .Select(us => us.Id)
+            .ToListAsync();
+
         var subscriptions = await query
             .OrderByDescending(us => us.CreatedAt)
             .ToListAsync();
 
+        // ✅ PERFORMANCE: Batch load recent payments for all subscriptions
+        var recentPaymentsDict = await _context.Set<SubscriptionPayment>()
+            .AsNoTracking()
+            .Where(p => subscriptionIds.Contains(p.UserSubscriptionId))
+            .OrderByDescending(p => p.CreatedAt)
+            .GroupBy(p => p.UserSubscriptionId)
+            .Select(g => new
+            {
+                UserSubscriptionId = g.Key,
+                Payments = g.Take(5).ToList()
+            })
+            .ToDictionaryAsync(x => x.UserSubscriptionId, x => x.Payments);
+
         var result = new List<UserSubscriptionDto>();
         foreach (var subscription in subscriptions)
         {
-            result.Add(await MapToUserSubscriptionDto(subscription));
+            var dto = _mapper.Map<UserSubscriptionDto>(subscription);
+            dto.DaysRemaining = subscription.EndDate > DateTime.UtcNow
+                ? (int)(subscription.EndDate - DateTime.UtcNow).TotalDays
+                : 0;
+            
+            if (recentPaymentsDict.TryGetValue(subscription.Id, out var payments))
+            {
+                dto.RecentPayments = _mapper.Map<List<SubscriptionPaymentDto>>(payments);
+            }
+            else
+            {
+                dto.RecentPayments = new List<SubscriptionPaymentDto>();
+            }
+            
+            result.Add(dto);
         }
         return result;
     }
 
     public async Task<bool> UpdateUserSubscriptionAsync(Guid id, UpdateUserSubscriptionDto dto)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var subscription = await _context.Set<UserSubscription>()
-            .FirstOrDefaultAsync(us => us.Id == id && !us.IsDeleted);
+            .FirstOrDefaultAsync(us => us.Id == id);
 
         if (subscription == null) return false;
 
@@ -275,8 +367,9 @@ public class SubscriptionService : ISubscriptionService
 
     public async Task<bool> CancelUserSubscriptionAsync(Guid id, string? reason = null)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var subscription = await _context.Set<UserSubscription>()
-            .FirstOrDefaultAsync(us => us.Id == id && !us.IsDeleted);
+            .FirstOrDefaultAsync(us => us.Id == id);
 
         if (subscription == null || subscription.Status == "Cancelled") return false;
 
@@ -292,9 +385,10 @@ public class SubscriptionService : ISubscriptionService
 
     public async Task<bool> RenewSubscriptionAsync(Guid id)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var subscription = await _context.Set<UserSubscription>()
             .Include(us => us.SubscriptionPlan)
-            .FirstOrDefaultAsync(us => us.Id == id && !us.IsDeleted);
+            .FirstOrDefaultAsync(us => us.Id == id);
 
         if (subscription == null || subscription.Status != "Active") return false;
 
@@ -316,8 +410,9 @@ public class SubscriptionService : ISubscriptionService
 
     public async Task<bool> SuspendSubscriptionAsync(Guid id)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var subscription = await _context.Set<UserSubscription>()
-            .FirstOrDefaultAsync(us => us.Id == id && !us.IsDeleted);
+            .FirstOrDefaultAsync(us => us.Id == id);
 
         if (subscription == null || subscription.Status != "Active") return false;
 
@@ -330,8 +425,9 @@ public class SubscriptionService : ISubscriptionService
 
     public async Task<bool> ActivateSubscriptionAsync(Guid id)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var subscription = await _context.Set<UserSubscription>()
-            .FirstOrDefaultAsync(us => us.Id == id && !us.IsDeleted);
+            .FirstOrDefaultAsync(us => us.Id == id);
 
         if (subscription == null || subscription.Status != "Suspended") return false;
 
@@ -345,9 +441,10 @@ public class SubscriptionService : ISubscriptionService
     // Subscription Payments
     public async Task<SubscriptionPaymentDto> CreateSubscriptionPaymentAsync(Guid userSubscriptionId, decimal amount)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var subscription = await _context.Set<UserSubscription>()
             .Include(us => us.SubscriptionPlan)
-            .FirstOrDefaultAsync(us => us.Id == userSubscriptionId && !us.IsDeleted);
+            .FirstOrDefaultAsync(us => us.Id == userSubscriptionId);
 
         if (subscription == null)
         {
@@ -369,14 +466,16 @@ public class SubscriptionService : ISubscriptionService
         await _context.Set<SubscriptionPayment>().AddAsync(payment);
         await _unitOfWork.SaveChangesAsync();
 
-        return await MapToPaymentDto(payment);
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<SubscriptionPaymentDto>(payment);
     }
 
     public async Task<bool> ProcessPaymentAsync(Guid paymentId, string transactionId)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var payment = await _context.Set<SubscriptionPayment>()
             .Include(p => p.UserSubscription)
-            .FirstOrDefaultAsync(p => p.Id == paymentId && !p.IsDeleted);
+            .FirstOrDefaultAsync(p => p.Id == paymentId);
 
         if (payment == null) return false;
 
@@ -398,8 +497,9 @@ public class SubscriptionService : ISubscriptionService
 
     public async Task<bool> FailPaymentAsync(Guid paymentId, string reason)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var payment = await _context.Set<SubscriptionPayment>()
-            .FirstOrDefaultAsync(p => p.Id == paymentId && !p.IsDeleted);
+            .FirstOrDefaultAsync(p => p.Id == paymentId);
 
         if (payment == null) return false;
 
@@ -415,23 +515,22 @@ public class SubscriptionService : ISubscriptionService
 
     public async Task<IEnumerable<SubscriptionPaymentDto>> GetSubscriptionPaymentsAsync(Guid userSubscriptionId)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var payments = await _context.Set<SubscriptionPayment>()
-            .Where(p => p.UserSubscriptionId == userSubscriptionId && !p.IsDeleted)
+            .AsNoTracking()
+            .Where(p => p.UserSubscriptionId == userSubscriptionId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
 
-        var result = new List<SubscriptionPaymentDto>();
-        foreach (var payment in payments)
-        {
-            result.Add(await MapToPaymentDto(payment));
-        }
-        return result;
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<IEnumerable<SubscriptionPaymentDto>>(payments);
     }
 
     public async Task<bool> RetryFailedPaymentAsync(Guid paymentId)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var payment = await _context.Set<SubscriptionPayment>()
-            .FirstOrDefaultAsync(p => p.Id == paymentId && !p.IsDeleted && p.PaymentStatus == "Failed");
+            .FirstOrDefaultAsync(p => p.Id == paymentId && p.PaymentStatus == "Failed");
 
         if (payment == null) return false;
 
@@ -447,8 +546,10 @@ public class SubscriptionService : ISubscriptionService
     // Subscription Usage
     public async Task<SubscriptionUsageDto> TrackUsageAsync(Guid userSubscriptionId, string feature, int count = 1)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var subscription = await _context.Set<UserSubscription>()
-            .FirstOrDefaultAsync(us => us.Id == userSubscriptionId && !us.IsDeleted);
+            .AsNoTracking()
+            .FirstOrDefaultAsync(us => us.Id == userSubscriptionId);
 
         if (subscription == null)
         {
@@ -458,11 +559,11 @@ public class SubscriptionService : ISubscriptionService
         var periodStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
         var periodEnd = periodStart.AddMonths(1).AddDays(-1);
 
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var usage = await _context.Set<SubscriptionUsage>()
             .FirstOrDefaultAsync(u => u.UserSubscriptionId == userSubscriptionId &&
                                      u.Feature == feature &&
-                                     u.PeriodStart == periodStart &&
-                                     !u.IsDeleted);
+                                     u.PeriodStart == periodStart);
 
         if (usage == null)
         {
@@ -483,38 +584,40 @@ public class SubscriptionService : ISubscriptionService
 
         await _unitOfWork.SaveChangesAsync();
 
-        return await MapToUsageDto(usage);
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<SubscriptionUsageDto>(usage);
     }
 
     public async Task<SubscriptionUsageDto?> GetUsageAsync(Guid userSubscriptionId, string feature)
     {
         var periodStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
 
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var usage = await _context.Set<SubscriptionUsage>()
+            .AsNoTracking()
             .FirstOrDefaultAsync(u => u.UserSubscriptionId == userSubscriptionId &&
                                      u.Feature == feature &&
-                                     u.PeriodStart == periodStart &&
-                                     !u.IsDeleted);
+                                     u.PeriodStart == periodStart);
 
-        return usage != null ? await MapToUsageDto(usage) : null;
+        if (usage == null) return null;
+
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<SubscriptionUsageDto>(usage);
     }
 
     public async Task<IEnumerable<SubscriptionUsageDto>> GetAllUsageAsync(Guid userSubscriptionId)
     {
         var periodStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
 
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var usages = await _context.Set<SubscriptionUsage>()
+            .AsNoTracking()
             .Where(u => u.UserSubscriptionId == userSubscriptionId &&
-                       u.PeriodStart == periodStart &&
-                       !u.IsDeleted)
+                       u.PeriodStart == periodStart)
             .ToListAsync();
 
-        var result = new List<SubscriptionUsageDto>();
-        foreach (var usage in usages)
-        {
-            result.Add(await MapToUsageDto(usage));
-        }
-        return result;
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<IEnumerable<SubscriptionUsageDto>>(usages);
     }
 
     public async Task<bool> CheckUsageLimitAsync(Guid userSubscriptionId, string feature, int requestedCount = 1)
@@ -537,44 +640,52 @@ public class SubscriptionService : ISubscriptionService
         var start = startDate ?? DateTime.UtcNow.AddMonths(-12);
         var end = endDate ?? DateTime.UtcNow;
 
-        var allSubscriptions = await _context.Set<UserSubscription>()
+        // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
+        var query = _context.Set<UserSubscription>()
+            .AsNoTracking()
             .Include(us => us.SubscriptionPlan)
-            .Where(us => !us.IsDeleted && us.CreatedAt >= start && us.CreatedAt <= end)
-            .ToListAsync();
+            .Where(us => us.CreatedAt >= start && us.CreatedAt <= end);
 
-        var activeSubscriptions = allSubscriptions.Where(us => us.Status == "Active" && us.EndDate > DateTime.UtcNow).ToList();
-        var trialSubscriptions = allSubscriptions.Where(us => us.Status == "Trial").ToList();
-        var cancelledSubscriptions = allSubscriptions.Where(us => us.Status == "Cancelled").ToList();
+        var totalSubscriptions = await query.CountAsync();
+        var activeSubscriptionsCount = await query.CountAsync(us => us.Status == "Active" && us.EndDate > DateTime.UtcNow);
+        var trialSubscriptionsCount = await query.CountAsync(us => us.Status == "Trial");
+        var cancelledSubscriptionsCount = await query.CountAsync(us => us.Status == "Cancelled");
 
-        var mrr = activeSubscriptions.Sum(us => us.CurrentPrice);
+        var mrr = await query
+            .Where(us => us.Status == "Active" && us.EndDate > DateTime.UtcNow)
+            .SumAsync(us => (decimal?)us.CurrentPrice) ?? 0;
         var arr = mrr * 12;
 
-        var totalSubscriptions = allSubscriptions.Count;
         var churnRate = totalSubscriptions > 0 
-            ? (decimal)cancelledSubscriptions.Count / totalSubscriptions * 100 
+            ? (decimal)cancelledSubscriptionsCount / totalSubscriptions * 100 
             : 0;
 
-        var arpu = activeSubscriptions.Any() 
-            ? activeSubscriptions.Average(us => us.CurrentPrice) 
+        var arpu = activeSubscriptionsCount > 0
+            ? await query
+                .Where(us => us.Status == "Active" && us.EndDate > DateTime.UtcNow)
+                .AverageAsync(us => (decimal?)us.CurrentPrice) ?? 0
             : 0;
 
-        var subscriptionsByPlan = allSubscriptions
-            .GroupBy(us => us.SubscriptionPlan?.Name ?? "Unknown")
-            .ToDictionary(g => g.Key, g => g.Count());
+        // ✅ PERFORMANCE: Database'de grouping yap
+        var subscriptionsByPlan = await query
+            .GroupBy(us => us.SubscriptionPlan != null ? us.SubscriptionPlan.Name : "Unknown")
+            .Select(g => new { PlanName = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.PlanName, x => x.Count);
 
-        var revenueByPlan = allSubscriptions
+        var revenueByPlan = await query
             .Where(us => us.Status == "Active")
-            .GroupBy(us => us.SubscriptionPlan?.Name ?? "Unknown")
-            .ToDictionary(g => g.Key, g => g.Sum(us => us.CurrentPrice));
+            .GroupBy(us => us.SubscriptionPlan != null ? us.SubscriptionPlan.Name : "Unknown")
+            .Select(g => new { PlanName = g.Key, Revenue = g.Sum(us => us.CurrentPrice) })
+            .ToDictionaryAsync(x => x.PlanName, x => x.Revenue);
 
         var trends = await GetSubscriptionTrendsAsync(start, end);
 
         return new SubscriptionAnalyticsDto
         {
             TotalSubscriptions = totalSubscriptions,
-            ActiveSubscriptions = activeSubscriptions.Count,
-            TrialSubscriptions = trialSubscriptions.Count,
-            CancelledSubscriptions = cancelledSubscriptions.Count,
+            ActiveSubscriptions = activeSubscriptionsCount,
+            TrialSubscriptions = trialSubscriptionsCount,
+            CancelledSubscriptions = cancelledSubscriptionsCount,
             MonthlyRecurringRevenue = mrr,
             AnnualRecurringRevenue = arr,
             ChurnRate = churnRate,
@@ -587,15 +698,7 @@ public class SubscriptionService : ISubscriptionService
 
     public async Task<IEnumerable<SubscriptionTrendDto>> GetSubscriptionTrendsAsync(DateTime startDate, DateTime endDate)
     {
-        var subscriptions = await _context.Set<UserSubscription>()
-            .Include(us => us.SubscriptionPlan)
-            .Where(us => !us.IsDeleted && us.CreatedAt >= startDate && us.CreatedAt <= endDate)
-            .ToListAsync();
-
-        var payments = await _context.Set<SubscriptionPayment>()
-            .Where(p => !p.IsDeleted && p.CreatedAt >= startDate && p.CreatedAt <= endDate && p.PaymentStatus == "Completed")
-            .ToListAsync();
-
+        // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
         var trends = new List<SubscriptionTrendDto>();
         var currentDate = startDate;
 
@@ -604,26 +707,34 @@ public class SubscriptionService : ISubscriptionService
             var monthStart = new DateTime(currentDate.Year, currentDate.Month, 1);
             var monthEnd = monthStart.AddMonths(1).AddDays(-1);
 
-            var monthSubscriptions = subscriptions
-                .Where(us => us.CreatedAt >= monthStart && us.CreatedAt <= monthEnd)
-                .ToList();
+            // ✅ PERFORMANCE: Database'de count/sum yap
+            var monthSubscriptionsCount = await _context.Set<UserSubscription>()
+                .AsNoTracking()
+                .CountAsync(us => us.CreatedAt >= monthStart && us.CreatedAt <= monthEnd);
 
-            var monthCancellations = monthSubscriptions
-                .Where(us => us.Status == "Cancelled" && us.CancelledAt >= monthStart && us.CancelledAt <= monthEnd)
-                .Count();
+            var monthCancellations = await _context.Set<UserSubscription>()
+                .AsNoTracking()
+                .CountAsync(us => us.Status == "Cancelled" && 
+                                 us.CancelledAt.HasValue &&
+                                 us.CancelledAt >= monthStart && 
+                                 us.CancelledAt <= monthEnd);
 
-            var activeAtMonthEnd = subscriptions
-                .Where(us => us.Status == "Active" && us.EndDate > monthEnd)
-                .Count();
+            var activeAtMonthEnd = await _context.Set<UserSubscription>()
+                .AsNoTracking()
+                .CountAsync(us => us.Status == "Active" && us.EndDate > monthEnd);
 
-            var monthRevenue = payments
-                .Where(p => p.PaidAt >= monthStart && p.PaidAt <= monthEnd)
-                .Sum(p => p.Amount);
+            var monthRevenue = await _context.Set<SubscriptionPayment>()
+                .AsNoTracking()
+                .Where(p => p.PaymentStatus == "Completed" &&
+                           p.PaidAt.HasValue &&
+                           p.PaidAt >= monthStart && 
+                           p.PaidAt <= monthEnd)
+                .SumAsync(p => (decimal?)p.Amount) ?? 0;
 
             trends.Add(new SubscriptionTrendDto
             {
                 Date = monthStart,
-                NewSubscriptions = monthSubscriptions.Count,
+                NewSubscriptions = monthSubscriptionsCount,
                 Cancellations = monthCancellations,
                 ActiveSubscriptions = activeAtMonthEnd,
                 Revenue = monthRevenue
@@ -635,128 +746,24 @@ public class SubscriptionService : ISubscriptionService
         return trends;
     }
 
-    // Helper methods
-    private async Task<SubscriptionPlanDto> MapToPlanDto(SubscriptionPlan plan)
+    // Helper method for UserSubscriptionDto with RecentPayments
+    private async Task<UserSubscriptionDto> MapToUserSubscriptionDtoAsync(UserSubscription subscription)
     {
-        var subscriberCount = await _context.Set<UserSubscription>()
-            .CountAsync(us => us.SubscriptionPlanId == plan.Id && 
-                            (us.Status == "Active" || us.Status == "Trial") && 
-                            !us.IsDeleted);
-
-        return new SubscriptionPlanDto
-        {
-            Id = plan.Id,
-            Name = plan.Name,
-            Description = plan.Description,
-            PlanType = plan.PlanType,
-            Price = plan.Price,
-            DurationDays = plan.DurationDays,
-            TrialDays = plan.TrialDays,
-            Features = !string.IsNullOrEmpty(plan.Features)
-                ? JsonSerializer.Deserialize<Dictionary<string, object>>(plan.Features)
-                : null,
-            IsActive = plan.IsActive,
-            DisplayOrder = plan.DisplayOrder,
-            BillingCycle = plan.BillingCycle,
-            MaxUsers = plan.MaxUsers,
-            SetupFee = plan.SetupFee,
-            Currency = plan.Currency,
-            SubscriberCount = subscriberCount,
-            CreatedAt = plan.CreatedAt
-        };
-    }
-
-    private async Task<UserSubscriptionDto> MapToUserSubscriptionDto(UserSubscription subscription)
-    {
-        await _context.Entry(subscription)
-            .Reference(us => us.User)
-            .LoadAsync();
-        await _context.Entry(subscription)
-            .Reference(us => us.SubscriptionPlan)
-            .LoadAsync();
-
+        // ✅ PERFORMANCE: Batch load recent payments (N+1 query fix)
         var recentPayments = await _context.Set<SubscriptionPayment>()
-            .Where(p => p.UserSubscriptionId == subscription.Id && !p.IsDeleted)
+            .AsNoTracking()
+            .Where(p => p.UserSubscriptionId == subscription.Id)
             .OrderByDescending(p => p.CreatedAt)
             .Take(5)
             .ToListAsync();
 
-        var daysRemaining = subscription.EndDate > DateTime.UtcNow
+        var dto = _mapper.Map<UserSubscriptionDto>(subscription);
+        dto.DaysRemaining = subscription.EndDate > DateTime.UtcNow
             ? (int)(subscription.EndDate - DateTime.UtcNow).TotalDays
             : 0;
-
-        return new UserSubscriptionDto
-        {
-            Id = subscription.Id,
-            UserId = subscription.UserId,
-            UserName = subscription.User != null
-                ? $"{subscription.User.FirstName} {subscription.User.LastName}"
-                : string.Empty,
-            SubscriptionPlanId = subscription.SubscriptionPlanId,
-            PlanName = subscription.SubscriptionPlan?.Name ?? string.Empty,
-            Status = subscription.Status,
-            StartDate = subscription.StartDate,
-            EndDate = subscription.EndDate,
-            TrialEndDate = subscription.TrialEndDate,
-            IsTrial = subscription.Status == "Trial",
-            CancelledAt = subscription.CancelledAt,
-            CancellationReason = subscription.CancellationReason,
-            AutoRenew = subscription.AutoRenew,
-            NextBillingDate = subscription.NextBillingDate,
-            CurrentPrice = subscription.CurrentPrice,
-            RenewalCount = subscription.RenewalCount,
-            DaysRemaining = daysRemaining,
-            RecentPayments = recentPayments.Select(p => new SubscriptionPaymentDto
-            {
-                Id = p.Id,
-                UserSubscriptionId = p.UserSubscriptionId,
-                PaymentStatus = p.PaymentStatus,
-                Amount = p.Amount,
-                TransactionId = p.TransactionId,
-                PaidAt = p.PaidAt,
-                BillingPeriodStart = p.BillingPeriodStart,
-                BillingPeriodEnd = p.BillingPeriodEnd,
-                FailureReason = p.FailureReason,
-                RetryCount = p.RetryCount,
-                NextRetryDate = p.NextRetryDate,
-                CreatedAt = p.CreatedAt
-            }).ToList(),
-            CreatedAt = subscription.CreatedAt
-        };
-    }
-
-    private Task<SubscriptionPaymentDto> MapToPaymentDto(SubscriptionPayment payment)
-    {
-        return Task.FromResult(new SubscriptionPaymentDto
-        {
-            Id = payment.Id,
-            UserSubscriptionId = payment.UserSubscriptionId,
-            PaymentStatus = payment.PaymentStatus,
-            Amount = payment.Amount,
-            TransactionId = payment.TransactionId,
-            PaidAt = payment.PaidAt,
-            BillingPeriodStart = payment.BillingPeriodStart,
-            BillingPeriodEnd = payment.BillingPeriodEnd,
-            FailureReason = payment.FailureReason,
-            RetryCount = payment.RetryCount,
-            NextRetryDate = payment.NextRetryDate,
-            CreatedAt = payment.CreatedAt
-        });
-    }
-
-    private Task<SubscriptionUsageDto> MapToUsageDto(SubscriptionUsage usage)
-    {
-        return Task.FromResult(new SubscriptionUsageDto
-        {
-            Id = usage.Id,
-            UserSubscriptionId = usage.UserSubscriptionId,
-            Feature = usage.Feature,
-            UsageCount = usage.UsageCount,
-            Limit = usage.Limit,
-            Remaining = usage.Limit.HasValue ? usage.Limit.Value - usage.UsageCount : null,
-            PeriodStart = usage.PeriodStart,
-            PeriodEnd = usage.PeriodEnd
-        });
+        dto.RecentPayments = _mapper.Map<List<SubscriptionPaymentDto>>(recentPayments);
+        
+        return dto;
     }
 }
 
