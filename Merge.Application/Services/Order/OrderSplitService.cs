@@ -6,6 +6,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Order;
@@ -57,7 +58,7 @@ public class OrderSplitService : IOrderSplitService
             throw new NotFoundException("Sipariş", orderId);
         }
 
-        if (originalOrder.Status != "Pending" && originalOrder.Status != "Processing")
+        if (originalOrder.Status != OrderStatus.Pending && originalOrder.Status != OrderStatus.Processing)
         {
             throw new BusinessException("Sipariş sadece Beklemede veya İşleniyor durumundayken bölünebilir.");
         }
@@ -95,8 +96,8 @@ public class OrderSplitService : IOrderSplitService
                 UserId = originalOrder.UserId,
                 AddressId = dto.NewAddressId ?? originalOrder.AddressId,
                 OrderNumber = splitOrderNumber,
-                Status = "Pending",
-                PaymentStatus = "Pending",
+                Status = OrderStatus.Pending,
+                PaymentStatus = PaymentStatus.Pending,
                 PaymentMethod = originalOrder.PaymentMethod,
                 IsSplitOrder = true,
                 ParentOrderId = originalOrder.Id
@@ -147,7 +148,7 @@ public class OrderSplitService : IOrderSplitService
                 SplitOrderId = splitOrder.Id,
                 SplitReason = dto.SplitReason,
                 NewAddressId = dto.NewAddressId,
-                Status = "Pending"
+                Status = OrderSplitStatus.Pending
             };
 
             await _context.Set<OrderSplit>().AddAsync(orderSplit);
@@ -272,7 +273,7 @@ public class OrderSplitService : IOrderSplitService
 
         if (split == null) return false;
 
-        if (split.SplitOrder.Status != "Pending")
+        if (split.SplitOrder.Status != OrderStatus.Pending)
         {
             throw new BusinessException("Beklemede durumunda olmayan bölünmüş sipariş iptal edilemez.");
         }
@@ -304,7 +305,7 @@ public class OrderSplitService : IOrderSplitService
 
         // Delete split order
         split.SplitOrder.IsDeleted = true;
-        split.Status = "Cancelled";
+        split.Status = OrderSplitStatus.Cancelled;
         split.IsDeleted = true;
 
         await _unitOfWork.SaveChangesAsync();
@@ -319,7 +320,7 @@ public class OrderSplitService : IOrderSplitService
 
         if (split == null) return false;
 
-        split.Status = "Completed";
+        split.Status = OrderSplitStatus.Completed;
         await _unitOfWork.SaveChangesAsync();
         return true;
     }

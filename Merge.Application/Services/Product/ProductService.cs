@@ -37,19 +37,19 @@ public class ProductService : IProductService
         _logger = logger;
     }
 
-    public async Task<ProductDto?> GetByIdAsync(Guid id)
+    public async Task<ProductDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed !p.IsDeleted (Global Query Filter handles it)
         var product = await _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         return product == null ? null : _mapper.Map<ProductDto>(product);
     }
 
-    public async Task<IEnumerable<ProductDto>> GetAllAsync(int page = 1, int pageSize = 20)
+    public async Task<IEnumerable<ProductDto>> GetAllAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + removed manual !p.IsDeleted check
         var products = await _context.Products
@@ -59,12 +59,12 @@ public class ProductService : IProductService
             .OrderByDescending(p => p.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return _mapper.Map<IEnumerable<ProductDto>>(products);
     }
 
-    public async Task<IEnumerable<ProductDto>> GetByCategoryAsync(Guid categoryId, int page = 1, int pageSize = 20)
+    public async Task<IEnumerable<ProductDto>> GetByCategoryAsync(Guid categoryId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + removed manual !p.IsDeleted check
         var products = await _context.Products
@@ -74,7 +74,7 @@ public class ProductService : IProductService
             .OrderByDescending(p => p.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         _logger.LogInformation(
             "Retrieved products by category. CategoryId: {CategoryId}, Count: {Count}",
@@ -83,7 +83,7 @@ public class ProductService : IProductService
         return _mapper.Map<IEnumerable<ProductDto>>(products);
     }
 
-    public async Task<IEnumerable<ProductDto>> SearchAsync(string searchTerm, int page = 1, int pageSize = 20)
+    public async Task<IEnumerable<ProductDto>> SearchAsync(string searchTerm, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
         {
@@ -113,7 +113,7 @@ public class ProductService : IProductService
             .OrderByDescending(p => p.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         _logger.LogInformation(
             "Product search completed. Term: {SearchTerm}, Results: {Count}",
@@ -122,7 +122,7 @@ public class ProductService : IProductService
         return _mapper.Map<IEnumerable<ProductDto>>(products);
     }
 
-    public async Task<ProductDto> CreateAsync(ProductDto productDto)
+    public async Task<ProductDto> CreateAsync(ProductDto productDto, CancellationToken cancellationToken = default)
     {
         if (productDto == null)
         {
@@ -142,17 +142,17 @@ public class ProductService : IProductService
         var product = _mapper.Map<ProductEntity>(productDto);
         product = await _productRepository.AddAsync(product);
         await _unitOfWork.SaveChangesAsync();
-        
+
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         product = await _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
-            .FirstOrDefaultAsync(p => p.Id == product.Id);
-        
+            .FirstOrDefaultAsync(p => p.Id == product.Id, cancellationToken);
+
         return _mapper.Map<ProductDto>(product);
     }
 
-    public async Task<ProductDto> UpdateAsync(Guid id, ProductDto productDto)
+    public async Task<ProductDto> UpdateAsync(Guid id, ProductDto productDto, CancellationToken cancellationToken = default)
     {
         if (productDto == null)
         {
@@ -193,17 +193,17 @@ public class ProductService : IProductService
 
         await _productRepository.UpdateAsync(product);
         await _unitOfWork.SaveChangesAsync();
-        
+
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         product = await _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
-            .FirstOrDefaultAsync(p => p.Id == id);
-        
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+
         return _mapper.Map<ProductDto>(product);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var product = await _productRepository.GetByIdAsync(id);
         if (product == null)
@@ -212,6 +212,8 @@ public class ProductService : IProductService
         }
 
         await _productRepository.DeleteAsync(product);
+        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
+        await _unitOfWork.SaveChangesAsync();
         return true;
     }
 }

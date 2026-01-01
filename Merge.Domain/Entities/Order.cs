@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Merge.Domain.Enums;
 
 namespace Merge.Domain.Entities;
 
@@ -11,8 +12,9 @@ public class Order : BaseEntity
     public decimal ShippingCost { get; set; }
     public decimal Tax { get; set; }
     public decimal TotalAmount { get; set; }
-    public string Status { get; set; } = "Pending"; // Pending, Processing, Shipped, Delivered, Cancelled
-    public string PaymentStatus { get; set; } = "Pending"; // Pending, Paid, Failed, Refunded
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine)
+    public OrderStatus Status { get; set; } = OrderStatus.Pending;
+    public PaymentStatus PaymentStatus { get; set; } = Enums.PaymentStatus.Pending;
     public string PaymentMethod { get; set; } = string.Empty;
     public DateTime? ShippedDate { get; set; }
     public DateTime? DeliveredDate { get; set; }

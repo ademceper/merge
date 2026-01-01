@@ -7,6 +7,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Review;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Review;
@@ -119,7 +120,7 @@ public class ReviewService : IReviewService
         var hasOrder = await _context.OrderItems
             .AnyAsync(oi => oi.ProductId == dto.ProductId &&
                           oi.Order.UserId == dto.UserId &&
-                          oi.Order.PaymentStatus == "Paid");
+                          oi.Order.PaymentStatus == PaymentStatus.Completed);
 
         var review = new ReviewEntity
         {

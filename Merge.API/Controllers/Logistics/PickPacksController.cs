@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Logistics;
+using Merge.Application.Interfaces.Order;
 using Merge.Application.DTOs.Logistics;
 
 
@@ -13,10 +14,12 @@ namespace Merge.API.Controllers.Logistics;
 public class PickPacksController : BaseController
 {
     private readonly IPickPackService _pickPackService;
+    private readonly IOrderService _orderService;
 
-    public PickPacksController(IPickPackService pickPackService)
+    public PickPacksController(IPickPackService pickPackService, IOrderService orderService)
     {
         _pickPackService = pickPackService;
+        _orderService = orderService;
     }
 
     [HttpPost]
@@ -32,28 +35,81 @@ public class PickPacksController : BaseController
     [HttpGet("{id}")]
     public async Task<ActionResult<PickPackDto>> GetPickPack(Guid id)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
         var pickPack = await _pickPackService.GetPickPackByIdAsync(id);
         if (pickPack == null)
         {
             return NotFound();
         }
+
+        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin pick-pack'lerine erişebilmeli
+        var order = await _orderService.GetByIdAsync(pickPack.OrderId);
+        if (order == null)
+        {
+            return NotFound();
+        }
+
+        if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager") && !User.IsInRole("Warehouse"))
+        {
+            return Forbid();
+        }
+
         return Ok(pickPack);
     }
 
     [HttpGet("pack-number/{packNumber}")]
     public async Task<ActionResult<PickPackDto>> GetPickPackByPackNumber(string packNumber)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
         var pickPack = await _pickPackService.GetPickPackByPackNumberAsync(packNumber);
         if (pickPack == null)
         {
             return NotFound();
         }
+
+        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin pick-pack'lerine erişebilmeli
+        var order = await _orderService.GetByIdAsync(pickPack.OrderId);
+        if (order == null)
+        {
+            return NotFound();
+        }
+
+        if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager") && !User.IsInRole("Warehouse"))
+        {
+            return Forbid();
+        }
+
         return Ok(pickPack);
     }
 
     [HttpGet("order/{orderId}")]
     public async Task<ActionResult<IEnumerable<PickPackDto>>> GetPickPacksByOrder(Guid orderId)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin pick-pack'lerine erişebilmeli
+        var order = await _orderService.GetByIdAsync(orderId);
+        if (order == null)
+        {
+            return NotFound();
+        }
+
+        if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager") && !User.IsInRole("Warehouse"))
+        {
+            return Forbid();
+        }
+
         var pickPacks = await _pickPackService.GetPickPacksByOrderIdAsync(orderId);
         return Ok(pickPacks);
     }

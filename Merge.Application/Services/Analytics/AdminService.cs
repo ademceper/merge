@@ -5,6 +5,7 @@ using Merge.Application.Interfaces.Analytics;
 using Merge.Application.Interfaces.Catalog;
 using Merge.Application.Interfaces.Logistics;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Identity;
@@ -52,20 +53,20 @@ public class AdminService : IAdminService
             TotalOrders = await _context.Orders.AsNoTracking().CountAsync(),
             TotalRevenue = await _context.Orders
                 .AsNoTracking()
-                .Where(o => o.PaymentStatus == "Paid")
+                .Where(o => o.PaymentStatus == PaymentStatus.Completed)
                 .SumAsync(o => o.TotalAmount),
-            PendingOrders = await _context.Orders.AsNoTracking().CountAsync(o => o.Status == "Pending"),
+            PendingOrders = await _context.Orders.AsNoTracking().CountAsync(o => o.Status == OrderStatus.Pending),
             TodayOrders = await _context.Orders.AsNoTracking().CountAsync(o => o.CreatedAt.Date == DateTime.UtcNow.Date),
             TodayRevenue = await _context.Orders
                 .AsNoTracking()
-                .Where(o => o.PaymentStatus == "Paid" && o.CreatedAt.Date == DateTime.UtcNow.Date)
+                .Where(o => o.PaymentStatus == PaymentStatus.Completed && o.CreatedAt.Date == DateTime.UtcNow.Date)
                 .SumAsync(o => o.TotalAmount),
             TotalWarehouses = await _context.Warehouses.AsNoTracking().CountAsync(),
             ActiveWarehouses = await _context.Warehouses.AsNoTracking().CountAsync(w => w.IsActive),
             LowStockProducts = await _context.Products.AsNoTracking().CountAsync(p => p.StockQuantity <= 10),
             TotalCategories = await _context.Categories.AsNoTracking().CountAsync(),
             PendingReviews = await _context.Reviews.AsNoTracking().CountAsync(r => !r.IsApproved),
-            PendingReturns = await _context.ReturnRequests.AsNoTracking().CountAsync(r => r.Status == "Pending"),
+            PendingReturns = await _context.ReturnRequests.AsNoTracking().CountAsync(r => r.Status == ReturnRequestStatus.Pending),
             Users2FAEnabled = await _context.Set<TwoFactorAuth>().AsNoTracking().CountAsync(t => t.IsEnabled)
         };
 
@@ -82,7 +83,7 @@ public class AdminService : IAdminService
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
         var ordersQuery = _context.Orders
             .AsNoTracking()
-            .Where(o => o.PaymentStatus == "Paid" && o.CreatedAt >= startDate);
+            .Where(o => o.PaymentStatus == PaymentStatus.Completed && o.CreatedAt >= startDate);
 
         var dailyRevenue = await ordersQuery
             .GroupBy(o => o.CreatedAt.Date)
@@ -211,7 +212,7 @@ public class AdminService : IAdminService
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Order)
-            .Where(r => r.Status == "Pending")
+            .Where(r => r.Status == ReturnRequestStatus.Pending)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
 
@@ -331,7 +332,7 @@ public class AdminService : IAdminService
             NewOrders = await _context.Orders.AsNoTracking().CountAsync(o => o.CreatedAt >= startDate),
             Revenue = await _context.Orders
                 .AsNoTracking()
-                .Where(o => o.PaymentStatus == "Paid" && o.CreatedAt >= startDate)
+                .Where(o => o.PaymentStatus == PaymentStatus.Completed && o.CreatedAt >= startDate)
                 .SumAsync(o => o.TotalAmount),
             AverageOrderValue = await _context.Orders
                 .AsNoTracking()

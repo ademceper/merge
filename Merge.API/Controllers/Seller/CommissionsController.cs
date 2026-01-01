@@ -22,11 +22,22 @@ public class CommissionsController : BaseController
     [Authorize]
     public async Task<ActionResult<SellerCommissionDto>> GetCommission(Guid id)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
         var commission = await _commissionService.GetCommissionAsync(id);
 
         if (commission == null)
         {
             return NotFound();
+        }
+
+        // ✅ SECURITY: IDOR koruması - Seller sadece kendi commission'larına erişebilmeli
+        if (commission.SellerId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
+        {
+            return Forbid();
         }
 
         return Ok(commission);
@@ -203,11 +214,22 @@ public class CommissionsController : BaseController
     [Authorize]
     public async Task<ActionResult<CommissionPayoutDto>> GetPayout(Guid id)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
         var payout = await _commissionService.GetPayoutAsync(id);
 
         if (payout == null)
         {
             return NotFound();
+        }
+
+        // ✅ SECURITY: IDOR koruması - Seller sadece kendi payout'larına erişebilmeli
+        if (payout.SellerId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
+        {
+            return Forbid();
         }
 
         return Ok(payout);

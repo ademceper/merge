@@ -9,6 +9,7 @@ using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.Interfaces.Seller;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Seller;
@@ -85,7 +86,7 @@ public class SellerCommissionService : ISellerCommissionService
             // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
             // Calculate total sales for tier determination
             var totalSales = await _context.Set<OrderEntity>()
-                .Where(o => o.OrderItems.Any(i => i.Product.SellerId == sellerId) && o.PaymentStatus == "Paid")
+                .Where(o => o.OrderItems.Any(i => i.Product.SellerId == sellerId) && o.PaymentStatus == PaymentStatus.Completed)
                 .SumAsync(o => o.TotalAmount);
 
             var tier = await GetTierForSalesAsync(totalSales);

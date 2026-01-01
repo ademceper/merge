@@ -1,5 +1,6 @@
 using AutoMapper;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Application.DTOs.Cart;
 using Merge.Application.DTOs.Catalog;
 using Merge.Application.DTOs.Logistics;
@@ -835,7 +836,7 @@ public class MappingProfile : Profile
                 src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty))
             .ForMember(dest => dest.PlanName, opt => opt.MapFrom(src =>
                 src.SubscriptionPlan != null ? src.SubscriptionPlan.Name : string.Empty))
-            .ForMember(dest => dest.IsTrial, opt => opt.MapFrom(src => src.Status == "Trial"))
+            .ForMember(dest => dest.IsTrial, opt => opt.MapFrom(src => src.Status == SubscriptionStatus.Trial))
             .ForMember(dest => dest.DaysRemaining, opt => opt.MapFrom(src =>
                 src.EndDate > DateTime.UtcNow ? (int)(src.EndDate - DateTime.UtcNow).TotalDays : 0))
             .ForMember(dest => dest.RecentPayments, opt => opt.Ignore()); // Will be set in SubscriptionService after batch loading

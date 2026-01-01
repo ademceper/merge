@@ -88,8 +88,19 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Database configuration
+// ✅ SECURITY: Connection string önce environment variable'dan al
+var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Database connection string bulunamadı. DATABASE_URL environment variable veya appsettings ConnectionStrings:DefaultConnection tanımlayın.");
+
+// ✅ SECURITY: Production'da varsayılan password kullanımını engelle
+if (!builder.Environment.IsDevelopment() && connectionString.Contains("Password=postgres"))
+{
+    throw new InvalidOperationException("CRITICAL SECURITY ERROR: Production'da varsayılan database password kullanılamaz! DATABASE_URL environment variable tanımlayın.");
+}
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(connectionString));
 
 // Memory Cache configuration for performance optimization
 builder.Services.AddMemoryCache(options =>
@@ -100,12 +111,13 @@ builder.Services.AddMemoryCache(options =>
 // Identity configuration
 builder.Services.AddIdentity<User, Role>(options =>
 {
-    // Password settings
+    // ✅ SECURITY: Güçlü password policy (BOLUM 5.3)
     options.Password.RequireDigit = true;
     options.Password.RequireLowercase = true;
     options.Password.RequireUppercase = true;
-    options.Password.RequireNonAlphanumeric = false;
-    options.Password.RequiredLength = 8;
+    options.Password.RequireNonAlphanumeric = true;
+    options.Password.RequiredLength = 12;
+    options.Password.RequiredUniqueChars = 4;
 
     // Lockout settings
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
@@ -290,6 +302,10 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+// ✅ SECURITY: Rate Limiting (BOLUM 3.3)
+// Note: Rate limiting is handled by custom RateLimitingMiddleware
+// Configuration is done via RateLimitAttribute on controllers
+
 // Session for rate limiting (optional, if not using distributed cache)
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
@@ -341,6 +357,22 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
 app.UseHttpsRedirection();
+
+// ✅ SECURITY: Security Headers (BOLUM 5.2)
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Content-Security-Policy"] = "default-src 'self'";
+    context.Response.Headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()";
+    if (!app.Environment.IsDevelopment())
+    {
+        context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+    }
+    await next();
+});
 
 // ✅ SECURITY: Development'ta AllowAll, Production'da güvenli CORS policy kullan
 if (app.Environment.IsDevelopment())

@@ -8,6 +8,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Product;
@@ -213,7 +214,7 @@ public class ProductQuestionService : IProductQuestionService
             .AsNoTracking()
             .AnyAsync(oi => oi.ProductId == question.ProductId &&
                           oi.Order.UserId == userId &&
-                          oi.Order.PaymentStatus == "Paid");
+                          oi.Order.PaymentStatus == PaymentStatus.Completed);
 
         var answer = new ProductAnswer
         {

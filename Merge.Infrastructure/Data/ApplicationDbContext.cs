@@ -152,6 +152,7 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
     public DbSet<PaymentFraudPrevention> PaymentFraudPreventions { get; set; }
     public DbSet<AccountSecurityEvent> AccountSecurityEvents { get; set; }
     public DbSet<SecurityAlert> SecurityAlerts { get; set; }
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -166,6 +167,7 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.PhoneNumber);
             entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
             entity.Property(e => e.FirstName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.LastName).IsRequired().HasMaxLength(100);
@@ -185,8 +187,22 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
         modelBuilder.Entity<Product>(entity =>
         {
             entity.HasIndex(e => e.SKU).IsUnique();
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
+            entity.HasIndex(e => e.SellerId);
+            entity.HasIndex(e => e.CategoryId);
+            entity.HasIndex(e => e.IsActive);
+            entity.HasIndex(e => new { e.CategoryId, e.IsActive });
+            
             entity.Property(e => e.Price).HasPrecision(18, 2);
             entity.Property(e => e.DiscountPrice).HasPrecision(18, 2);
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_Product_Price_Positive", "\"Price\" >= 0");
+                t.HasCheckConstraint("CK_Product_Stock_NonNegative", "\"StockQuantity\" >= 0");
+            });
+            
             entity.HasOne(e => e.Category)
                   .WithMany(e => e.Products)
                   .HasForeignKey(e => e.CategoryId)
@@ -219,6 +235,9 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
         // Cart configuration
         modelBuilder.Entity<Cart>(entity =>
         {
+            // ✅ PERFORMANCE: Database Indexes
+            entity.HasIndex(e => e.UserId);
+
             entity.HasOne(e => e.User)
                   .WithMany(e => e.Carts)
                   .HasForeignKey(e => e.UserId)
@@ -243,10 +262,26 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
         modelBuilder.Entity<Order>(entity =>
         {
             entity.HasIndex(e => e.OrderNumber).IsUnique();
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => new { e.UserId, e.Status });
+            
             entity.Property(e => e.SubTotal).HasPrecision(18, 2);
             entity.Property(e => e.ShippingCost).HasPrecision(18, 2);
             entity.Property(e => e.Tax).HasPrecision(18, 2);
             entity.Property(e => e.TotalAmount).HasPrecision(18, 2);
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_Order_TotalAmount_Positive", "\"TotalAmount\" >= 0");
+                t.HasCheckConstraint("CK_Order_SubTotal_Positive", "\"SubTotal\" >= 0");
+                t.HasCheckConstraint("CK_Order_ShippingCost_Positive", "\"ShippingCost\" >= 0");
+                t.HasCheckConstraint("CK_Order_Tax_Positive", "\"Tax\" >= 0");
+            });
+            
             entity.HasOne(e => e.User)
                   .WithMany(e => e.Orders)
                   .HasForeignKey(e => e.UserId)
@@ -323,7 +358,18 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
                   .WithMany(e => e.Reviews)
                   .HasForeignKey(e => e.ProductId)
                   .OnDelete(DeleteBehavior.Cascade);
+
+            // ✅ PERFORMANCE: Database Indexes
+            entity.HasIndex(e => e.ProductId);
+            entity.HasIndex(e => e.UserId);
             entity.HasIndex(e => new { e.UserId, e.ProductId });
+            entity.HasIndex(e => new { e.ProductId, e.IsApproved });
+
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_Review_Rating_Range", "\"Rating\" >= 1 AND \"Rating\" <= 5");
+            });
         });
 
         // ProductVariant configuration
@@ -339,6 +385,10 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
         // Wishlist configuration
         modelBuilder.Entity<Wishlist>(entity =>
         {
+            // ✅ PERFORMANCE: Database Indexes
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => new { e.UserId, e.ProductId }).IsUnique();
+
             entity.HasOne(e => e.User)
                   .WithMany(e => e.Wishlists)
                   .HasForeignKey(e => e.UserId)
@@ -347,7 +397,6 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
                   .WithMany(e => e.Wishlists)
                   .HasForeignKey(e => e.ProductId)
                   .OnDelete(DeleteBehavior.Cascade);
-            entity.HasIndex(e => new { e.UserId, e.ProductId }).IsUnique();
         });
 
         // Coupon configuration
@@ -366,6 +415,14 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
                   .HasConversion(
                       v => v != null ? string.Join(',', v) : null,
                       v => v != null ? v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(Guid.Parse).ToList() : null);
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_Coupon_DiscountAmount_NonNegative", "\"DiscountAmount\" >= 0");
+                t.HasCheckConstraint("CK_Coupon_DiscountPercentage_Range", "\"DiscountPercentage\" IS NULL OR (\"DiscountPercentage\" >= 0 AND \"DiscountPercentage\" <= 100)");
+                t.HasCheckConstraint("CK_Coupon_UsedCount_LessThan_UsageLimit", "\"UsedCount\" <= \"UsageLimit\" OR \"UsageLimit\" = 0");
+            });
         });
 
         // CouponUsage configuration
@@ -393,11 +450,23 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
                   .WithOne(e => e.Payment)
                   .HasForeignKey<Payment>(e => e.OrderId)
                   .OnDelete(DeleteBehavior.Restrict);
+
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
+            entity.HasIndex(e => e.OrderId);
+            entity.HasIndex(e => e.TransactionId);
+            entity.HasIndex(e => e.Status);
+
             entity.Property(e => e.Amount).HasPrecision(18, 2);
             entity.Property(e => e.Metadata)
                   .HasConversion(
                       v => v ?? string.Empty,
                       v => string.IsNullOrEmpty(v) ? null : v);
+
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_Payment_Amount_Positive", "\"Amount\" >= 0");
+            });
         });
 
         // Shipping configuration
@@ -612,6 +681,13 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
                   .OnDelete(DeleteBehavior.SetNull);
             entity.Property(e => e.Amount).HasPrecision(18, 2);
             entity.Property(e => e.RemainingAmount).HasPrecision(18, 2);
+
+            // ✅ SECURITY: Check Constraints
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_GiftCard_Amount_Positive", "\"Amount\" > 0");
+                t.HasCheckConstraint("CK_GiftCard_RemainingAmount_NonNegative", "\"RemainingAmount\" >= 0");
+            });
         });
 
         // GiftCardTransaction configuration
@@ -1695,6 +1771,22 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
                   .WithMany(e => e.Users)
                   .HasForeignKey(e => e.OrganizationId)
                   .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ✅ SECURITY: RefreshToken configuration
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasIndex(e => e.Token).IsUnique();
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => new { e.UserId, e.IsRevoked, e.ExpiresAt });
+            entity.Property(e => e.Token).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.CreatedByIp).HasMaxLength(50);
+            entity.Property(e => e.RevokedByIp).HasMaxLength(50);
+            entity.Property(e => e.ReplacedByToken).HasMaxLength(256);
+            entity.HasOne(e => e.User)
+                  .WithMany(e => e.RefreshTokens)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         // B2BUser configuration

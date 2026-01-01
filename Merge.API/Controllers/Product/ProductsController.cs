@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
@@ -19,6 +20,7 @@ public class ProductsController : BaseController
     }
 
     [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<ProductDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ProductDto>>> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var products = await _productService.GetAllAsync(page, pageSize);
@@ -26,6 +28,8 @@ public class ProductsController : BaseController
     }
 
     [HttpGet("{id}")]
+    [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ProductDto>> GetById(Guid id)
     {
         var product = await _productService.GetByIdAsync(id);
@@ -37,6 +41,7 @@ public class ProductsController : BaseController
     }
 
     [HttpGet("category/{categoryId}")]
+    [ProducesResponseType(typeof(IEnumerable<ProductDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ProductDto>>> GetByCategory(Guid categoryId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var products = await _productService.GetByCategoryAsync(categoryId, page, pageSize);
@@ -44,6 +49,7 @@ public class ProductsController : BaseController
     }
 
     [HttpGet("search")]
+    [ProducesResponseType(typeof(IEnumerable<ProductDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ProductDto>>> Search([FromQuery] string q, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var products = await _productService.SearchAsync(q, page, pageSize);
@@ -52,6 +58,9 @@ public class ProductsController : BaseController
 
     [HttpPost]
     [Authorize(Roles = "Admin,Seller")]
+    [ProducesResponseType(typeof(ProductDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ProductDto>> Create([FromBody] ProductDto productDto)
     {
         var validationResult = ValidateModelState();
@@ -75,6 +84,10 @@ public class ProductsController : BaseController
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,Seller")]
+    [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ProductDto>> Update(Guid id, [FromBody] ProductDto productDto)
     {
         var validationResult = ValidateModelState();
@@ -107,6 +120,9 @@ public class ProductsController : BaseController
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Seller")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Delete(Guid id)
     {
         if (!TryGetUserId(out var userId))

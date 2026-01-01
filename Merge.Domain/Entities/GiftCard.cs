@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace Merge.Domain.Entities;
 
 public class GiftCard : BaseEntity
@@ -12,6 +15,10 @@ public class GiftCard : BaseEntity
     public bool IsActive { get; set; } = true;
     public bool IsRedeemed { get; set; } = false;
     public DateTime? RedeemedAt { get; set; }
+
+    // ✅ CONCURRENCY: RowVersion for optimistic concurrency control (hediye kartı kullanımı için kritik)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
     
     // Navigation properties
     public User? PurchasedBy { get; set; }

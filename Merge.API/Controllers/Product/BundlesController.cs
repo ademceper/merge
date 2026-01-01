@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.DTOs.Product;
@@ -17,6 +18,7 @@ public class BundlesController : BaseController
             }
 
     [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<ProductBundleDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ProductBundleDto>>> GetActiveBundles()
     {
         var bundles = await _bundleService.GetActiveBundlesAsync();
@@ -25,6 +27,8 @@ public class BundlesController : BaseController
 
     [HttpGet("all")]
     [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(IEnumerable<ProductBundleDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<IEnumerable<ProductBundleDto>>> GetAll()
     {
         var bundles = await _bundleService.GetAllAsync();
@@ -32,6 +36,8 @@ public class BundlesController : BaseController
     }
 
     [HttpGet("{id}")]
+    [ProducesResponseType(typeof(ProductBundleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ProductBundleDto>> GetById(Guid id)
     {
         var bundle = await _bundleService.GetByIdAsync(id);
@@ -44,6 +50,9 @@ public class BundlesController : BaseController
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(ProductBundleDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ProductBundleDto>> Create([FromBody] CreateProductBundleDto dto)
     {
         var validationResult = ValidateModelState();
@@ -55,6 +64,10 @@ public class BundlesController : BaseController
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(ProductBundleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ProductBundleDto>> Update(Guid id, [FromBody] UpdateProductBundleDto dto)
     {
         var validationResult = ValidateModelState();
@@ -70,6 +83,9 @@ public class BundlesController : BaseController
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Delete(Guid id)
     {
         var result = await _bundleService.DeleteAsync(id);
@@ -82,6 +98,9 @@ public class BundlesController : BaseController
 
     [HttpPost("{bundleId}/products")]
     [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> AddProduct(Guid bundleId, [FromBody] AddProductToBundleDto dto)
     {
         var validationResult = ValidateModelState();
@@ -93,6 +112,9 @@ public class BundlesController : BaseController
 
     [HttpDelete("{bundleId}/products/{productId}")]
     [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> RemoveProduct(Guid bundleId, Guid productId)
     {
         var result = await _bundleService.RemoveProductFromBundleAsync(bundleId, productId);

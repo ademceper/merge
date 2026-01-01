@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Identity;
 
@@ -16,6 +17,8 @@ public class EmailVerificationController : BaseController
     }
 
     [HttpPost("verify")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> VerifyEmail([FromQuery] string token)
     {
         if (string.IsNullOrWhiteSpace(token))
@@ -33,6 +36,9 @@ public class EmailVerificationController : BaseController
 
     [HttpPost("resend")]
     [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ResendVerificationEmail()
     {
         var userId = GetUserId();
@@ -46,6 +52,8 @@ public class EmailVerificationController : BaseController
 
     [HttpGet("status")]
     [Authorize]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<bool>> GetVerificationStatus()
     {
         var userId = GetUserId();

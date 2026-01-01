@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations;
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
 public class SubscriptionPlan : BaseEntity
@@ -15,7 +18,7 @@ public class SubscriptionPlan : BaseEntity
     public int MaxUsers { get; set; } = 1; // Maximum users allowed
     public decimal? SetupFee { get; set; } // One-time setup fee
     public string? Currency { get; set; } = "TRY";
-    
+
     // Navigation properties
     public ICollection<UserSubscription> UserSubscriptions { get; set; } = new List<UserSubscription>();
 }
@@ -24,7 +27,8 @@ public class UserSubscription : BaseEntity
 {
     public Guid UserId { get; set; }
     public Guid SubscriptionPlanId { get; set; }
-    public string Status { get; set; } = "Active"; // Active, Cancelled, Expired, Suspended, Trial
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine)
+    public SubscriptionStatus Status { get; set; } = SubscriptionStatus.Active;
     public DateTime StartDate { get; set; } = DateTime.UtcNow;
     public DateTime EndDate { get; set; }
     public DateTime? TrialEndDate { get; set; }
@@ -35,7 +39,11 @@ public class UserSubscription : BaseEntity
     public decimal CurrentPrice { get; set; } // Price at time of subscription
     public string? PaymentMethodId { get; set; } // Reference to payment method
     public int RenewalCount { get; set; } = 0; // How many times renewed
-    
+
+    // ✅ CONCURRENCY: Eşzamanlı güncellemeleri önlemek için
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
+
     // Navigation properties
     public User User { get; set; } = null!;
     public SubscriptionPlan SubscriptionPlan { get; set; } = null!;

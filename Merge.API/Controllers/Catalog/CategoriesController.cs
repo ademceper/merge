@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Catalog;
 using Merge.Application.DTOs.Catalog;
+using Merge.Application.Common;
 
 
 namespace Merge.API.Controllers.Catalog;
@@ -18,16 +19,20 @@ public class CategoriesController : BaseController
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<CategoryDto>>> GetAll()
+    public async Task<ActionResult<PagedResult<CategoryDto>>> GetAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
-        var categories = await _categoryService.GetAllAsync();
+        var categories = await _categoryService.GetAllAsync(page, pageSize);
         return Ok(categories);
     }
 
     [HttpGet("main")]
-    public async Task<ActionResult<IEnumerable<CategoryDto>>> GetMainCategories()
+    public async Task<ActionResult<PagedResult<CategoryDto>>> GetMainCategories(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
-        var categories = await _categoryService.GetMainCategoriesAsync();
+        var categories = await _categoryService.GetMainCategoriesAsync(page, pageSize);
         return Ok(categories);
     }
 

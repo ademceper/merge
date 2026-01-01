@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.DTOs.Product;
@@ -19,6 +20,9 @@ public class SizeGuidesController : BaseController
 
     [HttpPost]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(typeof(SizeGuideDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<SizeGuideDto>> CreateSizeGuide([FromBody] CreateSizeGuideDto dto)
     {
         var validationResult = ValidateModelState();
@@ -29,6 +33,8 @@ public class SizeGuidesController : BaseController
     }
 
     [HttpGet("{id}")]
+    [ProducesResponseType(typeof(SizeGuideDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<SizeGuideDto>> GetSizeGuide(Guid id)
     {
         var sizeGuide = await _sizeGuideService.GetSizeGuideAsync(id);
@@ -42,6 +48,7 @@ public class SizeGuidesController : BaseController
     }
 
     [HttpGet("category/{categoryId}")]
+    [ProducesResponseType(typeof(IEnumerable<SizeGuideDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<SizeGuideDto>>> GetSizeGuidesByCategory(Guid categoryId)
     {
         var sizeGuides = await _sizeGuideService.GetSizeGuidesByCategoryAsync(categoryId);
@@ -49,6 +56,7 @@ public class SizeGuidesController : BaseController
     }
 
     [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<SizeGuideDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<SizeGuideDto>>> GetAllSizeGuides()
     {
         var sizeGuides = await _sizeGuideService.GetAllSizeGuidesAsync();
@@ -57,6 +65,10 @@ public class SizeGuidesController : BaseController
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> UpdateSizeGuide(Guid id, [FromBody] CreateSizeGuideDto dto)
     {
         var validationResult = ValidateModelState();
@@ -74,6 +86,9 @@ public class SizeGuidesController : BaseController
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> DeleteSizeGuide(Guid id)
     {
         var success = await _sizeGuideService.DeleteSizeGuideAsync(id);
@@ -88,6 +103,9 @@ public class SizeGuidesController : BaseController
 
     [HttpPost("assign")]
     [Authorize(Roles = "Admin,Manager,Seller")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> AssignSizeGuideToProduct([FromBody] AssignSizeGuideDto dto)
     {
         var validationResult = ValidateModelState();
@@ -98,6 +116,8 @@ public class SizeGuidesController : BaseController
     }
 
     [HttpGet("product/{productId}")]
+    [ProducesResponseType(typeof(ProductSizeGuideDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ProductSizeGuideDto>> GetProductSizeGuide(Guid productId)
     {
         var productSizeGuide = await _sizeGuideService.GetProductSizeGuideAsync(productId);
@@ -112,6 +132,9 @@ public class SizeGuidesController : BaseController
 
     [HttpDelete("product/{productId}")]
     [Authorize(Roles = "Admin,Manager,Seller")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> RemoveSizeGuideFromProduct(Guid productId)
     {
         var success = await _sizeGuideService.RemoveSizeGuideFromProductAsync(productId);
@@ -125,6 +148,8 @@ public class SizeGuidesController : BaseController
     }
 
     [HttpPost("recommend")]
+    [ProducesResponseType(typeof(SizeRecommendationDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<SizeRecommendationDto>> GetSizeRecommendation([FromBody] GetSizeRecommendationDto dto)
     {
         var validationResult = ValidateModelState();

@@ -8,6 +8,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Seller;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text.Json;
@@ -434,20 +435,20 @@ public class StoreService : IStoreService
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         var totalOrders = await _context.Orders
             .AsNoTracking()
-            .Where(o => o.PaymentStatus == "Paid" &&
+            .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.OrderItems.Any(oi => oi.Product != null && oi.Product.StoreId == storeId))
             .CountAsync();
 
         var totalRevenue = await _context.Orders
             .AsNoTracking()
-            .Where(o => o.PaymentStatus == "Paid" &&
+            .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.OrderItems.Any(oi => oi.Product != null && oi.Product.StoreId == storeId))
             .SelectMany(o => o.OrderItems.Where(oi => oi.Product != null && oi.Product.StoreId == storeId))
             .SumAsync(oi => oi.TotalPrice);
 
         var monthlyRevenue = await _context.Orders
             .AsNoTracking()
-            .Where(o => o.PaymentStatus == "Paid" &&
+            .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   o.OrderItems.Any(oi => oi.Product != null && oi.Product.StoreId == storeId))
             .SelectMany(o => o.OrderItems.Where(oi => oi.Product != null && oi.Product.StoreId == storeId))
@@ -456,7 +457,7 @@ public class StoreService : IStoreService
         // ✅ PERFORMANCE: Database'de distinct count yap (memory'de işlem YASAK)
         var totalCustomers = await _context.Orders
             .AsNoTracking()
-            .Where(o => o.PaymentStatus == "Paid" &&
+            .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.OrderItems.Any(oi => oi.Product != null && oi.Product.StoreId == storeId))
             .Select(o => o.UserId)
             .Distinct()

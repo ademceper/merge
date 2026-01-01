@@ -10,6 +10,7 @@ using Merge.Infrastructure.Repositories;
 using System.Text;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Content;
+using Merge.Application.Common;
 
 
 namespace Merge.Application.Services.Content;
@@ -96,7 +97,7 @@ public class BlogService : IBlogService
             .ThenBy(c => c.Name)
             .ToListAsync();
 
-        // ✅ PERFORMANCE: Batch loading - tüm category'ler için postCount'ları tek query'de al
+        // ✅ PERFORMANCE: Navigation property'den ID'leri al (zaten ToListAsync ile yüklenmiş, memory'de Select kabul edilebilir)
         var categoryIds = categories.Select(c => c.Id).ToList();
         var postCounts = await _context.Set<BlogPost>()
             .AsNoTracking()

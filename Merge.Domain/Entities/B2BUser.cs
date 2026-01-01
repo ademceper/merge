@@ -1,3 +1,5 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
 public class B2BUser : BaseEntity
@@ -7,7 +9,7 @@ public class B2BUser : BaseEntity
     public string? EmployeeId { get; set; } // Company employee ID
     public string? Department { get; set; }
     public string? JobTitle { get; set; }
-    public string Status { get; set; } = "Active"; // Active, Inactive, Suspended
+    public EntityStatus Status { get; set; } = EntityStatus.Active;
     public bool IsApproved { get; set; } = false;
     public DateTime? ApprovedAt { get; set; }
     public Guid? ApprovedByUserId { get; set; }
@@ -57,7 +59,7 @@ public class PurchaseOrder : BaseEntity
     public Guid OrganizationId { get; set; }
     public Guid? B2BUserId { get; set; } // User who created the PO
     public string PONumber { get; set; } = string.Empty; // Auto-generated: PO-XXXXXX
-    public string Status { get; set; } = "Draft"; // Draft, Submitted, Approved, Rejected, Fulfilled, Cancelled
+    public PurchaseOrderStatus Status { get; set; } = PurchaseOrderStatus.Draft;
     public decimal SubTotal { get; set; }
     public decimal Tax { get; set; }
     public decimal TotalAmount { get; set; }

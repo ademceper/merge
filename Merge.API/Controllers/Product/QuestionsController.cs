@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
@@ -20,6 +21,9 @@ public class ProductQuestionsController : BaseController
 
     [HttpPost]
     [Authorize]
+    [ProducesResponseType(typeof(ProductQuestionDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ProductQuestionDto>> AskQuestion([FromBody] CreateProductQuestionDto dto)
     {
         var validationResult = ValidateModelState();
@@ -35,6 +39,8 @@ public class ProductQuestionsController : BaseController
     }
 
     [HttpGet("{id}")]
+    [ProducesResponseType(typeof(ProductQuestionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ProductQuestionDto>> GetQuestion(Guid id)
     {
         var userId = GetUserIdOrNull();
@@ -50,6 +56,7 @@ public class ProductQuestionsController : BaseController
     }
 
     [HttpGet("product/{productId}")]
+    [ProducesResponseType(typeof(IEnumerable<ProductQuestionDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ProductQuestionDto>>> GetProductQuestions(
         Guid productId,
         [FromQuery] int page = 1,
@@ -63,6 +70,8 @@ public class ProductQuestionsController : BaseController
 
     [HttpGet("my-questions")]
     [Authorize]
+    [ProducesResponseType(typeof(IEnumerable<ProductQuestionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<IEnumerable<ProductQuestionDto>>> GetMyQuestions()
     {
         if (!TryGetUserId(out var userId))
@@ -76,6 +85,9 @@ public class ProductQuestionsController : BaseController
 
     [HttpPost("{id}/approve")]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ApproveQuestion(Guid id)
     {
         var success = await _productQuestionService.ApproveQuestionAsync(id);
@@ -90,6 +102,9 @@ public class ProductQuestionsController : BaseController
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> DeleteQuestion(Guid id)
     {
         var success = await _productQuestionService.DeleteQuestionAsync(id);
@@ -104,6 +119,9 @@ public class ProductQuestionsController : BaseController
 
     [HttpPost("answers")]
     [Authorize]
+    [ProducesResponseType(typeof(ProductAnswerDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ProductAnswerDto>> AnswerQuestion([FromBody] CreateProductAnswerDto dto)
     {
         var validationResult = ValidateModelState();
@@ -119,6 +137,7 @@ public class ProductQuestionsController : BaseController
     }
 
     [HttpGet("{id}/answers")]
+    [ProducesResponseType(typeof(IEnumerable<ProductAnswerDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ProductAnswerDto>>> GetQuestionAnswers(Guid id)
     {
         var userId = GetUserIdOrNull();
@@ -129,6 +148,9 @@ public class ProductQuestionsController : BaseController
 
     [HttpPost("answers/{id}/approve")]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ApproveAnswer(Guid id)
     {
         var success = await _productQuestionService.ApproveAnswerAsync(id);
@@ -143,6 +165,9 @@ public class ProductQuestionsController : BaseController
 
     [HttpDelete("answers/{id}")]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> DeleteAnswer(Guid id)
     {
         var success = await _productQuestionService.DeleteAnswerAsync(id);
@@ -157,6 +182,8 @@ public class ProductQuestionsController : BaseController
 
     [HttpPost("{id}/helpful")]
     [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> MarkQuestionHelpful(Guid id)
     {
         if (!TryGetUserId(out var userId))
@@ -170,6 +197,8 @@ public class ProductQuestionsController : BaseController
 
     [HttpDelete("{id}/helpful")]
     [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> UnmarkQuestionHelpful(Guid id)
     {
         if (!TryGetUserId(out var userId))
@@ -183,6 +212,8 @@ public class ProductQuestionsController : BaseController
 
     [HttpPost("answers/{id}/helpful")]
     [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> MarkAnswerHelpful(Guid id)
     {
         if (!TryGetUserId(out var userId))
@@ -196,6 +227,8 @@ public class ProductQuestionsController : BaseController
 
     [HttpDelete("answers/{id}/helpful")]
     [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> UnmarkAnswerHelpful(Guid id)
     {
         if (!TryGetUserId(out var userId))
@@ -208,6 +241,7 @@ public class ProductQuestionsController : BaseController
     }
 
     [HttpGet("stats")]
+    [ProducesResponseType(typeof(QAStatsDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<QAStatsDto>> GetQAStats([FromQuery] Guid? productId = null)
     {
         var stats = await _productQuestionService.GetQAStatsAsync(productId);
@@ -215,6 +249,7 @@ public class ProductQuestionsController : BaseController
     }
 
     [HttpGet("unanswered")]
+    [ProducesResponseType(typeof(IEnumerable<ProductQuestionDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ProductQuestionDto>>> GetUnansweredQuestions(
         [FromQuery] Guid? productId = null,
         [FromQuery] int limit = 20)

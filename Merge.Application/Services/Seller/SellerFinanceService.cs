@@ -8,6 +8,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Seller;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text.Json;
@@ -232,7 +233,7 @@ public class SellerFinanceService : ISellerFinanceService
         // Get orders for the period (for total earnings calculation)
         var totalEarnings = await _context.Orders
             .AsNoTracking()
-            .Where(o => o.PaymentStatus == "Paid" &&
+            .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= dto.PeriodStart &&
                   o.CreatedAt <= dto.PeriodEnd &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == dto.SellerId))

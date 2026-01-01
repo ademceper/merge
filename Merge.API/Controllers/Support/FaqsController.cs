@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.DTOs.Support;
+using Merge.Application.Common;
 
 
 namespace Merge.API.Controllers.Support;
@@ -17,24 +18,31 @@ public class FaqsController : BaseController
             }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<FaqDto>>> GetPublished()
+    public async Task<ActionResult<PagedResult<FaqDto>>> GetPublished(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
-        var faqs = await _faqService.GetPublishedAsync();
+        var faqs = await _faqService.GetPublishedAsync(page, pageSize);
         return Ok(faqs);
     }
 
     [HttpGet("category/{category}")]
-    public async Task<ActionResult<IEnumerable<FaqDto>>> GetByCategory(string category)
+    public async Task<ActionResult<PagedResult<FaqDto>>> GetByCategory(
+        string category,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
-        var faqs = await _faqService.GetByCategoryAsync(category);
+        var faqs = await _faqService.GetByCategoryAsync(category, page, pageSize);
         return Ok(faqs);
     }
 
     [HttpGet("all")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<IEnumerable<FaqDto>>> GetAll()
+    public async Task<ActionResult<PagedResult<FaqDto>>> GetAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
-        var faqs = await _faqService.GetAllAsync();
+        var faqs = await _faqService.GetAllAsync(page, pageSize);
         return Ok(faqs);
     }
 

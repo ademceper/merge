@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Identity;
 using Merge.Application.DTOs.Identity;
+using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Identity;
 
@@ -18,6 +20,8 @@ public class TwoFactorAuthController : BaseController
     }
 
     [HttpGet("status")]
+    [ProducesResponseType(typeof(TwoFactorStatusDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<TwoFactorStatusDto>> GetStatus()
     {
         var userId = GetUserId();
@@ -26,6 +30,9 @@ public class TwoFactorAuthController : BaseController
     }
 
     [HttpPost("setup")]
+    [ProducesResponseType(typeof(TwoFactorSetupResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<TwoFactorSetupResponseDto>> Setup([FromBody] TwoFactorSetupDto setupDto)
     {
         var validationResult = ValidateModelState();
@@ -37,6 +44,9 @@ public class TwoFactorAuthController : BaseController
     }
 
     [HttpPost("enable")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Enable([FromBody] Enable2FADto enableDto)
     {
         var validationResult = ValidateModelState();
@@ -48,6 +58,9 @@ public class TwoFactorAuthController : BaseController
     }
 
     [HttpPost("disable")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Disable([FromBody] Disable2FADto disableDto)
     {
         var validationResult = ValidateModelState();
@@ -58,8 +71,12 @@ public class TwoFactorAuthController : BaseController
         return NoContent();
     }
 
+    // ✅ SECURITY: Rate limiting - 5 doğrulama denemesi / dakika (brute force koruması)
     [HttpPost("verify")]
     [AllowAnonymous]
+    [RateLimit(5, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Verify([FromBody] Verify2FADto verifyDto)
     {
         var validationResult = ValidateModelState();
@@ -73,7 +90,12 @@ public class TwoFactorAuthController : BaseController
         return NoContent();
     }
 
+    // ✅ SECURITY: Rate limiting - 3 kod gönderimi / dakika (spam koruması)
     [HttpPost("send-code")]
+    [RateLimit(3, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> SendCode()
     {
         var userId = GetUserId();
@@ -82,6 +104,9 @@ public class TwoFactorAuthController : BaseController
     }
 
     [HttpPost("regenerate-backup-codes")]
+    [ProducesResponseType(typeof(BackupCodesResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<BackupCodesResponseDto>> RegenerateBackupCodes([FromBody] RegenerateBackupCodesDto regenerateDto)
     {
         var validationResult = ValidateModelState();
@@ -94,6 +119,8 @@ public class TwoFactorAuthController : BaseController
 
     [HttpPost("verify-backup-code")]
     [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> VerifyBackupCode([FromBody] Verify2FADto verifyDto)
     {
         var validationResult = ValidateModelState();

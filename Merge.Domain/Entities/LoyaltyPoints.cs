@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace Merge.Domain.Entities;
 
 public class LoyaltyAccount : BaseEntity
@@ -8,6 +11,10 @@ public class LoyaltyAccount : BaseEntity
     public Guid? TierId { get; set; }
     public DateTime? TierAchievedAt { get; set; }
     public DateTime? TierExpiresAt { get; set; }
+
+    // ✅ CONCURRENCY: RowVersion for optimistic concurrency control (puan işlemleri için kritik)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public User User { get; set; } = null!;

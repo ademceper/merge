@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Payment;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Payment;
@@ -38,7 +39,7 @@ public class PaymentService : IPaymentService
         _logger = logger;
     }
 
-    public async Task<PaymentDto?> GetByIdAsync(Guid id)
+    public async Task<PaymentDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -47,7 +48,7 @@ public class PaymentService : IPaymentService
             var payment = await _context.Payments
                 .AsNoTracking()
                 .Include(p => p.Order)
-                .FirstOrDefaultAsync(p => p.Id == id);
+                .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
             if (payment == null)
             {
@@ -66,7 +67,7 @@ public class PaymentService : IPaymentService
         }
     }
 
-    public async Task<PaymentDto?> GetByOrderIdAsync(Guid orderId)
+    public async Task<PaymentDto?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -75,7 +76,7 @@ public class PaymentService : IPaymentService
             var payment = await _context.Payments
                 .AsNoTracking()
                 .Include(p => p.Order)
-                .FirstOrDefaultAsync(p => p.OrderId == orderId);
+                .FirstOrDefaultAsync(p => p.OrderId == orderId, cancellationToken);
 
             if (payment == null)
             {
@@ -94,7 +95,7 @@ public class PaymentService : IPaymentService
         }
     }
 
-    public async Task<PaymentDto> CreatePaymentAsync(CreatePaymentDto dto)
+    public async Task<PaymentDto> CreatePaymentAsync(CreatePaymentDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
@@ -120,7 +121,7 @@ public class PaymentService : IPaymentService
                 throw new NotFoundException("Sipariş", dto.OrderId);
             }
 
-            if (order.PaymentStatus == "Paid")
+            if (order.PaymentStatus == PaymentStatus.Completed)
             {
                 _logger.LogWarning("Order {OrderId} is already paid", dto.OrderId);
                 throw new BusinessException("Bu sipariş zaten ödenmiş.");
@@ -128,7 +129,7 @@ public class PaymentService : IPaymentService
 
             var existingPayment = await _context.Payments
                 .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.OrderId == dto.OrderId);
+                .FirstOrDefaultAsync(p => p.OrderId == dto.OrderId, cancellationToken);
 
             if (existingPayment != null)
             {
@@ -142,7 +143,7 @@ public class PaymentService : IPaymentService
                 PaymentMethod = dto.PaymentMethod,
                 PaymentProvider = dto.PaymentProvider,
                 Amount = dto.Amount,
-                Status = "Pending"
+                Status = PaymentStatus.Pending
             };
 
             payment = await _paymentRepository.AddAsync(payment);
@@ -152,7 +153,7 @@ public class PaymentService : IPaymentService
             payment = await _context.Payments
                 .AsNoTracking()
                 .Include(p => p.Order)
-                .FirstOrDefaultAsync(p => p.Id == payment.Id);
+                .FirstOrDefaultAsync(p => p.Id == payment.Id, cancellationToken);
 
             await _unitOfWork.CommitTransactionAsync();
 
@@ -168,7 +169,7 @@ public class PaymentService : IPaymentService
         }
     }
 
-    public async Task<PaymentDto> ProcessPaymentAsync(Guid paymentId, ProcessPaymentDto dto)
+    public async Task<PaymentDto> ProcessPaymentAsync(Guid paymentId, ProcessPaymentDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
@@ -189,7 +190,7 @@ public class PaymentService : IPaymentService
                 throw new NotFoundException("Ödeme kaydı", paymentId);
             }
 
-            if (payment.Status == "Completed")
+            if (payment.Status == PaymentStatus.Completed)
             {
                 _logger.LogWarning("Payment {PaymentId} is already completed", paymentId);
                 throw new BusinessException("Bu ödeme zaten tamamlanmış.");
@@ -197,7 +198,7 @@ public class PaymentService : IPaymentService
 
             // Burada gerçek payment gateway entegrasyonu yapılacak
             // Şimdilik sadece status güncelleniyor
-            payment.Status = "Completed";
+            payment.Status = PaymentStatus.Completed;
             payment.TransactionId = dto.TransactionId;
             payment.PaymentReference = dto.PaymentReference;
             payment.PaidAt = DateTime.UtcNow;
@@ -213,18 +214,18 @@ public class PaymentService : IPaymentService
             var order = await _orderRepository.GetByIdAsync(payment.OrderId);
             if (order != null)
             {
-                order.PaymentStatus = "Paid";
+                order.PaymentStatus = PaymentStatus.Completed;
                 await _orderRepository.UpdateAsync(order);
                 await _unitOfWork.SaveChangesAsync();
 
-                _logger.LogInformation("Updated order {OrderId} payment status to Paid", payment.OrderId);
+                _logger.LogInformation("Updated order {OrderId} payment status to Completed", payment.OrderId);
             }
 
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             payment = await _context.Payments
                 .AsNoTracking()
                 .Include(p => p.Order)
-                .FirstOrDefaultAsync(p => p.Id == payment.Id);
+                .FirstOrDefaultAsync(p => p.Id == payment.Id, cancellationToken);
 
             await _unitOfWork.CommitTransactionAsync();
 
@@ -240,7 +241,7 @@ public class PaymentService : IPaymentService
         }
     }
 
-    public async Task<PaymentDto> RefundPaymentAsync(Guid paymentId, decimal? amount = null)
+    public async Task<PaymentDto> RefundPaymentAsync(Guid paymentId, decimal? amount = null, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -256,7 +257,7 @@ public class PaymentService : IPaymentService
                 throw new NotFoundException("Ödeme kaydı", paymentId);
             }
 
-            if (payment.Status != "Completed")
+            if (payment.Status != PaymentStatus.Completed)
             {
                 _logger.LogWarning("Payment {PaymentId} cannot be refunded. Status: {Status}", paymentId, payment.Status);
                 throw new BusinessException("Sadece tamamlanmış ödemeler iade edilebilir.");
@@ -278,7 +279,7 @@ public class PaymentService : IPaymentService
 
             // Burada gerçek payment gateway refund işlemi yapılacak
             var isFullRefund = refundAmount == payment.Amount;
-            payment.Status = isFullRefund ? "Refunded" : "PartiallyRefunded";
+            payment.Status = isFullRefund ? PaymentStatus.Refunded : PaymentStatus.PartiallyRefunded;
             await _paymentRepository.UpdateAsync(payment);
             await _unitOfWork.SaveChangesAsync();
 
@@ -288,7 +289,7 @@ public class PaymentService : IPaymentService
             var order = await _orderRepository.GetByIdAsync(payment.OrderId);
             if (order != null)
             {
-                order.PaymentStatus = isFullRefund ? "Refunded" : "PartiallyRefunded";
+                order.PaymentStatus = isFullRefund ? PaymentStatus.Refunded : PaymentStatus.PartiallyRefunded;
                 await _orderRepository.UpdateAsync(order);
                 await _unitOfWork.SaveChangesAsync();
 
@@ -299,7 +300,7 @@ public class PaymentService : IPaymentService
             payment = await _context.Payments
                 .AsNoTracking()
                 .Include(p => p.Order)
-                .FirstOrDefaultAsync(p => p.Id == payment.Id);
+                .FirstOrDefaultAsync(p => p.Id == payment.Id, cancellationToken);
 
             await _unitOfWork.CommitTransactionAsync();
 
@@ -316,7 +317,7 @@ public class PaymentService : IPaymentService
         }
     }
 
-    public async Task<bool> VerifyPaymentAsync(string transactionId)
+    public async Task<bool> VerifyPaymentAsync(string transactionId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -324,7 +325,7 @@ public class PaymentService : IPaymentService
 
             var payment = await _context.Payments
                 .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.TransactionId == transactionId);
+                .FirstOrDefaultAsync(p => p.TransactionId == transactionId, cancellationToken);
 
             if (payment == null)
             {
@@ -334,7 +335,7 @@ public class PaymentService : IPaymentService
 
             // Burada payment gateway'den ödeme durumu sorgulanacak
             // Şimdilik sadece payment kaydının varlığını kontrol ediyoruz
-            var isVerified = payment.Status == "Completed";
+            var isVerified = payment.Status == PaymentStatus.Completed;
 
             _logger.LogInformation("Payment verification result for transaction ID {TransactionId}: {IsVerified}",
                 transactionId, isVerified);

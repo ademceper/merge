@@ -42,11 +42,24 @@ public class LiveChatController : BaseController
     [Authorize]
     public async Task<ActionResult<LiveChatSessionDto>> GetSessionById(Guid id)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
         var session = await _liveChatService.GetSessionByIdAsync(id);
         if (session == null)
         {
             return NotFound();
         }
+
+        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi session'larına erişebilmeli veya agent olmalı
+        var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
+        if (!isAgent && session.UserId != userId)
+        {
+            return Forbid();
+        }
+
         return Ok(session);
     }
 
@@ -54,11 +67,24 @@ public class LiveChatController : BaseController
     [Authorize]
     public async Task<ActionResult<LiveChatSessionDto>> GetSessionBySessionId(string sessionId)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
         var session = await _liveChatService.GetSessionBySessionIdAsync(sessionId);
         if (session == null)
         {
             return NotFound();
         }
+
+        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi session'larına erişebilmeli veya agent olmalı
+        var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
+        if (!isAgent && session.UserId != userId)
+        {
+            return Forbid();
+        }
+
         return Ok(session);
     }
 
@@ -107,6 +133,24 @@ public class LiveChatController : BaseController
     [Authorize]
     public async Task<IActionResult> CloseSession(Guid sessionId)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi session'larını kapatabilmeli veya agent olmalı
+        var session = await _liveChatService.GetSessionByIdAsync(sessionId);
+        if (session == null)
+        {
+            return NotFound();
+        }
+
+        var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
+        if (!isAgent && session.UserId != userId)
+        {
+            return Forbid();
+        }
+
         var result = await _liveChatService.CloseSessionAsync(sessionId);
         if (!result)
         {
@@ -122,7 +166,24 @@ public class LiveChatController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var senderId = GetUserId();
+        if (!TryGetUserId(out var senderId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi session'larına mesaj gönderebilmeli veya agent olmalı
+        var session = await _liveChatService.GetSessionByIdAsync(sessionId);
+        if (session == null)
+        {
+            return NotFound();
+        }
+
+        var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
+        if (!isAgent && session.UserId != senderId)
+        {
+            return Forbid();
+        }
+
         var message = await _liveChatService.SendMessageAsync(sessionId, senderId, dto);
         return CreatedAtAction(nameof(GetSessionMessages), new { sessionId = sessionId }, message);
     }
@@ -131,6 +192,24 @@ public class LiveChatController : BaseController
     [Authorize]
     public async Task<ActionResult<IEnumerable<LiveChatMessageDto>>> GetSessionMessages(Guid sessionId)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi session'larının mesajlarını görebilmeli veya agent olmalı
+        var session = await _liveChatService.GetSessionByIdAsync(sessionId);
+        if (session == null)
+        {
+            return NotFound();
+        }
+
+        var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
+        if (!isAgent && session.UserId != userId)
+        {
+            return Forbid();
+        }
+
         var messages = await _liveChatService.GetSessionMessagesAsync(sessionId);
         return Ok(messages);
     }
@@ -139,7 +218,24 @@ public class LiveChatController : BaseController
     [Authorize]
     public async Task<IActionResult> MarkMessagesAsRead(Guid sessionId)
     {
-        var userId = GetUserId();
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi session'larının mesajlarını okuyabilir olarak işaretleyebilmeli veya agent olmalı
+        var session = await _liveChatService.GetSessionByIdAsync(sessionId);
+        if (session == null)
+        {
+            return NotFound();
+        }
+
+        var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
+        if (!isAgent && session.UserId != userId)
+        {
+            return Forbid();
+        }
+
         var result = await _liveChatService.MarkMessagesAsReadAsync(sessionId, userId);
         if (!result)
         {

@@ -6,6 +6,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Logistics;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Logistics;
@@ -70,7 +71,7 @@ public class PickPackService : IPickPackService
             OrderId = dto.OrderId,
             WarehouseId = dto.WarehouseId,
             PackNumber = packNumber,
-            Status = "Pending",
+            Status = PickPackStatus.Pending,
             Notes = dto.Notes
         };
 
@@ -184,7 +185,8 @@ public class PickPackService : IPickPackService
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(pp => pp.Status == status);
+            var statusEnum = Enum.Parse<PickPackStatus>(status);
+            query = query.Where(pp => pp.Status == statusEnum);
         }
 
         if (warehouseId.HasValue)
@@ -211,7 +213,7 @@ public class PickPackService : IPickPackService
 
         if (pickPack == null) return false;
 
-        pickPack.Status = dto.Status;
+        pickPack.Status = Enum.Parse<PickPackStatus>(dto.Status);
         if (dto.Notes != null)
             pickPack.Notes = dto.Notes;
         if (dto.Weight.HasValue)
@@ -234,9 +236,9 @@ public class PickPackService : IPickPackService
         var pickPack = await _context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id);
 
-        if (pickPack == null || pickPack.Status != "Pending") return false;
+        if (pickPack == null || pickPack.Status != PickPackStatus.Pending) return false;
 
-        pickPack.Status = "Picking";
+        pickPack.Status = PickPackStatus.Picking;
         pickPack.PickedByUserId = userId;
         pickPack.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
@@ -251,7 +253,7 @@ public class PickPackService : IPickPackService
         var pickPack = await _context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id);
 
-        if (pickPack == null || pickPack.Status != "Picking") return false;
+        if (pickPack == null || pickPack.Status != PickPackStatus.Picking) return false;
 
         // ✅ PERFORMANCE: Database'de kontrol et (memory'de işlem YASAK)
         // Check if all items are picked
@@ -268,7 +270,7 @@ public class PickPackService : IPickPackService
             throw new BusinessException("Tüm kalemler seçilmemiş.");
         }
 
-        pickPack.Status = "Packed";
+        pickPack.Status = PickPackStatus.Packed;
         pickPack.PickedByUserId = userId;
         pickPack.PickedAt = DateTime.UtcNow;
         pickPack.UpdatedAt = DateTime.UtcNow;
@@ -284,9 +286,9 @@ public class PickPackService : IPickPackService
         var pickPack = await _context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id);
 
-        if (pickPack == null || (pickPack.Status != "Packed" && pickPack.Status != "Picking")) return false;
+        if (pickPack == null || (pickPack.Status != PickPackStatus.Packed && pickPack.Status != PickPackStatus.Picking)) return false;
 
-        pickPack.Status = "Packing";
+        pickPack.Status = PickPackStatus.Packing;
         pickPack.PackedByUserId = userId;
         pickPack.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
@@ -301,7 +303,7 @@ public class PickPackService : IPickPackService
         var pickPack = await _context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id);
 
-        if (pickPack == null || pickPack.Status != "Packing") return false;
+        if (pickPack == null || pickPack.Status != PickPackStatus.Packing) return false;
 
         // ✅ PERFORMANCE: Database'de kontrol et (memory'de işlem YASAK)
         // Check if all items are packed
@@ -318,7 +320,7 @@ public class PickPackService : IPickPackService
             throw new BusinessException("Tüm kalemler paketlenmemiş.");
         }
 
-        pickPack.Status = "Shipped";
+        pickPack.Status = PickPackStatus.Shipped;
         pickPack.PackedByUserId = userId;
         pickPack.PackedAt = DateTime.UtcNow;
         pickPack.UpdatedAt = DateTime.UtcNow;
@@ -334,7 +336,7 @@ public class PickPackService : IPickPackService
         var pickPack = await _context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id);
 
-        if (pickPack == null || pickPack.Status != "Shipped") return false;
+        if (pickPack == null || pickPack.Status != PickPackStatus.Shipped) return false;
 
         pickPack.ShippedAt = DateTime.UtcNow;
         pickPack.UpdatedAt = DateTime.UtcNow;
@@ -398,12 +400,12 @@ public class PickPackService : IPickPackService
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         var total = await query.CountAsync();
-        var pending = await query.CountAsync(pp => pp.Status == "Pending");
-        var picking = await query.CountAsync(pp => pp.Status == "Picking");
-        var packed = await query.CountAsync(pp => pp.Status == "Packed");
-        var packing = await query.CountAsync(pp => pp.Status == "Packing");
-        var shipped = await query.CountAsync(pp => pp.Status == "Shipped");
-        var cancelled = await query.CountAsync(pp => pp.Status == "Cancelled");
+        var pending = await query.CountAsync(pp => pp.Status == PickPackStatus.Pending);
+        var picking = await query.CountAsync(pp => pp.Status == PickPackStatus.Picking);
+        var packed = await query.CountAsync(pp => pp.Status == PickPackStatus.Packed);
+        var packing = await query.CountAsync(pp => pp.Status == PickPackStatus.Packing);
+        var shipped = await query.CountAsync(pp => pp.Status == PickPackStatus.Shipped);
+        var cancelled = await query.CountAsync(pp => pp.Status == PickPackStatus.Cancelled);
 
         // ✅ PERFORMANCE: Memory'de minimal işlem (sadece Dictionary oluşturma)
         return new Dictionary<string, int>

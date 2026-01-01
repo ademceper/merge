@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Merge.Domain.Entities;
 
 public enum CommissionStatus
@@ -31,6 +33,10 @@ public class SellerCommission : BaseEntity
     public DateTime? ApprovedAt { get; set; }
     public DateTime? PaidAt { get; set; }
     public string? PaymentReference { get; set; }
+
+    // ✅ CONCURRENCY: Eşzamanlı güncellemeleri önlemek için
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public User Seller { get; set; } = null!;

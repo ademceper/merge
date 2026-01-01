@@ -8,6 +8,7 @@ using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.DTOs.Product;
+using Merge.Application.Common;
 using Microsoft.Extensions.Logging;
 
 
@@ -58,6 +59,36 @@ public class WishlistService : IWishlistService
             wishlistItems.Count, userId);
 
         return _mapper.Map<IEnumerable<ProductDto>>(wishlistItems);
+    }
+
+    public async Task<PagedResult<ProductDto>> GetWishlistAsync(Guid userId, int page, int pageSize)
+    {
+        _logger.LogInformation("Retrieving wishlist (page {Page}) for user {UserId}", page, userId);
+
+        var query = _context.Wishlists
+            .AsNoTracking()
+            .Include(w => w.Product)
+                .ThenInclude(p => p.Category)
+            .Where(w => w.UserId == userId)
+            .Select(w => w.Product)
+            .Where(p => p.IsActive);
+
+        var totalCount = await query.CountAsync();
+        var wishlistItems = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        _logger.LogInformation("Retrieved {Count} items (page {Page}) from wishlist for user {UserId}",
+            wishlistItems.Count, page, userId);
+
+        return new PagedResult<ProductDto>
+        {
+            Items = _mapper.Map<List<ProductDto>>(wishlistItems),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<bool> AddToWishlistAsync(Guid userId, Guid productId)

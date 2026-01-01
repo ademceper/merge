@@ -1,3 +1,5 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
 public class Organization : BaseEntity
@@ -14,7 +16,7 @@ public class Organization : BaseEntity
     public string? State { get; set; }
     public string? PostalCode { get; set; }
     public string? Country { get; set; }
-    public string Status { get; set; } = "Active"; // Active, Inactive, Suspended
+    public EntityStatus Status { get; set; } = EntityStatus.Active;
     public bool IsVerified { get; set; } = false;
     public DateTime? VerifiedAt { get; set; }
     public string? Settings { get; set; } // JSON for organization-specific settings

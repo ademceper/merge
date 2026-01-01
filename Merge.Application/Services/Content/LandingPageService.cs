@@ -95,7 +95,8 @@ public class LandingPageService : ILandingPageService
                 if (variants.Any())
                 {
                     // Simple random selection based on traffic split (can be improved with proper A/B testing logic)
-                    var random = new Random();
+                    // ✅ THREAD SAFETY: Random.Shared kullan (new Random() thread-safe değil)
+                    var random = Random.Shared;
                     var selectedVariant = variants.OrderBy(v => random.Next()).FirstOrDefault();
                     if (selectedVariant != null)
                     {

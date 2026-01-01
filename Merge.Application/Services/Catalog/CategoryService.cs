@@ -8,6 +8,7 @@ using Merge.Domain.Entities;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Catalog;
+using Merge.Application.Common;
 
 
 namespace Merge.Application.Services.Catalog;
@@ -78,6 +79,30 @@ public class CategoryService : ICategoryService
         }) ?? Enumerable.Empty<CategoryDto>();
     }
 
+    public async Task<PagedResult<CategoryDto>> GetAllAsync(int page, int pageSize)
+    {
+        var query = _context.Categories
+            .AsNoTracking()
+            .Include(c => c.ParentCategory)
+            .OrderBy(c => c.Name);
+
+        var totalCount = await query.CountAsync();
+        var categories = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        _logger.LogInformation("Retrieved {Count} categories (page {Page})", categories.Count, page);
+
+        return new PagedResult<CategoryDto>
+        {
+            Items = _mapper.Map<List<CategoryDto>>(categories),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
     public async Task<IEnumerable<CategoryDto>> GetMainCategoriesAsync()
     {
         // ✅ PERFORMANCE: Memory cache for main categories
@@ -100,6 +125,31 @@ public class CategoryService : ICategoryService
 
             return _mapper.Map<IEnumerable<CategoryDto>>(categories);
         }) ?? Enumerable.Empty<CategoryDto>();
+    }
+
+    public async Task<PagedResult<CategoryDto>> GetMainCategoriesAsync(int page, int pageSize)
+    {
+        var query = _context.Categories
+            .AsNoTracking()
+            .Include(c => c.SubCategories)
+            .Where(c => c.ParentCategoryId == null)
+            .OrderBy(c => c.Name);
+
+        var totalCount = await query.CountAsync();
+        var categories = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        _logger.LogInformation("Retrieved {Count} main categories (page {Page})", categories.Count, page);
+
+        return new PagedResult<CategoryDto>
+        {
+            Items = _mapper.Map<List<CategoryDto>>(categories),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<CategoryDto> CreateAsync(CategoryDto categoryDto)

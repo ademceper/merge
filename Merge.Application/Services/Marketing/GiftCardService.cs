@@ -236,7 +236,8 @@ public class GiftCardService : IGiftCardService
     private async Task<string> GenerateGiftCardCodeAsync()
     {
         // Benzersiz kod oluştur (örn: MERGE-XXXX-XXXX)
-        var random = new Random();
+        // ✅ THREAD SAFETY: Random.Shared kullan (new Random() thread-safe değil)
+        var random = Random.Shared;
         var part1 = random.Next(1000, 9999).ToString();
         var part2 = random.Next(1000, 9999).ToString();
         var code = $"MERGE-{part1}-{part2}";

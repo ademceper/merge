@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
@@ -19,6 +20,9 @@ public class BulkProductsController : BaseController
     }
 
     [HttpPost("import/csv")]
+    [ProducesResponseType(typeof(BulkProductImportResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<BulkProductImportResultDto>> ImportFromCsv(IFormFile file)
     {
         if (file == null || file.Length == 0)
@@ -37,6 +41,9 @@ public class BulkProductsController : BaseController
     }
 
     [HttpPost("import/json")]
+    [ProducesResponseType(typeof(BulkProductImportResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<BulkProductImportResultDto>> ImportFromJson(IFormFile file)
     {
         if (file == null || file.Length == 0)
@@ -55,6 +62,8 @@ public class BulkProductsController : BaseController
     }
 
     [HttpPost("export/csv")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ExportToCsv([FromBody] BulkProductExportDto exportDto)
     {
         var csvData = await _bulkProductService.ExportProductsToCsvAsync(exportDto);
@@ -62,6 +71,8 @@ public class BulkProductsController : BaseController
     }
 
     [HttpPost("export/json")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ExportToJson([FromBody] BulkProductExportDto exportDto)
     {
         var jsonData = await _bulkProductService.ExportProductsToJsonAsync(exportDto);
@@ -69,6 +80,8 @@ public class BulkProductsController : BaseController
     }
 
     [HttpPost("export/excel")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ExportToExcel([FromBody] BulkProductExportDto exportDto)
     {
         var excelData = await _bulkProductService.ExportProductsToExcelAsync(exportDto);
@@ -77,6 +90,8 @@ public class BulkProductsController : BaseController
     }
 
     [HttpGet("template/csv")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public IActionResult DownloadCsvTemplate()
     {
         var template = "Name,Description,SKU,Price,DiscountPrice,StockQuantity,Brand,Category,ImageUrl\n" +
@@ -87,6 +102,8 @@ public class BulkProductsController : BaseController
     }
 
     [HttpGet("template/json")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public IActionResult DownloadJsonTemplate()
     {
         var template = @"[

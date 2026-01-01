@@ -6,6 +6,7 @@ using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.Interfaces.Review;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text.Json;
@@ -299,14 +300,14 @@ public class TrustBadgeService : ITrustBadgeService
         // Get seller metrics
         var totalOrders = await _context.Orders
             .AsNoTracking()
-            .CountAsync(o => o.PaymentStatus == "Paid" &&
+            .CountAsync(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId));
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         var totalRevenue = await _context.OrderItems
             .AsNoTracking()
             .Where(oi => oi.Product.SellerId == sellerId &&
-                  oi.Order.PaymentStatus == "Paid")
+                  oi.Order.PaymentStatus == PaymentStatus.Completed)
             .SumAsync(oi => oi.TotalPrice);
 
         var averageRating = seller.AverageRating;
@@ -375,7 +376,7 @@ public class TrustBadgeService : ITrustBadgeService
         // Get product metrics
         var totalSales = await _context.OrderItems
             .AsNoTracking()
-            .Where(oi => oi.ProductId == productId && oi.Order.PaymentStatus == "Paid")
+            .Where(oi => oi.ProductId == productId && oi.Order.PaymentStatus == PaymentStatus.Completed)
             .SumAsync(oi => oi.Quantity);
 
         var averageRating = product.Rating;

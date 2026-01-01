@@ -1,3 +1,5 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
 public class Store : BaseEntity
@@ -13,7 +15,7 @@ public class Store : BaseEntity
     public string? Address { get; set; }
     public string? City { get; set; }
     public string? Country { get; set; }
-    public string Status { get; set; } = "Active"; // Active, Inactive, Suspended
+    public EntityStatus Status { get; set; } = EntityStatus.Active;
     public bool IsPrimary { get; set; } = false; // Primary store for seller
     public bool IsVerified { get; set; } = false;
     public DateTime? VerifiedAt { get; set; }

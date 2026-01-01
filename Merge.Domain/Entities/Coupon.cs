@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace Merge.Domain.Entities;
 
 public class Coupon : BaseEntity
@@ -16,5 +19,9 @@ public class Coupon : BaseEntity
     public bool IsForNewUsersOnly { get; set; } = false;
     public List<Guid>? ApplicableCategoryIds { get; set; } // Belirli kategoriler için
     public List<Guid>? ApplicableProductIds { get; set; } // Belirli ürünler için
+
+    // ✅ CONCURRENCY: RowVersion for optimistic concurrency control (kupon kullanımı için kritik)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 }
 

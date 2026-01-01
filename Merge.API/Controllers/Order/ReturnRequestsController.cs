@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.DTOs.Order;
@@ -19,6 +20,8 @@ public class ReturnRequestsController : BaseController
     }
 
     [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<ReturnRequestDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<IEnumerable<ReturnRequestDto>>> GetMyReturns()
     {
         var userId = GetUserId();
@@ -28,6 +31,8 @@ public class ReturnRequestsController : BaseController
 
     [HttpGet("all")]
     [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(IEnumerable<ReturnRequestDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<IEnumerable<ReturnRequestDto>>> GetAll([FromQuery] string? status = null)
     {
         var returns = await _returnRequestService.GetAllAsync(status);
@@ -35,6 +40,9 @@ public class ReturnRequestsController : BaseController
     }
 
     [HttpGet("{id}")]
+    [ProducesResponseType(typeof(ReturnRequestDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ReturnRequestDto>> GetById(Guid id)
     {
         var userId = GetUserId();
@@ -54,6 +62,9 @@ public class ReturnRequestsController : BaseController
     }
 
     [HttpPost]
+    [ProducesResponseType(typeof(ReturnRequestDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ReturnRequestDto>> Create([FromBody] CreateReturnRequestDto dto)
     {
         var validationResult = ValidateModelState();
@@ -67,6 +78,9 @@ public class ReturnRequestsController : BaseController
 
     [HttpPost("{id}/approve")]
     [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Approve(Guid id)
     {
         var result = await _returnRequestService.ApproveAsync(id);
@@ -79,6 +93,10 @@ public class ReturnRequestsController : BaseController
 
     [HttpPost("{id}/reject")]
     [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Reject(Guid id, [FromBody] RejectReturnDto dto)
     {
         var validationResult = ValidateModelState();
@@ -94,6 +112,10 @@ public class ReturnRequestsController : BaseController
 
     [HttpPost("{id}/complete")]
     [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Complete(Guid id, [FromBody] CompleteReturnDto dto)
     {
         var validationResult = ValidateModelState();

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.DTOs.Support;
-
+using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Support;
 
@@ -18,8 +18,10 @@ public class SupportTicketsController : BaseController
         _supportTicketService = supportTicketService;
     }
 
+    // ✅ SECURITY: Rate limiting - 5 destek talebi / saat (spam koruması)
     [HttpPost]
     [Authorize]
+    [RateLimit(5, 3600)]
     public async Task<ActionResult<SupportTicketDto>> CreateTicket([FromBody] CreateSupportTicketDto dto)
     {
         var validationResult = ValidateModelState();

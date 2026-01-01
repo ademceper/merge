@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Merge.Domain.Enums;
 
 namespace Merge.Domain.Entities;
 
@@ -7,7 +8,8 @@ public class Payment : BaseEntity
     public Guid OrderId { get; set; }
     public string PaymentMethod { get; set; } = string.Empty; // CreditCard, BankTransfer, CashOnDelivery
     public string PaymentProvider { get; set; } = string.Empty; // iyzico, paytr, stripe
-    public string Status { get; set; } = "Pending"; // Pending, Completed, Failed, Refunded
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine)
+    public PaymentStatus Status { get; set; } = PaymentStatus.Pending;
     public decimal Amount { get; set; }
     public string? TransactionId { get; set; } // Ödeme sağlayıcıdan gelen ID
     public string? PaymentReference { get; set; } // Ödeme referans numarası

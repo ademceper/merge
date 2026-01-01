@@ -4,6 +4,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Analytics;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using OrderEntity = Merge.Domain.Entities.Order;
@@ -78,7 +79,7 @@ public class AnalyticsService : IAnalyticsService
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted and !p.IsDeleted checks (Global Query Filter handles it)
         var pendingOrders = await _context.Set<OrderEntity>()
             .AsNoTracking()
-            .CountAsync(o => o.Status == "Pending");
+            .CountAsync(o => o.Status == OrderStatus.Pending);
 
         var lowStockProducts = await _context.Set<ProductEntity>()
             .AsNoTracking()
@@ -649,7 +650,7 @@ public class AnalyticsService : IAnalyticsService
 
         var totalRefunds = await _context.Set<ReturnRequest>()
             .AsNoTracking()
-            .Where(r => r.Status == "Approved" &&
+            .Where(r => r.Status == ReturnRequestStatus.Approved &&
                         r.CreatedAt >= startDate && r.CreatedAt <= endDate)
             .SumAsync(r => r.RefundAmount);
 
@@ -1143,7 +1144,7 @@ public class AnalyticsService : IAnalyticsService
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
         var ordersQuery = _context.Orders
             .AsNoTracking()
-            .Where(o => o.PaymentStatus == "Paid" &&
+            .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= startDate && 
                   o.CreatedAt <= endDate);
 
@@ -1179,8 +1180,8 @@ public class AnalyticsService : IAnalyticsService
             .SumAsync(sc => sc.CommissionAmount);
         var refundAmount = await _context.Set<ReturnRequest>()
             .AsNoTracking()
-            .Where(r => r.Status == "Approved" &&
-                  r.CreatedAt >= startDate && 
+            .Where(r => r.Status == ReturnRequestStatus.Approved &&
+                  r.CreatedAt >= startDate &&
                   r.CreatedAt <= endDate)
             .SumAsync(r => r.RefundAmount);
 
@@ -1199,7 +1200,7 @@ public class AnalyticsService : IAnalyticsService
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
         var previousOrdersQuery = _context.Orders
             .AsNoTracking()
-            .Where(o => o.PaymentStatus == "Paid" &&
+            .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= previousStartDate && 
                   o.CreatedAt < previousEndDate);
 
@@ -1215,7 +1216,7 @@ public class AnalyticsService : IAnalyticsService
             .Include(oi => oi.Product)
             .ThenInclude(p => p.Category)
             .Include(oi => oi.Order)
-            .Where(oi => oi.Order.PaymentStatus == "Paid" &&
+            .Where(oi => oi.Order.PaymentStatus == PaymentStatus.Completed &&
                   oi.Order.CreatedAt >= startDate && 
                   oi.Order.CreatedAt <= endDate)
             .GroupBy(oi => new { oi.Product.CategoryId, CategoryName = oi.Product.Category.Name })
@@ -1233,7 +1234,7 @@ public class AnalyticsService : IAnalyticsService
         // ✅ PERFORMANCE: Revenue by date - Database'de grouping yap (memory'de değil)
         var revenueByDate = await _context.Orders
             .AsNoTracking()
-            .Where(o => o.PaymentStatus == "Paid" &&
+            .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= startDate && 
                   o.CreatedAt <= endDate)
             .GroupBy(o => o.CreatedAt.Date)
@@ -1307,7 +1308,7 @@ public class AnalyticsService : IAnalyticsService
         {
             summaries = await _context.Orders
                 .AsNoTracking()
-                .Where(o => o.PaymentStatus == "Paid" &&
+                .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                       o.CreatedAt >= startDate && 
                       o.CreatedAt <= endDate)
                 .GroupBy(o => o.CreatedAt.Date)
@@ -1349,7 +1350,7 @@ public class AnalyticsService : IAnalyticsService
         {
             summaries = await _context.Orders
                 .AsNoTracking()
-                .Where(o => o.PaymentStatus == "Paid" &&
+                .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                       o.CreatedAt >= startDate && 
                       o.CreatedAt <= endDate)
                 .GroupBy(o => new { o.CreatedAt.Year, o.CreatedAt.Month })
@@ -1380,7 +1381,7 @@ public class AnalyticsService : IAnalyticsService
 
         var ordersQuery = _context.Orders
             .AsNoTracking()
-            .Where(o => o.PaymentStatus == "Paid" &&
+            .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= startDate && 
                   o.CreatedAt <= endDate);
 

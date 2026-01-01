@@ -1,3 +1,5 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
 public class SellerTransaction : BaseEntity
@@ -10,8 +12,8 @@ public class SellerTransaction : BaseEntity
     public decimal BalanceAfter { get; set; }
     public Guid? RelatedEntityId { get; set; } // CommissionId, PayoutId, OrderId
     public string? RelatedEntityType { get; set; }
-    public string Status { get; set; } = "Completed"; // Pending, Completed, Failed, Cancelled
-    
+    public FinanceTransactionStatus Status { get; set; } = FinanceTransactionStatus.Completed;
+
     // Navigation properties
     public User Seller { get; set; } = null!;
 }
@@ -28,7 +30,7 @@ public class SellerInvoice : BaseEntity
     public decimal TotalPayouts { get; set; }
     public decimal PlatformFees { get; set; }
     public decimal NetAmount { get; set; }
-    public string Status { get; set; } = "Draft"; // Draft, Sent, Paid
+    public SellerInvoiceStatus Status { get; set; } = SellerInvoiceStatus.Draft;
     public DateTime? PaidAt { get; set; }
     public string? Notes { get; set; }
     public string? InvoiceData { get; set; } // JSON for invoice items

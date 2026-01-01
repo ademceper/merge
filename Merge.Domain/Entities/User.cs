@@ -31,5 +31,8 @@ public class User : IdentityUser<Guid>
     public Guid? OrganizationId { get; set; }
     public Organization? Organization { get; set; }
     public ICollection<TeamMember> TeamMemberships { get; set; } = new List<TeamMember>();
+
+    // ✅ SECURITY: Refresh tokens for JWT authentication
+    public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 }
 

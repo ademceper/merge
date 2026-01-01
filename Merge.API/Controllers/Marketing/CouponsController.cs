@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.DTOs.Marketing;
+using Merge.Application.Common;
 
 
 namespace Merge.API.Controllers.Marketing;
@@ -18,9 +19,11 @@ public class CouponsController : BaseController
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<CouponDto>>> GetAll()
+    public async Task<ActionResult<PagedResult<CouponDto>>> GetAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
-        var coupons = await _couponService.GetAllAsync();
+        var coupons = await _couponService.GetAllAsync(page, pageSize);
         return Ok(coupons);
     }
 

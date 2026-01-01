@@ -5,6 +5,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Subscription;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text.Json;
@@ -60,7 +61,7 @@ public class SubscriptionService : ISubscriptionService
         var subscriberCount = await _context.Set<UserSubscription>()
             .AsNoTracking()
             .CountAsync(us => us.SubscriptionPlanId == plan.Id && 
-                            (us.Status == "Active" || us.Status == "Trial"));
+                            (us.Status == SubscriptionStatus.Active || us.Status == SubscriptionStatus.Trial));
 
         var planDto = _mapper.Map<SubscriptionPlanDto>(plan);
         planDto.SubscriberCount = subscriberCount;
@@ -79,7 +80,7 @@ public class SubscriptionService : ISubscriptionService
         var subscriberCount = await _context.Set<UserSubscription>()
             .AsNoTracking()
             .CountAsync(us => us.SubscriptionPlanId == plan.Id && 
-                            (us.Status == "Active" || us.Status == "Trial"));
+                            (us.Status == SubscriptionStatus.Active || us.Status == SubscriptionStatus.Trial));
 
         var dto = _mapper.Map<SubscriptionPlanDto>(plan);
         dto.SubscriberCount = subscriberCount;
@@ -112,7 +113,7 @@ public class SubscriptionService : ISubscriptionService
         var subscriberCounts = await _context.Set<UserSubscription>()
             .AsNoTracking()
             .Where(us => planIds.Contains(us.SubscriptionPlanId) && 
-                        (us.Status == "Active" || us.Status == "Trial"))
+                        (us.Status == SubscriptionStatus.Active || us.Status == SubscriptionStatus.Trial))
             .GroupBy(us => us.SubscriptionPlanId)
             .Select(g => new { PlanId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.PlanId, x => x.Count);
@@ -211,7 +212,7 @@ public class SubscriptionService : ISubscriptionService
         // Check if user already has an active subscription
         var existingActive = await _context.Set<UserSubscription>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(us => us.UserId == userId && us.Status == "Active");
+            .FirstOrDefaultAsync(us => us.UserId == userId && us.Status == SubscriptionStatus.Active);
 
         if (existingActive != null)
         {
@@ -231,7 +232,7 @@ public class SubscriptionService : ISubscriptionService
         {
             UserId = userId,
             SubscriptionPlanId = dto.SubscriptionPlanId,
-            Status = plan.TrialDays.HasValue && plan.TrialDays.Value > 0 ? "Trial" : "Active",
+            Status = plan.TrialDays.HasValue && plan.TrialDays.Value > 0 ? SubscriptionStatus.Trial : SubscriptionStatus.Active,
             StartDate = startDate,
             EndDate = endDate,
             TrialEndDate = trialEndDate,
@@ -245,7 +246,7 @@ public class SubscriptionService : ISubscriptionService
         await _unitOfWork.SaveChangesAsync();
 
         // Create initial payment if not trial
-        if (subscription.Status != "Trial")
+        if (subscription.Status != SubscriptionStatus.Trial)
         {
             await CreateSubscriptionPaymentAsync(subscription.Id, plan.Price);
         }
@@ -279,7 +280,7 @@ public class SubscriptionService : ISubscriptionService
             .Include(us => us.User)
             .Include(us => us.SubscriptionPlan)
             .Where(us => us.UserId == userId && 
-                        (us.Status == "Active" || us.Status == "Trial") && 
+                        (us.Status == SubscriptionStatus.Active || us.Status == SubscriptionStatus.Trial) && 
                         us.EndDate > DateTime.UtcNow)
             .OrderByDescending(us => us.CreatedAt)
             .FirstOrDefaultAsync();
@@ -298,7 +299,8 @@ public class SubscriptionService : ISubscriptionService
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(us => us.Status == status);
+            var statusEnum = Enum.Parse<SubscriptionStatus>(status);
+            query = query.Where(us => us.Status == statusEnum);
         }
 
         // ✅ PERFORMANCE: subscriptionIds'i database'de oluştur, memory'de işlem YASAK
@@ -371,9 +373,9 @@ public class SubscriptionService : ISubscriptionService
         var subscription = await _context.Set<UserSubscription>()
             .FirstOrDefaultAsync(us => us.Id == id);
 
-        if (subscription == null || subscription.Status == "Cancelled") return false;
+        if (subscription == null || subscription.Status == SubscriptionStatus.Cancelled) return false;
 
-        subscription.Status = "Cancelled";
+        subscription.Status = SubscriptionStatus.Cancelled;
         subscription.CancelledAt = DateTime.UtcNow;
         subscription.CancellationReason = reason;
         subscription.AutoRenew = false;
@@ -390,7 +392,7 @@ public class SubscriptionService : ISubscriptionService
             .Include(us => us.SubscriptionPlan)
             .FirstOrDefaultAsync(us => us.Id == id);
 
-        if (subscription == null || subscription.Status != "Active") return false;
+        if (subscription == null || subscription.Status != SubscriptionStatus.Active) return false;
 
         var plan = subscription.SubscriptionPlan;
         if (plan == null) return false;
@@ -414,9 +416,9 @@ public class SubscriptionService : ISubscriptionService
         var subscription = await _context.Set<UserSubscription>()
             .FirstOrDefaultAsync(us => us.Id == id);
 
-        if (subscription == null || subscription.Status != "Active") return false;
+        if (subscription == null || subscription.Status != SubscriptionStatus.Active) return false;
 
-        subscription.Status = "Suspended";
+        subscription.Status = SubscriptionStatus.Suspended;
         subscription.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
 
@@ -429,9 +431,9 @@ public class SubscriptionService : ISubscriptionService
         var subscription = await _context.Set<UserSubscription>()
             .FirstOrDefaultAsync(us => us.Id == id);
 
-        if (subscription == null || subscription.Status != "Suspended") return false;
+        if (subscription == null || subscription.Status != SubscriptionStatus.Suspended) return false;
 
-        subscription.Status = "Active";
+        subscription.Status = SubscriptionStatus.Active;
         subscription.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
 
@@ -485,9 +487,9 @@ public class SubscriptionService : ISubscriptionService
         payment.UpdatedAt = DateTime.UtcNow;
 
         // Update subscription if needed
-        if (payment.UserSubscription != null && payment.UserSubscription.Status == "Trial")
+        if (payment.UserSubscription != null && payment.UserSubscription.Status == SubscriptionStatus.Trial)
         {
-            payment.UserSubscription.Status = "Active";
+            payment.UserSubscription.Status = SubscriptionStatus.Active;
         }
 
         await _unitOfWork.SaveChangesAsync();
@@ -647,12 +649,12 @@ public class SubscriptionService : ISubscriptionService
             .Where(us => us.CreatedAt >= start && us.CreatedAt <= end);
 
         var totalSubscriptions = await query.CountAsync();
-        var activeSubscriptionsCount = await query.CountAsync(us => us.Status == "Active" && us.EndDate > DateTime.UtcNow);
-        var trialSubscriptionsCount = await query.CountAsync(us => us.Status == "Trial");
-        var cancelledSubscriptionsCount = await query.CountAsync(us => us.Status == "Cancelled");
+        var activeSubscriptionsCount = await query.CountAsync(us => us.Status == SubscriptionStatus.Active && us.EndDate > DateTime.UtcNow);
+        var trialSubscriptionsCount = await query.CountAsync(us => us.Status == SubscriptionStatus.Trial);
+        var cancelledSubscriptionsCount = await query.CountAsync(us => us.Status == SubscriptionStatus.Cancelled);
 
         var mrr = await query
-            .Where(us => us.Status == "Active" && us.EndDate > DateTime.UtcNow)
+            .Where(us => us.Status == SubscriptionStatus.Active && us.EndDate > DateTime.UtcNow)
             .SumAsync(us => (decimal?)us.CurrentPrice) ?? 0;
         var arr = mrr * 12;
 
@@ -662,7 +664,7 @@ public class SubscriptionService : ISubscriptionService
 
         var arpu = activeSubscriptionsCount > 0
             ? await query
-                .Where(us => us.Status == "Active" && us.EndDate > DateTime.UtcNow)
+                .Where(us => us.Status == SubscriptionStatus.Active && us.EndDate > DateTime.UtcNow)
                 .AverageAsync(us => (decimal?)us.CurrentPrice) ?? 0
             : 0;
 
@@ -673,7 +675,7 @@ public class SubscriptionService : ISubscriptionService
             .ToDictionaryAsync(x => x.PlanName, x => x.Count);
 
         var revenueByPlan = await query
-            .Where(us => us.Status == "Active")
+            .Where(us => us.Status == SubscriptionStatus.Active)
             .GroupBy(us => us.SubscriptionPlan != null ? us.SubscriptionPlan.Name : "Unknown")
             .Select(g => new { PlanName = g.Key, Revenue = g.Sum(us => us.CurrentPrice) })
             .ToDictionaryAsync(x => x.PlanName, x => x.Revenue);
@@ -714,14 +716,14 @@ public class SubscriptionService : ISubscriptionService
 
             var monthCancellations = await _context.Set<UserSubscription>()
                 .AsNoTracking()
-                .CountAsync(us => us.Status == "Cancelled" && 
+                .CountAsync(us => us.Status == SubscriptionStatus.Cancelled && 
                                  us.CancelledAt.HasValue &&
                                  us.CancelledAt >= monthStart && 
                                  us.CancelledAt <= monthEnd);
 
             var activeAtMonthEnd = await _context.Set<UserSubscription>()
                 .AsNoTracking()
-                .CountAsync(us => us.Status == "Active" && us.EndDate > monthEnd);
+                .CountAsync(us => us.Status == SubscriptionStatus.Active && us.EndDate > monthEnd);
 
             var monthRevenue = await _context.Set<SubscriptionPayment>()
                 .AsNoTracking()

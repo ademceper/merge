@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
@@ -20,6 +21,7 @@ public class ProductTemplatesController : BaseController
 
     [HttpGet]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(IEnumerable<ProductTemplateDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ProductTemplateDto>>> GetAllTemplates(
         [FromQuery] Guid? categoryId = null,
         [FromQuery] bool? isActive = null)
@@ -30,6 +32,7 @@ public class ProductTemplatesController : BaseController
 
     [HttpGet("popular")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(IEnumerable<ProductTemplateDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ProductTemplateDto>>> GetPopularTemplates([FromQuery] int limit = 10)
     {
         var templates = await _productTemplateService.GetPopularTemplatesAsync(limit);
@@ -38,6 +41,8 @@ public class ProductTemplatesController : BaseController
 
     [HttpGet("{id}")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(ProductTemplateDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ProductTemplateDto>> GetTemplate(Guid id)
     {
         var template = await _productTemplateService.GetTemplateByIdAsync(id);
@@ -50,6 +55,9 @@ public class ProductTemplatesController : BaseController
 
     [HttpPost]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(typeof(ProductTemplateDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ProductTemplateDto>> CreateTemplate([FromBody] CreateProductTemplateDto dto)
     {
         var validationResult = ValidateModelState();
@@ -61,6 +69,10 @@ public class ProductTemplatesController : BaseController
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> UpdateTemplate(Guid id, [FromBody] UpdateProductTemplateDto dto)
     {
         var validationResult = ValidateModelState();
@@ -76,6 +88,9 @@ public class ProductTemplatesController : BaseController
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> DeleteTemplate(Guid id)
     {
         var success = await _productTemplateService.DeleteTemplateAsync(id);
@@ -88,6 +103,9 @@ public class ProductTemplatesController : BaseController
 
     [HttpPost("create-product")]
     [Authorize(Roles = "Seller,Admin")]
+    [ProducesResponseType(typeof(ProductDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ProductDto>> CreateProductFromTemplate([FromBody] CreateProductFromTemplateDto dto)
     {
         var validationResult = ValidateModelState();

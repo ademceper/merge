@@ -5,6 +5,7 @@ using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces.Cart;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using CartEntity = Merge.Domain.Entities.Cart;
@@ -233,7 +234,7 @@ public class PreOrderService : IPreOrderService
             var order = new OrderEntity
             {
                 UserId = preOrder.UserId,
-                Status = "Pending",
+                Status = OrderStatus.Pending,
                 TotalAmount = preOrder.Price * preOrder.Quantity,
                 ShippingCost = 0,
                 Tax = 0,

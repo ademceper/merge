@@ -7,6 +7,7 @@ using Merge.Application.Interfaces.Logistics;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Logistics;
@@ -106,7 +107,7 @@ public class ShippingService : IShippingService
             OrderId = dto.OrderId,
             ShippingProvider = dto.ShippingProvider,
             ShippingCost = dto.ShippingCost,
-            Status = "Preparing"
+            Status = ShippingStatus.Preparing
         };
 
         shipping = await _shippingRepository.AddAsync(shipping);
@@ -143,7 +144,7 @@ public class ShippingService : IShippingService
             }
 
             shipping.TrackingNumber = trackingNumber;
-            shipping.Status = "Shipped";
+            shipping.Status = ShippingStatus.Shipped;
             shipping.ShippedDate = DateTime.UtcNow;
             shipping.EstimatedDeliveryDate = DateTime.UtcNow.AddDays(3);
 
@@ -153,7 +154,7 @@ public class ShippingService : IShippingService
             var order = await _orderRepository.GetByIdAsync(shipping.OrderId);
             if (order != null)
             {
-                order.Status = "Shipped";
+                order.Status = OrderStatus.Shipped;
                 order.ShippedDate = shipping.ShippedDate;
                 await _orderRepository.UpdateAsync(order);
 
@@ -228,7 +229,7 @@ public class ShippingService : IShippingService
                 throw new NotFoundException("Kargo kaydı", shippingId);
             }
 
-            shipping.Status = status;
+            shipping.Status = Enum.Parse<ShippingStatus>(status);
 
             if (status == "Delivered")
             {
@@ -238,7 +239,7 @@ public class ShippingService : IShippingService
                 var order = await _orderRepository.GetByIdAsync(shipping.OrderId);
                 if (order != null)
                 {
-                    order.Status = "Delivered";
+                    order.Status = OrderStatus.Delivered;
                     order.DeliveredDate = shipping.DeliveredDate;
                     await _orderRepository.UpdateAsync(order);
                 }

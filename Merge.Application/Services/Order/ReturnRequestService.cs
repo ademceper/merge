@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Order;
@@ -80,7 +81,8 @@ public class ReturnRequestService : IReturnRequestService
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(r => r.Status == status);
+            var statusEnum = Enum.Parse<ReturnRequestStatus>(status);
+            query = query.Where(r => r.Status == statusEnum);
         }
 
         var returnRequests = await query
@@ -120,7 +122,7 @@ public class ReturnRequestService : IReturnRequestService
             throw new NotFoundException("Sipariş", dto.OrderId);
         }
 
-        if (order.Status != "Delivered")
+        if (order.Status != OrderStatus.Delivered)
         {
             throw new BusinessException("Sadece teslim edilmiş siparişler için iade yapılabilir.");
         }
@@ -147,7 +149,7 @@ public class ReturnRequestService : IReturnRequestService
             OrderId = dto.OrderId,
             UserId = dto.UserId,
             Reason = dto.Reason,
-            Status = "Pending",
+            Status = ReturnRequestStatus.Pending,
             RefundAmount = refundAmount,
             OrderItemIds = dto.OrderItemIds
         };
@@ -180,7 +182,7 @@ public class ReturnRequestService : IReturnRequestService
             throw new NotFoundException("İade talebi", id);
         }
 
-        returnRequest.Status = status;
+        returnRequest.Status = Enum.Parse<ReturnRequestStatus>(status);
         if (status == "Rejected" && !string.IsNullOrEmpty(rejectionReason))
         {
             returnRequest.RejectionReason = rejectionReason;
@@ -217,7 +219,7 @@ public class ReturnRequestService : IReturnRequestService
             return false;
         }
 
-        returnRequest.Status = "Approved";
+        returnRequest.Status = ReturnRequestStatus.Approved;
         returnRequest.ApprovedAt = DateTime.UtcNow;
         await _returnRequestRepository.UpdateAsync(returnRequest);
         await _unitOfWork.SaveChangesAsync();
@@ -241,7 +243,7 @@ public class ReturnRequestService : IReturnRequestService
             return false;
         }
 
-        returnRequest.Status = "Completed";
+        returnRequest.Status = ReturnRequestStatus.Completed;
         returnRequest.CompletedAt = DateTime.UtcNow;
         returnRequest.TrackingNumber = trackingNumber;
         await _returnRequestRepository.UpdateAsync(returnRequest);

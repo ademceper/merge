@@ -1,3 +1,5 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
 public class BlogCategory : BaseEntity
@@ -25,7 +27,7 @@ public class BlogPost : BaseEntity
     public string Excerpt { get; set; } = string.Empty; // Short summary
     public string Content { get; set; } = string.Empty; // Full content (HTML/Markdown)
     public string? FeaturedImageUrl { get; set; }
-    public string Status { get; set; } = "Draft"; // Draft, Published, Archived
+    public ContentStatus Status { get; set; } = ContentStatus.Draft;
     public DateTime? PublishedAt { get; set; }
     public int ViewCount { get; set; } = 0;
     public int LikeCount { get; set; } = 0;

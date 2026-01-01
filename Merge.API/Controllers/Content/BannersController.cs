@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Content;
 using Merge.Application.DTOs.Marketing;
+using Merge.Application.Common;
 
 
 namespace Merge.API.Controllers.Content;
@@ -17,17 +18,22 @@ public class BannersController : BaseController
             }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<BannerDto>>> GetActive([FromQuery] string? position = null)
+    public async Task<ActionResult<PagedResult<BannerDto>>> GetActive(
+        [FromQuery] string? position = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
-        var banners = await _bannerService.GetActiveBannersAsync(position);
+        var banners = await _bannerService.GetActiveBannersAsync(position, page, pageSize);
         return Ok(banners);
     }
 
     [HttpGet("all")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<IEnumerable<BannerDto>>> GetAll()
+    public async Task<ActionResult<PagedResult<BannerDto>>> GetAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
-        var banners = await _bannerService.GetAllAsync();
+        var banners = await _bannerService.GetAllAsync(page, pageSize);
         return Ok(banners);
     }
 

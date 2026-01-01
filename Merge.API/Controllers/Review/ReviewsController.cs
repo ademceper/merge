@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Review;
 using Merge.Application.DTOs.Review;
-
+using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Review;
 
@@ -34,8 +34,10 @@ public class ReviewsController : BaseController
         return Ok(reviews);
     }
 
+    // ✅ SECURITY: Rate limiting - 5 yorum oluşturma / saat (spam koruması)
     [HttpPost]
     [Authorize]
+    [RateLimit(5, 3600)]
     public async Task<ActionResult<ReviewDto>> Create([FromBody] CreateReviewDto dto)
     {
         var validationResult = ValidateModelState();

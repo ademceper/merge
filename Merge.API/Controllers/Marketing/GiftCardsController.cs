@@ -28,11 +28,23 @@ public class GiftCardsController : BaseController
     [HttpGet("{id}")]
     public async Task<ActionResult<GiftCardDto>> GetById(Guid id)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
         var giftCard = await _giftCardService.GetByIdAsync(id);
         if (giftCard == null)
         {
             return NotFound();
         }
+
+        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi gift card'larına erişebilmeli (satın aldığı veya kendisine atanan)
+        if (giftCard.PurchasedByUserId != userId && giftCard.AssignedToUserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
+        {
+            return Forbid();
+        }
+
         return Ok(giftCard);
     }
 

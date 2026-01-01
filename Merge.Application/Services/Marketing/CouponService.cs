@@ -9,6 +9,7 @@ using Merge.Domain.Entities;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Marketing;
+using Merge.Application.Common;
 
 
 namespace Merge.Application.Services.Marketing;
@@ -61,6 +62,27 @@ public class CouponService : ICouponService
             .ToListAsync();
 
         return _mapper.Map<IEnumerable<CouponDto>>(coupons);
+    }
+
+    public async Task<PagedResult<CouponDto>> GetAllAsync(int page, int pageSize)
+    {
+        var query = _context.Coupons
+            .AsNoTracking()
+            .OrderByDescending(c => c.CreatedAt);
+
+        var totalCount = await query.CountAsync();
+        var coupons = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResult<CouponDto>
+        {
+            Items = _mapper.Map<List<CouponDto>>(coupons),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<decimal> CalculateDiscountAsync(string couponCode, decimal orderAmount, Guid? userId = null, List<Guid>? productIds = null)

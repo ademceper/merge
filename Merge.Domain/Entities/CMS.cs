@@ -1,3 +1,5 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
 public class CMSPage : BaseEntity
@@ -7,7 +9,7 @@ public class CMSPage : BaseEntity
     public string Content { get; set; } = string.Empty; // HTML/Markdown content
     public string? Excerpt { get; set; }
     public string PageType { get; set; } = "Page"; // Page, Landing, Custom
-    public string Status { get; set; } = "Draft"; // Draft, Published, Archived
+    public ContentStatus Status { get; set; } = ContentStatus.Draft;
     public Guid? AuthorId { get; set; }
     public User? Author { get; set; }
     public DateTime? PublishedAt { get; set; }
@@ -32,7 +34,7 @@ public class LandingPage : BaseEntity
     public string Title { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty; // JSON or HTML content
     public string? Template { get; set; } // Template identifier
-    public string Status { get; set; } = "Draft"; // Draft, Published, Archived
+    public ContentStatus Status { get; set; } = ContentStatus.Draft;
     public Guid? AuthorId { get; set; }
     public User? Author { get; set; }
     public DateTime? PublishedAt { get; set; }
@@ -59,7 +61,7 @@ public class LiveChatSession : BaseEntity
     public Guid? AgentId { get; set; } // Assigned support agent
     public User? Agent { get; set; }
     public string SessionId { get; set; } = string.Empty; // Unique session identifier
-    public string Status { get; set; } = "Waiting"; // Waiting, Active, Resolved, Closed
+    public ChatSessionStatus Status { get; set; } = ChatSessionStatus.Waiting;
     public string? GuestName { get; set; } // For guest users
     public string? GuestEmail { get; set; } // For guest users
     public string IpAddress { get; set; } = string.Empty;
@@ -114,7 +116,7 @@ public class FraudAlert : BaseEntity
     public Payment? Payment { get; set; }
     public string AlertType { get; set; } = string.Empty; // Order, Payment, Account, Behavior
     public int RiskScore { get; set; } = 0; // Calculated risk score (0-100)
-    public string Status { get; set; } = "Pending"; // Pending, Reviewed, Resolved, FalsePositive
+    public FraudAlertStatus Status { get; set; } = FraudAlertStatus.Pending;
     public string? Reason { get; set; } // Why this alert was triggered
     public Guid? ReviewedByUserId { get; set; }
     public User? ReviewedBy { get; set; }

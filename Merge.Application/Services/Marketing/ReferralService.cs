@@ -178,7 +178,8 @@ public class ReferralService : IReferralService
     private string GenerateCode(string email)
     {
         var prefix = email.Split('@')[0].ToUpper().Substring(0, Math.Min(4, email.Length));
-        var random = new Random().Next(1000, 9999);
+        // ✅ THREAD SAFETY: Random.Shared kullan (new Random() thread-safe değil)
+        var random = Random.Shared.Next(1000, 9999);
         return $"{prefix}{random}";
     }
 
@@ -329,7 +330,7 @@ public class SharedWishlistService : ISharedWishlistService
         // ✅ PERFORMANCE: wishlistIds'i memory'den al (zaten yüklenmiş wishlists'ten)
         var wishlistIds = wishlists.Select(w => w.Id).ToList();
         
-        // ✅ PERFORMANCE: ToListAsync() sonrası GroupBy() ve ToDictionary() YASAK - Database'de GroupBy ve ToDictionaryAsync yap
+        // ✅ PERFORMANCE: Database'de GroupBy ve ToDictionaryAsync yap (ToListAsync() sonrası memory'de işlem YASAK)
         var itemsByWishlist = await _context.Set<SharedWishlistItem>()
             .AsNoTracking()
             .Include(i => i.Product)

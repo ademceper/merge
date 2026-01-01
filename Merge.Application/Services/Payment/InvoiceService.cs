@@ -7,6 +7,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Payment;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Order;
@@ -118,7 +119,7 @@ public class InvoiceService : IInvoiceService
             throw new NotFoundException("Sipariş", orderId);
         }
 
-        if (order.PaymentStatus != "Paid")
+        if (order.PaymentStatus != PaymentStatus.Completed)
         {
             throw new BusinessException("Sadece ödenmiş siparişler için fatura oluşturulabilir.");
         }
@@ -146,7 +147,7 @@ public class InvoiceService : IInvoiceService
             ShippingCost = order.ShippingCost,
             Discount = order.CouponDiscount ?? 0,
             TotalAmount = order.TotalAmount,
-            Status = "Draft"
+            Status = InvoiceStatus.Draft
         };
 
         invoice = await _invoiceRepository.AddAsync(invoice);
@@ -177,7 +178,7 @@ public class InvoiceService : IInvoiceService
             return false;
         }
 
-        invoice.Status = "Sent";
+        invoice.Status = InvoiceStatus.Sent;
         await _invoiceRepository.UpdateAsync(invoice);
         await _unitOfWork.SaveChangesAsync();
 

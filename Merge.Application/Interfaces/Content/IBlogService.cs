@@ -12,7 +12,7 @@ public interface IBlogService
     Task<IEnumerable<BlogCategoryDto>> GetAllCategoriesAsync(bool? isActive = null);
     Task<bool> UpdateCategoryAsync(Guid id, CreateBlogCategoryDto dto);
     Task<bool> DeleteCategoryAsync(Guid id);
-    
+
     // Posts
     Task<BlogPostDto> CreatePostAsync(Guid authorId, CreateBlogPostDto dto);
     Task<BlogPostDto?> GetPostByIdAsync(Guid id, bool trackView = false);
@@ -25,13 +25,13 @@ public interface IBlogService
     Task<bool> DeletePostAsync(Guid id);
     Task<bool> PublishPostAsync(Guid id);
     Task<bool> IncrementViewCountAsync(Guid id);
-    
+
     // Comments
     Task<BlogCommentDto> CreateCommentAsync(Guid? userId, CreateBlogCommentDto dto);
     Task<IEnumerable<BlogCommentDto>> GetPostCommentsAsync(Guid postId, bool? isApproved = true);
     Task<bool> ApproveCommentAsync(Guid id);
     Task<bool> DeleteCommentAsync(Guid id);
-    
+
     // Analytics
     Task<BlogAnalyticsDto> GetBlogAnalyticsAsync(DateTime? startDate = null, DateTime? endDate = null);
 }

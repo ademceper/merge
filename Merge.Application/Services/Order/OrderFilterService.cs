@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Order;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Order;
@@ -49,12 +50,14 @@ public class OrderFilterService : IOrderFilterService
 
         if (!string.IsNullOrEmpty(filter.Status))
         {
-            query = query.Where(o => o.Status == filter.Status);
+            var statusEnum = Enum.Parse<OrderStatus>(filter.Status);
+            query = query.Where(o => o.Status == statusEnum);
         }
 
         if (!string.IsNullOrEmpty(filter.PaymentStatus))
         {
-            query = query.Where(o => o.PaymentStatus == filter.PaymentStatus);
+            var paymentStatusEnum = Enum.Parse<PaymentStatus>(filter.PaymentStatus);
+            query = query.Where(o => o.PaymentStatus == paymentStatusEnum);
         }
 
         if (filter.StartDate.HasValue)
@@ -121,11 +124,11 @@ public class OrderFilterService : IOrderFilterService
         // ✅ PERFORMANCE: Database'de aggregation yap (ToListAsync() sonrası işlem YASAK)
         var totalOrders = await query.CountAsync();
         var totalRevenue = await query
-            .Where(o => o.PaymentStatus == "Paid")
+            .Where(o => o.PaymentStatus == PaymentStatus.Completed)
             .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
-        var pendingOrders = await query.CountAsync(o => o.Status == "Pending");
-        var completedOrders = await query.CountAsync(o => o.Status == "Delivered");
-        var cancelledOrders = await query.CountAsync(o => o.Status == "Cancelled");
+        var pendingOrders = await query.CountAsync(o => o.Status == OrderStatus.Pending);
+        var completedOrders = await query.CountAsync(o => o.Status == OrderStatus.Delivered);
+        var cancelledOrders = await query.CountAsync(o => o.Status == OrderStatus.Cancelled);
 
         var stats = new OrderStatisticsDto
         {
@@ -143,12 +146,12 @@ public class OrderFilterService : IOrderFilterService
         // ✅ PERFORMANCE: Database'de grouping ve ToDictionaryAsync yap (ToListAsync() sonrası ToDictionary YASAK)
         stats.OrdersByStatus = await query
             .GroupBy(o => o.Status)
-            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .Select(g => new { Status = g.Key.ToString(), Count = g.Count() })
             .ToDictionaryAsync(x => x.Status, x => x.Count);
 
         // ✅ PERFORMANCE: Database'de grouping ve ToDictionaryAsync yap (ToListAsync() sonrası ToDictionary YASAK)
         stats.RevenueByMonth = await query
-            .Where(o => o.PaymentStatus == "Paid")
+            .Where(o => o.PaymentStatus == PaymentStatus.Completed)
             .GroupBy(o => new { o.CreatedAt.Year, o.CreatedAt.Month })
             .Select(g => new { 
                 Key = $"{g.Key.Year}-{g.Key.Month:D2}", 

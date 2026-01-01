@@ -1,3 +1,5 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
 public class KnowledgeBaseArticle : BaseEntity
@@ -7,7 +9,7 @@ public class KnowledgeBaseArticle : BaseEntity
     public string Content { get; set; } = string.Empty;
     public string? Excerpt { get; set; } // Short summary
     public Guid? CategoryId { get; set; }
-    public string Status { get; set; } = "Draft"; // Draft, Published, Archived
+    public ContentStatus Status { get; set; } = ContentStatus.Draft;
     public int ViewCount { get; set; } = 0;
     public int HelpfulCount { get; set; } = 0;
     public int NotHelpfulCount { get; set; } = 0;

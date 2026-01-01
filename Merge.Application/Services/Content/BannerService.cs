@@ -7,6 +7,7 @@ using Merge.Domain.Entities;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Marketing;
+using Merge.Application.Common;
 
 
 namespace Merge.Application.Services.Content;
@@ -54,6 +55,28 @@ public class BannerService : IBannerService
         return _mapper.Map<IEnumerable<BannerDto>>(banners);
     }
 
+    public async Task<PagedResult<BannerDto>> GetAllAsync(int page, int pageSize)
+    {
+        var query = _context.Banners
+            .AsNoTracking()
+            .OrderBy(b => b.Position)
+            .ThenBy(b => b.SortOrder);
+
+        var totalCount = await query.CountAsync();
+        var banners = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResult<BannerDto>
+        {
+            Items = _mapper.Map<List<BannerDto>>(banners),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
     public async Task<IEnumerable<BannerDto>> GetActiveBannersAsync(string? position = null)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
@@ -74,6 +97,36 @@ public class BannerService : IBannerService
             .ToListAsync();
 
         return _mapper.Map<IEnumerable<BannerDto>>(banners);
+    }
+
+    public async Task<PagedResult<BannerDto>> GetActiveBannersAsync(string? position, int page, int pageSize)
+    {
+        var now = DateTime.UtcNow;
+        var query = _context.Banners
+            .AsNoTracking()
+            .Where(b => b.IsActive &&
+                  (!b.StartDate.HasValue || b.StartDate.Value <= now) &&
+                  (!b.EndDate.HasValue || b.EndDate.Value >= now));
+
+        if (!string.IsNullOrEmpty(position))
+        {
+            query = query.Where(b => b.Position == position);
+        }
+
+        var orderedQuery = query.OrderBy(b => b.SortOrder);
+        var totalCount = await orderedQuery.CountAsync();
+        var banners = await orderedQuery
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResult<BannerDto>
+        {
+            Items = _mapper.Map<List<BannerDto>>(banners),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<BannerDto> CreateAsync(CreateBannerDto dto)

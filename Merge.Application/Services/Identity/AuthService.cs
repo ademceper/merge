@@ -1,8 +1,10 @@
 using AutoMapper;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Merge.Application.DTOs.Auth;
@@ -11,6 +13,7 @@ using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using UserEntity = Merge.Domain.Entities.User;
 using Merge.Application.DTOs.User;
+using Merge.Infrastructure.Data;
 using Microsoft.Extensions.Logging;
 
 
@@ -21,14 +24,21 @@ public class AuthService : IAuthService
     private readonly UserManager<UserEntity> _userManager;
     private readonly SignInManager<UserEntity> _signInManager;
     private readonly RoleManager<Role> _roleManager;
+    private readonly ApplicationDbContext _context;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthService> _logger;
     private readonly IMapper _mapper;
+
+    // ✅ SECURITY: Access token süresi 15 dakika (önceki: 24 saat)
+    private const int AccessTokenExpirationMinutes = 15;
+    // ✅ SECURITY: Refresh token süresi 7 gün
+    private const int RefreshTokenExpirationDays = 7;
 
     public AuthService(
         UserManager<UserEntity> userManager,
         SignInManager<UserEntity> signInManager,
         RoleManager<Role> roleManager,
+        ApplicationDbContext context,
         IConfiguration configuration,
         ILogger<AuthService> logger,
         IMapper mapper)
@@ -36,12 +46,13 @@ public class AuthService : IAuthService
         _userManager = userManager;
         _signInManager = signInManager;
         _roleManager = roleManager;
+        _context = context;
         _configuration = configuration;
         _logger = logger;
         _mapper = mapper;
     }
 
-    public async Task<AuthResponseDto> RegisterAsync(RegisterDto registerDto)
+    public async Task<AuthResponseDto> RegisterAsync(RegisterDto registerDto, CancellationToken cancellationToken = default)
     {
         if (registerDto == null)
         {
@@ -84,29 +95,16 @@ public class AuthService : IAuthService
         // Default role assignment
         await _userManager.AddToRoleAsync(user, "Customer");
 
-        var token = await GenerateJwtToken(user);
-        var expiresAt = DateTime.UtcNow.AddHours(24);
-
         var roles = await _userManager.GetRolesAsync(user);
 
         _logger.LogInformation(
             "User registered successfully. UserId: {UserId}, Email: {Email}",
             user.Id, registerDto.Email);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var userDto = _mapper.Map<UserDto>(user);
-        // ✅ PERFORMANCE: Materialized list üzerinde Count > 0 kontrolü (FirstOrDefault yerine)
-        userDto.Role = roles.Count > 0 ? roles[0] : "Customer";
-
-        return new AuthResponseDto
-        {
-            Token = token,
-            ExpiresAt = expiresAt,
-            User = userDto
-        };
+        return await GenerateAuthResponseAsync(user, roles, null, cancellationToken);
     }
 
-    public async Task<AuthResponseDto> LoginAsync(LoginDto loginDto)
+    public async Task<AuthResponseDto> LoginAsync(LoginDto loginDto, CancellationToken cancellationToken = default)
     {
         if (loginDto == null)
         {
@@ -142,35 +140,99 @@ public class AuthService : IAuthService
             throw new BusinessException("Email veya şifre hatalı.");
         }
 
-        var token = await GenerateJwtToken(user);
-        var expiresAt = DateTime.UtcNow.AddHours(24);
-
         var roles = await _userManager.GetRolesAsync(user);
 
         _logger.LogInformation(
             "User logged in successfully. UserId: {UserId}, Email: {Email}",
             user.Id, loginDto.Email);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return await GenerateAuthResponseAsync(user, roles, null, cancellationToken);
+    }
+
+    public async Task<AuthResponseDto> RefreshTokenAsync(string refreshToken, string? ipAddress = null, CancellationToken cancellationToken = default)
+    {
+        var refreshTokenEntity = await _context.RefreshTokens
+            .Include(rt => rt.User)
+            .FirstOrDefaultAsync(rt => rt.Token == refreshToken, cancellationToken);
+
+        if (refreshTokenEntity == null)
+        {
+            throw new BusinessException("Geçersiz refresh token.");
+        }
+
+        if (!refreshTokenEntity.IsActive)
+        {
+            throw new BusinessException("Refresh token geçersiz veya süresi dolmuş.");
+        }
+
+        var user = refreshTokenEntity.User;
+        var roles = await _userManager.GetRolesAsync(user);
+
+        // ✅ SECURITY: Eski refresh token'ı revoke et
+        refreshTokenEntity.IsRevoked = true;
+        refreshTokenEntity.RevokedAt = DateTime.UtcNow;
+        refreshTokenEntity.RevokedByIp = ipAddress;
+
+        // ✅ SECURITY: Yeni refresh token oluştur (rotation)
+        var newRefreshToken = GenerateRefreshToken(user.Id, ipAddress);
+        refreshTokenEntity.ReplacedByToken = newRefreshToken.Token;
+
+        _context.RefreshTokens.Add(newRefreshToken);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Token refreshed successfully. UserId: {UserId}",
+            user.Id);
+
+        var accessToken = await GenerateJwtToken(user);
+        var expiresAt = DateTime.UtcNow.AddMinutes(AccessTokenExpirationMinutes);
+
         var userDto = _mapper.Map<UserDto>(user);
-        // ✅ PERFORMANCE: Materialized list üzerinde Count > 0 kontrolü (FirstOrDefault yerine)
         userDto.Role = roles.Count > 0 ? roles[0] : "Customer";
 
         return new AuthResponseDto
         {
-            Token = token,
+            Token = accessToken,
             ExpiresAt = expiresAt,
+            RefreshToken = newRefreshToken.Token,
+            RefreshTokenExpiresAt = newRefreshToken.ExpiresAt,
             User = userDto
         };
     }
 
-    public Task<bool> ValidateTokenAsync(string token)
+    public async Task RevokeTokenAsync(string refreshToken, string? ipAddress = null, CancellationToken cancellationToken = default)
+    {
+        var refreshTokenEntity = await _context.RefreshTokens
+            .FirstOrDefaultAsync(rt => rt.Token == refreshToken, cancellationToken);
+
+        if (refreshTokenEntity == null)
+        {
+            throw new BusinessException("Geçersiz refresh token.");
+        }
+
+        if (!refreshTokenEntity.IsActive)
+        {
+            throw new BusinessException("Refresh token zaten geçersiz.");
+        }
+
+        refreshTokenEntity.IsRevoked = true;
+        refreshTokenEntity.RevokedAt = DateTime.UtcNow;
+        refreshTokenEntity.RevokedByIp = ipAddress;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Token revoked successfully. UserId: {UserId}",
+            refreshTokenEntity.UserId);
+    }
+
+    public Task<bool> ValidateTokenAsync(string token, CancellationToken cancellationToken = default)
     {
         try
         {
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key bulunamadı"));
-            
+
             tokenHandler.ValidateToken(token, new TokenValidationParameters
             {
                 ValidateIssuerSigningKey = true,
@@ -189,6 +251,43 @@ public class AuthService : IAuthService
         {
             return Task.FromResult(false);
         }
+    }
+
+    private async Task<AuthResponseDto> GenerateAuthResponseAsync(UserEntity user, IList<string> roles, string? ipAddress = null, CancellationToken cancellationToken = default)
+    {
+        var accessToken = await GenerateJwtToken(user);
+        var expiresAt = DateTime.UtcNow.AddMinutes(AccessTokenExpirationMinutes);
+
+        var refreshToken = GenerateRefreshToken(user.Id, ipAddress);
+        _context.RefreshTokens.Add(refreshToken);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var userDto = _mapper.Map<UserDto>(user);
+        userDto.Role = roles.Count > 0 ? roles[0] : "Customer";
+
+        return new AuthResponseDto
+        {
+            Token = accessToken,
+            ExpiresAt = expiresAt,
+            RefreshToken = refreshToken.Token,
+            RefreshTokenExpiresAt = refreshToken.ExpiresAt,
+            User = userDto
+        };
+    }
+
+    private RefreshToken GenerateRefreshToken(Guid userId, string? ipAddress = null)
+    {
+        var randomBytes = new byte[64];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(randomBytes);
+
+        return new RefreshToken
+        {
+            UserId = userId,
+            Token = Convert.ToBase64String(randomBytes),
+            ExpiresAt = DateTime.UtcNow.AddDays(RefreshTokenExpirationDays),
+            CreatedByIp = ipAddress
+        };
     }
 
     private async Task<string> GenerateJwtToken(UserEntity user)
@@ -215,7 +314,8 @@ public class AuthService : IAuthService
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddHours(24),
+            // ✅ SECURITY: Access token süresi 15 dakika
+            Expires = DateTime.UtcNow.AddMinutes(AccessTokenExpirationMinutes),
             Issuer = _configuration["Jwt:Issuer"],
             Audience = _configuration["Jwt:Audience"],
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
@@ -226,4 +326,3 @@ public class AuthService : IAuthService
         return tokenHandler.WriteToken(token);
     }
 }
-

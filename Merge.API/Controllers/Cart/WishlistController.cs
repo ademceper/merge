@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Cart;
 using Merge.Application.DTOs.Product;
+using Merge.Application.Common;
 
 
 namespace Merge.API.Controllers.Cart;
@@ -19,10 +20,12 @@ public class WishlistController : BaseController
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ProductDto>>> GetWishlist()
+    public async Task<ActionResult<PagedResult<ProductDto>>> GetWishlist(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
         var userId = GetUserId();
-        var products = await _wishlistService.GetWishlistAsync(userId);
+        var products = await _wishlistService.GetWishlistAsync(userId, page, pageSize);
         return Ok(products);
     }
 

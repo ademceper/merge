@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations;
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
 public class Invoice : BaseEntity
@@ -11,10 +14,15 @@ public class Invoice : BaseEntity
     public decimal ShippingCost { get; set; }
     public decimal Discount { get; set; }
     public decimal TotalAmount { get; set; }
-    public string Status { get; set; } = "Draft"; // Draft, Sent, Paid, Cancelled
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine)
+    public InvoiceStatus Status { get; set; } = InvoiceStatus.Draft;
     public string? PdfUrl { get; set; }
     public string? Notes { get; set; }
-    
+
+    // ✅ CONCURRENCY: Eşzamanlı güncellemeleri önlemek için
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
+
     // Navigation properties
     public Order Order { get; set; } = null!;
 }

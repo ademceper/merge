@@ -510,7 +510,8 @@ public class ProductComparisonService : IProductComparisonService
 
     private string GenerateUniqueShareCode()
     {
-        var random = new Random();
+        // ✅ THREAD SAFETY: Random.Shared kullan (new Random() thread-safe değil)
+        var random = Random.Shared;
         var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         return new string(Enumerable.Repeat(chars, 8)
             .Select(s => s[random.Next(s.Length)]).ToArray());

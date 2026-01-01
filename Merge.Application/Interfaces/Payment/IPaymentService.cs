@@ -4,11 +4,11 @@ namespace Merge.Application.Interfaces.Payment;
 
 public interface IPaymentService
 {
-    Task<PaymentDto?> GetByIdAsync(Guid id);
-    Task<PaymentDto?> GetByOrderIdAsync(Guid orderId);
-    Task<PaymentDto> CreatePaymentAsync(CreatePaymentDto dto);
-    Task<PaymentDto> ProcessPaymentAsync(Guid paymentId, ProcessPaymentDto dto);
-    Task<PaymentDto> RefundPaymentAsync(Guid paymentId, decimal? amount = null);
-    Task<bool> VerifyPaymentAsync(string transactionId);
+    Task<PaymentDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<PaymentDto?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default);
+    Task<PaymentDto> CreatePaymentAsync(CreatePaymentDto dto, CancellationToken cancellationToken = default);
+    Task<PaymentDto> ProcessPaymentAsync(Guid paymentId, ProcessPaymentDto dto, CancellationToken cancellationToken = default);
+    Task<PaymentDto> RefundPaymentAsync(Guid paymentId, decimal? amount = null, CancellationToken cancellationToken = default);
+    Task<bool> VerifyPaymentAsync(string transactionId, CancellationToken cancellationToken = default);
 }
 

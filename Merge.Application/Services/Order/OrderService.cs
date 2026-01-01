@@ -5,6 +5,7 @@ using OrderEntity = Merge.Domain.Entities.Order;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.Services;
@@ -13,6 +14,7 @@ using Merge.Application.Interfaces.Marketing;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.DTOs.Order;
+using Merge.Application.Common;
 using Microsoft.Extensions.Logging;
 
 
@@ -58,7 +60,7 @@ public class OrderService : IOrderService
         _logger = logger;
     }
 
-    public async Task<OrderDto?> GetByIdAsync(Guid id)
+    public async Task<OrderDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
         var order = await _context.Orders
@@ -67,12 +69,12 @@ public class OrderService : IOrderService
                 .ThenInclude(oi => oi.Product)
             .Include(o => o.Address)
             .Include(o => o.User)
-            .FirstOrDefaultAsync(o => o.Id == id);
+            .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
         return order == null ? null : _mapper.Map<OrderDto>(order);
     }
 
-    public async Task<IEnumerable<OrderDto>> GetOrdersByUserIdAsync(Guid userId)
+    public async Task<IEnumerable<OrderDto>> GetOrdersByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted check
         var orders = await _context.Orders
@@ -83,7 +85,7 @@ public class OrderService : IOrderService
             .Include(o => o.User)
             .Where(o => o.UserId == userId)
             .OrderByDescending(o => o.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         _logger.LogInformation(
             "Retrieved {Count} orders for user {UserId}",
@@ -92,7 +94,38 @@ public class OrderService : IOrderService
         return _mapper.Map<IEnumerable<OrderDto>>(orders);
     }
 
-    public async Task<OrderDto> CreateOrderFromCartAsync(Guid userId, Guid addressId, string? couponCode = null)
+    public async Task<PagedResult<OrderDto>> GetOrdersByUserIdAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        // ✅ PERFORMANCE: AsNoTracking + Pagination
+        var query = _context.Orders
+            .AsNoTracking()
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Product)
+            .Include(o => o.Address)
+            .Include(o => o.User)
+            .Where(o => o.UserId == userId)
+            .OrderByDescending(o => o.CreatedAt);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var orders = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Retrieved {Count} orders (page {Page}) for user {UserId}",
+            orders.Count, page, userId);
+
+        return new PagedResult<OrderDto>
+        {
+            Items = _mapper.Map<List<OrderDto>>(orders),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<OrderDto> CreateOrderFromCartAsync(Guid userId, Guid addressId, string? couponCode = null, CancellationToken cancellationToken = default)
     {
         // ✅ CRITICAL: Transaction başlat - atomic operation
         await _unitOfWork.BeginTransactionAsync();
@@ -103,7 +136,7 @@ public class OrderService : IOrderService
             var cart = await _context.Carts
                 .Include(c => c.CartItems)
                     .ThenInclude(ci => ci.Product)
-                .FirstOrDefaultAsync(c => c.UserId == userId);
+                .FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
 
             // ✅ PERFORMANCE: ToListAsync() sonrası Any() YASAK - List.Count kullan
             if (cart == null || cart.CartItems.Count == 0)
@@ -111,7 +144,10 @@ public class OrderService : IOrderService
                 throw new BusinessException("Sepet boş.");
             }
 
-            var address = await _context.Addresses.FirstOrDefaultAsync(a => a.Id == addressId && a.UserId == userId);
+            // ✅ PERFORMANCE: AsNoTracking for read-only validation query
+            var address = await _context.Addresses
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == addressId && a.UserId == userId, cancellationToken);
             if (address == null)
             {
                 throw new NotFoundException("Adres", addressId);
@@ -122,8 +158,8 @@ public class OrderService : IOrderService
                 UserId = userId,
                 AddressId = addressId,
                 OrderNumber = GenerateOrderNumber(),
-                Status = "Pending",
-                PaymentStatus = "Pending"
+                Status = OrderStatus.Pending,
+                PaymentStatus = PaymentStatus.Pending
             };
 
             // ✅ PERFORMANCE: Removed manual !ci.IsDeleted check (Global Query Filter)
@@ -190,11 +226,11 @@ public class OrderService : IOrderService
                         OrderId = order.Id,
                         DiscountAmount = couponDiscount
                     };
-                    await _context.CouponUsages.AddAsync(couponUsage);
+                    await _context.CouponUsages.AddAsync(couponUsage, cancellationToken);
 
                     // ✅ PERFORMANCE: FindAsync Global Query Filter'ı bypass eder - FirstOrDefaultAsync kullan
                     // Kupon kullanım sayısını artır
-                    var couponEntity = await _context.Coupons.FirstOrDefaultAsync(c => c.Id == coupon.Id);
+                    var couponEntity = await _context.Coupons.FirstOrDefaultAsync(c => c.Id == coupon.Id, cancellationToken);
                     if (couponEntity != null)
                     {
                         couponEntity.UsedCount++;
@@ -203,7 +239,7 @@ public class OrderService : IOrderService
             }
 
             // Sepeti temizle
-            await _cartService.ClearCartAsync(userId);
+            await _cartService.ClearCartAsync(userId, cancellationToken);
 
             // ✅ CRITICAL: Commit all changes atomically
             await _unitOfWork.CommitTransactionAsync();
@@ -215,7 +251,7 @@ public class OrderService : IOrderService
                     .ThenInclude(oi => oi.Product)
                 .Include(o => o.Address)
                 .Include(o => o.User)
-                .FirstOrDefaultAsync(o => o.Id == order.Id);
+                .FirstOrDefaultAsync(o => o.Id == order.Id, cancellationToken);
 
             _logger.LogInformation(
                 "Order created successfully. OrderId: {OrderId}, OrderNumber: {OrderNumber}, UserId: {UserId}, TotalAmount: {TotalAmount}",
@@ -234,7 +270,7 @@ public class OrderService : IOrderService
         }
     }
 
-    public async Task<OrderDto> UpdateOrderStatusAsync(Guid orderId, string status)
+    public async Task<OrderDto> UpdateOrderStatusAsync(Guid orderId, string status, CancellationToken cancellationToken = default)
     {
         var order = await _orderRepository.GetByIdAsync(orderId);
         if (order == null)
@@ -243,7 +279,7 @@ public class OrderService : IOrderService
         }
 
         var oldStatus = order.Status;
-        order.Status = status;
+        order.Status = Enum.Parse<OrderStatus>(status);
         if (status == "Shipped")
         {
             order.ShippedDate = DateTime.UtcNow;
@@ -263,7 +299,7 @@ public class OrderService : IOrderService
                 .ThenInclude(oi => oi.Product)
             .Include(o => o.Address)
             .Include(o => o.User)
-            .FirstOrDefaultAsync(o => o.Id == orderId);
+            .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
 
         _logger.LogInformation(
             "Order status updated. OrderId: {OrderId}, OldStatus: {OldStatus}, NewStatus: {NewStatus}",
@@ -272,20 +308,20 @@ public class OrderService : IOrderService
         return _mapper.Map<OrderDto>(order!);
     }
 
-    public async Task<bool> CancelOrderAsync(Guid orderId)
+    public async Task<bool> CancelOrderAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter)
         var order = await _context.Orders
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
-            .FirstOrDefaultAsync(o => o.Id == orderId);
+            .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
 
         if (order == null)
         {
             return false;
         }
 
-        if (order.Status == "Delivered" || order.Status == "Shipped")
+        if (order.Status == OrderStatus.Delivered || order.Status == OrderStatus.Shipped)
         {
             throw new BusinessException("Bu sipariş iptal edilemez.");
         }
@@ -300,7 +336,7 @@ public class OrderService : IOrderService
                 item.Product.StockQuantity += item.Quantity;
             }
 
-            order.Status = "Cancelled";
+            order.Status = OrderStatus.Cancelled;
             await _orderRepository.UpdateAsync(order);
             await _unitOfWork.CommitTransactionAsync();
 
@@ -335,7 +371,7 @@ public class OrderService : IOrderService
         return subTotal * 0.20m;
     }
 
-    public async Task<OrderDto> ReorderAsync(Guid orderId, Guid userId)
+    public async Task<OrderDto> ReorderAsync(Guid orderId, Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted check
         var originalOrder = await _context.Orders
@@ -343,7 +379,7 @@ public class OrderService : IOrderService
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .Include(o => o.Address)
-            .FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId);
+            .FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId, cancellationToken);
 
         if (originalOrder == null)
         {
@@ -361,7 +397,7 @@ public class OrderService : IOrderService
             {
                 try
                 {
-                    await _cartService.AddItemToCartAsync(userId, orderItem.ProductId, orderItem.Quantity);
+                    await _cartService.AddItemToCartAsync(userId, orderItem.ProductId, orderItem.Quantity, cancellationToken);
                     addedItems++;
                 }
                 catch
@@ -381,12 +417,12 @@ public class OrderService : IOrderService
             orderId, addedItems, skippedItems);
 
         // Yeni sipariş oluştur (kupon ve adres bilgilerini kullan)
-        return await CreateOrderFromCartAsync(userId, originalOrder.AddressId, null);
+        return await CreateOrderFromCartAsync(userId, originalOrder.AddressId, null, cancellationToken);
     }
 
-    public async Task<byte[]> ExportOrdersToCsvAsync(OrderExportDto exportDto)
+    public async Task<byte[]> ExportOrdersToCsvAsync(OrderExportDto exportDto, CancellationToken cancellationToken = default)
     {
-        var orders = await GetOrdersForExportAsync(exportDto);
+        var orders = await GetOrdersForExportAsync(exportDto, cancellationToken);
 
         var csv = new System.Text.StringBuilder();
         csv.AppendLine("OrderNumber,UserId,SubTotal,ShippingCost,Tax,TotalAmount,Status,PaymentStatus,CreatedAt");
@@ -407,9 +443,9 @@ public class OrderService : IOrderService
         return System.Text.Encoding.UTF8.GetBytes(csv.ToString());
     }
 
-    public async Task<byte[]> ExportOrdersToJsonAsync(OrderExportDto exportDto)
+    public async Task<byte[]> ExportOrdersToJsonAsync(OrderExportDto exportDto, CancellationToken cancellationToken = default)
     {
-        var orders = await GetOrdersForExportAsync(exportDto);
+        var orders = await GetOrdersForExportAsync(exportDto, cancellationToken);
 
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - Ancak bu export için DTO'dan gelen list üzerinde işlem yapılıyor
         // Not: Bu export işlemi için minimal bir işlem ve business logic için gerekli
@@ -449,14 +485,14 @@ public class OrderService : IOrderService
         return System.Text.Encoding.UTF8.GetBytes(json);
     }
 
-    public async Task<byte[]> ExportOrdersToExcelAsync(OrderExportDto exportDto)
+    public async Task<byte[]> ExportOrdersToExcelAsync(OrderExportDto exportDto, CancellationToken cancellationToken = default)
     {
         // For Excel export, we'll use CSV format as a simple alternative
         // In production, you might want to use a library like EPPlus or ClosedXML
-        return await ExportOrdersToCsvAsync(exportDto);
+        return await ExportOrdersToCsvAsync(exportDto, cancellationToken);
     }
 
-    private async Task<List<OrderDto>> GetOrdersForExportAsync(OrderExportDto exportDto)
+    private async Task<List<OrderDto>> GetOrdersForExportAsync(OrderExportDto exportDto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted check (Global Query Filter)
         var query = _context.Orders
@@ -478,12 +514,14 @@ public class OrderService : IOrderService
 
         if (!string.IsNullOrEmpty(exportDto.Status))
         {
-            query = query.Where(o => o.Status == exportDto.Status);
+            var statusEnum = Enum.Parse<OrderStatus>(exportDto.Status);
+            query = query.Where(o => o.Status == statusEnum);
         }
 
         if (!string.IsNullOrEmpty(exportDto.PaymentStatus))
         {
-            query = query.Where(o => o.PaymentStatus == exportDto.PaymentStatus);
+            var paymentStatusEnum = Enum.Parse<PaymentStatus>(exportDto.PaymentStatus);
+            query = query.Where(o => o.PaymentStatus == paymentStatusEnum);
         }
 
         if (exportDto.UserId.HasValue)
@@ -493,7 +531,7 @@ public class OrderService : IOrderService
 
         var orders = await query
             .OrderByDescending(o => o.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         _logger.LogInformation(
             "Orders exported. Count: {Count}, StartDate: {StartDate}, EndDate: {EndDate}",

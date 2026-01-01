@@ -523,7 +523,7 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         // ✅ PERFORMANCE: Recursively map subcategories if needed
         if (category.SubCategories != null && category.SubCategories.Any())
         {
-            // ✅ SubCategoryIds'i database'de oluştur, memory'de işlem YASAK
+            // ✅ PERFORMANCE: Navigation property'den ID'leri al (zaten Include ile yüklenmiş, memory'de Select kabul edilebilir)
             var subCategoryIds = category.SubCategories.Select(sc => sc.Id).ToList();
             var subArticleCountsDict = await _context.Set<KnowledgeBaseArticle>()
                 .AsNoTracking()
