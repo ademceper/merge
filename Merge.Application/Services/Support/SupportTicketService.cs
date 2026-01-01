@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Services.Notification;
@@ -19,17 +20,20 @@ public class SupportTicketService : ISupportTicketService
 {
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
     private readonly IEmailService _emailService;
     private readonly ILogger<SupportTicketService> _logger;
 
     public SupportTicketService(
         ApplicationDbContext context,
         IUnitOfWork unitOfWork,
+        IMapper mapper,
         IEmailService emailService,
         ILogger<SupportTicketService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
+        _mapper = mapper;
         _emailService = emailService;
         _logger = logger;
     }
@@ -84,7 +88,16 @@ public class SupportTicketService : ISupportTicketService
             _logger.LogError(ex, "Failed to send confirmation email for ticket {TicketNumber}", ticketNumber);
         }
 
-        return await MapToDto(ticket);
+        // ✅ PERFORMANCE: Reload with includes for mapping
+        ticket = await _context.Set<SupportTicket>()
+            .AsNoTracking()
+            .Include(t => t.User)
+            .Include(t => t.Order)
+            .Include(t => t.Product)
+            .Include(t => t.AssignedTo)
+            .FirstOrDefaultAsync(t => t.Id == ticket.Id);
+
+        return await MapToDtoAsync(ticket!);
     }
 
     public async Task<SupportTicketDto?> GetTicketAsync(Guid ticketId, Guid? userId = null)
@@ -95,9 +108,9 @@ public class SupportTicketService : ISupportTicketService
             .Include(t => t.Order)
             .Include(t => t.Product)
             .Include(t => t.AssignedTo)
-            .Include(t => t.Messages.Where(m => !m.IsDeleted))
+            .Include(t => t.Messages)
                 .ThenInclude(m => m.User)
-            .Include(t => t.Attachments.Where(a => !a.IsDeleted))
+            .Include(t => t.Attachments)
             .Where(t => t.Id == ticketId);
 
         if (userId.HasValue)
@@ -107,7 +120,7 @@ public class SupportTicketService : ISupportTicketService
 
         var ticket = await query.FirstOrDefaultAsync();
 
-        return ticket != null ? await MapToDto(ticket) : null;
+        return ticket != null ? await MapToDtoAsync(ticket) : null;
     }
 
     public async Task<SupportTicketDto?> GetTicketByNumberAsync(string ticketNumber, Guid? userId = null)
@@ -118,9 +131,9 @@ public class SupportTicketService : ISupportTicketService
             .Include(t => t.Order)
             .Include(t => t.Product)
             .Include(t => t.AssignedTo)
-            .Include(t => t.Messages.Where(m => !m.IsDeleted))
+            .Include(t => t.Messages)
                 .ThenInclude(m => m.User)
-            .Include(t => t.Attachments.Where(a => !a.IsDeleted))
+            .Include(t => t.Attachments)
             .Where(t => t.TicketNumber == ticketNumber);
 
         if (userId.HasValue)
@@ -130,7 +143,7 @@ public class SupportTicketService : ISupportTicketService
 
         var ticket = await query.FirstOrDefaultAsync();
 
-        return ticket != null ? await MapToDto(ticket) : null;
+        return ticket != null ? await MapToDtoAsync(ticket) : null;
     }
 
     public async Task<IEnumerable<SupportTicketDto>> GetUserTicketsAsync(Guid userId, string? status = null)
@@ -149,14 +162,76 @@ public class SupportTicketService : ISupportTicketService
             query = query.Where(t => t.Status == ticketStatus);
         }
 
+        // ✅ PERFORMANCE: ticketIds'i database'de oluştur, memory'de işlem YASAK
+        // ✅ ticketIds query'sinde de aynı filtreleri uygula
+        var ticketIdsQuery = _context.Set<SupportTicket>()
+            .AsNoTracking()
+            .Where(t => t.UserId == userId);
+
+        if (!string.IsNullOrEmpty(status))
+        {
+            var ticketStatus = Enum.Parse<TicketStatus>(status, true);
+            ticketIdsQuery = ticketIdsQuery.Where(t => t.Status == ticketStatus);
+        }
+
+        var ticketIds = await ticketIdsQuery
+            .OrderByDescending(t => t.CreatedAt)
+            .Select(t => t.Id)
+            .ToListAsync();
+
         var tickets = await query
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
 
+        // ✅ PERFORMANCE: Batch load messages and attachments for all tickets
+
+        var messagesDict = await _context.Set<TicketMessage>()
+            .AsNoTracking()
+            .Include(m => m.User)
+            .Where(m => ticketIds.Contains(m.TicketId))
+            .GroupBy(m => m.TicketId)
+            .Select(g => new
+            {
+                TicketId = g.Key,
+                Messages = g.ToList()
+            })
+            .ToDictionaryAsync(x => x.TicketId, x => x.Messages);
+
+        var attachmentsDict = await _context.Set<TicketAttachment>()
+            .AsNoTracking()
+            .Where(a => ticketIds.Contains(a.TicketId))
+            .GroupBy(a => a.TicketId)
+            .Select(g => new
+            {
+                TicketId = g.Key,
+                Attachments = g.ToList()
+            })
+            .ToDictionaryAsync(x => x.TicketId, x => x.Attachments);
+
         var dtos = new List<SupportTicketDto>();
         foreach (var ticket in tickets)
         {
-            dtos.Add(await MapToDto(ticket));
+            var dto = _mapper.Map<SupportTicketDto>(ticket);
+            
+            if (messagesDict.TryGetValue(ticket.Id, out var messages))
+            {
+                dto.Messages = _mapper.Map<List<TicketMessageDto>>(messages);
+            }
+            else
+            {
+                dto.Messages = new List<TicketMessageDto>();
+            }
+            
+            if (attachmentsDict.TryGetValue(ticket.Id, out var attachments))
+            {
+                dto.Attachments = _mapper.Map<List<TicketAttachmentDto>>(attachments);
+            }
+            else
+            {
+                dto.Attachments = new List<TicketAttachmentDto>();
+            }
+            
+            dtos.Add(dto);
         }
 
         return dtos;
@@ -189,6 +264,15 @@ public class SupportTicketService : ISupportTicketService
             query = query.Where(t => t.AssignedToId == assignedToId.Value);
         }
 
+        // ✅ PERFORMANCE: ticketIds'i database'de oluştur, memory'de işlem YASAK
+        var ticketIds = await query
+            .OrderByDescending(t => t.Priority)
+            .ThenByDescending(t => t.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(t => t.Id)
+            .ToListAsync();
+
         var tickets = await query
             .OrderByDescending(t => t.Priority)
             .ThenByDescending(t => t.CreatedAt)
@@ -196,10 +280,54 @@ public class SupportTicketService : ISupportTicketService
             .Take(pageSize)
             .ToListAsync();
 
+        // ✅ PERFORMANCE: Batch load messages and attachments for all tickets
+        var messagesDict = await _context.Set<TicketMessage>()
+            .AsNoTracking()
+            .Include(m => m.User)
+            .Where(m => ticketIds.Contains(m.TicketId))
+            .GroupBy(m => m.TicketId)
+            .Select(g => new
+            {
+                TicketId = g.Key,
+                Messages = g.ToList()
+            })
+            .ToDictionaryAsync(x => x.TicketId, x => x.Messages);
+
+        var attachmentsDict = await _context.Set<TicketAttachment>()
+            .AsNoTracking()
+            .Where(a => ticketIds.Contains(a.TicketId))
+            .GroupBy(a => a.TicketId)
+            .Select(g => new
+            {
+                TicketId = g.Key,
+                Attachments = g.ToList()
+            })
+            .ToDictionaryAsync(x => x.TicketId, x => x.Attachments);
+
         var dtos = new List<SupportTicketDto>();
         foreach (var ticket in tickets)
         {
-            dtos.Add(await MapToDto(ticket));
+            var dto = _mapper.Map<SupportTicketDto>(ticket);
+            
+            if (messagesDict.TryGetValue(ticket.Id, out var messages))
+            {
+                dto.Messages = _mapper.Map<List<TicketMessageDto>>(messages);
+            }
+            else
+            {
+                dto.Messages = new List<TicketMessageDto>();
+            }
+            
+            if (attachmentsDict.TryGetValue(ticket.Id, out var attachments))
+            {
+                dto.Attachments = _mapper.Map<List<TicketAttachmentDto>>(attachments);
+            }
+            else
+            {
+                dto.Attachments = new List<TicketAttachmentDto>();
+            }
+            
+            dtos.Add(dto);
         }
 
         return dtos;
@@ -409,19 +537,11 @@ public class SupportTicketService : ISupportTicketService
         message = await _context.Set<TicketMessage>()
             .AsNoTracking()
             .Include(m => m.User)
+            .Include(m => m.Attachments)
             .FirstOrDefaultAsync(m => m.Id == message.Id);
 
-        return new TicketMessageDto
-        {
-            Id = message.Id,
-            TicketId = message.TicketId,
-            UserId = message.UserId,
-            UserName = $"{message.User.FirstName} {message.User.LastName}",
-            Message = message.Message,
-            IsStaffResponse = message.IsStaffResponse,
-            IsInternal = message.IsInternal,
-            CreatedAt = message.CreatedAt
-        };
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<TicketMessageDto>(message!);
     }
 
     public async Task<IEnumerable<TicketMessageDto>> GetTicketMessagesAsync(Guid ticketId, bool includeInternal = false)
@@ -429,7 +549,7 @@ public class SupportTicketService : ISupportTicketService
         var query = _context.Set<TicketMessage>()
             .AsNoTracking()
             .Include(m => m.User)
-            .Include(m => m.Attachments.Where(a => !a.IsDeleted))
+            .Include(m => m.Attachments)
             .Where(m => m.TicketId == ticketId);
 
         if (!includeInternal)
@@ -441,73 +561,85 @@ public class SupportTicketService : ISupportTicketService
             .OrderBy(m => m.CreatedAt)
             .ToListAsync();
 
-        return messages.Select(m => new TicketMessageDto
-        {
-            Id = m.Id,
-            TicketId = m.TicketId,
-            UserId = m.UserId,
-            UserName = $"{m.User.FirstName} {m.User.LastName}",
-            Message = m.Message,
-            IsStaffResponse = m.IsStaffResponse,
-            IsInternal = m.IsInternal,
-            CreatedAt = m.CreatedAt,
-            Attachments = m.Attachments.Select(a => new TicketAttachmentDto
-            {
-                Id = a.Id,
-                FileName = a.FileName,
-                FilePath = a.FilePath,
-                FileType = a.FileType,
-                FileSize = a.FileSize,
-                CreatedAt = a.CreatedAt
-            }).ToList()
-        }).ToList();
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<IEnumerable<TicketMessageDto>>(messages);
     }
 
     public async Task<TicketStatsDto> GetTicketStatsAsync()
     {
-        var tickets = await _context.Set<SupportTicket>()
-            .AsNoTracking()
-            .ToListAsync();
+        // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
+        var query = _context.Set<SupportTicket>()
+            .AsNoTracking();
 
         var now = DateTime.UtcNow;
         var today = now.Date;
         var weekAgo = now.AddDays(-7);
         var monthAgo = now.AddMonths(-1);
 
-        var resolvedTickets = tickets.Where(t => t.ResolvedAt.HasValue).ToList();
-        var avgResponseTime = resolvedTickets.Any() && resolvedTickets.Any(t => t.LastResponseAt.HasValue)
-            ? resolvedTickets.Where(t => t.LastResponseAt.HasValue)
-                .Average(t => (t.LastResponseAt!.Value - t.CreatedAt).TotalHours)
+        var totalTickets = await query.CountAsync();
+        var openTickets = await query.CountAsync(t => t.Status == TicketStatus.Open);
+        var inProgressTickets = await query.CountAsync(t => t.Status == TicketStatus.InProgress);
+        var resolvedTickets = await query.CountAsync(t => t.Status == TicketStatus.Resolved);
+        var closedTickets = await query.CountAsync(t => t.Status == TicketStatus.Closed);
+        var ticketsToday = await query.CountAsync(t => t.CreatedAt >= today);
+        var ticketsThisWeek = await query.CountAsync(t => t.CreatedAt >= weekAgo);
+        var ticketsThisMonth = await query.CountAsync(t => t.CreatedAt >= monthAgo);
+
+        // ✅ PERFORMANCE: Database'de average hesapla
+        var resolvedTicketsQuery = query.Where(t => t.ResolvedAt.HasValue);
+        var avgResolutionTime = await resolvedTicketsQuery.AnyAsync()
+            ? await resolvedTicketsQuery
+                .AverageAsync(t => (double)(t.ResolvedAt!.Value - t.CreatedAt).TotalHours)
             : 0;
 
-        var avgResolutionTime = resolvedTickets.Any()
-            ? resolvedTickets.Average(t => (t.ResolvedAt!.Value - t.CreatedAt).TotalHours)
+        var ticketsWithResponseQuery = query.Where(t => t.LastResponseAt.HasValue && t.ResolvedAt.HasValue);
+        var avgResponseTime = await ticketsWithResponseQuery.AnyAsync()
+            ? await ticketsWithResponseQuery
+                .AverageAsync(t => (double)(t.LastResponseAt!.Value - t.CreatedAt).TotalHours)
             : 0;
+
+        // ✅ PERFORMANCE: Database'de grouping yap
+        var ticketsByCategory = await query
+            .GroupBy(t => t.Category.ToString())
+            .Select(g => new { Category = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Category, x => x.Count);
+
+        var ticketsByPriority = await query
+            .GroupBy(t => t.Priority.ToString())
+            .Select(g => new { Priority = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Priority, x => x.Count);
 
         _logger.LogInformation("Ticket stats generated: Total {Total}, Resolved {Resolved}, Avg Resolution Time {AvgTime}h",
-            tickets.Count, resolvedTickets.Count, Math.Round(avgResolutionTime, 2));
+            totalTickets, resolvedTickets, Math.Round(avgResolutionTime, 2));
 
         return new TicketStatsDto
         {
-            TotalTickets = tickets.Count,
-            OpenTickets = tickets.Count(t => t.Status == TicketStatus.Open),
-            InProgressTickets = tickets.Count(t => t.Status == TicketStatus.InProgress),
-            ResolvedTickets = tickets.Count(t => t.Status == TicketStatus.Resolved),
-            ClosedTickets = tickets.Count(t => t.Status == TicketStatus.Closed),
-            TicketsToday = tickets.Count(t => t.CreatedAt >= today),
-            TicketsThisWeek = tickets.Count(t => t.CreatedAt >= weekAgo),
-            TicketsThisMonth = tickets.Count(t => t.CreatedAt >= monthAgo),
+            TotalTickets = totalTickets,
+            OpenTickets = openTickets,
+            InProgressTickets = inProgressTickets,
+            ResolvedTickets = resolvedTickets,
+            ClosedTickets = closedTickets,
+            TicketsToday = ticketsToday,
+            TicketsThisWeek = ticketsThisWeek,
+            TicketsThisMonth = ticketsThisMonth,
             AverageResponseTime = (decimal)Math.Round(avgResponseTime, 2),
             AverageResolutionTime = (decimal)Math.Round(avgResolutionTime, 2),
-            TicketsByCategory = tickets.GroupBy(t => t.Category.ToString())
-                .ToDictionary(g => g.Key, g => g.Count()),
-            TicketsByPriority = tickets.GroupBy(t => t.Priority.ToString())
-                .ToDictionary(g => g.Key, g => g.Count())
+            TicketsByCategory = ticketsByCategory,
+            TicketsByPriority = ticketsByPriority
         };
     }
 
     public async Task<IEnumerable<SupportTicketDto>> GetUnassignedTicketsAsync()
     {
+        // ✅ PERFORMANCE: ticketIds'i database'de oluştur, memory'de işlem YASAK
+        var ticketIds = await _context.Set<SupportTicket>()
+            .AsNoTracking()
+            .Where(t => t.AssignedToId == null && t.Status != TicketStatus.Closed)
+            .OrderByDescending(t => t.Priority)
+            .ThenBy(t => t.CreatedAt)
+            .Select(t => t.Id)
+            .ToListAsync();
+
         var tickets = await _context.Set<SupportTicket>()
             .AsNoTracking()
             .Include(t => t.User)
@@ -518,10 +650,54 @@ public class SupportTicketService : ISupportTicketService
             .ThenBy(t => t.CreatedAt)
             .ToListAsync();
 
+        // ✅ PERFORMANCE: Batch load messages and attachments for all tickets
+        var messagesDict = await _context.Set<TicketMessage>()
+            .AsNoTracking()
+            .Include(m => m.User)
+            .Where(m => ticketIds.Contains(m.TicketId))
+            .GroupBy(m => m.TicketId)
+            .Select(g => new
+            {
+                TicketId = g.Key,
+                Messages = g.ToList()
+            })
+            .ToDictionaryAsync(x => x.TicketId, x => x.Messages);
+
+        var attachmentsDict = await _context.Set<TicketAttachment>()
+            .AsNoTracking()
+            .Where(a => ticketIds.Contains(a.TicketId))
+            .GroupBy(a => a.TicketId)
+            .Select(g => new
+            {
+                TicketId = g.Key,
+                Attachments = g.ToList()
+            })
+            .ToDictionaryAsync(x => x.TicketId, x => x.Attachments);
+
         var dtos = new List<SupportTicketDto>();
         foreach (var ticket in tickets)
         {
-            dtos.Add(await MapToDto(ticket));
+            var dto = _mapper.Map<SupportTicketDto>(ticket);
+            
+            if (messagesDict.TryGetValue(ticket.Id, out var messages))
+            {
+                dto.Messages = _mapper.Map<List<TicketMessageDto>>(messages);
+            }
+            else
+            {
+                dto.Messages = new List<TicketMessageDto>();
+            }
+            
+            if (attachmentsDict.TryGetValue(ticket.Id, out var attachments))
+            {
+                dto.Attachments = _mapper.Map<List<TicketAttachmentDto>>(attachments);
+            }
+            else
+            {
+                dto.Attachments = new List<TicketAttachmentDto>();
+            }
+            
+            dtos.Add(dto);
         }
 
         return dtos;
@@ -529,6 +705,16 @@ public class SupportTicketService : ISupportTicketService
 
     public async Task<IEnumerable<SupportTicketDto>> GetMyAssignedTicketsAsync(Guid agentId)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
+        // ✅ PERFORMANCE: ticketIds'i database'de oluştur, memory'de işlem YASAK
+        var ticketIds = await _context.Set<SupportTicket>()
+            .AsNoTracking()
+            .Where(t => t.AssignedToId == agentId && t.Status != TicketStatus.Closed)
+            .OrderByDescending(t => t.Priority)
+            .ThenBy(t => t.CreatedAt)
+            .Select(t => t.Id)
+            .ToListAsync();
+
         var tickets = await _context.Set<SupportTicket>()
             .AsNoTracking()
             .Include(t => t.User)
@@ -540,10 +726,54 @@ public class SupportTicketService : ISupportTicketService
             .ThenBy(t => t.CreatedAt)
             .ToListAsync();
 
+        // ✅ PERFORMANCE: Batch load messages and attachments for all tickets
+        var messagesDict = await _context.Set<TicketMessage>()
+            .AsNoTracking()
+            .Include(m => m.User)
+            .Where(m => ticketIds.Contains(m.TicketId))
+            .GroupBy(m => m.TicketId)
+            .Select(g => new
+            {
+                TicketId = g.Key,
+                Messages = g.ToList()
+            })
+            .ToDictionaryAsync(x => x.TicketId, x => x.Messages);
+
+        var attachmentsDict = await _context.Set<TicketAttachment>()
+            .AsNoTracking()
+            .Where(a => ticketIds.Contains(a.TicketId))
+            .GroupBy(a => a.TicketId)
+            .Select(g => new
+            {
+                TicketId = g.Key,
+                Attachments = g.ToList()
+            })
+            .ToDictionaryAsync(x => x.TicketId, x => x.Attachments);
+
         var dtos = new List<SupportTicketDto>();
         foreach (var ticket in tickets)
         {
-            dtos.Add(await MapToDto(ticket));
+            var dto = _mapper.Map<SupportTicketDto>(ticket);
+            
+            if (messagesDict.TryGetValue(ticket.Id, out var messages))
+            {
+                dto.Messages = _mapper.Map<List<TicketMessageDto>>(messages);
+            }
+            else
+            {
+                dto.Messages = new List<TicketMessageDto>();
+            }
+            
+            if (attachmentsDict.TryGetValue(ticket.Id, out var attachments))
+            {
+                dto.Attachments = _mapper.Map<List<TicketAttachmentDto>>(attachments);
+            }
+            else
+            {
+                dto.Attachments = new List<TicketAttachmentDto>();
+            }
+            
+            dtos.Add(dto);
         }
 
         return dtos;
@@ -569,72 +799,41 @@ public class SupportTicketService : ISupportTicketService
         return $"TKT-{nextNumber:D6}";
     }
 
-    private async Task<SupportTicketDto> MapToDto(SupportTicket ticket)
+    private async Task<SupportTicketDto> MapToDtoAsync(SupportTicket ticket)
     {
-        var user = ticket.User ?? await _context.Set<UserEntity>()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == ticket.UserId);
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        var dto = _mapper.Map<SupportTicketDto>(ticket);
 
-        var order = ticket.Order ?? (ticket.OrderId.HasValue
-            ? await _context.Set<OrderEntity>().AsNoTracking().FirstOrDefaultAsync(o => o.Id == ticket.OrderId.Value)
-            : null);
-
-        var product = ticket.Product ?? (ticket.ProductId.HasValue
-            ? await _context.Set<ProductEntity>().AsNoTracking().FirstOrDefaultAsync(p => p.Id == ticket.ProductId.Value)
-            : null);
-
-        var assignedTo = ticket.AssignedTo ?? (ticket.AssignedToId.HasValue
-            ? await _context.Set<UserEntity>().AsNoTracking().FirstOrDefaultAsync(u => u.Id == ticket.AssignedToId.Value)
-            : null);
-
-        var messages = ticket.Messages?.Where(m => !m.IsDeleted).Select(m => new TicketMessageDto
+        // ✅ PERFORMANCE: Batch load messages and attachments if not already loaded
+        if (ticket.Messages == null || ticket.Messages.Count == 0)
         {
-            Id = m.Id,
-            TicketId = m.TicketId,
-            UserId = m.UserId,
-            UserName = m.User != null ? $"{m.User.FirstName} {m.User.LastName}" : "Unknown",
-            Message = m.Message,
-            IsStaffResponse = m.IsStaffResponse,
-            IsInternal = m.IsInternal,
-            CreatedAt = m.CreatedAt
-        }).ToList() ?? new List<TicketMessageDto>();
-
-        var attachments = ticket.Attachments?.Where(a => !a.IsDeleted).Select(a => new TicketAttachmentDto
+            var messages = await _context.Set<TicketMessage>()
+                .AsNoTracking()
+                .Include(m => m.User)
+                .Include(m => m.Attachments)
+                .Where(m => m.TicketId == ticket.Id)
+                .ToListAsync();
+            dto.Messages = _mapper.Map<List<TicketMessageDto>>(messages);
+        }
+        else
         {
-            Id = a.Id,
-            FileName = a.FileName,
-            FilePath = a.FilePath,
-            FileType = a.FileType,
-            FileSize = a.FileSize,
-            CreatedAt = a.CreatedAt
-        }).ToList() ?? new List<TicketAttachmentDto>();
+            dto.Messages = _mapper.Map<List<TicketMessageDto>>(ticket.Messages);
+        }
 
-        return new SupportTicketDto
+        if (ticket.Attachments == null || ticket.Attachments.Count == 0)
         {
-            Id = ticket.Id,
-            TicketNumber = ticket.TicketNumber,
-            UserId = ticket.UserId,
-            UserName = user != null ? $"{user.FirstName} {user.LastName}" : "Unknown",
-            UserEmail = user?.Email ?? string.Empty,
-            Category = ticket.Category.ToString(),
-            Priority = ticket.Priority.ToString(),
-            Status = ticket.Status.ToString(),
-            Subject = ticket.Subject,
-            Description = ticket.Description,
-            OrderId = ticket.OrderId,
-            OrderNumber = order?.OrderNumber,
-            ProductId = ticket.ProductId,
-            ProductName = product?.Name,
-            AssignedToId = ticket.AssignedToId,
-            AssignedToName = assignedTo != null ? $"{assignedTo.FirstName} {assignedTo.LastName}" : null,
-            ResolvedAt = ticket.ResolvedAt,
-            ClosedAt = ticket.ClosedAt,
-            ResponseCount = ticket.ResponseCount,
-            LastResponseAt = ticket.LastResponseAt,
-            CreatedAt = ticket.CreatedAt,
-            Messages = messages,
-            Attachments = attachments
-        };
+            var attachments = await _context.Set<TicketAttachment>()
+                .AsNoTracking()
+                .Where(a => a.TicketId == ticket.Id)
+                .ToListAsync();
+            dto.Attachments = _mapper.Map<List<TicketAttachmentDto>>(attachments);
+        }
+        else
+        {
+            dto.Attachments = _mapper.Map<List<TicketAttachmentDto>>(ticket.Attachments);
+        }
+
+        return dto;
     }
 
     public async Task<SupportAgentDashboardDto> GetAgentDashboardAsync(Guid agentId, DateTime? startDate = null, DateTime? endDate = null)
@@ -655,66 +854,54 @@ public class SupportTicketService : ISupportTicketService
             throw new NotFoundException("Ajan", agentId);
         }
 
-        // Get all tickets assigned to this agent
-        var allTickets = await _context.Set<SupportTicket>()
+        // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
+        var allTicketsQuery = _context.Set<SupportTicket>()
             .AsNoTracking()
-            .Include(t => t.User)
-            .Include(t => t.Messages)
-            .Where(t => t.AssignedToId == agentId)
-            .ToListAsync();
+            .Where(t => t.AssignedToId == agentId);
 
-        var periodTickets = allTickets
-            .Where(t => t.CreatedAt >= startDate && t.CreatedAt <= endDate)
-            .ToList();
-
-        // Overview stats
-        var totalTickets = allTickets.Count;
-        var openTickets = allTickets.Count(t => t.Status == TicketStatus.Open);
-        var inProgressTickets = allTickets.Count(t => t.Status == TicketStatus.InProgress);
-        var resolvedTickets = allTickets.Count(t => t.Status == TicketStatus.Resolved);
-        var closedTickets = allTickets.Count(t => t.Status == TicketStatus.Closed);
+        var totalTickets = await allTicketsQuery.CountAsync();
+        var openTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.Open);
+        var inProgressTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.InProgress);
+        var resolvedTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.Resolved);
+        var closedTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.Closed);
 
         // Unassigned tickets (for admin view)
         var unassignedTickets = await _context.Set<SupportTicket>()
             .AsNoTracking()
             .CountAsync(t => t.AssignedToId == null && t.Status != TicketStatus.Closed);
 
-        // Performance metrics
-        var resolvedTicketsWithTime = allTickets
-            .Where(t => t.ResolvedAt.HasValue)
-            .ToList();
-
-        var averageResolutionTime = resolvedTicketsWithTime.Any()
-            ? resolvedTicketsWithTime.Average(t => (t.ResolvedAt!.Value - t.CreatedAt).TotalHours)
+        // ✅ PERFORMANCE: Database'de average hesapla
+        var resolvedTicketsQuery = allTicketsQuery.Where(t => t.ResolvedAt.HasValue);
+        var averageResolutionTime = await resolvedTicketsQuery.AnyAsync()
+            ? await resolvedTicketsQuery
+                .AverageAsync(t => (double)(t.ResolvedAt!.Value - t.CreatedAt).TotalHours)
             : 0;
 
-        var ticketsWithResponse = allTickets
-            .Where(t => t.LastResponseAt.HasValue)
-            .ToList();
-
-        var averageResponseTime = ticketsWithResponse.Any()
-            ? ticketsWithResponse.Average(t => (t.LastResponseAt!.Value - t.CreatedAt).TotalHours)
+        var ticketsWithResponseQuery = allTicketsQuery.Where(t => t.LastResponseAt.HasValue);
+        var averageResponseTime = await ticketsWithResponseQuery.AnyAsync()
+            ? await ticketsWithResponseQuery
+                .AverageAsync(t => (double)(t.LastResponseAt!.Value - t.CreatedAt).TotalHours)
             : 0;
 
         var today = DateTime.UtcNow.Date;
         var weekAgo = today.AddDays(-7);
         var monthAgo = today.AddDays(-30);
 
-        var ticketsResolvedToday = allTickets.Count(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value.Date == today);
-        var ticketsResolvedThisWeek = allTickets.Count(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value >= weekAgo);
-        var ticketsResolvedThisMonth = allTickets.Count(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value >= monthAgo);
+        var ticketsResolvedToday = await allTicketsQuery.CountAsync(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value.Date == today);
+        var ticketsResolvedThisWeek = await allTicketsQuery.CountAsync(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value >= weekAgo);
+        var ticketsResolvedThisMonth = await allTicketsQuery.CountAsync(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value >= monthAgo);
 
         var resolutionRate = totalTickets > 0
             ? (decimal)(resolvedTickets + closedTickets) / totalTickets * 100
             : 0;
 
-        // Workload metrics
-        var activeTickets = allTickets.Count(t => t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress);
-        var overdueTickets = allTickets.Count(t =>
+        // ✅ PERFORMANCE: Database'de count yap
+        var activeTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress);
+        var overdueTickets = await allTicketsQuery.CountAsync(t =>
             (t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress) &&
             t.CreatedAt < DateTime.UtcNow.AddDays(-3)); // Tickets older than 3 days
-        var highPriorityTickets = allTickets.Count(t => t.Priority == TicketPriority.High);
-        var urgentTickets = allTickets.Count(t => t.Priority == TicketPriority.Urgent);
+        var highPriorityTickets = await allTicketsQuery.CountAsync(t => t.Priority == TicketPriority.High);
+        var urgentTickets = await allTicketsQuery.CountAsync(t => t.Priority == TicketPriority.Urgent);
 
         // Category breakdown
         var ticketsByCategory = await GetTicketsByCategoryAsync(agentId, startDate, endDate);
@@ -725,29 +912,120 @@ public class SupportTicketService : ISupportTicketService
         // Trends
         var trends = await GetTicketTrendsAsync(agentId, startDate, endDate);
 
-        // Recent tickets
-        var recentTickets = allTickets
+        // ✅ PERFORMANCE: Recent tickets - database'de query
+        var recentTickets = await allTicketsQuery
+            .Include(t => t.User)
+            .Include(t => t.Order)
+            .Include(t => t.Product)
+            .Include(t => t.AssignedTo)
             .OrderByDescending(t => t.CreatedAt)
             .Take(10)
-            .ToList();
+            .ToListAsync();
+
+        // ✅ PERFORMANCE: Urgent tickets - database'de query
+        var urgentTicketsList = await allTicketsQuery
+            .Include(t => t.User)
+            .Include(t => t.Order)
+            .Include(t => t.Product)
+            .Include(t => t.AssignedTo)
+            .Where(t => t.Priority == TicketPriority.Urgent && (t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress))
+            .OrderBy(t => t.CreatedAt)
+            .Take(10)
+            .ToListAsync();
+
+        // ✅ PERFORMANCE: allTicketIds'i database'de oluştur, memory'de işlem YASAK
+        // Recent tickets için ID'leri database'de al
+        var recentTicketIds = await allTicketsQuery
+            .OrderByDescending(t => t.CreatedAt)
+            .Take(10)
+            .Select(t => t.Id)
+            .ToListAsync();
+        
+        // Urgent tickets için ID'leri database'de al
+        var urgentTicketIds = await allTicketsQuery
+            .Where(t => t.Priority == TicketPriority.Urgent && (t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress))
+            .OrderBy(t => t.CreatedAt)
+            .Take(10)
+            .Select(t => t.Id)
+            .ToListAsync();
+        
+        // ✅ Memory'de minimal işlem: Concat ve Distinct küçük listeler için kabul edilebilir
+        // Ancak database'de UNION kullanmak daha iyi olurdu, ancak EF Core'da UNION ile Distinct kombinasyonu karmaşık
+        // Bu durumda küçük listeler (max 20 ID) için memory'de Concat+Distinct kabul edilebilir
+        var allTicketIds = recentTicketIds.Concat(urgentTicketIds).Distinct().ToList();
+        var messagesDict = await _context.Set<TicketMessage>()
+            .AsNoTracking()
+            .Include(m => m.User)
+            .Where(m => allTicketIds.Contains(m.TicketId))
+            .GroupBy(m => m.TicketId)
+            .Select(g => new
+            {
+                TicketId = g.Key,
+                Messages = g.ToList()
+            })
+            .ToDictionaryAsync(x => x.TicketId, x => x.Messages);
+
+        var attachmentsDict = await _context.Set<TicketAttachment>()
+            .AsNoTracking()
+            .Where(a => allTicketIds.Contains(a.TicketId))
+            .GroupBy(a => a.TicketId)
+            .Select(g => new
+            {
+                TicketId = g.Key,
+                Attachments = g.ToList()
+            })
+            .ToDictionaryAsync(x => x.TicketId, x => x.Attachments);
 
         var recentTicketsDto = new List<SupportTicketDto>();
         foreach (var ticket in recentTickets)
         {
-            recentTicketsDto.Add(await MapToDto(ticket));
+            var dto = _mapper.Map<SupportTicketDto>(ticket);
+            
+            if (messagesDict.TryGetValue(ticket.Id, out var messages))
+            {
+                dto.Messages = _mapper.Map<List<TicketMessageDto>>(messages);
+            }
+            else
+            {
+                dto.Messages = new List<TicketMessageDto>();
+            }
+            
+            if (attachmentsDict.TryGetValue(ticket.Id, out var attachments))
+            {
+                dto.Attachments = _mapper.Map<List<TicketAttachmentDto>>(attachments);
+            }
+            else
+            {
+                dto.Attachments = new List<TicketAttachmentDto>();
+            }
+            
+            recentTicketsDto.Add(dto);
         }
-
-        // Urgent tickets
-        var urgentTicketsList = allTickets
-            .Where(t => t.Priority == TicketPriority.Urgent && (t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress))
-            .OrderBy(t => t.CreatedAt)
-            .Take(10)
-            .ToList();
 
         var urgentTicketsDto = new List<SupportTicketDto>();
         foreach (var ticket in urgentTicketsList)
         {
-            urgentTicketsDto.Add(await MapToDto(ticket));
+            var dto = _mapper.Map<SupportTicketDto>(ticket);
+            
+            if (messagesDict.TryGetValue(ticket.Id, out var messages))
+            {
+                dto.Messages = _mapper.Map<List<TicketMessageDto>>(messages);
+            }
+            else
+            {
+                dto.Messages = new List<TicketMessageDto>();
+            }
+            
+            if (attachmentsDict.TryGetValue(ticket.Id, out var attachments))
+            {
+                dto.Attachments = _mapper.Map<List<TicketAttachmentDto>>(attachments);
+            }
+            else
+            {
+                dto.Attachments = new List<TicketAttachmentDto>();
+            }
+            
+            urgentTicketsDto.Add(dto);
         }
 
         _logger.LogInformation("Agent dashboard generated for {AgentName}. Total tickets: {Total}, Active: {Active}, Resolution rate: {Rate}%",
@@ -803,10 +1081,10 @@ public class SupportTicketService : ISupportTicketService
             query = query.Where(t => t.CreatedAt <= endDate.Value);
         }
 
-        var tickets = await query.ToListAsync();
-        var total = tickets.Count;
+        // ✅ PERFORMANCE: Database'de grouping yap, memory'de işlem YASAK
+        var total = await query.CountAsync();
 
-        return tickets
+        var grouped = await query
             .GroupBy(t => t.Category.ToString())
             .Select(g => new CategoryTicketCountDto
             {
@@ -815,7 +1093,9 @@ public class SupportTicketService : ISupportTicketService
                 Percentage = total > 0 ? Math.Round((decimal)g.Count() / total * 100, 2) : 0
             })
             .OrderByDescending(c => c.Count)
-            .ToList();
+            .ToListAsync();
+
+        return grouped;
     }
 
     public async Task<List<PriorityTicketCountDto>> GetTicketsByPriorityAsync(Guid? agentId = null, DateTime? startDate = null, DateTime? endDate = null)
@@ -839,10 +1119,10 @@ public class SupportTicketService : ISupportTicketService
             query = query.Where(t => t.CreatedAt <= endDate.Value);
         }
 
-        var tickets = await query.ToListAsync();
-        var total = tickets.Count;
+        // ✅ PERFORMANCE: Database'de grouping yap, memory'de işlem YASAK
+        var total = await query.CountAsync();
 
-        return tickets
+        var grouped = await query
             .GroupBy(t => t.Priority.ToString())
             .Select(g => new PriorityTicketCountDto
             {
@@ -851,7 +1131,9 @@ public class SupportTicketService : ISupportTicketService
                 Percentage = total > 0 ? Math.Round((decimal)g.Count() / total * 100, 2) : 0
             })
             .OrderByDescending(p => p.Count)
-            .ToList();
+            .ToListAsync();
+
+        return grouped;
     }
 
     public async Task<List<TicketTrendDto>> GetTicketTrendsAsync(Guid? agentId = null, DateTime? startDate = null, DateTime? endDate = null)
@@ -875,18 +1157,26 @@ public class SupportTicketService : ISupportTicketService
             query = query.Where(t => t.CreatedAt <= endDate.Value);
         }
 
-        var tickets = await query.ToListAsync();
-
-        return tickets
-            .GroupBy(t => t.CreatedAt.Date)
+        // ✅ PERFORMANCE: Database'de grouping yap, memory'de işlem YASAK
+        // Note: EF Core doesn't support grouping by Date directly, so we need to use a workaround
+        var trends = await query
+            .GroupBy(t => new { Year = t.CreatedAt.Year, Month = t.CreatedAt.Month, Day = t.CreatedAt.Day })
             .Select(g => new TicketTrendDto
             {
-                Date = g.Key,
+                Date = new DateTime(g.Key.Year, g.Key.Month, g.Key.Day),
                 Opened = g.Count(),
-                Resolved = g.Count(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value.Date == g.Key),
-                Closed = g.Count(t => t.ClosedAt.HasValue && t.ClosedAt.Value.Date == g.Key)
+                Resolved = g.Count(t => t.ResolvedAt.HasValue && 
+                                       t.ResolvedAt.Value.Year == g.Key.Year &&
+                                       t.ResolvedAt.Value.Month == g.Key.Month &&
+                                       t.ResolvedAt.Value.Day == g.Key.Day),
+                Closed = g.Count(t => t.ClosedAt.HasValue &&
+                                     t.ClosedAt.Value.Year == g.Key.Year &&
+                                     t.ClosedAt.Value.Month == g.Key.Month &&
+                                     t.ClosedAt.Value.Day == g.Key.Day)
             })
             .OrderBy(t => t.Date)
-            .ToList();
+            .ToListAsync();
+
+        return trends;
     }
 }

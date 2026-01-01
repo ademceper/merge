@@ -57,6 +57,14 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.User, opt => opt.Ignore())
             .ForMember(dest => dest.Orders, opt => opt.Ignore());
 
+        // User Preference mappings
+        CreateMap<UserPreference, UserPreferenceDto>();
+
+        // User Activity Log mappings
+        CreateMap<UserActivityLog, UserActivityLogDto>()
+            .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => 
+                src.User != null ? src.User.Email : "Anonymous"));
+
         CreateMap<CartItem, CartItemDto>()
             .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product.Name))
             .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src => src.Product.ImageUrl))
@@ -838,6 +846,76 @@ public class MappingProfile : Profile
         CreateMap<SubscriptionUsage, SubscriptionUsageDto>()
             .ForMember(dest => dest.Remaining, opt => opt.MapFrom(src =>
                 src.Limit.HasValue ? src.Limit.Value - src.UsageCount : (int?)null));
+
+        // Support Domain Mappings
+        CreateMap<SupportTicket, SupportTicketDto>()
+            .ForMember(dest => dest.Category, opt => opt.MapFrom(src => src.Category.ToString()))
+            .ForMember(dest => dest.Priority, opt => opt.MapFrom(src => src.Priority.ToString()))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src =>
+                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : "Unknown"))
+            .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User != null ? src.User.Email : string.Empty))
+            .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => src.Order != null ? src.Order.OrderNumber : null))
+            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : null))
+            .ForMember(dest => dest.AssignedToName, opt => opt.MapFrom(src =>
+                src.AssignedTo != null ? $"{src.AssignedTo.FirstName} {src.AssignedTo.LastName}" : null))
+            .ForMember(dest => dest.Messages, opt => opt.Ignore()) // Will be set in SupportTicketService after batch loading
+            .ForMember(dest => dest.Attachments, opt => opt.Ignore()); // Will be set in SupportTicketService after batch loading
+
+        CreateMap<TicketMessage, TicketMessageDto>()
+            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src =>
+                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : "Unknown"))
+            .ForMember(dest => dest.Attachments, opt => opt.Ignore()); // Will be set in SupportTicketService after batch loading
+
+        CreateMap<TicketAttachment, TicketAttachmentDto>();
+
+        CreateMap<CustomerCommunication, CustomerCommunicationDto>()
+            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src =>
+                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty))
+            .ForMember(dest => dest.SentByName, opt => opt.MapFrom(src =>
+                src.SentBy != null ? $"{src.SentBy.FirstName} {src.SentBy.LastName}" : null))
+            .ForMember(dest => dest.Metadata, opt => opt.Ignore()) // Will be set in AfterMap
+            .AfterMap((src, dest) =>
+            {
+                dest.Metadata = !string.IsNullOrEmpty(src.Metadata)
+                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Metadata)
+                    : null;
+            });
+
+        CreateMap<KnowledgeBaseArticle, KnowledgeBaseArticleDto>()
+            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : null))
+            .ForMember(dest => dest.AuthorName, opt => opt.MapFrom(src =>
+                src.Author != null ? $"{src.Author.FirstName} {src.Author.LastName}" : null))
+            .ForMember(dest => dest.Tags, opt => opt.Ignore()) // Will be set in AfterMap
+            .AfterMap((src, dest) =>
+            {
+                dest.Tags = !string.IsNullOrEmpty(src.Tags)
+                    ? src.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+                    : new List<string>();
+            });
+
+        CreateMap<KnowledgeBaseCategory, KnowledgeBaseCategoryDto>()
+            .ForMember(dest => dest.ParentCategoryName, opt => opt.MapFrom(src => src.ParentCategory != null ? src.ParentCategory.Name : null))
+            .ForMember(dest => dest.ArticleCount, opt => opt.Ignore()) // Will be set in KnowledgeBaseService after batch loading
+            .ForMember(dest => dest.SubCategories, opt => opt.Ignore()); // Will be set in KnowledgeBaseService recursively
+
+        CreateMap<LiveChatSession, LiveChatSessionDto>()
+            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src =>
+                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : src.GuestName))
+            .ForMember(dest => dest.AgentName, opt => opt.MapFrom(src =>
+                src.Agent != null ? $"{src.Agent.FirstName} {src.Agent.LastName}" : null))
+            .ForMember(dest => dest.Tags, opt => opt.Ignore()) // Will be set in AfterMap
+            .ForMember(dest => dest.RecentMessages, opt => opt.Ignore()) // Will be set in LiveChatService after batch loading
+            .AfterMap((src, dest) =>
+            {
+                dest.Tags = !string.IsNullOrEmpty(src.Tags)
+                    ? src.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+                    : new List<string>();
+            });
+
+        CreateMap<LiveChatMessage, LiveChatMessageDto>()
+            .ForMember(dest => dest.SenderName, opt => opt.MapFrom(src =>
+                src.Sender != null ? $"{src.Sender.FirstName} {src.Sender.LastName}" : null));
     }
 }
 

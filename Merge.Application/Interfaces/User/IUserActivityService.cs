@@ -9,6 +9,6 @@ public interface IUserActivityService
     Task<IEnumerable<UserActivityLogDto>> GetActivitiesAsync(ActivityFilterDto filter);
     Task<ActivityStatsDto> GetActivityStatsAsync(int days = 30);
     Task<IEnumerable<UserSessionDto>> GetUserSessionsAsync(Guid userId, int days = 7);
-    Task<IEnumerable<PopularProductDto>> GetMostViewedProductsAsync(int days = 30, int topN = 10);
+    Task<List<PopularProductDto>> GetMostViewedProductsAsync(int days = 30, int topN = 10);
     Task DeleteOldActivitiesAsync(int daysToKeep = 90);
 }

@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.Exceptions;
@@ -14,11 +15,13 @@ public class LiveChatService : ILiveChatService
 {
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
 
-    public LiveChatService(ApplicationDbContext context, IUnitOfWork unitOfWork)
+    public LiveChatService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
     {
         _context = context;
         _unitOfWork = unitOfWork;
+        _mapper = mapper;
     }
 
     public async Task<LiveChatSessionDto> CreateSessionAsync(Guid? userId, string? guestName = null, string? guestEmail = null, string? department = null)
@@ -39,54 +42,67 @@ public class LiveChatService : ILiveChatService
         await _context.Set<LiveChatSession>().AddAsync(session);
         await _unitOfWork.SaveChangesAsync();
 
-        return await MapToSessionDto(session);
+        // ✅ PERFORMANCE: Reload with includes for mapping
+        session = await _context.Set<LiveChatSession>()
+            .AsNoTracking()
+            .Include(s => s.User)
+            .Include(s => s.Agent)
+            .Include(s => s.Messages.OrderByDescending(m => m.CreatedAt).Take(50))
+            .FirstOrDefaultAsync(s => s.Id == session.Id);
+
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<LiveChatSessionDto>(session!);
     }
 
     public async Task<LiveChatSessionDto?> GetSessionByIdAsync(Guid id)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var session = await _context.Set<LiveChatSession>()
+            .AsNoTracking()
             .Include(s => s.User)
             .Include(s => s.Agent)
             .Include(s => s.Messages.OrderByDescending(m => m.CreatedAt).Take(50))
-            .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted);
+            .FirstOrDefaultAsync(s => s.Id == id);
 
-        return session != null ? await MapToSessionDto(session) : null;
+        return session != null ? await MapToSessionDtoAsync(session) : null;
     }
 
     public async Task<LiveChatSessionDto?> GetSessionBySessionIdAsync(string sessionId)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var session = await _context.Set<LiveChatSession>()
+            .AsNoTracking()
             .Include(s => s.User)
             .Include(s => s.Agent)
             .Include(s => s.Messages.OrderByDescending(m => m.CreatedAt).Take(50))
-            .FirstOrDefaultAsync(s => s.SessionId == sessionId && !s.IsDeleted);
+            .FirstOrDefaultAsync(s => s.SessionId == sessionId);
 
-        return session != null ? await MapToSessionDto(session) : null;
+        return session != null ? await MapToSessionDtoAsync(session) : null;
     }
 
     public async Task<IEnumerable<LiveChatSessionDto>> GetUserSessionsAsync(Guid userId)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var sessions = await _context.Set<LiveChatSession>()
+            .AsNoTracking()
             .Include(s => s.User)
             .Include(s => s.Agent)
-            .Where(s => s.UserId == userId && !s.IsDeleted)
+            .Where(s => s.UserId == userId)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
 
-        var result = new List<LiveChatSessionDto>();
-        foreach (var session in sessions)
-        {
-            result.Add(await MapToSessionDto(session));
-        }
-        return result;
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<IEnumerable<LiveChatSessionDto>>(sessions);
     }
 
     public async Task<IEnumerable<LiveChatSessionDto>> GetAgentSessionsAsync(Guid agentId, string? status = null)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var query = _context.Set<LiveChatSession>()
+            .AsNoTracking()
             .Include(s => s.User)
             .Include(s => s.Agent)
-            .Where(s => s.AgentId == agentId && !s.IsDeleted);
+            .Where(s => s.AgentId == agentId);
 
         if (!string.IsNullOrEmpty(status))
         {
@@ -97,34 +113,29 @@ public class LiveChatService : ILiveChatService
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
 
-        var result = new List<LiveChatSessionDto>();
-        foreach (var session in sessions)
-        {
-            result.Add(await MapToSessionDto(session));
-        }
-        return result;
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<IEnumerable<LiveChatSessionDto>>(sessions);
     }
 
     public async Task<IEnumerable<LiveChatSessionDto>> GetWaitingSessionsAsync()
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var sessions = await _context.Set<LiveChatSession>()
+            .AsNoTracking()
             .Include(s => s.User)
-            .Where(s => s.Status == "Waiting" && !s.IsDeleted)
+            .Where(s => s.Status == "Waiting")
             .OrderBy(s => s.CreatedAt)
             .ToListAsync();
 
-        var result = new List<LiveChatSessionDto>();
-        foreach (var session in sessions)
-        {
-            result.Add(await MapToSessionDto(session));
-        }
-        return result;
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<IEnumerable<LiveChatSessionDto>>(sessions);
     }
 
     public async Task<bool> AssignAgentAsync(Guid sessionId, Guid agentId)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var session = await _context.Set<LiveChatSession>()
-            .FirstOrDefaultAsync(s => s.Id == sessionId && !s.IsDeleted);
+            .FirstOrDefaultAsync(s => s.Id == sessionId);
 
         if (session == null) return false;
 
@@ -138,8 +149,9 @@ public class LiveChatService : ILiveChatService
 
     public async Task<bool> CloseSessionAsync(Guid sessionId)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var session = await _context.Set<LiveChatSession>()
-            .FirstOrDefaultAsync(s => s.Id == sessionId && !s.IsDeleted);
+            .FirstOrDefaultAsync(s => s.Id == sessionId);
 
         if (session == null) return false;
 
@@ -153,29 +165,33 @@ public class LiveChatService : ILiveChatService
 
     public async Task<LiveChatMessageDto> SendMessageAsync(Guid sessionId, Guid? senderId, CreateLiveChatMessageDto dto)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var session = await _context.Set<LiveChatSession>()
-            .FirstOrDefaultAsync(s => s.Id == sessionId && !s.IsDeleted);
+            .FirstOrDefaultAsync(s => s.Id == sessionId);
 
         if (session == null)
         {
             throw new NotFoundException("Oturum", sessionId);
         }
 
+        // ✅ PERFORMANCE: AsNoTracking for read-only query
         string senderType = "User";
         if (senderId.HasValue)
         {
             var user = await _context.Users
+                .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == senderId.Value);
             
             if (user != null)
             {
-                // Check if user has admin/manager/support role
-                var userRoles = await _context.UserRoles
+                // ✅ PERFORMANCE: Database'de role check yap, memory'de işlem YASAK
+                var isAgent = await _context.UserRoles
+                    .AsNoTracking()
                     .Where(ur => ur.UserId == user.Id)
                     .Join(_context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
-                    .ToListAsync();
+                    .AnyAsync(r => r == "Admin" || r == "Manager" || r == "Support");
                 
-                if (userRoles.Contains("Admin") || userRoles.Contains("Manager") || userRoles.Contains("Support"))
+                if (isAgent)
                 {
                     senderType = "Agent";
                 }
@@ -215,29 +231,35 @@ public class LiveChatService : ILiveChatService
 
         await _unitOfWork.SaveChangesAsync();
 
-        return MapToMessageDto(message);
+        // ✅ PERFORMANCE: Reload with includes for mapping
+        message = await _context.Set<LiveChatMessage>()
+            .AsNoTracking()
+            .Include(m => m.Sender)
+            .FirstOrDefaultAsync(m => m.Id == message.Id);
+
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<LiveChatMessageDto>(message!);
     }
 
     public async Task<IEnumerable<LiveChatMessageDto>> GetSessionMessagesAsync(Guid sessionId)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var messages = await _context.Set<LiveChatMessage>()
+            .AsNoTracking()
             .Include(m => m.Sender)
-            .Where(m => m.SessionId == sessionId && !m.IsDeleted)
+            .Where(m => m.SessionId == sessionId)
             .OrderBy(m => m.CreatedAt)
             .ToListAsync();
 
-        var result = new List<LiveChatMessageDto>();
-        foreach (var message in messages)
-        {
-            result.Add(MapToMessageDto(message));
-        }
-        return result;
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<IEnumerable<LiveChatMessageDto>>(messages);
     }
 
     public async Task<bool> MarkMessagesAsReadAsync(Guid sessionId, Guid userId)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var messages = await _context.Set<LiveChatMessage>()
-            .Where(m => m.SessionId == sessionId && !m.IsRead && !m.IsDeleted && m.SenderId != userId)
+            .Where(m => m.SessionId == sessionId && !m.IsRead && m.SenderId != userId)
             .ToListAsync();
 
         foreach (var message in messages)
@@ -246,8 +268,9 @@ public class LiveChatService : ILiveChatService
             message.ReadAt = DateTime.UtcNow;
         }
 
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var session = await _context.Set<LiveChatSession>()
-            .FirstOrDefaultAsync(s => s.Id == sessionId && !s.IsDeleted);
+            .FirstOrDefaultAsync(s => s.Id == sessionId);
 
         if (session != null)
         {
@@ -261,36 +284,39 @@ public class LiveChatService : ILiveChatService
 
     public async Task<LiveChatStatsDto> GetChatStatsAsync(DateTime? startDate = null, DateTime? endDate = null)
     {
+        // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
         var start = startDate ?? DateTime.UtcNow.AddMonths(-1);
         var end = endDate ?? DateTime.UtcNow;
 
-        var sessions = await _context.Set<LiveChatSession>()
+        var query = _context.Set<LiveChatSession>()
+            .AsNoTracking()
             .Include(s => s.Agent)
-            .Where(s => !s.IsDeleted && s.CreatedAt >= start && s.CreatedAt <= end)
-            .ToListAsync();
+            .Where(s => s.CreatedAt >= start && s.CreatedAt <= end);
 
-        var totalSessions = sessions.Count;
-        var activeSessions = sessions.Count(s => s.Status == "Active");
-        var waitingSessions = sessions.Count(s => s.Status == "Waiting");
-        var resolvedSessions = sessions.Count(s => s.Status == "Resolved" || s.Status == "Closed");
+        var totalSessions = await query.CountAsync();
+        var activeSessions = await query.CountAsync(s => s.Status == "Active");
+        var waitingSessions = await query.CountAsync(s => s.Status == "Waiting");
+        var resolvedSessions = await query.CountAsync(s => s.Status == "Resolved" || s.Status == "Closed");
 
-        var resolvedSessionsWithTime = sessions
-            .Where(s => (s.Status == "Resolved" || s.Status == "Closed") && s.ResolvedAt.HasValue && s.StartedAt.HasValue)
-            .ToList();
-
-        var avgResolutionTime = resolvedSessionsWithTime.Any()
-            ? resolvedSessionsWithTime.Average(s => (s.ResolvedAt!.Value - s.StartedAt!.Value).TotalMinutes)
+        // ✅ PERFORMANCE: Database'de average hesapla
+        var resolvedSessionsQuery = query.Where(s => (s.Status == "Resolved" || s.Status == "Closed") && s.ResolvedAt.HasValue && s.StartedAt.HasValue);
+        var avgResolutionTime = await resolvedSessionsQuery.AnyAsync()
+            ? await resolvedSessionsQuery
+                .AverageAsync(s => (double)(s.ResolvedAt!.Value - s.StartedAt!.Value).TotalMinutes)
             : 0;
 
-        var sessionsByDepartment = sessions
+        // ✅ PERFORMANCE: Database'de grouping yap
+        var sessionsByDepartment = await query
             .Where(s => !string.IsNullOrEmpty(s.Department))
             .GroupBy(s => s.Department!)
-            .ToDictionary(g => g.Key, g => g.Count());
+            .Select(g => new { Department = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Department, x => x.Count);
 
-        var sessionsByAgent = sessions
+        var sessionsByAgent = await query
             .Where(s => s.AgentId.HasValue)
             .GroupBy(s => s.Agent != null ? $"{s.Agent.FirstName} {s.Agent.LastName}" : "Unknown")
-            .ToDictionary(g => g.Key, g => g.Count());
+            .Select(g => new { AgentName = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.AgentName, x => x.Count);
 
         return new LiveChatStatsDto
         {
@@ -310,71 +336,33 @@ public class LiveChatService : ILiveChatService
         return $"CHAT-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
     }
 
-    private async Task<LiveChatSessionDto> MapToSessionDto(LiveChatSession session)
+    private async Task<LiveChatSessionDto> MapToSessionDtoAsync(LiveChatSession session)
     {
-        await _context.Entry(session)
-            .Reference(s => s.User)
-            .LoadAsync();
-        await _context.Entry(session)
-            .Reference(s => s.Agent)
-            .LoadAsync();
-        await _context.Entry(session)
-            .Collection(s => s.Messages)
-            .LoadAsync();
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        var dto = _mapper.Map<LiveChatSessionDto>(session);
 
-        var recentMessages = session.Messages
-            .Where(m => !m.IsDeleted)
-            .OrderByDescending(m => m.CreatedAt)
-            .Take(10)
-            .ToList();
-
-        return new LiveChatSessionDto
+        // ✅ PERFORMANCE: Batch load recent messages if not already loaded
+        if (session.Messages == null || session.Messages.Count == 0)
         {
-            Id = session.Id,
-            UserId = session.UserId,
-            UserName = session.User != null
-                ? $"{session.User.FirstName} {session.User.LastName}"
-                : session.GuestName,
-            AgentId = session.AgentId,
-            AgentName = session.Agent != null
-                ? $"{session.Agent.FirstName} {session.Agent.LastName}"
-                : null,
-            SessionId = session.SessionId,
-            Status = session.Status,
-            GuestName = session.GuestName,
-            GuestEmail = session.GuestEmail,
-            StartedAt = session.StartedAt,
-            ResolvedAt = session.ResolvedAt,
-            MessageCount = session.MessageCount,
-            UnreadCount = session.UnreadCount,
-            Department = session.Department,
-            Priority = session.Priority,
-            Tags = !string.IsNullOrEmpty(session.Tags) ? session.Tags.Split(',').ToList() : new List<string>(),
-            RecentMessages = recentMessages.Select(MapToMessageDto).ToList(),
-            CreatedAt = session.CreatedAt
-        };
-    }
-
-    private LiveChatMessageDto MapToMessageDto(LiveChatMessage message)
-    {
-        return new LiveChatMessageDto
+            var recentMessages = await _context.Set<LiveChatMessage>()
+                .AsNoTracking()
+                .Include(m => m.Sender)
+                .Where(m => m.SessionId == session.Id)
+                .OrderByDescending(m => m.CreatedAt)
+                .Take(10)
+                .ToListAsync();
+            dto.RecentMessages = _mapper.Map<List<LiveChatMessageDto>>(recentMessages);
+        }
+        else
         {
-            Id = message.Id,
-            SessionId = message.SessionId,
-            SenderId = message.SenderId,
-            SenderName = message.Sender != null
-                ? $"{message.Sender.FirstName} {message.Sender.LastName}"
-                : null,
-            SenderType = message.SenderType,
-            Content = message.Content,
-            MessageType = message.MessageType,
-            IsRead = message.IsRead,
-            ReadAt = message.ReadAt,
-            FileUrl = message.FileUrl,
-            FileName = message.FileName,
-            IsInternal = message.IsInternal,
-            CreatedAt = message.CreatedAt
-        };
+            var recentMessages = session.Messages
+                .OrderByDescending(m => m.CreatedAt)
+                .Take(10)
+                .ToList();
+            dto.RecentMessages = _mapper.Map<List<LiveChatMessageDto>>(recentMessages);
+        }
+
+        return dto;
     }
 }
 

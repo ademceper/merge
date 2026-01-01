@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using UserEntity = Merge.Domain.Entities.User;
 using Merge.Application.Interfaces.User;
@@ -14,15 +15,18 @@ public class UserPreferenceService : IUserPreferenceService
 {
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
     private readonly ILogger<UserPreferenceService> _logger;
 
     public UserPreferenceService(
         ApplicationDbContext context,
         IUnitOfWork unitOfWork,
+        IMapper mapper,
         ILogger<UserPreferenceService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -50,13 +54,15 @@ public class UserPreferenceService : IUserPreferenceService
             _logger.LogInformation("Default preferences created for user: {UserId}", userId);
         }
 
-        return MapToDto(preferences);
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<UserPreferenceDto>(preferences);
     }
 
     public async Task<UserPreferenceDto> UpdateUserPreferencesAsync(Guid userId, UpdateUserPreferenceDto dto)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var preferences = await _context.Set<UserPreference>()
-            .FirstOrDefaultAsync(up => up.UserId == userId && !up.IsDeleted);
+            .FirstOrDefaultAsync(up => up.UserId == userId);
 
         if (preferences == null)
         {
@@ -102,13 +108,15 @@ public class UserPreferenceService : IUserPreferenceService
 
         await _unitOfWork.SaveChangesAsync();
 
-        return MapToDto(preferences);
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<UserPreferenceDto>(preferences);
     }
 
     public async Task<UserPreferenceDto> ResetToDefaultsAsync(Guid userId)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var preferences = await _context.Set<UserPreference>()
-            .FirstOrDefaultAsync(up => up.UserId == userId && !up.IsDeleted);
+            .FirstOrDefaultAsync(up => up.UserId == userId);
 
         if (preferences == null)
         {
@@ -153,39 +161,8 @@ public class UserPreferenceService : IUserPreferenceService
 
         await _unitOfWork.SaveChangesAsync();
 
-        return MapToDto(preferences);
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<UserPreferenceDto>(preferences);
     }
 
-    private UserPreferenceDto MapToDto(UserPreference preferences)
-    {
-        return new UserPreferenceDto
-        {
-            UserId = preferences.UserId,
-            Theme = preferences.Theme,
-            DefaultLanguage = preferences.DefaultLanguage,
-            DefaultCurrency = preferences.DefaultCurrency,
-            ItemsPerPage = preferences.ItemsPerPage,
-            DateFormat = preferences.DateFormat,
-            TimeFormat = preferences.TimeFormat,
-            EmailNotifications = preferences.EmailNotifications,
-            SmsNotifications = preferences.SmsNotifications,
-            PushNotifications = preferences.PushNotifications,
-            OrderUpdates = preferences.OrderUpdates,
-            PromotionalEmails = preferences.PromotionalEmails,
-            ProductRecommendations = preferences.ProductRecommendations,
-            ReviewReminders = preferences.ReviewReminders,
-            WishlistPriceAlerts = preferences.WishlistPriceAlerts,
-            NewsletterSubscription = preferences.NewsletterSubscription,
-            ShowProfilePublicly = preferences.ShowProfilePublicly,
-            ShowPurchaseHistory = preferences.ShowPurchaseHistory,
-            AllowPersonalization = preferences.AllowPersonalization,
-            AllowDataCollection = preferences.AllowDataCollection,
-            AllowThirdPartySharing = preferences.AllowThirdPartySharing,
-            DefaultShippingAddress = preferences.DefaultShippingAddress,
-            DefaultPaymentMethod = preferences.DefaultPaymentMethod,
-            AutoApplyCoupons = preferences.AutoApplyCoupons,
-            SaveCartOnLogout = preferences.SaveCartOnLogout,
-            ShowOutOfStockItems = preferences.ShowOutOfStockItems
-        };
-    }
 }

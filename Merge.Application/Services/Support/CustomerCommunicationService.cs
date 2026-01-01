@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
@@ -16,11 +17,13 @@ public class CustomerCommunicationService : ICustomerCommunicationService
 {
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
 
-    public CustomerCommunicationService(ApplicationDbContext context, IUnitOfWork unitOfWork)
+    public CustomerCommunicationService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
     {
         _context = context;
         _unitOfWork = unitOfWork;
+        _mapper = mapper;
     }
 
     public async Task<CustomerCommunicationDto> CreateCommunicationAsync(CreateCustomerCommunicationDto dto, Guid? sentByUserId = null)
@@ -46,25 +49,37 @@ public class CustomerCommunicationService : ICustomerCommunicationService
         await _context.Set<CustomerCommunication>().AddAsync(communication);
         await _unitOfWork.SaveChangesAsync();
 
-        return await MapToDto(communication);
+        // ✅ PERFORMANCE: Reload with includes for mapping
+        communication = await _context.Set<CustomerCommunication>()
+            .AsNoTracking()
+            .Include(c => c.User)
+            .Include(c => c.SentBy)
+            .FirstOrDefaultAsync(c => c.Id == communication.Id);
+
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<CustomerCommunicationDto>(communication!);
     }
 
     public async Task<CustomerCommunicationDto?> GetCommunicationAsync(Guid id)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var communication = await _context.Set<CustomerCommunication>()
+            .AsNoTracking()
             .Include(c => c.User)
             .Include(c => c.SentBy)
-            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
+            .FirstOrDefaultAsync(c => c.Id == id);
 
-        return communication != null ? await MapToDto(communication) : null;
+        return communication != null ? _mapper.Map<CustomerCommunicationDto>(communication) : null;
     }
 
     public async Task<IEnumerable<CustomerCommunicationDto>> GetUserCommunicationsAsync(Guid userId, string? communicationType = null, string? channel = null, int page = 1, int pageSize = 20)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var query = _context.Set<CustomerCommunication>()
+            .AsNoTracking()
             .Include(c => c.User)
             .Include(c => c.SentBy)
-            .Where(c => c.UserId == userId && !c.IsDeleted);
+            .Where(c => c.UserId == userId);
 
         if (!string.IsNullOrEmpty(communicationType))
         {
@@ -82,68 +97,70 @@ public class CustomerCommunicationService : ICustomerCommunicationService
             .Take(pageSize)
             .ToListAsync();
 
-        var result = new List<CustomerCommunicationDto>();
-        foreach (var comm in communications)
-        {
-            result.Add(await MapToDto(comm));
-        }
-        return result;
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<IEnumerable<CustomerCommunicationDto>>(communications);
     }
 
     public async Task<CommunicationHistoryDto> GetUserCommunicationHistoryAsync(Guid userId)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var user = await _context.Set<UserEntity>()
-            .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
 
         if (user == null)
         {
             throw new NotFoundException("Kullanıcı", userId);
         }
 
-        var communications = await _context.Set<CustomerCommunication>()
-            .Where(c => c.UserId == userId && !c.IsDeleted)
+        // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
+        var query = _context.Set<CustomerCommunication>()
+            .AsNoTracking()
+            .Where(c => c.UserId == userId);
+
+        var totalCommunications = await query.CountAsync();
+        var communicationsByType = await query
+            .GroupBy(c => c.CommunicationType)
+            .Select(g => new { Type = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Type, x => x.Count);
+        var communicationsByChannel = await query
+            .GroupBy(c => c.Channel)
+            .Select(g => new { Channel = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Channel, x => x.Count);
+        var lastCommunicationDate = await query
+            .OrderByDescending(c => c.CreatedAt)
+            .Select(c => (DateTime?)c.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        // Get recent communications
+        var recent = await query
+            .Include(c => c.User)
+            .Include(c => c.SentBy)
+            .OrderByDescending(c => c.CreatedAt)
+            .Take(10)
             .ToListAsync();
 
         var history = new CommunicationHistoryDto
         {
             UserId = userId,
             UserName = $"{user.FirstName} {user.LastName}",
-            TotalCommunications = communications.Count,
-            CommunicationsByType = communications
-                .GroupBy(c => c.CommunicationType)
-                .ToDictionary(g => g.Key, g => g.Count()),
-            CommunicationsByChannel = communications
-                .GroupBy(c => c.Channel)
-                .ToDictionary(g => g.Key, g => g.Count()),
-            LastCommunicationDate = communications.Any() 
-                ? communications.Max(c => c.CreatedAt) 
-                : null
+            TotalCommunications = totalCommunications,
+            CommunicationsByType = communicationsByType,
+            CommunicationsByChannel = communicationsByChannel,
+            LastCommunicationDate = lastCommunicationDate,
+            RecentCommunications = _mapper.Map<List<CustomerCommunicationDto>>(recent)
         };
-
-        // Get recent communications
-        var recent = await _context.Set<CustomerCommunication>()
-            .Include(c => c.User)
-            .Include(c => c.SentBy)
-            .Where(c => c.UserId == userId && !c.IsDeleted)
-            .OrderByDescending(c => c.CreatedAt)
-            .Take(10)
-            .ToListAsync();
-
-        history.RecentCommunications = new List<CustomerCommunicationDto>();
-        foreach (var comm in recent)
-        {
-            history.RecentCommunications.Add(await MapToDto(comm));
-        }
 
         return history;
     }
 
     public async Task<IEnumerable<CustomerCommunicationDto>> GetAllCommunicationsAsync(string? communicationType = null, string? channel = null, Guid? userId = null, DateTime? startDate = null, DateTime? endDate = null, int page = 1, int pageSize = 20)
     {
-        var query = _context.Set<CustomerCommunication>()
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
+        IQueryable<CustomerCommunication> query = _context.Set<CustomerCommunication>()
+            .AsNoTracking()
             .Include(c => c.User)
-            .Include(c => c.SentBy)
-            .Where(c => !c.IsDeleted);
+            .Include(c => c.SentBy);
 
         if (!string.IsNullOrEmpty(communicationType))
         {
@@ -176,18 +193,15 @@ public class CustomerCommunicationService : ICustomerCommunicationService
             .Take(pageSize)
             .ToListAsync();
 
-        var result = new List<CustomerCommunicationDto>();
-        foreach (var comm in communications)
-        {
-            result.Add(await MapToDto(comm));
-        }
-        return result;
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<IEnumerable<CustomerCommunicationDto>>(communications);
     }
 
     public async Task<bool> UpdateCommunicationStatusAsync(Guid id, string status, DateTime? deliveredAt = null, DateTime? readAt = null)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var communication = await _context.Set<CustomerCommunication>()
-            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
+            .FirstOrDefaultAsync(c => c.Id == id);
 
         if (communication == null) return false;
 
@@ -205,8 +219,9 @@ public class CustomerCommunicationService : ICustomerCommunicationService
 
     public async Task<Dictionary<string, int>> GetCommunicationStatsAsync(DateTime? startDate = null, DateTime? endDate = null)
     {
+        // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
         var query = _context.Set<CustomerCommunication>()
-            .Where(c => !c.IsDeleted);
+            .AsNoTracking();
 
         if (startDate.HasValue)
         {
@@ -218,61 +233,29 @@ public class CustomerCommunicationService : ICustomerCommunicationService
             query = query.Where(c => c.CreatedAt <= endDate.Value);
         }
 
-        var communications = await query.ToListAsync();
+        var total = await query.CountAsync();
+        var email = await query.CountAsync(c => c.CommunicationType == "Email");
+        var sms = await query.CountAsync(c => c.CommunicationType == "SMS");
+        var ticket = await query.CountAsync(c => c.CommunicationType == "Ticket");
+        var inApp = await query.CountAsync(c => c.CommunicationType == "InApp");
+        var sent = await query.CountAsync(c => c.Status == "Sent");
+        var delivered = await query.CountAsync(c => c.Status == "Delivered");
+        var read = await query.CountAsync(c => c.Status == "Read");
+        var failed = await query.CountAsync(c => c.Status == "Failed");
 
         return new Dictionary<string, int>
         {
-            { "Total", communications.Count },
-            { "Email", communications.Count(c => c.CommunicationType == "Email") },
-            { "SMS", communications.Count(c => c.CommunicationType == "SMS") },
-            { "Ticket", communications.Count(c => c.CommunicationType == "Ticket") },
-            { "InApp", communications.Count(c => c.CommunicationType == "InApp") },
-            { "Sent", communications.Count(c => c.Status == "Sent") },
-            { "Delivered", communications.Count(c => c.Status == "Delivered") },
-            { "Read", communications.Count(c => c.Status == "Read") },
-            { "Failed", communications.Count(c => c.Status == "Failed") }
+            { "Total", total },
+            { "Email", email },
+            { "SMS", sms },
+            { "Ticket", ticket },
+            { "InApp", inApp },
+            { "Sent", sent },
+            { "Delivered", delivered },
+            { "Read", read },
+            { "Failed", failed }
         };
     }
 
-    private async Task<CustomerCommunicationDto> MapToDto(CustomerCommunication communication)
-    {
-        await _context.Entry(communication)
-            .Reference(c => c.User)
-            .LoadAsync();
-        await _context.Entry(communication)
-            .Reference(c => c.SentBy)
-            .LoadAsync();
-
-        return new CustomerCommunicationDto
-        {
-            Id = communication.Id,
-            UserId = communication.UserId,
-            UserName = communication.User != null 
-                ? $"{communication.User.FirstName} {communication.User.LastName}" 
-                : string.Empty,
-            CommunicationType = communication.CommunicationType,
-            Channel = communication.Channel,
-            Subject = communication.Subject,
-            Content = communication.Content,
-            Direction = communication.Direction,
-            RelatedEntityId = communication.RelatedEntityId,
-            RelatedEntityType = communication.RelatedEntityType,
-            SentByUserId = communication.SentByUserId,
-            SentByName = communication.SentBy != null 
-                ? $"{communication.SentBy.FirstName} {communication.SentBy.LastName}" 
-                : null,
-            RecipientEmail = communication.RecipientEmail,
-            RecipientPhone = communication.RecipientPhone,
-            Status = communication.Status,
-            SentAt = communication.SentAt,
-            DeliveredAt = communication.DeliveredAt,
-            ReadAt = communication.ReadAt,
-            ErrorMessage = communication.ErrorMessage,
-            Metadata = !string.IsNullOrEmpty(communication.Metadata)
-                ? JsonSerializer.Deserialize<Dictionary<string, object>>(communication.Metadata)
-                : null,
-            CreatedAt = communication.CreatedAt
-        };
-    }
 }
 

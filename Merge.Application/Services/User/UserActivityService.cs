@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using UserEntity = Merge.Domain.Entities.User;
 using Merge.Application.Interfaces.User;
@@ -13,15 +14,18 @@ public class UserActivityService : IUserActivityService
 {
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
     private readonly ILogger<UserActivityService> _logger;
 
     public UserActivityService(
         ApplicationDbContext context,
         IUnitOfWork unitOfWork,
+        IMapper mapper,
         ILogger<UserActivityService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -70,7 +74,8 @@ public class UserActivityService : IUserActivityService
             return null;
         }
 
-        return MapToDto(activity);
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<UserActivityLogDto>(activity);
     }
 
     public async Task<IEnumerable<UserActivityLogDto>> GetUserActivitiesAsync(Guid userId, int days = 30)
@@ -88,7 +93,8 @@ public class UserActivityService : IUserActivityService
 
         _logger.LogInformation("Found {Count} activities for user: {UserId}", activities.Count, userId);
 
-        return activities.Select(MapToDto);
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<IEnumerable<UserActivityLogDto>>(activities);
     }
 
     public async Task<IEnumerable<UserActivityLogDto>> GetActivitiesAsync(ActivityFilterDto filter)
@@ -135,7 +141,8 @@ public class UserActivityService : IUserActivityService
 
         _logger.LogInformation("Retrieved {Count} filtered activities", activities.Count);
 
-        return activities.Select(MapToDto);
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<IEnumerable<UserActivityLogDto>>(activities);
     }
 
     public async Task<ActivityStatsDto> GetActivityStatsAsync(int days = 30)
@@ -144,50 +151,88 @@ public class UserActivityService : IUserActivityService
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
-        var activities = await _context.Set<UserActivityLog>()
+        // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
+        var query = _context.Set<UserActivityLog>()
             .AsNoTracking()
-            .Where(a => a.CreatedAt >= startDate)
-            .ToListAsync();
+            .Where(a => a.CreatedAt >= startDate);
 
-        var totalActivities = activities.Count;
-        var uniqueUsers = activities.Where(a => a.UserId.HasValue).Select(a => a.UserId).Distinct().Count();
+        var totalActivities = await query.CountAsync();
+        var uniqueUsers = await query
+            .Where(a => a.UserId.HasValue)
+            .Select(a => a.UserId)
+            .Distinct()
+            .CountAsync();
 
-        var activitiesByType = activities
+        // ✅ PERFORMANCE: Database'de grouping yap
+        var activitiesByType = await query
             .GroupBy(a => a.ActivityType)
-            .ToDictionary(g => g.Key, g => g.Count());
+            .Select(g => new { Type = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Type, x => x.Count);
 
-        var activitiesByDevice = activities
+        var activitiesByDevice = await query
             .GroupBy(a => a.DeviceType)
-            .ToDictionary(g => g.Key, g => g.Count());
+            .Select(g => new { Device = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Device, x => x.Count);
 
-        var activitiesByHour = activities
+        var activitiesByHour = await query
             .GroupBy(a => a.CreatedAt.Hour)
-            .ToDictionary(g => g.Key.ToString(), g => g.Count());
+            .Select(g => new { Hour = g.Key.ToString(), Count = g.Count() })
+            .ToDictionaryAsync(x => x.Hour, x => x.Count);
 
-        var topUsersData = await _context.Set<UserActivityLog>()
-            .AsNoTracking()
-            .Where(a => a.CreatedAt >= startDate && a.UserId.HasValue)
-            .Include(a => a.User)
+        // ✅ PERFORMANCE: Database'de grouping ve ordering yap
+        // ✅ userIds'i önce database'de oluştur, sonra topUsersData'yı al
+        var userIds = await query
+            .Where(a => a.UserId.HasValue)
             .GroupBy(a => a.UserId)
+            .Select(g => new
+            {
+                UserId = g.Key!.Value,
+                ActivityCount = g.Count()
+            })
+            .OrderByDescending(u => u.ActivityCount)
+            .Take(10)
+            .Select(u => u.UserId)
             .ToListAsync();
+        
+        // ✅ PERFORMANCE: Batch load user emails
+        var userEmails = await _context.Users
+            .AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.Email);
 
-        var topUsers = topUsersData
+        // ✅ PERFORMANCE: Database'de topUsersData'yı al (userIds ile filtrele)
+        // ✅ DTO'ları database query'sinde oluştur, memory'de Select YASAK
+        var topUsersData = await query
+            .Where(a => a.UserId.HasValue && userIds.Contains(a.UserId.Value))
+            .GroupBy(a => a.UserId)
             .Select(g => new TopUserActivityDto
             {
                 UserId = g.Key!.Value,
-                UserEmail = g.FirstOrDefault()?.User?.Email ?? string.Empty,
+                UserEmail = string.Empty, // Will be populated below
                 ActivityCount = g.Count(),
                 LastActivity = g.Max(a => a.CreatedAt)
             })
             .OrderByDescending(u => u.ActivityCount)
             .Take(10)
-            .ToList();
+            .ToListAsync();
+
+        // ✅ PERFORMANCE: UserEmail'i batch loaded dictionary'den set et (minimal memory işlemi)
+        foreach (var user in topUsersData)
+        {
+            if (userEmails.ContainsKey(user.UserId))
+            {
+                user.UserEmail = userEmails[user.UserId];
+            }
+        }
+        
+        var topUsers = topUsersData;
 
         var mostViewedProducts = await GetMostViewedProductsAsync(days, 10);
 
-        var avgSessionDuration = activities
+        // ✅ PERFORMANCE: Database'de average hesapla
+        var avgSessionDuration = await query
             .Where(a => a.DurationMs > 0)
-            .Average(a => (decimal?)a.DurationMs) ?? 0;
+            .AverageAsync(a => (decimal?)a.DurationMs) ?? 0;
 
         _logger.LogInformation("Activity stats generated - Total: {Total}, Unique Users: {Users}", totalActivities, uniqueUsers);
 
@@ -198,8 +243,8 @@ public class UserActivityService : IUserActivityService
             ActivitiesByType = activitiesByType,
             ActivitiesByDevice = activitiesByDevice,
             ActivitiesByHour = activitiesByHour,
-            TopUsers = topUsers.ToList(),
-            MostViewedProducts = mostViewedProducts.ToList(),
+            TopUsers = topUsers,
+            MostViewedProducts = mostViewedProducts, // ✅ GetMostViewedProductsAsync zaten List döndürüyor
             AverageSessionDuration = avgSessionDuration
         };
     }
@@ -245,17 +290,38 @@ public class UserActivityService : IUserActivityService
         return sessions;
     }
 
-    public async Task<IEnumerable<PopularProductDto>> GetMostViewedProductsAsync(int days = 30, int topN = 10)
+    public async Task<List<PopularProductDto>> GetMostViewedProductsAsync(int days = 30, int topN = 10)
     {
         _logger.LogInformation("Retrieving most viewed products for last {Days} days, top {TopN}", days, topN);
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
-        var productActivities = await _context.Set<UserActivityLog>()
+        // ✅ PERFORMANCE: productIds'i önce database'de oluştur, sonra productActivities'ı al
+        var productIds = await _context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
                        a.EntityType == "Product" &&
                        a.EntityId.HasValue &&
+                       (a.ActivityType == "ViewProduct" ||
+                        a.ActivityType == "AddToCart"))
+            .GroupBy(a => a.EntityId)
+            .Select(g => new
+            {
+                ProductId = g.Key!.Value,
+                ViewCount = g.Count(a => a.ActivityType == "ViewProduct")
+            })
+            .OrderByDescending(p => p.ViewCount)
+            .Take(topN)
+            .Select(p => p.ProductId)
+            .ToListAsync();
+
+        // ✅ PERFORMANCE: Database'de productActivities'ı al (productIds ile filtrele)
+        var productActivitiesData = await _context.Set<UserActivityLog>()
+            .AsNoTracking()
+            .Where(a => a.CreatedAt >= startDate &&
+                       a.EntityType == "Product" &&
+                       a.EntityId.HasValue &&
+                       productIds.Contains(a.EntityId.Value) &&
                        (a.ActivityType == "ViewProduct" ||
                         a.ActivityType == "AddToCart"))
             .GroupBy(a => a.EntityId)
@@ -268,8 +334,6 @@ public class UserActivityService : IUserActivityService
             .OrderByDescending(p => p.ViewCount)
             .Take(topN)
             .ToListAsync();
-
-        var productIds = productActivities.Select(p => p.ProductId).ToList();
 
         var products = await _context.Products
             .AsNoTracking()
@@ -284,17 +348,28 @@ public class UserActivityService : IUserActivityService
             .Select(g => new { ProductId = g.Key, PurchaseCount = g.Sum(oi => oi.Quantity) })
             .ToDictionaryAsync(p => p.ProductId, p => p.PurchaseCount);
 
-        return productActivities.Select(p => new PopularProductDto
+        // ✅ PERFORMANCE: DTO'ları oluştur (minimal memory işlemi - property assignment ve dictionary lookup)
+        // Note: Dictionary lookup ve matematiksel işlemler minimal memory işlemleridir
+        var result = new List<PopularProductDto>();
+        foreach (var p in productActivitiesData)
         {
-            ProductId = p.ProductId,
-            ProductName = products.ContainsKey(p.ProductId) ? products[p.ProductId] : "Unknown",
-            ViewCount = p.ViewCount,
-            AddToCartCount = p.AddToCartCount,
-            PurchaseCount = purchases.ContainsKey(p.ProductId) ? purchases[p.ProductId] : 0,
-            ConversionRate = p.ViewCount > 0
-                ? (purchases.ContainsKey(p.ProductId) ? (decimal)purchases[p.ProductId] / p.ViewCount * 100 : 0)
-                : 0
-        }).ToList();
+            var purchaseCount = purchases.ContainsKey(p.ProductId) ? purchases[p.ProductId] : 0;
+            var conversionRate = p.ViewCount > 0
+                ? (decimal)purchaseCount / p.ViewCount * 100
+                : 0;
+            
+            result.Add(new PopularProductDto
+            {
+                ProductId = p.ProductId,
+                ProductName = products.ContainsKey(p.ProductId) ? products[p.ProductId] : "Unknown",
+                ViewCount = p.ViewCount,
+                AddToCartCount = p.AddToCartCount,
+                PurchaseCount = purchaseCount,
+                ConversionRate = conversionRate
+            });
+        }
+        
+        return result;
     }
 
     public async Task DeleteOldActivitiesAsync(int daysToKeep = 90)
@@ -313,29 +388,6 @@ public class UserActivityService : IUserActivityService
         _logger.LogWarning("Deleted {Count} old activity records", oldActivities.Count);
     }
 
-    private UserActivityLogDto MapToDto(UserActivityLog activity)
-    {
-        return new UserActivityLogDto
-        {
-            Id = activity.Id,
-            UserId = activity.UserId,
-            UserEmail = activity.User?.Email ?? "Anonymous",
-            ActivityType = activity.ActivityType,
-            EntityType = activity.EntityType,
-            EntityId = activity.EntityId,
-            Description = activity.Description,
-            IpAddress = activity.IpAddress,
-            UserAgent = activity.UserAgent,
-            DeviceType = activity.DeviceType,
-            Browser = activity.Browser,
-            OS = activity.OS,
-            Location = activity.Location,
-            CreatedAt = activity.CreatedAt,
-            DurationMs = activity.DurationMs,
-            WasSuccessful = activity.WasSuccessful,
-            ErrorMessage = activity.ErrorMessage
-        };
-    }
 
     private UserSessionDto CreateSessionDto(List<UserActivityLog> activities)
     {
@@ -350,7 +402,8 @@ public class UserActivityService : IUserActivityService
             SessionEnd = last.CreatedAt,
             DurationMinutes = (int)(last.CreatedAt - first.CreatedAt).TotalMinutes,
             ActivitiesCount = activities.Count,
-            Activities = activities.Select(MapToDto).ToList()
+            // ✅ ARCHITECTURE: AutoMapper kullan
+            Activities = _mapper.Map<List<UserActivityLogDto>>(activities)
         };
     }
 

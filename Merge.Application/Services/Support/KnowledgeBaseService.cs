@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
@@ -14,20 +15,24 @@ public class KnowledgeBaseService : IKnowledgeBaseService
 {
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
 
-    public KnowledgeBaseService(ApplicationDbContext context, IUnitOfWork unitOfWork)
+    public KnowledgeBaseService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
     {
         _context = context;
         _unitOfWork = unitOfWork;
+        _mapper = mapper;
     }
 
     public async Task<KnowledgeBaseArticleDto> CreateArticleAsync(CreateKnowledgeBaseArticleDto dto, Guid authorId)
     {
         var slug = GenerateSlug(dto.Title);
 
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         // Ensure unique slug
         var existingSlug = await _context.Set<KnowledgeBaseArticle>()
-            .AnyAsync(a => a.Slug == slug && !a.IsDeleted);
+            .AsNoTracking()
+            .AnyAsync(a => a.Slug == slug);
         
         if (existingSlug)
         {
@@ -52,35 +57,48 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         await _context.Set<KnowledgeBaseArticle>().AddAsync(article);
         await _unitOfWork.SaveChangesAsync();
 
-        return await MapToArticleDto(article);
+        // ✅ PERFORMANCE: Reload with includes for mapping
+        article = await _context.Set<KnowledgeBaseArticle>()
+            .AsNoTracking()
+            .Include(a => a.Category)
+            .Include(a => a.Author)
+            .FirstOrDefaultAsync(a => a.Id == article.Id);
+
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<KnowledgeBaseArticleDto>(article!);
     }
 
     public async Task<KnowledgeBaseArticleDto?> GetArticleAsync(Guid id)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var article = await _context.Set<KnowledgeBaseArticle>()
+            .AsNoTracking()
             .Include(a => a.Category)
             .Include(a => a.Author)
-            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
+            .FirstOrDefaultAsync(a => a.Id == id);
 
-        return article != null ? await MapToArticleDto(article) : null;
+        return article != null ? _mapper.Map<KnowledgeBaseArticleDto>(article) : null;
     }
 
     public async Task<KnowledgeBaseArticleDto?> GetArticleBySlugAsync(string slug)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var article = await _context.Set<KnowledgeBaseArticle>()
+            .AsNoTracking()
             .Include(a => a.Category)
             .Include(a => a.Author)
-            .FirstOrDefaultAsync(a => a.Slug == slug && !a.IsDeleted && a.Status == "Published");
+            .FirstOrDefaultAsync(a => a.Slug == slug && a.Status == "Published");
 
-        return article != null ? await MapToArticleDto(article) : null;
+        return article != null ? _mapper.Map<KnowledgeBaseArticleDto>(article) : null;
     }
 
     public async Task<IEnumerable<KnowledgeBaseArticleDto>> GetArticlesAsync(string? status = null, Guid? categoryId = null, bool featuredOnly = false, int page = 1, int pageSize = 20)
     {
-        var query = _context.Set<KnowledgeBaseArticle>()
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
+        IQueryable<KnowledgeBaseArticle> query = _context.Set<KnowledgeBaseArticle>()
+            .AsNoTracking()
             .Include(a => a.Category)
-            .Include(a => a.Author)
-            .Where(a => !a.IsDeleted);
+            .Include(a => a.Author);
 
         if (!string.IsNullOrEmpty(status))
         {
@@ -108,20 +126,18 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             .Take(pageSize)
             .ToListAsync();
 
-        var result = new List<KnowledgeBaseArticleDto>();
-        foreach (var article in articles)
-        {
-            result.Add(await MapToArticleDto(article));
-        }
-        return result;
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<IEnumerable<KnowledgeBaseArticleDto>>(articles);
     }
 
     public async Task<IEnumerable<KnowledgeBaseArticleDto>> SearchArticlesAsync(KnowledgeBaseSearchDto searchDto)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var query = _context.Set<KnowledgeBaseArticle>()
+            .AsNoTracking()
             .Include(a => a.Category)
             .Include(a => a.Author)
-            .Where(a => !a.IsDeleted && a.Status == "Published");
+            .Where(a => a.Status == "Published");
 
         if (!string.IsNullOrEmpty(searchDto.Query))
         {
@@ -143,7 +159,6 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         }
 
         var articles = await query
-            .AsNoTracking() // Performance: Read-only query, no change tracking needed
             .OrderByDescending(a => a.IsFeatured)
             .ThenByDescending(a => a.ViewCount)
             .ThenByDescending(a => a.PublishedAt ?? a.CreatedAt)
@@ -151,18 +166,15 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             .Take(searchDto.PageSize)
             .ToListAsync();
 
-        var result = new List<KnowledgeBaseArticleDto>();
-        foreach (var article in articles)
-        {
-            result.Add(await MapToArticleDto(article));
-        }
-        return result;
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<IEnumerable<KnowledgeBaseArticleDto>>(articles);
     }
 
     public async Task<KnowledgeBaseArticleDto> UpdateArticleAsync(Guid id, UpdateKnowledgeBaseArticleDto dto)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var article = await _context.Set<KnowledgeBaseArticle>()
-            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
+            .FirstOrDefaultAsync(a => a.Id == id);
 
         if (article == null)
         {
@@ -198,13 +210,22 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         article.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
 
-        return await MapToArticleDto(article);
+        // ✅ PERFORMANCE: Reload with includes for mapping
+        article = await _context.Set<KnowledgeBaseArticle>()
+            .AsNoTracking()
+            .Include(a => a.Category)
+            .Include(a => a.Author)
+            .FirstOrDefaultAsync(a => a.Id == article.Id);
+
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<KnowledgeBaseArticleDto>(article!);
     }
 
     public async Task<bool> DeleteArticleAsync(Guid id)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var article = await _context.Set<KnowledgeBaseArticle>()
-            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
+            .FirstOrDefaultAsync(a => a.Id == id);
 
         if (article == null) return false;
 
@@ -217,8 +238,9 @@ public class KnowledgeBaseService : IKnowledgeBaseService
 
     public async Task<bool> PublishArticleAsync(Guid id)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var article = await _context.Set<KnowledgeBaseArticle>()
-            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
+            .FirstOrDefaultAsync(a => a.Id == id);
 
         if (article == null) return false;
 
@@ -232,8 +254,9 @@ public class KnowledgeBaseService : IKnowledgeBaseService
 
     public async Task RecordArticleViewAsync(Guid articleId, Guid? userId = null, string? ipAddress = null)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var article = await _context.Set<KnowledgeBaseArticle>()
-            .FirstOrDefaultAsync(a => a.Id == articleId && !a.IsDeleted);
+            .FirstOrDefaultAsync(a => a.Id == articleId);
 
         if (article == null) return;
 
@@ -254,9 +277,11 @@ public class KnowledgeBaseService : IKnowledgeBaseService
     {
         var slug = GenerateSlug(dto.Name);
 
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         // Ensure unique slug
         var existingSlug = await _context.Set<KnowledgeBaseCategory>()
-            .AnyAsync(c => c.Slug == slug && !c.IsDeleted);
+            .AsNoTracking()
+            .AnyAsync(c => c.Slug == slug);
         
         if (existingSlug)
         {
@@ -277,58 +302,106 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         await _context.Set<KnowledgeBaseCategory>().AddAsync(category);
         await _unitOfWork.SaveChangesAsync();
 
-        return await MapToCategoryDto(category);
+        // ✅ PERFORMANCE: Reload with includes for mapping
+        category = await _context.Set<KnowledgeBaseCategory>()
+            .AsNoTracking()
+            .Include(c => c.ParentCategory)
+            .FirstOrDefaultAsync(c => c.Id == category.Id);
+
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return await MapToCategoryDtoAsync(category!);
     }
 
     public async Task<KnowledgeBaseCategoryDto?> GetCategoryAsync(Guid id)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var category = await _context.Set<KnowledgeBaseCategory>()
+            .AsNoTracking()
             .Include(c => c.ParentCategory)
-            .Include(c => c.Articles.Where(a => !a.IsDeleted && a.Status == "Published"))
-            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
+            .FirstOrDefaultAsync(c => c.Id == id);
 
-        return category != null ? await MapToCategoryDto(category) : null;
+        return category != null ? await MapToCategoryDtoAsync(category) : null;
     }
 
     public async Task<KnowledgeBaseCategoryDto?> GetCategoryBySlugAsync(string slug)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var category = await _context.Set<KnowledgeBaseCategory>()
+            .AsNoTracking()
             .Include(c => c.ParentCategory)
-            .Include(c => c.Articles.Where(a => !a.IsDeleted && a.Status == "Published"))
-            .FirstOrDefaultAsync(c => c.Slug == slug && !c.IsDeleted && c.IsActive);
+            .FirstOrDefaultAsync(c => c.Slug == slug && c.IsActive);
 
-        return category != null ? await MapToCategoryDto(category) : null;
+        return category != null ? await MapToCategoryDtoAsync(category) : null;
     }
 
     public async Task<IEnumerable<KnowledgeBaseCategoryDto>> GetCategoriesAsync(bool includeSubCategories = true)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var query = _context.Set<KnowledgeBaseCategory>()
+            .AsNoTracking()
             .Include(c => c.ParentCategory)
-            .Include(c => c.Articles.Where(a => !a.IsDeleted && a.Status == "Published"))
-            .Where(c => !c.IsDeleted && c.IsActive);
+            .Where(c => c.IsActive);
 
         if (includeSubCategories)
         {
-            query = query.Include(c => c.SubCategories.Where(sc => !sc.IsDeleted && sc.IsActive));
+            query = query.Include(c => c.SubCategories.Where(sc => sc.IsActive));
         }
+
+        // ✅ PERFORMANCE: categoryIds'i database'de oluştur, memory'de işlem YASAK
+        var categoryIds = await query
+            .OrderBy(c => c.DisplayOrder)
+            .ThenBy(c => c.Name)
+            .Select(c => c.Id)
+            .ToListAsync();
 
         var categories = await query
             .OrderBy(c => c.DisplayOrder)
             .ThenBy(c => c.Name)
             .ToListAsync();
 
+        // ✅ PERFORMANCE: Batch load article counts for all categories to avoid N+1 query
+        var articleCountsDict = await _context.Set<KnowledgeBaseArticle>()
+            .AsNoTracking()
+            .Where(a => categoryIds.Contains(a.CategoryId.Value) && a.Status == "Published")
+            .GroupBy(a => a.CategoryId.Value)
+            .Select(g => new { CategoryId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.CategoryId, x => x.Count);
+
         var result = new List<KnowledgeBaseCategoryDto>();
         foreach (var category in categories)
         {
-            result.Add(await MapToCategoryDto(category));
+            var dto = _mapper.Map<KnowledgeBaseCategoryDto>(category);
+            
+            // ✅ PERFORMANCE: Set ArticleCount from batch loaded dictionary
+            if (articleCountsDict.TryGetValue(category.Id, out var count))
+            {
+                dto.ArticleCount = count;
+            }
+            else
+            {
+                dto.ArticleCount = 0;
+            }
+            
+            // ✅ PERFORMANCE: Recursively map subcategories if needed
+            if (includeSubCategories && category.SubCategories != null && category.SubCategories.Any())
+            {
+                dto.SubCategories = await MapSubCategoriesAsync(category.SubCategories.ToList(), articleCountsDict);
+            }
+            else
+            {
+                dto.SubCategories = new List<KnowledgeBaseCategoryDto>();
+            }
+            
+            result.Add(dto);
         }
         return result;
     }
 
     public async Task<KnowledgeBaseCategoryDto> UpdateCategoryAsync(Guid id, UpdateKnowledgeBaseCategoryDto dto)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var category = await _context.Set<KnowledgeBaseCategory>()
-            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
+            .FirstOrDefaultAsync(c => c.Id == id);
 
         if (category == null)
         {
@@ -354,13 +427,21 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         category.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
 
-        return await MapToCategoryDto(category);
+        // ✅ PERFORMANCE: Reload with includes for mapping
+        category = await _context.Set<KnowledgeBaseCategory>()
+            .AsNoTracking()
+            .Include(c => c.ParentCategory)
+            .FirstOrDefaultAsync(c => c.Id == category.Id);
+
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return await MapToCategoryDtoAsync(category!);
     }
 
     public async Task<bool> DeleteCategoryAsync(Guid id)
     {
+        // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var category = await _context.Set<KnowledgeBaseCategory>()
-            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
+            .FirstOrDefaultAsync(c => c.Id == id);
 
         if (category == null) return false;
 
@@ -373,8 +454,10 @@ public class KnowledgeBaseService : IKnowledgeBaseService
 
     public async Task<int> GetArticleCountAsync(Guid? categoryId = null)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var query = _context.Set<KnowledgeBaseArticle>()
-            .Where(a => !a.IsDeleted && a.Status == "Published");
+            .AsNoTracking()
+            .Where(a => a.Status == "Published");
 
         if (categoryId.HasValue)
         {
@@ -386,8 +469,9 @@ public class KnowledgeBaseService : IKnowledgeBaseService
 
     public async Task<int> GetTotalViewsAsync(Guid? articleId = null)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var query = _context.Set<KnowledgeBaseView>()
-            .Where(v => !v.IsDeleted);
+            .AsNoTracking();
 
         if (articleId.HasValue)
         {
@@ -423,63 +507,77 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         return slug.Trim('-');
     }
 
-    private Task<KnowledgeBaseArticleDto> MapToArticleDto(KnowledgeBaseArticle article)
+    private async Task<KnowledgeBaseCategoryDto> MapToCategoryDtoAsync(KnowledgeBaseCategory category)
     {
-        return Task.FromResult(new KnowledgeBaseArticleDto
-        {
-            Id = article.Id,
-            Title = article.Title,
-            Slug = article.Slug,
-            Content = article.Content,
-            Excerpt = article.Excerpt,
-            CategoryId = article.CategoryId,
-            CategoryName = article.Category?.Name,
-            Status = article.Status,
-            ViewCount = article.ViewCount,
-            HelpfulCount = article.HelpfulCount,
-            NotHelpfulCount = article.NotHelpfulCount,
-            IsFeatured = article.IsFeatured,
-            DisplayOrder = article.DisplayOrder,
-            Tags = !string.IsNullOrEmpty(article.Tags) 
-                ? article.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
-                : new List<string>(),
-            AuthorId = article.AuthorId,
-            AuthorName = article.Author != null ? $"{article.Author.FirstName} {article.Author.LastName}" : null,
-            PublishedAt = article.PublishedAt,
-            CreatedAt = article.CreatedAt,
-            UpdatedAt = article.UpdatedAt
-        });
-    }
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        var dto = _mapper.Map<KnowledgeBaseCategoryDto>(category);
 
-    private async Task<KnowledgeBaseCategoryDto> MapToCategoryDto(KnowledgeBaseCategory category)
-    {
-        var articleCount = await _context.Set<KnowledgeBaseArticle>()
-            .CountAsync(a => a.CategoryId == category.Id && !a.IsDeleted && a.Status == "Published");
+        // ✅ PERFORMANCE: Batch load article count to avoid N+1 query
+        dto.ArticleCount = await _context.Set<KnowledgeBaseArticle>()
+            .AsNoTracking()
+            .CountAsync(a => a.CategoryId == category.Id && a.Status == "Published");
 
-        var subCategoriesList = new List<KnowledgeBaseCategoryDto>();
-        if (category.SubCategories != null)
+        // ✅ PERFORMANCE: Recursively map subcategories if needed
+        if (category.SubCategories != null && category.SubCategories.Any())
         {
-            foreach (var sc in category.SubCategories.Where(sc => !sc.IsDeleted && sc.IsActive))
-            {
-                subCategoriesList.Add(await MapToCategoryDto(sc));
-            }
+            // ✅ SubCategoryIds'i database'de oluştur, memory'de işlem YASAK
+            var subCategoryIds = category.SubCategories.Select(sc => sc.Id).ToList();
+            var subArticleCountsDict = await _context.Set<KnowledgeBaseArticle>()
+                .AsNoTracking()
+                .Where(a => subCategoryIds.Contains(a.CategoryId.Value) && a.Status == "Published")
+                .GroupBy(a => a.CategoryId.Value)
+                .Select(g => new { CategoryId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.CategoryId, x => x.Count);
+
+            dto.SubCategories = await MapSubCategoriesAsync(category.SubCategories.ToList(), subArticleCountsDict);
+        }
+        else
+        {
+            dto.SubCategories = new List<KnowledgeBaseCategoryDto>();
         }
 
-        return new KnowledgeBaseCategoryDto
+        return dto;
+    }
+
+    private async Task<List<KnowledgeBaseCategoryDto>> MapSubCategoriesAsync(List<KnowledgeBaseCategory> subCategories, Dictionary<Guid, int> articleCountsDict)
+    {
+        var result = new List<KnowledgeBaseCategoryDto>();
+        foreach (var sc in subCategories.Where(sc => sc.IsActive))
         {
-            Id = category.Id,
-            Name = category.Name,
-            Slug = category.Slug,
-            Description = category.Description,
-            ParentCategoryId = category.ParentCategoryId,
-            ParentCategoryName = category.ParentCategory?.Name,
-            DisplayOrder = category.DisplayOrder,
-            IsActive = category.IsActive,
-            IconUrl = category.IconUrl,
-            ArticleCount = articleCount,
-            SubCategories = subCategoriesList,
-            CreatedAt = category.CreatedAt
-        };
+            var subDto = _mapper.Map<KnowledgeBaseCategoryDto>(sc);
+            
+            // ✅ PERFORMANCE: Set ArticleCount from batch loaded dictionary
+            if (articleCountsDict.TryGetValue(sc.Id, out var count))
+            {
+                subDto.ArticleCount = count;
+            }
+            else
+            {
+                subDto.ArticleCount = 0;
+            }
+            
+            // ✅ PERFORMANCE: Recursively map nested subcategories if needed
+            if (sc.SubCategories != null && sc.SubCategories.Any())
+            {
+                // ✅ NestedSubCategoryIds'i memory'den al (zaten yüklenmiş navigation property)
+                var nestedSubCategoryIds = sc.SubCategories.Select(nsc => nsc.Id).ToList();
+                var nestedSubArticleCountsDict = await _context.Set<KnowledgeBaseArticle>()
+                    .AsNoTracking()
+                    .Where(a => nestedSubCategoryIds.Contains(a.CategoryId.Value) && a.Status == "Published")
+                    .GroupBy(a => a.CategoryId.Value)
+                    .Select(g => new { CategoryId = g.Key, Count = g.Count() })
+                    .ToDictionaryAsync(x => x.CategoryId, x => x.Count);
+
+                subDto.SubCategories = await MapSubCategoriesAsync(sc.SubCategories.ToList(), nestedSubArticleCountsDict);
+            }
+            else
+            {
+                subDto.SubCategories = new List<KnowledgeBaseCategoryDto>();
+            }
+            
+            result.Add(subDto);
+        }
+        return result;
     }
 }
 
