@@ -34,13 +34,14 @@ public class AddressService : IAddressService
         _logger = logger;
     }
 
-    public async Task<AddressDto?> GetByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<AddressDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Retrieving address with ID: {AddressId}", id);
 
         var address = await _context.Addresses
             .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == id);
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (address == null)
         {
@@ -51,7 +52,8 @@ public class AddressService : IAddressService
         return _mapper.Map<AddressDto>(address);
     }
 
-    public async Task<IEnumerable<AddressDto>> GetByUserIdAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<AddressDto>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Retrieving addresses for user ID: {UserId}", userId);
 
@@ -60,14 +62,15 @@ public class AddressService : IAddressService
             .Where(a => a.UserId == userId)
             .OrderByDescending(a => a.IsDefault)
             .ThenByDescending(a => a.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         _logger.LogInformation("Found {Count} addresses for user ID: {UserId}", addresses.Count, userId);
 
         return _mapper.Map<IEnumerable<AddressDto>>(addresses);
     }
 
-    public async Task<AddressDto> CreateAsync(CreateAddressDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<AddressDto> CreateAsync(CreateAddressDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
@@ -91,7 +94,7 @@ public class AddressService : IAddressService
         {
             var existingDefaults = await _context.Addresses
                 .Where(a => a.UserId == dto.UserId && a.IsDefault)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             foreach (var addr in existingDefaults)
             {
@@ -106,14 +109,15 @@ public class AddressService : IAddressService
 
         var address = _mapper.Map<Address>(dto);
         address = await _addressRepository.AddAsync(address);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Address created successfully with ID: {AddressId}", address.Id);
 
         return _mapper.Map<AddressDto>(address);
     }
 
-    public async Task<AddressDto> UpdateAsync(Guid id, UpdateAddressDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<AddressDto> UpdateAsync(Guid id, UpdateAddressDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
@@ -144,7 +148,7 @@ public class AddressService : IAddressService
         {
             var existingDefaults = await _context.Addresses
                 .Where(a => a.UserId == address.UserId && a.Id != id && a.IsDefault)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             foreach (var addr in existingDefaults)
             {
@@ -170,14 +174,15 @@ public class AddressService : IAddressService
         address.IsDefault = dto.IsDefault;
 
         await _addressRepository.UpdateAsync(address);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Address updated successfully with ID: {AddressId}", id);
 
         return _mapper.Map<AddressDto>(address);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Deleting address with ID: {AddressId}", id);
 
@@ -189,19 +194,20 @@ public class AddressService : IAddressService
         }
 
         await _addressRepository.DeleteAsync(address);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Address deleted successfully with ID: {AddressId}", id);
 
         return true;
     }
 
-    public async Task<bool> SetDefaultAsync(Guid id, Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> SetDefaultAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Setting address {AddressId} as default for user {UserId}", id, userId);
 
         var address = await _context.Addresses
-            .FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId);
+            .FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId, cancellationToken);
 
         if (address == null)
         {
@@ -212,7 +218,7 @@ public class AddressService : IAddressService
         // Diğer adreslerin default'unu kaldır
         var existingDefaults = await _context.Addresses
             .Where(a => a.UserId == userId && a.Id != id && a.IsDefault)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         foreach (var addr in existingDefaults)
         {
@@ -222,7 +228,7 @@ public class AddressService : IAddressService
         address.IsDefault = true;
 
         await _addressRepository.UpdateAsync(address);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Address {AddressId} set as default successfully. Cleared {Count} previous defaults", id, existingDefaults.Count);
 

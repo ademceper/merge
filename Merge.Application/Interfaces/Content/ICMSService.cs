@@ -1,5 +1,6 @@
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Content;
+using Merge.Application.Common;
 
 namespace Merge.Application.Interfaces.Content;
 
@@ -9,7 +10,8 @@ public interface ICMSService
     Task<CMSPageDto?> GetPageByIdAsync(Guid id);
     Task<CMSPageDto?> GetPageBySlugAsync(string slug);
     Task<CMSPageDto?> GetHomePageAsync();
-    Task<IEnumerable<CMSPageDto>> GetAllPagesAsync(string? status = null, bool? showInMenu = null);
+    // ✅ BOLUM 3.4: Pagination eklendi (ZORUNLU)
+    Task<PagedResult<CMSPageDto>> GetAllPagesAsync(string? status = null, bool? showInMenu = null, int page = 1, int pageSize = 20);
     Task<IEnumerable<CMSPageDto>> GetMenuPagesAsync();
     Task<bool> UpdatePageAsync(Guid id, CreateCMSPageDto dto);
     Task<bool> DeletePageAsync(Guid id);

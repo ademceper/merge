@@ -41,7 +41,8 @@ public class CategoryService : ICategoryService
         _logger = logger;
     }
 
-    public async Task<CategoryDto?> GetByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<CategoryDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !sc.IsDeleted and !c.IsDeleted (Global Query Filter)
@@ -49,12 +50,13 @@ public class CategoryService : ICategoryService
             .AsNoTracking()
             .Include(c => c.ParentCategory)
             .Include(c => c.SubCategories)
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         return category == null ? null : _mapper.Map<CategoryDto>(category);
     }
 
-    public async Task<IEnumerable<CategoryDto>> GetAllAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<CategoryDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Memory cache for frequently accessed, rarely changed data
         // 10,000 requests/day → Only ~10 DB queries (1 per hour)
@@ -71,7 +73,7 @@ public class CategoryService : ICategoryService
                 .AsNoTracking()
                 .Include(c => c.ParentCategory)
                 .OrderBy(c => c.Name)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             _logger.LogInformation("Cached {Count} categories", categories.Count);
 
@@ -79,18 +81,19 @@ public class CategoryService : ICategoryService
         }) ?? Enumerable.Empty<CategoryDto>();
     }
 
-    public async Task<PagedResult<CategoryDto>> GetAllAsync(int page, int pageSize)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PagedResult<CategoryDto>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _context.Categories
             .AsNoTracking()
             .Include(c => c.ParentCategory)
             .OrderBy(c => c.Name);
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(cancellationToken);
         var categories = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         _logger.LogInformation("Retrieved {Count} categories (page {Page})", categories.Count, page);
 
@@ -103,7 +106,8 @@ public class CategoryService : ICategoryService
         };
     }
 
-    public async Task<IEnumerable<CategoryDto>> GetMainCategoriesAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<CategoryDto>> GetMainCategoriesAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Memory cache for main categories
         return await _cache.GetOrCreateAsync(CACHE_KEY_MAIN_CATEGORIES, async entry =>
@@ -119,7 +123,7 @@ public class CategoryService : ICategoryService
                 .Include(c => c.SubCategories)
                 .Where(c => c.ParentCategoryId == null)
                 .OrderBy(c => c.Name)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             _logger.LogInformation("Cached {Count} main categories", categories.Count);
 
@@ -127,7 +131,8 @@ public class CategoryService : ICategoryService
         }) ?? Enumerable.Empty<CategoryDto>();
     }
 
-    public async Task<PagedResult<CategoryDto>> GetMainCategoriesAsync(int page, int pageSize)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PagedResult<CategoryDto>> GetMainCategoriesAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _context.Categories
             .AsNoTracking()
@@ -135,11 +140,11 @@ public class CategoryService : ICategoryService
             .Where(c => c.ParentCategoryId == null)
             .OrderBy(c => c.Name);
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(cancellationToken);
         var categories = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         _logger.LogInformation("Retrieved {Count} main categories (page {Page})", categories.Count, page);
 
@@ -152,7 +157,8 @@ public class CategoryService : ICategoryService
         };
     }
 
-    public async Task<CategoryDto> CreateAsync(CategoryDto categoryDto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<CategoryDto> CreateAsync(CategoryDto categoryDto, CancellationToken cancellationToken = default)
     {
         if (categoryDto == null)
         {
@@ -166,7 +172,7 @@ public class CategoryService : ICategoryService
 
         var category = _mapper.Map<Category>(categoryDto);
         category = await _categoryRepository.AddAsync(category);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         
         // Performance: Invalidate cache when data changes
         _cache.Remove(CACHE_KEY_ALL_CATEGORIES);
@@ -175,7 +181,8 @@ public class CategoryService : ICategoryService
         return _mapper.Map<CategoryDto>(category);
     }
 
-    public async Task<CategoryDto> UpdateAsync(Guid id, CategoryDto categoryDto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<CategoryDto> UpdateAsync(Guid id, CategoryDto categoryDto, CancellationToken cancellationToken = default)
     {
         if (categoryDto == null)
         {
@@ -200,7 +207,7 @@ public class CategoryService : ICategoryService
         category.ParentCategoryId = categoryDto.ParentCategoryId;
 
         await _categoryRepository.UpdateAsync(category);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         
         // Performance: Invalidate cache when data changes
         _cache.Remove(CACHE_KEY_ALL_CATEGORIES);
@@ -209,7 +216,8 @@ public class CategoryService : ICategoryService
         return _mapper.Map<CategoryDto>(category);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var category = await _categoryRepository.GetByIdAsync(id);
         if (category == null)
@@ -218,7 +226,7 @@ public class CategoryService : ICategoryService
         }
 
         await _categoryRepository.DeleteAsync(category);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         
         // Performance: Invalidate cache when data changes
         _cache.Remove(CACHE_KEY_ALL_CATEGORIES);

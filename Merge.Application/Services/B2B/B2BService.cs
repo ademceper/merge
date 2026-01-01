@@ -722,8 +722,12 @@ public class B2BService : IB2BService
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return _mapper.Map<PurchaseOrderDto>(purchaseOrder!);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
+            _logger.LogError(ex,
+                "PurchaseOrder olusturma hatasi. B2BUserId: {B2BUserId}, OrganizationId: {OrganizationId}",
+                b2bUserId, dto.OrganizationId);
             // ✅ ARCHITECTURE: Hata olursa ROLLBACK - hiçbir şey yazılmaz
             await _unitOfWork.RollbackTransactionAsync();
             throw;
@@ -877,8 +881,12 @@ public class B2BService : IB2BService
 
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
+            _logger.LogError(ex,
+                "PurchaseOrder onaylama hatasi. PurchaseOrderId: {PurchaseOrderId}, ApprovedByUserId: {ApprovedByUserId}",
+                id, approvedByUserId);
             // ✅ ARCHITECTURE: Hata olursa ROLLBACK - hiçbir şey yazılmaz
             await _unitOfWork.RollbackTransactionAsync();
             throw;

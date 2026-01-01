@@ -44,6 +44,10 @@ public class PushNotificationDevice : BaseEntity
     public User User { get; set; } = null!;
 }
 
+using Merge.Domain.Enums;
+
+namespace Merge.Domain.Entities;
+
 public class PushNotification : BaseEntity
 {
     public Guid? UserId { get; set; } // Null for broadcast notifications
@@ -52,7 +56,8 @@ public class PushNotification : BaseEntity
     public string Body { get; set; } = string.Empty;
     public string? ImageUrl { get; set; }
     public string? Data { get; set; } // JSON data payload
-    public string Status { get; set; } = "Pending"; // Pending, Sent, Delivered, Failed
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public CommunicationStatus Status { get; set; } = CommunicationStatus.Pending;
     public DateTime? SentAt { get; set; }
     public DateTime? DeliveredAt { get; set; }
     public string? ErrorMessage { get; set; }
@@ -79,7 +84,10 @@ public class InternationalShipping : BaseEntity
     public int EstimatedDays { get; set; }
     public string? TrackingNumber { get; set; }
     public string? CustomsDeclarationNumber { get; set; }
-    public string Status { get; set; } = "Pending"; // Pending, InTransit, InCustoms, Delivered
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    // Not: ShippingStatus enum'u var ama InternationalShipping için özel değerler gerekebilir
+    // Şimdilik ShippingStatus kullanıyoruz, gerekirse yeni enum oluşturulabilir
+    public ShippingStatus Status { get; set; } = ShippingStatus.Preparing;
     public DateTime? ShippedAt { get; set; }
     public DateTime? InCustomsAt { get; set; }
     public DateTime? ClearedAt { get; set; }
@@ -116,7 +124,8 @@ public class CustomsDeclaration : BaseEntity
     public string? Description { get; set; }
     public decimal Weight { get; set; } // in kg
     public int Quantity { get; set; }
-    public string Status { get; set; } = "Pending"; // Pending, Submitted, Approved, Rejected
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public VerificationStatus Status { get; set; } = VerificationStatus.Pending;
     public DateTime? SubmittedAt { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public string? RejectionReason { get; set; }

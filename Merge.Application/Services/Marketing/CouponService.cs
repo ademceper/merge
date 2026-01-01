@@ -39,42 +39,46 @@ public class CouponService : ICouponService
         _logger = logger;
     }
 
-    public async Task<CouponDto?> GetByCodeAsync(string code)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<CouponDto?> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
         var coupon = await _context.Coupons
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Code.ToUpper() == code.ToUpper());
+            .FirstOrDefaultAsync(c => c.Code.ToUpper() == code.ToUpper(), cancellationToken);
 
         return coupon == null ? null : _mapper.Map<CouponDto>(coupon);
     }
 
-    public async Task<CouponDto?> GetByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<CouponDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var coupon = await _couponRepository.GetByIdAsync(id);
         return coupon == null ? null : _mapper.Map<CouponDto>(coupon);
     }
 
-    public async Task<IEnumerable<CouponDto>> GetAllAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<CouponDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var coupons = await _context.Coupons
             .AsNoTracking()
             .OrderByDescending(c => c.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return _mapper.Map<IEnumerable<CouponDto>>(coupons);
     }
 
-    public async Task<PagedResult<CouponDto>> GetAllAsync(int page, int pageSize)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PagedResult<CouponDto>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _context.Coupons
             .AsNoTracking()
             .OrderByDescending(c => c.CreatedAt);
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(cancellationToken);
         var coupons = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return new PagedResult<CouponDto>
         {
@@ -85,7 +89,8 @@ public class CouponService : ICouponService
         };
     }
 
-    public async Task<decimal> CalculateDiscountAsync(string couponCode, decimal orderAmount, Guid? userId = null, List<Guid>? productIds = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<decimal> CalculateDiscountAsync(string couponCode, decimal orderAmount, Guid? userId = null, List<Guid>? productIds = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(couponCode))
         {
@@ -97,7 +102,7 @@ public class CouponService : ICouponService
             throw new ValidationException("Sipariş tutarı 0'dan büyük olmalıdır.");
         }
 
-        var coupon = await GetByCodeAsync(couponCode);
+        var coupon = await GetByCodeAsync(couponCode, cancellationToken);
         if (coupon == null)
         {
             throw new NotFoundException("Kupon", Guid.Empty);
@@ -129,7 +134,7 @@ public class CouponService : ICouponService
         // Yeni kullanıcı kontrolü
         if (coupon.IsForNewUsersOnly && userId.HasValue)
         {
-            var hasOrder = await _context.Orders.AsNoTracking().AnyAsync(o => o.UserId == userId.Value);
+            var hasOrder = await _context.Orders.AsNoTracking().AnyAsync(o => o.UserId == userId.Value, cancellationToken);
             if (hasOrder)
             {
                 throw new BusinessException("Bu kupon sadece yeni kullanıcılar için geçerlidir.");
@@ -171,7 +176,8 @@ public class CouponService : ICouponService
         return discount;
     }
 
-    public async Task<CouponDto> CreateAsync(CouponDto couponDto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<CouponDto> CreateAsync(CouponDto couponDto, CancellationToken cancellationToken = default)
     {
         if (couponDto == null)
         {
@@ -185,7 +191,7 @@ public class CouponService : ICouponService
 
         var existing = await _context.Coupons
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Code.ToUpper() == couponDto.Code.ToUpper());
+            .FirstOrDefaultAsync(c => c.Code.ToUpper() == couponDto.Code.ToUpper(), cancellationToken);
 
         if (existing != null)
         {
@@ -196,14 +202,15 @@ public class CouponService : ICouponService
 
         var coupon = _mapper.Map<Coupon>(couponDto);
         coupon = await _couponRepository.AddAsync(coupon);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Successfully created coupon {CouponId} with code: {CouponCode}", coupon.Id, coupon.Code);
 
         return _mapper.Map<CouponDto>(coupon);
     }
 
-    public async Task<CouponDto> UpdateAsync(Guid id, CouponDto couponDto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<CouponDto> UpdateAsync(Guid id, CouponDto couponDto, CancellationToken cancellationToken = default)
     {
         if (couponDto == null)
         {
@@ -233,14 +240,15 @@ public class CouponService : ICouponService
         coupon.ApplicableProductIds = couponDto.ApplicableProductIds;
 
         await _couponRepository.UpdateAsync(coupon);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Successfully updated coupon {CouponId}", id);
 
         return _mapper.Map<CouponDto>(coupon);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Deleting coupon {CouponId}", id);
 
@@ -251,7 +259,7 @@ public class CouponService : ICouponService
         }
 
         await _couponRepository.DeleteAsync(coupon);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Successfully deleted coupon {CouponId}", id);
 

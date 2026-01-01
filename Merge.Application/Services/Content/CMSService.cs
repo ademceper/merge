@@ -8,6 +8,7 @@ using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text;
 using Merge.Application.DTOs.Content;
+using Merge.Application.Common;
 
 namespace Merge.Application.Services.Content;
 
@@ -111,7 +112,8 @@ public class CMSService : ICMSService
         return page != null ? _mapper.Map<CMSPageDto>(page) : null;
     }
 
-    public async Task<IEnumerable<CMSPageDto>> GetAllPagesAsync(string? status = null, bool? showInMenu = null)
+    // ✅ BOLUM 3.4: Pagination eklendi (ZORUNLU)
+    public async Task<PagedResult<CMSPageDto>> GetAllPagesAsync(string? status = null, bool? showInMenu = null, int page = 1, int pageSize = 20)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         IQueryable<CMSPage> query = _context.Set<CMSPage>()
@@ -129,17 +131,24 @@ public class CMSService : ICMSService
             query = query.Where(p => p.ShowInMenu == showInMenu.Value);
         }
 
+        var totalCount = await query.CountAsync();
+
         var pages = await query
             .OrderBy(p => p.DisplayOrder)
             .ThenBy(p => p.Title)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
-        var result = new List<CMSPageDto>();
-        foreach (var page in pages)
+        var items = pages.Select(p => _mapper.Map<CMSPageDto>(p)).ToList();
+
+        return new PagedResult<CMSPageDto>
         {
-            result.Add(_mapper.Map<CMSPageDto>(page));
-        }
-        return result;
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<IEnumerable<CMSPageDto>> GetMenuPagesAsync()

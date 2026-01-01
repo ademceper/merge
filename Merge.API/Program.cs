@@ -47,6 +47,16 @@ using Merge.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ✅ CONFIGURATION: Business settings (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
+builder.Services.Configure<Merge.Application.Configuration.OrderSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.OrderSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.PaymentSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.PaymentSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.LoyaltySettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.LoyaltySettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.ReferralSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.ReferralSettings.SectionName));
+
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

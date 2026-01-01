@@ -720,8 +720,12 @@ public class AnalyticsService : IAnalyticsService
             // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
             return _mapper.Map<ReportDto>(report!);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
+            _logger.LogError(ex,
+                "Rapor olusturma hatasi. UserId: {UserId}, ReportType: {ReportType}",
+                userId, dto.Type);
             await _unitOfWork.RollbackTransactionAsync();
             throw;
         }

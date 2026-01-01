@@ -19,26 +19,36 @@ public class CartController : BaseController
     }
 
     [HttpGet]
-    public async Task<ActionResult<CartDto>> GetCart()
+    [ProducesResponseType(typeof(CartDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<CartDto>> GetCart(CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var cart = await _cartService.GetCartByUserIdAsync(userId);
+        var cart = await _cartService.GetCartByUserIdAsync(userId, cancellationToken);
         return Ok(cart);
     }
 
     [HttpPost("items")]
-    public async Task<ActionResult<CartItemDto>> AddItem([FromBody] AddCartItemDto dto)
+    [ProducesResponseType(typeof(CartItemDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<CartItemDto>> AddItem([FromBody] AddCartItemDto dto, CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
         var userId = GetUserId();
-        var cartItem = await _cartService.AddItemToCartAsync(userId, dto.ProductId, dto.Quantity);
+        var cartItem = await _cartService.AddItemToCartAsync(userId, dto.ProductId, dto.Quantity, cancellationToken);
         return Ok(cartItem);
     }
 
     [HttpPut("items/{cartItemId}")]
-    public async Task<IActionResult> UpdateItem(Guid cartItemId, [FromBody] UpdateCartItemDto dto)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> UpdateItem(Guid cartItemId, [FromBody] UpdateCartItemDto dto, CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
@@ -46,14 +56,14 @@ public class CartController : BaseController
         var userId = GetUserId();
         
         // ✅ SECURITY: Authorization check - Users can only update their own cart items
-        var cartItem = await _cartService.GetCartItemByIdAsync(cartItemId);
+        var cartItem = await _cartService.GetCartItemByIdAsync(cartItemId, cancellationToken);
         if (cartItem == null)
         {
             return NotFound();
         }
 
         // Get cart to check UserId
-        var cart = await _cartService.GetCartByCartItemIdAsync(cartItemId);
+        var cart = await _cartService.GetCartByCartItemIdAsync(cartItemId, cancellationToken);
         if (cart == null || cart.UserId != userId)
         {
             if (!User.IsInRole("Admin") && !User.IsInRole("Manager"))
@@ -62,7 +72,7 @@ public class CartController : BaseController
             }
         }
 
-        var result = await _cartService.UpdateCartItemQuantityAsync(cartItemId, dto.Quantity);
+        var result = await _cartService.UpdateCartItemQuantityAsync(cartItemId, dto.Quantity, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -71,19 +81,23 @@ public class CartController : BaseController
     }
 
     [HttpDelete("items/{cartItemId}")]
-    public async Task<IActionResult> RemoveItem(Guid cartItemId)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> RemoveItem(Guid cartItemId, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
         
         // ✅ SECURITY: Authorization check - Users can only remove their own cart items
-        var cartItem = await _cartService.GetCartItemByIdAsync(cartItemId);
+        var cartItem = await _cartService.GetCartItemByIdAsync(cartItemId, cancellationToken);
         if (cartItem == null)
         {
             return NotFound();
         }
 
         // Get cart to check UserId
-        var cart = await _cartService.GetCartByCartItemIdAsync(cartItemId);
+        var cart = await _cartService.GetCartByCartItemIdAsync(cartItemId, cancellationToken);
         if (cart == null || cart.UserId != userId)
         {
             if (!User.IsInRole("Admin") && !User.IsInRole("Manager"))
@@ -92,7 +106,7 @@ public class CartController : BaseController
             }
         }
 
-        var result = await _cartService.RemoveItemFromCartAsync(cartItemId);
+        var result = await _cartService.RemoveItemFromCartAsync(cartItemId, cancellationToken);
         if (!result)
         {
             return NotFound();

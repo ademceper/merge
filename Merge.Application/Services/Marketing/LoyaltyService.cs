@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Marketing;
@@ -9,6 +10,7 @@ using Merge.Domain.Entities;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Marketing;
+using Merge.Application.Configuration;
 
 namespace Merge.Application.Services.Marketing;
 
@@ -18,15 +20,22 @@ public class LoyaltyService : ILoyaltyService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<LoyaltyService> _logger;
+    private readonly LoyaltySettings _loyaltySettings;
     private const decimal POINTS_TO_CURRENCY_RATE = 0.01m; // 1 point = $0.01
     private const decimal CURRENCY_TO_POINTS_RATE = 1.0m; // $1 = 1 point
 
-    public LoyaltyService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<LoyaltyService> logger)
+    public LoyaltyService(
+        ApplicationDbContext context, 
+        IUnitOfWork unitOfWork, 
+        IMapper mapper, 
+        ILogger<LoyaltyService> logger,
+        IOptions<LoyaltySettings> loyaltySettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _loyaltySettings = loyaltySettings.Value;
     }
 
     public async Task<LoyaltyAccountDto?> GetLoyaltyAccountAsync(Guid userId)
@@ -62,8 +71,8 @@ public class LoyaltyService : ILoyaltyService
         await _context.Set<LoyaltyAccount>().AddAsync(account);
         await _unitOfWork.SaveChangesAsync();
 
-        // Award signup bonus
-        await EarnPointsAsync(userId, 100, "Signup", "Welcome bonus");
+        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
+        await EarnPointsAsync(userId, _loyaltySettings.SignupBonusPoints, "Signup", "Welcome bonus");
 
         var created = await GetLoyaltyAccountAsync(userId);
         return created!;

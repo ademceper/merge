@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Marketing;
@@ -8,6 +9,7 @@ using Merge.Domain.Entities;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Marketing;
+using Merge.Application.Configuration;
 
 
 namespace Merge.Application.Services.Marketing;
@@ -19,19 +21,22 @@ public class ReferralService : IReferralService
     private readonly ILoyaltyService _loyaltyService;
     private readonly IMapper _mapper;
     private readonly ILogger<ReferralService> _logger;
+    private readonly ReferralSettings _referralSettings;
 
     public ReferralService(
         ApplicationDbContext context,
         IUnitOfWork unitOfWork,
         ILoyaltyService loyaltyService,
         IMapper mapper,
-        ILogger<ReferralService> logger)
+        ILogger<ReferralService> logger,
+        IOptions<ReferralSettings> referralSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _loyaltyService = loyaltyService;
         _mapper = mapper;
         _logger = logger;
+        _referralSettings = referralSettings.Value;
     }
 
     public async Task<ReferralCodeDto> GetMyReferralCodeAsync(Guid userId)
@@ -56,13 +61,14 @@ public class ReferralService : IReferralService
         var user = await _context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId);
+        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
         var code = new ReferralCode
         {
             UserId = userId,
             Code = GenerateCode(user?.Email ?? "USER"),
             MaxUsage = 0,
-            PointsReward = 100,
-            DiscountPercentage = 10
+            PointsReward = _referralSettings.ReferrerPointsReward,
+            DiscountPercentage = _referralSettings.RefereeDiscountPercentage
         };
 
         await _context.Set<ReferralCode>().AddAsync(code);

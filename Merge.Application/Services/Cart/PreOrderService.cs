@@ -111,8 +111,12 @@ public class PreOrderService : IPreOrderService
             // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
             return _mapper.Map<PreOrderDto>(preOrder!);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
+            _logger.LogError(ex,
+                "PreOrder olusturma hatasi. UserId: {UserId}, ProductId: {ProductId}",
+                userId, dto.ProductId);
             await _unitOfWork.RollbackTransactionAsync();
             throw;
         }
@@ -179,8 +183,12 @@ public class PreOrderService : IPreOrderService
 
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
+            _logger.LogError(ex,
+                "PreOrder iptal hatasi. PreOrderId: {PreOrderId}, UserId: {UserId}",
+                id, userId);
             await _unitOfWork.RollbackTransactionAsync();
             throw;
         }
@@ -264,8 +272,12 @@ public class PreOrderService : IPreOrderService
 
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
+            _logger.LogError(ex,
+                "PreOrder siparise donusturme hatasi. PreOrderId: {PreOrderId}",
+                preOrderId);
             await _unitOfWork.RollbackTransactionAsync();
             throw;
         }

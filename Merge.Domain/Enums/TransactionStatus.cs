@@ -1,13 +1,14 @@
 namespace Merge.Domain.Enums;
 
 /// <summary>
-/// Transaction status for SellerTransaction entity
+/// Transaction status for SellerTransaction, ETLProcess entities
 /// </summary>
 public enum TransactionStatus
 {
     Pending = 0,
-    Completed = 1,
-    Failed = 2,
-    Cancelled = 3,
-    Reversed = 4
+    Running = 1,
+    Completed = 2,
+    Failed = 3,
+    Cancelled = 4,
+    Reversed = 5
 }

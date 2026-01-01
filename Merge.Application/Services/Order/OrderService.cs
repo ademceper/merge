@@ -16,6 +16,8 @@ using Merge.Application.Interfaces.Order;
 using Merge.Application.DTOs.Order;
 using Merge.Application.Common;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Merge.Application.Configuration;
 
 
 namespace Merge.Application.Services.Order;
@@ -33,6 +35,7 @@ public class OrderService : IOrderService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<OrderService> _logger;
+    private readonly OrderSettings _orderSettings;
 
     public OrderService(
         IRepository<OrderEntity> orderRepository,
@@ -43,6 +46,7 @@ public class OrderService : IOrderService
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<OrderService> logger,
+        IOptions<OrderSettings> orderSettings,
         IEmailService? emailService = null,
         ISmsService? smsService = null,
         INotificationService? notificationService = null)
@@ -58,6 +62,7 @@ public class OrderService : IOrderService
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _orderSettings = orderSettings.Value;
     }
 
     public async Task<OrderDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -361,14 +366,16 @@ public class OrderService : IOrderService
 
     private decimal CalculateShippingCost(decimal subTotal)
     {
-        // Ücretsiz kargo eşiği: 500 TL
-        return subTotal >= 500 ? 0 : 50;
+        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
+        return subTotal >= _orderSettings.FreeShippingThreshold 
+            ? 0 
+            : _orderSettings.DefaultShippingCost;
     }
 
     private decimal CalculateTax(decimal subTotal)
     {
-        // KDV %20
-        return subTotal * 0.20m;
+        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
+        return subTotal * _orderSettings.TaxRate;
     }
 
     public async Task<OrderDto> ReorderAsync(Guid orderId, Guid userId, CancellationToken cancellationToken = default)

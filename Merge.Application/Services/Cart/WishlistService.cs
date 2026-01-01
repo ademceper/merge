@@ -39,7 +39,8 @@ public class WishlistService : IWishlistService
         _logger = logger;
     }
 
-    public async Task<IEnumerable<ProductDto>> GetWishlistAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<ProductDto>> GetWishlistAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Retrieving wishlist for user {UserId}", userId);
 
@@ -53,7 +54,7 @@ public class WishlistService : IWishlistService
             .Where(w => w.UserId == userId)
             .Select(w => w.Product)
             .Where(p => p.IsActive)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         _logger.LogInformation("Retrieved {Count} items from wishlist for user {UserId}",
             wishlistItems.Count, userId);
@@ -61,7 +62,8 @@ public class WishlistService : IWishlistService
         return _mapper.Map<IEnumerable<ProductDto>>(wishlistItems);
     }
 
-    public async Task<PagedResult<ProductDto>> GetWishlistAsync(Guid userId, int page, int pageSize)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PagedResult<ProductDto>> GetWishlistAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Retrieving wishlist (page {Page}) for user {UserId}", page, userId);
 
@@ -73,11 +75,11 @@ public class WishlistService : IWishlistService
             .Select(w => w.Product)
             .Where(p => p.IsActive);
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(cancellationToken);
         var wishlistItems = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         _logger.LogInformation("Retrieved {Count} items (page {Page}) from wishlist for user {UserId}",
             wishlistItems.Count, page, userId);
@@ -91,7 +93,8 @@ public class WishlistService : IWishlistService
         };
     }
 
-    public async Task<bool> AddToWishlistAsync(Guid userId, Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> AddToWishlistAsync(Guid userId, Guid productId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Adding product {ProductId} to wishlist for user {UserId}",
             productId, userId);
@@ -100,7 +103,7 @@ public class WishlistService : IWishlistService
         // ✅ PERFORMANCE FIX: Removed manual !w.IsDeleted check (Global Query Filter handles it)
         var existing = await _context.Wishlists
             .AsNoTracking()
-            .FirstOrDefaultAsync(w => w.UserId == userId && w.ProductId == productId);
+            .FirstOrDefaultAsync(w => w.UserId == userId && w.ProductId == productId, cancellationToken);
 
         if (existing != null)
         {
@@ -113,7 +116,7 @@ public class WishlistService : IWishlistService
         // ✅ PERFORMANCE: AsNoTracking for read-only product query
         var product = await _context.Products
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == productId);
+            .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
         if (product == null || !product.IsActive)
         {
             _logger.LogWarning(
@@ -129,7 +132,7 @@ public class WishlistService : IWishlistService
         };
 
         await _wishlistRepository.AddAsync(wishlist);
-        await _unitOfWork.SaveChangesAsync(); // ✅ CRITICAL FIX: Explicit SaveChanges via UnitOfWork
+        await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Explicit SaveChanges via UnitOfWork
 
         _logger.LogInformation("Successfully added product {ProductId} to wishlist for user {UserId}",
             productId, userId);
@@ -137,14 +140,15 @@ public class WishlistService : IWishlistService
         return true;
     }
 
-    public async Task<bool> RemoveFromWishlistAsync(Guid userId, Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> RemoveFromWishlistAsync(Guid userId, Guid productId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Removing product {ProductId} from wishlist for user {UserId}",
             productId, userId);
 
         // ✅ PERFORMANCE FIX: Removed manual !w.IsDeleted check (Global Query Filter handles it)
         var wishlist = await _context.Wishlists
-            .FirstOrDefaultAsync(w => w.UserId == userId && w.ProductId == productId);
+            .FirstOrDefaultAsync(w => w.UserId == userId && w.ProductId == productId, cancellationToken);
 
         if (wishlist == null)
         {
@@ -155,7 +159,7 @@ public class WishlistService : IWishlistService
         }
 
         await _wishlistRepository.DeleteAsync(wishlist);
-        await _unitOfWork.SaveChangesAsync(); // ✅ CRITICAL FIX: Explicit SaveChanges via UnitOfWork
+        await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Explicit SaveChanges via UnitOfWork
 
         _logger.LogInformation("Successfully removed product {ProductId} from wishlist for user {UserId}",
             productId, userId);
@@ -163,7 +167,8 @@ public class WishlistService : IWishlistService
         return true;
     }
 
-    public async Task<bool> IsInWishlistAsync(Guid userId, Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> IsInWishlistAsync(Guid userId, Guid productId, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Checking if product {ProductId} is in wishlist for user {UserId}",
             productId, userId);
@@ -172,7 +177,7 @@ public class WishlistService : IWishlistService
         // ✅ PERFORMANCE FIX: Removed manual !w.IsDeleted check (Global Query Filter handles it)
         var exists = await _context.Wishlists
             .AsNoTracking()
-            .AnyAsync(w => w.UserId == userId && w.ProductId == productId);
+            .AnyAsync(w => w.UserId == userId && w.ProductId == productId, cancellationToken);
 
         _logger.LogDebug("Product {ProductId} exists in wishlist for user {UserId}: {Exists}",
             productId, userId, exists);

@@ -1,3 +1,5 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
 public class DataWarehouse : BaseEntity
@@ -5,7 +7,8 @@ public class DataWarehouse : BaseEntity
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string DataSource { get; set; } = string.Empty; // Source system identifier
-    public string Status { get; set; } = "Active"; // Active, Inactive, Maintenance
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public EntityStatus Status { get; set; } = EntityStatus.Active;
     public DateTime? LastSyncAt { get; set; }
     public DateTime? NextSyncAt { get; set; }
     public string? SyncFrequency { get; set; } // Daily, Weekly, Monthly, Real-time
@@ -20,7 +23,8 @@ public class ETLProcess : BaseEntity
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string ProcessType { get; set; } = string.Empty; // Extract, Transform, Load
-    public string Status { get; set; } = "Pending"; // Pending, Running, Completed, Failed
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public TransactionStatus Status { get; set; } = TransactionStatus.Pending;
     public string? SourceSystem { get; set; }
     public string? TargetSystem { get; set; }
     public DateTime? LastRunAt { get; set; }
@@ -37,7 +41,8 @@ public class DataPipeline : BaseEntity
 {
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public string Status { get; set; } = "Inactive"; // Active, Inactive, Paused, Error
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public EntityStatus Status { get; set; } = EntityStatus.Inactive;
     public string? SourceType { get; set; } // Database, API, File, Stream
     public string? TargetType { get; set; } // Database, DataWarehouse, API, File
     public string? SourceConfig { get; set; } // JSON configuration
@@ -60,7 +65,8 @@ public class DataQualityRule : BaseEntity
     public string TargetEntity { get; set; } = string.Empty; // Entity/Table name
     public string? FieldName { get; set; } // Specific field to check
     public string? RuleExpression { get; set; } // SQL or expression for validation
-    public string Status { get; set; } = "Active"; // Active, Inactive
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public EntityStatus Status { get; set; } = EntityStatus.Active;
     public int PassCount { get; set; } = 0;
     public int FailCount { get; set; } = 0;
     public decimal PassRate { get; set; } = 100; // Percentage
@@ -72,7 +78,8 @@ public class DataQualityCheck : BaseEntity
 {
     public Guid RuleId { get; set; }
     public DataQualityRule Rule { get; set; } = null!;
-    public string Status { get; set; } = string.Empty; // Pass, Fail, Warning
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public DataQualityCheckStatus Status { get; set; } = DataQualityCheckStatus.Pass;
     public int RecordsChecked { get; set; } = 0;
     public int RecordsPassed { get; set; } = 0;
     public int RecordsFailed { get; set; } = 0;

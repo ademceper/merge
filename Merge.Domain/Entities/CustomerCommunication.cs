@@ -1,3 +1,5 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
 public class CustomerCommunication : BaseEntity
@@ -13,7 +15,8 @@ public class CustomerCommunication : BaseEntity
     public Guid? SentByUserId { get; set; } // Staff/System who sent
     public string? RecipientEmail { get; set; }
     public string? RecipientPhone { get; set; }
-    public string Status { get; set; } = "Sent"; // Sent, Delivered, Read, Failed, Bounced
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public CommunicationStatus Status { get; set; } = CommunicationStatus.Sent;
     public DateTime? SentAt { get; set; }
     public DateTime? DeliveredAt { get; set; }
     public DateTime? ReadAt { get; set; }

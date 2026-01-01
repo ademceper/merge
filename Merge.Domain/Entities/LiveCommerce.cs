@@ -1,3 +1,5 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
 public class LiveStream : BaseEntity
@@ -6,7 +8,8 @@ public class LiveStream : BaseEntity
     public SellerProfile? Seller { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public string Status { get; set; } = "Scheduled"; // Scheduled, Live, Ended, Cancelled
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public LiveStreamStatus Status { get; set; } = LiveStreamStatus.Scheduled;
     public DateTime? ScheduledStartTime { get; set; }
     public DateTime? ActualStartTime { get; set; }
     public DateTime? EndTime { get; set; }
@@ -76,7 +79,8 @@ public class PageBuilder : BaseEntity
     public string Title { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty; // JSON content for page builder
     public string? Template { get; set; } // Template identifier
-    public string Status { get; set; } = "Draft"; // Draft, Published, Archived
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public ContentStatus Status { get; set; } = ContentStatus.Draft;
     public Guid? AuthorId { get; set; }
     public User? Author { get; set; }
     public DateTime? PublishedAt { get; set; }

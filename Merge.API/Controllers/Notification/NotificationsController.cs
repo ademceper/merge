@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.DTOs.Notification;
+using Merge.Application.Common;
 
 
 namespace Merge.API.Controllers.Notification;
@@ -18,15 +19,24 @@ public class NotificationsController : BaseController
         _notificationService = notificationService;
     }
 
+    // ✅ PERFORMANCE: Pagination ekle (BEST_PRACTICES_ANALIZI.md - BOLUM 3.1.4)
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<NotificationDto>>> GetNotifications([FromQuery] bool unreadOnly = false)
+    [ProducesResponseType(typeof(PagedResult<NotificationDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<IEnumerable<NotificationDto>>> GetNotifications(
+        [FromQuery] bool unreadOnly = false,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
+        if (pageSize > 100) pageSize = 100; // Max limit
         var userId = GetUserId();
-        var notifications = await _notificationService.GetUserNotificationsAsync(userId, unreadOnly);
+        var notifications = await _notificationService.GetUserNotificationsAsync(userId, unreadOnly, page, pageSize);
         return Ok(notifications);
     }
 
     [HttpGet("unread-count")]
+    [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<int>> GetUnreadCount()
     {
         var userId = GetUserId();
@@ -35,6 +45,9 @@ public class NotificationsController : BaseController
     }
 
     [HttpPost("{notificationId}/read")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> MarkAsRead(Guid notificationId)
     {
         var userId = GetUserId();
@@ -47,6 +60,8 @@ public class NotificationsController : BaseController
     }
 
     [HttpPost("read-all")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> MarkAllAsRead()
     {
         var userId = GetUserId();
@@ -55,6 +70,9 @@ public class NotificationsController : BaseController
     }
 
     [HttpDelete("{notificationId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Delete(Guid notificationId)
     {
         var userId = GetUserId();

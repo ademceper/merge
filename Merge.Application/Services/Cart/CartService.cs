@@ -42,7 +42,8 @@ public class CartService : ICartService
         _logger = logger;
     }
 
-    public async Task<CartDto> GetCartByUserIdAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<CartDto> GetCartByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Retrieving cart for user {UserId}", userId);
 
@@ -52,13 +53,13 @@ public class CartService : ICartService
             .AsNoTracking()
             .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.Product)
-            .FirstOrDefaultAsync(c => c.UserId == userId);
+            .FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
 
         if (cart == null)
         {
             var newCart = new CartEntity { UserId = userId };
             newCart = await _cartRepository.AddAsync(newCart);
-            await _unitOfWork.SaveChangesAsync(); // ✅ CRITICAL FIX: Explicit SaveChanges via UnitOfWork
+            await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Explicit SaveChanges via UnitOfWork
 
             _logger.LogInformation("Created new cart for user {UserId}, CartId: {CartId}",
                 userId, newCart.Id);
@@ -72,13 +73,14 @@ public class CartService : ICartService
         return _mapper.Map<CartDto>(cart);
     }
 
-    public async Task<CartDto?> GetCartByCartItemIdAsync(Guid cartItemId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<CartDto?> GetCartByCartItemIdAsync(Guid cartItemId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         var cartItem = await _context.CartItems
             .AsNoTracking()
             .Include(ci => ci.Cart)
-            .FirstOrDefaultAsync(ci => ci.Id == cartItemId);
+            .FirstOrDefaultAsync(ci => ci.Id == cartItemId, cancellationToken);
 
         if (cartItem == null || cartItem.Cart == null)
         {
@@ -90,19 +92,20 @@ public class CartService : ICartService
             .AsNoTracking()
             .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.Product)
-            .FirstOrDefaultAsync(c => c.Id == cartItem.Cart.Id);
+            .FirstOrDefaultAsync(c => c.Id == cartItem.Cart.Id, cancellationToken);
 
         return cart != null ? _mapper.Map<CartDto>(cart) : null;
     }
 
-    public async Task<CartItemDto?> GetCartItemByIdAsync(Guid cartItemId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<CartItemDto?> GetCartItemByIdAsync(Guid cartItemId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         var cartItem = await _context.CartItems
             .AsNoTracking()
             .Include(ci => ci.Cart)
             .Include(ci => ci.Product)
-            .FirstOrDefaultAsync(ci => ci.Id == cartItemId);
+            .FirstOrDefaultAsync(ci => ci.Id == cartItemId, cancellationToken);
 
         if (cartItem == null)
         {
@@ -116,27 +119,28 @@ public class CartService : ICartService
         return dto;
     }
 
-    public async Task<CartItemDto> AddItemToCartAsync(Guid userId, Guid productId, int quantity)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<CartItemDto> AddItemToCartAsync(Guid userId, Guid productId, int quantity, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
             "Adding item to cart. UserId: {UserId}, ProductId: {ProductId}, Quantity: {Quantity}",
             userId, productId, quantity);
 
         // ✅ TRANSACTION: Multi-step operation needs transaction support
-        await _unitOfWork.BeginTransactionAsync();
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             // ✅ PERFORMANCE FIX: Removed manual !ci.IsDeleted check (Global Query Filter)
             var cart = await _context.Carts
                 .Include(c => c.CartItems)
-                .FirstOrDefaultAsync(c => c.UserId == userId);
+                .FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
 
             if (cart == null)
             {
                 _logger.LogInformation("Creating new cart for user {UserId}", userId);
                 cart = new CartEntity { UserId = userId };
                 cart = await _cartRepository.AddAsync(cart);
-                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
 
             if (quantity <= 0)
@@ -150,7 +154,7 @@ public class CartService : ICartService
             // ✅ PERFORMANCE: AsNoTracking for read-only product query
             var product = await _context.Products
                 .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Id == productId);
+                .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
             if (product == null)
             {
                 _logger.LogWarning("Product {ProductId} not found for user {UserId}", productId, userId);
@@ -180,9 +184,9 @@ public class CartService : ICartService
                 existingItem.Quantity += quantity;
                 existingItem.UpdatedAt = DateTime.UtcNow;
                 await _cartItemRepository.UpdateAsync(existingItem);
-                await _unitOfWork.SaveChangesAsync(); // ✅ CRITICAL FIX: Explicit SaveChanges
+                await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Explicit SaveChanges
 
-                await _unitOfWork.CommitTransactionAsync();
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
                 _logger.LogInformation(
                     "Updated cart item quantity. UserId: {UserId}, ProductId: {ProductId}, NewQuantity: {Quantity}",
@@ -192,7 +196,7 @@ public class CartService : ICartService
                 var updatedItem = await _context.CartItems
                     .AsNoTracking()
                     .Include(ci => ci.Product)
-                    .FirstOrDefaultAsync(ci => ci.Id == existingItem.Id);
+                    .FirstOrDefaultAsync(ci => ci.Id == existingItem.Id, cancellationToken);
 
                 return _mapper.Map<CartItemDto>(updatedItem);
             }
@@ -206,9 +210,9 @@ public class CartService : ICartService
             };
 
             cartItem = await _cartItemRepository.AddAsync(cartItem);
-            await _unitOfWork.SaveChangesAsync(); // ✅ CRITICAL FIX: Explicit SaveChanges
+            await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Explicit SaveChanges
 
-            await _unitOfWork.CommitTransactionAsync();
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             _logger.LogInformation(
                 "Added new item to cart. UserId: {UserId}, ProductId: {ProductId}, Quantity: {Quantity}, CartItemId: {CartItemId}",
@@ -218,13 +222,13 @@ public class CartService : ICartService
             var newItem = await _context.CartItems
                 .AsNoTracking()
                 .Include(ci => ci.Product)
-                .FirstOrDefaultAsync(ci => ci.Id == cartItem.Id);
+                .FirstOrDefaultAsync(ci => ci.Id == cartItem.Id, cancellationToken);
 
             return _mapper.Map<CartItemDto>(newItem);
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             _logger.LogError(ex,
                 "Error adding item to cart. UserId: {UserId}, ProductId: {ProductId}, Quantity: {Quantity}",
                 userId, productId, quantity);
@@ -232,7 +236,8 @@ public class CartService : ICartService
         }
     }
 
-    public async Task<bool> UpdateCartItemQuantityAsync(Guid cartItemId, int quantity)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> UpdateCartItemQuantityAsync(Guid cartItemId, int quantity, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
             "Updating cart item quantity. CartItemId: {CartItemId}, NewQuantity: {Quantity}",
@@ -256,7 +261,7 @@ public class CartService : ICartService
         // ✅ PERFORMANCE: AsNoTracking for read-only product query
         var product = await _context.Products
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == cartItem.ProductId);
+            .FirstOrDefaultAsync(p => p.Id == cartItem.ProductId, cancellationToken);
         if (product == null)
         {
             _logger.LogWarning(
@@ -276,7 +281,7 @@ public class CartService : ICartService
         cartItem.Quantity = quantity;
         cartItem.UpdatedAt = DateTime.UtcNow;
         await _cartItemRepository.UpdateAsync(cartItem);
-        await _unitOfWork.SaveChangesAsync(); // ✅ CRITICAL FIX: Explicit SaveChanges
+        await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Explicit SaveChanges
 
         _logger.LogInformation(
             "Successfully updated cart item quantity. CartItemId: {CartItemId}, NewQuantity: {Quantity}, ProductId: {ProductId}",
@@ -285,7 +290,8 @@ public class CartService : ICartService
         return true;
     }
 
-    public async Task<bool> RemoveItemFromCartAsync(Guid cartItemId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> RemoveItemFromCartAsync(Guid cartItemId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Removing item from cart. CartItemId: {CartItemId}", cartItemId);
 
@@ -297,7 +303,7 @@ public class CartService : ICartService
         }
 
         await _cartItemRepository.DeleteAsync(cartItem);
-        await _unitOfWork.SaveChangesAsync(); // ✅ CRITICAL FIX: Explicit SaveChanges
+        await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Explicit SaveChanges
 
         _logger.LogInformation(
             "Successfully removed item from cart. CartItemId: {CartItemId}, ProductId: {ProductId}",
@@ -306,12 +312,13 @@ public class CartService : ICartService
         return true;
     }
 
-    public async Task<bool> ClearCartAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ClearCartAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE FIX: Removed manual !ci.IsDeleted check
         var cart = await _context.Carts
             .Include(c => c.CartItems)
-            .FirstOrDefaultAsync(c => c.UserId == userId);
+            .FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
 
         if (cart == null)
         {
@@ -330,7 +337,7 @@ public class CartService : ICartService
                 item.UpdatedAt = DateTime.UtcNow;
             }
 
-            await _unitOfWork.SaveChangesAsync(); // ✅ CRITICAL FIX: Single SaveChanges
+            await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Single SaveChanges
 
             _logger.LogInformation(
                 "Cleared cart. UserId: {UserId}, ItemsRemoved: {Count}",

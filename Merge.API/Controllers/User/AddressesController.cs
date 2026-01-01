@@ -23,15 +23,21 @@ public class AddressesController : BaseController
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<AddressDto>>> GetMyAddresses()
+    [ProducesResponseType(typeof(IEnumerable<AddressDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<IEnumerable<AddressDto>>> GetMyAddresses(CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var addresses = await _addressService.GetByUserIdAsync(userId);
+        var addresses = await _addressService.GetByUserIdAsync(userId, cancellationToken);
         return Ok(addresses);
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<AddressDto>> GetById(Guid id)
+    [ProducesResponseType(typeof(AddressDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<AddressDto>> GetById(Guid id, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
         
@@ -50,24 +56,32 @@ public class AddressesController : BaseController
             return Forbid();
         }
         
-        var address = await _addressService.GetByIdAsync(id);
+        var address = await _addressService.GetByIdAsync(id, cancellationToken);
         return Ok(address);
     }
 
     [HttpPost]
-    public async Task<ActionResult<AddressDto>> Create([FromBody] CreateAddressDto dto)
+    [ProducesResponseType(typeof(AddressDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<AddressDto>> Create([FromBody] CreateAddressDto dto, CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
         var userId = GetUserId();
         dto.UserId = userId;
-        var address = await _addressService.CreateAsync(dto);
+        var address = await _addressService.CreateAsync(dto, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = address.Id }, address);
     }
 
     [HttpPut("{id}")]
-    public async Task<ActionResult<AddressDto>> Update(Guid id, [FromBody] UpdateAddressDto dto)
+    [ProducesResponseType(typeof(AddressDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<AddressDto>> Update(Guid id, [FromBody] UpdateAddressDto dto, CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
@@ -77,7 +91,7 @@ public class AddressesController : BaseController
         // ✅ AUTHORIZATION: Kullanıcı sadece kendi adreslerini güncelleyebilmeli
         var addressEntity = await _context.Addresses
             .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == id);
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
         
         if (addressEntity == null)
         {
@@ -89,19 +103,23 @@ public class AddressesController : BaseController
             return Forbid();
         }
 
-        var updatedAddress = await _addressService.UpdateAsync(id, dto);
+        var updatedAddress = await _addressService.UpdateAsync(id, dto, cancellationToken);
         return Ok(updatedAddress);
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(Guid id)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
         
         // ✅ AUTHORIZATION: Kullanıcı sadece kendi adreslerini silebilmeli
         var addressEntity = await _context.Addresses
             .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == id);
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
         
         if (addressEntity == null)
         {
@@ -113,7 +131,7 @@ public class AddressesController : BaseController
             return Forbid();
         }
         
-        var result = await _addressService.DeleteAsync(id);
+        var result = await _addressService.DeleteAsync(id, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -122,10 +140,13 @@ public class AddressesController : BaseController
     }
 
     [HttpPost("{id}/set-default")]
-    public async Task<IActionResult> SetDefault(Guid id)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> SetDefault(Guid id, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var result = await _addressService.SetDefaultAsync(id, userId);
+        var result = await _addressService.SetDefaultAsync(id, userId, cancellationToken);
         if (!result)
         {
             return NotFound();

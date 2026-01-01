@@ -11,6 +11,7 @@ using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Review;
+using Merge.Application.Common;
 using Microsoft.Extensions.Logging;
 
 
@@ -79,24 +80,40 @@ public class ReviewService : IReviewService
         return _mapper.Map<IEnumerable<ReviewDto>>(reviews);
     }
 
-    public async Task<IEnumerable<ReviewDto>> GetByUserIdAsync(Guid userId)
+    // ✅ PERFORMANCE: Pagination ekle (BEST_PRACTICES_ANALIZI.md - BOLUM 3.1.4)
+    public async Task<PagedResult<ReviewDto>> GetByUserIdAsync(Guid userId, int page = 1, int pageSize = 20)
     {
+        if (pageSize > 100) pageSize = 100; // Max limit
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted check
-        var reviews = await _context.Reviews
+        var query = _context.Reviews
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Product)
-            .Where(r => r.UserId == userId)
+            .Where(r => r.UserId == userId);
+
+        var totalCount = await query.CountAsync();
+
+        var reviews = await query
             .OrderByDescending(r => r.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
         _logger.LogInformation(
-            "Retrieved {Count} reviews for user {UserId}",
-            reviews.Count, userId);
+            "Retrieved {Count} reviews for user {UserId}, page {Page}, pageSize {PageSize}",
+            reviews.Count, userId, page, pageSize);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // Not: UserName ve ProductName AutoMapper'da map edilmeli
-        return _mapper.Map<IEnumerable<ReviewDto>>(reviews);
+        var reviewDtos = _mapper.Map<IEnumerable<ReviewDto>>(reviews);
+
+        return new PagedResult<ReviewDto>
+        {
+            Items = reviewDtos,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<ReviewDto> CreateAsync(CreateReviewDto dto)

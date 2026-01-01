@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Enums;
+using PaymentStatus = Merge.Domain.Enums.PaymentStatus;
 
 namespace Merge.Domain.Entities;
 
@@ -53,7 +54,8 @@ public class UserSubscription : BaseEntity
 public class SubscriptionPayment : BaseEntity
 {
     public Guid UserSubscriptionId { get; set; }
-    public string PaymentStatus { get; set; } = "Pending"; // Pending, Completed, Failed, Refunded
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Pending;
     public decimal Amount { get; set; }
     public string? TransactionId { get; set; } // External payment gateway transaction ID
     public DateTime? PaidAt { get; set; }

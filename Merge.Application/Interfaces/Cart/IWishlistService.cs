@@ -5,10 +5,11 @@ namespace Merge.Application.Interfaces.Cart;
 
 public interface IWishlistService
 {
-    Task<IEnumerable<ProductDto>> GetWishlistAsync(Guid userId);
-    Task<PagedResult<ProductDto>> GetWishlistAsync(Guid userId, int page, int pageSize);
-    Task<bool> AddToWishlistAsync(Guid userId, Guid productId);
-    Task<bool> RemoveFromWishlistAsync(Guid userId, Guid productId);
-    Task<bool> IsInWishlistAsync(Guid userId, Guid productId);
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    Task<IEnumerable<ProductDto>> GetWishlistAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<PagedResult<ProductDto>> GetWishlistAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<bool> AddToWishlistAsync(Guid userId, Guid productId, CancellationToken cancellationToken = default);
+    Task<bool> RemoveFromWishlistAsync(Guid userId, Guid productId, CancellationToken cancellationToken = default);
+    Task<bool> IsInWishlistAsync(Guid userId, Guid productId, CancellationToken cancellationToken = default);
 }
 

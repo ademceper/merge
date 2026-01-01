@@ -476,8 +476,19 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
                   .WithOne(e => e.Shipping)
                   .HasForeignKey<Shipping>(e => e.OrderId)
                   .OnDelete(DeleteBehavior.Restrict);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
+            entity.HasIndex(e => e.OrderId);
             entity.HasIndex(e => e.TrackingNumber);
+            entity.HasIndex(e => e.Status);
+            
             entity.Property(e => e.ShippingCost).HasPrecision(18, 2);
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_Shipping_ShippingCost_NonNegative", "\"ShippingCost\" >= 0");
+            });
         });
 
         // ReturnRequest configuration
@@ -491,11 +502,23 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
                   .WithMany(e => e.ReturnRequests)
                   .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.Restrict);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
+            entity.HasIndex(e => e.OrderId);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.Status);
+            
             entity.Property(e => e.RefundAmount).HasPrecision(18, 2);
             entity.Property(e => e.OrderItemIds)
                   .HasConversion(
                       v => string.Join(',', v),
                       v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(Guid.Parse).ToList());
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ReturnRequest_RefundAmount_NonNegative", "\"RefundAmount\" >= 0");
+            });
         });
 
         // Notification configuration
@@ -597,11 +620,27 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
                   .WithOne(e => e.Invoice)
                   .HasForeignKey<Invoice>(e => e.OrderId)
                   .OnDelete(DeleteBehavior.Restrict);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
+            entity.HasIndex(e => e.OrderId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.InvoiceDate);
+            
             entity.Property(e => e.SubTotal).HasPrecision(18, 2);
             entity.Property(e => e.Tax).HasPrecision(18, 2);
             entity.Property(e => e.ShippingCost).HasPrecision(18, 2);
             entity.Property(e => e.Discount).HasPrecision(18, 2);
             entity.Property(e => e.TotalAmount).HasPrecision(18, 2);
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_Invoice_SubTotal_NonNegative", "\"SubTotal\" >= 0");
+                t.HasCheckConstraint("CK_Invoice_Tax_NonNegative", "\"Tax\" >= 0");
+                t.HasCheckConstraint("CK_Invoice_ShippingCost_NonNegative", "\"ShippingCost\" >= 0");
+                t.HasCheckConstraint("CK_Invoice_Discount_NonNegative", "\"Discount\" >= 0");
+                t.HasCheckConstraint("CK_Invoice_TotalAmount_NonNegative", "\"TotalAmount\" >= 0");
+            });
         });
 
         // SellerProfile configuration
@@ -612,11 +651,25 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
                   .WithOne(e => e.SellerProfile)
                   .HasForeignKey<SellerProfile>(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
+            entity.HasIndex(e => e.Status);
+            
             entity.Property(e => e.CommissionRate).HasPrecision(5, 2);
             entity.Property(e => e.TotalEarnings).HasPrecision(18, 2);
             entity.Property(e => e.PendingBalance).HasPrecision(18, 2);
             entity.Property(e => e.AvailableBalance).HasPrecision(18, 2);
             entity.Property(e => e.AverageRating).HasPrecision(3, 2);
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_SellerProfile_CommissionRate_Range", "\"CommissionRate\" >= 0 AND \"CommissionRate\" <= 100");
+                t.HasCheckConstraint("CK_SellerProfile_TotalEarnings_NonNegative", "\"TotalEarnings\" >= 0");
+                t.HasCheckConstraint("CK_SellerProfile_PendingBalance_NonNegative", "\"PendingBalance\" >= 0");
+                t.HasCheckConstraint("CK_SellerProfile_AvailableBalance_NonNegative", "\"AvailableBalance\" >= 0");
+                t.HasCheckConstraint("CK_SellerProfile_AverageRating_Range", "\"AverageRating\" >= 0 AND \"AverageRating\" <= 5");
+            });
         });
 
         // SavedCartItem configuration
@@ -1429,9 +1482,20 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
             entity.Property(e => e.NetAmount).HasPrecision(18, 2);
             entity.Property(e => e.PaymentMethod).IsRequired().HasMaxLength(50);
             entity.Property(e => e.TransactionReference).HasMaxLength(200);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
             entity.HasIndex(e => e.PayoutNumber).IsUnique();
             entity.HasIndex(e => e.SellerId);
             entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.PayoutDate);
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_CommissionPayout_TotalAmount_NonNegative", "\"TotalAmount\" >= 0");
+                t.HasCheckConstraint("CK_CommissionPayout_TransactionFee_NonNegative", "\"TransactionFee\" >= 0");
+                t.HasCheckConstraint("CK_CommissionPayout_NetAmount_NonNegative", "\"NetAmount\" >= 0");
+            });
         });
 
         // CommissionPayoutItem configuration
@@ -1557,7 +1621,6 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
             entity.Property(e => e.CommunicationType).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Channel).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Direction).HasMaxLength(20);
-            entity.Property(e => e.Status).HasMaxLength(50);
             entity.Property(e => e.RelatedEntityType).HasMaxLength(50);
             entity.HasOne(e => e.User)
                   .WithMany()
@@ -1567,9 +1630,14 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
                   .WithMany()
                   .HasForeignKey(e => e.SentByUserId)
                   .OnDelete(DeleteBehavior.SetNull);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.Status);
             entity.HasIndex(e => new { e.UserId, e.CreatedAt });
             entity.HasIndex(e => e.CommunicationType);
             entity.HasIndex(e => e.Channel);
+            entity.HasIndex(e => new { e.Status, e.CommunicationType });
         });
 
         // SellerTransaction configuration
@@ -1613,13 +1681,16 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
             entity.Property(e => e.StoreName).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Slug).IsRequired().HasMaxLength(200);
             entity.HasIndex(e => e.Slug).IsUnique();
-            entity.Property(e => e.Status).HasMaxLength(50);
             entity.HasOne(e => e.Seller)
                   .WithMany()
                   .HasForeignKey(e => e.SellerId)
                   .OnDelete(DeleteBehavior.Cascade);
-            entity.HasIndex(e => new { e.SellerId, e.IsPrimary });
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
+            entity.HasIndex(e => e.SellerId);
             entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => new { e.SellerId, e.IsPrimary });
+            entity.HasIndex(e => new { e.Status, e.IsVerified });
         });
 
         // ProductTemplate configuration
@@ -1661,7 +1732,6 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
         {
             entity.Property(e => e.PackNumber).IsRequired().HasMaxLength(50);
             entity.HasIndex(e => e.PackNumber).IsUnique();
-            entity.Property(e => e.Status).HasMaxLength(50);
             entity.Property(e => e.Dimensions).HasMaxLength(50);
             entity.Property(e => e.Weight).HasPrecision(10, 2);
             entity.HasOne(e => e.Order)
@@ -1680,7 +1750,19 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
                   .WithMany()
                   .HasForeignKey(e => e.PackedByUserId)
                   .OnDelete(DeleteBehavior.SetNull);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
+            entity.HasIndex(e => e.OrderId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.WarehouseId);
             entity.HasIndex(e => new { e.OrderId, e.Status });
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_PickPack_Weight_NonNegative", "\"Weight\" >= 0");
+                t.HasCheckConstraint("CK_PickPack_PackageCount_Positive", "\"PackageCount\" > 0");
+            });
         });
 
         // PickPackItem configuration
@@ -1920,7 +2002,7 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
         // UserSubscription configuration
         modelBuilder.Entity<UserSubscription>(entity =>
         {
-            entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
+            // ✅ ARCHITECTURE: Status artık enum (string değil)
             entity.Property(e => e.CurrentPrice).HasPrecision(18, 2);
             entity.Property(e => e.PaymentMethodId).HasMaxLength(100);
             entity.HasOne(e => e.User)
@@ -1931,14 +2013,26 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
                   .WithMany(e => e.UserSubscriptions)
                   .HasForeignKey(e => e.SubscriptionPlanId)
                   .OnDelete(DeleteBehavior.Restrict);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.Status);
             entity.HasIndex(e => new { e.UserId, e.Status });
+            entity.HasIndex(e => e.EndDate);
             entity.HasIndex(e => e.NextBillingDate);
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_UserSubscription_CurrentPrice_NonNegative", "\"CurrentPrice\" >= 0");
+                t.HasCheckConstraint("CK_UserSubscription_RenewalCount_NonNegative", "\"RenewalCount\" >= 0");
+            });
         });
 
         // SubscriptionPayment configuration
         modelBuilder.Entity<SubscriptionPayment>(entity =>
         {
-            entity.Property(e => e.PaymentStatus).IsRequired().HasMaxLength(50);
+            // ✅ ARCHITECTURE: PaymentStatus artık enum (string değil)
             entity.Property(e => e.Amount).HasPrecision(18, 2);
             entity.Property(e => e.TransactionId).HasMaxLength(200);
             entity.Property(e => e.FailureReason).HasMaxLength(500);
@@ -1946,8 +2040,20 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
                   .WithMany(e => e.Payments)
                   .HasForeignKey(e => e.UserSubscriptionId)
                   .OnDelete(DeleteBehavior.Cascade);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
+            entity.HasIndex(e => e.UserSubscriptionId);
+            entity.HasIndex(e => e.PaymentStatus);
             entity.HasIndex(e => new { e.UserSubscriptionId, e.PaymentStatus });
             entity.HasIndex(e => e.TransactionId);
+            entity.HasIndex(e => e.CreatedAt);
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_SubscriptionPayment_Amount_Positive", "\"Amount\" >= 0");
+                t.HasCheckConstraint("CK_SubscriptionPayment_RetryCount_NonNegative", "\"RetryCount\" >= 0");
+            });
         });
 
         // SubscriptionUsage configuration

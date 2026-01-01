@@ -1,3 +1,5 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
 public class SellerProfile : BaseEntity
@@ -7,7 +9,8 @@ public class SellerProfile : BaseEntity
     public string? StoreDescription { get; set; }
     public string? LogoUrl { get; set; }
     public string? BannerUrl { get; set; }
-    public string Status { get; set; } = "Pending"; // Pending, Approved, Rejected, Suspended
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public SellerStatus Status { get; set; } = SellerStatus.Pending;
     public decimal CommissionRate { get; set; } = 0; // Yüzde olarak
     public decimal TotalEarnings { get; set; } = 0;
     public decimal PendingBalance { get; set; } = 0;

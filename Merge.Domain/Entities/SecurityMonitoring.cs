@@ -1,10 +1,15 @@
 namespace Merge.Domain.Entities;
 
+using Merge.Domain.Enums;
+
+namespace Merge.Domain.Entities;
+
 public class OrderVerification : BaseEntity
 {
     public Guid OrderId { get; set; }
     public string VerificationType { get; set; } = string.Empty; // Manual, Automatic, Phone, Email, Document
-    public string Status { get; set; } = "Pending"; // Pending, Verified, Failed, Rejected
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public VerificationStatus Status { get; set; } = VerificationStatus.Pending;
     public Guid? VerifiedByUserId { get; set; } // Admin/Staff who verified
     public DateTime? VerifiedAt { get; set; }
     public string? VerificationNotes { get; set; }
@@ -22,7 +27,8 @@ public class PaymentFraudPrevention : BaseEntity
 {
     public Guid PaymentId { get; set; }
     public string CheckType { get; set; } = string.Empty; // CVV, 3DS, Address, Velocity, Device
-    public string Status { get; set; } = "Pending"; // Pending, Passed, Failed, Blocked
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public VerificationStatus Status { get; set; } = VerificationStatus.Pending;
     public bool IsBlocked { get; set; } = false;
     public string? BlockReason { get; set; }
     public int RiskScore { get; set; } = 0; // 0-100
@@ -64,7 +70,8 @@ public class SecurityAlert : BaseEntity
     public string Severity { get; set; } = "Medium"; // Low, Medium, High, Critical
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public string Status { get; set; } = "New"; // New, Acknowledged, Resolved, Dismissed
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public AlertStatus Status { get; set; } = AlertStatus.New;
     public Guid? AcknowledgedByUserId { get; set; }
     public DateTime? AcknowledgedAt { get; set; }
     public Guid? ResolvedByUserId { get; set; }

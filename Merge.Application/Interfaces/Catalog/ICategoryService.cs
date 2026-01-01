@@ -5,13 +5,14 @@ namespace Merge.Application.Interfaces.Catalog;
 
 public interface ICategoryService
 {
-    Task<CategoryDto?> GetByIdAsync(Guid id);
-    Task<IEnumerable<CategoryDto>> GetAllAsync();
-    Task<PagedResult<CategoryDto>> GetAllAsync(int page, int pageSize);
-    Task<IEnumerable<CategoryDto>> GetMainCategoriesAsync();
-    Task<PagedResult<CategoryDto>> GetMainCategoriesAsync(int page, int pageSize);
-    Task<CategoryDto> CreateAsync(CategoryDto categoryDto);
-    Task<CategoryDto> UpdateAsync(Guid id, CategoryDto categoryDto);
-    Task<bool> DeleteAsync(Guid id);
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    Task<CategoryDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IEnumerable<CategoryDto>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<PagedResult<CategoryDto>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<IEnumerable<CategoryDto>> GetMainCategoriesAsync(CancellationToken cancellationToken = default);
+    Task<PagedResult<CategoryDto>> GetMainCategoriesAsync(int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<CategoryDto> CreateAsync(CategoryDto categoryDto, CancellationToken cancellationToken = default);
+    Task<CategoryDto> UpdateAsync(Guid id, CategoryDto categoryDto, CancellationToken cancellationToken = default);
+    Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 }
 

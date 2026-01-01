@@ -20,20 +20,26 @@ public class WishlistController : BaseController
     }
 
     [HttpGet]
+    [ProducesResponseType(typeof(PagedResult<ProductDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<PagedResult<ProductDto>>> GetWishlist(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var products = await _wishlistService.GetWishlistAsync(userId, page, pageSize);
+        var products = await _wishlistService.GetWishlistAsync(userId, page, pageSize, cancellationToken);
         return Ok(products);
     }
 
     [HttpPost("{productId}")]
-    public async Task<IActionResult> AddToWishlist(Guid productId)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> AddToWishlist(Guid productId, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var result = await _wishlistService.AddToWishlistAsync(userId, productId);
+        var result = await _wishlistService.AddToWishlistAsync(userId, productId, cancellationToken);
         if (!result)
         {
             return BadRequest();
@@ -42,10 +48,13 @@ public class WishlistController : BaseController
     }
 
     [HttpDelete("{productId}")]
-    public async Task<IActionResult> RemoveFromWishlist(Guid productId)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> RemoveFromWishlist(Guid productId, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var result = await _wishlistService.RemoveFromWishlistAsync(userId, productId);
+        var result = await _wishlistService.RemoveFromWishlistAsync(userId, productId, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -54,10 +63,12 @@ public class WishlistController : BaseController
     }
 
     [HttpGet("{productId}/check")]
-    public async Task<ActionResult<bool>> IsInWishlist(Guid productId)
+    [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<bool>> IsInWishlist(Guid productId, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var result = await _wishlistService.IsInWishlistAsync(userId, productId);
+        var result = await _wishlistService.IsInWishlistAsync(userId, productId, cancellationToken);
         return Ok(new { isInWishlist = result });
     }
 }

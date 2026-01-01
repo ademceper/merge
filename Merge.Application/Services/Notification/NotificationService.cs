@@ -7,6 +7,7 @@ using Merge.Domain.Entities;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Notification;
+using Merge.Application.Common;
 
 
 namespace Merge.Application.Services.Notification;
@@ -33,8 +34,11 @@ public class NotificationService : INotificationService
         _logger = logger;
     }
 
-    public async Task<IEnumerable<NotificationDto>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false)
+    // ✅ PERFORMANCE: Pagination ekle (BEST_PRACTICES_ANALIZI.md - BOLUM 3.1.4)
+    public async Task<PagedResult<NotificationDto>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false, int page = 1, int pageSize = 20)
     {
+        if (pageSize > 100) pageSize = 100; // Max limit
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !n.IsDeleted (Global Query Filter)
         IQueryable<NotificationEntity> query = _context.Notifications
             .AsNoTracking()
@@ -45,12 +49,24 @@ public class NotificationService : INotificationService
             query = query.Where(n => !n.IsRead);
         }
 
+        var totalCount = await query.CountAsync();
+
         var notifications = await query
             .OrderByDescending(n => n.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<NotificationDto>>(notifications);
+        var notificationDtos = _mapper.Map<IEnumerable<NotificationDto>>(notifications);
+
+        return new PagedResult<NotificationDto>
+        {
+            Items = notificationDtos,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<NotificationDto> CreateNotificationAsync(CreateNotificationDto dto)

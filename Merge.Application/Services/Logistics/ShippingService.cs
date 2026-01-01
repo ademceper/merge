@@ -298,7 +298,8 @@ public class ShippingService : IShippingService
             _ => 50m
         };
 
-        // Ücretsiz kargo eşiği: 500 TL
+        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
+        // Not: OrderSettings inject edilmeli, şimdilik hardcoded bırakıldı (refactoring gerekli)
         if (order.SubTotal >= 500)
         {
             return 0;

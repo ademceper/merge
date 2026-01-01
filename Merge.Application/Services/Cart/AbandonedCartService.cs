@@ -469,9 +469,13 @@ public class AbandonedCartService : IAbandonedCartService
                 var includeCoupon = emailType == "Final"; // Include coupon in final email
                 await SendRecoveryEmailAsync(cart.CartId, emailType, includeCoupon, 15);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Log error but continue with other carts
+                // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve devam et
+                _logger.LogError(ex,
+                    "Abandoned cart recovery email gonderilemedi. CartId: {CartId}, EmailType: {EmailType}",
+                    cart.CartId, emailType);
+                // Continue with other carts - don't fail entire batch
                 continue;
             }
         }
