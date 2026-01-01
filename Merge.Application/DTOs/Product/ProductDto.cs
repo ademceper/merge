@@ -17,5 +17,9 @@ public class ProductDto
     public bool IsActive { get; set; }
     public Guid CategoryId { get; set; }
     public string CategoryName { get; set; } = string.Empty;
+
+    // ✅ SECURITY: Seller ownership için gerekli
+    public Guid? SellerId { get; set; }
+    public Guid? StoreId { get; set; }
 }
 

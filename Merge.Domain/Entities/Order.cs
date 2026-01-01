@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Merge.Domain.Entities;
 
 public class Order : BaseEntity
@@ -16,6 +18,10 @@ public class Order : BaseEntity
     public DateTime? DeliveredDate { get; set; }
     public Guid? CouponId { get; set; }
     public decimal? CouponDiscount { get; set; }
+
+    // ✅ CONCURRENCY: Eşzamanlı sipariş güncellemelerini önlemek için
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
     
     // Navigation properties
     public User User { get; set; } = null!;

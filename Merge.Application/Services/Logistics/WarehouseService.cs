@@ -1,6 +1,7 @@
 using AutoMapper;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Logistics;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Exceptions;
@@ -18,17 +19,20 @@ public class WarehouseService : IWarehouseService
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<WarehouseService> _logger;
 
     public WarehouseService(
         IRepository<Warehouse> warehouseRepository,
         ApplicationDbContext context,
         IMapper mapper,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<WarehouseService> logger)
     {
         _warehouseRepository = warehouseRepository;
         _context = context;
         _mapper = mapper;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<WarehouseDto?> GetByIdAsync(Guid id)

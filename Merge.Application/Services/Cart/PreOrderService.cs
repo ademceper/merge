@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces.Cart;
@@ -21,13 +22,15 @@ public class PreOrderService : IPreOrderService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
     private readonly IMapper _mapper;
+    private readonly ILogger<PreOrderService> _logger;
 
-    public PreOrderService(ApplicationDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, IMapper mapper)
+    public PreOrderService(ApplicationDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, IMapper mapper, ILogger<PreOrderService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _emailService = emailService;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<PreOrderDto> CreatePreOrderAsync(Guid userId, CreatePreOrderDto dto)

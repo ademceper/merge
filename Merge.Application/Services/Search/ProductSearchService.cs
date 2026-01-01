@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Search;
 using Merge.Domain.Entities;
@@ -14,11 +15,13 @@ public class ProductSearchService : IProductSearchService
 {
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
+    private readonly ILogger<ProductSearchService> _logger;
 
-    public ProductSearchService(ApplicationDbContext context, IMapper mapper)
+    public ProductSearchService(ApplicationDbContext context, IMapper mapper, ILogger<ProductSearchService> logger)
     {
         _context = context;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<SearchResultDto> SearchAsync(SearchRequestDto request)

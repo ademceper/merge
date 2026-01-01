@@ -3,6 +3,7 @@ using UserEntity = Merge.Domain.Entities.User;
 using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Seller;
 using Merge.Application.Exceptions;
@@ -23,19 +24,22 @@ public class SellerDashboardService : ISellerDashboardService
     private readonly IRepository<OrderEntity> _orderRepository;
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
+    private readonly ILogger<SellerDashboardService> _logger;
 
     public SellerDashboardService(
         IRepository<SellerProfile> sellerProfileRepository,
         IRepository<ProductEntity> productRepository,
         IRepository<OrderEntity> orderRepository,
         ApplicationDbContext context,
-        IMapper mapper)
+        IMapper mapper,
+        ILogger<SellerDashboardService> logger)
     {
         _sellerProfileRepository = sellerProfileRepository;
         _productRepository = productRepository;
         _orderRepository = orderRepository;
         _context = context;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<SellerDashboardStatsDto> GetDashboardStatsAsync(Guid sellerId)

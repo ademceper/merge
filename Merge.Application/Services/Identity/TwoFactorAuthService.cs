@@ -1,5 +1,6 @@
 using AutoMapper;
 using System.Security.Cryptography;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces.User;
 using System.Text;
@@ -22,6 +23,7 @@ public class TwoFactorAuthService : ITwoFactorAuthService
     private readonly IEmailService _emailService;
     private readonly ISmsService _smsService;
     private readonly IMapper _mapper;
+    private readonly ILogger<TwoFactorAuthService> _logger;
 
     public TwoFactorAuthService(
         IRepository<TwoFactorAuth> twoFactorRepository,
@@ -30,7 +32,8 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         IUnitOfWork unitOfWork,
         IEmailService emailService,
         ISmsService smsService,
-        IMapper mapper)
+        IMapper mapper,
+        ILogger<TwoFactorAuthService> logger)
     {
         _twoFactorRepository = twoFactorRepository;
         _codeRepository = codeRepository;
@@ -39,6 +42,7 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         _emailService = emailService;
         _smsService = smsService;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<TwoFactorSetupResponseDto> Setup2FAAsync(Guid userId, TwoFactorSetupDto setupDto)

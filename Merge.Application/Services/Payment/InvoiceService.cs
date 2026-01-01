@@ -2,6 +2,7 @@ using AutoMapper;
 using PaymentEntity = Merge.Domain.Entities.Payment;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Payment;
 using Merge.Application.Exceptions;
@@ -22,19 +23,22 @@ public class InvoiceService : IInvoiceService
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<InvoiceService> _logger;
 
     public InvoiceService(
         IRepository<Invoice> invoiceRepository,
         IRepository<OrderEntity> orderRepository,
         ApplicationDbContext context,
         IMapper mapper,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<InvoiceService> logger)
     {
         _invoiceRepository = invoiceRepository;
         _orderRepository = orderRepository;
         _context = context;
         _mapper = mapper;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<InvoiceDto?> GetByIdAsync(Guid id)

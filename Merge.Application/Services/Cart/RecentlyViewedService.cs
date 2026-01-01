@@ -2,6 +2,7 @@ using AutoMapper;
 using CartEntity = Merge.Domain.Entities.Cart;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Cart;
 using Merge.Domain.Entities;
@@ -18,17 +19,20 @@ public class RecentlyViewedService : IRecentlyViewedService
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<RecentlyViewedService> _logger;
 
     public RecentlyViewedService(
         IRepository<RecentlyViewedProduct> recentlyViewedRepository,
         ApplicationDbContext context,
         IMapper mapper,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<RecentlyViewedService> logger)
     {
         _recentlyViewedRepository = recentlyViewedRepository;
         _context = context;
         _mapper = mapper;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<IEnumerable<ProductDto>> GetRecentlyViewedAsync(Guid userId, int count = 20)

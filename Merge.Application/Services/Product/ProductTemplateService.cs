@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using UserEntity = Merge.Domain.Entities.User;
 using ReviewEntity = Merge.Domain.Entities.Review;
 using ProductEntity = Merge.Domain.Entities.Product;
@@ -20,12 +21,14 @@ public class ProductTemplateService : IProductTemplateService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<ProductTemplateService> _logger;
 
-    public ProductTemplateService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public ProductTemplateService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProductTemplateService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<ProductTemplateDto> CreateTemplateAsync(CreateProductTemplateDto dto)

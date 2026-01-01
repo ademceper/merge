@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using UserEntity = Merge.Domain.Entities.User;
 using ReviewEntity = Merge.Domain.Entities.Review;
 using ProductEntity = Merge.Domain.Entities.Product;
@@ -19,12 +20,14 @@ public class SizeGuideService : ISizeGuideService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<SizeGuideService> _logger;
 
-    public SizeGuideService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public SizeGuideService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<SizeGuideService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<SizeGuideDto> CreateSizeGuideAsync(CreateSizeGuideDto dto)

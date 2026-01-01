@@ -58,11 +58,19 @@ public class SellerFinanceController : BaseController
     [HttpGet("transactions/{id}")]
     public async Task<ActionResult<SellerTransactionDto>> GetTransaction(Guid id)
     {
+        var sellerId = GetUserId();
         var transaction = await _sellerFinanceService.GetTransactionAsync(id);
         if (transaction == null)
         {
             return NotFound();
         }
+
+        // ✅ SECURITY: IDOR koruması - Seller sadece kendi transaction'larına erişebilir
+        if (transaction.SellerId != sellerId && !User.IsInRole("Admin"))
+        {
+            return Forbid();
+        }
+
         return Ok(transaction);
     }
 
@@ -80,11 +88,19 @@ public class SellerFinanceController : BaseController
     [HttpGet("invoices/{id}")]
     public async Task<ActionResult<SellerInvoiceDto>> GetInvoice(Guid id)
     {
+        var sellerId = GetUserId();
         var invoice = await _sellerFinanceService.GetInvoiceAsync(id);
         if (invoice == null)
         {
             return NotFound();
         }
+
+        // ✅ SECURITY: IDOR koruması - Seller sadece kendi faturalarına erişebilir
+        if (invoice.SellerId != sellerId && !User.IsInRole("Admin"))
+        {
+            return Forbid();
+        }
+
         return Ok(invoice);
     }
 

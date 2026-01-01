@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NotificationEntity = Merge.Domain.Entities.Notification;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.Exceptions;
@@ -18,17 +19,20 @@ public class NotificationTemplateService : INotificationTemplateService
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
     private readonly IMapper _mapper;
+    private readonly ILogger<NotificationTemplateService> _logger;
 
     public NotificationTemplateService(
         ApplicationDbContext context,
         IUnitOfWork unitOfWork,
         INotificationService notificationService,
-        IMapper mapper)
+        IMapper mapper,
+        ILogger<NotificationTemplateService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<NotificationTemplateDto> CreateTemplateAsync(CreateNotificationTemplateDto dto)

@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Governance;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
@@ -15,12 +16,14 @@ public class PolicyService : IPolicyService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<PolicyService> _logger;
 
-    public PolicyService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public PolicyService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<PolicyService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<PolicyDto> CreatePolicyAsync(CreatePolicyDto dto, Guid createdByUserId)

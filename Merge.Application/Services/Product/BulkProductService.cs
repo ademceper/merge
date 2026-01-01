@@ -6,6 +6,7 @@ using ProductEntity = Merge.Domain.Entities.Product;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.Exceptions;
@@ -23,17 +24,20 @@ public class BulkProductService : IBulkProductService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<BulkProductService> _logger;
 
     public BulkProductService(
         IRepository<ProductEntity> productRepository,
         ApplicationDbContext context,
         IUnitOfWork unitOfWork,
-        IMapper mapper)
+        IMapper mapper,
+        ILogger<BulkProductService> logger)
     {
         _productRepository = productRepository;
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<BulkProductImportResultDto> ImportProductsFromCsvAsync(Stream fileStream)

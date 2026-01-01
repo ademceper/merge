@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.International;
 using Merge.Application.Exceptions;
@@ -16,12 +17,14 @@ public class LanguageService : ILanguageService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<LanguageService> _logger;
 
-    public LanguageService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public LanguageService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<LanguageService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     #region Language Management

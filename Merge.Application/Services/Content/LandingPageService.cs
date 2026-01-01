@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Content;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
@@ -17,12 +18,14 @@ public class LandingPageService : ILandingPageService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<LandingPageService> _logger;
 
-    public LandingPageService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public LandingPageService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<LandingPageService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<LandingPageDto> CreateLandingPageAsync(Guid? authorId, CreateLandingPageDto dto)

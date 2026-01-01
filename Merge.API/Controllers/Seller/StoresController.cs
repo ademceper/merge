@@ -98,6 +98,20 @@ public class StoresController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
+        var sellerId = GetUserId();
+
+        // ✅ SECURITY: IDOR koruması - Seller sadece kendi mağazalarını güncelleyebilir
+        var store = await _storeService.GetStoreByIdAsync(id);
+        if (store == null)
+        {
+            return NotFound();
+        }
+
+        if (store.SellerId != sellerId && !User.IsInRole("Admin"))
+        {
+            return Forbid();
+        }
+
         var success = await _storeService.UpdateStoreAsync(id, dto);
         if (!success)
         {
@@ -110,6 +124,20 @@ public class StoresController : BaseController
     [Authorize(Roles = "Seller,Admin")]
     public async Task<IActionResult> DeleteStore(Guid id)
     {
+        var sellerId = GetUserId();
+
+        // ✅ SECURITY: IDOR koruması - Seller sadece kendi mağazalarını silebilir
+        var store = await _storeService.GetStoreByIdAsync(id);
+        if (store == null)
+        {
+            return NotFound();
+        }
+
+        if (store.SellerId != sellerId && !User.IsInRole("Admin"))
+        {
+            return Forbid();
+        }
+
         var success = await _storeService.DeleteStoreAsync(id);
         if (!success)
         {
@@ -123,6 +151,19 @@ public class StoresController : BaseController
     public async Task<IActionResult> SetPrimaryStore(Guid id)
     {
         var sellerId = GetUserId();
+
+        // ✅ SECURITY: IDOR koruması - Seller sadece kendi mağazalarını primary yapabilir
+        var store = await _storeService.GetStoreByIdAsync(id);
+        if (store == null)
+        {
+            return NotFound();
+        }
+
+        if (store.SellerId != sellerId && !User.IsInRole("Admin"))
+        {
+            return Forbid();
+        }
+
         var success = await _storeService.SetPrimaryStoreAsync(sellerId, id);
         if (!success)
         {

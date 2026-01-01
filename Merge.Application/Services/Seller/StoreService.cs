@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using UserEntity = Merge.Domain.Entities.User;
 using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
@@ -21,12 +22,18 @@ public class StoreService : IStoreService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<StoreService> _logger;
 
-    public StoreService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public StoreService(
+        ApplicationDbContext context,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        ILogger<StoreService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<StoreDto> CreateStoreAsync(Guid sellerId, CreateStoreDto dto)

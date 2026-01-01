@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ReviewEntity = Merge.Domain.Entities.Review;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.Interfaces.Review;
@@ -18,12 +19,14 @@ public class TrustBadgeService : ITrustBadgeService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<TrustBadgeService> _logger;
 
-    public TrustBadgeService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public TrustBadgeService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<TrustBadgeService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<TrustBadgeDto> CreateBadgeAsync(CreateTrustBadgeDto dto)

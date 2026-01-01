@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Logistics;
@@ -17,12 +18,14 @@ public class PickPackService : IPickPackService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<PickPackService> _logger;
 
-    public PickPackService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public PickPackService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<PickPackService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<PickPackDto> CreatePickPackAsync(CreatePickPackDto dto)

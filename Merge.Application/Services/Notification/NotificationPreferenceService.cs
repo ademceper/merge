@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NotificationEntity = Merge.Domain.Entities.Notification;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.Exceptions;
@@ -17,12 +18,18 @@ public class NotificationPreferenceService : INotificationPreferenceService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<NotificationPreferenceService> _logger;
 
-    public NotificationPreferenceService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public NotificationPreferenceService(
+        ApplicationDbContext context,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        ILogger<NotificationPreferenceService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<NotificationPreferenceDto> CreatePreferenceAsync(Guid userId, CreateNotificationPreferenceDto dto)

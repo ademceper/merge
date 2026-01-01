@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Search;
 using Merge.Infrastructure.Data;
@@ -12,11 +13,13 @@ public class ProductRecommendationService : IProductRecommendationService
 {
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
+    private readonly ILogger<ProductRecommendationService> _logger;
 
-    public ProductRecommendationService(ApplicationDbContext context, IMapper mapper)
+    public ProductRecommendationService(ApplicationDbContext context, IMapper mapper, ILogger<ProductRecommendationService> logger)
     {
         _context = context;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<IEnumerable<ProductRecommendationDto>> GetSimilarProductsAsync(Guid productId, int maxResults = 10)

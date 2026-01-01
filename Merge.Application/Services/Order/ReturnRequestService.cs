@@ -1,6 +1,7 @@
 using AutoMapper;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
@@ -18,19 +19,22 @@ public class ReturnRequestService : IReturnRequestService
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<ReturnRequestService> _logger;
 
     public ReturnRequestService(
         IRepository<ReturnRequest> returnRequestRepository,
         IRepository<OrderEntity> orderRepository,
         ApplicationDbContext context,
         IMapper mapper,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<ReturnRequestService> logger)
     {
         _returnRequestRepository = returnRequestRepository;
         _orderRepository = orderRepository;
         _context = context;
         _mapper = mapper;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<ReturnRequestDto?> GetByIdAsync(Guid id)

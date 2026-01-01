@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Merge.Application.Interfaces.Logistics;
 using Merge.Domain.Entities;
@@ -16,12 +17,14 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<DeliveryTimeEstimationService> _logger;
 
-    public DeliveryTimeEstimationService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public DeliveryTimeEstimationService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<DeliveryTimeEstimationService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<DeliveryTimeEstimationDto> CreateEstimationAsync(CreateDeliveryTimeEstimationDto dto)

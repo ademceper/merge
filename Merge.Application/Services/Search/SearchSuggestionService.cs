@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Search;
 using Merge.Domain.Entities;
@@ -15,12 +16,14 @@ public class SearchSuggestionService : ISearchSuggestionService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<SearchSuggestionService> _logger;
 
-    public SearchSuggestionService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public SearchSuggestionService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<SearchSuggestionService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<AutocompleteResultDto> GetAutocompleteSuggestionsAsync(string query, int maxResults = 10)

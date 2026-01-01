@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Infrastructure.Repositories;
 using UserEntity = Merge.Domain.Entities.User;
 using ReviewEntity = Merge.Domain.Entities.Review;
@@ -18,12 +19,14 @@ public class ReviewHelpfulnessService : IReviewHelpfulnessService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<ReviewHelpfulnessService> _logger;
 
-    public ReviewHelpfulnessService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public ReviewHelpfulnessService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ReviewHelpfulnessService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task MarkReviewHelpfulnessAsync(Guid userId, MarkReviewHelpfulnessDto dto)

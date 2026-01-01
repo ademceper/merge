@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Content;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
@@ -16,17 +17,20 @@ public class BannerService : IBannerService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<BannerService> _logger;
 
     public BannerService(
         IRepository<Banner> bannerRepository,
         ApplicationDbContext context,
         IUnitOfWork unitOfWork,
-        IMapper mapper)
+        IMapper mapper,
+        ILogger<BannerService> logger)
     {
         _bannerRepository = bannerRepository;
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<BannerDto?> GetByIdAsync(Guid id)

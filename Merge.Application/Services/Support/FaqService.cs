@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
@@ -15,15 +16,18 @@ public class FaqService : IFaqService
     private readonly IRepository<FAQ> _faqRepository;
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
+    private readonly ILogger<FaqService> _logger;
 
     public FaqService(
         IRepository<FAQ> faqRepository,
         ApplicationDbContext context,
-        IMapper mapper)
+        IMapper mapper,
+        ILogger<FaqService> logger)
     {
         _faqRepository = faqRepository;
         _context = context;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<FaqDto?> GetByIdAsync(Guid id)

@@ -22,7 +22,6 @@ using Merge.Application.DTOs.Identity;
 using Merge.Application.DTOs.LiveCommerce;
 using Merge.Application.DTOs.Organization;
 using Merge.Application.DTOs.Search;
-using Merge.Application.DTOs.Security;
 using Merge.Application.DTOs.Subscription;
 using System.Text.Json;
 
@@ -273,7 +272,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => src.Order != null ? src.Order.OrderNumber : string.Empty))
             .ForMember(dest => dest.BillingAddress, opt => opt.MapFrom(src => src.Order != null ? src.Order.Address : null))
             .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.Order != null && src.Order.OrderItems != null 
-                ? src.Order.OrderItems.Where(oi => !oi.IsDeleted).ToList() 
+                ? src.Order.OrderItems.ToList() 
                 : new List<OrderItem>()));
         
         // PaymentMethod mappings
@@ -730,7 +729,7 @@ public class MappingProfile : Profile
                 src.SplitOrder != null ? src.SplitOrder.OrderNumber : string.Empty))
             .ForMember(dest => dest.SplitItems, opt => opt.MapFrom(src => 
                 src.OrderSplitItems != null 
-                    ? src.OrderSplitItems.Where(si => !si.IsDeleted).ToList() 
+                    ? src.OrderSplitItems.ToList() 
                     : new List<OrderSplitItem>()));
 
         // Security mappings
@@ -785,7 +784,7 @@ public class MappingProfile : Profile
             .AfterMap((src, dest) =>
             {
                 dest.Items = !string.IsNullOrEmpty(src.InvoiceData)
-                    ? JsonSerializer.Deserialize<List<InvoiceItemDto>>(src.InvoiceData)
+                    ? JsonSerializer.Deserialize<List<InvoiceItemDto>>(src.InvoiceData) ?? new List<InvoiceItemDto>()
                     : new List<InvoiceItemDto>();
             });
 
@@ -802,7 +801,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
             .ForMember(dest => dest.Commissions, opt => opt.MapFrom(src => 
                 src.Items != null && src.Items.Any() 
-                    ? src.Items.Where(i => !i.IsDeleted && i.Commission != null).Select(i => i.Commission!)
+                    ? src.Items.Where(i => i.Commission != null).Select(i => i.Commission!)
                     : new List<SellerCommission>()));
 
         CreateMap<CommissionTier, CommissionTierDto>();

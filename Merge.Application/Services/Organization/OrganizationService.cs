@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Organization;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
@@ -18,12 +19,14 @@ public class OrganizationService : IOrganizationService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<OrganizationService> _logger;
 
-    public OrganizationService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public OrganizationService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<OrganizationService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<OrganizationDto> CreateOrganizationAsync(CreateOrganizationDto dto)

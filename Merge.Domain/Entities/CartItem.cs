@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Merge.Domain.Entities;
 
 public class CartItem : BaseEntity
@@ -7,6 +9,10 @@ public class CartItem : BaseEntity
     public Guid? ProductVariantId { get; set; } // Seçilen varyant (renk, beden vb.)
     public int Quantity { get; set; }
     public decimal Price { get; set; } // Sepete eklendiğindeki fiyat
+
+    // ✅ CONCURRENCY: Eşzamanlı sepet güncellemelerini önlemek için
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
     
     // Navigation properties
     public Cart Cart { get; set; } = null!;

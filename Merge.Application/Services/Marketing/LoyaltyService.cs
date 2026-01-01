@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Marketing;
@@ -16,14 +17,16 @@ public class LoyaltyService : ILoyaltyService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<LoyaltyService> _logger;
     private const decimal POINTS_TO_CURRENCY_RATE = 0.01m; // 1 point = $0.01
     private const decimal CURRENCY_TO_POINTS_RATE = 1.0m; // $1 = 1 point
 
-    public LoyaltyService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public LoyaltyService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<LoyaltyService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<LoyaltyAccountDto?> GetLoyaltyAccountAsync(Guid userId)

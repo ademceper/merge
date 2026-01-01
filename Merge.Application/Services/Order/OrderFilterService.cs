@@ -1,6 +1,7 @@
 using AutoMapper;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Order;
 using Merge.Domain.Entities;
@@ -16,15 +17,18 @@ public class OrderFilterService : IOrderFilterService
     private readonly IRepository<OrderEntity> _orderRepository;
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
+    private readonly ILogger<OrderFilterService> _logger;
 
     public OrderFilterService(
         IRepository<OrderEntity> orderRepository,
         ApplicationDbContext context,
-        IMapper mapper)
+        IMapper mapper,
+        ILogger<OrderFilterService> logger)
     {
         _orderRepository = orderRepository;
         _context = context;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<IEnumerable<OrderDto>> GetFilteredOrdersAsync(OrderFilterDto filter)
@@ -136,25 +140,21 @@ public class OrderFilterService : IOrderFilterService
             ? stats.TotalRevenue / stats.TotalOrders 
             : 0;
 
-        // ✅ PERFORMANCE: Database'de grouping yap (ToListAsync() sonrası GroupBy YASAK)
-        var ordersByStatus = await query
+        // ✅ PERFORMANCE: Database'de grouping ve ToDictionaryAsync yap (ToListAsync() sonrası ToDictionary YASAK)
+        stats.OrdersByStatus = await query
             .GroupBy(o => o.Status)
             .Select(g => new { Status = g.Key, Count = g.Count() })
-            .ToListAsync();
-        
-        stats.OrdersByStatus = ordersByStatus.ToDictionary(x => x.Status, x => x.Count);
+            .ToDictionaryAsync(x => x.Status, x => x.Count);
 
-        // ✅ PERFORMANCE: Database'de grouping yap (ToListAsync() sonrası GroupBy YASAK)
-        var revenueByMonth = await query
+        // ✅ PERFORMANCE: Database'de grouping ve ToDictionaryAsync yap (ToListAsync() sonrası ToDictionary YASAK)
+        stats.RevenueByMonth = await query
             .Where(o => o.PaymentStatus == "Paid")
             .GroupBy(o => new { o.CreatedAt.Year, o.CreatedAt.Month })
             .Select(g => new { 
                 Key = $"{g.Key.Year}-{g.Key.Month:D2}", 
                 Revenue = g.Sum(o => o.TotalAmount) 
             })
-            .ToListAsync();
-        
-        stats.RevenueByMonth = revenueByMonth.ToDictionary(x => x.Key, x => x.Revenue);
+            .ToDictionaryAsync(x => x.Key, x => x.Revenue);
 
         return stats;
     }

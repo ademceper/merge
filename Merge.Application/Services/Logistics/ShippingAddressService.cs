@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Merge.Application.Interfaces.Logistics;
 using Merge.Application.Exceptions;
@@ -16,12 +17,14 @@ public class ShippingAddressService : IShippingAddressService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<ShippingAddressService> _logger;
 
-    public ShippingAddressService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public ShippingAddressService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ShippingAddressService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<ShippingAddressDto> CreateShippingAddressAsync(Guid userId, CreateShippingAddressDto dto)

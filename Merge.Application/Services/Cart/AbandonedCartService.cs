@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using CartEntity = Merge.Domain.Entities.Cart;
 using Merge.Application.Interfaces.Cart;
 using Merge.Application.Interfaces.Marketing;
@@ -22,19 +23,22 @@ public class AbandonedCartService : IAbandonedCartService
     private readonly IEmailService _emailService;
     private readonly ICouponService _couponService;
     private readonly IMapper _mapper;
+    private readonly ILogger<AbandonedCartService> _logger;
 
     public AbandonedCartService(
         ApplicationDbContext context,
         IUnitOfWork unitOfWork,
         IEmailService emailService,
         ICouponService couponService,
-        IMapper mapper)
+        IMapper mapper,
+        ILogger<AbandonedCartService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _emailService = emailService;
         _couponService = couponService;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<IEnumerable<AbandonedCartDto>> GetAbandonedCartsAsync(int minHours = 1, int maxDays = 30)

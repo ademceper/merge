@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Merge.Domain.Entities;
 
 public class Product : BaseEntity
@@ -17,6 +19,10 @@ public class Product : BaseEntity
     public Guid CategoryId { get; set; }
     public Guid? SellerId { get; set; } // Eğer marketplace ise
     public Guid? StoreId { get; set; } // Store assignment for multi-store support
+
+    // ✅ CONCURRENCY: Race condition ve overselling önlemek için
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
     
     // Navigation properties
     public Category Category { get; set; } = null!;

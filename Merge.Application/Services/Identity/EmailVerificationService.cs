@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Services.Notification;
 using UserEntity = Merge.Domain.Entities.User;
 using Microsoft.EntityFrameworkCore;
@@ -18,18 +19,21 @@ public class EmailVerificationService : IEmailVerificationService
     private readonly IEmailService? _emailService;
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<EmailVerificationService> _logger;
 
     public EmailVerificationService(
         IRepository<EmailVerification> emailVerificationRepository,
         UserManager<UserEntity> userManager,
         ApplicationDbContext context,
         IUnitOfWork unitOfWork,
+        ILogger<EmailVerificationService> logger,
         IEmailService? emailService = null)
     {
         _emailVerificationRepository = emailVerificationRepository;
         _userManager = userManager;
         _context = context;
         _unitOfWork = unitOfWork;
+        _logger = logger;
         _emailService = emailService;
     }
 

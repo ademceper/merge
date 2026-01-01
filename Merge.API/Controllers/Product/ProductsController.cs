@@ -57,6 +57,18 @@ public class ProductsController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
+        // ✅ SECURITY: Seller kendi SellerId'sini set etmeli
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // Admin değilse, SellerId'yi zorunlu olarak kendi userId'si yap
+        if (!User.IsInRole("Admin"))
+        {
+            productDto.SellerId = userId;
+        }
+
         var product = await _productService.CreateAsync(productDto);
         return CreatedAtAction(nameof(GetById), new { id = product.Id }, product);
     }
@@ -67,6 +79,23 @@ public class ProductsController : BaseController
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
+
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ SECURITY: IDOR koruması - Seller sadece kendi ürünlerini güncelleyebilir
+        var existingProduct = await _productService.GetByIdAsync(id);
+        if (existingProduct == null)
+        {
+            return NotFound();
+        }
+
+        if (existingProduct.SellerId != userId && !User.IsInRole("Admin"))
+        {
+            return Forbid();
+        }
 
         var product = await _productService.UpdateAsync(id, productDto);
         if (product == null)
@@ -80,6 +109,23 @@ public class ProductsController : BaseController
     [Authorize(Roles = "Admin,Seller")]
     public async Task<IActionResult> Delete(Guid id)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ SECURITY: IDOR koruması - Seller sadece kendi ürünlerini silebilir
+        var existingProduct = await _productService.GetByIdAsync(id);
+        if (existingProduct == null)
+        {
+            return NotFound();
+        }
+
+        if (existingProduct.SellerId != userId && !User.IsInRole("Admin"))
+        {
+            return Forbid();
+        }
+
         var result = await _productService.DeleteAsync(id);
         if (!result)
         {

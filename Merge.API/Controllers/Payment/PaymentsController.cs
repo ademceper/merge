@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Payment;
+using Merge.Application.Interfaces.Order;
 using Merge.Application.DTOs.Payment;
 
 
@@ -12,10 +13,12 @@ namespace Merge.API.Controllers.Payment;
 public class PaymentsController : BaseController
 {
     private readonly IPaymentService _paymentService;
+    private readonly IOrderService _orderService;
 
-    public PaymentsController(IPaymentService paymentService)
+    public PaymentsController(IPaymentService paymentService, IOrderService orderService)
     {
         _paymentService = paymentService;
+        _orderService = orderService;
     }
 
     [HttpGet("order/{orderId}")]
@@ -26,16 +29,23 @@ public class PaymentsController : BaseController
             return Unauthorized();
         }
 
+        // ✅ SECURITY: IDOR koruması - Önce Order'ın kullanıcıya ait olduğunu kontrol et
+        var order = await _orderService.GetByIdAsync(orderId);
+        if (order == null)
+        {
+            return NotFound();
+        }
+
+        if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
+        {
+            return Forbid();
+        }
+
         var payment = await _paymentService.GetByOrderIdAsync(orderId);
         if (payment == null)
         {
             return NotFound();
         }
-
-        // ✅ SECURITY: Authorization check - Kullanıcı sadece kendi siparişlerine erişebilmeli
-        // Not: PaymentService'de GetByOrderIdAsync Order bilgisini include ediyor
-        // Ancak PaymentDto'da Order.UserId yok, bu yüzden PaymentService'e userId parametresi eklenebilir
-        // Şimdilik sadece payment var mı kontrol ediyoruz
         
         return Ok(payment);
     }

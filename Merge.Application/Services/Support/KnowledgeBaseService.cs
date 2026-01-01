@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.Exceptions;
@@ -16,12 +17,14 @@ public class KnowledgeBaseService : IKnowledgeBaseService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<KnowledgeBaseService> _logger;
 
-    public KnowledgeBaseService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public KnowledgeBaseService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<KnowledgeBaseService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<KnowledgeBaseArticleDto> CreateArticleAsync(CreateKnowledgeBaseArticleDto dto, Guid authorId)

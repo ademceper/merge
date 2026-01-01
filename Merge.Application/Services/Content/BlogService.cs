@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Content;
 using Merge.Application.Exceptions;
@@ -18,12 +19,14 @@ public class BlogService : IBlogService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<BlogService> _logger;
 
-    public BlogService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public BlogService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<BlogService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     // Categories

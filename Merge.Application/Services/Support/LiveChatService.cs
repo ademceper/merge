@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
@@ -16,12 +17,14 @@ public class LiveChatService : ILiveChatService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<LiveChatService> _logger;
 
-    public LiveChatService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public LiveChatService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<LiveChatService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<LiveChatSessionDto> CreateSessionAsync(Guid? userId, string? guestName = null, string? guestEmail = null, string? department = null)

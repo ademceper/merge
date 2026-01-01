@@ -251,9 +251,22 @@ builder.Services.AddScoped<IElasticsearchService, Merge.Application.Services.Sea
 builder.Services.AddAutoMapper(typeof(Merge.Application.Mappings.MappingProfile));
 
 // JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key bulunamadı");
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("JWT Issuer bulunamadı");
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? throw new InvalidOperationException("JWT Audience bulunamadı");
+// ✅ SECURITY: JWT Secret önce environment variable'dan al, yoksa appsettings'ten
+var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
+    ?? builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("JWT Key bulunamadı. JWT_SECRET_KEY environment variable veya appsettings Jwt:Key tanımlayın.");
+var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER")
+    ?? builder.Configuration["Jwt:Issuer"]
+    ?? throw new InvalidOperationException("JWT Issuer bulunamadı");
+var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE")
+    ?? builder.Configuration["Jwt:Audience"]
+    ?? throw new InvalidOperationException("JWT Audience bulunamadı");
+
+// ✅ SECURITY: Production'da hardcoded key kullanımını engelle
+if (!builder.Environment.IsDevelopment() && jwtKey == "YourSuperSecretKeyThatIsAtLeast32CharactersLong!")
+{
+    throw new InvalidOperationException("CRITICAL SECURITY ERROR: Production'da varsayılan JWT key kullanılamaz! JWT_SECRET_KEY environment variable tanımlayın.");
+}
 
 builder.Services.AddAuthentication(options =>
 {
@@ -287,13 +300,28 @@ builder.Services.AddSession(options =>
 });
 
 // CORS
+// ✅ SECURITY: Production için güvenli CORS yapılandırması
 builder.Services.AddCors(options =>
 {
+    // Development için gevşek policy
     options.AddPolicy("AllowAll", policy =>
     {
         policy.AllowAnyOrigin()
               .AllowAnyMethod()
               .AllowAnyHeader();
+    });
+
+    // ✅ SECURITY: Production için güvenli CORS policy
+    options.AddPolicy("Production", policy =>
+    {
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+            ?? new[] { "https://mergecommerce.com", "https://www.mergecommerce.com" };
+
+        policy.WithOrigins(allowedOrigins)
+              .WithMethods("GET", "POST", "PUT", "DELETE", "PATCH")
+              .WithHeaders("Content-Type", "Authorization", "X-Requested-With", "X-CSRF-TOKEN")
+              .AllowCredentials()
+              .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
     });
 });
 
@@ -313,7 +341,17 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
 app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+
+// ✅ SECURITY: Development'ta AllowAll, Production'da güvenli CORS policy kullan
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("AllowAll");
+}
+else
+{
+    app.UseCors("Production");
+}
+
 app.UseStaticFiles(); // wwwroot için
 
 // Security middlewares

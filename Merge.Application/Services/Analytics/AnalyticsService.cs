@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Analytics;
 using Merge.Application.Exceptions;
@@ -22,12 +23,14 @@ public class AnalyticsService : IAnalyticsService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<AnalyticsService> _logger;
 
-    public AnalyticsService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public AnalyticsService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<AnalyticsService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     // Dashboard

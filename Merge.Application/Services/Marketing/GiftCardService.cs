@@ -1,6 +1,7 @@
 using AutoMapper;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.Exceptions;
@@ -19,19 +20,22 @@ public class GiftCardService : IGiftCardService
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<GiftCardService> _logger;
 
     public GiftCardService(
         IRepository<GiftCard> giftCardRepository,
         IRepository<GiftCardTransaction> transactionRepository,
         ApplicationDbContext context,
         IMapper mapper,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<GiftCardService> logger)
     {
         _giftCardRepository = giftCardRepository;
         _transactionRepository = transactionRepository;
         _context = context;
         _mapper = mapper;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<GiftCardDto?> GetByCodeAsync(string code)

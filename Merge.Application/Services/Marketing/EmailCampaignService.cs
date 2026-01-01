@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces.User;
 using ProductEntity = Merge.Domain.Entities.Product;
@@ -20,13 +21,15 @@ public class EmailCampaignService : IEmailCampaignService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
     private readonly IMapper _mapper;
+    private readonly ILogger<EmailCampaignService> _logger;
 
-    public EmailCampaignService(ApplicationDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, IMapper mapper)
+    public EmailCampaignService(ApplicationDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, IMapper mapper, ILogger<EmailCampaignService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _emailService = emailService;
         _mapper = mapper;
+        _logger = logger;
     }
 
     // Campaign Management

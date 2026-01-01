@@ -1,6 +1,7 @@
 using AutoMapper;
 using NotificationEntity = Merge.Domain.Entities.Notification;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Notification;
 using Merge.Domain.Entities;
 using Merge.Infrastructure.Data;
@@ -16,17 +17,20 @@ public class NotificationService : INotificationService
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<NotificationService> _logger;
 
     public NotificationService(
         IRepository<NotificationEntity> notificationRepository,
         ApplicationDbContext context,
         IMapper mapper,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<NotificationService> logger)
     {
         _notificationRepository = notificationRepository;
         _context = context;
         _mapper = mapper;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<IEnumerable<NotificationDto>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false)

@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Order;
@@ -19,21 +20,31 @@ public class OrderSplitService : IOrderSplitService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IOrderService _orderService;
     private readonly IMapper _mapper;
+    private readonly ILogger<OrderSplitService> _logger;
 
     public OrderSplitService(
         ApplicationDbContext context,
         IUnitOfWork unitOfWork,
         IOrderService orderService,
-        IMapper mapper)
+        IMapper mapper,
+        ILogger<OrderSplitService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _orderService = orderService;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<OrderSplitDto> SplitOrderAsync(Guid orderId, CreateOrderSplitDto dto)
     {
+        if (dto == null)
+        {
+            throw new ArgumentNullException(nameof(dto));
+        }
+
+        _logger.LogInformation("Sipariş bölme işlemi başlatılıyor. OrderId: {OrderId}", orderId);
+
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
         var originalOrder = await _context.Orders
             .Include(o => o.OrderItems)
@@ -72,104 +83,122 @@ public class OrderSplitService : IOrderSplitService
             throw new ValidationException("En az bir kalem bölünmelidir.");
         }
 
-        // Create new split order
-        var splitOrderNumber = $"SPLIT-{originalOrder.OrderNumber}-{DateTime.UtcNow:yyyyMMddHHmmss}";
-        var splitOrder = new OrderEntity
-        {
-            UserId = originalOrder.UserId,
-            AddressId = dto.NewAddressId ?? originalOrder.AddressId,
-            OrderNumber = splitOrderNumber,
-            Status = "Pending",
-            PaymentStatus = "Pending",
-            PaymentMethod = originalOrder.PaymentMethod,
-            IsSplitOrder = true,
-            ParentOrderId = originalOrder.Id
-        };
+        // ✅ ARCHITECTURE: Transaction kullan - kritik multi-entity işlem
+        await _unitOfWork.BeginTransactionAsync();
 
-        // Calculate split order totals
-        decimal splitSubTotal = 0;
-        var splitOrderItems = new List<OrderItem>();
-
-        foreach (var item in dto.Items)
+        try
         {
-            var originalItem = originalOrder.OrderItems.First(oi => oi.Id == item.OrderItemId);
-            var splitItem = new OrderItem
+            // Create new split order
+            var splitOrderNumber = $"SPLIT-{originalOrder.OrderNumber}-{DateTime.UtcNow:yyyyMMddHHmmss}";
+            var splitOrder = new OrderEntity
             {
-                OrderId = splitOrder.Id,
-                ProductId = originalItem.ProductId,
-                Quantity = item.Quantity,
-                UnitPrice = originalItem.UnitPrice,
-                TotalPrice = originalItem.UnitPrice * item.Quantity
+                UserId = originalOrder.UserId,
+                AddressId = dto.NewAddressId ?? originalOrder.AddressId,
+                OrderNumber = splitOrderNumber,
+                Status = "Pending",
+                PaymentStatus = "Pending",
+                PaymentMethod = originalOrder.PaymentMethod,
+                IsSplitOrder = true,
+                ParentOrderId = originalOrder.Id
             };
-            splitSubTotal += splitItem.TotalPrice;
-            splitOrderItems.Add(splitItem);
 
-            // Update original order item quantity
-            originalItem.Quantity -= item.Quantity;
-            originalItem.TotalPrice = originalItem.UnitPrice * originalItem.Quantity;
-        }
+            // Calculate split order totals
+            decimal splitSubTotal = 0;
+            var splitOrderItems = new List<OrderItem>();
 
-        splitOrder.SubTotal = splitSubTotal;
-        splitOrder.ShippingCost = originalOrder.ShippingCost; // Can be recalculated
-        splitOrder.Tax = splitSubTotal * (originalOrder.Tax / originalOrder.SubTotal);
-        splitOrder.TotalAmount = splitOrder.SubTotal + splitOrder.ShippingCost + splitOrder.Tax;
-
-        // ✅ PERFORMANCE: Memory'de Sum kullanılıyor - Ancak bu business logic için gerekli (order items zaten Include ile yüklenmiş)
-        // Update original order totals
-        originalOrder.SubTotal = originalOrder.OrderItems.Sum(oi => oi.TotalPrice);
-        originalOrder.Tax = originalOrder.SubTotal * (originalOrder.Tax / (originalOrder.SubTotal + splitSubTotal));
-        originalOrder.TotalAmount = originalOrder.SubTotal + originalOrder.ShippingCost + originalOrder.Tax;
-
-        await _context.Orders.AddAsync(splitOrder);
-        await _context.OrderItems.AddRangeAsync(splitOrderItems);
-        await _unitOfWork.SaveChangesAsync();
-
-        // Create OrderSplit record
-        var orderSplit = new OrderSplit
-        {
-            OriginalOrderId = originalOrder.Id,
-            SplitOrderId = splitOrder.Id,
-            SplitReason = dto.SplitReason,
-            NewAddressId = dto.NewAddressId,
-            Status = "Pending"
-        };
-
-        await _context.Set<OrderSplit>().AddAsync(orderSplit);
-
-        // Create OrderSplitItem records
-        var splitItemRecords = new List<OrderSplitItem>();
-        foreach (var item in dto.Items)
-        {
-            var originalItem = originalOrder.OrderItems.First(oi => oi.Id == item.OrderItemId);
-            var splitItem = splitOrderItems.First(si => si.ProductId == originalItem.ProductId && si.Quantity == item.Quantity);
-            
-            splitItemRecords.Add(new OrderSplitItem
+            foreach (var item in dto.Items)
             {
-                OrderSplitId = orderSplit.Id,
-                OriginalOrderItemId = originalItem.Id,
-                SplitOrderItemId = splitItem.Id,
-                Quantity = item.Quantity
-            });
+                var originalItem = originalOrder.OrderItems.First(oi => oi.Id == item.OrderItemId);
+                var splitItem = new OrderItem
+                {
+                    OrderId = splitOrder.Id,
+                    ProductId = originalItem.ProductId,
+                    Quantity = item.Quantity,
+                    UnitPrice = originalItem.UnitPrice,
+                    TotalPrice = originalItem.UnitPrice * item.Quantity
+                };
+                splitSubTotal += splitItem.TotalPrice;
+                splitOrderItems.Add(splitItem);
+
+                // Update original order item quantity
+                originalItem.Quantity -= item.Quantity;
+                originalItem.TotalPrice = originalItem.UnitPrice * originalItem.Quantity;
+            }
+
+            splitOrder.SubTotal = splitSubTotal;
+            splitOrder.ShippingCost = originalOrder.ShippingCost; // Can be recalculated
+            splitOrder.Tax = splitSubTotal * (originalOrder.Tax / originalOrder.SubTotal);
+            splitOrder.TotalAmount = splitOrder.SubTotal + splitOrder.ShippingCost + splitOrder.Tax;
+
+            // ✅ PERFORMANCE: Memory'de Sum kullanılıyor - Ancak bu business logic için gerekli (order items zaten Include ile yüklenmiş)
+            // Update original order totals
+            originalOrder.SubTotal = originalOrder.OrderItems.Sum(oi => oi.TotalPrice);
+            originalOrder.Tax = originalOrder.SubTotal * (originalOrder.Tax / (originalOrder.SubTotal + splitSubTotal));
+            originalOrder.TotalAmount = originalOrder.SubTotal + originalOrder.ShippingCost + originalOrder.Tax;
+
+            await _context.Orders.AddAsync(splitOrder);
+            await _context.OrderItems.AddRangeAsync(splitOrderItems);
+            await _unitOfWork.SaveChangesAsync();
+
+            // Create OrderSplit record
+            var orderSplit = new OrderSplit
+            {
+                OriginalOrderId = originalOrder.Id,
+                SplitOrderId = splitOrder.Id,
+                SplitReason = dto.SplitReason,
+                NewAddressId = dto.NewAddressId,
+                Status = "Pending"
+            };
+
+            await _context.Set<OrderSplit>().AddAsync(orderSplit);
+
+            // Create OrderSplitItem records
+            var splitItemRecords = new List<OrderSplitItem>();
+            foreach (var item in dto.Items)
+            {
+                var originalItem = originalOrder.OrderItems.First(oi => oi.Id == item.OrderItemId);
+                var splitItem = splitOrderItems.First(si => si.ProductId == originalItem.ProductId && si.Quantity == item.Quantity);
+
+                splitItemRecords.Add(new OrderSplitItem
+                {
+                    OrderSplitId = orderSplit.Id,
+                    OriginalOrderItemId = originalItem.Id,
+                    SplitOrderItemId = splitItem.Id,
+                    Quantity = item.Quantity
+                });
+            }
+
+            await _context.Set<OrderSplitItem>().AddRangeAsync(splitItemRecords);
+            await _unitOfWork.SaveChangesAsync();
+
+            // ✅ ARCHITECTURE: Transaction commit
+            await _unitOfWork.CommitTransactionAsync();
+
+            _logger.LogInformation("Sipariş başarıyla bölündü. OriginalOrderId: {OriginalOrderId}, SplitOrderId: {SplitOrderId}", orderId, splitOrder.Id);
+
+            // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
+            orderSplit = await _context.Set<OrderSplit>()
+                .AsNoTracking()
+                .Include(s => s.OriginalOrder)
+                .Include(s => s.SplitOrder)
+                .Include(s => s.NewAddress)
+                .Include(s => s.OrderSplitItems)
+                    .ThenInclude(si => si.OriginalOrderItem)
+                        .ThenInclude(oi => oi.Product)
+                .Include(s => s.OrderSplitItems)
+                    .ThenInclude(si => si.SplitOrderItem)
+                .FirstOrDefaultAsync(s => s.Id == orderSplit.Id);
+
+            // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+            return _mapper.Map<OrderSplitDto>(orderSplit);
         }
-
-        await _context.Set<OrderSplitItem>().AddRangeAsync(splitItemRecords);
-        await _unitOfWork.SaveChangesAsync();
-
-        // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
-        orderSplit = await _context.Set<OrderSplit>()
-            .AsNoTracking()
-            .Include(s => s.OriginalOrder)
-            .Include(s => s.SplitOrder)
-            .Include(s => s.NewAddress)
-            .Include(s => s.OrderSplitItems)
-                .ThenInclude(si => si.OriginalOrderItem)
-                    .ThenInclude(oi => oi.Product)
-            .Include(s => s.OrderSplitItems)
-                .ThenInclude(si => si.SplitOrderItem)
-            .FirstOrDefaultAsync(s => s.Id == orderSplit.Id);
-
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<OrderSplitDto>(orderSplit);
+        catch (Exception ex)
+        {
+            // ✅ ARCHITECTURE: Transaction rollback on error
+            await _unitOfWork.RollbackTransactionAsync();
+            _logger.LogError(ex, "Sipariş bölme işlemi başarısız. OrderId: {OrderId}", orderId);
+            throw;
+        }
     }
 
     public async Task<OrderSplitDto?> GetSplitAsync(Guid splitId)

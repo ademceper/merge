@@ -1,6 +1,7 @@
 using AutoMapper;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Logistics;
 using Merge.Application.Exceptions;
@@ -18,17 +19,20 @@ public class StockMovementService : IStockMovementService
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<StockMovementService> _logger;
 
     public StockMovementService(
         IRepository<StockMovement> stockMovementRepository,
         ApplicationDbContext context,
         IMapper mapper,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<StockMovementService> logger)
     {
         _stockMovementRepository = stockMovementRepository;
         _context = context;
         _mapper = mapper;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<StockMovementDto?> GetByIdAsync(Guid id)
@@ -153,68 +157,86 @@ public class StockMovementService : IStockMovementService
 
     public async Task<StockMovementDto> CreateAsync(CreateStockMovementDto createDto, Guid userId)
     {
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        // ✅ PERFORMANCE: Removed manual !i.IsDeleted (Global Query Filter)
-        // Get inventory
-        var inventory = await _context.Inventories
-            .FirstOrDefaultAsync(i => i.ProductId == createDto.ProductId &&
-                                    i.WarehouseId == createDto.WarehouseId);
-
-        if (inventory == null)
+        // ✅ ARCHITECTURE: Transaction başlat - atomic operation (Inventory update + StockMovement create)
+        await _unitOfWork.BeginTransactionAsync();
+        
+        try
         {
-            throw new NotFoundException("Envanter", Guid.Empty);
+            _logger.LogInformation("Creating stock movement. ProductId: {ProductId}, WarehouseId: {WarehouseId}, Quantity: {Quantity}",
+                createDto.ProductId, createDto.WarehouseId, createDto.Quantity);
+
+            // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
+            // ✅ PERFORMANCE: Removed manual !i.IsDeleted (Global Query Filter)
+            // Get inventory
+            var inventory = await _context.Inventories
+                .FirstOrDefaultAsync(i => i.ProductId == createDto.ProductId &&
+                                        i.WarehouseId == createDto.WarehouseId);
+
+            if (inventory == null)
+            {
+                throw new NotFoundException("Envanter", Guid.Empty);
+            }
+
+            var quantityBefore = inventory.Quantity;
+            var quantityAfter = quantityBefore + createDto.Quantity;
+
+            if (quantityAfter < 0)
+            {
+                throw new ValidationException("Stok miktarı negatif olamaz.");
+            }
+
+            // Update inventory
+            inventory.Quantity = quantityAfter;
+            if (createDto.Quantity > 0)
+            {
+                inventory.LastRestockedAt = DateTime.UtcNow;
+            }
+
+            // Create stock movement
+            var stockMovement = new StockMovement
+            {
+                InventoryId = inventory.Id,
+                ProductId = createDto.ProductId,
+                WarehouseId = createDto.WarehouseId,
+                MovementType = createDto.MovementType,
+                Quantity = createDto.Quantity,
+                QuantityBefore = quantityBefore,
+                QuantityAfter = quantityAfter,
+                ReferenceNumber = createDto.ReferenceNumber,
+                ReferenceId = createDto.ReferenceId,
+                Notes = createDto.Notes,
+                PerformedBy = userId,
+                FromWarehouseId = createDto.FromWarehouseId,
+                ToWarehouseId = createDto.ToWarehouseId
+            };
+
+            stockMovement = await _stockMovementRepository.AddAsync(stockMovement);
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitTransactionAsync();
+
+            _logger.LogInformation("Stock movement created successfully. StockMovementId: {StockMovementId}",
+                stockMovement.Id);
+
+            // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
+            // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
+            stockMovement = await _context.StockMovements
+                .AsNoTracking()
+                .Include(sm => sm.Product)
+                .Include(sm => sm.Warehouse)
+                .Include(sm => sm.User)
+                .Include(sm => sm.FromWarehouse)
+                .Include(sm => sm.ToWarehouse)
+                .FirstOrDefaultAsync(sm => sm.Id == stockMovement.Id);
+
+            // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+            return _mapper.Map<StockMovementDto>(stockMovement!);
         }
-
-        var quantityBefore = inventory.Quantity;
-        var quantityAfter = quantityBefore + createDto.Quantity;
-
-        if (quantityAfter < 0)
+        catch (Exception ex)
         {
-            throw new ValidationException("Stok miktarı negatif olamaz.");
+            await _unitOfWork.RollbackTransactionAsync();
+            _logger.LogError(ex, "Error creating stock movement. ProductId: {ProductId}, WarehouseId: {WarehouseId}",
+                createDto.ProductId, createDto.WarehouseId);
+            throw;
         }
-
-        // Update inventory
-        inventory.Quantity = quantityAfter;
-        if (createDto.Quantity > 0)
-        {
-            inventory.LastRestockedAt = DateTime.UtcNow;
-        }
-
-        await _unitOfWork.SaveChangesAsync();
-
-        // Create stock movement
-        var stockMovement = new StockMovement
-        {
-            InventoryId = inventory.Id,
-            ProductId = createDto.ProductId,
-            WarehouseId = createDto.WarehouseId,
-            MovementType = createDto.MovementType,
-            Quantity = createDto.Quantity,
-            QuantityBefore = quantityBefore,
-            QuantityAfter = quantityAfter,
-            ReferenceNumber = createDto.ReferenceNumber,
-            ReferenceId = createDto.ReferenceId,
-            Notes = createDto.Notes,
-            PerformedBy = userId,
-            FromWarehouseId = createDto.FromWarehouseId,
-            ToWarehouseId = createDto.ToWarehouseId
-        };
-
-        stockMovement = await _stockMovementRepository.AddAsync(stockMovement);
-        await _unitOfWork.SaveChangesAsync();
-
-        // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
-        stockMovement = await _context.StockMovements
-            .AsNoTracking()
-            .Include(sm => sm.Product)
-            .Include(sm => sm.Warehouse)
-            .Include(sm => sm.User)
-            .Include(sm => sm.FromWarehouse)
-            .Include(sm => sm.ToWarehouse)
-            .FirstOrDefaultAsync(sm => sm.Id == stockMovement.Id);
-
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<StockMovementDto>(stockMovement!);
     }
 }

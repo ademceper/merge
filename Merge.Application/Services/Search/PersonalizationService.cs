@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
@@ -20,11 +21,13 @@ public class PersonalizationService : IPersonalizationService
 {
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
+    private readonly ILogger<PersonalizationService> _logger;
 
-    public PersonalizationService(ApplicationDbContext context, IMapper mapper)
+    public PersonalizationService(ApplicationDbContext context, IMapper mapper, ILogger<PersonalizationService> logger)
     {
         _context = context;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<IEnumerable<ProductDto>> GetPersonalizedProductsAsync(Guid userId, int count = 10)

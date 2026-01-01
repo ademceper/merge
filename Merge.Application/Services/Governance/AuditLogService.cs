@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Governance;
 using Merge.Domain.Entities;
@@ -16,12 +17,14 @@ public class AuditLogService : IAuditLogService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<AuditLogService> _logger;
 
-    public AuditLogService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public AuditLogService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<AuditLogService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task LogAsync(CreateAuditLogDto auditDto, string ipAddress, string userAgent)

@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using UserEntity = Merge.Domain.Entities.User;
 using ReviewEntity = Merge.Domain.Entities.Review;
 using ProductEntity = Merge.Domain.Entities.Product;
@@ -19,12 +20,14 @@ public class ProductQuestionService : IProductQuestionService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<ProductQuestionService> _logger;
 
-    public ProductQuestionService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public ProductQuestionService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProductQuestionService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<ProductQuestionDto> AskQuestionAsync(Guid userId, CreateProductQuestionDto dto)

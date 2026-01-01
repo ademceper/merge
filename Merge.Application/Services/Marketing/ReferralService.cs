@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Marketing;
@@ -17,13 +18,20 @@ public class ReferralService : IReferralService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILoyaltyService _loyaltyService;
     private readonly IMapper _mapper;
+    private readonly ILogger<ReferralService> _logger;
 
-    public ReferralService(ApplicationDbContext context, IUnitOfWork unitOfWork, ILoyaltyService loyaltyService, IMapper mapper)
+    public ReferralService(
+        ApplicationDbContext context,
+        IUnitOfWork unitOfWork,
+        ILoyaltyService loyaltyService,
+        IMapper mapper,
+        ILogger<ReferralService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _loyaltyService = loyaltyService;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<ReferralCodeDto> GetMyReferralCodeAsync(Guid userId)
@@ -318,22 +326,13 @@ public class SharedWishlistService : ISharedWishlistService
             .ToListAsync();
 
         // ✅ PERFORMANCE: Batch load items (N+1 fix)
-        // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - Database'de Select yap
-        var wishlistIds = await _context.Set<SharedWishlist>()
-            .AsNoTracking()
-            .Where(w => w.UserId == userId)
-            .Select(w => w.Id)
-            .ToListAsync();
+        // ✅ PERFORMANCE: wishlistIds'i memory'den al (zaten yüklenmiş wishlists'ten)
+        var wishlistIds = wishlists.Select(w => w.Id).ToList();
         
-        var items = await _context.Set<SharedWishlistItem>()
-            .AsNoTracking()
-            .Include(i => i.Product)
-            .Where(i => wishlistIds.Contains(i.SharedWishlistId))
-            .ToListAsync();
-
         // ✅ PERFORMANCE: ToListAsync() sonrası GroupBy() ve ToDictionary() YASAK - Database'de GroupBy ve ToDictionaryAsync yap
         var itemsByWishlist = await _context.Set<SharedWishlistItem>()
             .AsNoTracking()
+            .Include(i => i.Product)
             .Where(i => wishlistIds.Contains(i.SharedWishlistId))
             .GroupBy(i => i.SharedWishlistId)
             .ToDictionaryAsync(g => g.Key, g => g.ToList());

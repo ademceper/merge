@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Content;
 using Merge.Application.Exceptions;
@@ -18,12 +19,14 @@ public class SEOService : ISEOService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly ILogger<SEOService> _logger;
 
-    public SEOService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public SEOService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<SEOService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<SEOSettingsDto> CreateOrUpdateSEOSettingsAsync(CreateSEOSettingsDto dto)
