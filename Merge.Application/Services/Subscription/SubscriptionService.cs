@@ -33,7 +33,7 @@ public class SubscriptionService : ISubscriptionService
     }
 
     // Subscription Plans
-    public async Task<SubscriptionPlanDto> CreateSubscriptionPlanAsync(CreateSubscriptionPlanDto dto)
+    public async Task<SubscriptionPlanDto> CreateSubscriptionPlanAsync(CreateSubscriptionPlanDto dto, CancellationToken cancellationToken = default)
     {
         var plan = new SubscriptionPlan
         {
@@ -52,8 +52,8 @@ public class SubscriptionService : ISubscriptionService
             Currency = dto.Currency
         };
 
-        await _context.Set<SubscriptionPlan>().AddAsync(plan);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<SubscriptionPlan>().AddAsync(plan, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Created subscription plan {PlanName} with ID {PlanId}", plan.Name, plan.Id);
 
@@ -68,11 +68,11 @@ public class SubscriptionService : ISubscriptionService
         return planDto;
     }
 
-    public async Task<SubscriptionPlanDto?> GetSubscriptionPlanByIdAsync(Guid id)
+    public async Task<SubscriptionPlanDto?> GetSubscriptionPlanByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var plan = await _context.Set<SubscriptionPlan>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (plan == null) return null;
 
@@ -87,7 +87,7 @@ public class SubscriptionService : ISubscriptionService
         return dto;
     }
 
-    public async Task<IEnumerable<SubscriptionPlanDto>> GetAllSubscriptionPlansAsync(bool? isActive = null)
+    public async Task<IEnumerable<SubscriptionPlanDto>> GetAllSubscriptionPlansAsync(bool? isActive = null, CancellationToken cancellationToken = default)
     {
         var query = _context.Set<SubscriptionPlan>()
             .AsNoTracking();
@@ -102,12 +102,12 @@ public class SubscriptionService : ISubscriptionService
             .OrderBy(p => p.DisplayOrder)
             .ThenBy(p => p.Price)
             .Select(p => p.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var plans = await query
             .OrderBy(p => p.DisplayOrder)
             .ThenBy(p => p.Price)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load subscriber counts for all plans
         var subscriberCounts = await _context.Set<UserSubscription>()
@@ -128,10 +128,10 @@ public class SubscriptionService : ISubscriptionService
         return result;
     }
 
-    public async Task<bool> UpdateSubscriptionPlanAsync(Guid id, UpdateSubscriptionPlanDto dto)
+    public async Task<bool> UpdateSubscriptionPlanAsync(Guid id, UpdateSubscriptionPlanDto dto, CancellationToken cancellationToken = default)
     {
         var plan = await _context.Set<SubscriptionPlan>()
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (plan == null) return false;
 
@@ -163,35 +163,35 @@ public class SubscriptionService : ISubscriptionService
             plan.Currency = dto.Currency;
 
         plan.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Updated subscription plan {PlanId} ({PlanName})", plan.Id, plan.Name);
 
         return true;
     }
 
-    public async Task<bool> DeleteSubscriptionPlanAsync(Guid id)
+    public async Task<bool> DeleteSubscriptionPlanAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var plan = await _context.Set<SubscriptionPlan>()
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (plan == null) return false;
 
         plan.IsDeleted = true;
         plan.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // User Subscriptions
-    public async Task<UserSubscriptionDto> CreateUserSubscriptionAsync(Guid userId, CreateUserSubscriptionDto dto)
+    public async Task<UserSubscriptionDto> CreateUserSubscriptionAsync(Guid userId, CreateUserSubscriptionDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var user = await _context.Users
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == userId);
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         if (user == null)
         {
@@ -201,7 +201,7 @@ public class SubscriptionService : ISubscriptionService
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var plan = await _context.Set<SubscriptionPlan>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == dto.SubscriptionPlanId && p.IsActive);
+            .FirstOrDefaultAsync(p => p.Id == dto.SubscriptionPlanId && p.IsActive, cancellationToken);
 
         if (plan == null)
         {
@@ -212,7 +212,7 @@ public class SubscriptionService : ISubscriptionService
         // Check if user already has an active subscription
         var existingActive = await _context.Set<UserSubscription>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(us => us.UserId == userId && us.Status == SubscriptionStatus.Active);
+            .FirstOrDefaultAsync(us => us.UserId == userId && us.Status == SubscriptionStatus.Active, cancellationToken);
 
         if (existingActive != null)
         {
@@ -242,8 +242,8 @@ public class SubscriptionService : ISubscriptionService
             PaymentMethodId = dto.PaymentMethodId
         };
 
-        await _context.Set<UserSubscription>().AddAsync(subscription);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<UserSubscription>().AddAsync(subscription, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Create initial payment if not trial
         if (subscription.Status != SubscriptionStatus.Trial)
@@ -255,24 +255,24 @@ public class SubscriptionService : ISubscriptionService
         subscription = await _context.Set<UserSubscription>()
             .Include(us => us.User)
             .Include(us => us.SubscriptionPlan)
-            .FirstOrDefaultAsync(us => us.Id == subscription.Id);
+            .FirstOrDefaultAsync(us => us.Id == subscription.Id, cancellationToken);
 
-        return await MapToUserSubscriptionDtoAsync(subscription!);
+        return await MapToUserSubscriptionDtoAsync(subscription!, cancellationToken);
     }
 
-    public async Task<UserSubscriptionDto?> GetUserSubscriptionByIdAsync(Guid id)
+    public async Task<UserSubscriptionDto?> GetUserSubscriptionByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var subscription = await _context.Set<UserSubscription>()
             .AsNoTracking()
             .Include(us => us.User)
             .Include(us => us.SubscriptionPlan)
-            .FirstOrDefaultAsync(us => us.Id == id);
+            .FirstOrDefaultAsync(us => us.Id == id, cancellationToken);
 
-        return subscription != null ? await MapToUserSubscriptionDtoAsync(subscription) : null;
+        return subscription != null ? await MapToUserSubscriptionDtoAsync(subscription, cancellationToken) : null;
     }
 
-    public async Task<UserSubscriptionDto?> GetUserActiveSubscriptionAsync(Guid userId)
+    public async Task<UserSubscriptionDto?> GetUserActiveSubscriptionAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var subscription = await _context.Set<UserSubscription>()
@@ -285,10 +285,10 @@ public class SubscriptionService : ISubscriptionService
             .OrderByDescending(us => us.CreatedAt)
             .FirstOrDefaultAsync();
 
-        return subscription != null ? await MapToUserSubscriptionDtoAsync(subscription) : null;
+        return subscription != null ? await MapToUserSubscriptionDtoAsync(subscription, cancellationToken) : null;
     }
 
-    public async Task<IEnumerable<UserSubscriptionDto>> GetUserSubscriptionsAsync(Guid userId, string? status = null)
+    public async Task<IEnumerable<UserSubscriptionDto>> GetUserSubscriptionsAsync(Guid userId, string? status = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var query = _context.Set<UserSubscription>()
@@ -307,11 +307,11 @@ public class SubscriptionService : ISubscriptionService
         var subscriptionIds = await query
             .OrderByDescending(us => us.CreatedAt)
             .Select(us => us.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var subscriptions = await query
             .OrderByDescending(us => us.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load recent payments for all subscriptions
         var recentPaymentsDict = await _context.Set<SubscriptionPayment>()
@@ -348,11 +348,11 @@ public class SubscriptionService : ISubscriptionService
         return result;
     }
 
-    public async Task<bool> UpdateUserSubscriptionAsync(Guid id, UpdateUserSubscriptionDto dto)
+    public async Task<bool> UpdateUserSubscriptionAsync(Guid id, UpdateUserSubscriptionDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var subscription = await _context.Set<UserSubscription>()
-            .FirstOrDefaultAsync(us => us.Id == id);
+            .FirstOrDefaultAsync(us => us.Id == id, cancellationToken);
 
         if (subscription == null) return false;
 
@@ -362,16 +362,16 @@ public class SubscriptionService : ISubscriptionService
             subscription.PaymentMethodId = dto.PaymentMethodId;
 
         subscription.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> CancelUserSubscriptionAsync(Guid id, string? reason = null)
+    public async Task<bool> CancelUserSubscriptionAsync(Guid id, string? reason = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var subscription = await _context.Set<UserSubscription>()
-            .FirstOrDefaultAsync(us => us.Id == id);
+            .FirstOrDefaultAsync(us => us.Id == id, cancellationToken);
 
         if (subscription == null || subscription.Status == SubscriptionStatus.Cancelled) return false;
 
@@ -380,17 +380,17 @@ public class SubscriptionService : ISubscriptionService
         subscription.CancellationReason = reason;
         subscription.AutoRenew = false;
         subscription.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> RenewSubscriptionAsync(Guid id)
+    public async Task<bool> RenewSubscriptionAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var subscription = await _context.Set<UserSubscription>()
             .Include(us => us.SubscriptionPlan)
-            .FirstOrDefaultAsync(us => us.Id == id);
+            .FirstOrDefaultAsync(us => us.Id == id, cancellationToken);
 
         if (subscription == null || subscription.Status != SubscriptionStatus.Active) return false;
 
@@ -405,48 +405,48 @@ public class SubscriptionService : ISubscriptionService
         // Create payment for renewal
         await CreateSubscriptionPaymentAsync(subscription.Id, plan.Price);
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> SuspendSubscriptionAsync(Guid id)
+    public async Task<bool> SuspendSubscriptionAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var subscription = await _context.Set<UserSubscription>()
-            .FirstOrDefaultAsync(us => us.Id == id);
+            .FirstOrDefaultAsync(us => us.Id == id, cancellationToken);
 
         if (subscription == null || subscription.Status != SubscriptionStatus.Active) return false;
 
         subscription.Status = SubscriptionStatus.Suspended;
         subscription.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> ActivateSubscriptionAsync(Guid id)
+    public async Task<bool> ActivateSubscriptionAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var subscription = await _context.Set<UserSubscription>()
-            .FirstOrDefaultAsync(us => us.Id == id);
+            .FirstOrDefaultAsync(us => us.Id == id, cancellationToken);
 
         if (subscription == null || subscription.Status != SubscriptionStatus.Suspended) return false;
 
         subscription.Status = SubscriptionStatus.Active;
         subscription.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // Subscription Payments
-    public async Task<SubscriptionPaymentDto> CreateSubscriptionPaymentAsync(Guid userSubscriptionId, decimal amount)
+    public async Task<SubscriptionPaymentDto> CreateSubscriptionPaymentAsync(Guid userSubscriptionId, decimal amount, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var subscription = await _context.Set<UserSubscription>()
             .Include(us => us.SubscriptionPlan)
-            .FirstOrDefaultAsync(us => us.Id == userSubscriptionId);
+            .FirstOrDefaultAsync(us => us.Id == userSubscriptionId, cancellationToken);
 
         if (subscription == null)
         {
@@ -465,19 +465,19 @@ public class SubscriptionService : ISubscriptionService
             BillingPeriodEnd = billingPeriodEnd
         };
 
-        await _context.Set<SubscriptionPayment>().AddAsync(payment);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<SubscriptionPayment>().AddAsync(payment, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
         return _mapper.Map<SubscriptionPaymentDto>(payment);
     }
 
-    public async Task<bool> ProcessPaymentAsync(Guid paymentId, string transactionId)
+    public async Task<bool> ProcessPaymentAsync(Guid paymentId, string transactionId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var payment = await _context.Set<SubscriptionPayment>()
             .Include(p => p.UserSubscription)
-            .FirstOrDefaultAsync(p => p.Id == paymentId);
+            .FirstOrDefaultAsync(p => p.Id == paymentId, cancellationToken);
 
         if (payment == null) return false;
 
@@ -492,16 +492,16 @@ public class SubscriptionService : ISubscriptionService
             payment.UserSubscription.Status = SubscriptionStatus.Active;
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> FailPaymentAsync(Guid paymentId, string reason)
+    public async Task<bool> FailPaymentAsync(Guid paymentId, string reason, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var payment = await _context.Set<SubscriptionPayment>()
-            .FirstOrDefaultAsync(p => p.Id == paymentId);
+            .FirstOrDefaultAsync(p => p.Id == paymentId, cancellationToken);
 
         if (payment == null) return false;
 
@@ -510,29 +510,29 @@ public class SubscriptionService : ISubscriptionService
         payment.RetryCount++;
         payment.NextRetryDate = DateTime.UtcNow.AddDays(1);
         payment.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<IEnumerable<SubscriptionPaymentDto>> GetSubscriptionPaymentsAsync(Guid userSubscriptionId)
+    public async Task<IEnumerable<SubscriptionPaymentDto>> GetSubscriptionPaymentsAsync(Guid userSubscriptionId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var payments = await _context.Set<SubscriptionPayment>()
             .AsNoTracking()
             .Where(p => p.UserSubscriptionId == userSubscriptionId)
             .OrderByDescending(p => p.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
         return _mapper.Map<IEnumerable<SubscriptionPaymentDto>>(payments);
     }
 
-    public async Task<bool> RetryFailedPaymentAsync(Guid paymentId)
+    public async Task<bool> RetryFailedPaymentAsync(Guid paymentId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var payment = await _context.Set<SubscriptionPayment>()
-            .FirstOrDefaultAsync(p => p.Id == paymentId && p.PaymentStatus == PaymentStatus.Failed);
+            .FirstOrDefaultAsync(p => p.Id == paymentId && p.PaymentStatus == PaymentStatus.Failed, cancellationToken);
 
         if (payment == null) return false;
 
@@ -540,18 +540,18 @@ public class SubscriptionService : ISubscriptionService
         payment.RetryCount++;
         payment.NextRetryDate = null;
         payment.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // Subscription Usage
-    public async Task<SubscriptionUsageDto> TrackUsageAsync(Guid userSubscriptionId, string feature, int count = 1)
+    public async Task<SubscriptionUsageDto> TrackUsageAsync(Guid userSubscriptionId, string feature, int count = 1, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var subscription = await _context.Set<UserSubscription>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(us => us.Id == userSubscriptionId);
+            .FirstOrDefaultAsync(us => us.Id == userSubscriptionId, cancellationToken);
 
         if (subscription == null)
         {
@@ -577,20 +577,20 @@ public class SubscriptionService : ISubscriptionService
                 PeriodStart = periodStart,
                 PeriodEnd = periodEnd
             };
-            await _context.Set<SubscriptionUsage>().AddAsync(usage);
+            await _context.Set<SubscriptionUsage>().AddAsync(usage, cancellationToken);
         }
         else
         {
             usage.UsageCount += count;
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
         return _mapper.Map<SubscriptionUsageDto>(usage);
     }
 
-    public async Task<SubscriptionUsageDto?> GetUsageAsync(Guid userSubscriptionId, string feature)
+    public async Task<SubscriptionUsageDto?> GetUsageAsync(Guid userSubscriptionId, string feature, CancellationToken cancellationToken = default)
     {
         var periodStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
 
@@ -607,7 +607,7 @@ public class SubscriptionService : ISubscriptionService
         return _mapper.Map<SubscriptionUsageDto>(usage);
     }
 
-    public async Task<IEnumerable<SubscriptionUsageDto>> GetAllUsageAsync(Guid userSubscriptionId)
+    public async Task<IEnumerable<SubscriptionUsageDto>> GetAllUsageAsync(Guid userSubscriptionId, CancellationToken cancellationToken = default)
     {
         var periodStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
 
@@ -616,13 +616,13 @@ public class SubscriptionService : ISubscriptionService
             .AsNoTracking()
             .Where(u => u.UserSubscriptionId == userSubscriptionId &&
                        u.PeriodStart == periodStart)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
         return _mapper.Map<IEnumerable<SubscriptionUsageDto>>(usages);
     }
 
-    public async Task<bool> CheckUsageLimitAsync(Guid userSubscriptionId, string feature, int requestedCount = 1)
+    public async Task<bool> CheckUsageLimitAsync(Guid userSubscriptionId, string feature, int requestedCount = 1, CancellationToken cancellationToken = default)
     {
         var usage = await GetUsageAsync(userSubscriptionId, feature);
         
@@ -637,7 +637,7 @@ public class SubscriptionService : ISubscriptionService
     }
 
     // Analytics
-    public async Task<SubscriptionAnalyticsDto> GetSubscriptionAnalyticsAsync(DateTime? startDate = null, DateTime? endDate = null)
+    public async Task<SubscriptionAnalyticsDto> GetSubscriptionAnalyticsAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
         var start = startDate ?? DateTime.UtcNow.AddMonths(-12);
         var end = endDate ?? DateTime.UtcNow;
@@ -648,7 +648,7 @@ public class SubscriptionService : ISubscriptionService
             .Include(us => us.SubscriptionPlan)
             .Where(us => us.CreatedAt >= start && us.CreatedAt <= end);
 
-        var totalSubscriptions = await query.CountAsync();
+        var totalSubscriptions = await query.CountAsync(cancellationToken);
         var activeSubscriptionsCount = await query.CountAsync(us => us.Status == SubscriptionStatus.Active && us.EndDate > DateTime.UtcNow);
         var trialSubscriptionsCount = await query.CountAsync(us => us.Status == SubscriptionStatus.Trial);
         var cancelledSubscriptionsCount = await query.CountAsync(us => us.Status == SubscriptionStatus.Cancelled);
@@ -698,7 +698,7 @@ public class SubscriptionService : ISubscriptionService
         };
     }
 
-    public async Task<IEnumerable<SubscriptionTrendDto>> GetSubscriptionTrendsAsync(DateTime startDate, DateTime endDate)
+    public async Task<IEnumerable<SubscriptionTrendDto>> GetSubscriptionTrendsAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
         var trends = new List<SubscriptionTrendDto>();
@@ -749,7 +749,7 @@ public class SubscriptionService : ISubscriptionService
     }
 
     // Helper method for UserSubscriptionDto with RecentPayments
-    private async Task<UserSubscriptionDto> MapToUserSubscriptionDtoAsync(UserSubscription subscription)
+    private async Task<UserSubscriptionDto> MapToUserSubscriptionDtoAsync(UserSubscription subscription, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Batch load recent payments (N+1 query fix)
         var recentPayments = await _context.Set<SubscriptionPayment>()
@@ -757,7 +757,7 @@ public class SubscriptionService : ISubscriptionService
             .Where(p => p.UserSubscriptionId == subscription.Id)
             .OrderByDescending(p => p.CreatedAt)
             .Take(5)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var dto = _mapper.Map<UserSubscriptionDto>(subscription);
         dto.DaysRemaining = subscription.EndDate > DateTime.UtcNow

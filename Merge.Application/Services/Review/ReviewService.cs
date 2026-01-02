@@ -71,7 +71,7 @@ public class ReviewService : IReviewService
             .OrderByDescending(r => r.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         _logger.LogInformation(
             "Retrieved {Count} reviews for product {ProductId}, page {Page}",
@@ -100,7 +100,7 @@ public class ReviewService : IReviewService
             .OrderByDescending(r => r.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         _logger.LogInformation(
             "Retrieved {Count} reviews for user {UserId}, page {Page}, pageSize {PageSize}",
@@ -155,17 +155,17 @@ public class ReviewService : IReviewService
         review = await _reviewRepository.AddAsync(review);
 
         // Ürün rating'ini güncelle
-        await UpdateProductRatingAsync(dto.ProductId);
+        await UpdateProductRatingAsync(dto.ProductId, cancellationToken);
 
         // ✅ CRITICAL: Save changes via UnitOfWork
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Single query instead of multiple LoadAsync calls
         review = await _context.Reviews
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Product)
-            .FirstOrDefaultAsync(r => r.Id == review.Id);
+            .FirstOrDefaultAsync(r => r.Id == review.Id, cancellationToken);
 
         _logger.LogInformation(
             "Review created. ReviewId: {ReviewId}, ProductId: {ProductId}, UserId: {UserId}, Rating: {Rating}",
@@ -209,17 +209,17 @@ public class ReviewService : IReviewService
         await _reviewRepository.UpdateAsync(review);
 
         // Ürün rating'ini güncelle
-        await UpdateProductRatingAsync(review.ProductId);
+        await UpdateProductRatingAsync(review.ProductId, cancellationToken);
 
         // ✅ CRITICAL: Save changes via UnitOfWork
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Single query instead of multiple LoadAsync calls
         review = await _context.Reviews
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Product)
-            .FirstOrDefaultAsync(r => r.Id == id);
+            .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
         _logger.LogInformation(
             "Review updated. ReviewId: {ReviewId}, OldRating: {OldRating}, NewRating: {NewRating}",
@@ -242,10 +242,10 @@ public class ReviewService : IReviewService
         await _reviewRepository.DeleteAsync(review);
 
         // Ürün rating'ini güncelle
-        await UpdateProductRatingAsync(productId);
+        await UpdateProductRatingAsync(productId, cancellationToken);
 
         // ✅ CRITICAL: Save changes via UnitOfWork
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Review deleted. ReviewId: {ReviewId}, ProductId: {ProductId}", id, productId);
         return true;
@@ -264,10 +264,10 @@ public class ReviewService : IReviewService
         await _reviewRepository.UpdateAsync(review);
 
         // Ürün rating'ini güncelle
-        await UpdateProductRatingAsync(review.ProductId);
+        await UpdateProductRatingAsync(review.ProductId, cancellationToken);
 
         // ✅ CRITICAL: Save changes via UnitOfWork
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Review approved. ReviewId: {ReviewId}, ProductId: {ProductId}", id, review.ProductId);
         return true;
@@ -285,13 +285,13 @@ public class ReviewService : IReviewService
         await _reviewRepository.DeleteAsync(review);
 
         // ✅ CRITICAL: Save changes via UnitOfWork
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Review rejected. ReviewId: {ReviewId}, Reason: {Reason}", id, reason);
         return true;
     }
 
-    private async Task UpdateProductRatingAsync(Guid productId)
+    private async Task UpdateProductRatingAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter)
         // ✅ PERFORMANCE: Use server-side aggregation instead of loading all reviews
@@ -303,7 +303,7 @@ public class ReviewService : IReviewService
                 AverageRating = g.Average(r => (decimal)r.Rating),
                 Count = g.Count()
             })
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (reviewStats != null)
         {
