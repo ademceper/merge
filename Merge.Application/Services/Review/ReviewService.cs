@@ -43,14 +43,15 @@ public class ReviewService : IReviewService
         _logger = logger;
     }
 
-    public async Task<ReviewDto?> GetByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ReviewDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var review = await _context.Reviews
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Product)
-            .FirstOrDefaultAsync(r => r.Id == id);
+            .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
         if (review == null) return null;
 
@@ -59,7 +60,7 @@ public class ReviewService : IReviewService
         return _mapper.Map<ReviewDto>(review);
     }
 
-    public async Task<IEnumerable<ReviewDto>> GetByProductIdAsync(Guid productId, int page = 1, int pageSize = 20)
+    public async Task<IEnumerable<ReviewDto>> GetByProductIdAsync(Guid productId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted check
         var reviews = await _context.Reviews
@@ -82,7 +83,7 @@ public class ReviewService : IReviewService
     }
 
     // ✅ PERFORMANCE: Pagination ekle (BEST_PRACTICES_ANALIZI.md - BOLUM 3.1.4)
-    public async Task<PagedResult<ReviewDto>> GetByUserIdAsync(Guid userId, int page = 1, int pageSize = 20)
+    public async Task<PagedResult<ReviewDto>> GetByUserIdAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         if (pageSize > 100) pageSize = 100; // Max limit
 
@@ -93,7 +94,7 @@ public class ReviewService : IReviewService
             .Include(r => r.Product)
             .Where(r => r.UserId == userId);
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(cancellationToken);
 
         var reviews = await query
             .OrderByDescending(r => r.CreatedAt)
@@ -117,7 +118,7 @@ public class ReviewService : IReviewService
         };
     }
 
-    public async Task<ReviewDto> CreateAsync(CreateReviewDto dto)
+    public async Task<ReviewDto> CreateAsync(CreateReviewDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
@@ -175,7 +176,7 @@ public class ReviewService : IReviewService
         return _mapper.Map<ReviewDto>(review);
     }
 
-    public async Task<ReviewDto> UpdateAsync(Guid id, UpdateReviewDto dto)
+    public async Task<ReviewDto> UpdateAsync(Guid id, UpdateReviewDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
@@ -229,7 +230,7 @@ public class ReviewService : IReviewService
         return _mapper.Map<ReviewDto>(review!);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var review = await _reviewRepository.GetByIdAsync(id);
         if (review == null)
@@ -250,7 +251,7 @@ public class ReviewService : IReviewService
         return true;
     }
 
-    public async Task<bool> ApproveReviewAsync(Guid id)
+    public async Task<bool> ApproveReviewAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var review = await _reviewRepository.GetByIdAsync(id);
         if (review == null)
@@ -272,7 +273,7 @@ public class ReviewService : IReviewService
         return true;
     }
 
-    public async Task<bool> RejectReviewAsync(Guid id, string reason)
+    public async Task<bool> RejectReviewAsync(Guid id, string reason, CancellationToken cancellationToken = default)
     {
         var review = await _reviewRepository.GetByIdAsync(id);
         if (review == null)
