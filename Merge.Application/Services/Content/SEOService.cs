@@ -5,6 +5,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Content;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text;
@@ -342,7 +343,7 @@ public class SEOService : ISEOService
             OgTitle = metaTitle,
             OgDescription = metaDescription,
             OgImageUrl = post.OgImageUrl ?? post.FeaturedImageUrl,
-            IsIndexed = post.Status == "Published",
+            IsIndexed = post.Status == ContentStatus.Published,
             FollowLinks = true,
             Priority = 0.6m,
             ChangeFrequency = "weekly"

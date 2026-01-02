@@ -267,6 +267,71 @@ public class Coupon : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    // ✅ BOLUM 1.1: Domain Logic - Update description
+    public void UpdateDescription(string newDescription)
+    {
+        Guard.AgainstNullOrEmpty(newDescription, nameof(newDescription));
+        Description = newDescription;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Set discount amount
+    public void SetDiscountAmount(Money? discountAmount)
+    {
+        _discountAmount = discountAmount?.Amount ?? 0;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Set discount percentage
+    public void SetDiscountPercentage(Percentage? discountPercentage)
+    {
+        _discountPercentage = discountPercentage?.Value;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Set minimum purchase amount
+    public void SetMinimumPurchaseAmount(Money? minimumPurchaseAmount)
+    {
+        _minimumPurchaseAmount = minimumPurchaseAmount?.Amount;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Set maximum discount amount
+    public void SetMaximumDiscountAmount(Money? maximumDiscountAmount)
+    {
+        _maximumDiscountAmount = maximumDiscountAmount?.Amount;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Set usage limit
+    public void SetUsageLimit(int usageLimit)
+    {
+        Guard.AgainstNegative(usageLimit, nameof(usageLimit));
+        _usageLimit = usageLimit;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Set applicable category IDs
+    public void SetApplicableCategoryIds(List<Guid>? categoryIds)
+    {
+        ApplicableCategoryIds = categoryIds;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Set applicable product IDs
+    public void SetApplicableProductIds(List<Guid>? productIds)
+    {
+        ApplicableProductIds = productIds;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Set for new users only
+    public void SetForNewUsersOnly(bool isForNewUsersOnly)
+    {
+        IsForNewUsersOnly = isForNewUsersOnly;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     // ✅ BOLUM 1.1: Domain Logic - Update dates
     public void UpdateDates(DateTime startDate, DateTime endDate)
     {

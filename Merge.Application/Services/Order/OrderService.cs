@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.ValueObjects;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.Services;
@@ -149,64 +150,62 @@ public class OrderService : IOrderService
                 throw new BusinessException("Sepet boş.");
             }
 
-            // ✅ PERFORMANCE: AsNoTracking for read-only validation query
+            // ✅ PERFORMANCE: Address entity'sini çek (Create factory method için gerekli)
             var address = await _context.Addresses
-                .AsNoTracking()
                 .FirstOrDefaultAsync(a => a.Id == addressId && a.UserId == userId, cancellationToken);
             if (address == null)
             {
                 throw new NotFoundException("Adres", addressId);
             }
 
-            var order = new OrderEntity
-            {
-                UserId = userId,
-                AddressId = addressId,
-                OrderNumber = GenerateOrderNumber(),
-                Status = OrderStatus.Pending,
-                PaymentStatus = PaymentStatus.Pending
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
+            var order = OrderEntity.Create(userId, addressId, address);
 
             // ✅ PERFORMANCE: Removed manual !ci.IsDeleted check (Global Query Filter)
-            decimal subTotal = 0;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan (AddItem)
             foreach (var cartItem in cart.CartItems)
             {
-                if (cartItem.Product.StockQuantity < cartItem.Quantity)
-                {
-                    throw new BusinessException($"{cartItem.Product.Name} için yeterli stok yok.");
-                }
-
-                var orderItem = new OrderItem
-                {
-                    ProductId = cartItem.ProductId,
-                    Quantity = cartItem.Quantity,
-                    UnitPrice = cartItem.Price,
-                    TotalPrice = cartItem.Quantity * cartItem.Price
-                };
-
-                order.OrderItems.Add(orderItem);
-                subTotal += orderItem.TotalPrice;
-
-                // Stok güncelle
-                cartItem.Product.StockQuantity -= cartItem.Quantity;
+                // AddItem içinde stock check yapılıyor
+                order.AddItem(cartItem.Product, cartItem.Quantity);
+                
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+                // Stok güncelle (AddItem içinde kontrol ediliyor ama burada da güncelliyoruz)
+                cartItem.Product.ReduceStock(cartItem.Quantity);
             }
 
-            order.SubTotal = subTotal;
-            order.ShippingCost = CalculateShippingCost(subTotal);
-            order.Tax = CalculateTax(subTotal);
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+            var shippingCost = new Money(CalculateShippingCost(order.SubTotal));
+            order.SetShippingCost(shippingCost);
+            
+            var tax = new Money(CalculateTax(order.SubTotal));
+            order.SetTax(tax);
 
             // Kupon indirimi uygula
-            decimal couponDiscount = 0;
             if (!string.IsNullOrEmpty(couponCode))
             {
                 try
                 {
-                    // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - Database'de Select yap
-                    // Not: cart.CartItems zaten Include ile yüklenmiş, bu yüzden memory'de Select yapıyoruz
-                    // Ancak bu minimal bir işlem ve business logic için gerekli
                     var productIds = cart.CartItems.Select(ci => ci.ProductId).ToList();
-                    couponDiscount = await _couponService.CalculateDiscountAsync(couponCode, subTotal, userId, productIds);
-                    order.CouponDiscount = couponDiscount;
+                    var couponDiscount = await _couponService.CalculateDiscountAsync(couponCode, order.SubTotal, userId, productIds);
+                    
+                    if (couponDiscount > 0)
+                    {
+                        // ✅ BOLUM 1.1: Rich Domain Model - Coupon entity gerekiyor
+                        var couponDto = await _couponService.GetByCodeAsync(couponCode, cancellationToken);
+                        if (couponDto != null)
+                        {
+                            // Coupon entity'sini context'ten çek
+                            var coupon = await _context.Coupons
+                                .FirstOrDefaultAsync(c => c.Id == couponDto.Id, cancellationToken);
+                            
+                            if (coupon != null)
+                            {
+                                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+                                var discountMoney = new Money(couponDiscount);
+                                order.ApplyCoupon(coupon, discountMoney);
+                            }
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -214,31 +213,30 @@ public class OrderService : IOrderService
                 }
             }
 
-            order.TotalAmount = order.SubTotal + order.ShippingCost + order.Tax - couponDiscount;
-
             order = await _orderRepository.AddAsync(order);
 
             // Kupon kullanımını kaydet
-            if (!string.IsNullOrEmpty(couponCode) && couponDiscount > 0)
+            if (!string.IsNullOrEmpty(couponCode) && order.CouponDiscount.HasValue && order.CouponDiscount.Value > 0)
             {
-                var coupon = await _couponService.GetByCodeAsync(couponCode);
-                if (coupon != null)
+                var couponDto = await _couponService.GetByCodeAsync(couponCode, cancellationToken);
+                if (couponDto != null)
                 {
                     var couponUsage = new CouponUsage
                     {
-                        CouponId = coupon.Id,
+                        CouponId = couponDto.Id,
                         UserId = userId,
                         OrderId = order.Id,
-                        DiscountAmount = couponDiscount
+                        DiscountAmount = order.CouponDiscount.Value
                     };
                     await _context.CouponUsages.AddAsync(couponUsage, cancellationToken);
 
                     // ✅ PERFORMANCE: FindAsync Global Query Filter'ı bypass eder - FirstOrDefaultAsync kullan
                     // Kupon kullanım sayısını artır
-                    var couponEntity = await _context.Coupons.FirstOrDefaultAsync(c => c.Id == coupon.Id, cancellationToken);
+                    var couponEntity = await _context.Coupons.FirstOrDefaultAsync(c => c.Id == couponDto.Id, cancellationToken);
                     if (couponEntity != null)
                     {
-                        couponEntity.UsedCount++;
+                        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+                        couponEntity.IncrementUsage();
                     }
                 }
             }
@@ -275,7 +273,8 @@ public class OrderService : IOrderService
         }
     }
 
-    public async Task<OrderDto> UpdateOrderStatusAsync(Guid orderId, string status, CancellationToken cancellationToken = default)
+    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+    public async Task<OrderDto> UpdateOrderStatusAsync(Guid orderId, OrderStatus status, CancellationToken cancellationToken = default)
     {
         var order = await _orderRepository.GetByIdAsync(orderId);
         if (order == null)
@@ -284,18 +283,12 @@ public class OrderService : IOrderService
         }
 
         var oldStatus = order.Status;
-        order.Status = Enum.Parse<OrderStatus>(status);
-        if (status == "Shipped")
-        {
-            order.ShippedDate = DateTime.UtcNow;
-        }
-        else if (status == "Delivered")
-        {
-            order.DeliveredDate = DateTime.UtcNow;
-        }
+        
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+        order.TransitionTo(status);
 
         await _orderRepository.UpdateAsync(order);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Single query with all includes instead of multiple LoadAsync calls
         order = await _context.Orders
@@ -335,13 +328,15 @@ public class OrderService : IOrderService
         await _unitOfWork.BeginTransactionAsync();
         try
         {
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             // Stokları geri ekle
             foreach (var item in order.OrderItems)
             {
-                item.Product.StockQuantity += item.Quantity;
+                item.Product.IncreaseStock(item.Quantity);
             }
 
-            order.Status = OrderStatus.Cancelled;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+            order.Cancel();
             await _orderRepository.UpdateAsync(order);
             await _unitOfWork.CommitTransactionAsync();
 

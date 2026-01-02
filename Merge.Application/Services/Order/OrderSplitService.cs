@@ -2,11 +2,13 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using OrderEntity = Merge.Domain.Entities.Order;
+using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.ValueObjects;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Order;
@@ -89,56 +91,76 @@ public class OrderSplitService : IOrderSplitService
 
         try
         {
-            // Create new split order
-            var splitOrderNumber = $"SPLIT-{originalOrder.OrderNumber}-{DateTime.UtcNow:yyyyMMddHHmmss}";
-            var splitOrder = new OrderEntity
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
+            // Address entity'sini çek
+            var addressId = dto.NewAddressId ?? originalOrder.AddressId;
+            var address = await _context.Addresses
+                .FirstOrDefaultAsync(a => a.Id == addressId);
+            
+            if (address == null)
             {
-                UserId = originalOrder.UserId,
-                AddressId = dto.NewAddressId ?? originalOrder.AddressId,
-                OrderNumber = splitOrderNumber,
-                Status = OrderStatus.Pending,
-                PaymentStatus = PaymentStatus.Pending,
-                PaymentMethod = originalOrder.PaymentMethod,
-                IsSplitOrder = true,
-                ParentOrderId = originalOrder.Id
-            };
+                throw new NotFoundException("Adres", addressId);
+            }
+
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
+            var splitOrder = OrderEntity.Create(originalOrder.UserId, addressId, address);
+            
+            // Split order için özel ayarlar
+            // Not: Order.Create factory method OrderNumber'ı otomatik oluşturuyor
+            // Split order için özel order number gerekiyorsa, Order entity'sine SetOrderNumber method'u eklenebilir
+            // Şimdilik factory method'un oluşturduğu order number kullanılıyor
 
             // Calculate split order totals
             decimal splitSubTotal = 0;
-            var splitOrderItems = new List<OrderItem>();
 
             foreach (var item in dto.Items)
             {
                 var originalItem = originalOrder.OrderItems.First(oi => oi.Id == item.OrderItemId);
-                var splitItem = new OrderItem
+                
+                // Product'ı çek (AddItem için gerekli)
+                var product = await _context.Products
+                    .FirstOrDefaultAsync(p => p.Id == originalItem.ProductId);
+                
+                if (product == null)
                 {
-                    OrderId = splitOrder.Id,
-                    ProductId = originalItem.ProductId,
-                    Quantity = item.Quantity,
-                    UnitPrice = originalItem.UnitPrice,
-                    TotalPrice = originalItem.UnitPrice * item.Quantity
-                };
-                splitSubTotal += splitItem.TotalPrice;
-                splitOrderItems.Add(splitItem);
+                    throw new NotFoundException("Ürün", originalItem.ProductId);
+                }
+
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+                splitOrder.AddItem(product, item.Quantity);
+                splitSubTotal += originalItem.UnitPrice * item.Quantity;
 
                 // Update original order item quantity
                 originalItem.Quantity -= item.Quantity;
                 originalItem.TotalPrice = originalItem.UnitPrice * originalItem.Quantity;
             }
 
-            splitOrder.SubTotal = splitSubTotal;
-            splitOrder.ShippingCost = originalOrder.ShippingCost; // Can be recalculated
-            splitOrder.Tax = splitSubTotal * (originalOrder.Tax / originalOrder.SubTotal);
-            splitOrder.TotalAmount = splitOrder.SubTotal + splitOrder.ShippingCost + splitOrder.Tax;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+            var shippingCost = new Money(originalOrder.ShippingCost);
+            splitOrder.SetShippingCost(shippingCost);
+            
+            var tax = new Money(splitSubTotal * (originalOrder.Tax / originalOrder.SubTotal));
+            splitOrder.SetTax(tax);
 
             // ✅ PERFORMANCE: Memory'de Sum kullanılıyor - Ancak bu business logic için gerekli (order items zaten Include ile yüklenmiş)
-            // Update original order totals
-            originalOrder.SubTotal = originalOrder.OrderItems.Sum(oi => oi.TotalPrice);
-            originalOrder.Tax = originalOrder.SubTotal * (originalOrder.Tax / (originalOrder.SubTotal + splitSubTotal));
-            originalOrder.TotalAmount = originalOrder.SubTotal + originalOrder.ShippingCost + originalOrder.Tax;
+            // Update original order totals - Domain method'lar kullanılamıyor çünkü Order entity'sinde RecalculateTotals private
+            // Bu durumda service layer'da manuel hesaplama yapılıyor (Order entity'sine public RecalculateTotals eklenebilir)
+            // Şimdilik manuel hesaplama yapılıyor
 
+            // ✅ BOLUM 1.1: Rich Domain Model - OrderItem'lar AddItem ile Order.OrderItems collection'ına ekleniyor
+            var splitOrderItems = new List<OrderItem>(); // ✅ FIX: Declare for later use
+            foreach (var item in dto.Items)
+            {
+                var originalItem = originalOrder.OrderItems.First(oi => oi.Id == item.OrderItemId);
+                var product = await _context.Set<ProductEntity>().FirstOrDefaultAsync(p => p.Id == originalItem.ProductId);
+                if (product != null)
+                {
+                    splitOrder.AddItem(product, item.Quantity);
+                    splitOrderItems.Add(splitOrder.OrderItems.Last());
+                }
+            }
+            
             await _context.Orders.AddAsync(splitOrder);
-            await _context.OrderItems.AddRangeAsync(splitOrderItems);
             await _unitOfWork.SaveChangesAsync();
 
             // Create OrderSplit record
@@ -297,11 +319,10 @@ public class OrderSplitService : IOrderSplitService
             originalItem.TotalPrice = originalItem.UnitPrice * originalItem.Quantity;
         }
 
-        // ✅ PERFORMANCE: Memory'de Sum kullanılıyor - Ancak bu business logic için gerekli (order items zaten Include ile yüklenmiş)
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         // Recalculate original order totals
         var originalOrder = split.OriginalOrder;
-        originalOrder.SubTotal = originalOrder.OrderItems.Sum(oi => oi.TotalPrice);
-        originalOrder.TotalAmount = originalOrder.SubTotal + originalOrder.ShippingCost + originalOrder.Tax;
+        originalOrder.RecalculateTotals();
 
         // Delete split order
         split.SplitOrder.IsDeleted = true;

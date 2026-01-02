@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Logistics;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.DTOs.Logistics;
+using Merge.Domain.Enums;
 
 
 namespace Merge.API.Controllers.Logistics;
@@ -96,7 +97,8 @@ public class ShippingsController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var shipping = await _shippingService.UpdateStatusAsync(shippingId, dto.Status);
+        var statusEnum = Enum.Parse<ShippingStatus>(dto.Status);
+        var shipping = await _shippingService.UpdateStatusAsync(shippingId, statusEnum);
         if (shipping == null)
         {
             return NotFound();

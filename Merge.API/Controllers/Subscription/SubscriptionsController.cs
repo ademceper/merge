@@ -20,6 +20,7 @@ public class SubscriptionsController : BaseController
     // Subscription Plans
     [HttpGet("plans")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(IEnumerable<SubscriptionPlanDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<SubscriptionPlanDto>>> GetAllPlans([FromQuery] bool? isActive = null)
     {
         var plans = await _subscriptionService.GetAllSubscriptionPlansAsync(isActive);
@@ -28,6 +29,8 @@ public class SubscriptionsController : BaseController
 
     [HttpGet("plans/{id}")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(SubscriptionPlanDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<SubscriptionPlanDto>> GetPlan(Guid id)
     {
         var plan = await _subscriptionService.GetSubscriptionPlanByIdAsync(id);
@@ -40,6 +43,10 @@ public class SubscriptionsController : BaseController
 
     [HttpPost("plans")]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(typeof(SubscriptionPlanDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<SubscriptionPlanDto>> CreatePlan([FromBody] CreateSubscriptionPlanDto dto)
     {
         var validationResult = ValidateModelState();
@@ -51,6 +58,11 @@ public class SubscriptionsController : BaseController
 
     [HttpPut("plans/{id}")]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> UpdatePlan(Guid id, [FromBody] UpdateSubscriptionPlanDto dto)
     {
         var validationResult = ValidateModelState();
@@ -66,6 +78,10 @@ public class SubscriptionsController : BaseController
 
     [HttpDelete("plans/{id}")]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> DeletePlan(Guid id)
     {
         var success = await _subscriptionService.DeleteSubscriptionPlanAsync(id);
@@ -78,6 +94,9 @@ public class SubscriptionsController : BaseController
 
     // User Subscriptions
     [HttpPost("subscribe")]
+    [ProducesResponseType(typeof(UserSubscriptionDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<UserSubscriptionDto>> Subscribe([FromBody] CreateUserSubscriptionDto dto)
     {
         var validationResult = ValidateModelState();
@@ -89,6 +108,9 @@ public class SubscriptionsController : BaseController
     }
 
     [HttpGet("my-subscription")]
+    [ProducesResponseType(typeof(UserSubscriptionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<UserSubscriptionDto>> GetMySubscription()
     {
         var userId = GetUserId();
@@ -101,6 +123,8 @@ public class SubscriptionsController : BaseController
     }
 
     [HttpGet("my-subscriptions")]
+    [ProducesResponseType(typeof(IEnumerable<UserSubscriptionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<IEnumerable<UserSubscriptionDto>>> GetMySubscriptions([FromQuery] string? status = null)
     {
         var userId = GetUserId();
@@ -109,12 +133,17 @@ public class SubscriptionsController : BaseController
     }
 
     [HttpPut("subscriptions/{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> UpdateSubscription(Guid id, [FromBody] UpdateUserSubscriptionDto dto)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ ARCHITECTURE: Authorization check - kullanıcı sadece kendi subscription'ını güncelleyebilir
+        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi subscription'ını güncelleyebilir
         var userId = GetUserId();
         var subscription = await _subscriptionService.GetUserSubscriptionByIdAsync(id);
         if (subscription == null)
@@ -136,6 +165,11 @@ public class SubscriptionsController : BaseController
     }
 
     [HttpPost("subscriptions/{id}/cancel")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> CancelSubscription(Guid id, [FromBody] CancelSubscriptionDto? dto = null)
     {
         if (dto != null)
@@ -144,7 +178,7 @@ public class SubscriptionsController : BaseController
             if (validationResult != null) return validationResult;
         }
 
-        // ✅ ARCHITECTURE: Authorization check - kullanıcı sadece kendi subscription'ını iptal edebilir
+        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi subscription'ını iptal edebilir
         var userId = GetUserId();
         var subscription = await _subscriptionService.GetUserSubscriptionByIdAsync(id);
         if (subscription == null)
@@ -167,6 +201,10 @@ public class SubscriptionsController : BaseController
 
     [HttpPost("subscriptions/{id}/renew")]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> RenewSubscription(Guid id)
     {
         var success = await _subscriptionService.RenewSubscriptionAsync(id);
@@ -179,9 +217,13 @@ public class SubscriptionsController : BaseController
 
     // Subscription Payments
     [HttpGet("subscriptions/{id}/payments")]
+    [ProducesResponseType(typeof(IEnumerable<SubscriptionPaymentDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IEnumerable<SubscriptionPaymentDto>>> GetSubscriptionPayments(Guid id)
     {
-        // ✅ ARCHITECTURE: Authorization check - kullanıcı sadece kendi subscription'ının payment'larını görebilir
+        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi subscription'ının payment'larını görebilir
         var userId = GetUserId();
         var subscription = await _subscriptionService.GetUserSubscriptionByIdAsync(id);
         if (subscription == null)
@@ -200,6 +242,10 @@ public class SubscriptionsController : BaseController
 
     [HttpPost("payments/{id}/process")]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> ProcessPayment(Guid id, [FromBody] ProcessSubscriptionPaymentDto dto)
     {
         var validationResult = ValidateModelState();
@@ -215,6 +261,10 @@ public class SubscriptionsController : BaseController
 
     [HttpPost("payments/{id}/retry")]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> RetryPayment(Guid id)
     {
         var success = await _subscriptionService.RetryFailedPaymentAsync(id);
@@ -227,6 +277,9 @@ public class SubscriptionsController : BaseController
 
     // Subscription Usage
     [HttpPost("usage/track")]
+    [ProducesResponseType(typeof(SubscriptionUsageDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<SubscriptionUsageDto>> TrackUsage([FromBody] TrackUsageDto dto)
     {
         var validationResult = ValidateModelState();
@@ -244,6 +297,9 @@ public class SubscriptionsController : BaseController
     }
 
     [HttpGet("usage")]
+    [ProducesResponseType(typeof(IEnumerable<SubscriptionUsageDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<IEnumerable<SubscriptionUsageDto>>> GetMyUsage()
     {
         var userId = GetUserId();
@@ -260,6 +316,9 @@ public class SubscriptionsController : BaseController
     // Analytics
     [HttpGet("analytics")]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(typeof(SubscriptionAnalyticsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<SubscriptionAnalyticsDto>> GetAnalytics([FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null)
     {
         var analytics = await _subscriptionService.GetSubscriptionAnalyticsAsync(startDate, endDate);
@@ -268,6 +327,10 @@ public class SubscriptionsController : BaseController
 
     [HttpGet("trends")]
     [Authorize(Roles = "Admin,Manager")]
+    [ProducesResponseType(typeof(IEnumerable<SubscriptionTrendDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IEnumerable<SubscriptionTrendDto>>> GetTrends([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
     {
         var trends = await _subscriptionService.GetSubscriptionTrendsAsync(startDate, endDate);

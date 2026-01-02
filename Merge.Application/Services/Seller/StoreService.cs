@@ -98,7 +98,7 @@ public class StoreService : IStoreService
             Address = dto.Address,
             City = dto.City,
             Country = dto.Country,
-            Status = "Active",
+            Status = EntityStatus.Active,
             IsPrimary = dto.IsPrimary,
             Settings = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null
         };
@@ -150,7 +150,7 @@ public class StoreService : IStoreService
         var store = await _context.Set<Store>()
             .AsNoTracking()
             .Include(s => s.Seller)
-            .FirstOrDefaultAsync(s => s.Slug == slug && s.Status == "Active");
+            .FirstOrDefaultAsync(s => s.Slug == slug && s.Status == EntityStatus.Active);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         if (store == null) return null;
@@ -175,7 +175,8 @@ public class StoreService : IStoreService
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(s => s.Status == status);
+            var statusEnum = Enum.Parse<EntityStatus>(status);
+            query = query.Where(s => s.Status == statusEnum);
         }
 
         // ✅ PERFORMANCE: Batch load ProductCount (N+1 fix) - storeIds'i database'de oluştur
@@ -290,7 +291,7 @@ public class StoreService : IStoreService
 
         if (!string.IsNullOrEmpty(dto.Status))
         {
-            store.Status = dto.Status;
+            store.Status = Enum.Parse<EntityStatus>(dto.Status);
         }
 
         if (dto.IsPrimary.HasValue && dto.IsPrimary.Value)
@@ -400,7 +401,7 @@ public class StoreService : IStoreService
 
         if (store == null) return false;
 
-        store.Status = "Suspended";
+        store.Status = EntityStatus.Suspended;
         store.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
 

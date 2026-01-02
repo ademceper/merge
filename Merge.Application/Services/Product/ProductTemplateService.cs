@@ -8,6 +8,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.ValueObjects;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text.Json;
@@ -218,23 +219,46 @@ public class ProductTemplateService : IProductTemplateService
             }
         }
 
-        // Create product entity directly
-        var product = new ProductEntity
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
+        var productName = !string.IsNullOrEmpty(dto.ProductName) ? dto.ProductName : template.Name;
+        var productDescription = !string.IsNullOrEmpty(dto.Description) ? dto.Description : template.Description;
+        var sku = new SKU(!string.IsNullOrEmpty(dto.SKU) ? dto.SKU : GenerateSKU(template));
+        var price = new Money(dto.Price ?? template.DefaultPrice ?? 0);
+        var stockQuantity = dto.StockQuantity ?? template.DefaultStockQuantity ?? 0;
+        var brand = template.Brand ?? string.Empty;
+        
+        var product = ProductEntity.Create(
+            productName,
+            productDescription,
+            sku,
+            price,
+            stockQuantity,
+            template.CategoryId,
+            brand,
+            dto.SellerId,
+            dto.StoreId
+        );
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+        if (dto.DiscountPrice.HasValue)
         {
-            Name = !string.IsNullOrEmpty(dto.ProductName) ? dto.ProductName : template.Name,
-            Description = !string.IsNullOrEmpty(dto.Description) ? dto.Description : template.Description,
-            SKU = !string.IsNullOrEmpty(dto.SKU) ? dto.SKU : GenerateSKU(template),
-            Price = dto.Price ?? template.DefaultPrice ?? 0,
-            DiscountPrice = dto.DiscountPrice,
-            StockQuantity = dto.StockQuantity ?? template.DefaultStockQuantity ?? 0,
-            Brand = template.Brand ?? string.Empty,
-            ImageUrl = !string.IsNullOrEmpty(dto.ImageUrl) ? dto.ImageUrl : template.DefaultImageUrl ?? string.Empty,
-            ImageUrls = dto.ImageUrls ?? new List<string>(),
-            CategoryId = template.CategoryId,
-            SellerId = dto.SellerId,
-            StoreId = dto.StoreId,
-            IsActive = true
-        };
+            var discountPrice = new Money(dto.DiscountPrice.Value);
+            product.SetDiscountPrice(discountPrice);
+        }
+
+        if (!string.IsNullOrEmpty(dto.ImageUrl))
+        {
+            product.SetImageUrl(dto.ImageUrl);
+        }
+        else if (!string.IsNullOrEmpty(template.DefaultImageUrl))
+        {
+            product.SetImageUrl(template.DefaultImageUrl);
+        }
+
+        if (dto.ImageUrls != null && dto.ImageUrls.Any())
+        {
+            product.UpdateImages(product.ImageUrl, dto.ImageUrls);
+        }
 
         await _context.Products.AddAsync(product);
         await _unitOfWork.SaveChangesAsync();

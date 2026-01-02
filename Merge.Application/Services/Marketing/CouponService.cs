@@ -6,6 +6,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.ValueObjects;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Marketing;
@@ -225,19 +226,61 @@ public class CouponService : ICouponService
             throw new NotFoundException("Kupon", id);
         }
 
-        coupon.Code = couponDto.Code;
-        coupon.Description = couponDto.Description;
-        coupon.DiscountAmount = couponDto.DiscountAmount;
-        coupon.DiscountPercentage = couponDto.DiscountPercentage;
-        coupon.MinimumPurchaseAmount = couponDto.MinimumPurchaseAmount;
-        coupon.MaximumDiscountAmount = couponDto.MaximumDiscountAmount;
-        coupon.StartDate = couponDto.StartDate;
-        coupon.EndDate = couponDto.EndDate;
-        coupon.UsageLimit = couponDto.UsageLimit;
-        coupon.IsActive = couponDto.IsActive;
-        coupon.IsForNewUsersOnly = couponDto.IsForNewUsersOnly;
-        coupon.ApplicableCategoryIds = couponDto.ApplicableCategoryIds;
-        coupon.ApplicableProductIds = couponDto.ApplicableProductIds;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+        coupon.UpdateCode(couponDto.Code);
+        coupon.UpdateDescription(couponDto.Description);
+        
+        // ✅ BOLUM 1.1: Rich Domain Model - DiscountAmount decimal (nullable değil)
+        if (couponDto.DiscountAmount > 0)
+        {
+            var discountAmount = new Money(couponDto.DiscountAmount);
+            coupon.SetDiscountAmount(discountAmount);
+        }
+        else
+        {
+            coupon.SetDiscountAmount(null);
+        }
+        
+        if (couponDto.DiscountPercentage.HasValue)
+        {
+            var discountPercentage = new Percentage(couponDto.DiscountPercentage.Value);
+            coupon.SetDiscountPercentage(discountPercentage);
+        }
+        else
+        {
+            coupon.SetDiscountPercentage(null);
+        }
+        
+        if (couponDto.MinimumPurchaseAmount.HasValue)
+        {
+            var minimumPurchaseAmount = new Money(couponDto.MinimumPurchaseAmount.Value);
+            coupon.SetMinimumPurchaseAmount(minimumPurchaseAmount);
+        }
+        else
+        {
+            coupon.SetMinimumPurchaseAmount(null);
+        }
+        
+        if (couponDto.MaximumDiscountAmount.HasValue)
+        {
+            var maximumDiscountAmount = new Money(couponDto.MaximumDiscountAmount.Value);
+            coupon.SetMaximumDiscountAmount(maximumDiscountAmount);
+        }
+        else
+        {
+            coupon.SetMaximumDiscountAmount(null);
+        }
+        
+        coupon.UpdateDates(couponDto.StartDate, couponDto.EndDate);
+        coupon.SetUsageLimit(couponDto.UsageLimit);
+        coupon.SetApplicableCategoryIds(couponDto.ApplicableCategoryIds);
+        coupon.SetApplicableProductIds(couponDto.ApplicableProductIds);
+        coupon.SetForNewUsersOnly(couponDto.IsForNewUsersOnly);
+        
+        if (couponDto.IsActive)
+            coupon.Activate();
+        else
+            coupon.Deactivate();
 
         await _couponRepository.UpdateAsync(coupon);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

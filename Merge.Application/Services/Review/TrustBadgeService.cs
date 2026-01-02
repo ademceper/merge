@@ -270,7 +270,7 @@ public class TrustBadgeService : ITrustBadgeService
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !sp.IsDeleted (Global Query Filter)
             var sellers = await _context.SellerProfiles
                 .AsNoTracking()
-                .Where(sp => sp.Status == "Approved")
+                .Where(sp => sp.Status == SellerStatus.Approved)
                 .Select(sp => sp.UserId)
                 .ToListAsync();
 

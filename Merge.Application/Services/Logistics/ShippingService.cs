@@ -8,6 +8,7 @@ using Merge.Application.Interfaces.Notification;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.ValueObjects;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Logistics;
@@ -48,12 +49,12 @@ public class ShippingService : IShippingService
         _logger = logger;
     }
 
-    public async Task<ShippingDto?> GetByIdAsync(Guid id)
+    public async Task<ShippingDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var shipping = await _context.Shippings
             .AsNoTracking()
             .Include(s => s.Order)
-            .FirstOrDefaultAsync(s => s.Id == id);
+            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
         if (shipping == null) return null;
 
@@ -61,13 +62,13 @@ public class ShippingService : IShippingService
         return _mapper.Map<ShippingDto>(shipping);
     }
 
-    public async Task<ShippingDto?> GetByOrderIdAsync(Guid orderId)
+    public async Task<ShippingDto?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
         var shipping = await _context.Shippings
             .AsNoTracking()
             .Include(s => s.Order)
-            .FirstOrDefaultAsync(s => s.OrderId == orderId);
+            .FirstOrDefaultAsync(s => s.OrderId == orderId, cancellationToken);
 
         if (shipping == null) return null;
 
@@ -75,7 +76,7 @@ public class ShippingService : IShippingService
         return _mapper.Map<ShippingDto>(shipping);
     }
 
-    public async Task<ShippingDto> CreateShippingAsync(CreateShippingDto dto)
+    public async Task<ShippingDto> CreateShippingAsync(CreateShippingDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
@@ -102,16 +103,19 @@ public class ShippingService : IShippingService
             throw new BusinessException("Bu sipariş için zaten bir kargo kaydı var.");
         }
 
-        var shipping = new Shipping
-        {
-            OrderId = dto.OrderId,
-            ShippingProvider = dto.ShippingProvider,
-            ShippingCost = dto.ShippingCost,
-            Status = ShippingStatus.Preparing
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
+        var shippingCost = new Money(dto.ShippingCost);
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
+        // CreateShippingDto'da EstimatedDeliveryDate yok, null geçiyoruz
+        var shipping = Shipping.Create(
+            dto.OrderId,
+            dto.ShippingProvider,
+            shippingCost,
+            null // EstimatedDeliveryDate
+        );
 
         shipping = await _shippingRepository.AddAsync(shipping);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Shipping created for order {OrderId} with provider {Provider}",
             dto.OrderId, dto.ShippingProvider);
@@ -127,7 +131,7 @@ public class ShippingService : IShippingService
         return _mapper.Map<ShippingDto>(createdShipping!);
     }
 
-    public async Task<ShippingDto> UpdateTrackingAsync(Guid shippingId, string trackingNumber)
+    public async Task<ShippingDto> UpdateTrackingAsync(Guid shippingId, string trackingNumber, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(trackingNumber))
         {
@@ -143,19 +147,18 @@ public class ShippingService : IShippingService
                 throw new NotFoundException("Kargo kaydı", shippingId);
             }
 
-            shipping.TrackingNumber = trackingNumber;
-            shipping.Status = ShippingStatus.Shipped;
-            shipping.ShippedDate = DateTime.UtcNow;
-            shipping.EstimatedDeliveryDate = DateTime.UtcNow.AddDays(3);
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+            shipping.Ship(trackingNumber);
+            shipping.UpdateEstimatedDeliveryDate(DateTime.UtcNow.AddDays(3));
 
             await _shippingRepository.UpdateAsync(shipping);
 
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             // Order status'unu güncelle
             var order = await _orderRepository.GetByIdAsync(shipping.OrderId);
             if (order != null)
             {
-                order.Status = OrderStatus.Shipped;
-                order.ShippedDate = shipping.ShippedDate;
+                order.Ship();
                 await _orderRepository.UpdateAsync(order);
 
                 await _unitOfWork.SaveChangesAsync();
@@ -213,13 +216,9 @@ public class ShippingService : IShippingService
         }
     }
 
-    public async Task<ShippingDto> UpdateStatusAsync(Guid shippingId, string status)
+    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+    public async Task<ShippingDto> UpdateStatusAsync(Guid shippingId, ShippingStatus status, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(status))
-        {
-            throw new ValidationException("Durum boş olamaz.");
-        }
-
         await _unitOfWork.BeginTransactionAsync();
         try
         {
@@ -229,18 +228,17 @@ public class ShippingService : IShippingService
                 throw new NotFoundException("Kargo kaydı", shippingId);
             }
 
-            shipping.Status = Enum.Parse<ShippingStatus>(status);
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+            shipping.TransitionTo(status);
 
-            if (status == "Delivered")
+            if (status == ShippingStatus.Delivered)
             {
-                shipping.DeliveredDate = DateTime.UtcNow;
-
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
                 // Order status'unu güncelle
                 var order = await _orderRepository.GetByIdAsync(shipping.OrderId);
                 if (order != null)
                 {
-                    order.Status = OrderStatus.Delivered;
-                    order.DeliveredDate = shipping.DeliveredDate;
+                    order.Deliver();
                     await _orderRepository.UpdateAsync(order);
                 }
 
@@ -248,7 +246,7 @@ public class ShippingService : IShippingService
             }
 
             await _shippingRepository.UpdateAsync(shipping);
-            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync();
 
             // ✅ PERFORMANCE: Reload with order information in one query (N+1 fix)
@@ -269,7 +267,7 @@ public class ShippingService : IShippingService
         }
     }
 
-    public async Task<decimal> CalculateShippingCostAsync(Guid orderId, string shippingProvider)
+    public async Task<decimal> CalculateShippingCostAsync(Guid orderId, string shippingProvider, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(shippingProvider))
         {
@@ -280,7 +278,7 @@ public class ShippingService : IShippingService
         var order = await _context.Orders
             .AsNoTracking()
             .Include(o => o.OrderItems)
-            .FirstOrDefaultAsync(o => o.Id == orderId);
+            .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
 
         if (order == null)
         {
@@ -310,7 +308,7 @@ public class ShippingService : IShippingService
         return baseCost;
     }
 
-    public Task<IEnumerable<ShippingProviderDto>> GetAvailableProvidersAsync()
+    public Task<IEnumerable<ShippingProviderDto>> GetAvailableProvidersAsync(CancellationToken cancellationToken = default)
     {
         // Gerçek uygulamada veritabanından veya config'den alınacak
         return Task.FromResult<IEnumerable<ShippingProviderDto>>(new List<ShippingProviderDto>

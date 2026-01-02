@@ -5,6 +5,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using UserEntity = Merge.Domain.Entities.User;
@@ -44,7 +45,7 @@ public class CustomerCommunicationService : ICustomerCommunicationService
             SentByUserId = sentByUserId,
             RecipientEmail = dto.RecipientEmail,
             RecipientPhone = dto.RecipientPhone,
-            Status = "Sent",
+            Status = CommunicationStatus.Sent,
             SentAt = DateTime.UtcNow,
             Metadata = dto.Metadata != null ? JsonSerializer.Serialize(dto.Metadata) : null
         };
@@ -208,7 +209,7 @@ public class CustomerCommunicationService : ICustomerCommunicationService
 
         if (communication == null) return false;
 
-        communication.Status = status;
+        communication.Status = Enum.Parse<CommunicationStatus>(status);
         if (deliveredAt.HasValue)
             communication.DeliveredAt = deliveredAt.Value;
         if (readAt.HasValue)
@@ -241,10 +242,10 @@ public class CustomerCommunicationService : ICustomerCommunicationService
         var sms = await query.CountAsync(c => c.CommunicationType == "SMS");
         var ticket = await query.CountAsync(c => c.CommunicationType == "Ticket");
         var inApp = await query.CountAsync(c => c.CommunicationType == "InApp");
-        var sent = await query.CountAsync(c => c.Status == "Sent");
-        var delivered = await query.CountAsync(c => c.Status == "Delivered");
-        var read = await query.CountAsync(c => c.Status == "Read");
-        var failed = await query.CountAsync(c => c.Status == "Failed");
+        var sent = await query.CountAsync(c => c.Status == CommunicationStatus.Sent);
+        var delivered = await query.CountAsync(c => c.Status == CommunicationStatus.Delivered);
+        var read = await query.CountAsync(c => c.Status == CommunicationStatus.Read);
+        var failed = await query.CountAsync(c => c.Status == CommunicationStatus.Failed);
 
         return new Dictionary<string, int>
         {

@@ -1,3 +1,5 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
 public class OAuthProvider : BaseEntity
@@ -43,10 +45,6 @@ public class PushNotificationDevice : BaseEntity
     // Navigation properties
     public User User { get; set; } = null!;
 }
-
-using Merge.Domain.Enums;
-
-namespace Merge.Domain.Entities;
 
 public class PushNotification : BaseEntity
 {

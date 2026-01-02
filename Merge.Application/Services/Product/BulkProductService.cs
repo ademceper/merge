@@ -11,6 +11,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.ValueObjects;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Product;
@@ -237,19 +238,37 @@ public class BulkProductService : IBulkProductService
             throw new NotFoundException("Kategori", Guid.Empty);
         }
 
-        var product = new ProductEntity
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
+        var sku = new SKU(dto.SKU);
+        var price = new Money(dto.Price);
+        var product = ProductEntity.Create(
+            dto.Name,
+            dto.Description,
+            sku,
+            price,
+            dto.StockQuantity,
+            category.Id,
+            dto.Brand,
+            null, // sellerId
+            null  // storeId
+        );
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+        if (dto.DiscountPrice.HasValue)
         {
-            Name = dto.Name,
-            Description = dto.Description,
-            SKU = dto.SKU,
-            Price = dto.Price,
-            DiscountPrice = dto.DiscountPrice,
-            StockQuantity = dto.StockQuantity,
-            Brand = dto.Brand,
-            ImageUrl = dto.ImageUrl,
-            CategoryId = category.Id,
-            IsActive = dto.IsActive
-        };
+            var discountPrice = new Money(dto.DiscountPrice.Value);
+            product.SetDiscountPrice(discountPrice);
+        }
+
+        if (!string.IsNullOrEmpty(dto.ImageUrl))
+        {
+            product.SetImageUrl(dto.ImageUrl);
+        }
+
+        if (!dto.IsActive)
+        {
+            product.Deactivate();
+        }
 
         product = await _productRepository.AddAsync(product);
         // ✅ ARCHITECTURE: UnitOfWork kullan (SaveChangesAsync YASAK - Repository pattern)

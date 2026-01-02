@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Security;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text.Json;
@@ -54,7 +55,7 @@ public class OrderVerificationService : IOrderVerificationService
         {
             OrderId = dto.OrderId,
             VerificationType = dto.VerificationType,
-            Status = "Pending",
+            Status = VerificationStatus.Pending,
             VerificationMethod = dto.VerificationMethod,
             VerificationNotes = dto.VerificationNotes,
             RequiresManualReview = dto.RequiresManualReview || riskScore >= 70,
@@ -96,7 +97,7 @@ public class OrderVerificationService : IOrderVerificationService
             .AsNoTracking()
             .Include(v => v.Order)
             .Include(v => v.VerifiedBy)
-            .Where(v => v.Status == "Pending")
+            .Where(v => v.Status == VerificationStatus.Pending)
             .OrderByDescending(v => v.RequiresManualReview)
             .ThenByDescending(v => v.RiskScore)
             .ToListAsync();
@@ -113,7 +114,7 @@ public class OrderVerificationService : IOrderVerificationService
 
         if (verification == null) return false;
 
-        verification.Status = "Verified";
+        verification.Status = VerificationStatus.Verified;
         verification.VerifiedByUserId = verifiedByUserId;
         verification.VerifiedAt = DateTime.UtcNow;
         verification.VerificationNotes = notes;
@@ -131,7 +132,7 @@ public class OrderVerificationService : IOrderVerificationService
 
         if (verification == null) return false;
 
-        verification.Status = "Rejected";
+        verification.Status = VerificationStatus.Rejected;
         verification.VerifiedByUserId = verifiedByUserId;
         verification.VerifiedAt = DateTime.UtcNow;
         verification.RejectionReason = reason;
@@ -152,7 +153,8 @@ public class OrderVerificationService : IOrderVerificationService
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(v => v.Status == status);
+            var statusEnum = Enum.Parse<VerificationStatus>(status);
+            query = query.Where(v => v.Status == statusEnum);
         }
 
         var verifications = await query
@@ -256,7 +258,7 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
         {
             PaymentId = dto.PaymentId,
             CheckType = dto.CheckType,
-            Status = status,
+            Status = Enum.Parse<VerificationStatus>(status),
             IsBlocked = isBlocked,
             BlockReason = isBlocked ? $"High risk score: {riskScore}" : null,
             RiskScore = riskScore,
@@ -317,7 +319,7 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
 
         check.IsBlocked = true;
         check.BlockReason = reason;
-        check.Status = "Blocked";
+        check.Status = VerificationStatus.Failed; // Blocked -> Failed
         check.UpdatedAt = DateTime.UtcNow;
 
         await _unitOfWork.SaveChangesAsync();
@@ -334,7 +336,7 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
 
         check.IsBlocked = false;
         check.BlockReason = null;
-        check.Status = "Passed";
+        check.Status = VerificationStatus.Verified; // Passed -> Verified
         check.UpdatedAt = DateTime.UtcNow;
 
         await _unitOfWork.SaveChangesAsync();
@@ -351,7 +353,8 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(c => c.Status == status);
+            var statusEnum = Enum.Parse<VerificationStatus>(status);
+            query = query.Where(c => c.Status == statusEnum);
         }
 
         if (isBlocked.HasValue)
@@ -460,7 +463,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
                 Severity = dto.Severity == "Critical" ? "Critical" : "High",
                 Title = $"Suspicious activity detected: {dto.EventType}",
                 Description = $"Security event: {dto.EventType} for user {user.Email}",
-                Status = "New",
+                Status = AlertStatus.New,
                 Metadata = dto.Details != null ? JsonSerializer.Serialize(dto.Details) : null
             };
             await _context.Set<SecurityAlert>().AddAsync(alert);
@@ -548,7 +551,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
             Severity = dto.Severity,
             Title = dto.Title,
             Description = dto.Description,
-            Status = "New",
+            Status = AlertStatus.New,
             Metadata = dto.Metadata != null ? JsonSerializer.Serialize(dto.Metadata) : null
         };
 
@@ -589,7 +592,8 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(a => a.Status == status);
+            var statusEnum = Enum.Parse<AlertStatus>(status);
+            query = query.Where(a => a.Status == statusEnum);
         }
 
         var alerts = await query
@@ -611,7 +615,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
 
         if (alert == null) return false;
 
-        alert.Status = "Acknowledged";
+        alert.Status = AlertStatus.Acknowledged;
         alert.AcknowledgedByUserId = acknowledgedByUserId;
         alert.AcknowledgedAt = DateTime.UtcNow;
         alert.UpdatedAt = DateTime.UtcNow;
@@ -628,7 +632,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
 
         if (alert == null) return false;
 
-        alert.Status = "Resolved";
+        alert.Status = AlertStatus.Resolved;
         alert.ResolvedByUserId = resolvedByUserId;
         alert.ResolvedAt = DateTime.UtcNow;
         alert.ResolutionNotes = resolutionNotes;
@@ -662,12 +666,12 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
 
         var pendingAlerts = await _context.Set<SecurityAlert>()
             .AsNoTracking()
-            .Where(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == "New")
+            .Where(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == AlertStatus.New)
             .CountAsync();
 
         var resolvedAlerts = await _context.Set<SecurityAlert>()
             .AsNoTracking()
-            .Where(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == "Resolved")
+            .Where(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == AlertStatus.Resolved)
             .CountAsync();
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
@@ -692,7 +696,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
             .Include(a => a.AcknowledgedBy)
             .Include(a => a.ResolvedBy)
             .Where(a => a.CreatedAt >= start && a.CreatedAt <= end && 
-                       a.Severity == "Critical" && a.Status != "Resolved")
+                       a.Severity == "Critical" && a.Status != AlertStatus.Resolved)
             .OrderByDescending(a => a.CreatedAt)
             .Take(10)
             .ToListAsync();

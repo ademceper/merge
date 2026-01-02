@@ -4,6 +4,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.B2B;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using OrganizationEntity = Merge.Domain.Entities.Organization;
@@ -82,7 +83,7 @@ public class B2BService : IB2BService
             EmployeeId = dto.EmployeeId,
             Department = dto.Department,
             JobTitle = dto.JobTitle,
-            Status = "Pending",
+            Status = EntityStatus.Active, // Yeni B2BUser aktif olarak oluşturulur
             CreditLimit = dto.CreditLimit,
             UsedCredit = 0,
             Settings = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null
@@ -147,7 +148,11 @@ public class B2BService : IB2BService
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(b => b.Status == status);
+            // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+            if (Enum.TryParse<EntityStatus>(status, true, out var statusEnum))
+            {
+                query = query.Where(b => b.Status == statusEnum);
+            }
         }
 
         var b2bUsers = await query
@@ -179,7 +184,11 @@ public class B2BService : IB2BService
         if (dto.JobTitle != null)
             b2bUser.JobTitle = dto.JobTitle;
         if (!string.IsNullOrEmpty(dto.Status))
-            b2bUser.Status = dto.Status;
+            // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+            if (Enum.TryParse<EntityStatus>(dto.Status, true, out var statusEnum))
+            {
+                b2bUser.Status = statusEnum;
+            }
         if (dto.CreditLimit.HasValue)
             b2bUser.CreditLimit = dto.CreditLimit.Value;
         if (dto.Settings != null)
@@ -202,7 +211,7 @@ public class B2BService : IB2BService
         b2bUser.IsApproved = true;
         b2bUser.ApprovedAt = DateTime.UtcNow;
         b2bUser.ApprovedByUserId = approvedByUserId;
-        b2bUser.Status = "Active";
+        b2bUser.Status = EntityStatus.Active;
         b2bUser.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
 
@@ -528,7 +537,7 @@ public class B2BService : IB2BService
                 OrganizationId = dto.OrganizationId,
                 B2BUserId = b2bUserId,
                 PONumber = poNumber,
-                Status = "Draft",
+                Status = PurchaseOrderStatus.Draft,
                 Notes = dto.Notes,
                 ExpectedDeliveryDate = dto.ExpectedDeliveryDate,
                 CreditTermId = dto.CreditTermId
@@ -785,9 +794,13 @@ public class B2BService : IB2BService
                 .ThenInclude(i => i.Product)
             .Where(po => po.OrganizationId == organizationId);
 
+        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(po => po.Status == status);
+            if (Enum.TryParse<PurchaseOrderStatus>(status, true, out var statusEnum))
+            {
+                query = query.Where(po => po.Status == statusEnum);
+            }
         }
 
         var pos = await query
@@ -813,7 +826,11 @@ public class B2BService : IB2BService
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(po => po.Status == status);
+            // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+            if (Enum.TryParse<PurchaseOrderStatus>(status, true, out var statusEnum))
+            {
+                query = query.Where(po => po.Status == statusEnum);
+            }
         }
 
         var pos = await query
@@ -830,9 +847,9 @@ public class B2BService : IB2BService
         var po = await _context.Set<PurchaseOrder>()
             .FirstOrDefaultAsync(po => po.Id == id);
 
-        if (po == null || po.Status != "Draft") return false;
+        if (po == null || po.Status != PurchaseOrderStatus.Draft) return false;
 
-        po.Status = "Submitted";
+        po.Status = PurchaseOrderStatus.Submitted;
         po.SubmittedAt = DateTime.UtcNow;
         po.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
@@ -851,7 +868,7 @@ public class B2BService : IB2BService
             var po = await _context.Set<PurchaseOrder>()
                 .FirstOrDefaultAsync(po => po.Id == id);
 
-            if (po == null || po.Status != "Submitted") return false;
+            if (po == null || po.Status != PurchaseOrderStatus.Submitted) return false;
 
             // Check credit limit if credit term is used
             if (po.CreditTermId.HasValue)
@@ -872,7 +889,7 @@ public class B2BService : IB2BService
                 }
             }
 
-            po.Status = "Approved";
+            po.Status = PurchaseOrderStatus.Approved;
             po.ApprovedAt = DateTime.UtcNow;
             po.ApprovedByUserId = approvedByUserId;
             po.UpdatedAt = DateTime.UtcNow;
@@ -899,9 +916,9 @@ public class B2BService : IB2BService
         var po = await _context.Set<PurchaseOrder>()
             .FirstOrDefaultAsync(po => po.Id == id);
 
-        if (po == null || po.Status != "Submitted") return false;
+        if (po == null || po.Status != PurchaseOrderStatus.Submitted) return false;
 
-        po.Status = "Rejected";
+        po.Status = PurchaseOrderStatus.Rejected;
         po.Notes = $"{po.Notes}\nRejection Reason: {reason}";
         po.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
@@ -915,9 +932,9 @@ public class B2BService : IB2BService
         var po = await _context.Set<PurchaseOrder>()
             .FirstOrDefaultAsync(po => po.Id == id);
 
-        if (po == null || (po.Status != "Draft" && po.Status != "Submitted")) return false;
+        if (po == null || (po.Status != PurchaseOrderStatus.Draft && po.Status != PurchaseOrderStatus.Submitted)) return false;
 
-        po.Status = "Cancelled";
+        po.Status = PurchaseOrderStatus.Cancelled;
         po.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
 

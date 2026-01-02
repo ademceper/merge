@@ -6,6 +6,7 @@ using Merge.Application.Interfaces.Cart;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.ValueObjects;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using CartEntity = Merge.Domain.Entities.Cart;
@@ -238,30 +239,46 @@ public class PreOrderService : IPreOrderService
                 throw new BusinessException("Ön sipariş zaten dönüştürülmüş.");
             }
 
-            // Create order from pre-order
-            var order = new OrderEntity
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
+            // Kullanıcının default address'ini çek
+            var address = await _context.Addresses
+                .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId && a.IsDefault);
+            
+            if (address == null)
             {
-                UserId = preOrder.UserId,
-                Status = OrderStatus.Pending,
-                TotalAmount = preOrder.Price * preOrder.Quantity,
-                ShippingCost = 0,
-                Tax = 0,
-                CouponDiscount = null,
-                GiftCardDiscount = null
-            };
+                // Default address yoksa ilk address'i al
+                address = await _context.Addresses
+                    .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId);
+            }
+            
+            if (address == null)
+            {
+                throw new BusinessException("Sipariş oluşturmak için adres bilgisi gereklidir.");
+            }
+
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
+            var order = OrderEntity.Create(preOrder.UserId, address.Id, address);
+            
+            // Product'ı çek (AddItem için gerekli)
+            var product = await _context.Products
+                .FirstOrDefaultAsync(p => p.Id == preOrder.ProductId);
+            
+            if (product == null)
+            {
+                throw new NotFoundException("Ürün", preOrder.ProductId);
+            }
+
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+            order.AddItem(product, preOrder.Quantity);
+            
+            // Shipping ve tax hesapla
+            var shippingCost = new Money(0); // Pre-order için shipping cost 0
+            order.SetShippingCost(shippingCost);
+            
+            var tax = new Money(0); // Pre-order için tax 0
+            order.SetTax(tax);
 
             await _context.Set<OrderEntity>().AddAsync(order);
-
-            var orderItem = new OrderItem
-            {
-                OrderId = order.Id,
-                ProductId = preOrder.ProductId,
-                Quantity = preOrder.Quantity,
-                UnitPrice = preOrder.Price,
-                TotalPrice = preOrder.Price * preOrder.Quantity
-            };
-
-            await _context.Set<OrderItem>().AddAsync(orderItem);
 
             preOrder.Status = PreOrderStatus.Converted;
             preOrder.ConvertedToOrderAt = DateTime.UtcNow;

@@ -138,6 +138,22 @@ public class Review : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    // ✅ BOLUM 1.1: Domain Logic - Unmark as helpful
+    public void UnmarkAsHelpful()
+    {
+        if (HelpfulCount > 0)
+            HelpfulCount--;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Unmark as unhelpful
+    public void UnmarkAsUnhelpful()
+    {
+        if (UnhelpfulCount > 0)
+            UnhelpfulCount--;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     // ✅ BOLUM 1.1: Domain Logic - Set verified purchase
     public void SetVerifiedPurchase(bool isVerified)
     {

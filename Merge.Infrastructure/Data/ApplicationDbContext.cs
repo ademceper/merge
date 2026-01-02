@@ -407,6 +407,14 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
             entity.Property(e => e.DiscountPercentage).HasPrecision(5, 2);
             entity.Property(e => e.MinimumPurchaseAmount).HasPrecision(18, 2);
             entity.Property(e => e.MaximumDiscountAmount).HasPrecision(18, 2);
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_Coupon_DiscountPercentage_Range", "\"DiscountPercentage\" >= 0 AND \"DiscountPercentage\" <= 100");
+                t.HasCheckConstraint("CK_Coupon_DiscountAmount_Positive", "\"DiscountAmount\" >= 0");
+                t.HasCheckConstraint("CK_Coupon_UsageCount_NonNegative", "\"UsedCount\" >= 0");
+            });
             entity.Property(e => e.ApplicableCategoryIds)
                   .HasConversion(
                       v => v != null ? string.Join(',', v) : null,
@@ -1487,7 +1495,7 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
             entity.HasIndex(e => e.PayoutNumber).IsUnique();
             entity.HasIndex(e => e.SellerId);
             entity.HasIndex(e => e.Status);
-            entity.HasIndex(e => e.PayoutDate);
+            entity.HasIndex(e => e.ProcessedAt);
             
             // ✅ SECURITY: Check Constraints (BOLUM 7.3)
             entity.ToTable(t =>

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Content;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text;
@@ -44,7 +45,7 @@ public class LandingPageService : ILandingPageService
             Title = dto.Title,
             Content = dto.Content,
             Template = dto.Template,
-            Status = dto.Status,
+            Status = Enum.TryParse<ContentStatus>(dto.Status, true, out var statusEnum) ? statusEnum : ContentStatus.Draft,
             AuthorId = authorId,
             StartDate = dto.StartDate,
             EndDate = dto.EndDate,
@@ -55,7 +56,7 @@ public class LandingPageService : ILandingPageService
             EnableABTesting = dto.EnableABTesting,
             VariantOfId = dto.VariantOfId,
             TrafficSplit = dto.TrafficSplit,
-            PublishedAt = dto.Status == "Published" ? DateTime.UtcNow : null
+            PublishedAt = (Enum.TryParse<ContentStatus>(dto.Status, true, out var status) && status == ContentStatus.Published) ? DateTime.UtcNow : null
         };
 
         await _context.Set<LandingPage>().AddAsync(landingPage);
@@ -83,7 +84,7 @@ public class LandingPageService : ILandingPageService
         var landingPage = await _context.Set<LandingPage>()
             .Include(lp => lp.Author)
             .Include(lp => lp.VariantOf)
-            .FirstOrDefaultAsync(lp => lp.Slug == slug && lp.Status == "Published" && lp.IsActive);
+            .FirstOrDefaultAsync(lp => lp.Slug == slug && lp.Status == ContentStatus.Published && lp.IsActive);
 
         if (landingPage != null)
         {
@@ -123,7 +124,11 @@ public class LandingPageService : ILandingPageService
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(lp => lp.Status == status);
+            // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+            if (Enum.TryParse<ContentStatus>(status, true, out var statusEnum))
+            {
+                query = query.Where(lp => lp.Status == statusEnum);
+            }
         }
 
         if (isActive.HasValue)
@@ -164,10 +169,14 @@ public class LandingPageService : ILandingPageService
             landingPage.Template = dto.Template;
         if (!string.IsNullOrEmpty(dto.Status))
         {
-            landingPage.Status = dto.Status;
-            if (dto.Status == "Published" && !landingPage.PublishedAt.HasValue)
+            // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+            if (Enum.TryParse<ContentStatus>(dto.Status, true, out var newStatus))
             {
-                landingPage.PublishedAt = DateTime.UtcNow;
+                landingPage.Status = newStatus;
+                if (newStatus == ContentStatus.Published && !landingPage.PublishedAt.HasValue)
+                {
+                    landingPage.PublishedAt = DateTime.UtcNow;
+                }
             }
         }
         if (dto.StartDate.HasValue)
@@ -212,7 +221,7 @@ public class LandingPageService : ILandingPageService
 
         if (landingPage == null) return false;
 
-        landingPage.Status = "Published";
+        landingPage.Status = ContentStatus.Published;
         landingPage.PublishedAt = DateTime.UtcNow;
         landingPage.IsActive = true;
         landingPage.UpdatedAt = DateTime.UtcNow;
@@ -258,7 +267,7 @@ public class LandingPageService : ILandingPageService
             Title = dto.Title ?? original.Title,
             Content = dto.Content ?? original.Content,
             Template = dto.Template ?? original.Template,
-            Status = dto.Status,
+            Status = Enum.TryParse<ContentStatus>(dto.Status, true, out var variantStatus) ? variantStatus : ContentStatus.Draft,
             AuthorId = dto.VariantOfId.HasValue ? original.AuthorId : null,
             StartDate = dto.StartDate ?? original.StartDate,
             EndDate = dto.EndDate ?? original.EndDate,

@@ -46,20 +46,21 @@ public class ReviewHelpfulnessService : IReviewHelpfulnessService
 
         if (existingVote != null)
         {
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             // Update existing vote
             if (existingVote.IsHelpful != dto.IsHelpful)
             {
                 // Decrement old count
                 if (existingVote.IsHelpful)
-                    review.HelpfulCount--;
+                    review.UnmarkAsHelpful();
                 else
-                    review.UnhelpfulCount--;
+                    review.UnmarkAsUnhelpful();
 
                 // Increment new count
                 if (dto.IsHelpful)
-                    review.HelpfulCount++;
+                    review.MarkAsHelpful();
                 else
-                    review.UnhelpfulCount++;
+                    review.MarkAsUnhelpful();
 
                 existingVote.IsHelpful = dto.IsHelpful;
             }
@@ -76,11 +77,12 @@ public class ReviewHelpfulnessService : IReviewHelpfulnessService
 
             await _context.Set<ReviewHelpfulness>().AddAsync(vote);
 
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             // Increment count
             if (dto.IsHelpful)
-                review.HelpfulCount++;
+                review.MarkAsHelpful();
             else
-                review.UnhelpfulCount++;
+                review.MarkAsUnhelpful();
         }
 
         await _unitOfWork.SaveChangesAsync();
@@ -100,11 +102,12 @@ public class ReviewHelpfulnessService : IReviewHelpfulnessService
 
         if (review != null)
         {
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             // Decrement count
             if (vote.IsHelpful)
-                review.HelpfulCount--;
+                review.UnmarkAsHelpful();
             else
-                review.UnhelpfulCount--;
+                review.UnmarkAsUnhelpful();
         }
 
         vote.IsDeleted = true;

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Content;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text;
@@ -57,7 +58,7 @@ public class CMSService : ICMSService
             Content = dto.Content,
             Excerpt = dto.Excerpt,
             PageType = dto.PageType,
-            Status = dto.Status,
+            Status = Enum.TryParse<ContentStatus>(dto.Status, true, out var statusEnum) ? statusEnum : ContentStatus.Draft,
             AuthorId = authorId,
             Template = dto.Template,
             MetaTitle = dto.MetaTitle,
@@ -68,7 +69,7 @@ public class CMSService : ICMSService
             ShowInMenu = dto.ShowInMenu,
             MenuTitle = dto.MenuTitle,
             ParentPageId = dto.ParentPageId,
-            PublishedAt = dto.Status == "Published" ? DateTime.UtcNow : null
+            PublishedAt = (Enum.TryParse<ContentStatus>(dto.Status, true, out var status) && status == ContentStatus.Published) ? DateTime.UtcNow : null
         };
 
         await _context.Set<CMSPage>().AddAsync(page);
@@ -96,7 +97,7 @@ public class CMSService : ICMSService
             .AsNoTracking()
             .Include(p => p.Author)
             .Include(p => p.ParentPage)
-            .FirstOrDefaultAsync(p => p.Slug == slug && p.Status == "Published");
+            .FirstOrDefaultAsync(p => p.Slug == slug && p.Status == ContentStatus.Published);
 
         return page != null ? _mapper.Map<CMSPageDto>(page) : null;
     }
@@ -107,7 +108,7 @@ public class CMSService : ICMSService
         var page = await _context.Set<CMSPage>()
             .AsNoTracking()
             .Include(p => p.Author)
-            .FirstOrDefaultAsync(p => p.IsHomePage && p.Status == "Published");
+            .FirstOrDefaultAsync(p => p.IsHomePage && p.Status == ContentStatus.Published);
 
         return page != null ? _mapper.Map<CMSPageDto>(page) : null;
     }
@@ -123,7 +124,11 @@ public class CMSService : ICMSService
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(p => p.Status == status);
+            // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+            if (Enum.TryParse<ContentStatus>(status, true, out var statusEnum))
+            {
+                query = query.Where(p => p.Status == statusEnum);
+            }
         }
 
         if (showInMenu.HasValue)
@@ -158,7 +163,7 @@ public class CMSService : ICMSService
             .AsNoTracking()
             .Include(p => p.Author)
             .Include(p => p.ParentPage)
-            .Where(p => p.ShowInMenu && p.Status == "Published" && p.ParentPageId == null)
+            .Where(p => p.ShowInMenu && p.Status == ContentStatus.Published && p.ParentPageId == null)
             .OrderBy(p => p.DisplayOrder)
             .ThenBy(p => p.Title)
             .ToListAsync();
@@ -192,10 +197,14 @@ public class CMSService : ICMSService
             page.PageType = dto.PageType;
         if (!string.IsNullOrEmpty(dto.Status))
         {
-            page.Status = dto.Status;
-            if (dto.Status == "Published" && !page.PublishedAt.HasValue)
+            // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+            if (Enum.TryParse<ContentStatus>(dto.Status, true, out var newStatus))
             {
-                page.PublishedAt = DateTime.UtcNow;
+                page.Status = newStatus;
+                if (newStatus == ContentStatus.Published && !page.PublishedAt.HasValue)
+                {
+                    page.PublishedAt = DateTime.UtcNow;
+                }
             }
         }
         if (dto.Template != null)
@@ -256,7 +265,7 @@ public class CMSService : ICMSService
 
         if (page == null) return false;
 
-        page.Status = "Published";
+        page.Status = ContentStatus.Published;
         page.PublishedAt = DateTime.UtcNow;
         page.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();

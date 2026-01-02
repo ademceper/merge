@@ -115,10 +115,13 @@ public class CartController : BaseController
     }
 
     [HttpDelete]
-    public async Task<IActionResult> ClearCart()
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ClearCart(CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var result = await _cartService.ClearCartAsync(userId);
+        var result = await _cartService.ClearCartAsync(userId, cancellationToken);
         if (!result)
         {
             return NotFound();

@@ -5,6 +5,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.LiveCommerce;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.LiveCommerce;
@@ -37,7 +38,7 @@ public class LiveCommerceService : ILiveCommerceService
             SellerId = dto.SellerId,
             Title = dto.Title,
             Description = dto.Description,
-            Status = "Scheduled",
+            Status = LiveStreamStatus.Scheduled,
             ScheduledStartTime = dto.ScheduledStartTime,
             StreamUrl = dto.StreamUrl,
             StreamKey = dto.StreamKey,
@@ -150,7 +151,7 @@ public class LiveCommerceService : ILiveCommerceService
             .Include(s => s.Seller)
             .Include(s => s.Products)
                 .ThenInclude(p => p.Product)
-            .Where(s => s.Status == "Live" && s.IsActive)
+            .Where(s => s.Status == LiveStreamStatus.Live && s.IsActive)
             .OrderByDescending(s => s.ActualStartTime)
             .ToListAsync();
 
@@ -183,7 +184,7 @@ public class LiveCommerceService : ILiveCommerceService
 
         if (stream == null) return false;
 
-        stream.Status = "Live";
+        stream.Status = LiveStreamStatus.Live;
         stream.ActualStartTime = DateTime.UtcNow;
         stream.UpdatedAt = DateTime.UtcNow;
 
@@ -199,7 +200,7 @@ public class LiveCommerceService : ILiveCommerceService
 
         if (stream == null) return false;
 
-        stream.Status = "Ended";
+        stream.Status = LiveStreamStatus.Ended;
         stream.EndTime = DateTime.UtcNow;
         stream.IsActive = false;
         stream.UpdatedAt = DateTime.UtcNow;
@@ -418,7 +419,7 @@ public class LiveCommerceService : ILiveCommerceService
             OrderCount = stream.OrderCount,
             Revenue = stream.Revenue,
             TotalRevenue = totalRevenue,
-            Status = stream.Status,
+            Status = stream.Status.ToString(), // ✅ BOLUM 1.2: Enum -> string (DTO uyumluluğu)
             Duration = stream.ActualStartTime.HasValue && stream.EndTime.HasValue
                 ? (int)(stream.EndTime.Value - stream.ActualStartTime.Value).TotalSeconds
                 : stream.ActualStartTime.HasValue

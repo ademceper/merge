@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.ML;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text.Json;
@@ -157,7 +158,7 @@ public class FraudDetectionService : IFraudDetectionService
             OrderId = orderId,
             AlertType = "Order",
             RiskScore = riskScore,
-            Status = "Pending",
+            Status = FraudAlertStatus.Pending,
             Reason = $"Order evaluation: Risk score {riskScore}",
             // ✅ PERFORMANCE: ToListAsync() sonrası Any() ve Select() YASAK
             // Not: Bu durumda `matchedRules` zaten memory'de (List), bu yüzden bu minimal bir işlem
@@ -204,7 +205,7 @@ public class FraudDetectionService : IFraudDetectionService
             PaymentId = paymentId,
             AlertType = "Payment",
             RiskScore = riskScore,
-            Status = "Pending",
+            Status = FraudAlertStatus.Pending,
             Reason = $"Payment evaluation: Risk score {riskScore}",
             // ✅ PERFORMANCE: ToListAsync() sonrası Any() ve Select() YASAK
             // Not: Bu durumda `matchedRules` zaten memory'de (List), bu yüzden bu minimal bir işlem
@@ -248,7 +249,7 @@ public class FraudDetectionService : IFraudDetectionService
             UserId = userId,
             AlertType = "Account",
             RiskScore = riskScore,
-            Status = "Pending",
+            Status = FraudAlertStatus.Pending,
             Reason = $"User evaluation: Risk score {riskScore}",
             // ✅ PERFORMANCE: ToListAsync() sonrası Any() ve Select() YASAK
             // Not: Bu durumda `matchedRules` zaten memory'de (List), bu yüzden bu minimal bir işlem
@@ -283,9 +284,13 @@ public class FraudDetectionService : IFraudDetectionService
             .Include(a => a.Payment)
             .Include(a => a.ReviewedBy);
 
+        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(a => a.Status == status);
+            if (Enum.TryParse<FraudAlertStatus>(status, true, out var statusEnum))
+            {
+                query = query.Where(a => a.Status == statusEnum);
+            }
         }
 
         if (!string.IsNullOrEmpty(alertType))
@@ -315,7 +320,7 @@ public class FraudDetectionService : IFraudDetectionService
 
         if (alert == null) return false;
 
-        alert.Status = status;
+        alert.Status = Enum.Parse<FraudAlertStatus>(status);
         alert.ReviewedByUserId = reviewedByUserId;
         alert.ReviewedAt = DateTime.UtcNow;
         alert.ReviewNotes = notes;
@@ -337,13 +342,13 @@ public class FraudDetectionService : IFraudDetectionService
             .CountAsync(a => a.CreatedAt >= start && a.CreatedAt <= end);
 
         var pendingAlerts = await _context.Set<FraudAlert>()
-            .CountAsync(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == "Pending");
+            .CountAsync(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == FraudAlertStatus.Pending);
 
         var resolvedAlerts = await _context.Set<FraudAlert>()
-            .CountAsync(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == "Resolved");
+            .CountAsync(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == FraudAlertStatus.Resolved);
 
         var falsePositiveAlerts = await _context.Set<FraudAlert>()
-            .CountAsync(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == "FalsePositive");
+            .CountAsync(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == FraudAlertStatus.FalsePositive);
 
         var avgRiskScore = totalAlerts > 0
             ? await _context.Set<FraudAlert>()
@@ -359,12 +364,13 @@ public class FraudDetectionService : IFraudDetectionService
             .Select(g => new { Type = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Type, x => x.Count);
 
+        // ✅ BOLUM 1.2: Enum kullanımı - Dictionary için string'e çevir (DTO uyumluluğu için)
         var alertsByStatus = await _context.Set<FraudAlert>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= start && a.CreatedAt <= end)
             .GroupBy(a => a.Status)
             .Select(g => new { Status = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.Status, x => x.Count);
+            .ToDictionaryAsync(x => x.Status.ToString(), x => x.Count);
 
         // ✅ PERFORMANCE: Database'de filtreleme ve sıralama yap (memory'de işlem YASAK)
         var highRiskAlerts = await _context.Set<FraudAlert>()
@@ -377,7 +383,7 @@ public class FraudDetectionService : IFraudDetectionService
                 AlertId = a.Id,
                 AlertType = a.AlertType,
                 RiskScore = a.RiskScore,
-                Status = a.Status,
+                Status = a.Status.ToString(), // ✅ BOLUM 1.2: Enum -> string (DTO uyumluluğu)
                 CreatedAt = a.CreatedAt
             })
             .ToListAsync();

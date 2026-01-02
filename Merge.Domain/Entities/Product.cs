@@ -222,6 +222,14 @@ public class Product : BaseEntity
         // For now, just check availability
     }
 
+    // ✅ BOLUM 1.1: Domain Logic - Set stock quantity
+    public void SetStockQuantity(int quantity)
+    {
+        Guard.AgainstNegative(quantity, nameof(quantity));
+        _stockQuantity = quantity;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     // ✅ BOLUM 1.1: Domain Logic - Activate product
     public void Activate()
     {
@@ -293,6 +301,22 @@ public class Product : BaseEntity
 
         ImageUrl = imageUrl;
         ImageUrls = imageUrls;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Set image URL
+    public void SetImageUrl(string imageUrl)
+    {
+        Guard.AgainstNullOrEmpty(imageUrl, nameof(imageUrl));
+        ImageUrl = imageUrl;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Set category
+    public void SetCategory(Guid categoryId)
+    {
+        Guard.AgainstDefault(categoryId, nameof(categoryId));
+        CategoryId = categoryId;
         UpdatedAt = DateTime.UtcNow;
     }
 

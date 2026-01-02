@@ -5,6 +5,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text;
@@ -49,12 +50,12 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             Content = dto.Content,
             Excerpt = dto.Excerpt,
             CategoryId = dto.CategoryId,
-            Status = dto.Status,
+            Status = Enum.Parse<ContentStatus>(dto.Status),
             IsFeatured = dto.IsFeatured,
             DisplayOrder = dto.DisplayOrder,
             Tags = dto.Tags != null ? string.Join(",", dto.Tags) : null,
             AuthorId = authorId,
-            PublishedAt = dto.Status == "Published" ? DateTime.UtcNow : null
+            PublishedAt = dto.Status == nameof(ContentStatus.Published) ? DateTime.UtcNow : null
         };
 
         await _context.Set<KnowledgeBaseArticle>().AddAsync(article);
@@ -90,7 +91,7 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             .AsNoTracking()
             .Include(a => a.Category)
             .Include(a => a.Author)
-            .FirstOrDefaultAsync(a => a.Slug == slug && a.Status == "Published");
+            .FirstOrDefaultAsync(a => a.Slug == slug && a.Status == ContentStatus.Published);
 
         return article != null ? _mapper.Map<KnowledgeBaseArticleDto>(article) : null;
     }
@@ -105,11 +106,12 @@ public class KnowledgeBaseService : IKnowledgeBaseService
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(a => a.Status == status);
+            var statusEnum = Enum.Parse<ContentStatus>(status);
+            query = query.Where(a => a.Status == statusEnum);
         }
         else
         {
-            query = query.Where(a => a.Status == "Published");
+            query = query.Where(a => a.Status == ContentStatus.Published);
         }
 
         if (categoryId.HasValue)
@@ -140,7 +142,7 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             .AsNoTracking()
             .Include(a => a.Category)
             .Include(a => a.Author)
-            .Where(a => a.Status == "Published");
+            .Where(a => a.Status == ContentStatus.Published);
 
         if (!string.IsNullOrEmpty(searchDto.Query))
         {
@@ -197,8 +199,8 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             article.CategoryId = dto.CategoryId.Value;
         if (!string.IsNullOrEmpty(dto.Status))
         {
-            article.Status = dto.Status;
-            if (dto.Status == "Published" && !article.PublishedAt.HasValue)
+            article.Status = Enum.Parse<ContentStatus>(dto.Status);
+            if (dto.Status == nameof(ContentStatus.Published) && !article.PublishedAt.HasValue)
             {
                 article.PublishedAt = DateTime.UtcNow;
             }
@@ -247,7 +249,7 @@ public class KnowledgeBaseService : IKnowledgeBaseService
 
         if (article == null) return false;
 
-        article.Status = "Published";
+        article.Status = ContentStatus.Published;
         article.PublishedAt = DateTime.UtcNow;
         article.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
@@ -365,7 +367,7 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         // ✅ PERFORMANCE: Batch load article counts for all categories to avoid N+1 query
         var articleCountsDict = await _context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
-            .Where(a => categoryIds.Contains(a.CategoryId.Value) && a.Status == "Published")
+            .Where(a => categoryIds.Contains(a.CategoryId.Value) && a.Status == ContentStatus.Published)
             .GroupBy(a => a.CategoryId.Value)
             .Select(g => new { CategoryId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.CategoryId, x => x.Count);
@@ -460,7 +462,7 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var query = _context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
-            .Where(a => a.Status == "Published");
+            .Where(a => a.Status == ContentStatus.Published);
 
         if (categoryId.HasValue)
         {
@@ -518,7 +520,7 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         // ✅ PERFORMANCE: Batch load article count to avoid N+1 query
         dto.ArticleCount = await _context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
-            .CountAsync(a => a.CategoryId == category.Id && a.Status == "Published");
+            .CountAsync(a => a.CategoryId == category.Id && a.Status == ContentStatus.Published);
 
         // ✅ PERFORMANCE: Recursively map subcategories if needed
         if (category.SubCategories != null && category.SubCategories.Any())
@@ -527,7 +529,7 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             var subCategoryIds = category.SubCategories.Select(sc => sc.Id).ToList();
             var subArticleCountsDict = await _context.Set<KnowledgeBaseArticle>()
                 .AsNoTracking()
-                .Where(a => subCategoryIds.Contains(a.CategoryId.Value) && a.Status == "Published")
+                .Where(a => subCategoryIds.Contains(a.CategoryId.Value) && a.Status == ContentStatus.Published)
                 .GroupBy(a => a.CategoryId.Value)
                 .Select(g => new { CategoryId = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.CategoryId, x => x.Count);
@@ -566,7 +568,7 @@ public class KnowledgeBaseService : IKnowledgeBaseService
                 var nestedSubCategoryIds = sc.SubCategories.Select(nsc => nsc.Id).ToList();
                 var nestedSubArticleCountsDict = await _context.Set<KnowledgeBaseArticle>()
                     .AsNoTracking()
-                    .Where(a => nestedSubCategoryIds.Contains(a.CategoryId.Value) && a.Status == "Published")
+                    .Where(a => nestedSubCategoryIds.Contains(a.CategoryId.Value) && a.Status == ContentStatus.Published)
                     .GroupBy(a => a.CategoryId.Value)
                     .Select(g => new { CategoryId = g.Key, Count = g.Count() })
                     .ToDictionaryAsync(x => x.CategoryId, x => x.Count);

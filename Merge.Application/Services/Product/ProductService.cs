@@ -7,6 +7,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.ValueObjects;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Product;
@@ -180,16 +181,33 @@ public class ProductService : IProductService
             throw new ValidationException("Stok miktarı negatif olamaz.");
         }
 
-        product.Name = productDto.Name;
-        product.Description = productDto.Description;
-        product.Price = productDto.Price;
-        product.DiscountPrice = productDto.DiscountPrice;
-        product.StockQuantity = productDto.StockQuantity;
-        product.Brand = productDto.Brand;
-        product.ImageUrl = productDto.ImageUrl;
-        product.ImageUrls = productDto.ImageUrls;
-        product.IsActive = productDto.IsActive;
-        product.CategoryId = productDto.CategoryId;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+        product.UpdateName(productDto.Name);
+        product.UpdateDescription(productDto.Description);
+        
+        var price = new Money(productDto.Price);
+        product.SetPrice(price);
+        
+        if (productDto.DiscountPrice.HasValue)
+        {
+            var discountPrice = new Money(productDto.DiscountPrice.Value);
+            product.SetDiscountPrice(discountPrice);
+        }
+        else
+        {
+            product.SetDiscountPrice(null);
+        }
+        
+        product.SetStockQuantity(productDto.StockQuantity);
+        product.UpdateBrand(productDto.Brand);
+        product.UpdateImages(productDto.ImageUrl, productDto.ImageUrls ?? new List<string>());
+        
+        if (productDto.IsActive)
+            product.Activate();
+        else
+            product.Deactivate();
+        
+        product.SetCategory(productDto.CategoryId);
 
         await _productRepository.UpdateAsync(product);
         await _unitOfWork.SaveChangesAsync();

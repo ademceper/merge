@@ -4,6 +4,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.ML;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.ValueObjects;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using ProductEntity = Merge.Domain.Entities.Product;
@@ -52,9 +53,10 @@ public class PriceOptimizationService : IPriceOptimizationService
         // Fiyatı güncelle (opsiyonel - sadece öneri döndürmek için kullanılabilir)
         if (request?.ApplyOptimization == true)
         {
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             var oldPrice = product.Price;
-            product.Price = recommendation.OptimalPrice;
-            product.UpdatedAt = DateTime.UtcNow;
+            var newPrice = new Money(recommendation.OptimalPrice);
+            product.SetPrice(newPrice);
             await _unitOfWork.SaveChangesAsync();
 
             _logger.LogInformation("Price optimized for product {ProductId}: {OldPrice} -> {NewPrice}", 

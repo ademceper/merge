@@ -4,6 +4,7 @@ using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Common;
+using Merge.Domain.Common.DomainEvents;
 
 namespace Merge.Domain.Entities;
 
@@ -136,6 +137,9 @@ public class Order : BaseEntity
             PaymentStatus = PaymentStatus.Pending,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Event - Order Created
+        order.AddDomainEvent(new OrderCreatedEvent(order.Id, userId, 0));
 
         return order;
     }
@@ -301,6 +305,9 @@ public class Order : BaseEntity
             throw new DomainException("Sipariş işleme durumunda olmalıdır");
 
         TransitionTo(OrderStatus.Shipped);
+        
+        // ✅ BOLUM 1.5: Domain Event - Order Shipped
+        AddDomainEvent(new OrderShippedEvent(Id, UserId, ShippedDate ?? DateTime.UtcNow));
     }
 
     public void Deliver()
@@ -309,6 +316,9 @@ public class Order : BaseEntity
             throw new DomainException("Sipariş kargoya verilmiş durumunda olmalıdır");
 
         TransitionTo(OrderStatus.Delivered);
+        
+        // ✅ BOLUM 1.5: Domain Event - Order Delivered
+        AddDomainEvent(new OrderDeliveredEvent(Id, UserId, DeliveredDate ?? DateTime.UtcNow));
     }
 
     public void Cancel(string? reason = null)
@@ -317,6 +327,9 @@ public class Order : BaseEntity
             throw new DomainException("Kargoya verilmiş veya teslim edilmiş sipariş iptal edilemez");
 
         TransitionTo(OrderStatus.Cancelled);
+        
+        // ✅ BOLUM 1.5: Domain Event - Order Cancelled
+        AddDomainEvent(new OrderCancelledEvent(Id, UserId, reason));
     }
 
     public void Refund()
@@ -351,7 +364,8 @@ public class Order : BaseEntity
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Calculate totals
-    private void RecalculateTotals()
+    // ✅ BOLUM 1.1: Domain Logic - Recalculate totals (public for service layer usage)
+    public void RecalculateTotals()
     {
         // Calculate subtotal from items
         _subTotal = _orderItems.Sum(i => i.TotalPrice);

@@ -1,5 +1,3 @@
-namespace Merge.Domain.Entities;
-
 using Merge.Domain.Enums;
 
 namespace Merge.Domain.Entities;

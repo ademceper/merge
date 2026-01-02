@@ -459,7 +459,7 @@ public class SubscriptionService : ISubscriptionService
         var payment = new SubscriptionPayment
         {
             UserSubscriptionId = userSubscriptionId,
-            PaymentStatus = "Pending",
+            PaymentStatus = PaymentStatus.Pending,
             Amount = amount,
             BillingPeriodStart = billingPeriodStart,
             BillingPeriodEnd = billingPeriodEnd
@@ -481,7 +481,7 @@ public class SubscriptionService : ISubscriptionService
 
         if (payment == null) return false;
 
-        payment.PaymentStatus = "Completed";
+        payment.PaymentStatus = PaymentStatus.Completed;
         payment.TransactionId = transactionId;
         payment.PaidAt = DateTime.UtcNow;
         payment.UpdatedAt = DateTime.UtcNow;
@@ -505,7 +505,7 @@ public class SubscriptionService : ISubscriptionService
 
         if (payment == null) return false;
 
-        payment.PaymentStatus = "Failed";
+        payment.PaymentStatus = PaymentStatus.Failed;
         payment.FailureReason = reason;
         payment.RetryCount++;
         payment.NextRetryDate = DateTime.UtcNow.AddDays(1);
@@ -532,11 +532,11 @@ public class SubscriptionService : ISubscriptionService
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var payment = await _context.Set<SubscriptionPayment>()
-            .FirstOrDefaultAsync(p => p.Id == paymentId && p.PaymentStatus == "Failed");
+            .FirstOrDefaultAsync(p => p.Id == paymentId && p.PaymentStatus == PaymentStatus.Failed);
 
         if (payment == null) return false;
 
-        payment.PaymentStatus = "Pending";
+        payment.PaymentStatus = PaymentStatus.Pending;
         payment.RetryCount++;
         payment.NextRetryDate = null;
         payment.UpdatedAt = DateTime.UtcNow;
@@ -727,7 +727,7 @@ public class SubscriptionService : ISubscriptionService
 
             var monthRevenue = await _context.Set<SubscriptionPayment>()
                 .AsNoTracking()
-                .Where(p => p.PaymentStatus == "Completed" &&
+                .Where(p => p.PaymentStatus == PaymentStatus.Completed &&
                            p.PaidAt.HasValue &&
                            p.PaidAt >= monthStart && 
                            p.PaidAt <= monthEnd)

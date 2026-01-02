@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Content;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Content;
@@ -35,7 +36,7 @@ public class PageBuilderService : IPageBuilderService
             Title = dto.Title,
             Content = dto.Content,
             Template = dto.Template,
-            Status = "Draft",
+            Status = ContentStatus.Draft,
             AuthorId = dto.AuthorId,
             PageType = dto.PageType,
             RelatedEntityId = dto.RelatedEntityId,
@@ -67,7 +68,7 @@ public class PageBuilderService : IPageBuilderService
         var page = await _context.PageBuilders
             .AsNoTracking()
             .Include(p => p.Author)
-            .FirstOrDefaultAsync(p => p.Slug == slug && p.Status == "Published");
+                .FirstOrDefaultAsync(p => p.Slug == slug && p.Status == ContentStatus.Published);
 
         return page != null ? _mapper.Map<PageBuilderDto>(page) : null;
     }
@@ -82,7 +83,11 @@ public class PageBuilderService : IPageBuilderService
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(p => p.Status == status);
+            // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+            if (Enum.TryParse<ContentStatus>(status, true, out var statusEnum))
+            {
+                query = query.Where(p => p.Status == statusEnum);
+            }
         }
 
         var pages = await query
@@ -144,7 +149,7 @@ public class PageBuilderService : IPageBuilderService
 
         if (page == null) return false;
 
-        page.Status = "Published";
+        page.Status = ContentStatus.Published;
         page.PublishedAt = DateTime.UtcNow;
         page.IsActive = true;
         page.UpdatedAt = DateTime.UtcNow;
@@ -161,7 +166,7 @@ public class PageBuilderService : IPageBuilderService
 
         if (page == null) return false;
 
-        page.Status = "Draft";
+        page.Status = ContentStatus.Draft;
         page.IsActive = false;
         page.UpdatedAt = DateTime.UtcNow;
 

@@ -7,6 +7,7 @@ using Merge.Application.Interfaces.Payment;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.ValueObjects;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Payment;
@@ -137,17 +138,17 @@ public class PaymentService : IPaymentService
                 throw new BusinessException("Bu sipariş için zaten bir ödeme kaydı var.");
             }
 
-            var payment = new PaymentEntity
-            {
-                OrderId = dto.OrderId,
-                PaymentMethod = dto.PaymentMethod,
-                PaymentProvider = dto.PaymentProvider,
-                Amount = dto.Amount,
-                Status = PaymentStatus.Pending
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
+            var amount = new Money(dto.Amount);
+            var payment = PaymentEntity.Create(
+                dto.OrderId,
+                dto.PaymentMethod,
+                dto.PaymentProvider,
+                amount
+            );
 
             payment = await _paymentRepository.AddAsync(payment);
-            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             payment = await _context.Payments
@@ -196,27 +197,26 @@ public class PaymentService : IPaymentService
                 throw new BusinessException("Bu ödeme zaten tamamlanmış.");
             }
 
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             // Burada gerçek payment gateway entegrasyonu yapılacak
-            // Şimdilik sadece status güncelleniyor
-            payment.Status = PaymentStatus.Completed;
-            payment.TransactionId = dto.TransactionId;
-            payment.PaymentReference = dto.PaymentReference;
-            payment.PaidAt = DateTime.UtcNow;
+            payment.Process();
+            payment.Complete(dto.TransactionId, dto.PaymentReference);
             if (dto.Metadata != null)
             {
-                payment.Metadata = System.Text.Json.JsonSerializer.Serialize(dto.Metadata);
+                payment.SetMetadata(System.Text.Json.JsonSerializer.Serialize(dto.Metadata));
             }
 
             await _paymentRepository.UpdateAsync(payment);
-            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             // Order payment status'unu güncelle
             var order = await _orderRepository.GetByIdAsync(payment.OrderId);
             if (order != null)
             {
-                order.PaymentStatus = PaymentStatus.Completed;
+                order.SetPaymentStatus(PaymentStatus.Completed);
                 await _orderRepository.UpdateAsync(order);
-                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 _logger.LogInformation("Updated order {OrderId} payment status to Completed", payment.OrderId);
             }
@@ -277,21 +277,33 @@ public class PaymentService : IPaymentService
                 throw new ValidationException("İade tutarı ödeme tutarından fazla olamaz.");
             }
 
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             // Burada gerçek payment gateway refund işlemi yapılacak
+            var refundMoney = new Money(refundAmount);
             var isFullRefund = refundAmount == payment.Amount;
-            payment.Status = isFullRefund ? PaymentStatus.Refunded : PaymentStatus.PartiallyRefunded;
+            
+            if (isFullRefund)
+            {
+                payment.Refund();
+            }
+            else
+            {
+                payment.PartiallyRefund(refundMoney);
+            }
+            
             await _paymentRepository.UpdateAsync(payment);
-            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Updated payment {PaymentId} status to {Status}", paymentId, payment.Status);
 
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             // Order payment status'unu güncelle
             var order = await _orderRepository.GetByIdAsync(payment.OrderId);
             if (order != null)
             {
-                order.PaymentStatus = isFullRefund ? PaymentStatus.Refunded : PaymentStatus.PartiallyRefunded;
+                order.SetPaymentStatus(isFullRefund ? PaymentStatus.Refunded : PaymentStatus.PartiallyRefunded);
                 await _orderRepository.UpdateAsync(order);
-                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 _logger.LogInformation("Updated order {OrderId} payment status to {Status}", payment.OrderId, order.PaymentStatus);
             }

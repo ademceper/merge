@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.Seller;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Seller;
@@ -370,7 +371,7 @@ public class SellerOnboardingService : ISellerOnboardingService
             UserId = application.UserId,
             StoreName = application.BusinessName,
             CommissionRate = 15, // Default commission rate
-            Status = "Approved",
+            Status = SellerStatus.Approved,
             VerifiedAt = DateTime.UtcNow
         };
 

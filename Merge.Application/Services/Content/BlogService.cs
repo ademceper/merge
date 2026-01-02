@@ -5,6 +5,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Content;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text;
@@ -101,7 +102,7 @@ public class BlogService : IBlogService
         var categoryIds = categories.Select(c => c.Id).ToList();
         var postCounts = await _context.Set<BlogPost>()
             .AsNoTracking()
-            .Where(p => categoryIds.Contains(p.CategoryId) && p.Status == "Published")
+            .Where(p => categoryIds.Contains(p.CategoryId) && p.Status == ContentStatus.Published)
             .GroupBy(p => p.CategoryId)
             .Select(g => new { CategoryId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.CategoryId, x => x.Count);
@@ -188,7 +189,7 @@ public class BlogService : IBlogService
             Excerpt = dto.Excerpt,
             Content = dto.Content,
             FeaturedImageUrl = dto.FeaturedImageUrl,
-            Status = dto.Status,
+            Status = Enum.TryParse<ContentStatus>(dto.Status, true, out var statusEnum) ? statusEnum : ContentStatus.Draft,
             Tags = dto.Tags != null ? string.Join(",", dto.Tags) : null,
             IsFeatured = dto.IsFeatured,
             AllowComments = dto.AllowComments,
@@ -197,7 +198,7 @@ public class BlogService : IBlogService
             MetaKeywords = dto.MetaKeywords,
             OgImageUrl = dto.OgImageUrl,
             ReadingTimeMinutes = readingTime,
-            PublishedAt = dto.Status == "Published" ? DateTime.UtcNow : null
+            PublishedAt = (Enum.TryParse<ContentStatus>(dto.Status, true, out var status) && status == ContentStatus.Published) ? DateTime.UtcNow : null
         };
 
         await _context.Set<BlogPost>().AddAsync(post);
@@ -217,7 +218,7 @@ public class BlogService : IBlogService
 
         if (post == null) return null;
 
-        if (trackView && post.Status == "Published")
+        if (trackView && post.Status == ContentStatus.Published)
         {
             await IncrementViewCountAsync(id);
         }
@@ -232,7 +233,7 @@ public class BlogService : IBlogService
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Author)
-            .FirstOrDefaultAsync(p => p.Slug == slug && p.Status == "Published");
+                .FirstOrDefaultAsync(p => p.Slug == slug && p.Status == ContentStatus.Published);
 
         if (post == null) return null;
 
@@ -255,7 +256,11 @@ public class BlogService : IBlogService
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(p => p.Status == status);
+            // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+            if (Enum.TryParse<ContentStatus>(status, true, out var statusEnum))
+            {
+                query = query.Where(p => p.Status == statusEnum);
+            }
         }
 
         var posts = await query
@@ -279,7 +284,7 @@ public class BlogService : IBlogService
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Author)
-            .Where(p => p.IsFeatured && p.Status == "Published")
+            .Where(p => p.IsFeatured && p.Status == ContentStatus.Published)
             .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
             .Take(count)
             .ToListAsync();
@@ -299,7 +304,7 @@ public class BlogService : IBlogService
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Author)
-            .Where(p => p.Status == "Published")
+            .Where(p => p.Status == ContentStatus.Published)
             .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
             .Take(count)
             .ToListAsync();
@@ -319,7 +324,7 @@ public class BlogService : IBlogService
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Author)
-            .Where(p => p.Status == "Published" &&
+            .Where(p => p.Status == ContentStatus.Published &&
                        (p.Title.Contains(query) || p.Content.Contains(query) || p.Excerpt.Contains(query)))
             .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
             .Skip((page - 1) * pageSize)
@@ -358,12 +363,16 @@ public class BlogService : IBlogService
         }
         if (dto.FeaturedImageUrl != null)
             post.FeaturedImageUrl = dto.FeaturedImageUrl;
+        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
         if (!string.IsNullOrEmpty(dto.Status))
         {
-            post.Status = dto.Status;
-            if (dto.Status == "Published" && !post.PublishedAt.HasValue)
+            if (Enum.TryParse<ContentStatus>(dto.Status, true, out var newStatus))
             {
-                post.PublishedAt = DateTime.UtcNow;
+                post.Status = newStatus;
+                if (newStatus == ContentStatus.Published && !post.PublishedAt.HasValue)
+                {
+                    post.PublishedAt = DateTime.UtcNow;
+                }
             }
         }
         if (dto.Tags != null)
@@ -408,7 +417,7 @@ public class BlogService : IBlogService
 
         if (post == null) return false;
 
-        post.Status = "Published";
+        post.Status = ContentStatus.Published;
         post.PublishedAt = DateTime.UtcNow;
         post.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
@@ -540,8 +549,8 @@ public class BlogService : IBlogService
             .Where(p => p.CreatedAt >= start && p.CreatedAt <= end);
 
         var totalPosts = await query.CountAsync();
-        var publishedPosts = await query.CountAsync(p => p.Status == "Published");
-        var draftPosts = await query.CountAsync(p => p.Status == "Draft");
+        var publishedPosts = await query.CountAsync(p => p.Status == ContentStatus.Published);
+        var draftPosts = await query.CountAsync(p => p.Status == ContentStatus.Draft);
         var totalViews = await query.SumAsync(p => (long)p.ViewCount);
         var totalComments = await query.SumAsync(p => (long)p.CommentCount);
 
@@ -553,7 +562,7 @@ public class BlogService : IBlogService
 
         // ✅ PERFORMANCE: Database'de filtering, ordering ve projection yap
         var popularPosts = await query
-            .Where(p => p.Status == "Published")
+            .Where(p => p.Status == ContentStatus.Published)
             .OrderByDescending(p => p.ViewCount)
             .Take(10)
             .Select(p => new PopularPostDto

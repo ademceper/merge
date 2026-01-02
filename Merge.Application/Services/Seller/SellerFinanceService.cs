@@ -126,7 +126,7 @@ public class SellerFinanceService : ISellerFinanceService
             BalanceAfter = balanceAfter,
             RelatedEntityId = relatedEntityId,
             RelatedEntityType = relatedEntityType,
-            Status = "Completed"
+            Status = FinanceTransactionStatus.Completed
         };
 
         await _context.Set<SellerTransaction>().AddAsync(transaction);
@@ -263,7 +263,7 @@ public class SellerFinanceService : ISellerFinanceService
             TotalPayouts = totalPayouts,
             PlatformFees = platformFees,
             NetAmount = netCommissions - totalPayouts,
-            Status = "Draft",
+            Status = SellerInvoiceStatus.Draft,
             Notes = dto.Notes
         };
 
@@ -317,7 +317,8 @@ public class SellerFinanceService : ISellerFinanceService
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(i => i.Status == status);
+            var statusEnum = Enum.Parse<SellerInvoiceStatus>(status);
+            query = query.Where(i => i.Status == statusEnum);
         }
 
         var invoices = await query
@@ -338,7 +339,7 @@ public class SellerFinanceService : ISellerFinanceService
 
         if (invoice == null) return false;
 
-        invoice.Status = "Paid";
+        invoice.Status = SellerInvoiceStatus.Paid;
         invoice.PaidAt = DateTime.UtcNow;
         invoice.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();

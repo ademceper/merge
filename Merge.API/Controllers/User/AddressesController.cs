@@ -143,9 +143,26 @@ public class AddressesController : BaseController
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> SetDefault(Guid id, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
+        
+        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi adreslerini varsayılan yapabilir
+        var addressEntity = await _context.Addresses
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+        
+        if (addressEntity == null)
+        {
+            return NotFound();
+        }
+        
+        if (addressEntity.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
+        {
+            return Forbid();
+        }
+        
         var result = await _addressService.SetDefaultAsync(id, userId, cancellationToken);
         if (!result)
         {

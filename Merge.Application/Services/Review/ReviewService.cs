@@ -8,6 +8,7 @@ using Merge.Application.Interfaces.Review;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.ValueObjects;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Review;
@@ -109,7 +110,7 @@ public class ReviewService : IReviewService
 
         return new PagedResult<ReviewDto>
         {
-            Items = reviewDtos,
+            Items = reviewDtos.ToList(), // ✅ IEnumerable -> List'e çevir
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize
@@ -139,16 +140,16 @@ public class ReviewService : IReviewService
                           oi.Order.UserId == dto.UserId &&
                           oi.Order.PaymentStatus == PaymentStatus.Completed);
 
-        var review = new ReviewEntity
-        {
-            UserId = dto.UserId,
-            ProductId = dto.ProductId,
-            Rating = dto.Rating,
-            Title = dto.Title,
-            Comment = dto.Comment,
-            IsVerifiedPurchase = hasOrder,
-            IsApproved = false // Admin onayı gerekli
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
+        var rating = new Rating(dto.Rating);
+        var review = ReviewEntity.Create(
+            dto.UserId,
+            dto.ProductId,
+            rating,
+            dto.Title,
+            dto.Comment,
+            hasOrder
+        );
 
         review = await _reviewRepository.AddAsync(review);
 
@@ -192,11 +193,17 @@ public class ReviewService : IReviewService
             throw new NotFoundException("Değerlendirme", id);
         }
 
-        var oldRating = review.Rating;
-        review.Rating = dto.Rating;
-        review.Title = dto.Title;
-        review.Comment = dto.Comment;
-        review.IsApproved = false; // Güncelleme sonrası tekrar onay gerekli
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+        var oldRating = review.Rating; // ✅ Rating is int in Review entity
+        var newRating = new Rating(dto.Rating);
+        review.UpdateRating(newRating);
+        review.UpdateTitle(dto.Title);
+        review.UpdateComment(dto.Comment);
+        // Güncelleme sonrası tekrar onay gerekli - Reject() ile pending yap
+        if (review.IsApproved)
+        {
+            review.Reject();
+        }
 
         await _reviewRepository.UpdateAsync(review);
 
@@ -251,7 +258,8 @@ public class ReviewService : IReviewService
             return false;
         }
 
-        review.IsApproved = true;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+        review.Approve();
         await _reviewRepository.UpdateAsync(review);
 
         // Ürün rating'ini güncelle
@@ -301,8 +309,8 @@ public class ReviewService : IReviewService
             var product = await _productRepository.GetByIdAsync(productId);
             if (product != null)
             {
-                product.Rating = reviewStats.AverageRating;
-                product.ReviewCount = reviewStats.Count;
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+                product.UpdateRating(reviewStats.AverageRating, reviewStats.Count);
                 await _productRepository.UpdateAsync(product);
             }
         }

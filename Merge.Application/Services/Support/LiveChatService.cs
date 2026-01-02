@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Analytics;
@@ -35,7 +36,7 @@ public class LiveChatService : ILiveChatService
         {
             UserId = userId,
             SessionId = sessionId,
-            Status = "Waiting",
+            Status = ChatSessionStatus.Waiting,
             GuestName = guestName,
             GuestEmail = guestEmail,
             Department = department,
@@ -107,9 +108,13 @@ public class LiveChatService : ILiveChatService
             .Include(s => s.Agent)
             .Where(s => s.AgentId == agentId);
 
+        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(s => s.Status == status);
+            if (Enum.TryParse<ChatSessionStatus>(status, true, out var statusEnum))
+            {
+                query = query.Where(s => s.Status == statusEnum);
+            }
         }
 
         var sessions = await query
@@ -126,7 +131,7 @@ public class LiveChatService : ILiveChatService
         var sessions = await _context.Set<LiveChatSession>()
             .AsNoTracking()
             .Include(s => s.User)
-            .Where(s => s.Status == "Waiting")
+            .Where(s => s.Status == ChatSessionStatus.Waiting)
             .OrderBy(s => s.CreatedAt)
             .ToListAsync();
 
@@ -143,7 +148,7 @@ public class LiveChatService : ILiveChatService
         if (session == null) return false;
 
         session.AgentId = agentId;
-        session.Status = "Active";
+        session.Status = ChatSessionStatus.Active;
         session.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
 
@@ -158,7 +163,7 @@ public class LiveChatService : ILiveChatService
 
         if (session == null) return false;
 
-        session.Status = "Closed";
+        session.Status = ChatSessionStatus.Closed;
         session.ResolvedAt = DateTime.UtcNow;
         session.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
@@ -227,9 +232,9 @@ public class LiveChatService : ILiveChatService
         }
 
         // Update session status
-        if (session.Status == "Waiting" && senderType == "Agent")
+        if (session.Status == ChatSessionStatus.Waiting && senderType == "Agent")
         {
-            session.Status = "Active";
+            session.Status = ChatSessionStatus.Active;
         }
 
         await _unitOfWork.SaveChangesAsync();
@@ -297,12 +302,12 @@ public class LiveChatService : ILiveChatService
             .Where(s => s.CreatedAt >= start && s.CreatedAt <= end);
 
         var totalSessions = await query.CountAsync();
-        var activeSessions = await query.CountAsync(s => s.Status == "Active");
-        var waitingSessions = await query.CountAsync(s => s.Status == "Waiting");
-        var resolvedSessions = await query.CountAsync(s => s.Status == "Resolved" || s.Status == "Closed");
+        var activeSessions = await query.CountAsync(s => s.Status == ChatSessionStatus.Active);
+        var waitingSessions = await query.CountAsync(s => s.Status == ChatSessionStatus.Waiting);
+        var resolvedSessions = await query.CountAsync(s => s.Status == ChatSessionStatus.Resolved || s.Status == ChatSessionStatus.Closed);
 
         // ✅ PERFORMANCE: Database'de average hesapla
-        var resolvedSessionsQuery = query.Where(s => (s.Status == "Resolved" || s.Status == "Closed") && s.ResolvedAt.HasValue && s.StartedAt.HasValue);
+        var resolvedSessionsQuery = query.Where(s => (s.Status == ChatSessionStatus.Resolved || s.Status == ChatSessionStatus.Closed) && s.ResolvedAt.HasValue && s.StartedAt.HasValue);
         var avgResolutionTime = await resolvedSessionsQuery.AnyAsync()
             ? await resolvedSessionsQuery
                 .AverageAsync(s => (double)(s.ResolvedAt!.Value - s.StartedAt!.Value).TotalMinutes)

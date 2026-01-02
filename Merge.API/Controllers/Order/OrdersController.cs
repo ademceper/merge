@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.DTOs.Order;
 using Merge.Application.Common;
+using Merge.Domain.Enums;
 
 
 namespace Merge.API.Controllers.Order;
@@ -67,7 +68,7 @@ public class OrdersController : BaseController
         if (validationResult != null) return validationResult;
 
         var userId = GetUserId();
-        var order = await _orderService.CreateOrderFromCartAsync(userId, dto.AddressId, dto.CouponCode);
+        var order = await _orderService.CreateOrderFromCartAsync(userId, dto.ShippingAddressId, dto.CouponCode);
         if (order == null)
         {
             return BadRequest("Sipariş oluşturulamadı.");
@@ -86,7 +87,8 @@ public class OrdersController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var order = await _orderService.UpdateOrderStatusAsync(id, dto.Status);
+        var statusEnum = Enum.Parse<OrderStatus>(dto.Status);
+        var order = await _orderService.UpdateOrderStatusAsync(id, statusEnum);
         if (order == null)
         {
             return NotFound();

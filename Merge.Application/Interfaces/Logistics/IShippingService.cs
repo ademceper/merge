@@ -1,15 +1,17 @@
 using Merge.Application.DTOs.Logistics;
+using Merge.Domain.Enums;
 
 namespace Merge.Application.Interfaces.Logistics;
 
 public interface IShippingService
 {
-    Task<ShippingDto?> GetByIdAsync(Guid id);
-    Task<ShippingDto?> GetByOrderIdAsync(Guid orderId);
-    Task<ShippingDto> CreateShippingAsync(CreateShippingDto dto);
-    Task<ShippingDto> UpdateTrackingAsync(Guid shippingId, string trackingNumber);
-    Task<ShippingDto> UpdateStatusAsync(Guid shippingId, string status);
-    Task<decimal> CalculateShippingCostAsync(Guid orderId, string shippingProvider);
-    Task<IEnumerable<ShippingProviderDto>> GetAvailableProvidersAsync();
+    Task<ShippingDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ShippingDto?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default);
+    Task<ShippingDto> CreateShippingAsync(CreateShippingDto dto, CancellationToken cancellationToken = default);
+    Task<ShippingDto> UpdateTrackingAsync(Guid shippingId, string trackingNumber, CancellationToken cancellationToken = default);
+    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+    Task<ShippingDto> UpdateStatusAsync(Guid shippingId, ShippingStatus status, CancellationToken cancellationToken = default);
+    Task<decimal> CalculateShippingCostAsync(Guid orderId, string shippingProvider, CancellationToken cancellationToken = default);
+    Task<IEnumerable<ShippingProviderDto>> GetAvailableProvidersAsync(CancellationToken cancellationToken = default);
 }
 

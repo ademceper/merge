@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Organization;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text.Json;
@@ -45,7 +46,7 @@ public class OrganizationService : IOrganizationService
             State = dto.State,
             PostalCode = dto.PostalCode,
             Country = dto.Country,
-            Status = "Active",
+            Status = EntityStatus.Active,
             Settings = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null
         };
 
@@ -95,7 +96,11 @@ public class OrganizationService : IOrganizationService
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(o => o.Status == status);
+            // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+            if (Enum.TryParse<EntityStatus>(status, true, out var statusEnum))
+            {
+                query = query.Where(o => o.Status == statusEnum);
+            }
         }
 
         // ✅ PERFORMANCE: Batch loading - Önce organization ID'lerini database'de al (ToListAsync() sonrası Select() YASAK)
@@ -168,7 +173,11 @@ public class OrganizationService : IOrganizationService
         if (dto.Country != null)
             organization.Country = dto.Country;
         if (!string.IsNullOrEmpty(dto.Status))
-            organization.Status = dto.Status;
+            // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+            if (Enum.TryParse<EntityStatus>(dto.Status, true, out var statusEnum))
+            {
+                organization.Status = statusEnum;
+            }
         if (dto.Settings != null)
             organization.Settings = JsonSerializer.Serialize(dto.Settings);
 
@@ -217,7 +226,7 @@ public class OrganizationService : IOrganizationService
 
         if (organization == null) return false;
 
-        organization.Status = "Suspended";
+        organization.Status = EntityStatus.Suspended;
         organization.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
 

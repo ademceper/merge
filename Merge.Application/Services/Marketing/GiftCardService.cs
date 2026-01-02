@@ -6,6 +6,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.ValueObjects;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Marketing;
@@ -81,20 +82,19 @@ public class GiftCardService : IGiftCardService
             throw new ValidationException("Hediye kartı tutarı 0'dan büyük olmalıdır.");
         }
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
         var code = await GenerateGiftCardCodeAsync();
-
-        var giftCard = new GiftCard
-        {
-            Code = code,
-            Amount = dto.Amount,
-            RemainingAmount = dto.Amount,
-            PurchasedByUserId = userId,
-            AssignedToUserId = dto.AssignedToUserId,
-            Message = dto.Message,
-            ExpiresAt = dto.ExpiresAt ?? DateTime.UtcNow.AddYears(1),
-            IsActive = true,
-            IsRedeemed = false
-        };
+        var amount = new Money(dto.Amount);
+        var expiresAt = dto.ExpiresAt ?? DateTime.UtcNow.AddYears(1);
+        
+        var giftCard = GiftCard.Create(
+            code,
+            amount,
+            expiresAt,
+            userId,
+            dto.AssignedToUserId,
+            dto.Message
+        );
 
         giftCard = await _giftCardRepository.AddAsync(giftCard);
 
@@ -152,10 +152,11 @@ public class GiftCardService : IGiftCardService
             throw new BusinessException("Bu hediye kartı size atanmamış.");
         }
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         // Eğer atanmamışsa, kullanıcıya ata
         if (!giftCard.AssignedToUserId.HasValue)
         {
-            giftCard.AssignedToUserId = userId;
+            giftCard.AssignTo(userId);
         }
 
         await _giftCardRepository.UpdateAsync(giftCard);
@@ -204,17 +205,14 @@ public class GiftCardService : IGiftCardService
             return false;
         }
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         var discountAmount = Math.Min(giftCard.RemainingAmount, order.TotalAmount);
+        var discountMoney = new Money(discountAmount);
         
-        giftCard.RemainingAmount -= discountAmount;
-        if (giftCard.RemainingAmount <= 0)
-        {
-            giftCard.IsRedeemed = true;
-            giftCard.RedeemedAt = DateTime.UtcNow;
-        }
+        giftCard.Use(discountMoney);
 
-        order.GiftCardDiscount = discountAmount;
-        order.TotalAmount -= discountAmount;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+        order.ApplyGiftCardDiscount(discountMoney);
 
         await _giftCardRepository.UpdateAsync(giftCard);
         await _unitOfWork.SaveChangesAsync();
