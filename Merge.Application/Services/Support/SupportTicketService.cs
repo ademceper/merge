@@ -6,6 +6,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using UserEntity = Merge.Domain.Entities.User;
@@ -146,7 +147,8 @@ public class SupportTicketService : ISupportTicketService
         return ticket != null ? await MapToDtoAsync(ticket) : null;
     }
 
-    public async Task<IEnumerable<SupportTicketDto>> GetUserTicketsAsync(Guid userId, string? status = null)
+    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
+    public async Task<IEnumerable<SupportTicketDto>> GetUserTicketsAsync(Guid userId, string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         var query = _context.Set<SupportTicket>()
             .AsNoTracking()
@@ -174,14 +176,19 @@ public class SupportTicketService : ISupportTicketService
             ticketIdsQuery = ticketIdsQuery.Where(t => t.Status == ticketStatus);
         }
 
+        // ✅ PERFORMANCE: Pagination uygula
         var ticketIds = await ticketIdsQuery
             .OrderByDescending(t => t.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(t => t.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var tickets = await query
             .OrderByDescending(t => t.CreatedAt)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load messages and attachments for all tickets
 

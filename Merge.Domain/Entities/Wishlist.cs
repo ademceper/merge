@@ -1,12 +1,44 @@
+using Merge.Domain.Common;
+using Merge.Domain.Exceptions;
+using System.ComponentModel.DataAnnotations;
+
 namespace Merge.Domain.Entities;
 
+/// <summary>
+/// Wishlist Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
+/// </summary>
 public class Wishlist : BaseEntity
 {
-    public Guid UserId { get; set; }
-    public Guid ProductId { get; set; }
+    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
+    public Guid UserId { get; private set; }
+    public Guid ProductId { get; private set; }
+    
+    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
     
     // Navigation properties
-    public User User { get; set; } = null!;
-    public Product Product { get; set; } = null!;
+    public User User { get; private set; } = null!;
+    public Product Product { get; private set; } = null!;
+
+    // ✅ BOLUM 1.1: Factory Method - Private constructor
+    private Wishlist() { }
+
+    // ✅ BOLUM 1.1: Factory Method with validation
+    public static Wishlist Create(Guid userId, Guid productId)
+    {
+        Guard.AgainstDefault(userId, nameof(userId));
+        Guard.AgainstDefault(productId, nameof(productId));
+
+        return new Wishlist
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            ProductId = productId,
+            CreatedAt = DateTime.UtcNow
+        };
+    }
 }
 

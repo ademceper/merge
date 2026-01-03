@@ -138,8 +138,10 @@ public class OrderService : IOrderService
 
         try
         {
+            // ✅ PERFORMANCE: AsNoTracking for read-only query (check için)
             // ✅ PERFORMANCE: Removed manual !ci.IsDeleted and !c.IsDeleted checks
             var cart = await _context.Carts
+                .AsNoTracking()
                 .Include(c => c.CartItems)
                     .ThenInclude(ci => ci.Product)
                 .FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
@@ -150,8 +152,10 @@ public class OrderService : IOrderService
                 throw new BusinessException("Sepet boş.");
             }
 
+            // ✅ PERFORMANCE: AsNoTracking for read-only query (check için)
             // ✅ PERFORMANCE: Address entity'sini çek (Create factory method için gerekli)
             var address = await _context.Addresses
+                .AsNoTracking()
                 .FirstOrDefaultAsync(a => a.Id == addressId && a.UserId == userId, cancellationToken);
             if (address == null)
             {
@@ -194,8 +198,10 @@ public class OrderService : IOrderService
                         var couponDto = await _couponService.GetByCodeAsync(couponCode, cancellationToken);
                         if (couponDto != null)
                         {
+                            // ✅ PERFORMANCE: AsNoTracking for read-only query (check için)
                             // Coupon entity'sini context'ten çek
                             var coupon = await _context.Coupons
+                                .AsNoTracking()
                                 .FirstOrDefaultAsync(c => c.Id == couponDto.Id, cancellationToken);
                             
                             if (coupon != null)
@@ -230,6 +236,7 @@ public class OrderService : IOrderService
                     };
                     await _context.CouponUsages.AddAsync(couponUsage, cancellationToken);
 
+                    // ✅ NOT: AsNoTracking() YOK - Entity track edilmeli (update için - IncrementUsage)
                     // ✅ PERFORMANCE: FindAsync Global Query Filter'ı bypass eder - FirstOrDefaultAsync kullan
                     // Kupon kullanım sayısını artır
                     var couponEntity = await _context.Coupons.FirstOrDefaultAsync(c => c.Id == couponDto.Id, cancellationToken);
@@ -531,7 +538,9 @@ public class OrderService : IOrderService
             query = query.Where(o => o.UserId == exportDto.UserId.Value);
         }
 
+        // ✅ PERFORMANCE: AsNoTracking for read-only query (export için)
         var orders = await query
+            .AsNoTracking()
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync(cancellationToken);
 

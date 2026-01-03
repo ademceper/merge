@@ -1,4 +1,5 @@
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 namespace Merge.Application.DTOs.Seller;
 
 public class SellerApplicationDto

@@ -1,5 +1,11 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
+/// <summary>
+/// AuditLog Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// Her entity dosyasında SADECE 1 class olmalı
+/// </summary>
 public class AuditLog : BaseEntity
 {
     public Guid? UserId { get; set; } // User who performed the action
@@ -24,73 +30,3 @@ public class AuditLog : BaseEntity
     public User? User { get; set; }
 }
 
-public enum AuditSeverity
-{
-    Info = 0,
-    Warning = 1,
-    Error = 2,
-    Critical = 3
-}
-
-public enum AuditAction
-{
-    // Authentication & Authorization
-    Login,
-    Logout,
-    LoginFailed,
-    Register,
-    PasswordChanged,
-    PasswordResetRequested,
-    PasswordResetCompleted,
-    TwoFactorEnabled,
-    TwoFactorDisabled,
-    RoleChanged,
-    PermissionChanged,
-
-    // CRUD Operations
-    Created,
-    Updated,
-    Deleted,
-    SoftDeleted,
-    Restored,
-
-    // Product Management
-    ProductCreated,
-    ProductUpdated,
-    ProductDeleted,
-    ProductPriceChanged,
-    ProductStockChanged,
-    ProductPublished,
-    ProductUnpublished,
-
-    // Order Management
-    OrderCreated,
-    OrderUpdated,
-    OrderCanceled,
-    OrderRefunded,
-    OrderStatusChanged,
-
-    // User Management
-    UserCreated,
-    UserUpdated,
-    UserDeleted,
-    UserActivated,
-    UserDeactivated,
-    UserRoleChanged,
-
-    // Payment Operations
-    PaymentProcessed,
-    PaymentFailed,
-    RefundIssued,
-
-    // System Configuration
-    SettingsChanged,
-    ConfigurationUpdated,
-
-    // Security Events
-    UnauthorizedAccess,
-    SuspiciousActivity,
-    DataExport,
-    DataImport,
-    BulkOperation
-}

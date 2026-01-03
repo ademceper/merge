@@ -3,8 +3,11 @@ using CartEntity = Merge.Domain.Entities.Cart;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Cart;
+using Merge.Application.Common;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
@@ -20,80 +23,102 @@ public class RecentlyViewedService : IRecentlyViewedService
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<RecentlyViewedService> _logger;
+    private readonly CartSettings _cartSettings;
 
     public RecentlyViewedService(
         IRepository<RecentlyViewedProduct> recentlyViewedRepository,
         ApplicationDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
-        ILogger<RecentlyViewedService> logger)
+        ILogger<RecentlyViewedService> logger,
+        IOptions<CartSettings> cartSettings)
     {
         _recentlyViewedRepository = recentlyViewedRepository;
         _context = context;
         _mapper = mapper;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _cartSettings = cartSettings.Value;
     }
 
-    public async Task<IEnumerable<ProductDto>> GetRecentlyViewedAsync(Guid userId, int count = 20)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<ProductDto>> GetRecentlyViewedAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !rvp.IsDeleted and !rvp.Product.IsDeleted checks (Global Query Filter handles it)
-        var recentlyViewed = await _context.RecentlyViewedProducts
+        var query = _context.RecentlyViewedProducts
             .AsNoTracking()
             .Include(rvp => rvp.Product)
                 .ThenInclude(p => p.Category)
-            .Where(rvp => rvp.UserId == userId && rvp.Product.IsActive)
+            .Where(rvp => rvp.UserId == userId && rvp.Product.IsActive);
+
+        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var recentlyViewed = await query
             .OrderByDescending(rvp => rvp.ViewedAt)
-            .Take(count)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(rvp => rvp.Product)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        return _mapper.Map<IEnumerable<ProductDto>>(recentlyViewed);
+        var items = _mapper.Map<List<ProductDto>>(recentlyViewed);
+
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+        return new PagedResult<ProductDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task AddToRecentlyViewedAsync(Guid userId, Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task AddToRecentlyViewedAsync(Guid userId, Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !rvp.IsDeleted check (Global Query Filter handles it)
         var existing = await _context.RecentlyViewedProducts
             .FirstOrDefaultAsync(rvp => rvp.UserId == userId && 
-                                  rvp.ProductId == productId);
+                                  rvp.ProductId == productId, cancellationToken);
 
         if (existing != null)
         {
-            // Zaten varsa sadece tarihi güncelle
-            existing.ViewedAt = DateTime.UtcNow;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+            existing.UpdateViewedAt();
             await _recentlyViewedRepository.UpdateAsync(existing);
-            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
         else
         {
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
             // Yeni kayıt oluştur
-            var recentlyViewed = new RecentlyViewedProduct
-            {
-                UserId = userId,
-                ProductId = productId,
-                ViewedAt = DateTime.UtcNow
-            };
+            var recentlyViewed = RecentlyViewedProduct.Create(userId, productId);
 
-            await _recentlyViewedRepository.AddAsync(recentlyViewed);
-            await _unitOfWork.SaveChangesAsync();
+            await _recentlyViewedRepository.AddAsync(recentlyViewed, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // ✅ PERFORMANCE: Database'de Count yap (memory'de işlem YASAK)
             // ✅ PERFORMANCE: Removed manual !rvp.IsDeleted check (Global Query Filter handles it)
             var count = await _context.RecentlyViewedProducts
-                .CountAsync(rvp => rvp.UserId == userId);
+                .CountAsync(rvp => rvp.UserId == userId, cancellationToken);
 
-            if (count > 100)
+            // ✅ BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
+            if (count > _cartSettings.MaxRecentlyViewedItems)
             {
                 // ✅ PERFORMANCE: Bulk delete instead of foreach DeleteAsync (N+1 fix)
                 // ✅ PERFORMANCE: Removed manual !rvp.IsDeleted check (Global Query Filter handles it)
                 var oldest = await _context.RecentlyViewedProducts
                     .Where(rvp => rvp.UserId == userId)
                     .OrderBy(rvp => rvp.ViewedAt)
-                    .Take(count - 100)
-                    .ToListAsync();
+                    .Take(count - _cartSettings.MaxRecentlyViewedItems)
+                    .ToListAsync(cancellationToken);
 
                 foreach (var item in oldest)
                 {
@@ -101,18 +126,19 @@ public class RecentlyViewedService : IRecentlyViewedService
                     item.UpdatedAt = DateTime.UtcNow;
                 }
 
-                await _unitOfWork.SaveChangesAsync(); // ✅ CRITICAL FIX: Single SaveChanges
+                await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Single SaveChanges
             }
         }
     }
 
-    public async Task ClearRecentlyViewedAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task ClearRecentlyViewedAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Bulk delete instead of foreach DeleteAsync (N+1 fix)
         // ✅ PERFORMANCE: Removed manual !rvp.IsDeleted check (Global Query Filter handles it)
         var recentlyViewed = await _context.RecentlyViewedProducts
             .Where(rvp => rvp.UserId == userId)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         foreach (var item in recentlyViewed)
         {
@@ -120,7 +146,7 @@ public class RecentlyViewedService : IRecentlyViewedService
             item.UpdatedAt = DateTime.UtcNow;
         }
 
-        await _unitOfWork.SaveChangesAsync(); // ✅ CRITICAL FIX: Single SaveChanges
+        await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Single SaveChanges
     }
 }
 

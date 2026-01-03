@@ -5,7 +5,8 @@ namespace Merge.Application.Interfaces.Order;
 public interface IReturnRequestService
 {
     Task<ReturnRequestDto?> GetByIdAsync(Guid id);
-    Task<IEnumerable<ReturnRequestDto>> GetByUserIdAsync(Guid userId);
+    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
+    Task<IEnumerable<ReturnRequestDto>> GetByUserIdAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
     Task<IEnumerable<ReturnRequestDto>> GetAllAsync(string? status = null);
     Task<ReturnRequestDto> CreateAsync(CreateReturnRequestDto dto);
     Task<ReturnRequestDto> UpdateStatusAsync(Guid id, string status, string? rejectionReason = null);

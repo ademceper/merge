@@ -1,34 +1,11 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
-public enum TicketStatus
-{
-    Open,
-    InProgress,
-    Waiting,
-    Resolved,
-    Closed
-}
-
-public enum TicketPriority
-{
-    Low,
-    Medium,
-    High,
-    Urgent
-}
-
-public enum TicketCategory
-{
-    Order,
-    Product,
-    Payment,
-    Shipping,
-    Return,
-    Account,
-    Technical,
-    Other
-}
-
+/// <summary>
+/// SupportTicket Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// Her entity dosyasında SADECE 1 class olmalı
+/// </summary>
 public class SupportTicket : BaseEntity
 {
     public string TicketNumber { get; set; } = string.Empty; // Auto-generated: TKT-XXXXXX
@@ -53,32 +30,4 @@ public class SupportTicket : BaseEntity
     public User? AssignedTo { get; set; }
     public ICollection<TicketMessage> Messages { get; set; } = new List<TicketMessage>();
     public ICollection<TicketAttachment> Attachments { get; set; } = new List<TicketAttachment>();
-}
-
-public class TicketMessage : BaseEntity
-{
-    public Guid TicketId { get; set; }
-    public Guid UserId { get; set; }
-    public string Message { get; set; } = string.Empty;
-    public bool IsStaffResponse { get; set; } = false;
-    public bool IsInternal { get; set; } = false; // Internal notes not visible to customer
-
-    // Navigation properties
-    public SupportTicket Ticket { get; set; } = null!;
-    public User User { get; set; } = null!;
-    public ICollection<TicketAttachment> Attachments { get; set; } = new List<TicketAttachment>();
-}
-
-public class TicketAttachment : BaseEntity
-{
-    public Guid TicketId { get; set; }
-    public Guid? MessageId { get; set; }
-    public string FileName { get; set; } = string.Empty;
-    public string FilePath { get; set; } = string.Empty;
-    public string FileType { get; set; } = string.Empty;
-    public long FileSize { get; set; }
-
-    // Navigation properties
-    public SupportTicket Ticket { get; set; } = null!;
-    public TicketMessage? Message { get; set; }
 }

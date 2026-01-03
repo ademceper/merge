@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Subscription;
 using Merge.Application.DTOs.Subscription;
+using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Subscription;
 
@@ -93,10 +94,13 @@ public class SubscriptionsController : BaseController
     }
 
     // User Subscriptions
+    // ✅ SECURITY: Rate limiting - spam subscription önleme (5 req/hour)
     [HttpPost("subscribe")]
+    [RateLimit(5, 3600)]
     [ProducesResponseType(typeof(UserSubscriptionDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<UserSubscriptionDto>> Subscribe([FromBody] CreateUserSubscriptionDto dto)
     {
         var validationResult = ValidateModelState();
@@ -122,13 +126,21 @@ public class SubscriptionsController : BaseController
         return Ok(subscription);
     }
 
+    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
     [HttpGet("my-subscriptions")]
     [ProducesResponseType(typeof(IEnumerable<UserSubscriptionDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<IEnumerable<UserSubscriptionDto>>> GetMySubscriptions([FromQuery] string? status = null)
+    public async Task<ActionResult<IEnumerable<UserSubscriptionDto>>> GetMySubscriptions(
+        [FromQuery] string? status = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
+        // ✅ SECURITY: Pagination limits
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         var userId = GetUserId();
-        var subscriptions = await _subscriptionService.GetUserSubscriptionsAsync(userId, status);
+        var subscriptions = await _subscriptionService.GetUserSubscriptionsAsync(userId, status, page, pageSize);
         return Ok(subscriptions);
     }
 
@@ -276,10 +288,13 @@ public class SubscriptionsController : BaseController
     }
 
     // Subscription Usage
+    // ✅ SECURITY: Rate limiting - usage tracking abuse önleme (100 req/hour)
     [HttpPost("usage/track")]
+    [RateLimit(100, 3600)]
     [ProducesResponseType(typeof(SubscriptionUsageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<SubscriptionUsageDto>> TrackUsage([FromBody] TrackUsageDto dto)
     {
         var validationResult = ValidateModelState();
@@ -296,20 +311,27 @@ public class SubscriptionsController : BaseController
         return Ok(usage);
     }
 
+    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
     [HttpGet("usage")]
     [ProducesResponseType(typeof(IEnumerable<SubscriptionUsageDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<IEnumerable<SubscriptionUsageDto>>> GetMyUsage()
+    public async Task<ActionResult<IEnumerable<SubscriptionUsageDto>>> GetMyUsage(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50)
     {
+        // ✅ SECURITY: Pagination limits
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         var userId = GetUserId();
         var subscription = await _subscriptionService.GetUserActiveSubscriptionAsync(userId);
         if (subscription == null)
         {
-            return BadRequest();
+            return BadRequest("Aktif abonelik bulunamadı.");
         }
 
-        var usage = await _subscriptionService.GetAllUsageAsync(subscription.Id);
+        var usage = await _subscriptionService.GetAllUsageAsync(subscription.Id, page, pageSize);
         return Ok(usage);
     }
 
@@ -317,10 +339,17 @@ public class SubscriptionsController : BaseController
     [HttpGet("analytics")]
     [Authorize(Roles = "Admin,Manager")]
     [ProducesResponseType(typeof(SubscriptionAnalyticsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<SubscriptionAnalyticsDto>> GetAnalytics([FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null)
     {
+        // ✅ VALIDATION: Tarih aralığı kontrolü
+        if (startDate.HasValue && endDate.HasValue && startDate > endDate)
+        {
+            return BadRequest("Başlangıç tarihi bitiş tarihinden sonra olamaz.");
+        }
+
         var analytics = await _subscriptionService.GetSubscriptionAnalyticsAsync(startDate, endDate);
         return Ok(analytics);
     }
@@ -328,11 +357,17 @@ public class SubscriptionsController : BaseController
     [HttpGet("trends")]
     [Authorize(Roles = "Admin,Manager")]
     [ProducesResponseType(typeof(IEnumerable<SubscriptionTrendDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IEnumerable<SubscriptionTrendDto>>> GetTrends([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
     {
+        // ✅ VALIDATION: Tarih aralığı kontrolü
+        if (startDate > endDate)
+        {
+            return BadRequest("Başlangıç tarihi bitiş tarihinden sonra olamaz.");
+        }
+
         var trends = await _subscriptionService.GetSubscriptionTrendsAsync(startDate, endDate);
         return Ok(trends);
     }

@@ -27,7 +27,8 @@ public class PageBuilderService : IPageBuilderService
         _mapper = mapper;
     }
 
-    public async Task<PageBuilderDto> CreatePageAsync(CreatePageBuilderDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PageBuilderDto> CreatePageAsync(CreatePageBuilderDto dto, CancellationToken cancellationToken = default)
     {
         var page = new PageBuilder
         {
@@ -45,35 +46,36 @@ public class PageBuilderService : IPageBuilderService
             OgImageUrl = dto.OgImageUrl
         };
 
-        await _context.PageBuilders.AddAsync(page);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.PageBuilders.AddAsync(page, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return _mapper.Map<PageBuilderDto>(page);
     }
 
-    public async Task<PageBuilderDto?> GetPageAsync(Guid id)
+    public async Task<PageBuilderDto?> GetPageAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var page = await _context.PageBuilders
             .AsNoTracking()
             .Include(p => p.Author)
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         return page != null ? _mapper.Map<PageBuilderDto>(page) : null;
     }
 
-    public async Task<PageBuilderDto?> GetPageBySlugAsync(string slug)
+    public async Task<PageBuilderDto?> GetPageBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var page = await _context.PageBuilders
             .AsNoTracking()
             .Include(p => p.Author)
-                .FirstOrDefaultAsync(p => p.Slug == slug && p.Status == ContentStatus.Published);
+                .FirstOrDefaultAsync(p => p.Slug == slug && p.Status == ContentStatus.Published, cancellationToken);
 
         return page != null ? _mapper.Map<PageBuilderDto>(page) : null;
     }
 
-    public async Task<IEnumerable<PageBuilderDto>> GetAllPagesAsync(string? status = null, int page = 1, int pageSize = 20)
+    // ✅ BOLUM 3.4: Pagination - PagedResult dönmeli (ZORUNLU)
+    public async Task<PagedResult<PageBuilderDto>> GetAllPagesAsync(string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var query = _context.PageBuilders
@@ -90,25 +92,30 @@ public class PageBuilderService : IPageBuilderService
             }
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var pages = await query
             .OrderByDescending(p => p.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
-        var result = new List<PageBuilderDto>();
-        foreach (var p in pages)
+        var items = pages.Select(p => _mapper.Map<PageBuilderDto>(p)).ToList();
+
+        return new PagedResult<PageBuilderDto>
         {
-            result.Add(_mapper.Map<PageBuilderDto>(p));
-        }
-        return result;
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<bool> UpdatePageAsync(Guid id, UpdatePageBuilderDto dto)
+    public async Task<bool> UpdatePageAsync(Guid id, UpdatePageBuilderDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var page = await _context.PageBuilders
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (page == null) return false;
 
@@ -122,30 +129,30 @@ public class PageBuilderService : IPageBuilderService
         if (dto.OgImageUrl != null) page.OgImageUrl = dto.OgImageUrl;
         page.UpdatedAt = DateTime.UtcNow;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<bool> DeletePageAsync(Guid id)
+    public async Task<bool> DeletePageAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var page = await _context.PageBuilders
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (page == null) return false;
 
         page.IsDeleted = true;
         page.UpdatedAt = DateTime.UtcNow;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<bool> PublishPageAsync(Guid id)
+    public async Task<bool> PublishPageAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var page = await _context.PageBuilders
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (page == null) return false;
 
@@ -154,15 +161,15 @@ public class PageBuilderService : IPageBuilderService
         page.IsActive = true;
         page.UpdatedAt = DateTime.UtcNow;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<bool> UnpublishPageAsync(Guid id)
+    public async Task<bool> UnpublishPageAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var page = await _context.PageBuilders
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (page == null) return false;
 
@@ -170,7 +177,7 @@ public class PageBuilderService : IPageBuilderService
         page.IsActive = false;
         page.UpdatedAt = DateTime.UtcNow;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 

@@ -8,7 +8,8 @@ public interface ISupportTicketService
     Task<SupportTicketDto> CreateTicketAsync(Guid userId, CreateSupportTicketDto dto);
     Task<SupportTicketDto?> GetTicketAsync(Guid ticketId, Guid? userId = null);
     Task<SupportTicketDto?> GetTicketByNumberAsync(string ticketNumber, Guid? userId = null);
-    Task<IEnumerable<SupportTicketDto>> GetUserTicketsAsync(Guid userId, string? status = null);
+    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
+    Task<IEnumerable<SupportTicketDto>> GetUserTicketsAsync(Guid userId, string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
     Task<IEnumerable<SupportTicketDto>> GetAllTicketsAsync(string? status = null, string? category = null, Guid? assignedToId = null, int page = 1, int pageSize = 20);
     Task<bool> UpdateTicketAsync(Guid ticketId, UpdateSupportTicketDto dto);
     Task<bool> AssignTicketAsync(Guid ticketId, Guid assignedToId);

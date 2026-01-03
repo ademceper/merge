@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Seller;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Application.DTOs.Seller;
 
 namespace Merge.API.Controllers.Seller;

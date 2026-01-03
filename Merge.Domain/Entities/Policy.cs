@@ -1,5 +1,9 @@
 namespace Merge.Domain.Entities;
 
+/// <summary>
+/// Policy Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// Her entity dosyasında SADECE 1 class olmalı
+/// </summary>
 public class Policy : BaseEntity
 {
     public string PolicyType { get; set; } = string.Empty; // TermsAndConditions, PrivacyPolicy, RefundPolicy, ShippingPolicy, etc.
@@ -17,20 +21,5 @@ public class Policy : BaseEntity
     // Navigation properties
     public User? CreatedBy { get; set; }
     public ICollection<PolicyAcceptance> Acceptances { get; set; } = new List<PolicyAcceptance>();
-}
-
-public class PolicyAcceptance : BaseEntity
-{
-    public Guid PolicyId { get; set; }
-    public Guid UserId { get; set; }
-    public string AcceptedVersion { get; set; } = string.Empty;
-    public string IpAddress { get; set; } = string.Empty;
-    public string UserAgent { get; set; } = string.Empty;
-    public DateTime AcceptedAt { get; set; } = DateTime.UtcNow;
-    public bool IsActive { get; set; } = true; // False if user revoked acceptance
-    
-    // Navigation properties
-    public Policy Policy { get; set; } = null!;
-    public User User { get; set; } = null!;
 }
 

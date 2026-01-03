@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Catalog;
 using Merge.Application.DTOs.Catalog;
 using Merge.Application.Common;
+using Merge.API.Middleware;
 
 
 namespace Merge.API.Controllers.Catalog;
@@ -22,14 +23,19 @@ public class CategoriesController : BaseController
     /// Tüm kategorileri sayfalanmış olarak getirir
     /// </summary>
     [HttpGet]
+    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(PagedResult<CategoryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PagedResult<CategoryDto>>> GetAll(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        if (pageSize > 100) pageSize = 100; // Max limit
-        var categories = await _categoryService.GetAllAsync(page, pageSize);
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+        var categories = await _categoryService.GetAllAsync(page, pageSize, cancellationToken);
         return Ok(categories);
     }
 
@@ -37,14 +43,19 @@ public class CategoriesController : BaseController
     /// Ana kategorileri sayfalanmış olarak getirir
     /// </summary>
     [HttpGet("main")]
+    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(PagedResult<CategoryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PagedResult<CategoryDto>>> GetMainCategories(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        if (pageSize > 100) pageSize = 100; // Max limit
-        var categories = await _categoryService.GetMainCategoriesAsync(page, pageSize);
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+        var categories = await _categoryService.GetMainCategoriesAsync(page, pageSize, cancellationToken);
         return Ok(categories);
     }
 
@@ -53,11 +64,15 @@ public class CategoriesController : BaseController
     /// </summary>
     /// <param name="id">Kategori ID</param>
     [HttpGet("{id}")]
+    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(CategoryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<CategoryDto>> GetById(Guid id)
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<CategoryDto>> GetById(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
-        var category = await _categoryService.GetByIdAsync(id);
+        var category = await _categoryService.GetByIdAsync(id, cancellationToken);
         if (category == null)
         {
             return NotFound();
@@ -65,13 +80,20 @@ public class CategoriesController : BaseController
         return Ok(category);
     }
 
+    /// <summary>
+    /// Yeni kategori oluşturur
+    /// </summary>
     [HttpPost]
     [Authorize(Roles = "Admin")]
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [ProducesResponseType(typeof(CategoryDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<CategoryDto>> Create([FromBody] CategoryDto categoryDto, CancellationToken cancellationToken = default)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<CategoryDto>> Create(
+        [FromBody] CategoryDto categoryDto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
@@ -80,14 +102,22 @@ public class CategoriesController : BaseController
         return CreatedAtAction(nameof(GetById), new { id = category.Id }, category);
     }
 
+    /// <summary>
+    /// Kategoriyi günceller
+    /// </summary>
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
     [ProducesResponseType(typeof(CategoryDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<CategoryDto>> Update(Guid id, [FromBody] CategoryDto categoryDto, CancellationToken cancellationToken = default)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<CategoryDto>> Update(
+        Guid id,
+        [FromBody] CategoryDto categoryDto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
@@ -100,13 +130,20 @@ public class CategoriesController : BaseController
         return Ok(category);
     }
 
+    /// <summary>
+    /// Kategoriyi siler
+    /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken = default)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> Delete(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
         var result = await _categoryService.DeleteAsync(id, cancellationToken);
         if (!result)

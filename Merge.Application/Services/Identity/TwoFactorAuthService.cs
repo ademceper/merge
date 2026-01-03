@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.Identity;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Identity;

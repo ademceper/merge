@@ -54,7 +54,8 @@ public class ReturnRequestService : IReturnRequestService
         return _mapper.Map<ReturnRequestDto>(returnRequest);
     }
 
-    public async Task<IEnumerable<ReturnRequestDto>> GetByUserIdAsync(Guid userId)
+    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
+    public async Task<IEnumerable<ReturnRequestDto>> GetByUserIdAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var returnRequests = await _context.ReturnRequests
@@ -63,7 +64,9 @@ public class ReturnRequestService : IReturnRequestService
             .Include(r => r.User)
             .Where(r => r.UserId == userId)
             .OrderByDescending(r => r.CreatedAt)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper kullan

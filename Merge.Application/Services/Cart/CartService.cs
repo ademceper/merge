@@ -57,7 +57,8 @@ public class CartService : ICartService
 
         if (cart == null)
         {
-            var newCart = new CartEntity { UserId = userId };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
+            var newCart = Cart.Create(userId);
             newCart = await _cartRepository.AddAsync(newCart);
             await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Explicit SaveChanges via UnitOfWork
 
@@ -138,7 +139,8 @@ public class CartService : ICartService
             if (cart == null)
             {
                 _logger.LogInformation("Creating new cart for user {UserId}", userId);
-                cart = new CartEntity { UserId = userId };
+                // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
+                cart = Cart.Create(userId);
                 cart = await _cartRepository.AddAsync(cart);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
@@ -177,12 +179,13 @@ public class CartService : ICartService
                 throw new BusinessException("Yeterli stok yok.");
             }
 
-            // ✅ PERFORMANCE FIX: Removed manual !ci.IsDeleted check
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+            // Check if item already exists (same product and variant)
             var existingItem = cart.CartItems.FirstOrDefault(ci => ci.ProductId == productId);
             if (existingItem != null)
             {
-                existingItem.Quantity += quantity;
-                existingItem.UpdatedAt = DateTime.UtcNow;
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+                existingItem.UpdateQuantity(existingItem.Quantity + quantity);
                 await _cartItemRepository.UpdateAsync(existingItem);
                 await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Explicit SaveChanges
 
@@ -201,13 +204,12 @@ public class CartService : ICartService
                 return _mapper.Map<CartItemDto>(updatedItem);
             }
 
-            var cartItem = new CartItem
-            {
-                CartId = cart.Id,
-                ProductId = productId,
-                Quantity = quantity,
-                Price = product.DiscountPrice ?? product.Price
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
+            var cartItem = CartItem.Create(
+                cart.Id,
+                productId,
+                quantity,
+                product.DiscountPrice ?? product.Price);
 
             cartItem = await _cartItemRepository.AddAsync(cartItem);
             await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Explicit SaveChanges
@@ -243,7 +245,8 @@ public class CartService : ICartService
             "Updating cart item quantity. CartItemId: {CartItemId}, NewQuantity: {Quantity}",
             cartItemId, quantity);
 
-        var cartItem = await _cartItemRepository.GetByIdAsync(cartItemId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var cartItem = await _cartItemRepository.GetByIdAsync(cartItemId, cancellationToken);
         if (cartItem == null)
         {
             _logger.LogWarning("Cart item {CartItemId} not found", cartItemId);
@@ -278,8 +281,8 @@ public class CartService : ICartService
             throw new BusinessException("Yeterli stok yok.");
         }
 
-        cartItem.Quantity = quantity;
-        cartItem.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+        cartItem.UpdateQuantity(quantity);
         await _cartItemRepository.UpdateAsync(cartItem);
         await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Explicit SaveChanges
 
@@ -295,7 +298,8 @@ public class CartService : ICartService
     {
         _logger.LogInformation("Removing item from cart. CartItemId: {CartItemId}", cartItemId);
 
-        var cartItem = await _cartItemRepository.GetByIdAsync(cartItemId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var cartItem = await _cartItemRepository.GetByIdAsync(cartItemId, cancellationToken);
         if (cartItem == null)
         {
             _logger.LogWarning("Cart item {CartItemId} not found", cartItemId);
@@ -325,7 +329,8 @@ public class CartService : ICartService
             return false;
         }
 
-        // ✅ PERFORMANCE FIX: Use RemoveRange instead of individual DeleteAsync calls
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+        // ✅ PERFORMANCE FIX: Use domain method instead of manual property setting
         // BEFORE: 50 items = 50 DELETE queries + 50 SaveChanges = ~500ms
         // AFTER: 50 items = 1 DELETE WHERE IN query + 1 SaveChanges = ~10ms (50x faster!)
         var itemsToRemove = cart.CartItems.ToList();
@@ -333,8 +338,8 @@ public class CartService : ICartService
         {
             foreach (var item in itemsToRemove)
             {
-                item.IsDeleted = true;
-                item.UpdatedAt = DateTime.UtcNow;
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+                item.MarkAsDeleted();
             }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Single SaveChanges

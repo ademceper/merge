@@ -4,19 +4,20 @@ using Merge.Application.Common;
 
 namespace Merge.Application.Interfaces.Content;
 
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 public interface ICMSService
 {
-    Task<CMSPageDto> CreatePageAsync(Guid? authorId, CreateCMSPageDto dto);
-    Task<CMSPageDto?> GetPageByIdAsync(Guid id);
-    Task<CMSPageDto?> GetPageBySlugAsync(string slug);
-    Task<CMSPageDto?> GetHomePageAsync();
+    Task<CMSPageDto> CreatePageAsync(Guid? authorId, CreateCMSPageDto dto, CancellationToken cancellationToken = default);
+    Task<CMSPageDto?> GetPageByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<CMSPageDto?> GetPageBySlugAsync(string slug, CancellationToken cancellationToken = default);
+    Task<CMSPageDto?> GetHomePageAsync(CancellationToken cancellationToken = default);
     // ✅ BOLUM 3.4: Pagination eklendi (ZORUNLU)
-    Task<PagedResult<CMSPageDto>> GetAllPagesAsync(string? status = null, bool? showInMenu = null, int page = 1, int pageSize = 20);
-    Task<IEnumerable<CMSPageDto>> GetMenuPagesAsync();
-    Task<bool> UpdatePageAsync(Guid id, CreateCMSPageDto dto);
-    Task<bool> DeletePageAsync(Guid id);
-    Task<bool> PublishPageAsync(Guid id);
-    Task<bool> SetHomePageAsync(Guid id);
+    Task<PagedResult<CMSPageDto>> GetAllPagesAsync(string? status = null, bool? showInMenu = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
+    Task<IEnumerable<CMSPageDto>> GetMenuPagesAsync(CancellationToken cancellationToken = default);
+    Task<bool> UpdatePageAsync(Guid id, CreateCMSPageDto dto, CancellationToken cancellationToken = default);
+    Task<bool> DeletePageAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<bool> PublishPageAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<bool> SetHomePageAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
 public interface ILiveChatService

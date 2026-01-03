@@ -1,5 +1,9 @@
 namespace Merge.Domain.Entities;
 
+/// <summary>
+/// SearchHistory Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// Her entity dosyasında SADECE 1 class olmalı
+/// </summary>
 public class SearchHistory : BaseEntity
 {
     public Guid? UserId { get; set; } // Nullable for anonymous users
@@ -15,11 +19,3 @@ public class SearchHistory : BaseEntity
     public Product? ClickedProduct { get; set; }
 }
 
-public class PopularSearch : BaseEntity
-{
-    public string SearchTerm { get; set; } = string.Empty;
-    public int SearchCount { get; set; }
-    public int ClickThroughCount { get; set; }
-    public decimal ClickThroughRate { get; set; }
-    public DateTime LastSearchedAt { get; set; }
-}

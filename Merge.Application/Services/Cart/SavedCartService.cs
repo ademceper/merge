@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Cart;
 using Merge.Application.Exceptions;
+using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
@@ -40,27 +41,50 @@ public class SavedCartService : ISavedCartService
         _logger = logger;
     }
 
-    public async Task<IEnumerable<SavedCartItemDto>> GetSavedItemsAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<SavedCartItemDto>> GetSavedItemsAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !sci.IsDeleted check (Global Query Filter handles it)
-        var savedItems = await _context.SavedCartItems
+        var query = _context.SavedCartItems
             .AsNoTracking()
             .Include(sci => sci.Product)
-            .Where(sci => sci.UserId == userId)
+            .Where(sci => sci.UserId == userId);
+
+        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var savedItems = await query
             .OrderByDescending(sci => sci.CreatedAt)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        return _mapper.Map<IEnumerable<SavedCartItemDto>>(savedItems);
+        var items = _mapper.Map<List<SavedCartItemDto>>(savedItems);
+
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+        return new PagedResult<SavedCartItemDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<SavedCartItemDto> SaveItemAsync(Guid userId, SaveItemDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<SavedCartItemDto> SaveItemAsync(Guid userId, SaveItemDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only product query
         var product = await _context.Products
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == dto.ProductId);
+            .FirstOrDefaultAsync(p => p.Id == dto.ProductId, cancellationToken);
         if (product == null || !product.IsActive)
         {
             throw new NotFoundException("Ürün", dto.ProductId);
@@ -69,7 +93,7 @@ public class SavedCartService : ISavedCartService
         // ✅ PERFORMANCE: Removed manual !sci.IsDeleted check (Global Query Filter handles it)
         var existing = await _context.SavedCartItems
             .FirstOrDefaultAsync(sci => sci.UserId == userId && 
-                                  sci.ProductId == dto.ProductId);
+                                  sci.ProductId == dto.ProductId, cancellationToken);
 
         var currentPrice = product.DiscountPrice ?? product.Price;
 
@@ -79,46 +103,41 @@ public class SavedCartService : ISavedCartService
             existing.Price = currentPrice;
             existing.Notes = dto.Notes;
             await _savedCartItemRepository.UpdateAsync(existing);
-            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // ✅ ARCHITECTURE: Reload with Include for AutoMapper
             existing = await _context.SavedCartItems
                 .AsNoTracking()
                 .Include(sci => sci.Product)
-                .FirstOrDefaultAsync(sci => sci.Id == existing.Id);
+                .FirstOrDefaultAsync(sci => sci.Id == existing.Id, cancellationToken);
 
             // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
             return _mapper.Map<SavedCartItemDto>(existing!);
         }
 
-        var savedItem = new SavedCartItem
-        {
-            UserId = userId,
-            ProductId = dto.ProductId,
-            Quantity = dto.Quantity,
-            Price = currentPrice,
-            Notes = dto.Notes
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
+        var savedItem = SavedCartItem.Create(userId, dto.ProductId, dto.Quantity, currentPrice, dto.Notes);
 
-        await _savedCartItemRepository.AddAsync(savedItem);
-        await _unitOfWork.SaveChangesAsync();
+        await _savedCartItemRepository.AddAsync(savedItem, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: Reload with Include for AutoMapper
         savedItem = await _context.SavedCartItems
             .AsNoTracking()
             .Include(sci => sci.Product)
-            .FirstOrDefaultAsync(sci => sci.Id == savedItem.Id);
+            .FirstOrDefaultAsync(sci => sci.Id == savedItem.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return _mapper.Map<SavedCartItemDto>(savedItem!);
     }
 
-    public async Task<bool> RemoveSavedItemAsync(Guid userId, Guid itemId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> RemoveSavedItemAsync(Guid userId, Guid itemId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sci.IsDeleted check (Global Query Filter handles it)
         var item = await _context.SavedCartItems
             .FirstOrDefaultAsync(sci => sci.Id == itemId && 
-                                  sci.UserId == userId);
+                                  sci.UserId == userId, cancellationToken);
 
         if (item == null)
         {
@@ -126,17 +145,18 @@ public class SavedCartService : ISavedCartService
         }
 
         await _savedCartItemRepository.DeleteAsync(item);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<bool> MoveToCartAsync(Guid userId, Guid itemId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> MoveToCartAsync(Guid userId, Guid itemId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sci.IsDeleted check (Global Query Filter handles it)
         var item = await _context.SavedCartItems
             .Include(sci => sci.Product)
             .FirstOrDefaultAsync(sci => sci.Id == itemId && 
-                                  sci.UserId == userId);
+                                  sci.UserId == userId, cancellationToken);
 
         if (item == null)
         {
@@ -144,27 +164,33 @@ public class SavedCartService : ISavedCartService
         }
 
         // ✅ ARCHITECTURE: Transaction başlat - atomic operation (Cart + SavedCartItem delete)
-        await _unitOfWork.BeginTransactionAsync();
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             // Sepete ekle
-            await _cartService.AddItemToCartAsync(userId, item.ProductId, item.Quantity);
+            await _cartService.AddItemToCartAsync(userId, item.ProductId, item.Quantity, cancellationToken);
             
             // Kayıtlı listeden kaldır
             await _savedCartItemRepository.DeleteAsync(item);
-            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
             
-            await _unitOfWork.CommitTransactionAsync();
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
             return true;
         }
-        catch
+        catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
-            return false;
+            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
+            _logger.LogError(ex,
+                "SavedCartItem sepete tasima hatasi. UserId: {UserId}, ItemId: {ItemId}",
+                userId, itemId);
+            // ✅ ARCHITECTURE: Hata olursa ROLLBACK - hiçbir şey yazılmaz
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            throw;
         }
     }
 
-    public async Task<bool> ClearSavedItemsAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ClearSavedItemsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Use bulk update instead of foreach DeleteAsync (N+1 fix)
         // BEFORE: 50 items = 50 UPDATE queries + 50 SaveChanges = ~500ms
@@ -172,17 +198,20 @@ public class SavedCartService : ISavedCartService
         // ✅ PERFORMANCE: Removed manual !sci.IsDeleted check (Global Query Filter handles it)
         var items = await _context.SavedCartItems
             .Where(sci => sci.UserId == userId)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         if (items.Count > 0)
         {
             foreach (var item in items)
             {
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı (MarkAsDeleted yoksa soft delete için IsDeleted set edilebilir)
+                // SavedCartItem'da MarkAsDeleted yok, bu yüzden direkt IsDeleted set ediyoruz
+                // Ancak UpdatedAt'i de güncellemeliyiz
                 item.IsDeleted = true;
                 item.UpdatedAt = DateTime.UtcNow;
             }
 
-            await _unitOfWork.SaveChangesAsync(); // ✅ CRITICAL FIX: Single SaveChanges
+            await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Single SaveChanges
         }
 
         return true;

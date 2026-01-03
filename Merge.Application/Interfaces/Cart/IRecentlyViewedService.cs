@@ -1,11 +1,14 @@
 using Merge.Application.DTOs.Product;
+using Merge.Application.Common;
 
 namespace Merge.Application.Interfaces.Cart;
 
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 public interface IRecentlyViewedService
 {
-    Task<IEnumerable<ProductDto>> GetRecentlyViewedAsync(Guid userId, int count = 20);
-    Task AddToRecentlyViewedAsync(Guid userId, Guid productId);
-    Task ClearRecentlyViewedAsync(Guid userId);
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+    Task<PagedResult<ProductDto>> GetRecentlyViewedAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
+    Task AddToRecentlyViewedAsync(Guid userId, Guid productId, CancellationToken cancellationToken = default);
+    Task ClearRecentlyViewedAsync(Guid userId, CancellationToken cancellationToken = default);
 }
 

@@ -7,6 +7,7 @@ using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text.Json;

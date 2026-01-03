@@ -10,8 +10,9 @@ namespace Merge.Domain.Entities;
 
 /// <summary>
 /// Order aggregate root - Rich Domain Model implementation
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU)
 /// </summary>
-public class Order : BaseEntity
+public class Order : BaseEntity, IAggregateRoot
 {
     private readonly List<OrderItem> _orderItems = new();
 

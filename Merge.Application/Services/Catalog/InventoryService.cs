@@ -5,6 +5,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Catalog;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Logistics;
@@ -37,56 +38,89 @@ public class InventoryService : IInventoryService
         _logger = logger;
     }
 
-    public async Task<InventoryDto?> GetByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<InventoryDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var inventory = await _context.Inventories
             .AsNoTracking()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
-            .FirstOrDefaultAsync(i => i.Id == id);
+            .FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
 
         return inventory == null ? null : _mapper.Map<InventoryDto>(inventory);
     }
 
-    public async Task<InventoryDto?> GetByProductAndWarehouseAsync(Guid productId, Guid warehouseId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<InventoryDto?> GetByProductAndWarehouseAsync(Guid productId, Guid warehouseId, CancellationToken cancellationToken = default)
     {
         var inventory = await _context.Inventories
             .AsNoTracking()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
-            .FirstOrDefaultAsync(i => i.ProductId == productId && i.WarehouseId == warehouseId);
+            .FirstOrDefaultAsync(i => i.ProductId == productId && i.WarehouseId == warehouseId, cancellationToken);
 
         return inventory == null ? null : _mapper.Map<InventoryDto>(inventory);
     }
 
-    public async Task<IEnumerable<InventoryDto>> GetByProductIdAsync(Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ⚠️ NOT: Unbounded query riski - Bir ürün için tüm warehouse inventory'leri çekiliyor
+    // Pratikte warehouse sayısı sınırlı olduğu için (genelde 10-50 arası) risk düşük
+    // Ancak güvenlik için maksimum limit eklenebilir
+    public async Task<IEnumerable<InventoryDto>> GetByProductIdAsync(Guid productId, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Maksimum limit (100 warehouse)
         var inventories = await _context.Inventories
             .AsNoTracking()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
             .Where(i => i.ProductId == productId)
             .OrderBy(i => i.Warehouse.Name)
-            .ToListAsync();
+            .Take(100) // ✅ Güvenlik: Maksimum 100 warehouse inventory'si
+            .ToListAsync(cancellationToken);
 
+        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU) - AutoMapper internal olarak optimize eder
         return _mapper.Map<IEnumerable<InventoryDto>>(inventories);
     }
 
-    public async Task<IEnumerable<InventoryDto>> GetByWarehouseIdAsync(Guid warehouseId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination - PagedResult dönmeli (ZORUNLU)
+    public async Task<PagedResult<InventoryDto>> GetByWarehouseIdAsync(Guid warehouseId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        var inventories = await _context.Inventories
+        // ✅ BOLUM 3.4: Pagination limit kontrolü
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
+        var query = _context.Inventories
             .AsNoTracking()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
-            .Where(i => i.WarehouseId == warehouseId)
-            .OrderBy(i => i.Product.Name)
-            .ToListAsync();
+            .Where(i => i.WarehouseId == warehouseId);
 
-        return _mapper.Map<IEnumerable<InventoryDto>>(inventories);
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var inventories = await query
+            .OrderBy(i => i.Product.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<InventoryDto>
+        {
+            Items = _mapper.Map<List<InventoryDto>>(inventories),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<IEnumerable<LowStockAlertDto>> GetLowStockAlertsAsync(Guid? warehouseId = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination - PagedResult dönmeli (ZORUNLU)
+    public async Task<PagedResult<LowStockAlertDto>> GetLowStockAlertsAsync(Guid? warehouseId = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         var query = _context.Inventories
             .AsNoTracking()
             .Include(i => i.Product)
@@ -98,21 +132,34 @@ public class InventoryService : IInventoryService
             query = query.Where(i => i.WarehouseId == warehouseId.Value);
         }
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        var lowStockItems = await query.ToListAsync();
+        var totalCount = await query.CountAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        return _mapper.Map<IEnumerable<LowStockAlertDto>>(lowStockItems);
+        var lowStockItems = await query
+            .OrderBy(i => i.Quantity)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
+        return new PagedResult<LowStockAlertDto>
+        {
+            Items = _mapper.Map<List<LowStockAlertDto>>(lowStockItems),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<StockReportDto?> GetStockReportByProductAsync(Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<StockReportDto?> GetStockReportByProductAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Product bilgisini database'den al (ToListAsync sonrası First() YASAK)
         var product = await _context.Products
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == productId);
+            .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
         if (product == null)
         {
@@ -122,7 +169,7 @@ public class InventoryService : IInventoryService
         // ✅ PERFORMANCE: Database'de Count yap (memory'de işlem YASAK)
         var inventoryCount = await _context.Inventories
             .AsNoTracking()
-            .CountAsync(i => i.ProductId == productId);
+            .CountAsync(i => i.ProductId == productId, cancellationToken);
 
         if (inventoryCount == 0)
         {
@@ -133,22 +180,22 @@ public class InventoryService : IInventoryService
         var totalQuantity = await _context.Inventories
             .AsNoTracking()
             .Where(i => i.ProductId == productId)
-            .SumAsync(i => i.Quantity);
+            .SumAsync(i => i.Quantity, cancellationToken);
 
         var totalReserved = await _context.Inventories
             .AsNoTracking()
             .Where(i => i.ProductId == productId)
-            .SumAsync(i => i.ReservedQuantity);
+            .SumAsync(i => i.ReservedQuantity, cancellationToken);
 
         var totalAvailable = await _context.Inventories
             .AsNoTracking()
             .Where(i => i.ProductId == productId)
-            .SumAsync(i => i.AvailableQuantity);
+            .SumAsync(i => i.AvailableQuantity, cancellationToken);
 
         var totalValue = await _context.Inventories
             .AsNoTracking()
             .Where(i => i.ProductId == productId)
-            .SumAsync(i => i.Quantity * i.UnitCost);
+            .SumAsync(i => i.Quantity * i.UnitCost, cancellationToken);
 
         // ✅ PERFORMANCE: Warehouse breakdown için inventory'leri yükle (AutoMapper için gerekli)
         var inventories = await _context.Inventories
@@ -156,7 +203,7 @@ public class InventoryService : IInventoryService
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
             .Where(i => i.ProductId == productId)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return new StockReportDto
         {
@@ -171,7 +218,8 @@ public class InventoryService : IInventoryService
         };
     }
 
-    public async Task<InventoryDto> CreateAsync(CreateInventoryDto createDto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<InventoryDto> CreateAsync(CreateInventoryDto createDto, CancellationToken cancellationToken = default)
     {
         if (createDto == null)
         {
@@ -190,7 +238,7 @@ public class InventoryService : IInventoryService
         var existingInventory = await _context.Inventories
             .AsNoTracking()
             .AnyAsync(i => i.ProductId == createDto.ProductId &&
-                          i.WarehouseId == createDto.WarehouseId);
+                          i.WarehouseId == createDto.WarehouseId, cancellationToken);
 
         if (existingInventory)
         {
@@ -199,10 +247,17 @@ public class InventoryService : IInventoryService
             throw new BusinessException("Bu ürün-depo kombinasyonu için envanter zaten mevcut.");
         }
 
-        var inventory = _mapper.Map<Inventory>(createDto);
-        inventory.LastRestockedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Factory Method kullanımı
+        var inventory = Inventory.Create(
+            createDto.ProductId,
+            createDto.WarehouseId,
+            createDto.Quantity,
+            createDto.MinimumStockLevel,
+            createDto.MaximumStockLevel,
+            createDto.UnitCost,
+            createDto.Location);
 
-        inventory = await _inventoryRepository.AddAsync(inventory);
+        inventory = await _inventoryRepository.AddAsync(inventory, cancellationToken);
 
         // Create initial stock movement
         if (createDto.Quantity > 0)
@@ -219,17 +274,17 @@ public class InventoryService : IInventoryService
                 Notes = "Initial inventory creation"
             };
 
-            await _stockMovementRepository.AddAsync(stockMovement);
+            await _stockMovementRepository.AddAsync(stockMovement, cancellationToken);
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
         inventory = await _context.Inventories
             .AsNoTracking()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
-            .FirstOrDefaultAsync(i => i.Id == inventory.Id);
+            .FirstOrDefaultAsync(i => i.Id == inventory.Id, cancellationToken);
 
         _logger.LogInformation("Successfully created inventory with Id: {InventoryId} for ProductId: {ProductId}",
             inventory.Id, createDto.ProductId);
@@ -237,7 +292,8 @@ public class InventoryService : IInventoryService
         return _mapper.Map<InventoryDto>(inventory);
     }
 
-    public async Task<InventoryDto> UpdateAsync(Guid id, UpdateInventoryDto updateDto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<InventoryDto> UpdateAsync(Guid id, UpdateInventoryDto updateDto, CancellationToken cancellationToken = default)
     {
         if (updateDto == null)
         {
@@ -246,38 +302,41 @@ public class InventoryService : IInventoryService
 
         _logger.LogInformation("Updating inventory Id: {InventoryId}", id);
 
-        var inventory = await _inventoryRepository.GetByIdAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var inventory = await _inventoryRepository.GetByIdAsync(id, cancellationToken);
         if (inventory == null)
         {
             _logger.LogWarning("Inventory not found with Id: {InventoryId}", id);
             throw new NotFoundException("Envanter", id);
         }
 
-        inventory.MinimumStockLevel = updateDto.MinimumStockLevel;
-        inventory.MaximumStockLevel = updateDto.MaximumStockLevel;
-        inventory.UnitCost = updateDto.UnitCost;
-        inventory.Location = updateDto.Location;
+        // ✅ BOLUM 1.1: Domain Method kullanımı
+        inventory.UpdateStockLevels(updateDto.MinimumStockLevel, updateDto.MaximumStockLevel);
+        inventory.UpdateUnitCost(updateDto.UnitCost);
+        inventory.UpdateLocation(updateDto.Location);
 
-        await _inventoryRepository.UpdateAsync(inventory);
-        await _unitOfWork.SaveChangesAsync();
+        await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
         inventory = await _context.Inventories
             .AsNoTracking()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
-            .FirstOrDefaultAsync(i => i.Id == id);
+            .FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
 
         _logger.LogInformation("Successfully updated inventory Id: {InventoryId}", id);
 
         return _mapper.Map<InventoryDto>(inventory);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Attempting to delete inventory Id: {InventoryId}", id);
 
-        var inventory = await _inventoryRepository.GetByIdAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var inventory = await _inventoryRepository.GetByIdAsync(id, cancellationToken);
         if (inventory == null)
         {
             _logger.LogWarning("Inventory not found for deletion with Id: {InventoryId}", id);
@@ -291,15 +350,16 @@ public class InventoryService : IInventoryService
             throw new BusinessException("Stoklu envanter silinemez. Önce stoku sıfırlayın.");
         }
 
-        await _inventoryRepository.DeleteAsync(inventory);
-        await _unitOfWork.SaveChangesAsync();
+        await _inventoryRepository.DeleteAsync(inventory, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Successfully deleted inventory Id: {InventoryId}", id);
 
         return true;
     }
 
-    public async Task<InventoryDto> AdjustStockAsync(AdjustInventoryDto adjustDto, Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<InventoryDto> AdjustStockAsync(AdjustInventoryDto adjustDto, Guid userId, CancellationToken cancellationToken = default)
     {
         if (adjustDto == null)
         {
@@ -309,13 +369,13 @@ public class InventoryService : IInventoryService
         _logger.LogInformation("Adjusting stock for InventoryId: {InventoryId}, QuantityChange: {QuantityChange}, UserId: {UserId}",
             adjustDto.InventoryId, adjustDto.QuantityChange, userId);
 
-        await _unitOfWork.BeginTransactionAsync();
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             var inventory = await _context.Inventories
                 .Include(i => i.Product)
                 .Include(i => i.Warehouse)
-                .FirstOrDefaultAsync(i => i.Id == adjustDto.InventoryId);
+                .FirstOrDefaultAsync(i => i.Id == adjustDto.InventoryId, cancellationToken);
 
             if (inventory == null)
             {
@@ -323,23 +383,12 @@ public class InventoryService : IInventoryService
                 throw new NotFoundException("Envanter", adjustDto.InventoryId);
             }
 
+            // ✅ BOLUM 1.1: Domain Method kullanımı
             var quantityBefore = inventory.Quantity;
-            var quantityAfter = quantityBefore + adjustDto.QuantityChange;
+            inventory.AdjustQuantity(adjustDto.QuantityChange);
+            var quantityAfter = inventory.Quantity;
 
-            if (quantityAfter < 0)
-            {
-                _logger.LogWarning("Stock adjustment would result in negative quantity. InventoryId: {InventoryId}, Current: {Current}, Change: {Change}",
-                    adjustDto.InventoryId, quantityBefore, adjustDto.QuantityChange);
-                throw new ValidationException("Stok sıfırın altına düşürülemez.");
-            }
-
-            inventory.Quantity = quantityAfter;
-            if (adjustDto.QuantityChange > 0)
-            {
-                inventory.LastRestockedAt = DateTime.UtcNow;
-            }
-
-            await _inventoryRepository.UpdateAsync(inventory);
+            await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
 
             // Create stock movement record
             var stockMovement = new StockMovement
@@ -355,11 +404,11 @@ public class InventoryService : IInventoryService
                 PerformedBy = userId
             };
 
-            await _stockMovementRepository.AddAsync(stockMovement);
+            await _stockMovementRepository.AddAsync(stockMovement, cancellationToken);
 
             // Save changes with concurrency check
-            await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitTransactionAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             _logger.LogInformation("Successfully adjusted stock for InventoryId: {InventoryId}. Before: {Before}, After: {After}",
                 adjustDto.InventoryId, quantityBefore, quantityAfter);
@@ -368,24 +417,25 @@ public class InventoryService : IInventoryService
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             _logger.LogError(ex, "Concurrency conflict while adjusting stock for InventoryId: {InventoryId}", adjustDto.InventoryId);
             throw new BusinessException("Stok güncelleme çakışması. Başka bir kullanıcı aynı envanteri güncelledi. Lütfen tekrar deneyin.");
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             _logger.LogError(ex, "Error adjusting stock for InventoryId: {InventoryId}", adjustDto.InventoryId);
             throw;
         }
     }
 
-    public async Task<bool> TransferStockAsync(TransferInventoryDto transferDto, Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> TransferStockAsync(TransferInventoryDto transferDto, Guid userId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Transferring stock. ProductId: {ProductId}, From: {FromWarehouse}, To: {ToWarehouse}, Quantity: {Quantity}, UserId: {UserId}",
             transferDto.ProductId, transferDto.FromWarehouseId, transferDto.ToWarehouseId, transferDto.Quantity, userId);
 
-        await _unitOfWork.BeginTransactionAsync();
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             if (transferDto.Quantity <= 0)
@@ -396,7 +446,7 @@ public class InventoryService : IInventoryService
             // Get source inventory
             var sourceInventory = await _context.Inventories
                 .FirstOrDefaultAsync(i => i.ProductId == transferDto.ProductId &&
-                                        i.WarehouseId == transferDto.FromWarehouseId);
+                                        i.WarehouseId == transferDto.FromWarehouseId, cancellationToken);
 
             if (sourceInventory == null)
             {
@@ -415,33 +465,31 @@ public class InventoryService : IInventoryService
             // Get or create destination inventory
             var destInventory = await _context.Inventories
                 .FirstOrDefaultAsync(i => i.ProductId == transferDto.ProductId &&
-                                        i.WarehouseId == transferDto.ToWarehouseId);
+                                        i.WarehouseId == transferDto.ToWarehouseId, cancellationToken);
 
             if (destInventory == null)
             {
-                destInventory = new Inventory
-                {
-                    ProductId = transferDto.ProductId,
-                    WarehouseId = transferDto.ToWarehouseId,
-                    Quantity = 0,
-                    ReservedQuantity = 0,
-                    MinimumStockLevel = sourceInventory.MinimumStockLevel,
-                    MaximumStockLevel = sourceInventory.MaximumStockLevel,
-                    UnitCost = sourceInventory.UnitCost
-                };
-                destInventory = await _inventoryRepository.AddAsync(destInventory);
+                // ✅ BOLUM 1.1: Factory Method kullanımı
+                destInventory = Inventory.Create(
+                    transferDto.ProductId,
+                    transferDto.ToWarehouseId,
+                    0,
+                    sourceInventory.MinimumStockLevel,
+                    sourceInventory.MaximumStockLevel,
+                    sourceInventory.UnitCost,
+                    null);
+                destInventory = await _inventoryRepository.AddAsync(destInventory, cancellationToken);
             }
 
-            // Update quantities
+            // ✅ BOLUM 1.1: Domain Method kullanımı
             var sourceQuantityBefore = sourceInventory.Quantity;
-            sourceInventory.Quantity -= transferDto.Quantity;
+            sourceInventory.AdjustQuantity(-transferDto.Quantity);
 
             var destQuantityBefore = destInventory.Quantity;
-            destInventory.Quantity += transferDto.Quantity;
-            destInventory.LastRestockedAt = DateTime.UtcNow;
+            destInventory.AdjustQuantity(transferDto.Quantity);
 
-            await _inventoryRepository.UpdateAsync(sourceInventory);
-            await _inventoryRepository.UpdateAsync(destInventory);
+            await _inventoryRepository.UpdateAsync(sourceInventory, cancellationToken);
+            await _inventoryRepository.UpdateAsync(destInventory, cancellationToken);
 
             // Create stock movement records
             var sourceMovement = new StockMovement
@@ -474,12 +522,12 @@ public class InventoryService : IInventoryService
                 PerformedBy = userId
             };
 
-            await _stockMovementRepository.AddAsync(sourceMovement);
-            await _stockMovementRepository.AddAsync(destMovement);
+            await _stockMovementRepository.AddAsync(sourceMovement, cancellationToken);
+            await _stockMovementRepository.AddAsync(destMovement, cancellationToken);
 
             // Save changes with concurrency check
-            await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitTransactionAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             _logger.LogInformation("Successfully transferred stock. ProductId: {ProductId}, Quantity: {Quantity}, From: {FromWarehouse}, To: {ToWarehouse}",
                 transferDto.ProductId, transferDto.Quantity, transferDto.FromWarehouseId, transferDto.ToWarehouseId);
@@ -488,19 +536,20 @@ public class InventoryService : IInventoryService
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             _logger.LogError(ex, "Concurrency conflict during stock transfer for ProductId: {ProductId}", transferDto.ProductId);
             throw new BusinessException("Stok transfer çakışması. Başka bir kullanıcı aynı envanteri güncelledi. Lütfen tekrar deneyin.");
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             _logger.LogError(ex, "Error transferring stock for ProductId: {ProductId}", transferDto.ProductId);
             throw;
         }
     }
 
-    public async Task<bool> ReserveStockAsync(Guid productId, Guid warehouseId, int quantity, Guid? orderId = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ReserveStockAsync(Guid productId, Guid warehouseId, int quantity, Guid? orderId = null, CancellationToken cancellationToken = default)
     {
         if (quantity <= 0)
         {
@@ -510,12 +559,12 @@ public class InventoryService : IInventoryService
         _logger.LogInformation("Reserving stock. ProductId: {ProductId}, WarehouseId: {WarehouseId}, Quantity: {Quantity}, OrderId: {OrderId}",
             productId, warehouseId, quantity, orderId);
 
-        await _unitOfWork.BeginTransactionAsync();
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             var inventory = await _context.Inventories
                 .FirstOrDefaultAsync(i => i.ProductId == productId &&
-                                        i.WarehouseId == warehouseId);
+                                        i.WarehouseId == warehouseId, cancellationToken);
 
             if (inventory == null)
             {
@@ -524,15 +573,10 @@ public class InventoryService : IInventoryService
                 throw new NotFoundException("Envanter", Guid.Empty);
             }
 
-            if (inventory.AvailableQuantity < quantity)
-            {
-                _logger.LogWarning("Insufficient stock for reservation. Available: {Available}, Requested: {Requested}",
-                    inventory.AvailableQuantity, quantity);
-                throw new BusinessException("Rezerve etmek için yeterli stok yok.");
-            }
-
-            inventory.ReservedQuantity += quantity;
-            await _inventoryRepository.UpdateAsync(inventory);
+            // ✅ BOLUM 1.1: Domain Method kullanımı (validation entity içinde)
+            var quantityBefore = inventory.Quantity;
+            inventory.Reserve(quantity);
+            await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
 
             // Create stock movement record
             var stockMovement = new StockMovement
@@ -542,17 +586,17 @@ public class InventoryService : IInventoryService
                 WarehouseId = warehouseId,
                 MovementType = StockMovementType.Reserved,
                 Quantity = quantity,
-                QuantityBefore = inventory.Quantity,
+                QuantityBefore = quantityBefore,
                 QuantityAfter = inventory.Quantity, // Total quantity doesn't change, only reserved
                 ReferenceId = orderId,
                 Notes = "Stock reserved for order"
             };
 
-            await _stockMovementRepository.AddAsync(stockMovement);
+            await _stockMovementRepository.AddAsync(stockMovement, cancellationToken);
 
             // Save changes with concurrency check
-            await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitTransactionAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             _logger.LogInformation("Successfully reserved stock. ProductId: {ProductId}, Quantity: {Quantity}, OrderId: {OrderId}",
                 productId, quantity, orderId);
@@ -561,19 +605,20 @@ public class InventoryService : IInventoryService
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             _logger.LogError(ex, "Concurrency conflict while reserving stock. ProductId: {ProductId}", productId);
             throw new BusinessException("Stok rezervasyon çakışması. Başka bir kullanıcı aynı envanteri güncelledi. Lütfen tekrar deneyin.");
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             _logger.LogError(ex, "Error reserving stock. ProductId: {ProductId}", productId);
             throw;
         }
     }
 
-    public async Task<bool> ReleaseStockAsync(Guid productId, Guid warehouseId, int quantity, Guid? orderId = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ReleaseStockAsync(Guid productId, Guid warehouseId, int quantity, Guid? orderId = null, CancellationToken cancellationToken = default)
     {
         if (quantity <= 0)
         {
@@ -583,23 +628,18 @@ public class InventoryService : IInventoryService
         // ✅ PERFORMANCE: Removed manual !i.IsDeleted check (Global Query Filter handles it)
         var inventory = await _context.Inventories
             .FirstOrDefaultAsync(i => i.ProductId == productId &&
-                                    i.WarehouseId == warehouseId);
+                                    i.WarehouseId == warehouseId, cancellationToken);
 
         if (inventory == null)
         {
             throw new NotFoundException("Envanter", Guid.Empty);
         }
 
-        if (inventory.ReservedQuantity < quantity)
-        {
-            throw new ValidationException("Rezerve edilmiş miktardan fazla stok serbest bırakılamaz.");
-        }
-
+        // ✅ BOLUM 1.1: Domain Method kullanımı (validation entity içinde)
         var quantityBefore = inventory.Quantity;
-        inventory.ReservedQuantity -= quantity;
-        inventory.Quantity -= quantity;
+        inventory.ReleaseAndReduce(quantity);
 
-        await _inventoryRepository.UpdateAsync(inventory);
+        await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
 
         // Create stock movement record for sale
         var stockMovement = new StockMovement
@@ -615,13 +655,14 @@ public class InventoryService : IInventoryService
             Notes = "Stock released for order fulfillment"
         };
 
-        await _stockMovementRepository.AddAsync(stockMovement);
-        await _unitOfWork.SaveChangesAsync();
+        await _stockMovementRepository.AddAsync(stockMovement, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<int> GetAvailableStockAsync(Guid productId, Guid? warehouseId = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<int> GetAvailableStockAsync(Guid productId, Guid? warehouseId = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Database'de Sum yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: Removed manual !i.IsDeleted check (Global Query Filter handles it)
@@ -634,20 +675,23 @@ public class InventoryService : IInventoryService
             query = query.Where(i => i.WarehouseId == warehouseId.Value);
         }
 
-        return await query.SumAsync(i => i.AvailableQuantity);
+        return await query.SumAsync(i => i.AvailableQuantity, cancellationToken);
     }
 
-    public async Task<bool> UpdateLastCountDateAsync(Guid inventoryId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> UpdateLastCountDateAsync(Guid inventoryId, CancellationToken cancellationToken = default)
     {
-        var inventory = await _inventoryRepository.GetByIdAsync(inventoryId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var inventory = await _inventoryRepository.GetByIdAsync(inventoryId, cancellationToken);
         if (inventory == null)
         {
             return false;
         }
 
-        inventory.LastCountedAt = DateTime.UtcNow;
-        await _inventoryRepository.UpdateAsync(inventory);
-        await _unitOfWork.SaveChangesAsync();
+        // ✅ BOLUM 1.1: Domain Method kullanımı
+        inventory.UpdateLastCountedDate();
+        await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 }

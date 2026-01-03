@@ -1,20 +1,11 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
-public class ReferralCode : BaseEntity
-{
-    public Guid UserId { get; set; }
-    public string Code { get; set; } = string.Empty;
-    public int UsageCount { get; set; } = 0;
-    public int MaxUsage { get; set; } = 0; // 0 = unlimited
-    public DateTime? ExpiresAt { get; set; }
-    public bool IsActive { get; set; } = true;
-    public int PointsReward { get; set; } = 100;
-    public decimal DiscountPercentage { get; set; } = 10;
-
-    // Navigation properties
-    public User User { get; set; } = null!;
-}
-
+/// <summary>
+/// Referral Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// Her entity dosyasında SADECE 1 class olmalı
+/// </summary>
 public class Referral : BaseEntity
 {
     public Guid ReferrerId { get; set; } // User who referred
@@ -33,62 +24,3 @@ public class Referral : BaseEntity
     public Order? FirstOrder { get; set; }
 }
 
-public enum ReferralStatus
-{
-    Pending, // User signed up but hasn't made purchase
-    Completed, // User made first purchase
-    Rewarded, // Referrer was rewarded
-    Expired // Referral expired before completion
-}
-
-public class ReviewMedia : BaseEntity
-{
-    public Guid ReviewId { get; set; }
-    public ReviewMediaType MediaType { get; set; }
-    public string Url { get; set; } = string.Empty;
-    public string ThumbnailUrl { get; set; } = string.Empty;
-    public int FileSize { get; set; }
-    public int? Width { get; set; }
-    public int? Height { get; set; }
-    public int? Duration { get; set; } // For videos in seconds
-    public int DisplayOrder { get; set; } = 0;
-
-    // Navigation properties
-    public Review Review { get; set; } = null!;
-}
-
-public enum ReviewMediaType
-{
-    Photo,
-    Video
-}
-
-public class SharedWishlist : BaseEntity
-{
-    public Guid UserId { get; set; }
-    public string ShareCode { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public bool IsPublic { get; set; } = false;
-    public int ViewCount { get; set; } = 0;
-    public DateTime? ExpiresAt { get; set; }
-
-    // Navigation properties
-    public User User { get; set; } = null!;
-}
-
-public class SharedWishlistItem : BaseEntity
-{
-    public Guid SharedWishlistId { get; set; }
-    public Guid ProductId { get; set; }
-    public int Priority { get; set; } = 0; // 1 = High, 2 = Medium, 3 = Low
-    public string Note { get; set; } = string.Empty;
-    public bool IsPurchased { get; set; } = false;
-    public Guid? PurchasedBy { get; set; }
-    public DateTime? PurchasedAt { get; set; }
-
-    // Navigation properties
-    public SharedWishlist SharedWishlist { get; set; } = null!;
-    public Product Product { get; set; } = null!;
-    public User? PurchasedByUser { get; set; }
-}

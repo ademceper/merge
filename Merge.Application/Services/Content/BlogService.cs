@@ -32,11 +32,12 @@ public class BlogService : IBlogService
     }
 
     // Categories
-    public async Task<BlogCategoryDto> CreateCategoryAsync(CreateBlogCategoryDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<BlogCategoryDto> CreateCategoryAsync(CreateBlogCategoryDto dto, CancellationToken cancellationToken = default)
     {
         var slug = GenerateSlug(dto.Name);
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
-        if (await _context.Set<BlogCategory>().AnyAsync(c => c.Slug == slug))
+        if (await _context.Set<BlogCategory>().AnyAsync(c => c.Slug == slug, cancellationToken))
         {
             slug = $"{slug}-{DateTime.UtcNow.Ticks}";
         }
@@ -52,35 +53,35 @@ public class BlogService : IBlogService
             IsActive = dto.IsActive
         };
 
-        await _context.Set<BlogCategory>().AddAsync(category);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<BlogCategory>().AddAsync(category, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return MapToCategoryDtoWithAutoMapper(category, null);
     }
 
-    public async Task<BlogCategoryDto?> GetCategoryByIdAsync(Guid id)
+    public async Task<BlogCategoryDto?> GetCategoryByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var category = await _context.Set<BlogCategory>()
             .AsNoTracking()
             .Include(c => c.ParentCategory)
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         return category != null ? MapToCategoryDtoWithAutoMapper(category, null) : null;
     }
 
-    public async Task<BlogCategoryDto?> GetCategoryBySlugAsync(string slug)
+    public async Task<BlogCategoryDto?> GetCategoryBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var category = await _context.Set<BlogCategory>()
             .AsNoTracking()
             .Include(c => c.ParentCategory)
-            .FirstOrDefaultAsync(c => c.Slug == slug && c.IsActive);
+            .FirstOrDefaultAsync(c => c.Slug == slug && c.IsActive, cancellationToken);
 
         return category != null ? MapToCategoryDtoWithAutoMapper(category, null) : null;
     }
 
-    public async Task<IEnumerable<BlogCategoryDto>> GetAllCategoriesAsync(bool? isActive = null)
+    public async Task<IEnumerable<BlogCategoryDto>> GetAllCategoriesAsync(bool? isActive = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         // ✅ FIX: Explicitly type as IQueryable to avoid IIncludableQueryable type mismatch
@@ -96,7 +97,7 @@ public class BlogService : IBlogService
         var categories = await query
             .OrderBy(c => c.DisplayOrder)
             .ThenBy(c => c.Name)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Navigation property'den ID'leri al (zaten ToListAsync ile yüklenmiş, memory'de Select kabul edilebilir)
         var categoryIds = categories.Select(c => c.Id).ToList();
@@ -105,7 +106,7 @@ public class BlogService : IBlogService
             .Where(p => categoryIds.Contains(p.CategoryId) && p.Status == ContentStatus.Published)
             .GroupBy(p => p.CategoryId)
             .Select(g => new { CategoryId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.CategoryId, x => x.Count);
+            .ToDictionaryAsync(x => x.CategoryId, x => x.Count, cancellationToken);
 
         var result = new List<BlogCategoryDto>();
         foreach (var category in categories)
@@ -115,11 +116,11 @@ public class BlogService : IBlogService
         return result;
     }
 
-    public async Task<bool> UpdateCategoryAsync(Guid id, CreateBlogCategoryDto dto)
+    public async Task<bool> UpdateCategoryAsync(Guid id, CreateBlogCategoryDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var category = await _context.Set<BlogCategory>()
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (category == null) return false;
 
@@ -139,32 +140,33 @@ public class BlogService : IBlogService
         category.IsActive = dto.IsActive;
 
         category.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeleteCategoryAsync(Guid id)
+    public async Task<bool> DeleteCategoryAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var category = await _context.Set<BlogCategory>()
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (category == null) return false;
 
         category.IsDeleted = true;
         category.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // Posts
-    public async Task<BlogPostDto> CreatePostAsync(Guid authorId, CreateBlogPostDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<BlogPostDto> CreatePostAsync(Guid authorId, CreateBlogPostDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var category = await _context.Set<BlogCategory>()
-            .FirstOrDefaultAsync(c => c.Id == dto.CategoryId && c.IsActive);
+            .FirstOrDefaultAsync(c => c.Id == dto.CategoryId && c.IsActive, cancellationToken);
 
         if (category == null)
         {
@@ -173,7 +175,7 @@ public class BlogService : IBlogService
 
         var slug = GenerateSlug(dto.Title);
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        if (await _context.Set<BlogPost>().AnyAsync(p => p.Slug == slug))
+        if (await _context.Set<BlogPost>().AnyAsync(p => p.Slug == slug, cancellationToken))
         {
             slug = $"{slug}-{DateTime.UtcNow.Ticks}";
         }
@@ -201,51 +203,53 @@ public class BlogService : IBlogService
             PublishedAt = (Enum.TryParse<ContentStatus>(dto.Status, true, out var status) && status == ContentStatus.Published) ? DateTime.UtcNow : null
         };
 
-        await _context.Set<BlogPost>().AddAsync(post);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<BlogPost>().AddAsync(post, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return _mapper.Map<BlogPostDto>(post);
     }
 
-    public async Task<BlogPostDto?> GetPostByIdAsync(Guid id, bool trackView = false)
+    public async Task<BlogPostDto?> GetPostByIdAsync(Guid id, bool trackView = false, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var post = await _context.Set<BlogPost>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Author)
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (post == null) return null;
 
         if (trackView && post.Status == ContentStatus.Published)
         {
-            await IncrementViewCountAsync(id);
+            await IncrementViewCountAsync(id, cancellationToken);
         }
 
         return _mapper.Map<BlogPostDto>(post);
     }
 
-    public async Task<BlogPostDto?> GetPostBySlugAsync(string slug, bool trackView = false)
+    public async Task<BlogPostDto?> GetPostBySlugAsync(string slug, bool trackView = false, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var post = await _context.Set<BlogPost>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Author)
-                .FirstOrDefaultAsync(p => p.Slug == slug && p.Status == ContentStatus.Published);
+                .FirstOrDefaultAsync(p => p.Slug == slug && p.Status == ContentStatus.Published, cancellationToken);
 
         if (post == null) return null;
 
         if (trackView)
         {
-            await IncrementViewCountAsync(post.Id);
+            await IncrementViewCountAsync(post.Id, cancellationToken);
         }
 
         return _mapper.Map<BlogPostDto>(post);
     }
 
-    public async Task<IEnumerable<BlogPostDto>> GetPostsByCategoryAsync(Guid categoryId, string? status = "Published", int page = 1, int pageSize = 10)
+    // ✅ BOLUM 3.4: Pagination - PagedResult dönmeli (ZORUNLU)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PagedResult<BlogPostDto>> GetPostsByCategoryAsync(Guid categoryId, string? status = "Published", int page = 1, int pageSize = 10, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var query = _context.Set<BlogPost>()
@@ -263,21 +267,27 @@ public class BlogService : IBlogService
             }
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var posts = await query
             .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
-        var result = new List<BlogPostDto>();
-        foreach (var post in posts)
+        var items = posts.Select(p => _mapper.Map<BlogPostDto>(p)).ToList();
+
+        return new PagedResult<BlogPostDto>
         {
-            result.Add(_mapper.Map<BlogPostDto>(post));
-        }
-        return result;
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<IEnumerable<BlogPostDto>> GetFeaturedPostsAsync(int count = 5)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<BlogPostDto>> GetFeaturedPostsAsync(int count = 5, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var posts = await _context.Set<BlogPost>()
@@ -287,7 +297,7 @@ public class BlogService : IBlogService
             .Where(p => p.IsFeatured && p.Status == ContentStatus.Published)
             .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
             .Take(count)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var result = new List<BlogPostDto>();
         foreach (var post in posts)
@@ -297,7 +307,7 @@ public class BlogService : IBlogService
         return result;
     }
 
-    public async Task<IEnumerable<BlogPostDto>> GetRecentPostsAsync(int count = 10)
+    public async Task<IEnumerable<BlogPostDto>> GetRecentPostsAsync(int count = 10, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var posts = await _context.Set<BlogPost>()
@@ -307,7 +317,7 @@ public class BlogService : IBlogService
             .Where(p => p.Status == ContentStatus.Published)
             .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
             .Take(count)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var result = new List<BlogPostDto>();
         foreach (var post in posts)
@@ -317,33 +327,42 @@ public class BlogService : IBlogService
         return result;
     }
 
-    public async Task<IEnumerable<BlogPostDto>> SearchPostsAsync(string query, int page = 1, int pageSize = 10)
+    // ✅ BOLUM 3.4: Pagination - PagedResult dönmeli (ZORUNLU)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PagedResult<BlogPostDto>> SearchPostsAsync(string query, int page = 1, int pageSize = 10, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var posts = await _context.Set<BlogPost>()
+        var dbQuery = _context.Set<BlogPost>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Author)
             .Where(p => p.Status == ContentStatus.Published &&
-                       (p.Title.Contains(query) || p.Content.Contains(query) || p.Excerpt.Contains(query)))
+                       (p.Title.Contains(query) || p.Content.Contains(query) || p.Excerpt.Contains(query)));
+
+        var totalCount = await dbQuery.CountAsync(cancellationToken);
+
+        var posts = await dbQuery
             .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
-        var result = new List<BlogPostDto>();
-        foreach (var post in posts)
+        var items = posts.Select(p => _mapper.Map<BlogPostDto>(p)).ToList();
+
+        return new PagedResult<BlogPostDto>
         {
-            result.Add(_mapper.Map<BlogPostDto>(post));
-        }
-        return result;
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<bool> UpdatePostAsync(Guid id, CreateBlogPostDto dto)
+    public async Task<bool> UpdatePostAsync(Guid id, CreateBlogPostDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var post = await _context.Set<BlogPost>()
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (post == null) return false;
 
@@ -389,63 +408,64 @@ public class BlogService : IBlogService
             post.OgImageUrl = dto.OgImageUrl;
 
         post.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeletePostAsync(Guid id)
+    public async Task<bool> DeletePostAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var post = await _context.Set<BlogPost>()
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (post == null) return false;
 
         post.IsDeleted = true;
         post.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> PublishPostAsync(Guid id)
+    public async Task<bool> PublishPostAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var post = await _context.Set<BlogPost>()
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (post == null) return false;
 
         post.Status = ContentStatus.Published;
         post.PublishedAt = DateTime.UtcNow;
         post.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> IncrementViewCountAsync(Guid id)
+    public async Task<bool> IncrementViewCountAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var post = await _context.Set<BlogPost>()
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (post == null) return false;
 
         post.ViewCount++;
         post.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // Comments
-    public async Task<BlogCommentDto> CreateCommentAsync(Guid? userId, CreateBlogCommentDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<BlogCommentDto> CreateCommentAsync(Guid? userId, CreateBlogCommentDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var post = await _context.Set<BlogPost>()
-            .FirstOrDefaultAsync(p => p.Id == dto.BlogPostId && p.AllowComments);
+            .FirstOrDefaultAsync(p => p.Id == dto.BlogPostId && p.AllowComments, cancellationToken);
 
         if (post == null)
         {
@@ -463,14 +483,16 @@ public class BlogService : IBlogService
             IsApproved = userId.HasValue // Auto-approve for logged-in users
         };
 
-        await _context.Set<BlogComment>().AddAsync(comment);
+        await _context.Set<BlogComment>().AddAsync(comment, cancellationToken);
         post.CommentCount++;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return MapToCommentDtoWithAutoMapper(comment);
     }
 
-    public async Task<IEnumerable<BlogCommentDto>> GetPostCommentsAsync(Guid postId, bool? isApproved = true)
+    // ✅ BOLUM 3.4: Pagination - PagedResult dönmeli (ZORUNLU)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PagedResult<BlogCommentDto>> GetPostCommentsAsync(Guid postId, bool? isApproved = true, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var query = _context.Set<BlogComment>()
@@ -484,38 +506,45 @@ public class BlogService : IBlogService
             query = query.Where(c => c.IsApproved == isApproved.Value);
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var comments = await query
             .OrderByDescending(c => c.CreatedAt)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
-        var result = new List<BlogCommentDto>();
-        foreach (var comment in comments)
+        var items = comments.Select(c => MapToCommentDtoWithAutoMapper(c)).ToList();
+
+        return new PagedResult<BlogCommentDto>
         {
-            result.Add(MapToCommentDtoWithAutoMapper(comment));
-        }
-        return result;
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<bool> ApproveCommentAsync(Guid id)
+    public async Task<bool> ApproveCommentAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var comment = await _context.Set<BlogComment>()
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (comment == null) return false;
 
         comment.IsApproved = true;
         comment.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeleteCommentAsync(Guid id)
+    public async Task<bool> DeleteCommentAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var comment = await _context.Set<BlogComment>()
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (comment == null) return false;
 
@@ -524,19 +553,20 @@ public class BlogService : IBlogService
         
         // Decrement post comment count
         var post = await _context.Set<BlogPost>()
-            .FirstOrDefaultAsync(p => p.Id == comment.BlogPostId);
+            .FirstOrDefaultAsync(p => p.Id == comment.BlogPostId, cancellationToken);
         if (post != null)
         {
             post.CommentCount = Math.Max(0, post.CommentCount - 1);
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // Analytics
-    public async Task<BlogAnalyticsDto> GetBlogAnalyticsAsync(DateTime? startDate = null, DateTime? endDate = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<BlogAnalyticsDto> GetBlogAnalyticsAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
         var start = startDate ?? DateTime.UtcNow.AddMonths(-12);
         var end = endDate ?? DateTime.UtcNow;
@@ -548,17 +578,17 @@ public class BlogService : IBlogService
             .Include(p => p.Category)
             .Where(p => p.CreatedAt >= start && p.CreatedAt <= end);
 
-        var totalPosts = await query.CountAsync();
-        var publishedPosts = await query.CountAsync(p => p.Status == ContentStatus.Published);
-        var draftPosts = await query.CountAsync(p => p.Status == ContentStatus.Draft);
-        var totalViews = await query.SumAsync(p => (long)p.ViewCount);
-        var totalComments = await query.SumAsync(p => (long)p.CommentCount);
+        var totalPosts = await query.CountAsync(cancellationToken);
+        var publishedPosts = await query.CountAsync(p => p.Status == ContentStatus.Published, cancellationToken);
+        var draftPosts = await query.CountAsync(p => p.Status == ContentStatus.Draft, cancellationToken);
+        var totalViews = await query.SumAsync(p => (long)p.ViewCount, cancellationToken);
+        var totalComments = await query.SumAsync(p => (long)p.CommentCount, cancellationToken);
 
         // Database'de grouping yap
         var postsByCategory = await query
             .GroupBy(p => p.Category != null ? p.Category.Name : "Uncategorized")
             .Select(g => new { CategoryName = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(g => g.CategoryName, g => g.Count);
+            .ToDictionaryAsync(g => g.CategoryName, g => g.Count, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de filtering, ordering ve projection yap
         var popularPosts = await query
@@ -572,7 +602,7 @@ public class BlogService : IBlogService
                 ViewCount = p.ViewCount,
                 CommentCount = p.CommentCount
             })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return new BlogAnalyticsDto
         {

@@ -1,18 +1,11 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Domain.Entities;
 
-public enum StockMovementType
-{
-    Receipt,        // Receiving stock (purchase)
-    Sale,           // Stock sold to customer
-    Return,         // Customer return
-    Transfer,       // Transfer between warehouses
-    Adjustment,     // Manual adjustment (inventory count correction)
-    Damage,         // Damaged goods
-    Lost,           // Lost/stolen goods
-    Reserved,       // Reserved for order
-    Released        // Released from reservation
-}
-
+/// <summary>
+/// StockMovement Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// Her entity dosyasında SADECE 1 class olmalı
+/// </summary>
 public class StockMovement : BaseEntity
 {
     public Guid InventoryId { get; set; }
@@ -37,3 +30,4 @@ public class StockMovement : BaseEntity
     public Warehouse? FromWarehouse { get; set; }
     public Warehouse? ToWarehouse { get; set; }
 }
+

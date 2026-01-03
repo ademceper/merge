@@ -405,9 +405,10 @@ public class MappingProfile : Profile
                     : (decimal?)null))
             .AfterMap((src, dest) => 
             {
-                // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
+                // ✅ BOLUM 4.3: Over-Posting Korumasi - Dictionary<string, object> YASAK
+                // Typed DTO kullanılıyor
                 dest.Settings = !string.IsNullOrEmpty(src.Settings) 
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Settings!) 
+                    ? JsonSerializer.Deserialize<B2BUserSettingsDto>(src.Settings!) 
                     : null;
             });
 

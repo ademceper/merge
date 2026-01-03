@@ -56,6 +56,12 @@ builder.Services.Configure<Merge.Application.Configuration.LoyaltySettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.LoyaltySettings.SectionName));
 builder.Services.Configure<Merge.Application.Configuration.ReferralSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.ReferralSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.B2BSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.B2BSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.AnalyticsSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.AnalyticsSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.CartSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.CartSettings.SectionName));
 
 // Add services to the container
 builder.Services.AddControllers();
@@ -141,6 +147,9 @@ builder.Services.AddIdentity<User, Role>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>();
 
 // Repository pattern
+// ✅ BOLUM 1.5: Domain Events publish mekanizması (ZORUNLU)
+builder.Services.AddScoped<Merge.Domain.Common.IDomainEventDispatcher, Merge.Infrastructure.Common.DomainEventDispatcher>();
+
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
@@ -195,6 +204,10 @@ builder.Services.AddScoped<IReferralService, Merge.Application.Services.Marketin
 builder.Services.AddScoped<IReviewMediaService, Merge.Application.Services.Marketing.ReviewMediaService>();
 builder.Services.AddScoped<ISharedWishlistService, Merge.Application.Services.Marketing.SharedWishlistService>();
 builder.Services.AddScoped<IEmailCampaignService, Merge.Application.Services.Marketing.EmailCampaignService>();
+// ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
+builder.Services.Configure<Merge.Application.Configuration.AnalyticsSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.AnalyticsSettings.SectionName));
+
 builder.Services.AddScoped<IAnalyticsService, Merge.Application.Services.Analytics.AnalyticsService>();
 builder.Services.AddScoped<Merge.Application.Interfaces.Analytics.IAdminService, Merge.Application.Services.Analytics.AdminService>();
 builder.Services.AddScoped<IProductComparisonService, Merge.Application.Services.Product.ProductComparisonService>();

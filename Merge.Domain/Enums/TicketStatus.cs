@@ -1,13 +1,14 @@
 namespace Merge.Domain.Enums;
 
 /// <summary>
-/// Support ticket status
+/// Ticket Status - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// Her enum dosyasında SADECE 1 enum olmalı
 /// </summary>
 public enum TicketStatus
 {
-    Open = 0,
-    InProgress = 1,
-    Waiting = 2,
-    Resolved = 3,
-    Closed = 4
+    Open,
+    InProgress,
+    Waiting,
+    Resolved,
+    Closed
 }

@@ -911,7 +911,10 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
                   .WithMany()
                   .HasForeignKey(e => e.CouponId)
                   .OnDelete(DeleteBehavior.SetNull);
-            entity.Property(e => e.EmailType).IsRequired().HasMaxLength(50);
+            // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
+            entity.Property(e => e.EmailType)
+                .IsRequired()
+                .HasConversion<string>(); // Enum'u string olarak sakla (EF Core)
             entity.HasIndex(e => new { e.CartId, e.SentAt });
             entity.HasIndex(e => new { e.UserId, e.SentAt });
         });

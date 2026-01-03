@@ -9,8 +9,9 @@ namespace Merge.Domain.Entities;
 
 /// <summary>
 /// Payment aggregate root - Rich Domain Model implementation
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU)
 /// </summary>
-public class Payment : BaseEntity
+public class Payment : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OrderId { get; private set; }

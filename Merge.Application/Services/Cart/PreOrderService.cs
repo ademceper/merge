@@ -4,6 +4,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces.Cart;
 using Merge.Application.Exceptions;
+using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
@@ -35,17 +36,18 @@ public class PreOrderService : IPreOrderService
         _logger = logger;
     }
 
-    public async Task<PreOrderDto> CreatePreOrderAsync(Guid userId, CreatePreOrderDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PreOrderDto> CreatePreOrderAsync(Guid userId, CreatePreOrderDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ ARCHITECTURE: Transaction başlat - atomic operation (PreOrder + Campaign update)
-        await _unitOfWork.BeginTransactionAsync();
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             // ✅ PERFORMANCE: AsNoTracking for read-only product query
             // ✅ PERFORMANCE: Removed manual !p.IsDeleted check (Global Query Filter handles it)
             var product = await _context.Set<ProductEntity>()
                 .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Id == dto.ProductId);
+                .FirstOrDefaultAsync(p => p.Id == dto.ProductId, cancellationToken);
 
             if (product == null)
             {
@@ -58,7 +60,7 @@ public class PreOrderService : IPreOrderService
                 .AsNoTracking()
                 .Where(c => c.ProductId == dto.ProductId && c.IsActive)
                 .Where(c => c.StartDate <= DateTime.UtcNow && c.EndDate >= DateTime.UtcNow)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(cancellationToken);
 
         if (campaign == null)
         {
@@ -73,41 +75,46 @@ public class PreOrderService : IPreOrderService
         var price = campaign.SpecialPrice > 0 ? campaign.SpecialPrice : product.Price;
         var depositAmount = price * (campaign.DepositPercentage / 100);
 
-        var preOrder = new PreOrder
-        {
-            ProductId = dto.ProductId,
-            UserId = userId,
-            Quantity = dto.Quantity,
-            Price = price,
-            DepositAmount = depositAmount,
-            ExpectedAvailabilityDate = campaign.ExpectedDeliveryDate,
-            ExpiresAt = campaign.EndDate,
-            VariantOptions = dto.VariantOptions,
-            Notes = dto.Notes,
-            Status = depositAmount > 0 ? PreOrderStatus.Pending : PreOrderStatus.Confirmed
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
+        var preOrder = PreOrder.Create(
+            userId,
+            dto.ProductId,
+            dto.Quantity,
+            price,
+            depositAmount,
+            campaign.ExpectedDeliveryDate,
+            campaign.EndDate,
+            dto.Notes,
+            dto.VariantOptions);
 
-            await _context.Set<PreOrder>().AddAsync(preOrder);
+        // Eğer depozito yoksa direkt confirmed yap
+        if (depositAmount == 0)
+        {
+            preOrder.Confirm();
+        }
+
+            await _context.Set<PreOrder>().AddAsync(preOrder, cancellationToken);
 
             // Reload campaign for update (tracking gerekli)
             var campaignToUpdate = await _context.Set<PreOrderCampaign>()
-                .FirstOrDefaultAsync(c => c.Id == campaign.Id);
+                .FirstOrDefaultAsync(c => c.Id == campaign.Id, cancellationToken);
             
             if (campaignToUpdate == null)
             {
                 throw new NotFoundException("Kampanya", campaign.Id);
             }
 
-            campaignToUpdate.CurrentQuantity += dto.Quantity;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+            campaignToUpdate.IncrementQuantity(dto.Quantity);
 
-            await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitTransactionAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             // ✅ ARCHITECTURE: Reload with Include for AutoMapper
             preOrder = await _context.Set<PreOrder>()
                 .AsNoTracking()
                 .Include(po => po.Product)
-                .FirstOrDefaultAsync(po => po.Id == preOrder.Id);
+                .FirstOrDefaultAsync(po => po.Id == preOrder.Id, cancellationToken);
 
             // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
             return _mapper.Map<PreOrderDto>(preOrder!);
@@ -118,48 +125,72 @@ public class PreOrderService : IPreOrderService
             _logger.LogError(ex,
                 "PreOrder olusturma hatasi. UserId: {UserId}, ProductId: {ProductId}",
                 userId, dto.ProductId);
-            await _unitOfWork.RollbackTransactionAsync();
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }
 
-    public async Task<PreOrderDto?> GetPreOrderAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PreOrderDto?> GetPreOrderAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !po.IsDeleted check (Global Query Filter handles it)
         var preOrder = await _context.Set<PreOrder>()
             .AsNoTracking()
             .Include(po => po.Product)
-            .FirstOrDefaultAsync(po => po.Id == id);
+            .FirstOrDefaultAsync(po => po.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return preOrder != null ? _mapper.Map<PreOrderDto>(preOrder) : null;
     }
 
-    public async Task<IEnumerable<PreOrderDto>> GetUserPreOrdersAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<PreOrderDto>> GetUserPreOrdersAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !po.IsDeleted check (Global Query Filter handles it)
-        var preOrders = await _context.Set<PreOrder>()
+        var query = _context.Set<PreOrder>()
             .AsNoTracking()
             .Include(po => po.Product)
-            .Where(po => po.UserId == userId)
+            .Where(po => po.UserId == userId);
+
+        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var preOrders = await query
             .OrderByDescending(po => po.CreatedAt)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        return _mapper.Map<IEnumerable<PreOrderDto>>(preOrders);
+        var items = _mapper.Map<List<PreOrderDto>>(preOrders);
+
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+        return new PagedResult<PreOrderDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<bool> CancelPreOrderAsync(Guid id, Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> CancelPreOrderAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ ARCHITECTURE: Transaction başlat - atomic operation (PreOrder + Campaign update)
-        await _unitOfWork.BeginTransactionAsync();
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             // ✅ PERFORMANCE: Removed manual !po.IsDeleted check (Global Query Filter handles it)
             var preOrder = await _context.Set<PreOrder>()
-                .FirstOrDefaultAsync(po => po.Id == id && po.UserId == userId);
+                .FirstOrDefaultAsync(po => po.Id == id && po.UserId == userId, cancellationToken);
 
             if (preOrder == null) return false;
 
@@ -168,19 +199,21 @@ public class PreOrderService : IPreOrderService
                 throw new BusinessException("Siparişe dönüştürülmüş bir ön sipariş iptal edilemez.");
             }
 
-            preOrder.Status = PreOrderStatus.Cancelled;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+            preOrder.Cancel();
 
             // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
             var campaign = await _context.Set<PreOrderCampaign>()
-                .FirstOrDefaultAsync(c => c.ProductId == preOrder.ProductId);
+                .FirstOrDefaultAsync(c => c.ProductId == preOrder.ProductId, cancellationToken);
 
             if (campaign != null)
             {
-                campaign.CurrentQuantity -= preOrder.Quantity;
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+                campaign.DecrementQuantity(preOrder.Quantity);
             }
 
-            await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitTransactionAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             return true;
         }
@@ -190,16 +223,17 @@ public class PreOrderService : IPreOrderService
             _logger.LogError(ex,
                 "PreOrder iptal hatasi. PreOrderId: {PreOrderId}, UserId: {UserId}",
                 id, userId);
-            await _unitOfWork.RollbackTransactionAsync();
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }
 
-    public async Task<bool> PayDepositAsync(Guid userId, PayPreOrderDepositDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> PayDepositAsync(Guid userId, PayPreOrderDepositDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !po.IsDeleted check (Global Query Filter handles it)
         var preOrder = await _context.Set<PreOrder>()
-            .FirstOrDefaultAsync(po => po.Id == dto.PreOrderId && po.UserId == userId);
+            .FirstOrDefaultAsync(po => po.Id == dto.PreOrderId && po.UserId == userId, cancellationToken);
 
         if (preOrder == null) return false;
 
@@ -208,29 +242,26 @@ public class PreOrderService : IPreOrderService
             throw new BusinessException("Depozito zaten ödenmiş.");
         }
 
-        preOrder.DepositPaid += dto.Amount;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+        preOrder.PayDeposit(dto.Amount);
 
-        if (preOrder.DepositPaid >= preOrder.DepositAmount)
-        {
-            preOrder.Status = PreOrderStatus.DepositPaid;
-        }
-
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> ConvertToOrderAsync(Guid preOrderId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ConvertToOrderAsync(Guid preOrderId, CancellationToken cancellationToken = default)
     {
         // ✅ ARCHITECTURE: Transaction başlat - atomic operation (PreOrder + Order + OrderItem)
-        await _unitOfWork.BeginTransactionAsync();
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             // ✅ PERFORMANCE: Removed manual !po.IsDeleted check (Global Query Filter handles it)
             var preOrder = await _context.Set<PreOrder>()
                 .Include(po => po.Product)
                 .Include(po => po.User)
-                .FirstOrDefaultAsync(po => po.Id == preOrderId);
+                .FirstOrDefaultAsync(po => po.Id == preOrderId, cancellationToken);
 
             if (preOrder == null) return false;
 
@@ -242,13 +273,13 @@ public class PreOrderService : IPreOrderService
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
             // Kullanıcının default address'ini çek
             var address = await _context.Addresses
-                .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId && a.IsDefault);
+                .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId && a.IsDefault, cancellationToken);
             
             if (address == null)
             {
                 // Default address yoksa ilk address'i al
                 address = await _context.Addresses
-                    .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId);
+                    .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId, cancellationToken);
             }
             
             if (address == null)
@@ -261,7 +292,7 @@ public class PreOrderService : IPreOrderService
             
             // Product'ı çek (AddItem için gerekli)
             var product = await _context.Products
-                .FirstOrDefaultAsync(p => p.Id == preOrder.ProductId);
+                .FirstOrDefaultAsync(p => p.Id == preOrder.ProductId, cancellationToken);
             
             if (product == null)
             {
@@ -278,14 +309,13 @@ public class PreOrderService : IPreOrderService
             var tax = new Money(0); // Pre-order için tax 0
             order.SetTax(tax);
 
-            await _context.Set<OrderEntity>().AddAsync(order);
+            await _context.Set<OrderEntity>().AddAsync(order, cancellationToken);
 
-            preOrder.Status = PreOrderStatus.Converted;
-            preOrder.ConvertedToOrderAt = DateTime.UtcNow;
-            preOrder.OrderId = order.Id;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+            preOrder.ConvertToOrder(order.Id);
 
-            await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitTransactionAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             return true;
         }
@@ -295,165 +325,213 @@ public class PreOrderService : IPreOrderService
             _logger.LogError(ex,
                 "PreOrder siparise donusturme hatasi. PreOrderId: {PreOrderId}",
                 preOrderId);
-            await _unitOfWork.RollbackTransactionAsync();
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }
 
-    public async Task NotifyPreOrderAvailableAsync(Guid preOrderId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task NotifyPreOrderAvailableAsync(Guid preOrderId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !po.IsDeleted check (Global Query Filter handles it)
         var preOrder = await _context.Set<PreOrder>()
             .Include(po => po.Product)
             .Include(po => po.User)
-            .FirstOrDefaultAsync(po => po.Id == preOrderId);
+            .FirstOrDefaultAsync(po => po.Id == preOrderId, cancellationToken);
 
         if (preOrder == null) return;
 
         if (preOrder.NotificationSentAt != null) return;
 
+        // ✅ NOTE: IEmailService interface'inde CancellationToken yok, bu domain dışında
         await _emailService.SendEmailAsync(
             preOrder.User.Email ?? string.Empty,
             "Your Pre-Order is Ready!",
             $"Good news! Your pre-order for {preOrder.Product.Name} is now available and ready to ship."
         );
 
-        preOrder.NotificationSentAt = DateTime.UtcNow;
-        preOrder.ActualAvailabilityDate = DateTime.UtcNow;
-        preOrder.Status = PreOrderStatus.ReadyToShip;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+        preOrder.MarkNotificationAsSent();
+        preOrder.MarkAsReadyToShip();
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     // Campaigns
-    public async Task<PreOrderCampaignDto> CreateCampaignAsync(CreatePreOrderCampaignDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PreOrderCampaignDto> CreateCampaignAsync(CreatePreOrderCampaignDto dto, CancellationToken cancellationToken = default)
     {
-        var campaign = new PreOrderCampaign
-        {
-            Name = dto.Name,
-            Description = dto.Description,
-            ProductId = dto.ProductId,
-            StartDate = dto.StartDate,
-            EndDate = dto.EndDate,
-            ExpectedDeliveryDate = dto.ExpectedDeliveryDate,
-            MaxQuantity = dto.MaxQuantity,
-            DepositPercentage = dto.DepositPercentage,
-            SpecialPrice = dto.SpecialPrice
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
+        var campaign = PreOrderCampaign.Create(
+            dto.Name,
+            dto.Description,
+            dto.ProductId,
+            dto.StartDate,
+            dto.EndDate,
+            dto.ExpectedDeliveryDate,
+            dto.MaxQuantity,
+            dto.DepositPercentage,
+            dto.SpecialPrice,
+            dto.NotifyOnAvailable);
 
-        await _context.Set<PreOrderCampaign>().AddAsync(campaign);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<PreOrderCampaign>().AddAsync(campaign, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: Reload with Include for AutoMapper
         campaign = await _context.Set<PreOrderCampaign>()
             .AsNoTracking()
             .Include(c => c.Product)
-            .FirstOrDefaultAsync(c => c.Id == campaign.Id);
+            .FirstOrDefaultAsync(c => c.Id == campaign.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return _mapper.Map<PreOrderCampaignDto>(campaign!);
     }
 
-    public async Task<PreOrderCampaignDto?> GetCampaignAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PreOrderCampaignDto?> GetCampaignAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
         var campaign = await _context.Set<PreOrderCampaign>()
             .AsNoTracking()
             .Include(c => c.Product)
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return campaign != null ? _mapper.Map<PreOrderCampaignDto>(campaign) : null;
     }
 
-    public async Task<IEnumerable<PreOrderCampaignDto>> GetActiveCampaignsAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<PreOrderCampaignDto>> GetActiveCampaignsAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         var now = DateTime.UtcNow;
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
-        var campaigns = await _context.Set<PreOrderCampaign>()
+        var query = _context.Set<PreOrderCampaign>()
             .AsNoTracking()
             .Include(c => c.Product)
             .Where(c => c.IsActive)
-            .Where(c => c.StartDate <= now && c.EndDate >= now)
+            .Where(c => c.StartDate <= now && c.EndDate >= now);
+
+        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var campaigns = await query
             .OrderBy(c => c.EndDate)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        return _mapper.Map<IEnumerable<PreOrderCampaignDto>>(campaigns);
+        var items = _mapper.Map<List<PreOrderCampaignDto>>(campaigns);
+
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+        return new PagedResult<PreOrderCampaignDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<IEnumerable<PreOrderCampaignDto>> GetCampaignsByProductAsync(Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<PreOrderCampaignDto>> GetCampaignsByProductAsync(Guid productId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
-        var campaigns = await _context.Set<PreOrderCampaign>()
+        var query = _context.Set<PreOrderCampaign>()
             .AsNoTracking()
             .Include(c => c.Product)
-            .Where(c => c.ProductId == productId)
+            .Where(c => c.ProductId == productId);
+
+        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var campaigns = await query
             .OrderByDescending(c => c.CreatedAt)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        return _mapper.Map<IEnumerable<PreOrderCampaignDto>>(campaigns);
+        var items = _mapper.Map<List<PreOrderCampaignDto>>(campaigns);
+
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+        return new PagedResult<PreOrderCampaignDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<bool> UpdateCampaignAsync(Guid id, CreatePreOrderCampaignDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> UpdateCampaignAsync(Guid id, CreatePreOrderCampaignDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
         var campaign = await _context.Set<PreOrderCampaign>()
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (campaign == null) return false;
 
-        campaign.Name = dto.Name;
-        campaign.Description = dto.Description;
-        campaign.StartDate = dto.StartDate;
-        campaign.EndDate = dto.EndDate;
-        campaign.ExpectedDeliveryDate = dto.ExpectedDeliveryDate;
-        campaign.MaxQuantity = dto.MaxQuantity;
-        campaign.DepositPercentage = dto.DepositPercentage;
-        campaign.SpecialPrice = dto.SpecialPrice;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+        campaign.UpdateBasicInfo(dto.Name, dto.Description, dto.MaxQuantity);
+        campaign.UpdateDates(dto.StartDate, dto.EndDate, dto.ExpectedDeliveryDate);
+        campaign.UpdatePricing(dto.DepositPercentage, dto.SpecialPrice);
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeactivateCampaignAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeactivateCampaignAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
         var campaign = await _context.Set<PreOrderCampaign>()
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (campaign == null) return false;
 
-        campaign.IsActive = false;
-        await _unitOfWork.SaveChangesAsync();
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+        campaign.Deactivate();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<PreOrderStatsDto> GetPreOrderStatsAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PreOrderStatsDto> GetPreOrderStatsAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: Removed manual !po.IsDeleted check (Global Query Filter handles it)
         var totalPreOrders = await _context.Set<PreOrder>()
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         var pendingPreOrders = await _context.Set<PreOrder>()
-            .CountAsync(po => po.Status == PreOrderStatus.Pending);
+            .CountAsync(po => po.Status == PreOrderStatus.Pending, cancellationToken);
 
         var confirmedPreOrders = await _context.Set<PreOrder>()
-            .CountAsync(po => po.Status == PreOrderStatus.Confirmed || po.Status == PreOrderStatus.DepositPaid);
+            .CountAsync(po => po.Status == PreOrderStatus.Confirmed || po.Status == PreOrderStatus.DepositPaid, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de Sum yap (memory'de işlem YASAK)
         var totalRevenue = await _context.Set<PreOrder>()
-            .SumAsync(po => po.Price * po.Quantity);
+            .SumAsync(po => po.Price * po.Quantity, cancellationToken);
 
         var totalDeposits = await _context.Set<PreOrder>()
-            .SumAsync(po => po.DepositPaid);
+            .SumAsync(po => po.DepositPaid, cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         var recentPreOrders = await _context.Set<PreOrder>()
@@ -461,7 +539,7 @@ public class PreOrderService : IPreOrderService
             .Include(po => po.Product)
             .OrderByDescending(po => po.CreatedAt)
             .Take(10)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         var recentDtos = _mapper.Map<IEnumerable<PreOrderDto>>(recentPreOrders).ToList();
@@ -477,20 +555,22 @@ public class PreOrderService : IPreOrderService
         };
     }
 
-    public async Task ProcessExpiredPreOrdersAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task ProcessExpiredPreOrdersAsync(CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
         // ✅ PERFORMANCE: Removed manual !po.IsDeleted check (Global Query Filter handles it)
         var expiredPreOrders = await _context.Set<PreOrder>()
             .Where(po => po.Status == PreOrderStatus.Pending && po.ExpiresAt < now)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         foreach (var preOrder in expiredPreOrders)
         {
-            preOrder.Status = PreOrderStatus.Expired;
+            preOrder.MarkAsExpired();
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.DTOs.Support;
+using Merge.Application.Common;
 using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Support;
@@ -18,10 +19,10 @@ public class SupportTicketsController : BaseController
         _supportTicketService = supportTicketService;
     }
 
-    // ✅ SECURITY: Rate limiting - 5 destek talebi / saat (spam koruması)
+    // ✅ SECURITY: Rate limiting - 10 destek talebi / saat (spam koruması) - .cursorrules BOLUM 3.3
     [HttpPost]
     [Authorize]
-    [RateLimit(5, 3600)]
+    [RateLimit(10, 3600)]
     public async Task<ActionResult<SupportTicketDto>> CreateTicket([FromBody] CreateSupportTicketDto dto)
     {
         var validationResult = ValidateModelState();
@@ -68,16 +69,26 @@ public class SupportTicketsController : BaseController
         return Ok(ticket);
     }
 
+    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
     [HttpGet("my-tickets")]
     [Authorize]
-    public async Task<ActionResult<IEnumerable<SupportTicketDto>>> GetMyTickets([FromQuery] string? status = null)
+    [ProducesResponseType(typeof(PagedResult<SupportTicketDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<PagedResult<SupportTicketDto>>> GetMyTickets(
+        [FromQuery] string? status = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
+        if (pageSize > 100) pageSize = 100; // Max limit
+        if (page < 1) page = 1;
+        
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        var tickets = await _supportTicketService.GetUserTicketsAsync(userId, status);
+        var tickets = await _supportTicketService.GetUserTicketsAsync(userId, status, page, pageSize, cancellationToken);
         return Ok(tickets);
     }
 

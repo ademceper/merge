@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 
 namespace Merge.Application.DTOs.Logistics;
 

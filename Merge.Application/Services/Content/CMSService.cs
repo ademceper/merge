@@ -28,11 +28,12 @@ public class CMSService : ICMSService
         _logger = logger;
     }
 
-    public async Task<CMSPageDto> CreatePageAsync(Guid? authorId, CreateCMSPageDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<CMSPageDto> CreatePageAsync(Guid? authorId, CreateCMSPageDto dto, CancellationToken cancellationToken = default)
     {
         var slug = GenerateSlug(dto.Title);
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        if (await _context.Set<CMSPage>().AnyAsync(p => p.Slug == slug))
+        if (await _context.Set<CMSPage>().AnyAsync(p => p.Slug == slug, cancellationToken))
         {
             slug = $"{slug}-{DateTime.UtcNow.Ticks}";
         }
@@ -43,7 +44,7 @@ public class CMSService : ICMSService
             // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
             var existingHomePages = await _context.Set<CMSPage>()
                 .Where(p => p.IsHomePage)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             foreach (var existingPage in existingHomePages)
             {
@@ -72,49 +73,49 @@ public class CMSService : ICMSService
             PublishedAt = (Enum.TryParse<ContentStatus>(dto.Status, true, out var status) && status == ContentStatus.Published) ? DateTime.UtcNow : null
         };
 
-        await _context.Set<CMSPage>().AddAsync(page);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<CMSPage>().AddAsync(page, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return _mapper.Map<CMSPageDto>(page);
     }
 
-    public async Task<CMSPageDto?> GetPageByIdAsync(Guid id)
+    public async Task<CMSPageDto?> GetPageByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var page = await _context.Set<CMSPage>()
             .AsNoTracking()
             .Include(p => p.Author)
             .Include(p => p.ParentPage)
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         return page != null ? _mapper.Map<CMSPageDto>(page) : null;
     }
 
-    public async Task<CMSPageDto?> GetPageBySlugAsync(string slug)
+    public async Task<CMSPageDto?> GetPageBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var page = await _context.Set<CMSPage>()
             .AsNoTracking()
             .Include(p => p.Author)
             .Include(p => p.ParentPage)
-            .FirstOrDefaultAsync(p => p.Slug == slug && p.Status == ContentStatus.Published);
+            .FirstOrDefaultAsync(p => p.Slug == slug && p.Status == ContentStatus.Published, cancellationToken);
 
         return page != null ? _mapper.Map<CMSPageDto>(page) : null;
     }
 
-    public async Task<CMSPageDto?> GetHomePageAsync()
+    public async Task<CMSPageDto?> GetHomePageAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var page = await _context.Set<CMSPage>()
             .AsNoTracking()
             .Include(p => p.Author)
-            .FirstOrDefaultAsync(p => p.IsHomePage && p.Status == ContentStatus.Published);
+            .FirstOrDefaultAsync(p => p.IsHomePage && p.Status == ContentStatus.Published, cancellationToken);
 
         return page != null ? _mapper.Map<CMSPageDto>(page) : null;
     }
 
     // ✅ BOLUM 3.4: Pagination eklendi (ZORUNLU)
-    public async Task<PagedResult<CMSPageDto>> GetAllPagesAsync(string? status = null, bool? showInMenu = null, int page = 1, int pageSize = 20)
+    public async Task<PagedResult<CMSPageDto>> GetAllPagesAsync(string? status = null, bool? showInMenu = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         IQueryable<CMSPage> query = _context.Set<CMSPage>()
@@ -136,14 +137,14 @@ public class CMSService : ICMSService
             query = query.Where(p => p.ShowInMenu == showInMenu.Value);
         }
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(cancellationToken);
 
         var pages = await query
             .OrderBy(p => p.DisplayOrder)
             .ThenBy(p => p.Title)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var items = pages.Select(p => _mapper.Map<CMSPageDto>(p)).ToList();
 
@@ -156,7 +157,7 @@ public class CMSService : ICMSService
         };
     }
 
-    public async Task<IEnumerable<CMSPageDto>> GetMenuPagesAsync()
+    public async Task<IEnumerable<CMSPageDto>> GetMenuPagesAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var pages = await _context.Set<CMSPage>()
@@ -166,7 +167,7 @@ public class CMSService : ICMSService
             .Where(p => p.ShowInMenu && p.Status == ContentStatus.Published && p.ParentPageId == null)
             .OrderBy(p => p.DisplayOrder)
             .ThenBy(p => p.Title)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var result = new List<CMSPageDto>();
         foreach (var page in pages)
@@ -176,11 +177,11 @@ public class CMSService : ICMSService
         return result;
     }
 
-    public async Task<bool> UpdatePageAsync(Guid id, CreateCMSPageDto dto)
+    public async Task<bool> UpdatePageAsync(Guid id, CreateCMSPageDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var page = await _context.Set<CMSPage>()
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (page == null) return false;
 
@@ -221,7 +222,7 @@ public class CMSService : ICMSService
             // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
             var existingHomePages = await _context.Set<CMSPage>()
                 .Where(p => p.IsHomePage && p.Id != id)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             foreach (var p in existingHomePages)
             {
@@ -237,47 +238,47 @@ public class CMSService : ICMSService
             page.ParentPageId = dto.ParentPageId;
 
         page.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeletePageAsync(Guid id)
+    public async Task<bool> DeletePageAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var page = await _context.Set<CMSPage>()
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (page == null) return false;
 
         page.IsDeleted = true;
         page.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> PublishPageAsync(Guid id)
+    public async Task<bool> PublishPageAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var page = await _context.Set<CMSPage>()
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (page == null) return false;
 
         page.Status = ContentStatus.Published;
         page.PublishedAt = DateTime.UtcNow;
         page.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> SetHomePageAsync(Guid id)
+    public async Task<bool> SetHomePageAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var page = await _context.Set<CMSPage>()
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (page == null) return false;
 
@@ -285,7 +286,7 @@ public class CMSService : ICMSService
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var existingHomePages = await _context.Set<CMSPage>()
             .Where(p => p.IsHomePage && p.Id != id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         foreach (var existingPage in existingHomePages)
         {
@@ -294,7 +295,7 @@ public class CMSService : ICMSService
 
         page.IsHomePage = true;
         page.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }

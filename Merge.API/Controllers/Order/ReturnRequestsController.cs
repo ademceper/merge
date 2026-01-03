@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.DTOs.Order;
+using Merge.Application.Common;
 
 
 namespace Merge.API.Controllers.Order;
@@ -19,13 +20,20 @@ public class ReturnRequestsController : BaseController
         _returnRequestService = returnRequestService;
     }
 
+    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<ReturnRequestDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<ReturnRequestDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<IEnumerable<ReturnRequestDto>>> GetMyReturns()
+    public async Task<ActionResult<PagedResult<ReturnRequestDto>>> GetMyReturns(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
+        if (pageSize > 100) pageSize = 100; // Max limit
+        if (page < 1) page = 1;
+        
         var userId = GetUserId();
-        var returns = await _returnRequestService.GetByUserIdAsync(userId);
+        var returns = await _returnRequestService.GetByUserIdAsync(userId, page, pageSize, cancellationToken);
         return Ok(returns);
     }
 

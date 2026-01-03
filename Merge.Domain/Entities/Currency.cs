@@ -1,5 +1,9 @@
 namespace Merge.Domain.Entities;
 
+/// <summary>
+/// Currency Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// Her entity dosyasında SADECE 1 class olmalı
+/// </summary>
 public class Currency : BaseEntity
 {
     public string Code { get; set; } = string.Empty; // USD, EUR, TRY, GBP
@@ -13,25 +17,3 @@ public class Currency : BaseEntity
     public string Format { get; set; } = string.Empty; // {symbol}{amount} or {amount}{symbol}
 }
 
-public class ExchangeRateHistory : BaseEntity
-{
-    public Guid CurrencyId { get; set; }
-    public string CurrencyCode { get; set; } = string.Empty;
-    public decimal ExchangeRate { get; set; }
-    public DateTime RecordedAt { get; set; } = DateTime.UtcNow;
-    public string Source { get; set; } = string.Empty; // Manual, API, etc.
-
-    // Navigation properties
-    public Currency Currency { get; set; } = null!;
-}
-
-public class UserCurrencyPreference : BaseEntity
-{
-    public Guid UserId { get; set; }
-    public Guid CurrencyId { get; set; }
-    public string CurrencyCode { get; set; } = string.Empty;
-
-    // Navigation properties
-    public User User { get; set; } = null!;
-    public Currency Currency { get; set; } = null!;
-}

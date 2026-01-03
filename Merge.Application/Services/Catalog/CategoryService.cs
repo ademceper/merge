@@ -170,8 +170,15 @@ public class CategoryService : ICategoryService
             throw new ValidationException("Kategori adı boş olamaz.");
         }
 
-        var category = _mapper.Map<Category>(categoryDto);
-        category = await _categoryRepository.AddAsync(category);
+        // ✅ BOLUM 1.1: Factory Method kullanımı
+        var category = Category.Create(
+            categoryDto.Name,
+            categoryDto.Description,
+            categoryDto.Slug,
+            categoryDto.ImageUrl,
+            categoryDto.ParentCategoryId);
+        
+        category = await _categoryRepository.AddAsync(category, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         
         // Performance: Invalidate cache when data changes
@@ -194,19 +201,21 @@ public class CategoryService : ICategoryService
             throw new ValidationException("Kategori adı boş olamaz.");
         }
 
-        var category = await _categoryRepository.GetByIdAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var category = await _categoryRepository.GetByIdAsync(id, cancellationToken);
         if (category == null)
         {
             throw new NotFoundException("Kategori", id);
         }
 
-        category.Name = categoryDto.Name;
-        category.Description = categoryDto.Description;
-        category.Slug = categoryDto.Slug;
-        category.ImageUrl = categoryDto.ImageUrl;
-        category.ParentCategoryId = categoryDto.ParentCategoryId;
+        // ✅ BOLUM 1.1: Domain Method kullanımı
+        category.UpdateName(categoryDto.Name);
+        category.UpdateDescription(categoryDto.Description);
+        category.UpdateSlug(categoryDto.Slug);
+        category.UpdateImageUrl(categoryDto.ImageUrl);
+        category.SetParentCategory(categoryDto.ParentCategoryId);
 
-        await _categoryRepository.UpdateAsync(category);
+        await _categoryRepository.UpdateAsync(category, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         
         // Performance: Invalidate cache when data changes
@@ -219,13 +228,14 @@ public class CategoryService : ICategoryService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var category = await _categoryRepository.GetByIdAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var category = await _categoryRepository.GetByIdAsync(id, cancellationToken);
         if (category == null)
         {
             return false;
         }
 
-        await _categoryRepository.DeleteAsync(category);
+        await _categoryRepository.DeleteAsync(category, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         
         // Performance: Invalidate cache when data changes

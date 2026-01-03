@@ -8,8 +8,9 @@ namespace Merge.Domain.Entities;
 
 /// <summary>
 /// Product aggregate root - Rich Domain Model implementation
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU)
 /// </summary>
-public class Product : BaseEntity
+public class Product : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;

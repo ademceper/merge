@@ -29,11 +29,12 @@ public class LandingPageService : ILandingPageService
         _logger = logger;
     }
 
-    public async Task<LandingPageDto> CreateLandingPageAsync(Guid? authorId, CreateLandingPageDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<LandingPageDto> CreateLandingPageAsync(Guid? authorId, CreateLandingPageDto dto, CancellationToken cancellationToken = default)
     {
         var slug = GenerateSlug(dto.Name);
         // ✅ PERFORMANCE: Removed manual !lp.IsDeleted (Global Query Filter)
-        if (await _context.Set<LandingPage>().AnyAsync(lp => lp.Slug == slug))
+        if (await _context.Set<LandingPage>().AnyAsync(lp => lp.Slug == slug, cancellationToken))
         {
             slug = $"{slug}-{DateTime.UtcNow.Ticks}";
         }
@@ -59,32 +60,32 @@ public class LandingPageService : ILandingPageService
             PublishedAt = (Enum.TryParse<ContentStatus>(dto.Status, true, out var status) && status == ContentStatus.Published) ? DateTime.UtcNow : null
         };
 
-        await _context.Set<LandingPage>().AddAsync(landingPage);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<LandingPage>().AddAsync(landingPage, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return _mapper.Map<LandingPageDto>(landingPage);
     }
 
-    public async Task<LandingPageDto?> GetLandingPageByIdAsync(Guid id)
+    public async Task<LandingPageDto?> GetLandingPageByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !lp.IsDeleted (Global Query Filter)
         var landingPage = await _context.Set<LandingPage>()
             .AsNoTracking()
             .Include(lp => lp.Author)
             .Include(lp => lp.VariantOf)
-            .FirstOrDefaultAsync(lp => lp.Id == id);
+            .FirstOrDefaultAsync(lp => lp.Id == id, cancellationToken);
 
         return landingPage != null ? _mapper.Map<LandingPageDto>(landingPage) : null;
     }
 
-    public async Task<LandingPageDto?> GetLandingPageBySlugAsync(string slug)
+    public async Task<LandingPageDto?> GetLandingPageBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !lp.IsDeleted (Global Query Filter)
         // ⚠️ NOTE: AsNoTracking kullanılmıyor çünkü view count increment edilecek (tracking gerekli)
         var landingPage = await _context.Set<LandingPage>()
             .Include(lp => lp.Author)
             .Include(lp => lp.VariantOf)
-            .FirstOrDefaultAsync(lp => lp.Slug == slug && lp.Status == ContentStatus.Published && lp.IsActive);
+            .FirstOrDefaultAsync(lp => lp.Slug == slug && lp.Status == ContentStatus.Published && lp.IsActive, cancellationToken);
 
         if (landingPage != null)
         {
@@ -108,13 +109,14 @@ public class LandingPageService : ILandingPageService
 
             // Increment view count
             landingPage.ViewCount++;
-            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         return landingPage != null ? _mapper.Map<LandingPageDto>(landingPage) : null;
     }
 
-    public async Task<IEnumerable<LandingPageDto>> GetAllLandingPagesAsync(string? status = null, bool? isActive = null)
+    // ✅ BOLUM 3.4: Pagination - PagedResult dönmeli (ZORUNLU)
+    public async Task<PagedResult<LandingPageDto>> GetAllLandingPagesAsync(string? status = null, bool? isActive = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         var query = _context.Set<LandingPage>()
             .Include(lp => lp.Author)
@@ -136,23 +138,30 @@ public class LandingPageService : ILandingPageService
             query = query.Where(lp => lp.IsActive == isActive.Value);
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var landingPages = await query
             .OrderByDescending(lp => lp.CreatedAt)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
-        var result = new List<LandingPageDto>();
-        foreach (var landingPage in landingPages)
+        var items = landingPages.Select(lp => _mapper.Map<LandingPageDto>(lp)).ToList();
+
+        return new PagedResult<LandingPageDto>
         {
-            result.Add(_mapper.Map<LandingPageDto>(landingPage));
-        }
-        return result;
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<bool> UpdateLandingPageAsync(Guid id, CreateLandingPageDto dto)
+    public async Task<bool> UpdateLandingPageAsync(Guid id, CreateLandingPageDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !lp.IsDeleted (Global Query Filter)
         var landingPage = await _context.Set<LandingPage>()
-            .FirstOrDefaultAsync(lp => lp.Id == id);
+            .FirstOrDefaultAsync(lp => lp.Id == id, cancellationToken);
 
         if (landingPage == null) return false;
 
@@ -193,31 +202,31 @@ public class LandingPageService : ILandingPageService
         landingPage.TrafficSplit = dto.TrafficSplit;
 
         landingPage.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeleteLandingPageAsync(Guid id)
+    public async Task<bool> DeleteLandingPageAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !lp.IsDeleted (Global Query Filter)
         var landingPage = await _context.Set<LandingPage>()
-            .FirstOrDefaultAsync(lp => lp.Id == id);
+            .FirstOrDefaultAsync(lp => lp.Id == id, cancellationToken);
 
         if (landingPage == null) return false;
 
         landingPage.IsDeleted = true;
         landingPage.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> PublishLandingPageAsync(Guid id)
+    public async Task<bool> PublishLandingPageAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !lp.IsDeleted (Global Query Filter)
         var landingPage = await _context.Set<LandingPage>()
-            .FirstOrDefaultAsync(lp => lp.Id == id);
+            .FirstOrDefaultAsync(lp => lp.Id == id, cancellationToken);
 
         if (landingPage == null) return false;
 
@@ -225,16 +234,16 @@ public class LandingPageService : ILandingPageService
         landingPage.PublishedAt = DateTime.UtcNow;
         landingPage.IsActive = true;
         landingPage.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> TrackConversionAsync(Guid id)
+    public async Task<bool> TrackConversionAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !lp.IsDeleted (Global Query Filter)
         var landingPage = await _context.Set<LandingPage>()
-            .FirstOrDefaultAsync(lp => lp.Id == id);
+            .FirstOrDefaultAsync(lp => lp.Id == id, cancellationToken);
 
         if (landingPage == null) return false;
 
@@ -244,16 +253,16 @@ public class LandingPageService : ILandingPageService
             landingPage.ConversionRate = (decimal)landingPage.ConversionCount / landingPage.ViewCount * 100;
         }
         landingPage.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<LandingPageDto> CreateVariantAsync(Guid originalId, CreateLandingPageDto dto)
+    public async Task<LandingPageDto> CreateVariantAsync(Guid originalId, CreateLandingPageDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !lp.IsDeleted (Global Query Filter)
         var original = await _context.Set<LandingPage>()
-            .FirstOrDefaultAsync(lp => lp.Id == originalId);
+            .FirstOrDefaultAsync(lp => lp.Id == originalId, cancellationToken);
 
         if (original == null)
         {
@@ -280,18 +289,18 @@ public class LandingPageService : ILandingPageService
             TrafficSplit = dto.TrafficSplit
         };
 
-        await _context.Set<LandingPage>().AddAsync(variant);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<LandingPage>().AddAsync(variant, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return _mapper.Map<LandingPageDto>(variant);
     }
 
-    public async Task<LandingPageAnalyticsDto> GetLandingPageAnalyticsAsync(Guid id, DateTime? startDate = null, DateTime? endDate = null)
+    public async Task<LandingPageAnalyticsDto> GetLandingPageAnalyticsAsync(Guid id, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !lp.IsDeleted (Global Query Filter)
         var landingPage = await _context.Set<LandingPage>()
             .Include(lp => lp.Variants)
-            .FirstOrDefaultAsync(lp => lp.Id == id);
+            .FirstOrDefaultAsync(lp => lp.Id == id, cancellationToken);
 
         if (landingPage == null)
         {

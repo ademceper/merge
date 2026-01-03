@@ -130,6 +130,7 @@ public class SubscriptionService : ISubscriptionService
 
     public async Task<bool> UpdateSubscriptionPlanAsync(Guid id, UpdateSubscriptionPlanDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ NOT: AsNoTracking() YOK - Entity track edilmeli (update için)
         var plan = await _context.Set<SubscriptionPlan>()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
@@ -139,8 +140,9 @@ public class SubscriptionService : ISubscriptionService
             plan.Name = dto.Name;
         if (!string.IsNullOrEmpty(dto.Description))
             plan.Description = dto.Description;
-        if (!string.IsNullOrEmpty(dto.PlanType))
-            plan.PlanType = dto.PlanType;
+        // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
+        if (dto.PlanType.HasValue)
+            plan.PlanType = dto.PlanType.Value;
         if (dto.Price.HasValue)
             plan.Price = dto.Price.Value;
         if (dto.DurationDays.HasValue)
@@ -153,8 +155,9 @@ public class SubscriptionService : ISubscriptionService
             plan.IsActive = dto.IsActive.Value;
         if (dto.DisplayOrder.HasValue)
             plan.DisplayOrder = dto.DisplayOrder.Value;
-        if (!string.IsNullOrEmpty(dto.BillingCycle))
-            plan.BillingCycle = dto.BillingCycle;
+        // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
+        if (dto.BillingCycle.HasValue)
+            plan.BillingCycle = dto.BillingCycle.Value;
         if (dto.MaxUsers.HasValue)
             plan.MaxUsers = dto.MaxUsers.Value;
         if (dto.SetupFee.HasValue)
@@ -172,6 +175,7 @@ public class SubscriptionService : ISubscriptionService
 
     public async Task<bool> DeleteSubscriptionPlanAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        // ✅ NOT: AsNoTracking() YOK - Entity track edilmeli (delete için)
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var plan = await _context.Set<SubscriptionPlan>()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
@@ -283,12 +287,13 @@ public class SubscriptionService : ISubscriptionService
                         (us.Status == SubscriptionStatus.Active || us.Status == SubscriptionStatus.Trial) && 
                         us.EndDate > DateTime.UtcNow)
             .OrderByDescending(us => us.CreatedAt)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         return subscription != null ? await MapToUserSubscriptionDtoAsync(subscription, cancellationToken) : null;
     }
 
-    public async Task<IEnumerable<UserSubscriptionDto>> GetUserSubscriptionsAsync(Guid userId, string? status = null, CancellationToken cancellationToken = default)
+    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
+    public async Task<IEnumerable<UserSubscriptionDto>> GetUserSubscriptionsAsync(Guid userId, string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var query = _context.Set<UserSubscription>()
@@ -303,14 +308,18 @@ public class SubscriptionService : ISubscriptionService
             query = query.Where(us => us.Status == statusEnum);
         }
 
-        // ✅ PERFORMANCE: subscriptionIds'i database'de oluştur, memory'de işlem YASAK
+        // ✅ PERFORMANCE: Pagination uygula
         var subscriptionIds = await query
             .OrderByDescending(us => us.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(us => us.Id)
             .ToListAsync(cancellationToken);
 
         var subscriptions = await query
             .OrderByDescending(us => us.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load recent payments for all subscriptions
@@ -350,6 +359,7 @@ public class SubscriptionService : ISubscriptionService
 
     public async Task<bool> UpdateUserSubscriptionAsync(Guid id, UpdateUserSubscriptionDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ NOT: AsNoTracking() YOK - Entity track edilmeli (update için)
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var subscription = await _context.Set<UserSubscription>()
             .FirstOrDefaultAsync(us => us.Id == id, cancellationToken);
@@ -369,6 +379,7 @@ public class SubscriptionService : ISubscriptionService
 
     public async Task<bool> CancelUserSubscriptionAsync(Guid id, string? reason = null, CancellationToken cancellationToken = default)
     {
+        // ✅ NOT: AsNoTracking() YOK - Entity track edilmeli (update için)
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var subscription = await _context.Set<UserSubscription>()
             .FirstOrDefaultAsync(us => us.Id == id, cancellationToken);
@@ -607,7 +618,8 @@ public class SubscriptionService : ISubscriptionService
         return _mapper.Map<SubscriptionUsageDto>(usage);
     }
 
-    public async Task<IEnumerable<SubscriptionUsageDto>> GetAllUsageAsync(Guid userSubscriptionId, CancellationToken cancellationToken = default)
+    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
+    public async Task<IEnumerable<SubscriptionUsageDto>> GetAllUsageAsync(Guid userSubscriptionId, int page = 1, int pageSize = 50, CancellationToken cancellationToken = default)
     {
         var periodStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
 
@@ -616,6 +628,8 @@ public class SubscriptionService : ISubscriptionService
             .AsNoTracking()
             .Where(u => u.UserSubscriptionId == userSubscriptionId &&
                        u.PeriodStart == periodStart)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan

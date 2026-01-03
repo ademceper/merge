@@ -3,6 +3,10 @@ using Merge.Domain.Enums;
 
 namespace Merge.Domain.Entities;
 
+/// <summary>
+/// OrderSplit Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// Her entity dosyasında SADECE 1 class olmalı
+/// </summary>
 public class OrderSplit : BaseEntity
 {
     public Guid OriginalOrderId { get; set; }
@@ -21,18 +25,5 @@ public class OrderSplit : BaseEntity
     public Order SplitOrder { get; set; } = null!;
     public Address? NewAddress { get; set; }
     public ICollection<OrderSplitItem> OrderSplitItems { get; set; } = new List<OrderSplitItem>();
-}
-
-public class OrderSplitItem : BaseEntity
-{
-    public Guid OrderSplitId { get; set; }
-    public Guid OriginalOrderItemId { get; set; }
-    public Guid SplitOrderItemId { get; set; }
-    public int Quantity { get; set; } // How many items moved to split order
-    
-    // Navigation properties
-    public OrderSplit OrderSplit { get; set; } = null!;
-    public OrderItem OriginalOrderItem { get; set; } = null!;
-    public OrderItem SplitOrderItem { get; set; } = null!;
 }
 

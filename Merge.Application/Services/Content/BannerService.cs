@@ -34,39 +34,40 @@ public class BannerService : IBannerService
         _logger = logger;
     }
 
-    public async Task<BannerDto?> GetByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<BannerDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Direct DbContext query for better control
         var banner = await _context.Banners
             .AsNoTracking()
-            .FirstOrDefaultAsync(b => b.Id == id);
+            .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
         return banner == null ? null : _mapper.Map<BannerDto>(banner);
     }
 
-    public async Task<IEnumerable<BannerDto>> GetAllAsync()
+    public async Task<IEnumerable<BannerDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
         var banners = await _context.Banners
             .AsNoTracking()
             .OrderBy(b => b.Position)
             .ThenBy(b => b.SortOrder)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return _mapper.Map<IEnumerable<BannerDto>>(banners);
     }
 
-    public async Task<PagedResult<BannerDto>> GetAllAsync(int page, int pageSize)
+    public async Task<PagedResult<BannerDto>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _context.Banners
             .AsNoTracking()
             .OrderBy(b => b.Position)
             .ThenBy(b => b.SortOrder);
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(cancellationToken);
         var banners = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return new PagedResult<BannerDto>
         {
@@ -77,7 +78,7 @@ public class BannerService : IBannerService
         };
     }
 
-    public async Task<IEnumerable<BannerDto>> GetActiveBannersAsync(string? position = null)
+    public async Task<IEnumerable<BannerDto>> GetActiveBannersAsync(string? position = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
         var now = DateTime.UtcNow;
@@ -94,12 +95,12 @@ public class BannerService : IBannerService
 
         var banners = await query
             .OrderBy(b => b.SortOrder)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return _mapper.Map<IEnumerable<BannerDto>>(banners);
     }
 
-    public async Task<PagedResult<BannerDto>> GetActiveBannersAsync(string? position, int page, int pageSize)
+    public async Task<PagedResult<BannerDto>> GetActiveBannersAsync(string? position, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
         var query = _context.Banners
@@ -114,11 +115,11 @@ public class BannerService : IBannerService
         }
 
         var orderedQuery = query.OrderBy(b => b.SortOrder);
-        var totalCount = await orderedQuery.CountAsync();
+        var totalCount = await orderedQuery.CountAsync(cancellationToken);
         var banners = await orderedQuery
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return new PagedResult<BannerDto>
         {
@@ -129,7 +130,7 @@ public class BannerService : IBannerService
         };
     }
 
-    public async Task<BannerDto> CreateAsync(CreateBannerDto dto)
+    public async Task<BannerDto> CreateAsync(CreateBannerDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
@@ -138,18 +139,18 @@ public class BannerService : IBannerService
 
         var banner = _mapper.Map<Banner>(dto);
         banner = await _bannerRepository.AddAsync(banner);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return _mapper.Map<BannerDto>(banner);
     }
 
-    public async Task<BannerDto> UpdateAsync(Guid id, UpdateBannerDto dto)
+    public async Task<BannerDto> UpdateAsync(Guid id, UpdateBannerDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
             throw new ArgumentNullException(nameof(dto));
         }
 
-        var banner = await _bannerRepository.GetByIdAsync(id);
+        var banner = await _bannerRepository.GetByIdAsync(id, cancellationToken);
         if (banner == null)
         {
             throw new NotFoundException("Banner", id);
@@ -168,20 +169,20 @@ public class BannerService : IBannerService
         banner.ProductId = dto.ProductId;
 
         await _bannerRepository.UpdateAsync(banner);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return _mapper.Map<BannerDto>(banner);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var banner = await _bannerRepository.GetByIdAsync(id);
+        var banner = await _bannerRepository.GetByIdAsync(id, cancellationToken);
         if (banner == null)
         {
             return false;
         }
 
         await _bannerRepository.DeleteAsync(banner);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 }

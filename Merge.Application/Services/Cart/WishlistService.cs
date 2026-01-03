@@ -125,11 +125,8 @@ public class WishlistService : IWishlistService
             throw new NotFoundException("Ürün", productId);
         }
 
-        var wishlist = new Wishlist
-        {
-            UserId = userId,
-            ProductId = productId
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
+        var wishlist = Wishlist.Create(userId, productId);
 
         await _wishlistRepository.AddAsync(wishlist);
         await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Explicit SaveChanges via UnitOfWork

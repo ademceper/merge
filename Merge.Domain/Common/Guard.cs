@@ -35,7 +35,19 @@ public static class Guard
             throw new ArgumentException($"{parameterName} cannot be negative", parameterName);
     }
 
+    public static void AgainstNegative(int value, string parameterName)
+    {
+        if (value < 0)
+            throw new ArgumentException($"{parameterName} cannot be negative", parameterName);
+    }
+
     public static void AgainstNegativeOrZero(decimal value, string parameterName)
+    {
+        if (value <= 0)
+            throw new ArgumentException($"{parameterName} must be positive", parameterName);
+    }
+
+    public static void AgainstNegativeOrZero(int value, string parameterName)
     {
         if (value <= 0)
             throw new ArgumentException($"{parameterName} must be positive", parameterName);

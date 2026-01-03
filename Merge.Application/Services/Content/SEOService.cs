@@ -30,12 +30,13 @@ public class SEOService : ISEOService
         _logger = logger;
     }
 
-    public async Task<SEOSettingsDto> CreateOrUpdateSEOSettingsAsync(CreateSEOSettingsDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<SEOSettingsDto> CreateOrUpdateSEOSettingsAsync(CreateSEOSettingsDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         var existing = await _context.Set<SEOSettings>()
             .FirstOrDefaultAsync(s => s.PageType == dto.PageType && 
-                                    s.EntityId == dto.EntityId);
+                                    s.EntityId == dto.EntityId, cancellationToken);
 
         if (existing != null)
         {
@@ -54,7 +55,7 @@ public class SEOService : ISEOService
             existing.ChangeFrequency = dto.ChangeFrequency;
             existing.UpdatedAt = DateTime.UtcNow;
 
-            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
             return _mapper.Map<SEOSettingsDto>(existing);
         }
 
@@ -77,41 +78,41 @@ public class SEOService : ISEOService
             ChangeFrequency = dto.ChangeFrequency
         };
 
-        await _context.Set<SEOSettings>().AddAsync(seoSettings);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<SEOSettings>().AddAsync(seoSettings, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return _mapper.Map<SEOSettingsDto>(seoSettings);
     }
 
-    public async Task<SEOSettingsDto?> GetSEOSettingsAsync(string pageType, Guid? entityId = null)
+    public async Task<SEOSettingsDto?> GetSEOSettingsAsync(string pageType, Guid? entityId = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
         var settings = await _context.Set<SEOSettings>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.PageType == pageType && 
-                                    s.EntityId == entityId);
+                                    s.EntityId == entityId, cancellationToken);
 
         return settings != null ? _mapper.Map<SEOSettingsDto>(settings) : null;
     }
 
-    public async Task<bool> DeleteSEOSettingsAsync(string pageType, Guid entityId)
+    public async Task<bool> DeleteSEOSettingsAsync(string pageType, Guid entityId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         var settings = await _context.Set<SEOSettings>()
             .FirstOrDefaultAsync(s => s.PageType == pageType && 
-                                    s.EntityId == entityId);
+                                    s.EntityId == entityId, cancellationToken);
 
         if (settings == null) return false;
 
         settings.IsDeleted = true;
         settings.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // Sitemap
-    public async Task<SitemapEntryDto> AddSitemapEntryAsync(string url, string pageType, Guid? entityId = null, string changeFrequency = "weekly", decimal priority = 0.5m)
+    public async Task<SitemapEntryDto> AddSitemapEntryAsync(string url, string pageType, Guid? entityId = null, string changeFrequency = "weekly", decimal priority = 0.5m, CancellationToken cancellationToken = default)
     {
         var entry = new SitemapEntry
         {
@@ -124,17 +125,17 @@ public class SEOService : ISEOService
             IsActive = true
         };
 
-        await _context.Set<SitemapEntry>().AddAsync(entry);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<SitemapEntry>().AddAsync(entry, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return _mapper.Map<SitemapEntryDto>(entry);
     }
 
-    public async Task<bool> UpdateSitemapEntryAsync(Guid id, string? url = null, string? changeFrequency = null, decimal? priority = null)
+    public async Task<bool> UpdateSitemapEntryAsync(Guid id, string? url = null, string? changeFrequency = null, decimal? priority = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !e.IsDeleted (Global Query Filter)
         var entry = await _context.Set<SitemapEntry>()
-            .FirstOrDefaultAsync(e => e.Id == id);
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
         if (entry == null) return false;
 
@@ -147,27 +148,28 @@ public class SEOService : ISEOService
 
         entry.LastModified = DateTime.UtcNow;
         entry.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> RemoveSitemapEntryAsync(Guid id)
+    public async Task<bool> RemoveSitemapEntryAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !e.IsDeleted (Global Query Filter)
         var entry = await _context.Set<SitemapEntry>()
-            .FirstOrDefaultAsync(e => e.Id == id);
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
         if (entry == null) return false;
 
         entry.IsDeleted = true;
         entry.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<IEnumerable<SitemapEntryDto>> GetAllSitemapEntriesAsync(bool? isActive = null)
+    // ✅ BOLUM 3.4: Pagination - PagedResult dönmeli (ZORUNLU)
+    public async Task<PagedResult<SitemapEntryDto>> GetAllSitemapEntriesAsync(bool? isActive = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         var query = _context.Set<SitemapEntry>()
@@ -178,26 +180,33 @@ public class SEOService : ISEOService
             query = query.Where(e => e.IsActive == isActive.Value);
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var entries = await query
             .OrderBy(e => e.PageType)
             .ThenBy(e => e.Priority)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
-        var result = new List<SitemapEntryDto>();
-        foreach (var entry in entries)
+        var items = entries.Select(e => _mapper.Map<SitemapEntryDto>(e)).ToList();
+
+        return new PagedResult<SitemapEntryDto>
         {
-            result.Add(_mapper.Map<SitemapEntryDto>(entry));
-        }
-        return result;
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<string> GenerateSitemapXmlAsync()
+    public async Task<string> GenerateSitemapXmlAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         var entries = await _context.Set<SitemapEntry>()
             .AsNoTracking()
             .Where(e => e.IsActive)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var xNamespace = XNamespace.Get("http://www.sitemaps.org/schemas/sitemap/0.9");
         var sitemap = new XDocument(
@@ -215,7 +224,7 @@ public class SEOService : ISEOService
         return sitemap.ToString();
     }
 
-    public async Task<string> GenerateRobotsTxtAsync()
+    public async Task<string> GenerateRobotsTxtAsync(CancellationToken cancellationToken = default)
     {
         var sb = new StringBuilder();
         sb.AppendLine("User-agent: *");
@@ -226,7 +235,7 @@ public class SEOService : ISEOService
         var disallowedEntries = await _context.Set<SEOSettings>()
             .AsNoTracking()
             .Where(s => !s.IsIndexed)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         foreach (var entry in disallowedEntries)
         {
@@ -243,12 +252,12 @@ public class SEOService : ISEOService
     }
 
     // Auto-generate SEO
-    public async Task<SEOSettingsDto> GenerateSEOForProductAsync(Guid productId)
+    public async Task<SEOSettingsDto> GenerateSEOForProductAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var product = await _context.Products
             .Include(p => p.Category)
-            .FirstOrDefaultAsync(p => p.Id == productId);
+            .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
         if (product == null)
         {
@@ -279,14 +288,14 @@ public class SEOService : ISEOService
             ChangeFrequency = "weekly"
         };
 
-        return await CreateOrUpdateSEOSettingsAsync(dto);
+        return await CreateOrUpdateSEOSettingsAsync(dto, cancellationToken);
     }
 
-    public async Task<SEOSettingsDto> GenerateSEOForCategoryAsync(Guid categoryId)
+    public async Task<SEOSettingsDto> GenerateSEOForCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var category = await _context.Categories
-            .FirstOrDefaultAsync(c => c.Id == categoryId);
+            .FirstOrDefaultAsync(c => c.Id == categoryId, cancellationToken);
 
         if (category == null)
         {
@@ -314,15 +323,15 @@ public class SEOService : ISEOService
             ChangeFrequency = "daily"
         };
 
-        return await CreateOrUpdateSEOSettingsAsync(dto);
+        return await CreateOrUpdateSEOSettingsAsync(dto, cancellationToken);
     }
 
-    public async Task<SEOSettingsDto> GenerateSEOForBlogPostAsync(Guid postId)
+    public async Task<SEOSettingsDto> GenerateSEOForBlogPostAsync(Guid postId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var post = await _context.Set<BlogPost>()
             .Include(p => p.Category)
-            .FirstOrDefaultAsync(p => p.Id == postId);
+            .FirstOrDefaultAsync(p => p.Id == postId, cancellationToken);
 
         if (post == null)
         {
@@ -349,7 +358,7 @@ public class SEOService : ISEOService
             ChangeFrequency = "weekly"
         };
 
-        return await CreateOrUpdateSEOSettingsAsync(dto);
+        return await CreateOrUpdateSEOSettingsAsync(dto, cancellationToken);
     }
 
 }

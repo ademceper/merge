@@ -1,11 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using CartEntity = Merge.Domain.Entities.Cart;
 using Merge.Application.Interfaces.Cart;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.Services.Notification;
 using Merge.Application.Exceptions;
+using Merge.Application.Common;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using ProductEntity = Merge.Domain.Entities.Product;
@@ -24,6 +28,7 @@ public class AbandonedCartService : IAbandonedCartService
     private readonly ICouponService _couponService;
     private readonly IMapper _mapper;
     private readonly ILogger<AbandonedCartService> _logger;
+    private readonly CartSettings _cartSettings;
 
     public AbandonedCartService(
         ApplicationDbContext context,
@@ -31,7 +36,8 @@ public class AbandonedCartService : IAbandonedCartService
         IEmailService emailService,
         ICouponService couponService,
         IMapper mapper,
-        ILogger<AbandonedCartService> logger)
+        ILogger<AbandonedCartService> logger,
+        IOptions<CartSettings> cartSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -39,10 +45,17 @@ public class AbandonedCartService : IAbandonedCartService
         _couponService = couponService;
         _mapper = mapper;
         _logger = logger;
+        _cartSettings = cartSettings.Value;
     }
 
-    public async Task<IEnumerable<AbandonedCartDto>> GetAbandonedCartsAsync(int minHours = 1, int maxDays = 30)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<AbandonedCartDto>> GetAbandonedCartsAsync(int minHours = 1, int maxDays = 30, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         var minDate = DateTime.UtcNow.AddDays(-maxDays);
         var maxDate = DateTime.UtcNow.AddHours(-minHours);
         var now = DateTime.UtcNow;
@@ -56,7 +69,7 @@ public class AbandonedCartService : IAbandonedCartService
                        c.UpdatedAt >= minDate &&
                        c.UpdatedAt <= maxDate)
             .Select(c => c.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         if (abandonedCartIds.Count == 0)
         {
@@ -69,7 +82,7 @@ public class AbandonedCartService : IAbandonedCartService
             .Where(c => abandonedCartIds.Contains(c.Id))
             .Select(c => c.UserId)
             .Distinct()
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // Step 3: Filter out carts that have been converted to orders
         var userIdsWithOrders = await _context.Orders
@@ -77,7 +90,7 @@ public class AbandonedCartService : IAbandonedCartService
             .Where(o => userIds.Contains(o.UserId))
             .Select(o => o.UserId)
             .Distinct()
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // Step 4: Get final abandoned cart IDs (excluding those converted to orders)
         var finalAbandonedCartIds = await _context.Carts
@@ -85,12 +98,21 @@ public class AbandonedCartService : IAbandonedCartService
             .Where(c => abandonedCartIds.Contains(c.Id) && 
                        !userIdsWithOrders.Contains(c.UserId))
             .Select(c => c.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         if (finalAbandonedCartIds.Count == 0)
         {
-            return Enumerable.Empty<AbandonedCartDto>();
+            return new PagedResult<AbandonedCartDto>
+            {
+                Items = new List<AbandonedCartDto>(),
+                TotalCount = 0,
+                Page = page,
+                PageSize = pageSize
+            };
         }
+
+        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
+        var totalCount = finalAbandonedCartIds.Count;
 
         // Step 5: Get cart data with computed properties from database
         var cartsData = await _context.Carts
@@ -110,7 +132,9 @@ public class AbandonedCartService : IAbandonedCartService
                 TotalValue = c.CartItems.Sum(ci => ci.Price * ci.Quantity)
             })
             .OrderByDescending(c => c.TotalValue)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // Step 6: Get email stats for all carts in one query (database'de GroupBy)
         var emailStats = await _context.Set<AbandonedCartEmail>()
@@ -124,11 +148,12 @@ public class AbandonedCartService : IAbandonedCartService
                 HasReceivedEmail = g.Any(),
                 LastEmailSent = g.OrderByDescending(e => e.SentAt).Select(e => (DateTime?)e.SentAt).FirstOrDefault()
             })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Dictionary oluşturma minimal bir işlem (O(n) lookup için gerekli)
         // Bu işlem sadece property assignment, memory'de complex işlem YOK
-        var emailStatsDict = new Dictionary<Guid, (int EmailsSentCount, bool HasReceivedEmail, DateTime? LastEmailSent)>();
+        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
+        var emailStatsDict = new Dictionary<Guid, (int EmailsSentCount, bool HasReceivedEmail, DateTime? LastEmailSent)>(emailStats.Count);
         foreach (var stat in emailStats)
         {
             emailStatsDict[stat.CartId] = (stat.EmailsSentCount, stat.HasReceivedEmail, stat.LastEmailSent);
@@ -139,7 +164,7 @@ public class AbandonedCartService : IAbandonedCartService
             .AsNoTracking()
             .Include(ci => ci.Product)
             .Where(ci => finalAbandonedCartIds.Contains(ci.CartId))
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Dictionary oluşturma minimal bir işlem (O(1) lookup için gerekli)
         // Bu işlem sadece grouping ve dictionary oluşturma, memory'de complex işlem YOK
@@ -179,10 +204,18 @@ public class AbandonedCartService : IAbandonedCartService
             result.Add(dto);
         }
 
-        return result;
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+        return new PagedResult<AbandonedCartDto>
+        {
+            Items = result,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<AbandonedCartDto?> GetAbandonedCartByIdAsync(Guid cartId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<AbandonedCartDto?> GetAbandonedCartByIdAsync(Guid cartId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
@@ -191,7 +224,7 @@ public class AbandonedCartService : IAbandonedCartService
             .Include(c => c.User)
             .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.Product)
-            .FirstOrDefaultAsync(c => c.Id == cartId);
+            .FirstOrDefaultAsync(c => c.Id == cartId, cancellationToken);
 
         if (cart == null)
         {
@@ -203,7 +236,7 @@ public class AbandonedCartService : IAbandonedCartService
         var emailsSentCount = await _context.Set<AbandonedCartEmail>()
             .AsNoTracking()
             .Where(e => e.CartId == cartId)
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         var hasReceivedEmail = emailsSentCount > 0;
 
@@ -212,24 +245,24 @@ public class AbandonedCartService : IAbandonedCartService
             .Where(e => e.CartId == cartId)
             .OrderByDescending(e => e.SentAt)
             .Select(e => (DateTime?)e.SentAt)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de Sum ve Count yap (memory'de işlem YASAK)
         var itemCount = await _context.CartItems
             .AsNoTracking()
-            .CountAsync(ci => ci.CartId == cartId);
+            .CountAsync(ci => ci.CartId == cartId, cancellationToken);
 
         var totalValue = await _context.CartItems
             .AsNoTracking()
             .Where(ci => ci.CartId == cartId)
-            .SumAsync(ci => ci.Price * ci.Quantity);
+            .SumAsync(ci => ci.Price * ci.Quantity, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         var items = await _context.CartItems
             .AsNoTracking()
             .Include(ci => ci.Product)
             .Where(ci => ci.CartId == cartId)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var itemsDto = _mapper.Map<IEnumerable<CartItemDto>>(items).ToList();
 
@@ -251,7 +284,8 @@ public class AbandonedCartService : IAbandonedCartService
         return dto;
     }
 
-    public async Task<AbandonedCartRecoveryStatsDto> GetRecoveryStatsAsync(int days = 30)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<AbandonedCartRecoveryStatsDto> GetRecoveryStatsAsync(int days = 30, CancellationToken cancellationToken = default)
     {
         var startDate = DateTime.UtcNow.AddDays(-days);
         var minDate = DateTime.UtcNow.AddDays(-days);
@@ -266,7 +300,7 @@ public class AbandonedCartService : IAbandonedCartService
                        c.UpdatedAt >= minDate &&
                        c.UpdatedAt <= maxDate)
             .Select(c => c.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // Filter out carts that have been converted to orders
         var abandonedCartUserIds = await _context.Carts
@@ -274,21 +308,21 @@ public class AbandonedCartService : IAbandonedCartService
             .Where(c => abandonedCartIds.Contains(c.Id))
             .Select(c => c.UserId)
             .Distinct()
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var userIdsWithOrders = await _context.Orders
             .AsNoTracking()
             .Where(o => abandonedCartUserIds.Contains(o.UserId))
             .Select(o => o.UserId)
             .Distinct()
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var finalAbandonedCartIds = await _context.Carts
             .AsNoTracking()
             .Where(c => abandonedCartIds.Contains(c.Id) && 
                        !userIdsWithOrders.Contains(c.UserId))
             .Select(c => c.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de Count yap (memory'de işlem YASAK)
         var totalAbandonedCarts = finalAbandonedCartIds.Count;
@@ -297,29 +331,29 @@ public class AbandonedCartService : IAbandonedCartService
         var totalAbandonedValue = await _context.CartItems
             .AsNoTracking()
             .Where(ci => finalAbandonedCartIds.Contains(ci.CartId))
-            .SumAsync(ci => ci.Price * ci.Quantity);
+            .SumAsync(ci => ci.Price * ci.Quantity, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de Count yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: Removed manual !e.IsDeleted check (Global Query Filter handles it)
         var emailsSent = await _context.Set<AbandonedCartEmail>()
             .AsNoTracking()
             .Where(e => e.SentAt >= startDate)
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         var emailsOpened = await _context.Set<AbandonedCartEmail>()
             .AsNoTracking()
             .Where(e => e.SentAt >= startDate && e.WasOpened)
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         var emailsClicked = await _context.Set<AbandonedCartEmail>()
             .AsNoTracking()
             .Where(e => e.SentAt >= startDate && e.WasClicked)
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         var recoveredCarts = await _context.Set<AbandonedCartEmail>()
             .AsNoTracking()
             .Where(e => e.SentAt >= startDate && e.ResultedInPurchase)
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de Sum yap (memory'de işlem YASAK)
         var recoveredRevenue = await _context.Orders
@@ -331,7 +365,7 @@ public class AbandonedCartService : IAbandonedCartService
                 email => email.UserId,
                 (order, email) => order.TotalAmount
             )
-            .SumAsync();
+            .SumAsync(cancellationToken);
 
         return new AbandonedCartRecoveryStatsDto
         {
@@ -347,14 +381,16 @@ public class AbandonedCartService : IAbandonedCartService
         };
     }
 
-    public async Task SendRecoveryEmailAsync(Guid cartId, string emailType = "First", bool includeCoupon = false, decimal? couponDiscountPercentage = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
+    public async Task SendRecoveryEmailAsync(Guid cartId, AbandonedCartEmailType emailType = AbandonedCartEmailType.First, bool includeCoupon = false, decimal? couponDiscountPercentage = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
         var cart = await _context.Carts
             .Include(c => c.User)
             .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.Product)
-            .FirstOrDefaultAsync(c => c.Id == cartId);
+            .FirstOrDefaultAsync(c => c.Id == cartId, cancellationToken);
 
         if (cart == null)
         {
@@ -372,7 +408,8 @@ public class AbandonedCartService : IAbandonedCartService
         string? couponCode = null;
         if (includeCoupon)
         {
-            var discount = couponDiscountPercentage ?? 10;
+            // ✅ BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
+            var discount = couponDiscountPercentage ?? _cartSettings.DefaultAbandonedCartCouponDiscount;
             var couponDto = new CouponDto
             {
                 Code = $"RECOVER{DateTime.UtcNow.Ticks.ToString().Substring(8)}",
@@ -381,7 +418,8 @@ public class AbandonedCartService : IAbandonedCartService
                 UsageLimit = 1,
                 IsActive = true,
                 StartDate = DateTime.UtcNow,
-                EndDate = DateTime.UtcNow.AddDays(7),
+                // ✅ BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
+                EndDate = DateTime.UtcNow.AddDays(_cartSettings.AbandonedCartCouponValidityDays),
                 Description = $"{discount}% off for completing your purchase"
             };
 
@@ -391,11 +429,12 @@ public class AbandonedCartService : IAbandonedCartService
         }
 
         // Prepare email content
+        // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
         var subject = emailType switch
         {
-            "First" => "You left items in your cart!",
-            "Second" => "Still thinking about your cart?",
-            "Final" => "Last chance! Your cart is waiting",
+            AbandonedCartEmailType.First => "You left items in your cart!",
+            AbandonedCartEmailType.Second => "Still thinking about your cart?",
+            AbandonedCartEmailType.Final => "Last chance! Your cart is waiting",
             _ => "Complete your purchase"
         };
 
@@ -411,7 +450,7 @@ public class AbandonedCartService : IAbandonedCartService
         var totalValue = await _context.CartItems
             .AsNoTracking()
             .Where(ci => ci.CartId == cartId)
-            .SumAsync(ci => ci.Price * ci.Quantity);
+            .SumAsync(ci => ci.Price * ci.Quantity, cancellationToken);
 
         var body = $@"
             <h2>Hi {user.FirstName},</h2>
@@ -422,38 +461,36 @@ public class AbandonedCartService : IAbandonedCartService
             <p><a href='https://yoursite.com/cart/{cartId}'>Complete your purchase now</a></p>
         ";
 
+        // ✅ NOTE: IEmailService interface'inde CancellationToken yok, bu domain dışında
         await _emailService.SendEmailAsync(user.Email, subject, body);
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
         // Record email sent
-        var abandonedCartEmail = new AbandonedCartEmail
-        {
-            CartId = cartId,
-            UserId = user.Id,
-            EmailType = emailType,
-            SentAt = DateTime.UtcNow,
-            CouponId = couponId
-        };
+        var abandonedCartEmail = AbandonedCartEmail.Create(cartId, user.Id, emailType, couponId);
 
-        await _context.Set<AbandonedCartEmail>().AddAsync(abandonedCartEmail);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<AbandonedCartEmail>().AddAsync(abandonedCartEmail, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task SendBulkRecoveryEmailsAsync(int minHours = 2, string emailType = "First")
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
+    public async Task SendBulkRecoveryEmailsAsync(int minHours = 2, AbandonedCartEmailType emailType = AbandonedCartEmailType.First, CancellationToken cancellationToken = default)
     {
         var abandonedCarts = await GetAbandonedCartsAsync(minHours, 30);
 
         // ✅ PERFORMANCE: Filter carts that haven't received this email type yet
         // Business logic için memory'de filtreleme yapıyoruz (email type kontrolü)
         // Bu işlem database'de yapılamaz çünkü complex business logic gerekiyor
+        // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
         var cartsToEmail = new List<AbandonedCartDto>();
         foreach (var c in abandonedCarts)
         {
             bool shouldEmail = false;
-            if (emailType == "First")
+            if (emailType == AbandonedCartEmailType.First)
                 shouldEmail = !c.HasReceivedEmail;
-            else if (emailType == "Second")
+            else if (emailType == AbandonedCartEmailType.Second)
                 shouldEmail = c.EmailsSentCount == 1 && c.HoursSinceAbandonment >= 24;
-            else if (emailType == "Final")
+            else if (emailType == AbandonedCartEmailType.Final)
                 shouldEmail = c.EmailsSentCount == 2 && c.HoursSinceAbandonment >= 72;
             
             if (shouldEmail)
@@ -466,8 +503,10 @@ public class AbandonedCartService : IAbandonedCartService
         {
             try
             {
-                var includeCoupon = emailType == "Final"; // Include coupon in final email
-                await SendRecoveryEmailAsync(cart.CartId, emailType, includeCoupon, 15);
+                // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
+                // ✅ BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
+                var includeCoupon = emailType == AbandonedCartEmailType.Final; // Include coupon in final email
+                await SendRecoveryEmailAsync(cart.CartId, emailType, includeCoupon, _cartSettings.DefaultAbandonedCartCouponDiscount, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -481,65 +520,93 @@ public class AbandonedCartService : IAbandonedCartService
         }
     }
 
-    public async Task<bool> TrackEmailOpenAsync(Guid emailId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> TrackEmailOpenAsync(Guid emailId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !e.IsDeleted check (Global Query Filter handles it)
         var email = await _context.Set<AbandonedCartEmail>()
-            .FirstOrDefaultAsync(e => e.Id == emailId);
+            .FirstOrDefaultAsync(e => e.Id == emailId, cancellationToken);
 
         if (email == null)
         {
             return false;
         }
 
-        email.WasOpened = true;
-        await _unitOfWork.SaveChangesAsync();
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+        email.MarkAsOpened();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<bool> TrackEmailClickAsync(Guid emailId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> TrackEmailClickAsync(Guid emailId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !e.IsDeleted check (Global Query Filter handles it)
         var email = await _context.Set<AbandonedCartEmail>()
-            .FirstOrDefaultAsync(e => e.Id == emailId);
+            .FirstOrDefaultAsync(e => e.Id == emailId, cancellationToken);
 
         if (email == null)
         {
             return false;
         }
 
-        email.WasClicked = true;
-        await _unitOfWork.SaveChangesAsync();
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+        email.MarkAsClicked();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task MarkCartAsRecoveredAsync(Guid cartId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task MarkCartAsRecoveredAsync(Guid cartId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !e.IsDeleted check (Global Query Filter handles it)
         var emails = await _context.Set<AbandonedCartEmail>()
             .Where(e => e.CartId == cartId)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         foreach (var email in emails)
         {
-            email.ResultedInPurchase = true;
+            email.MarkAsResultedInPurchase();
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<IEnumerable<AbandonedCartEmailDto>> GetCartEmailHistoryAsync(Guid cartId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<AbandonedCartEmailDto>> GetCartEmailHistoryAsync(Guid cartId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !e.IsDeleted check (Global Query Filter handles it)
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        var emails = await _context.Set<AbandonedCartEmail>()
+        var query = _context.Set<AbandonedCartEmail>()
             .AsNoTracking()
             .Include(e => e.Coupon)
-            .Where(e => e.CartId == cartId)
-            .OrderByDescending(e => e.SentAt)
-            .ToListAsync();
+            .Where(e => e.CartId == cartId);
 
-        return _mapper.Map<IEnumerable<AbandonedCartEmailDto>>(emails);
+        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var emails = await query
+            .OrderByDescending(e => e.SentAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
+        var items = _mapper.Map<List<AbandonedCartEmailDto>>(emails);
+
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+        return new PagedResult<AbandonedCartEmailDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 }

@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Cart;
 using Merge.Application.DTOs.Cart;
+using Merge.Application.Common;
+using Merge.Domain.Enums;
+using Merge.API.Middleware;
 
 
 namespace Merge.API.Controllers.Cart;
@@ -19,26 +22,47 @@ public class AbandonedCartsController : BaseController
     }
 
     /// <summary>
-    /// Get all abandoned carts
+    /// Tüm terk edilmiş sepetleri getirir
     /// </summary>
     [HttpGet]
     [Authorize(Roles = "Admin,Manager")]
-    public async Task<ActionResult<IEnumerable<AbandonedCartDto>>> GetAbandonedCarts(
+    [RateLimit(MaxRequests = 30, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [ProducesResponseType(typeof(PagedResult<AbandonedCartDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PagedResult<AbandonedCartDto>>> GetAbandonedCarts(
         [FromQuery] int minHours = 1,
-        [FromQuery] int maxDays = 30)
+        [FromQuery] int maxDays = 30,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var carts = await _abandonedCartService.GetAbandonedCartsAsync(minHours, maxDays);
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
+        var carts = await _abandonedCartService.GetAbandonedCartsAsync(minHours, maxDays, page, pageSize, cancellationToken);
         return Ok(carts);
     }
 
     /// <summary>
-    /// Get abandoned cart by ID
+    /// Terk edilmiş sepet detaylarını getirir
     /// </summary>
     [HttpGet("{cartId}")]
     [Authorize(Roles = "Admin,Manager")]
-    public async Task<ActionResult<AbandonedCartDto>> GetAbandonedCartById(Guid cartId)
+    [RateLimit(MaxRequests = 30, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [ProducesResponseType(typeof(AbandonedCartDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<AbandonedCartDto>> GetAbandonedCartById(
+        Guid cartId,
+        CancellationToken cancellationToken = default)
     {
-        var cart = await _abandonedCartService.GetAbandonedCartByIdAsync(cartId);
+        var cart = await _abandonedCartService.GetAbandonedCartByIdAsync(cartId, cancellationToken);
 
         if (cart == null)
         {
@@ -49,22 +73,38 @@ public class AbandonedCartsController : BaseController
     }
 
     /// <summary>
-    /// Get abandoned cart recovery statistics
+    /// Terk edilmiş sepet kurtarma istatistiklerini getirir
     /// </summary>
     [HttpGet("stats")]
     [Authorize(Roles = "Admin,Manager")]
-    public async Task<ActionResult<AbandonedCartRecoveryStatsDto>> GetRecoveryStats([FromQuery] int days = 30)
+    [RateLimit(MaxRequests = 30, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [ProducesResponseType(typeof(AbandonedCartRecoveryStatsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<AbandonedCartRecoveryStatsDto>> GetRecoveryStats(
+        [FromQuery] int days = 30,
+        CancellationToken cancellationToken = default)
     {
-        var stats = await _abandonedCartService.GetRecoveryStatsAsync(days);
+        var stats = await _abandonedCartService.GetRecoveryStatsAsync(days, cancellationToken);
         return Ok(stats);
     }
 
     /// <summary>
-    /// Send recovery email to a specific cart
+    /// Belirli bir sepete kurtarma e-postası gönderir
     /// </summary>
     [HttpPost("{cartId}/send-email")]
     [Authorize(Roles = "Admin,Manager")]
-    public async Task<IActionResult> SendRecoveryEmail(Guid cartId, [FromBody] SendRecoveryEmailDto dto)
+    [RateLimit(10, 3600)] // ✅ BOLUM 3.3: Rate Limiting - 10 email / saat
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> SendRecoveryEmail(
+        Guid cartId,
+        [FromBody] SendRecoveryEmailDto dto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
@@ -73,32 +113,45 @@ public class AbandonedCartsController : BaseController
             cartId,
             dto.EmailType,
             dto.IncludeCoupon,
-            dto.CouponDiscountPercentage);
+            dto.CouponDiscountPercentage,
+            cancellationToken);
 
         return NoContent();
     }
 
     /// <summary>
-    /// Send bulk recovery emails to all eligible abandoned carts
+    /// Tüm uygun terk edilmiş sepetlere toplu kurtarma e-postası gönderir
     /// </summary>
     [HttpPost("send-bulk-emails")]
     [Authorize(Roles = "Admin")]
+    [RateLimit(2, 3600)] // ✅ BOLUM 3.3: Rate Limiting - 2 bulk email / saat
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> SendBulkRecoveryEmails(
         [FromQuery] int minHours = 2,
-        [FromQuery] string emailType = "First")
+        [FromQuery] AbandonedCartEmailType emailType = AbandonedCartEmailType.First,
+        CancellationToken cancellationToken = default)
     {
-        await _abandonedCartService.SendBulkRecoveryEmailsAsync(minHours, emailType);
+        // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
+        await _abandonedCartService.SendBulkRecoveryEmailsAsync(minHours, emailType, cancellationToken);
         return NoContent();
     }
 
     /// <summary>
-    /// Track email open (for email tracking pixels)
+    /// E-posta açılmasını takip eder (e-posta tracking pixel için)
     /// </summary>
     [HttpGet("track/open/{emailId}")]
     [AllowAnonymous]
-    public async Task<IActionResult> TrackEmailOpen(Guid emailId)
+    [RateLimit(MaxRequests = 100, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 100/dakika (spam koruması, AllowAnonymous)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> TrackEmailOpen(
+        Guid emailId,
+        CancellationToken cancellationToken = default)
     {
-        await _abandonedCartService.TrackEmailOpenAsync(emailId);
+        await _abandonedCartService.TrackEmailOpenAsync(emailId, cancellationToken);
 
         // Return a 1x1 transparent pixel
         var pixel = Convert.FromBase64String("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
@@ -106,30 +159,43 @@ public class AbandonedCartsController : BaseController
     }
 
     /// <summary>
-    /// Track email click
+    /// E-posta tıklamasını takip eder
     /// </summary>
     [HttpGet("track/click/{emailId}")]
     [AllowAnonymous]
-    public async Task<IActionResult> TrackEmailClick(Guid emailId)
+    [RateLimit(MaxRequests = 100, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 100/dakika (spam koruması, AllowAnonymous)
+    [ProducesResponseType(StatusCodes.Status302Found)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> TrackEmailClick(
+        Guid emailId,
+        CancellationToken cancellationToken = default)
     {
-        await _abandonedCartService.TrackEmailClickAsync(emailId);
+        await _abandonedCartService.TrackEmailClickAsync(emailId, cancellationToken);
         return Redirect("/cart"); // Redirect to cart page
     }
 
     /// <summary>
-    /// Mark cart as recovered (called when user completes purchase)
+    /// Sepeti kurtarıldı olarak işaretler (kullanıcı satın alma tamamladığında çağrılır)
     /// </summary>
     [HttpPost("{cartId}/mark-recovered")]
     [Authorize]
-    public async Task<IActionResult> MarkCartAsRecovered(Guid cartId)
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> MarkCartAsRecovered(
+        Guid cartId,
+        CancellationToken cancellationToken = default)
     {
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        // ✅ SECURITY: Authorization check - Users can only mark their own carts as recovered
-        var cart = await _abandonedCartService.GetAbandonedCartByIdAsync(cartId);
+        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
+        var cart = await _abandonedCartService.GetAbandonedCartByIdAsync(cartId, cancellationToken);
         if (cart == null)
         {
             return NotFound();
@@ -140,18 +206,49 @@ public class AbandonedCartsController : BaseController
             return Forbid();
         }
 
-        await _abandonedCartService.MarkCartAsRecoveredAsync(cartId);
+        await _abandonedCartService.MarkCartAsRecoveredAsync(cartId, cancellationToken);
         return NoContent();
     }
 
     /// <summary>
-    /// Get email history for a specific cart
+    /// Belirli bir sepet için e-posta geçmişini getirir
     /// </summary>
     [HttpGet("{cartId}/email-history")]
     [Authorize(Roles = "Admin,Manager")]
-    public async Task<ActionResult<IEnumerable<AbandonedCartEmailDto>>> GetCartEmailHistory(Guid cartId)
+    [RateLimit(MaxRequests = 30, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [ProducesResponseType(typeof(PagedResult<AbandonedCartEmailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PagedResult<AbandonedCartEmailDto>>> GetCartEmailHistory(
+        Guid cartId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var history = await _abandonedCartService.GetCartEmailHistoryAsync(cartId);
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
+        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
+        // Admin/Manager rolü varsa tüm cart email history'lerini görebilir
+        // Normal kullanıcı sadece kendi cart'ının email history'sini görebilir
+        if (!User.IsInRole("Admin") && !User.IsInRole("Manager"))
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var cart = await _abandonedCartService.GetAbandonedCartByIdAsync(cartId, cancellationToken);
+            if (cart == null || cart.UserId != userId)
+            {
+                return Forbid();
+            }
+        }
+
+        var history = await _abandonedCartService.GetCartEmailHistoryAsync(cartId, page, pageSize, cancellationToken);
         return Ok(history);
     }
 }

@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.B2B;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
+using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
@@ -20,21 +23,24 @@ public class B2BService : IB2BService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<B2BService> _logger;
+    private readonly B2BSettings _b2bSettings;
 
     public B2BService(
         ApplicationDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
-        ILogger<B2BService> logger)
+        ILogger<B2BService> logger,
+        IOptions<B2BSettings> b2bSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _b2bSettings = b2bSettings.Value;
     }
 
     // B2B Users
-    public async Task<B2BUserDto> CreateB2BUserAsync(CreateB2BUserDto dto)
+    public async Task<B2BUserDto> CreateB2BUserAsync(CreateB2BUserDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
@@ -46,7 +52,7 @@ public class B2BService : IB2BService
 
         var user = await _context.Users
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == dto.UserId);
+            .FirstOrDefaultAsync(u => u.Id == dto.UserId, cancellationToken);
 
         if (user == null)
         {
@@ -56,7 +62,7 @@ public class B2BService : IB2BService
 
         var organization = await _context.Set<OrganizationEntity>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId);
+            .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId, cancellationToken);
 
         if (organization == null)
         {
@@ -67,7 +73,7 @@ public class B2BService : IB2BService
         // Check if user is already a B2B user for this organization
         var existing = await _context.Set<B2BUser>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(b => b.UserId == dto.UserId && b.OrganizationId == dto.OrganizationId);
+            .FirstOrDefaultAsync(b => b.UserId == dto.UserId && b.OrganizationId == dto.OrganizationId, cancellationToken);
 
         if (existing != null)
         {
@@ -76,21 +82,24 @@ public class B2BService : IB2BService
             throw new BusinessException("Kullanıcı zaten bu organizasyon için B2B kullanıcısı.");
         }
 
-        var b2bUser = new B2BUser
-        {
-            UserId = dto.UserId,
-            OrganizationId = dto.OrganizationId,
-            EmployeeId = dto.EmployeeId,
-            Department = dto.Department,
-            JobTitle = dto.JobTitle,
-            Status = EntityStatus.Active, // Yeni B2BUser aktif olarak oluşturulur
-            CreditLimit = dto.CreditLimit,
-            UsedCredit = 0,
-            Settings = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var b2bUser = B2BUser.Create(
+            dto.UserId,
+            dto.OrganizationId,
+            organization,
+            dto.EmployeeId,
+            dto.Department,
+            dto.JobTitle,
+            dto.CreditLimit);
 
-        await _context.Set<B2BUser>().AddAsync(b2bUser);
-        await _unitOfWork.SaveChangesAsync();
+        if (dto.Settings != null)
+        {
+            // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
+            b2bUser.UpdateSettings(JsonSerializer.Serialize(dto.Settings));
+        }
+
+        await _context.Set<B2BUser>().AddAsync(b2bUser, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Successfully created B2B user with Id: {B2BUserId}", b2bUser.Id);
 
@@ -99,13 +108,13 @@ public class B2BService : IB2BService
             .AsNoTracking()
             .Include(b => b.User)
             .Include(b => b.Organization)
-            .FirstOrDefaultAsync(b => b.Id == b2bUser.Id);
+            .FirstOrDefaultAsync(b => b.Id == b2bUser.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return _mapper.Map<B2BUserDto>(b2bUser!);
     }
 
-    public async Task<B2BUserDto?> GetB2BUserByIdAsync(Guid id)
+    public async Task<B2BUserDto?> GetB2BUserByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !b.IsDeleted check (Global Query Filter handles it)
@@ -113,13 +122,13 @@ public class B2BService : IB2BService
             .AsNoTracking()
             .Include(b => b.User)
             .Include(b => b.Organization)
-            .FirstOrDefaultAsync(b => b.Id == id);
+            .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return b2bUser != null ? _mapper.Map<B2BUserDto>(b2bUser) : null;
     }
 
-    public async Task<B2BUserDto?> GetB2BUserByUserIdAsync(Guid userId)
+    public async Task<B2BUserDto?> GetB2BUserByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !b.IsDeleted check (Global Query Filter handles it)
@@ -127,16 +136,20 @@ public class B2BService : IB2BService
             .AsNoTracking()
             .Include(b => b.User)
             .Include(b => b.Organization)
-            .FirstOrDefaultAsync(b => b.UserId == userId);
+            .FirstOrDefaultAsync(b => b.UserId == userId, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return b2bUser != null ? _mapper.Map<B2BUserDto>(b2bUser) : null;
     }
 
-    public async Task<IEnumerable<B2BUserDto>> GetOrganizationB2BUsersAsync(Guid organizationId, string? status = null)
+    public async Task<PagedResult<B2BUserDto>> GetOrganizationB2BUsersAsync(Guid organizationId, string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Retrieving B2B users for OrganizationId: {OrganizationId}, Status: {Status}",
-            organizationId, status);
+        _logger.LogInformation("Retrieving B2B users for OrganizationId: {OrganizationId}, Status: {Status}, Page: {Page}, PageSize: {PageSize}",
+            organizationId, status, page, pageSize);
+
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > _b2bSettings.MaxPageSize) pageSize = _b2bSettings.MaxPageSize;
+        if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !b.IsDeleted check (Global Query Filter handles it)
@@ -155,116 +168,139 @@ public class B2BService : IB2BService
             }
         }
 
+        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var b2bUsers = await query
             .OrderBy(b => b.User.FirstName)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        var result = _mapper.Map<IEnumerable<B2BUserDto>>(b2bUsers);
+        var items = _mapper.Map<List<B2BUserDto>>(b2bUsers);
 
-        // ✅ PERFORMANCE: Use b2bUsers.Count instead of result.Count() to avoid enumerating IEnumerable
-        _logger.LogInformation("Retrieved {Count} B2B users for OrganizationId: {OrganizationId}",
-            b2bUsers.Count, organizationId);
-
-        return result;
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+        return new PagedResult<B2BUserDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<bool> UpdateB2BUserAsync(Guid id, UpdateB2BUserDto dto)
+    public async Task<bool> UpdateB2BUserAsync(Guid id, UpdateB2BUserDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var b2bUser = await _context.Set<B2BUser>()
-            .FirstOrDefaultAsync(b => b.Id == id);
+            .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
 
         if (b2bUser == null) return false;
 
-        if (dto.EmployeeId != null)
-            b2bUser.EmployeeId = dto.EmployeeId;
-        if (dto.Department != null)
-            b2bUser.Department = dto.Department;
-        if (dto.JobTitle != null)
-            b2bUser.JobTitle = dto.JobTitle;
+        // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
+        b2bUser.UpdateProfile(dto.EmployeeId, dto.Department, dto.JobTitle);
+        
         if (!string.IsNullOrEmpty(dto.Status))
+        {
             // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
             if (Enum.TryParse<EntityStatus>(dto.Status, true, out var statusEnum))
             {
-                b2bUser.Status = statusEnum;
+                b2bUser.UpdateStatus(statusEnum);
             }
+        }
+        
         if (dto.CreditLimit.HasValue)
-            b2bUser.CreditLimit = dto.CreditLimit.Value;
+        {
+            b2bUser.UpdateCreditLimit(dto.CreditLimit.Value);
+        }
+        
         if (dto.Settings != null)
-            b2bUser.Settings = JsonSerializer.Serialize(dto.Settings);
+        {
+            // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
+            b2bUser.UpdateSettings(JsonSerializer.Serialize(dto.Settings));
+        }
 
-        b2bUser.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> ApproveB2BUserAsync(Guid id, Guid approvedByUserId)
+    public async Task<bool> ApproveB2BUserAsync(Guid id, Guid approvedByUserId, CancellationToken cancellationToken = default)
     {
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var b2bUser = await _context.Set<B2BUser>()
-            .FirstOrDefaultAsync(b => b.Id == id);
+            .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
 
         if (b2bUser == null) return false;
 
-        b2bUser.IsApproved = true;
-        b2bUser.ApprovedAt = DateTime.UtcNow;
-        b2bUser.ApprovedByUserId = approvedByUserId;
-        b2bUser.Status = EntityStatus.Active;
-        b2bUser.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
+        b2bUser.Approve(approvedByUserId);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeleteB2BUserAsync(Guid id)
+    public async Task<bool> DeleteB2BUserAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var b2bUser = await _context.Set<B2BUser>()
-            .FirstOrDefaultAsync(b => b.Id == id);
+            .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
 
         if (b2bUser == null) return false;
 
         b2bUser.IsDeleted = true;
         b2bUser.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // Wholesale Prices
-    public async Task<WholesalePriceDto> CreateWholesalePriceAsync(CreateWholesalePriceDto dto)
+    public async Task<WholesalePriceDto> CreateWholesalePriceAsync(CreateWholesalePriceDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
             throw new ArgumentNullException(nameof(dto));
         }
 
+        // ✅ BOLUM 4.1: Validation - EndDate > StartDate kontrolü
+        if (dto.StartDate.HasValue && dto.EndDate.HasValue && dto.EndDate.Value <= dto.StartDate.Value)
+        {
+            throw new ValidationException("Bitiş tarihi başlangıç tarihinden sonra olmalıdır.");
+        }
+
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var product = await _context.Products
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == dto.ProductId);
+            .FirstOrDefaultAsync(p => p.Id == dto.ProductId, cancellationToken);
 
         if (product == null)
         {
-            throw new NotFoundException("Ürün", Guid.Empty);
+            throw new NotFoundException("Ürün", dto.ProductId);
         }
 
-        var wholesalePrice = new WholesalePrice
+        Organization? organization = null;
+        if (dto.OrganizationId.HasValue)
         {
-            ProductId = dto.ProductId,
-            OrganizationId = dto.OrganizationId,
-            MinQuantity = dto.MinQuantity,
-            MaxQuantity = dto.MaxQuantity,
-            Price = dto.Price,
-            IsActive = dto.IsActive,
-            StartDate = dto.StartDate,
-            EndDate = dto.EndDate
-        };
+            organization = await _context.Set<OrganizationEntity>()
+                .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId.Value, cancellationToken);
+        }
 
-        await _context.Set<WholesalePrice>().AddAsync(wholesalePrice);
-        await _unitOfWork.SaveChangesAsync();
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var wholesalePrice = WholesalePrice.Create(
+            dto.ProductId,
+            product,
+            dto.OrganizationId,
+            organization,
+            dto.MinQuantity,
+            dto.MaxQuantity,
+            dto.Price,
+            dto.IsActive,
+            dto.StartDate,
+            dto.EndDate);
+
+        await _context.Set<WholesalePrice>().AddAsync(wholesalePrice, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: Reload with Include for AutoMapper
         wholesalePrice = await _context.Set<WholesalePrice>()
@@ -277,8 +313,12 @@ public class B2BService : IB2BService
         return _mapper.Map<WholesalePriceDto>(wholesalePrice!);
     }
 
-    public async Task<IEnumerable<WholesalePriceDto>> GetProductWholesalePricesAsync(Guid productId, Guid? organizationId = null)
+    public async Task<PagedResult<WholesalePriceDto>> GetProductWholesalePricesAsync(Guid productId, Guid? organizationId = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > _b2bSettings.MaxPageSize) pageSize = _b2bSettings.MaxPageSize;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !wp.IsDeleted check (Global Query Filter handles it)
         var query = _context.Set<WholesalePrice>()
@@ -296,15 +336,29 @@ public class B2BService : IB2BService
             query = query.Where(wp => wp.OrganizationId == null); // General pricing
         }
 
+        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var prices = await query
             .OrderBy(wp => wp.MinQuantity)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        return _mapper.Map<IEnumerable<WholesalePriceDto>>(prices);
+        var items = _mapper.Map<List<WholesalePriceDto>>(prices);
+
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+        return new PagedResult<WholesalePriceDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<decimal?> GetWholesalePriceAsync(Guid productId, int quantity, Guid? organizationId = null)
+    public async Task<decimal?> GetWholesalePriceAsync(Guid productId, int quantity, Guid? organizationId = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !wp.IsDeleted check (Global Query Filter handles it)
@@ -321,7 +375,7 @@ public class B2BService : IB2BService
                            (wp.StartDate == null || wp.StartDate <= DateTime.UtcNow) &&
                            (wp.EndDate == null || wp.EndDate >= DateTime.UtcNow))
                 .OrderByDescending(wp => wp.MinQuantity)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (orgPrice != null)
             {
@@ -340,16 +394,22 @@ public class B2BService : IB2BService
                        (wp.StartDate == null || wp.StartDate <= DateTime.UtcNow) &&
                        (wp.EndDate == null || wp.EndDate >= DateTime.UtcNow))
             .OrderByDescending(wp => wp.MinQuantity)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         return generalPrice?.Price;
     }
 
-    public async Task<bool> UpdateWholesalePriceAsync(Guid id, CreateWholesalePriceDto dto)
+    public async Task<bool> UpdateWholesalePriceAsync(Guid id, CreateWholesalePriceDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 4.1: Validation - EndDate > StartDate kontrolü
+        if (dto.StartDate.HasValue && dto.EndDate.HasValue && dto.EndDate.Value <= dto.StartDate.Value)
+        {
+            throw new ValidationException("Bitiş tarihi başlangıç tarihinden sonra olmalıdır.");
+        }
+
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var price = await _context.Set<WholesalePrice>()
-            .FirstOrDefaultAsync(wp => wp.Id == id);
+            .FirstOrDefaultAsync(wp => wp.Id == id, cancellationToken);
 
         if (price == null) return false;
 
@@ -361,28 +421,28 @@ public class B2BService : IB2BService
         price.EndDate = dto.EndDate;
 
         price.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeleteWholesalePriceAsync(Guid id)
+    public async Task<bool> DeleteWholesalePriceAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var price = await _context.Set<WholesalePrice>()
-            .FirstOrDefaultAsync(wp => wp.Id == id);
+            .FirstOrDefaultAsync(wp => wp.Id == id, cancellationToken);
 
         if (price == null) return false;
 
         price.IsDeleted = true;
         price.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // Credit Terms
-    public async Task<CreditTermDto> CreateCreditTermAsync(CreateCreditTermDto dto)
+    public async Task<CreditTermDto> CreateCreditTermAsync(CreateCreditTermDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
@@ -392,52 +452,54 @@ public class B2BService : IB2BService
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var organization = await _context.Set<OrganizationEntity>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId);
+            .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId, cancellationToken);
 
         if (organization == null)
         {
             throw new NotFoundException("Organizasyon", Guid.Empty);
         }
 
-        var creditTerm = new CreditTerm
-        {
-            OrganizationId = dto.OrganizationId,
-            Name = dto.Name,
-            PaymentDays = dto.PaymentDays,
-            CreditLimit = dto.CreditLimit,
-            UsedCredit = 0,
-            IsActive = true,
-            Terms = dto.Terms
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var creditTerm = CreditTerm.Create(
+            dto.OrganizationId,
+            organization,
+            dto.Name,
+            dto.PaymentDays,
+            dto.CreditLimit,
+            dto.Terms);
 
-        await _context.Set<CreditTerm>().AddAsync(creditTerm);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<CreditTerm>().AddAsync(creditTerm, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: Reload with Include for AutoMapper
         creditTerm = await _context.Set<CreditTerm>()
             .AsNoTracking()
             .Include(ct => ct.Organization)
-            .FirstOrDefaultAsync(ct => ct.Id == creditTerm.Id);
+            .FirstOrDefaultAsync(ct => ct.Id == creditTerm.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return _mapper.Map<CreditTermDto>(creditTerm!);
     }
 
-    public async Task<CreditTermDto?> GetCreditTermByIdAsync(Guid id)
+    public async Task<CreditTermDto?> GetCreditTermByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !ct.IsDeleted check (Global Query Filter handles it)
         var creditTerm = await _context.Set<CreditTerm>()
             .AsNoTracking()
             .Include(ct => ct.Organization)
-            .FirstOrDefaultAsync(ct => ct.Id == id);
+            .FirstOrDefaultAsync(ct => ct.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return creditTerm != null ? _mapper.Map<CreditTermDto>(creditTerm) : null;
     }
 
-    public async Task<IEnumerable<CreditTermDto>> GetOrganizationCreditTermsAsync(Guid organizationId, bool? isActive = null)
+    public async Task<PagedResult<CreditTermDto>> GetOrganizationCreditTermsAsync(Guid organizationId, bool? isActive = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > _b2bSettings.MaxPageSize) pageSize = _b2bSettings.MaxPageSize;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !ct.IsDeleted check (Global Query Filter handles it)
         var query = _context.Set<CreditTerm>()
@@ -450,65 +512,79 @@ public class B2BService : IB2BService
             query = query.Where(ct => ct.IsActive == isActive.Value);
         }
 
+        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var creditTerms = await query
             .OrderBy(ct => ct.PaymentDays)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        return _mapper.Map<IEnumerable<CreditTermDto>>(creditTerms);
+        var items = _mapper.Map<List<CreditTermDto>>(creditTerms);
+
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+        return new PagedResult<CreditTermDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<bool> UpdateCreditTermAsync(Guid id, CreateCreditTermDto dto)
+    public async Task<bool> UpdateCreditTermAsync(Guid id, CreateCreditTermDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var creditTerm = await _context.Set<CreditTerm>()
-            .FirstOrDefaultAsync(ct => ct.Id == id);
+            .FirstOrDefaultAsync(ct => ct.Id == id, cancellationToken);
 
         if (creditTerm == null) return false;
 
-        creditTerm.Name = dto.Name;
-        creditTerm.PaymentDays = dto.PaymentDays;
-        creditTerm.CreditLimit = dto.CreditLimit;
-        creditTerm.Terms = dto.Terms;
+        // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
+        creditTerm.UpdateDetails(dto.Name, dto.PaymentDays, dto.Terms);
+        creditTerm.UpdateCreditLimit(dto.CreditLimit);
 
         creditTerm.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeleteCreditTermAsync(Guid id)
+    public async Task<bool> DeleteCreditTermAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var creditTerm = await _context.Set<CreditTerm>()
-            .FirstOrDefaultAsync(ct => ct.Id == id);
+            .FirstOrDefaultAsync(ct => ct.Id == id, cancellationToken);
 
         if (creditTerm == null) return false;
 
         creditTerm.IsDeleted = true;
         creditTerm.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> UpdateCreditUsageAsync(Guid creditTermId, decimal amount)
+    public async Task<bool> UpdateCreditUsageAsync(Guid creditTermId, decimal amount, CancellationToken cancellationToken = default)
     {
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var creditTerm = await _context.Set<CreditTerm>()
-            .FirstOrDefaultAsync(ct => ct.Id == creditTermId);
+            .FirstOrDefaultAsync(ct => ct.Id == creditTermId, cancellationToken);
 
         if (creditTerm == null) return false;
 
-        creditTerm.UsedCredit = (creditTerm.UsedCredit ?? 0) + amount;
+        // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
+        creditTerm.UseCredit(amount);
         creditTerm.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // Purchase Orders
-    public async Task<PurchaseOrderDto> CreatePurchaseOrderAsync(Guid b2bUserId, CreatePurchaseOrderDto dto)
+    public async Task<PurchaseOrderDto> CreatePurchaseOrderAsync(Guid b2bUserId, CreatePurchaseOrderDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
@@ -516,35 +592,38 @@ public class B2BService : IB2BService
         }
 
         // ✅ ARCHITECTURE: Transaction başlat - atomic operation (PurchaseOrder + Items + Updates)
-        await _unitOfWork.BeginTransactionAsync();
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
             // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
             var b2bUser = await _context.Set<B2BUser>()
                 .Include(b => b.Organization)
-                .FirstOrDefaultAsync(b => b.Id == b2bUserId && b.IsApproved);
+                .FirstOrDefaultAsync(b => b.Id == b2bUserId && b.IsApproved, cancellationToken);
 
             if (b2bUser == null)
             {
                 throw new NotFoundException("B2B kullanıcı", Guid.Empty);
             }
 
-            var poNumber = await GeneratePONumberAsync();
+            var poNumber = await GeneratePONumberAsync(cancellationToken);
 
-            var purchaseOrder = new PurchaseOrder
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var purchaseOrder = PurchaseOrder.Create(
+                dto.OrganizationId,
+                b2bUserId,
+                poNumber,
+                b2bUser.Organization,
+                dto.ExpectedDeliveryDate,
+                dto.CreditTermId);
+
+            if (!string.IsNullOrWhiteSpace(dto.Notes))
             {
-                OrganizationId = dto.OrganizationId,
-                B2BUserId = b2bUserId,
-                PONumber = poNumber,
-                Status = PurchaseOrderStatus.Draft,
-                Notes = dto.Notes,
-                ExpectedDeliveryDate = dto.ExpectedDeliveryDate,
-                CreditTermId = dto.CreditTermId
-            };
+                purchaseOrder.UpdateNotes(dto.Notes);
+            }
 
-            await _context.Set<PurchaseOrder>().AddAsync(purchaseOrder);
-            await _unitOfWork.SaveChangesAsync();
+            await _context.Set<PurchaseOrder>().AddAsync(purchaseOrder, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // ✅ PERFORMANCE: Batch load all products at once (N+1 query fix)
             // BEFORE: 10 items = 10 product queries + 10 wholesale queries + 10 discount queries = ~30 queries
@@ -553,7 +632,7 @@ public class B2BService : IB2BService
             var products = await _context.Products
                 .AsNoTracking()
                 .Where(p => productIds.Contains(p.Id))
-                .ToDictionaryAsync(p => p.Id);
+                .ToDictionaryAsync(p => p.Id, cancellationToken);
 
             // Validate all products exist
             foreach (var itemDto in dto.Items)
@@ -589,7 +668,7 @@ public class B2BService : IB2BService
             // Ancak memory'de GroupBy/ToDictionary/OrderByDescending/ToList kullanımı YASAK
             // Çözüm: Her item için ayrı ayrı database query yapmak yerine, batch olarak yükleyip sonra memory'de lookup yapmak
             // NOT: Bu durum .cursorrules'a aykırı, ama alternatif yok - her item için farklı quantity ile filtreleme yapmak gerekiyor
-            var wholesalePrices = await wholesalePricesQuery.ToListAsync();
+            var wholesalePrices = await wholesalePricesQuery.ToListAsync(cancellationToken);
 
             // ✅ PERFORMANCE: Batch load all volume discounts at once (N+1 query fix)
             var volumeDiscountsQuery = _context.Set<VolumeDiscount>()
@@ -609,7 +688,7 @@ public class B2BService : IB2BService
                 volumeDiscountsQuery = volumeDiscountsQuery.Where(vd => vd.OrganizationId == null);
             }
 
-            var volumeDiscounts = await volumeDiscountsQuery.ToListAsync();
+            var volumeDiscounts = await volumeDiscountsQuery.ToListAsync(cancellationToken);
 
             // ✅ PERFORMANCE: ToListAsync() sonrası memory'de işlem YASAK, ama burada özel durum var:
             // - wholesalePrices ve volumeDiscounts zaten batch olarak yüklenmiş (N+1 query fix)
@@ -694,27 +773,20 @@ public class B2BService : IB2BService
                 var totalPrice = unitPrice * itemDto.Quantity;
                 subTotal += totalPrice;
 
-                var item = new PurchaseOrderItem
-                {
-                    PurchaseOrderId = purchaseOrder.Id,
-                    ProductId = itemDto.ProductId,
-                    Quantity = itemDto.Quantity,
-                    UnitPrice = unitPrice,
-                    TotalPrice = totalPrice,
-                    Notes = itemDto.Notes
-                };
-
-                items.Add(item);
+                // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
+                purchaseOrder.AddItem(
+                    products[itemDto.ProductId],
+                    itemDto.Quantity,
+                    unitPrice,
+                    itemDto.Notes);
             }
 
-            await _context.Set<PurchaseOrderItem>().AddRangeAsync(items);
+            // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
+            // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullan
+            purchaseOrder.SetTax(subTotal * _b2bSettings.DefaultTaxRate);
 
-            purchaseOrder.SubTotal = subTotal;
-            purchaseOrder.Tax = subTotal * 0.20m; // 20% tax (can be configurable)
-            purchaseOrder.TotalAmount = purchaseOrder.SubTotal + purchaseOrder.Tax;
-
-        await _unitOfWork.SaveChangesAsync();
-        await _unitOfWork.CommitTransactionAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: Reload with Include for AutoMapper
         purchaseOrder = await _context.Set<PurchaseOrder>()
@@ -726,7 +798,7 @@ public class B2BService : IB2BService
             .Include(po => po.CreditTerm)
             .Include(po => po.Items)
                 .ThenInclude(i => i.Product)
-            .FirstOrDefaultAsync(po => po.Id == purchaseOrder.Id);
+            .FirstOrDefaultAsync(po => po.Id == purchaseOrder.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return _mapper.Map<PurchaseOrderDto>(purchaseOrder!);
@@ -738,12 +810,12 @@ public class B2BService : IB2BService
                 "PurchaseOrder olusturma hatasi. B2BUserId: {B2BUserId}, OrganizationId: {OrganizationId}",
                 b2bUserId, dto.OrganizationId);
             // ✅ ARCHITECTURE: Hata olursa ROLLBACK - hiçbir şey yazılmaz
-            await _unitOfWork.RollbackTransactionAsync();
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }
 
-    public async Task<PurchaseOrderDto?> GetPurchaseOrderByIdAsync(Guid id)
+    public async Task<PurchaseOrderDto?> GetPurchaseOrderByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !po.IsDeleted check (Global Query Filter handles it)
@@ -756,13 +828,13 @@ public class B2BService : IB2BService
             .Include(po => po.CreditTerm)
             .Include(po => po.Items)
                 .ThenInclude(i => i.Product)
-            .FirstOrDefaultAsync(po => po.Id == id);
+            .FirstOrDefaultAsync(po => po.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return po != null ? _mapper.Map<PurchaseOrderDto>(po) : null;
     }
 
-    public async Task<PurchaseOrderDto?> GetPurchaseOrderByPONumberAsync(string poNumber)
+    public async Task<PurchaseOrderDto?> GetPurchaseOrderByPONumberAsync(string poNumber, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !po.IsDeleted check (Global Query Filter handles it)
@@ -775,14 +847,18 @@ public class B2BService : IB2BService
             .Include(po => po.CreditTerm)
             .Include(po => po.Items)
                 .ThenInclude(i => i.Product)
-            .FirstOrDefaultAsync(po => po.PONumber == poNumber);
+            .FirstOrDefaultAsync(po => po.PONumber == poNumber, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return po != null ? _mapper.Map<PurchaseOrderDto>(po) : null;
     }
 
-    public async Task<IEnumerable<PurchaseOrderDto>> GetOrganizationPurchaseOrdersAsync(Guid organizationId, string? status = null)
+    public async Task<PagedResult<PurchaseOrderDto>> GetOrganizationPurchaseOrdersAsync(Guid organizationId, string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > _b2bSettings.MaxPageSize) pageSize = _b2bSettings.MaxPageSize;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !po.IsDeleted check (Global Query Filter handles it)
         var query = _context.Set<PurchaseOrder>()
@@ -803,16 +879,34 @@ public class B2BService : IB2BService
             }
         }
 
+        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var pos = await query
             .OrderByDescending(po => po.CreatedAt)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        return _mapper.Map<IEnumerable<PurchaseOrderDto>>(pos);
+        var items = _mapper.Map<List<PurchaseOrderDto>>(pos);
+
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+        return new PagedResult<PurchaseOrderDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<IEnumerable<PurchaseOrderDto>> GetB2BUserPurchaseOrdersAsync(Guid b2bUserId, string? status = null)
+    public async Task<PagedResult<PurchaseOrderDto>> GetB2BUserPurchaseOrdersAsync(Guid b2bUserId, string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > _b2bSettings.MaxPageSize) pageSize = _b2bSettings.MaxPageSize;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !po.IsDeleted check (Global Query Filter handles it)
         var query = _context.Set<PurchaseOrder>()
@@ -833,68 +927,76 @@ public class B2BService : IB2BService
             }
         }
 
+        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var pos = await query
             .OrderByDescending(po => po.CreatedAt)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        return _mapper.Map<IEnumerable<PurchaseOrderDto>>(pos);
+        var items = _mapper.Map<List<PurchaseOrderDto>>(pos);
+
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+        return new PagedResult<PurchaseOrderDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<bool> SubmitPurchaseOrderAsync(Guid id)
+    public async Task<bool> SubmitPurchaseOrderAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var po = await _context.Set<PurchaseOrder>()
-            .FirstOrDefaultAsync(po => po.Id == id);
+            .FirstOrDefaultAsync(po => po.Id == id, cancellationToken);
 
-        if (po == null || po.Status != PurchaseOrderStatus.Draft) return false;
+        if (po == null) return false;
 
-        po.Status = PurchaseOrderStatus.Submitted;
-        po.SubmittedAt = DateTime.UtcNow;
-        po.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
+        po.Submit();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> ApprovePurchaseOrderAsync(Guid id, Guid approvedByUserId)
+    public async Task<bool> ApprovePurchaseOrderAsync(Guid id, Guid approvedByUserId, CancellationToken cancellationToken = default)
     {
         // ✅ ARCHITECTURE: Transaction başlat - atomic operation (PurchaseOrder + CreditTerm updates)
-        await _unitOfWork.BeginTransactionAsync();
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
             // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
             var po = await _context.Set<PurchaseOrder>()
-                .FirstOrDefaultAsync(po => po.Id == id);
+                .FirstOrDefaultAsync(po => po.Id == id, cancellationToken);
 
-            if (po == null || po.Status != PurchaseOrderStatus.Submitted) return false;
+            if (po == null) return false;
 
             // Check credit limit if credit term is used
             if (po.CreditTermId.HasValue)
             {
                 // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
                 var creditTerm = await _context.Set<CreditTerm>()
-                    .FirstOrDefaultAsync(ct => ct.Id == po.CreditTermId.Value);
+                    .FirstOrDefaultAsync(ct => ct.Id == po.CreditTermId.Value, cancellationToken);
 
                 if (creditTerm != null && creditTerm.CreditLimit.HasValue)
                 {
                     var availableCredit = creditTerm.CreditLimit.Value - (creditTerm.UsedCredit ?? 0);
-                    if (po.TotalAmount > availableCredit)
-                    {
-                        throw new BusinessException("Kredi limiti aşıldı.");
-                    }
-
-                    creditTerm.UsedCredit = (creditTerm.UsedCredit ?? 0) + po.TotalAmount;
+                    // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
+                    // Entity method içinde zaten credit limit kontrolü var
+                    creditTerm.UseCredit(po.TotalAmount);
                 }
             }
 
-            po.Status = PurchaseOrderStatus.Approved;
-            po.ApprovedAt = DateTime.UtcNow;
-            po.ApprovedByUserId = approvedByUserId;
-            po.UpdatedAt = DateTime.UtcNow;
-            await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitTransactionAsync();
+            // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
+            po.Approve(approvedByUserId);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             return true;
         }
@@ -905,66 +1007,100 @@ public class B2BService : IB2BService
                 "PurchaseOrder onaylama hatasi. PurchaseOrderId: {PurchaseOrderId}, ApprovedByUserId: {ApprovedByUserId}",
                 id, approvedByUserId);
             // ✅ ARCHITECTURE: Hata olursa ROLLBACK - hiçbir şey yazılmaz
-            await _unitOfWork.RollbackTransactionAsync();
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }
 
-    public async Task<bool> RejectPurchaseOrderAsync(Guid id, string reason)
+    public async Task<bool> RejectPurchaseOrderAsync(Guid id, string reason, CancellationToken cancellationToken = default)
     {
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var po = await _context.Set<PurchaseOrder>()
-            .FirstOrDefaultAsync(po => po.Id == id);
+            .FirstOrDefaultAsync(po => po.Id == id, cancellationToken);
 
-        if (po == null || po.Status != PurchaseOrderStatus.Submitted) return false;
+        if (po == null) return false;
 
-        po.Status = PurchaseOrderStatus.Rejected;
-        po.Notes = $"{po.Notes}\nRejection Reason: {reason}";
-        po.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
+        po.Reject(reason);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> CancelPurchaseOrderAsync(Guid id)
+    public async Task<bool> CancelPurchaseOrderAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var po = await _context.Set<PurchaseOrder>()
-            .FirstOrDefaultAsync(po => po.Id == id);
+            .FirstOrDefaultAsync(po => po.Id == id, cancellationToken);
 
-        if (po == null || (po.Status != PurchaseOrderStatus.Draft && po.Status != PurchaseOrderStatus.Submitted)) return false;
+        if (po == null) return false;
 
-        po.Status = PurchaseOrderStatus.Cancelled;
-        po.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
+        po.Cancel();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // Volume Discounts
-    public async Task<VolumeDiscountDto> CreateVolumeDiscountAsync(CreateVolumeDiscountDto dto)
+    public async Task<VolumeDiscountDto> CreateVolumeDiscountAsync(CreateVolumeDiscountDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
             throw new ArgumentNullException(nameof(dto));
         }
 
-        var discount = new VolumeDiscount
+        // ✅ BOLUM 4.1: Validation - EndDate > StartDate kontrolü
+        if (dto.StartDate.HasValue && dto.EndDate.HasValue && dto.EndDate.Value <= dto.StartDate.Value)
         {
-            ProductId = dto.ProductId ?? Guid.Empty,
-            CategoryId = dto.CategoryId,
-            OrganizationId = dto.OrganizationId,
-            MinQuantity = dto.MinQuantity,
-            MaxQuantity = dto.MaxQuantity,
-            DiscountPercentage = dto.DiscountPercentage,
-            FixedDiscountAmount = dto.FixedDiscountAmount,
-            IsActive = dto.IsActive,
-            StartDate = dto.StartDate,
-            EndDate = dto.EndDate
-        };
+            throw new ValidationException("Bitiş tarihi başlangıç tarihinden sonra olmalıdır.");
+        }
 
-        await _context.Set<VolumeDiscount>().AddAsync(discount);
-        await _unitOfWork.SaveChangesAsync();
+        // ✅ BOLUM 4.1: Validation - MaxQuantity >= MinQuantity kontrolü
+        if (dto.MaxQuantity.HasValue && dto.MaxQuantity.Value < dto.MinQuantity)
+        {
+            throw new ValidationException("Maksimum miktar minimum miktardan küçük olamaz.");
+        }
+
+        Product? product = null;
+        if (dto.ProductId.HasValue)
+        {
+            product = await _context.Products
+                .FirstOrDefaultAsync(p => p.Id == dto.ProductId.Value, cancellationToken);
+        }
+
+        Category? category = null;
+        if (dto.CategoryId.HasValue)
+        {
+            category = await _context.Categories
+                .FirstOrDefaultAsync(c => c.Id == dto.CategoryId.Value, cancellationToken);
+        }
+
+        Organization? organization = null;
+        if (dto.OrganizationId.HasValue)
+        {
+            organization = await _context.Set<OrganizationEntity>()
+                .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId.Value, cancellationToken);
+        }
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var discount = VolumeDiscount.Create(
+            dto.ProductId ?? Guid.Empty,
+            product,
+            dto.CategoryId,
+            category,
+            dto.OrganizationId,
+            organization,
+            dto.MinQuantity,
+            dto.MaxQuantity,
+            dto.DiscountPercentage,
+            dto.FixedDiscountAmount,
+            dto.IsActive,
+            dto.StartDate,
+            dto.EndDate);
+
+        await _context.Set<VolumeDiscount>().AddAsync(discount, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: Reload with Include for AutoMapper
         discount = await _context.Set<VolumeDiscount>()
@@ -972,14 +1108,18 @@ public class B2BService : IB2BService
             .Include(vd => vd.Product)
             .Include(vd => vd.Category)
             .Include(vd => vd.Organization)
-            .FirstOrDefaultAsync(vd => vd.Id == discount.Id);
+            .FirstOrDefaultAsync(vd => vd.Id == discount.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return _mapper.Map<VolumeDiscountDto>(discount!);
     }
 
-    public async Task<IEnumerable<VolumeDiscountDto>> GetVolumeDiscountsAsync(Guid? productId = null, Guid? categoryId = null, Guid? organizationId = null)
+    public async Task<PagedResult<VolumeDiscountDto>> GetVolumeDiscountsAsync(Guid? productId = null, Guid? categoryId = null, Guid? organizationId = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > _b2bSettings.MaxPageSize) pageSize = _b2bSettings.MaxPageSize;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !vd.IsDeleted check (Global Query Filter handles it)
         var query = _context.Set<VolumeDiscount>()
@@ -1004,15 +1144,29 @@ public class B2BService : IB2BService
             query = query.Where(vd => vd.OrganizationId == organizationId.Value || vd.OrganizationId == null);
         }
 
+        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var discounts = await query
             .OrderBy(vd => vd.MinQuantity)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        return _mapper.Map<IEnumerable<VolumeDiscountDto>>(discounts);
+        var items = _mapper.Map<List<VolumeDiscountDto>>(discounts);
+
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+        return new PagedResult<VolumeDiscountDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<decimal> CalculateVolumeDiscountAsync(Guid productId, int quantity, Guid? organizationId = null)
+    public async Task<decimal> CalculateVolumeDiscountAsync(Guid productId, int quantity, Guid? organizationId = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !vd.IsDeleted check (Global Query Filter handles it)
@@ -1029,7 +1183,7 @@ public class B2BService : IB2BService
                            (vd.StartDate == null || vd.StartDate <= DateTime.UtcNow) &&
                            (vd.EndDate == null || vd.EndDate >= DateTime.UtcNow))
                 .OrderByDescending(vd => vd.MinQuantity)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (orgDiscount != null)
             {
@@ -1048,16 +1202,28 @@ public class B2BService : IB2BService
                        (vd.StartDate == null || vd.StartDate <= DateTime.UtcNow) &&
                        (vd.EndDate == null || vd.EndDate >= DateTime.UtcNow))
             .OrderByDescending(vd => vd.MinQuantity)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         return generalDiscount?.DiscountPercentage ?? 0;
     }
 
-    public async Task<bool> UpdateVolumeDiscountAsync(Guid id, CreateVolumeDiscountDto dto)
+    public async Task<bool> UpdateVolumeDiscountAsync(Guid id, CreateVolumeDiscountDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 4.1: Validation - EndDate > StartDate kontrolü
+        if (dto.StartDate.HasValue && dto.EndDate.HasValue && dto.EndDate.Value <= dto.StartDate.Value)
+        {
+            throw new ValidationException("Bitiş tarihi başlangıç tarihinden sonra olmalıdır.");
+        }
+
+        // ✅ BOLUM 4.1: Validation - MaxQuantity >= MinQuantity kontrolü
+        if (dto.MaxQuantity.HasValue && dto.MaxQuantity.Value < dto.MinQuantity)
+        {
+            throw new ValidationException("Maksimum miktar minimum miktardan küçük olamaz.");
+        }
+
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var discount = await _context.Set<VolumeDiscount>()
-            .FirstOrDefaultAsync(vd => vd.Id == id);
+            .FirstOrDefaultAsync(vd => vd.Id == id, cancellationToken);
 
         if (discount == null) return false;
 
@@ -1070,35 +1236,35 @@ public class B2BService : IB2BService
         discount.EndDate = dto.EndDate;
 
         discount.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeleteVolumeDiscountAsync(Guid id)
+    public async Task<bool> DeleteVolumeDiscountAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
         var discount = await _context.Set<VolumeDiscount>()
-            .FirstOrDefaultAsync(vd => vd.Id == id);
+            .FirstOrDefaultAsync(vd => vd.Id == id, cancellationToken);
 
         if (discount == null) return false;
 
         discount.IsDeleted = true;
         discount.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // Helper methods
-    private async Task<string> GeneratePONumberAsync()
+    private async Task<string> GeneratePONumberAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !po.IsDeleted check (Global Query Filter handles it)
         var date = DateTime.UtcNow.ToString("yyyyMMdd");
         var existingCount = await _context.Set<PurchaseOrder>()
             .AsNoTracking()
-            .CountAsync(po => po.PONumber.StartsWith($"PO-{date}"));
+            .CountAsync(po => po.PONumber.StartsWith($"PO-{date}"), cancellationToken);
 
         return $"PO-{date}-{(existingCount + 1):D6}";
     }
