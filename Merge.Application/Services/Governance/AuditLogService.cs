@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Governance;
+using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
@@ -28,7 +29,8 @@ public class AuditLogService : IAuditLogService
         _logger = logger;
     }
 
-    public async Task LogAsync(CreateAuditLogDto auditDto, string ipAddress, string userAgent)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task LogAsync(CreateAuditLogDto auditDto, string ipAddress, string userAgent, CancellationToken cancellationToken = default)
     {
         var audit = new AuditLog
         {
@@ -51,17 +53,18 @@ public class AuditLogService : IAuditLogService
             AdditionalData = auditDto.AdditionalData ?? string.Empty
         };
 
-        await _context.Set<AuditLog>().AddAsync(audit);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<AuditLog>().AddAsync(audit, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<AuditLogDto?> GetAuditByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<AuditLogDto?> GetAuditByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         var audit = await _context.Set<AuditLog>()
             .AsNoTracking()
             .Include(a => a.User)
-            .FirstOrDefaultAsync(a => a.Id == id);
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (audit == null)
         {
@@ -72,8 +75,14 @@ public class AuditLogService : IAuditLogService
         return _mapper.Map<AuditLogDto>(audit);
     }
 
-    public async Task<IEnumerable<AuditLogDto>> GetAuditLogsAsync(AuditLogFilterDto filter)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination - PagedResult dönmeli (ZORUNLU)
+    public async Task<PagedResult<AuditLogDto>> GetAuditLogsAsync(AuditLogFilterDto filter, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (filter.PageSize > 100) filter.PageSize = 100;
+        if (filter.PageNumber < 1) filter.PageNumber = 1;
+
         // ✅ PERFORMANCE: Global Query Filter automatically filters !a.IsDeleted
         // ✅ FIX: Explicitly type as IQueryable to avoid IIncludableQueryable type mismatch
         IQueryable<AuditLog> query = _context.Set<AuditLog>()
@@ -119,53 +128,72 @@ public class AuditLogService : IAuditLogService
         if (!string.IsNullOrEmpty(filter.IpAddress))
             query = query.Where(a => a.IpAddress == filter.IpAddress);
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var audits = await query
             .OrderByDescending(a => a.CreatedAt)
             .Skip((filter.PageNumber - 1) * filter.PageSize)
             .Take(filter.PageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper'ın Map<IEnumerable<T>> metodunu kullan
-        return _mapper.Map<IEnumerable<AuditLogDto>>(audits);
+        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
+        var items = new List<AuditLogDto>(audits.Count);
+        foreach (var audit in audits)
+        {
+            items.Add(_mapper.Map<AuditLogDto>(audit));
+        }
+
+        return new PagedResult<AuditLogDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = filter.PageNumber,
+            PageSize = filter.PageSize
+        };
     }
 
-    public async Task<EntityAuditHistoryDto?> GetEntityHistoryAsync(string entityType, Guid entityId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+    public async Task<EntityAuditHistoryDto?> GetEntityHistoryAsync(string entityType, Guid entityId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: Database'de Count yap (memory'de işlem YASAK)
         var auditCount = await _context.Set<AuditLog>()
             .AsNoTracking()
-            .CountAsync(a => a.EntityType == entityType && a.EntityId == entityId);
+            .CountAsync(a => a.EntityType == entityType && a.EntityId == entityId, cancellationToken);
 
         if (auditCount == 0)
         {
             return null;
         }
 
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         var audits = await _context.Set<AuditLog>()
             .AsNoTracking()
             .Include(a => a.User)
             .Where(a => a.EntityType == entityType &&
                        a.EntityId == entityId)
             .OrderByDescending(a => a.CreatedAt)
-            .ToListAsync();
+            .Take(500) // ✅ Güvenlik: Maksimum 500 audit log
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de aggregation yap
         var firstChange = await _context.Set<AuditLog>()
             .AsNoTracking()
             .Where(a => a.EntityType == entityType && a.EntityId == entityId)
-            .MinAsync(a => (DateTime?)a.CreatedAt);
+            .MinAsync(a => (DateTime?)a.CreatedAt, cancellationToken);
 
         var lastChange = await _context.Set<AuditLog>()
             .AsNoTracking()
             .Where(a => a.EntityType == entityType && a.EntityId == entityId)
-            .MaxAsync(a => (DateTime?)a.CreatedAt);
+            .MaxAsync(a => (DateTime?)a.CreatedAt, cancellationToken);
 
         var totalChanges = await _context.Set<AuditLog>()
             .AsNoTracking()
-            .CountAsync(a => a.EntityType == entityType && a.EntityId == entityId);
+            .CountAsync(a => a.EntityType == entityType && a.EntityId == entityId, cancellationToken);
 
         var modifiedBy = await _context.Set<AuditLog>()
             .AsNoTracking()
@@ -174,14 +202,22 @@ public class AuditLogService : IAuditLogService
                    !string.IsNullOrEmpty(a.UserEmail))
             .Select(a => a.UserEmail)
             .Distinct()
-            .ToListAsync();
+            .Take(100) // ✅ Güvenlik: Maksimum 100 unique user
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
+        var auditLogDtos = new List<AuditLogDto>(audits.Count);
+        foreach (var audit in audits)
+        {
+            auditLogDtos.Add(_mapper.Map<AuditLogDto>(audit));
+        }
+
         return new EntityAuditHistoryDto
         {
             EntityId = entityId,
             EntityType = entityType,
-            AuditLogs = _mapper.Map<IEnumerable<AuditLogDto>>(audits).ToList(),
+            AuditLogs = auditLogDtos,
             FirstChange = firstChange ?? DateTime.UtcNow,
             LastChange = lastChange ?? DateTime.UtcNow,
             TotalChanges = totalChanges,
@@ -189,7 +225,8 @@ public class AuditLogService : IAuditLogService
         };
     }
 
-    public async Task<AuditStatsDto> GetAuditStatsAsync(int days = 30)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<AuditStatsDto> GetAuditStatsAsync(int days = 30, CancellationToken cancellationToken = default)
     {
         var startDate = DateTime.UtcNow.AddDays(-days);
         var today = DateTime.UtcNow.Date;
@@ -200,27 +237,27 @@ public class AuditLogService : IAuditLogService
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate);
 
-        var totalAudits = await query.CountAsync();
-        var todayAudits = await query.CountAsync(a => a.CreatedAt.Date == today);
-        var failedActions = await query.CountAsync(a => !a.IsSuccessful);
-        var criticalEvents = await query.CountAsync(a => a.Severity == AuditSeverity.Critical);
+        var totalAudits = await query.CountAsync(cancellationToken);
+        var todayAudits = await query.CountAsync(a => a.CreatedAt.Date == today, cancellationToken);
+        var failedActions = await query.CountAsync(a => !a.IsSuccessful, cancellationToken);
+        var criticalEvents = await query.CountAsync(a => a.Severity == AuditSeverity.Critical, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de grouping yap
         var actionsByType = await query
             .GroupBy(a => a.Action)
             .Select(g => new { Action = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(g => g.Action, g => g.Count);
+            .ToDictionaryAsync(g => g.Action, g => g.Count, cancellationToken);
 
         var actionsByModule = await query
             .Where(a => !string.IsNullOrEmpty(a.Module))
             .GroupBy(a => a.Module)
             .Select(g => new { Module = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(g => g.Module!, g => g.Count);
+            .ToDictionaryAsync(g => g.Module!, g => g.Count, cancellationToken);
 
         var actionsBySeverity = await query
             .GroupBy(a => a.Severity.ToString())
             .Select(g => new { Severity = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(g => g.Severity, g => g.Count);
+            .ToDictionaryAsync(g => g.Severity, g => g.Count, cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         var mostActiveUsers = await _context.Set<AuditLog>()
@@ -237,7 +274,7 @@ public class AuditLogService : IAuditLogService
             })
             .OrderByDescending(u => u.ActionCount)
             .Take(10)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         var recentCriticalEvents = await _context.Set<AuditLog>()
@@ -255,7 +292,7 @@ public class AuditLogService : IAuditLogService
                 CreatedAt = a.CreatedAt,
                 ErrorMessage = a.ErrorMessage
             })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return new AuditStatsDto
         {
@@ -271,30 +308,41 @@ public class AuditLogService : IAuditLogService
         };
     }
 
-    public async Task<IEnumerable<AuditLogDto>> GetUserAuditHistoryAsync(Guid userId, int days = 30)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+    public async Task<IEnumerable<AuditLogDto>> GetUserAuditHistoryAsync(Guid userId, int days = 30, CancellationToken cancellationToken = default)
     {
         var startDate = DateTime.UtcNow.AddDays(-days);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         var audits = await _context.Set<AuditLog>()
             .AsNoTracking()
             .Include(a => a.User)
             .Where(a => a.UserId == userId &&
                        a.CreatedAt >= startDate)
             .OrderByDescending(a => a.CreatedAt)
-            .ToListAsync();
+            .Take(1000) // ✅ Güvenlik: Maksimum 1000 audit log
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper'ın Map<IEnumerable<T>> metodunu kullan
-        return _mapper.Map<IEnumerable<AuditLogDto>>(audits);
+        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
+        var result = new List<AuditLogDto>(audits.Count);
+        foreach (var audit in audits)
+        {
+            result.Add(_mapper.Map<AuditLogDto>(audit));
+        }
+        return result;
     }
 
-    public async Task<IEnumerable<AuditComparisonDto>> CompareChangesAsync(Guid auditLogId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<AuditComparisonDto>> CompareChangesAsync(Guid auditLogId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         var audit = await _context.Set<AuditLog>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == auditLogId);
+            .FirstOrDefaultAsync(a => a.Id == auditLogId, cancellationToken);
 
         if (audit == null || string.IsNullOrEmpty(audit.OldValues) || string.IsNullOrEmpty(audit.NewValues))
         {
@@ -311,7 +359,8 @@ public class AuditLogService : IAuditLogService
                 return new List<AuditComparisonDto>();
             }
 
-            var comparisons = new List<AuditComparisonDto>();
+            // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
+            var comparisons = new List<AuditComparisonDto>(newValues.Count);
 
             foreach (var key in newValues.Keys)
             {
@@ -331,23 +380,39 @@ public class AuditLogService : IAuditLogService
 
             return comparisons;
         }
-        catch
+        catch (Exception ex)
         {
-            return new List<AuditComparisonDto>();
+            _logger.LogError(ex, "Audit log karşılaştırma hatası. AuditLogId: {AuditLogId}", auditLogId);
+            return new List<AuditComparisonDto>(); // ✅ BOLUM 2.1: Exception yutulmamali - ama burada boş liste döndürmek mantıklı
         }
     }
 
-    public async Task DeleteOldAuditLogsAsync(int daysToKeep = 365)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task DeleteOldAuditLogsAsync(int daysToKeep = 365, CancellationToken cancellationToken = default)
     {
-        var cutoffDate = DateTime.UtcNow.AddDays(-daysToKeep);
+        _logger.LogInformation("Eski audit log'lar siliniyor. DaysToKeep: {DaysToKeep}", daysToKeep);
 
-        // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-        var oldAudits = await _context.Set<AuditLog>()
-            .Where(a => a.CreatedAt < cutoffDate && a.Severity != AuditSeverity.Critical)
-            .ToListAsync();
+        try
+        {
+            var cutoffDate = DateTime.UtcNow.AddDays(-daysToKeep);
 
-        _context.Set<AuditLog>().RemoveRange(oldAudits);
-        await _unitOfWork.SaveChangesAsync();
+            // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
+            var oldAudits = await _context.Set<AuditLog>()
+                .Where(a => a.CreatedAt < cutoffDate && a.Severity != AuditSeverity.Critical)
+                .ToListAsync(cancellationToken);
+
+            _context.Set<AuditLog>().RemoveRange(oldAudits);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Eski audit log'lar silindi. Silinen kayit sayisi: {Count}", oldAudits.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Eski audit log'lar silme hatasi. DaysToKeep: {DaysToKeep}", daysToKeep);
+            throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
+        }
     }
 
     private AuditSeverity ParseSeverity(string severity)

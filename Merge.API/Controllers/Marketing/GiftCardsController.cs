@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.DTOs.Marketing;
-
+using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Marketing;
 
@@ -17,29 +17,50 @@ public class GiftCardsController : BaseController
         _giftCardService = giftCardService;
             }
 
+    /// <summary>
+    /// Kullanıcının hediye kartlarını getirir
+    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<GiftCardDto>>> GetMyGiftCards()
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(IEnumerable<GiftCardDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<IEnumerable<GiftCardDto>>> GetMyGiftCards(
+        CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var giftCards = await _giftCardService.GetUserGiftCardsAsync(userId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var giftCards = await _giftCardService.GetUserGiftCardsAsync(userId, cancellationToken);
         return Ok(giftCards);
     }
 
+    /// <summary>
+    /// Hediye kartı detaylarını getirir
+    /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<GiftCardDto>> GetById(Guid id)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(GiftCardDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<GiftCardDto>> GetById(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        var giftCard = await _giftCardService.GetByIdAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var giftCard = await _giftCardService.GetByIdAsync(id, cancellationToken);
         if (giftCard == null)
         {
             return NotFound();
         }
 
-        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi gift card'larına erişebilmeli (satın aldığı veya kendisine atanan)
+        // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi gift card'larına erişebilmeli
         if (giftCard.PurchasedByUserId != userId && giftCard.AssignedToUserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             return Forbid();
@@ -48,10 +69,20 @@ public class GiftCardsController : BaseController
         return Ok(giftCard);
     }
 
+    /// <summary>
+    /// Hediye kartı koduna göre getirir
+    /// </summary>
     [HttpGet("code/{code}")]
-    public async Task<ActionResult<GiftCardDto>> GetByCode(string code)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(GiftCardDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<GiftCardDto>> GetByCode(
+        string code,
+        CancellationToken cancellationToken = default)
     {
-        var giftCard = await _giftCardService.GetByCodeAsync(code);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var giftCard = await _giftCardService.GetByCodeAsync(code, cancellationToken);
         if (giftCard == null)
         {
             return NotFound();
@@ -59,29 +90,62 @@ public class GiftCardsController : BaseController
         return Ok(giftCard);
     }
 
+    /// <summary>
+    /// Hediye kartı satın alır
+    /// </summary>
     [HttpPost("purchase")]
-    public async Task<ActionResult<GiftCardDto>> Purchase([FromBody] PurchaseGiftCardDto dto)
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika (kritik işlem)
+    [ProducesResponseType(typeof(GiftCardDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<GiftCardDto>> Purchase(
+        [FromBody] PurchaseGiftCardDto dto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
         var userId = GetUserId();
-        var giftCard = await _giftCardService.PurchaseGiftCardAsync(userId, dto);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var giftCard = await _giftCardService.PurchaseGiftCardAsync(userId, dto, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = giftCard.Id }, giftCard);
     }
 
+    /// <summary>
+    /// Hediye kartını kullanır
+    /// </summary>
     [HttpPost("redeem/{code}")]
-    public async Task<ActionResult<GiftCardDto>> Redeem(string code)
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika (kritik işlem)
+    [ProducesResponseType(typeof(GiftCardDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<GiftCardDto>> Redeem(
+        string code,
+        CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var giftCard = await _giftCardService.RedeemGiftCardAsync(code, userId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var giftCard = await _giftCardService.RedeemGiftCardAsync(code, userId, cancellationToken);
         return Ok(giftCard);
     }
 
+    /// <summary>
+    /// Hediye kartı indirim miktarını hesaplar
+    /// </summary>
     [HttpPost("calculate-discount")]
-    public async Task<ActionResult<decimal>> CalculateDiscount([FromQuery] string code, [FromQuery] decimal orderAmount)
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<decimal>> CalculateDiscount(
+        [FromQuery] string code,
+        [FromQuery] decimal orderAmount,
+        CancellationToken cancellationToken = default)
     {
-        var discount = await _giftCardService.CalculateDiscountAsync(code, orderAmount);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var discount = await _giftCardService.CalculateDiscountAsync(code, orderAmount, cancellationToken);
         return Ok(new { discount });
     }
 }

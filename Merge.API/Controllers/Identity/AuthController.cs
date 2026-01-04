@@ -17,36 +17,50 @@ public class AuthController : BaseController
         _authService = authService;
     }
 
-    // ✅ SECURITY: Rate limiting - 3 kayıt denemesi / dakika
+    /// <summary>
+    /// Yeni kullanıcı kaydı oluşturur
+    /// </summary>
+    // ✅ BOLUM 3.3: Rate Limiting - 3 kayıt denemesi / dakika (spam koruması)
     [HttpPost("register")]
     [RateLimit(3, 60)]
     [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<AuthResponseDto>> Register([FromBody] RegisterDto registerDto)
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<AuthResponseDto>> Register(
+        [FromBody] RegisterDto registerDto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var result = await _authService.RegisterAsync(registerDto);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var result = await _authService.RegisterAsync(registerDto, cancellationToken);
         if (result == null)
         {
             return BadRequest("Kayıt işlemi başarısız oldu.");
         }
-        return Ok(result);
+        return CreatedAtAction(nameof(Login), new { }, result);
     }
 
-    // ✅ SECURITY: Rate limiting - 5 giriş denemesi / dakika (brute force koruması)
+    /// <summary>
+    /// Kullanıcı girişi yapar
+    /// </summary>
+    // ✅ BOLUM 3.3: Rate Limiting - 5 giriş denemesi / dakika (brute force koruması)
     [HttpPost("login")]
     [RateLimit(5, 60)]
     [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginDto loginDto)
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<AuthResponseDto>> Login(
+        [FromBody] LoginDto loginDto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var result = await _authService.LoginAsync(loginDto);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var result = await _authService.LoginAsync(loginDto, cancellationToken);
         if (result == null)
         {
             return Unauthorized("Kullanıcı adı veya şifre hatalı.");
@@ -54,35 +68,49 @@ public class AuthController : BaseController
         return Ok(result);
     }
 
-    // ✅ SECURITY: Refresh token endpoint - Access token yenilemek için
+    /// <summary>
+    /// Access token'ı yeniler (refresh token kullanarak)
+    /// </summary>
+    // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [HttpPost("refresh")]
     [RateLimit(10, 60)]
     [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<AuthResponseDto>> RefreshToken([FromBody] RefreshTokenRequestDto dto)
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<AuthResponseDto>> RefreshToken(
+        [FromBody] RefreshTokenRequestDto dto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var result = await _authService.RefreshTokenAsync(dto.RefreshToken, ipAddress);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var result = await _authService.RefreshTokenAsync(dto.RefreshToken, ipAddress, cancellationToken);
         return Ok(result);
     }
 
-    // ✅ SECURITY: Logout / Token revoke endpoint
+    /// <summary>
+    /// Refresh token'ı iptal eder (logout)
+    /// </summary>
+    // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [HttpPost("revoke")]
     [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> RevokeToken([FromBody] RevokeTokenRequestDto dto)
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> RevokeToken(
+        [FromBody] RevokeTokenRequestDto dto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        await _authService.RevokeTokenAsync(dto.RefreshToken, ipAddress);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        await _authService.RevokeTokenAsync(dto.RefreshToken, ipAddress, cancellationToken);
         return NoContent();
     }
 }

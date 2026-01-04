@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.DTOs.Marketing;
-
+using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Marketing;
 
@@ -16,25 +16,55 @@ public class FlashSalesController : BaseController
         _flashSaleService = flashSaleService;
             }
 
+    /// <summary>
+    /// Aktif flash sale'leri getirir
+    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<FlashSaleDto>>> GetActiveSales()
+    [AllowAnonymous]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(IEnumerable<FlashSaleDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<IEnumerable<FlashSaleDto>>> GetActiveSales(
+        CancellationToken cancellationToken = default)
     {
-        var sales = await _flashSaleService.GetActiveSalesAsync();
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var sales = await _flashSaleService.GetActiveSalesAsync(cancellationToken);
         return Ok(sales);
     }
 
+    /// <summary>
+    /// Tüm flash sale'leri getirir (Admin only)
+    /// </summary>
     [HttpGet("all")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<IEnumerable<FlashSaleDto>>> GetAll()
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(IEnumerable<FlashSaleDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<IEnumerable<FlashSaleDto>>> GetAll(
+        CancellationToken cancellationToken = default)
     {
-        var sales = await _flashSaleService.GetAllAsync();
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var sales = await _flashSaleService.GetAllAsync(cancellationToken);
         return Ok(sales);
     }
 
+    /// <summary>
+    /// Flash sale detaylarını getirir
+    /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<FlashSaleDto>> GetById(Guid id)
+    [AllowAnonymous]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(FlashSaleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<FlashSaleDto>> GetById(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
-        var sale = await _flashSaleService.GetByIdAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var sale = await _flashSaleService.GetByIdAsync(id, cancellationToken);
         if (sale == null)
         {
             return NotFound();
@@ -42,25 +72,51 @@ public class FlashSalesController : BaseController
         return Ok(sale);
     }
 
+    /// <summary>
+    /// Yeni flash sale oluşturur (Admin only)
+    /// </summary>
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<FlashSaleDto>> Create([FromBody] CreateFlashSaleDto dto)
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [ProducesResponseType(typeof(FlashSaleDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<FlashSaleDto>> Create(
+        [FromBody] CreateFlashSaleDto dto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var sale = await _flashSaleService.CreateAsync(dto);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var sale = await _flashSaleService.CreateAsync(dto, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = sale.Id }, sale);
     }
 
+    /// <summary>
+    /// Flash sale bilgilerini günceller (Admin only)
+    /// </summary>
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<FlashSaleDto>> Update(Guid id, [FromBody] UpdateFlashSaleDto dto)
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [ProducesResponseType(typeof(FlashSaleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<FlashSaleDto>> Update(
+        Guid id,
+        [FromBody] UpdateFlashSaleDto dto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var sale = await _flashSaleService.UpdateAsync(id, dto);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var sale = await _flashSaleService.UpdateAsync(id, dto, cancellationToken);
         if (sale == null)
         {
             return NotFound();
@@ -68,11 +124,23 @@ public class FlashSalesController : BaseController
         return Ok(sale);
     }
 
+    /// <summary>
+    /// Flash sale'i siler (Admin only)
+    /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Delete(Guid id)
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> Delete(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
-        var result = await _flashSaleService.DeleteAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var result = await _flashSaleService.DeleteAsync(id, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -80,22 +148,48 @@ public class FlashSalesController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Flash sale'e ürün ekler (Admin only)
+    /// </summary>
     [HttpPost("{flashSaleId}/products")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> AddProduct(Guid flashSaleId, [FromBody] AddProductToSaleDto dto)
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> AddProduct(
+        Guid flashSaleId,
+        [FromBody] AddProductToSaleDto dto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var result = await _flashSaleService.AddProductToSaleAsync(flashSaleId, dto);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var result = await _flashSaleService.AddProductToSaleAsync(flashSaleId, dto, cancellationToken);
         return NoContent();
     }
 
+    /// <summary>
+    /// Flash sale'den ürün kaldırır (Admin only)
+    /// </summary>
     [HttpDelete("{flashSaleId}/products/{productId}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> RemoveProduct(Guid flashSaleId, Guid productId)
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> RemoveProduct(
+        Guid flashSaleId,
+        Guid productId,
+        CancellationToken cancellationToken = default)
     {
-        var result = await _flashSaleService.RemoveProductFromSaleAsync(flashSaleId, productId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var result = await _flashSaleService.RemoveProductFromSaleAsync(flashSaleId, productId, cancellationToken);
         if (!result)
         {
             return NotFound();

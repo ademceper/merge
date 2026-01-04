@@ -29,54 +29,68 @@ public class CMSService : ICMSService
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<CMSPageDto> CreatePageAsync(Guid? authorId, CreateCMSPageDto dto, CancellationToken cancellationToken = default)
     {
-        var slug = GenerateSlug(dto.Title);
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        if (await _context.Set<CMSPage>().AnyAsync(p => p.Slug == slug, cancellationToken))
-        {
-            slug = $"{slug}-{DateTime.UtcNow.Ticks}";
-        }
+        _logger.LogInformation("CMS sayfasi olusturuluyor. AuthorId: {AuthorId}, Title: {Title}", authorId, dto.Title);
 
-        // If setting as home page, unset other home pages
-        if (dto.IsHomePage)
+        try
         {
+            var slug = GenerateSlug(dto.Title);
             // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-            var existingHomePages = await _context.Set<CMSPage>()
-                .Where(p => p.IsHomePage)
-                .ToListAsync(cancellationToken);
-
-            foreach (var existingPage in existingHomePages)
+            if (await _context.Set<CMSPage>().AnyAsync(p => p.Slug == slug, cancellationToken))
             {
-                existingPage.IsHomePage = false;
+                slug = $"{slug}-{DateTime.UtcNow.Ticks}";
             }
+
+            // If setting as home page, unset other home pages
+            if (dto.IsHomePage)
+            {
+                // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
+                var existingHomePages = await _context.Set<CMSPage>()
+                    .Where(p => p.IsHomePage)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var existingPage in existingHomePages)
+                {
+                    existingPage.IsHomePage = false;
+                }
+            }
+
+            var page = new CMSPage
+            {
+                Title = dto.Title,
+                Slug = slug,
+                Content = dto.Content,
+                Excerpt = dto.Excerpt,
+                PageType = dto.PageType,
+                Status = Enum.TryParse<ContentStatus>(dto.Status, true, out var statusEnum) ? statusEnum : ContentStatus.Draft,
+                AuthorId = authorId,
+                Template = dto.Template,
+                MetaTitle = dto.MetaTitle,
+                MetaDescription = dto.MetaDescription,
+                MetaKeywords = dto.MetaKeywords,
+                IsHomePage = dto.IsHomePage,
+                DisplayOrder = dto.DisplayOrder,
+                ShowInMenu = dto.ShowInMenu,
+                MenuTitle = dto.MenuTitle,
+                ParentPageId = dto.ParentPageId,
+                PublishedAt = (Enum.TryParse<ContentStatus>(dto.Status, true, out var status) && status == ContentStatus.Published) ? DateTime.UtcNow : null
+            };
+
+            await _context.Set<CMSPage>().AddAsync(page, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("CMS sayfasi olusturuldu. PageId: {PageId}, Slug: {Slug}", page.Id, page.Slug);
+
+            return _mapper.Map<CMSPageDto>(page);
         }
-
-        var page = new CMSPage
+        catch (Exception ex)
         {
-            Title = dto.Title,
-            Slug = slug,
-            Content = dto.Content,
-            Excerpt = dto.Excerpt,
-            PageType = dto.PageType,
-            Status = Enum.TryParse<ContentStatus>(dto.Status, true, out var statusEnum) ? statusEnum : ContentStatus.Draft,
-            AuthorId = authorId,
-            Template = dto.Template,
-            MetaTitle = dto.MetaTitle,
-            MetaDescription = dto.MetaDescription,
-            MetaKeywords = dto.MetaKeywords,
-            IsHomePage = dto.IsHomePage,
-            DisplayOrder = dto.DisplayOrder,
-            ShowInMenu = dto.ShowInMenu,
-            MenuTitle = dto.MenuTitle,
-            ParentPageId = dto.ParentPageId,
-            PublishedAt = (Enum.TryParse<ContentStatus>(dto.Status, true, out var status) && status == ContentStatus.Published) ? DateTime.UtcNow : null
-        };
-
-        await _context.Set<CMSPage>().AddAsync(page, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return _mapper.Map<CMSPageDto>(page);
+            _logger.LogError(ex, "CMS sayfasi olusturma hatasi. AuthorId: {AuthorId}, Title: {Title}", authorId, dto.Title);
+            throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
+        }
     }
 
     public async Task<CMSPageDto?> GetPageByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -160,6 +174,7 @@ public class CMSService : ICMSService
     public async Task<IEnumerable<CMSPageDto>> GetMenuPagesAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Menü sayfaları genelde sınırlı (10-20) ama güvenlik için limit ekle
         var pages = await _context.Set<CMSPage>()
             .AsNoTracking()
             .Include(p => p.Author)
@@ -167,9 +182,11 @@ public class CMSService : ICMSService
             .Where(p => p.ShowInMenu && p.Status == ContentStatus.Published && p.ParentPageId == null)
             .OrderBy(p => p.DisplayOrder)
             .ThenBy(p => p.Title)
+            .Take(100) // ✅ Güvenlik: Maksimum 100 menü sayfası
             .ToListAsync(cancellationToken);
 
-        var result = new List<CMSPageDto>();
+        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
+        var result = new List<CMSPageDto>(pages.Count);
         foreach (var page in pages)
         {
             result.Add(_mapper.Map<CMSPageDto>(page));

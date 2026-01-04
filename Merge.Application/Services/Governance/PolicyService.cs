@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Governance;
 using Merge.Application.Exceptions;
+using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
@@ -26,66 +27,86 @@ public class PolicyService : IPolicyService
         _logger = logger;
     }
 
-    public async Task<PolicyDto> CreatePolicyAsync(CreatePolicyDto dto, Guid createdByUserId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<PolicyDto> CreatePolicyAsync(CreatePolicyDto dto, Guid createdByUserId, CancellationToken cancellationToken = default)
     {
-        var policy = new Policy
-        {
-            PolicyType = dto.PolicyType,
-            Title = dto.Title,
-            Content = dto.Content,
-            Version = dto.Version,
-            IsActive = dto.IsActive,
-            RequiresAcceptance = dto.RequiresAcceptance,
-            EffectiveDate = dto.EffectiveDate ?? DateTime.UtcNow,
-            ExpiryDate = dto.ExpiryDate,
-            CreatedByUserId = createdByUserId,
-            ChangeLog = dto.ChangeLog,
-            Language = dto.Language
-        };
+        _logger.LogInformation("Policy olusturuluyor. PolicyType: {PolicyType}, Version: {Version}, CreatedByUserId: {CreatedByUserId}", 
+            dto.PolicyType, dto.Version, createdByUserId);
 
-        // If activating a new version, deactivate old versions of the same type
-        if (dto.IsActive)
+        try
         {
-            // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-            var existingPolicies = await _context.Set<Policy>()
-                .Where(p => p.PolicyType == dto.PolicyType && 
-                       p.Language == dto.Language && 
-                       p.IsActive)
-                .ToListAsync();
-
-            foreach (var existing in existingPolicies)
+            var policy = new Policy
             {
-                existing.IsActive = false;
-                existing.UpdatedAt = DateTime.UtcNow;
+                PolicyType = dto.PolicyType,
+                Title = dto.Title,
+                Content = dto.Content,
+                Version = dto.Version,
+                IsActive = dto.IsActive,
+                RequiresAcceptance = dto.RequiresAcceptance,
+                EffectiveDate = dto.EffectiveDate ?? DateTime.UtcNow,
+                ExpiryDate = dto.ExpiryDate,
+                CreatedByUserId = createdByUserId,
+                ChangeLog = dto.ChangeLog,
+                Language = dto.Language
+            };
+
+            // If activating a new version, deactivate old versions of the same type
+            if (dto.IsActive)
+            {
+                // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
+                var existingPolicies = await _context.Set<Policy>()
+                    .Where(p => p.PolicyType == dto.PolicyType && 
+                           p.Language == dto.Language && 
+                           p.IsActive)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var existing in existingPolicies)
+                {
+                    existing.IsActive = false;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                }
             }
+
+            await _context.Set<Policy>().AddAsync(policy, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+            // ✅ PERFORMANCE: Reload with Include (LoadAsync YASAK - N+1 Query)
+            var reloadedPolicy = await _context.Set<Policy>()
+                .Include(p => p.CreatedBy)
+                .FirstOrDefaultAsync(p => p.Id == policy.Id, cancellationToken);
+
+            if (reloadedPolicy == null)
+            {
+                throw new NotFoundException("Policy", policy.Id);
+            }
+            
+            var policyDto = _mapper.Map<PolicyDto>(reloadedPolicy);
+            policyDto.AcceptanceCount = await GetAcceptanceCountAsync(reloadedPolicy.Id, cancellationToken);
+
+            _logger.LogInformation("Policy olusturuldu. PolicyId: {PolicyId}, PolicyType: {PolicyType}, Version: {Version}", 
+                policy.Id, policy.PolicyType, policy.Version);
+
+            return policyDto;
         }
-
-        await _context.Set<Policy>().AddAsync(policy);
-        await _unitOfWork.SaveChangesAsync();
-
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ PERFORMANCE: Reload with Include (LoadAsync YASAK - N+1 Query)
-        var reloadedPolicy = await _context.Set<Policy>()
-            .Include(p => p.CreatedBy)
-            .FirstOrDefaultAsync(p => p.Id == policy.Id);
-
-        if (reloadedPolicy == null)
+        catch (Exception ex)
         {
-            throw new NotFoundException("Policy", policy.Id);
+            _logger.LogError(ex, "Policy olusturma hatasi. PolicyType: {PolicyType}, Version: {Version}, CreatedByUserId: {CreatedByUserId}", 
+                dto.PolicyType, dto.Version, createdByUserId);
+            throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
         }
-        
-        var policyDto = _mapper.Map<PolicyDto>(reloadedPolicy);
-        policyDto.AcceptanceCount = await GetAcceptanceCountAsync(reloadedPolicy.Id);
-        return policyDto;
     }
 
-    public async Task<PolicyDto?> GetPolicyAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PolicyDto?> GetPolicyAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var policy = await _context.Set<Policy>()
             .AsNoTracking()
             .Include(p => p.CreatedBy)
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (policy == null) return null;
 
@@ -93,12 +114,13 @@ public class PolicyService : IPolicyService
         var dto = _mapper.Map<PolicyDto>(policy);
         
         // ✅ PERFORMANCE: AcceptanceCount database'de hesapla
-        dto.AcceptanceCount = await GetAcceptanceCountAsync(policy.Id);
+        dto.AcceptanceCount = await GetAcceptanceCountAsync(policy.Id, cancellationToken);
         
         return dto;
     }
 
-    public async Task<PolicyDto?> GetActivePolicyAsync(string policyType, string language = "tr")
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PolicyDto?> GetActivePolicyAsync(string policyType, string language = "tr", CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var policy = await _context.Set<Policy>()
@@ -110,7 +132,7 @@ public class PolicyService : IPolicyService
                    (p.EffectiveDate == null || p.EffectiveDate <= DateTime.UtcNow) &&
                    (p.ExpiryDate == null || p.ExpiryDate >= DateTime.UtcNow))
             .OrderByDescending(p => p.Version)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (policy == null) return null;
 
@@ -118,13 +140,20 @@ public class PolicyService : IPolicyService
         var dto = _mapper.Map<PolicyDto>(policy);
         
         // ✅ PERFORMANCE: AcceptanceCount database'de hesapla
-        dto.AcceptanceCount = await GetAcceptanceCountAsync(policy.Id);
+        dto.AcceptanceCount = await GetAcceptanceCountAsync(policy.Id, cancellationToken);
         
         return dto;
     }
 
-    public async Task<IEnumerable<PolicyDto>> GetPoliciesAsync(string? policyType = null, string? language = null, bool activeOnly = false)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination - PagedResult dönmeli (ZORUNLU)
+    // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+    public async Task<PagedResult<PolicyDto>> GetPoliciesAsync(string? policyType = null, string? language = null, bool activeOnly = false, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // ✅ FIX: Explicitly type as IQueryable to avoid IIncludableQueryable type mismatch
         IQueryable<Policy> query = _context.Set<Policy>()
@@ -146,91 +175,124 @@ public class PolicyService : IPolicyService
             query = query.Where(p => p.IsActive);
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var policies = await query
             .OrderByDescending(p => p.Version)
             .ThenByDescending(p => p.CreatedAt)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch loading - tüm policy'ler için acceptanceCount'ları tek query'de al
         var policyIds = policies.Select(p => p.Id).ToList();
-        var acceptanceCounts = await _context.Set<PolicyAcceptance>()
-            .AsNoTracking()
-            .Where(pa => policyIds.Contains(pa.PolicyId) && pa.IsActive)
-            .GroupBy(pa => pa.PolicyId)
-            .Select(g => new { PolicyId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.PolicyId, x => x.Count);
+        var acceptanceCounts = policyIds.Count > 0
+            ? await _context.Set<PolicyAcceptance>()
+                .AsNoTracking()
+                .Where(pa => policyIds.Contains(pa.PolicyId) && pa.IsActive)
+                .GroupBy(pa => pa.PolicyId)
+                .Select(g => new { PolicyId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.PolicyId, x => x.Count, cancellationToken)
+            : new Dictionary<Guid, int>();
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var result = new List<PolicyDto>();
+        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
+        var result = new List<PolicyDto>(policies.Count);
         foreach (var policy in policies)
         {
             var dto = _mapper.Map<PolicyDto>(policy);
             dto.AcceptanceCount = acceptanceCounts.GetValueOrDefault(policy.Id, 0);
             result.Add(dto);
         }
-        return result;
-    }
 
-    public async Task<PolicyDto> UpdatePolicyAsync(Guid id, UpdatePolicyDto dto, Guid updatedByUserId)
-    {
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var policy = await _context.Set<Policy>()
-            .Include(p => p.CreatedBy)
-            .FirstOrDefaultAsync(p => p.Id == id);
-
-        if (policy == null)
+        return new PagedResult<PolicyDto>
         {
-            throw new NotFoundException("Politika", id);
-        }
-
-        if (!string.IsNullOrEmpty(dto.Title))
-            policy.Title = dto.Title;
-        if (!string.IsNullOrEmpty(dto.Content))
-            policy.Content = dto.Content;
-        if (!string.IsNullOrEmpty(dto.Version))
-            policy.Version = dto.Version;
-        if (dto.IsActive.HasValue)
-            policy.IsActive = dto.IsActive.Value;
-        if (dto.RequiresAcceptance.HasValue)
-            policy.RequiresAcceptance = dto.RequiresAcceptance.Value;
-        if (dto.EffectiveDate.HasValue)
-            policy.EffectiveDate = dto.EffectiveDate.Value;
-        if (dto.ExpiryDate.HasValue)
-            policy.ExpiryDate = dto.ExpiryDate.Value;
-        if (dto.ChangeLog != null)
-            policy.ChangeLog = dto.ChangeLog;
-
-        policy.CreatedByUserId = updatedByUserId;
-        policy.UpdatedAt = DateTime.UtcNow;
-
-        await _unitOfWork.SaveChangesAsync();
-
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var policyDto = _mapper.Map<PolicyDto>(policy);
-        policyDto.AcceptanceCount = await GetAcceptanceCountAsync(policy.Id);
-        return policyDto;
+            Items = result,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<bool> DeletePolicyAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<PolicyDto> UpdatePolicyAsync(Guid id, UpdatePolicyDto dto, Guid updatedByUserId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Policy guncelleniyor. PolicyId: {PolicyId}, UpdatedByUserId: {UpdatedByUserId}", id, updatedByUserId);
+
+        try
+        {
+            // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
+            var policy = await _context.Set<Policy>()
+                .Include(p => p.CreatedBy)
+                .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+
+            if (policy == null)
+            {
+                _logger.LogWarning("Policy bulunamadi. PolicyId: {PolicyId}", id);
+                throw new NotFoundException("Politika", id);
+            }
+
+            if (!string.IsNullOrEmpty(dto.Title))
+                policy.Title = dto.Title;
+            if (!string.IsNullOrEmpty(dto.Content))
+                policy.Content = dto.Content;
+            if (!string.IsNullOrEmpty(dto.Version))
+                policy.Version = dto.Version;
+            if (dto.IsActive.HasValue)
+                policy.IsActive = dto.IsActive.Value;
+            if (dto.RequiresAcceptance.HasValue)
+                policy.RequiresAcceptance = dto.RequiresAcceptance.Value;
+            if (dto.EffectiveDate.HasValue)
+                policy.EffectiveDate = dto.EffectiveDate.Value;
+            if (dto.ExpiryDate.HasValue)
+                policy.ExpiryDate = dto.ExpiryDate.Value;
+            if (dto.ChangeLog != null)
+                policy.ChangeLog = dto.ChangeLog;
+
+            policy.CreatedByUserId = updatedByUserId;
+            policy.UpdatedAt = DateTime.UtcNow;
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+            var policyDto = _mapper.Map<PolicyDto>(policy);
+            policyDto.AcceptanceCount = await GetAcceptanceCountAsync(policy.Id, cancellationToken);
+
+            _logger.LogInformation("Policy guncellendi. PolicyId: {PolicyId}, Version: {Version}", policy.Id, policy.Version);
+
+            return policyDto;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Policy guncelleme hatasi. PolicyId: {PolicyId}, UpdatedByUserId: {UpdatedByUserId}", id, updatedByUserId);
+            throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
+        }
+    }
+
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeletePolicyAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var policy = await _context.Set<Policy>()
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (policy == null) return false;
 
         policy.IsDeleted = true;
         policy.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> ActivatePolicyAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ActivatePolicyAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var policy = await _context.Set<Policy>()
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (policy == null) return false;
 
@@ -241,7 +303,7 @@ public class PolicyService : IPolicyService
                    p.Language == policy.Language && 
                    p.IsActive &&
                    p.Id != id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         foreach (var existing in existingPolicies)
         {
@@ -251,129 +313,159 @@ public class PolicyService : IPolicyService
 
         policy.IsActive = true;
         policy.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeactivatePolicyAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeactivatePolicyAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var policy = await _context.Set<Policy>()
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (policy == null) return false;
 
         policy.IsActive = false;
         policy.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<PolicyAcceptanceDto> AcceptPolicyAsync(Guid userId, AcceptPolicyDto dto, string? ipAddress = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<PolicyAcceptanceDto> AcceptPolicyAsync(Guid userId, AcceptPolicyDto dto, string? ipAddress = null, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var policy = await _context.Set<Policy>()
-            .FirstOrDefaultAsync(p => p.Id == dto.PolicyId && p.IsActive);
+        _logger.LogInformation("Policy kabul ediliyor. UserId: {UserId}, PolicyId: {PolicyId}", userId, dto.PolicyId);
 
-        if (policy == null)
+        try
         {
-            throw new NotFoundException("Politika", dto.PolicyId);
-        }
+            // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
+            var policy = await _context.Set<Policy>()
+                .FirstOrDefaultAsync(p => p.Id == dto.PolicyId && p.IsActive, cancellationToken);
 
-        // Check if user already accepted this version
-        // ✅ PERFORMANCE: Removed manual !pa.IsDeleted (Global Query Filter)
-        var existingAcceptance = await _context.Set<PolicyAcceptance>()
-            .Include(pa => pa.Policy)
-            .Include(pa => pa.User)
-            .FirstOrDefaultAsync(pa => pa.UserId == userId && 
-                                  pa.PolicyId == dto.PolicyId && 
-                                  pa.AcceptedVersion == policy.Version &&
-                                  pa.IsActive);
+            if (policy == null)
+            {
+                _logger.LogWarning("Policy bulunamadi veya aktif degil. PolicyId: {PolicyId}", dto.PolicyId);
+                throw new NotFoundException("Politika", dto.PolicyId);
+            }
 
-        if (existingAcceptance != null && existingAcceptance.IsActive)
-        {
+            // Check if user already accepted this version
+            // ✅ PERFORMANCE: Removed manual !pa.IsDeleted (Global Query Filter)
+            var existingAcceptance = await _context.Set<PolicyAcceptance>()
+                .Include(pa => pa.Policy)
+                .Include(pa => pa.User)
+                .FirstOrDefaultAsync(pa => pa.UserId == userId && 
+                                      pa.PolicyId == dto.PolicyId && 
+                                      pa.AcceptedVersion == policy.Version &&
+                                      pa.IsActive, cancellationToken);
+
+            if (existingAcceptance != null && existingAcceptance.IsActive)
+            {
+                // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+                return _mapper.Map<PolicyAcceptanceDto>(existingAcceptance);
+            }
+
+            // Deactivate old acceptances for this policy
+            // ✅ PERFORMANCE: Removed manual !pa.IsDeleted (Global Query Filter)
+            var oldAcceptances = await _context.Set<PolicyAcceptance>()
+                .Where(pa => pa.UserId == userId && pa.PolicyId == dto.PolicyId)
+                .ToListAsync(cancellationToken);
+
+            foreach (var old in oldAcceptances)
+            {
+                old.IsActive = false;
+                old.UpdatedAt = DateTime.UtcNow;
+            }
+
+            var acceptance = new PolicyAcceptance
+            {
+                PolicyId = dto.PolicyId,
+                UserId = userId,
+                AcceptedVersion = policy.Version,
+                IpAddress = ipAddress ?? string.Empty,
+                UserAgent = string.Empty,
+                AcceptedAt = DateTime.UtcNow,
+                IsActive = true
+            };
+
+            await _context.Set<PolicyAcceptance>().AddAsync(acceptance, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // ✅ PERFORMANCE: Reload with Include (LoadAsync YASAK - N+1 Query)
+            // ✅ FIX: SaveChangesAsync sonrası entity'yi yeniden yükle (tracking için)
+            var reloadedAcceptance = await _context.Set<PolicyAcceptance>()
+                .Include(pa => pa.Policy)
+                .Include(pa => pa.User)
+                .FirstOrDefaultAsync(pa => pa.Id == acceptance.Id, cancellationToken);
+
+            if (reloadedAcceptance == null)
+            {
+                throw new NotFoundException("Policy acceptance", acceptance.Id);
+            }
+
+            _logger.LogInformation("Policy kabul edildi. AcceptanceId: {AcceptanceId}, UserId: {UserId}, PolicyId: {PolicyId}", 
+                acceptance.Id, userId, dto.PolicyId);
+
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-            return _mapper.Map<PolicyAcceptanceDto>(existingAcceptance);
+            return _mapper.Map<PolicyAcceptanceDto>(reloadedAcceptance);
         }
-
-        // Deactivate old acceptances for this policy
-        // ✅ PERFORMANCE: Removed manual !pa.IsDeleted (Global Query Filter)
-        var oldAcceptances = await _context.Set<PolicyAcceptance>()
-            .Where(pa => pa.UserId == userId && pa.PolicyId == dto.PolicyId)
-            .ToListAsync();
-
-        foreach (var old in oldAcceptances)
+        catch (Exception ex)
         {
-            old.IsActive = false;
-            old.UpdatedAt = DateTime.UtcNow;
+            _logger.LogError(ex, "Policy kabul etme hatasi. UserId: {UserId}, PolicyId: {PolicyId}", userId, dto.PolicyId);
+            throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
         }
-
-        var acceptance = new PolicyAcceptance
-        {
-            PolicyId = dto.PolicyId,
-            UserId = userId,
-            AcceptedVersion = policy.Version,
-            IpAddress = ipAddress ?? string.Empty,
-            UserAgent = string.Empty,
-            AcceptedAt = DateTime.UtcNow,
-            IsActive = true
-        };
-
-        await _context.Set<PolicyAcceptance>().AddAsync(acceptance);
-        await _unitOfWork.SaveChangesAsync();
-
-        // ✅ PERFORMANCE: Reload with Include (LoadAsync YASAK - N+1 Query)
-        // ✅ FIX: SaveChangesAsync sonrası entity'yi yeniden yükle (tracking için)
-        var reloadedAcceptance = await _context.Set<PolicyAcceptance>()
-            .Include(pa => pa.Policy)
-            .Include(pa => pa.User)
-            .FirstOrDefaultAsync(pa => pa.Id == acceptance.Id);
-
-        if (reloadedAcceptance == null)
-        {
-            throw new NotFoundException("Policy acceptance", acceptance.Id);
-        }
-
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<PolicyAcceptanceDto>(reloadedAcceptance);
     }
 
-    public async Task<bool> RevokeAcceptanceAsync(Guid userId, Guid policyId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> RevokeAcceptanceAsync(Guid userId, Guid policyId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !pa.IsDeleted (Global Query Filter)
         var acceptance = await _context.Set<PolicyAcceptance>()
             .FirstOrDefaultAsync(pa => pa.UserId == userId && 
                                   pa.PolicyId == policyId && 
-                                  pa.IsActive);
+                                  pa.IsActive, cancellationToken);
 
         if (acceptance == null) return false;
 
         acceptance.IsActive = false;
         acceptance.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<IEnumerable<PolicyAcceptanceDto>> GetUserAcceptancesAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+    public async Task<IEnumerable<PolicyAcceptanceDto>> GetUserAcceptancesAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pa.IsDeleted (Global Query Filter)
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         var acceptances = await _context.Set<PolicyAcceptance>()
             .AsNoTracking()
             .Include(pa => pa.Policy)
             .Include(pa => pa.User)
             .Where(pa => pa.UserId == userId)
             .OrderByDescending(pa => pa.AcceptedAt)
-            .ToListAsync();
+            .Take(500) // ✅ Güvenlik: Maksimum 500 acceptance
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper'ın Map<IEnumerable<T>> metodunu kullan
-        return _mapper.Map<IEnumerable<PolicyAcceptanceDto>>(acceptances);
+        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
+        var result = new List<PolicyAcceptanceDto>(acceptances.Count);
+        foreach (var acceptance in acceptances)
+        {
+            result.Add(_mapper.Map<PolicyAcceptanceDto>(acceptance));
+        }
+        return result;
     }
 
-    public async Task<bool> HasUserAcceptedAsync(Guid userId, string policyType, string version)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> HasUserAcceptedAsync(Guid userId, string policyType, string version, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pa.IsDeleted (Global Query Filter)
         return await _context.Set<PolicyAcceptance>()
@@ -382,14 +474,17 @@ public class PolicyService : IPolicyService
             .AnyAsync(pa => pa.UserId == userId && 
                        pa.Policy.PolicyType == policyType && 
                        pa.AcceptedVersion == version && 
-                       pa.IsActive);
+                       pa.IsActive, cancellationToken);
     }
 
-    public async Task<IEnumerable<PolicyDto>> GetPendingPoliciesAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+    public async Task<IEnumerable<PolicyDto>> GetPendingPoliciesAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Database'de filtering yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: NOT EXISTS subquery kullan (memory'de işlem YASAK)
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         var pendingPolicies = await _context.Set<Policy>()
             .AsNoTracking()
             .Include(p => p.CreatedBy)
@@ -403,7 +498,8 @@ public class PolicyService : IPolicyService
                                  pa.AcceptedVersion == p.Version && 
                                  pa.IsActive))
             .OrderByDescending(p => p.Version)
-            .ToListAsync();
+            .Take(100) // ✅ Güvenlik: Maksimum 100 pending policy
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch loading - tüm policy'ler için acceptanceCount'ları tek query'de al
         var policyIds = pendingPolicies.Select(p => p.Id).ToList();
@@ -413,11 +509,12 @@ public class PolicyService : IPolicyService
                 .Where(pa => policyIds.Contains(pa.PolicyId) && pa.IsActive)
                 .GroupBy(pa => pa.PolicyId)
                 .Select(g => new { PolicyId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.PolicyId, x => x.Count)
+                .ToDictionaryAsync(x => x.PolicyId, x => x.Count, cancellationToken)
             : new Dictionary<Guid, int>();
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var result = new List<PolicyDto>();
+        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
+        var result = new List<PolicyDto>(pendingPolicies.Count);
         foreach (var policy in pendingPolicies)
         {
             var dto = _mapper.Map<PolicyDto>(policy);
@@ -427,22 +524,24 @@ public class PolicyService : IPolicyService
         return result;
     }
 
-    public async Task<int> GetAcceptanceCountAsync(Guid policyId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<int> GetAcceptanceCountAsync(Guid policyId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !pa.IsDeleted (Global Query Filter)
         return await _context.Set<PolicyAcceptance>()
             .AsNoTracking()
-            .CountAsync(pa => pa.PolicyId == policyId && pa.IsActive);
+            .CountAsync(pa => pa.PolicyId == policyId && pa.IsActive, cancellationToken);
     }
 
-    public async Task<Dictionary<string, int>> GetAcceptanceStatsAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<Dictionary<string, int>> GetAcceptanceStatsAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var policies = await _context.Set<Policy>()
             .AsNoTracking()
             .Select(p => new { p.Id, p.PolicyType, p.Version })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         if (policies.Count == 0)
         {
@@ -457,7 +556,7 @@ public class PolicyService : IPolicyService
             .Where(pa => policyIds.Contains(pa.PolicyId) && pa.IsActive)
             .GroupBy(pa => pa.PolicyId)
             .Select(g => new { PolicyId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.PolicyId, x => x.Count);
+            .ToDictionaryAsync(x => x.PolicyId, x => x.Count, cancellationToken);
 
         // ✅ PERFORMANCE: Memory'de minimal işlem (sadece dictionary oluşturma)
         var stats = new Dictionary<string, int>();

@@ -4,7 +4,8 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Logistics;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.DTOs.Logistics;
-
+using Merge.Application.Common;
+using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Logistics;
 
@@ -22,32 +23,56 @@ public class PickPacksController : BaseController
         _orderService = orderService;
     }
 
+    /// <summary>
+    /// Yeni pick-pack kaydı oluşturur
+    /// </summary>
     [HttpPost]
-    public async Task<ActionResult<PickPackDto>> CreatePickPack([FromBody] CreatePickPackDto dto)
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [ProducesResponseType(typeof(PickPackDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PickPackDto>> CreatePickPack(
+        [FromBody] CreatePickPackDto dto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var pickPack = await _pickPackService.CreatePickPackAsync(dto);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var pickPack = await _pickPackService.CreatePickPackAsync(dto, cancellationToken);
         return CreatedAtAction(nameof(GetPickPack), new { id = pickPack.Id }, pickPack);
     }
 
+    /// <summary>
+    /// Pick-pack detaylarını getirir
+    /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<PickPackDto>> GetPickPack(Guid id)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(PickPackDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PickPackDto>> GetPickPack(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        var pickPack = await _pickPackService.GetPickPackByIdAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var pickPack = await _pickPackService.GetPickPackByIdAsync(id, cancellationToken);
         if (pickPack == null)
         {
             return NotFound();
         }
 
-        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin pick-pack'lerine erişebilmeli
-        var order = await _orderService.GetByIdAsync(pickPack.OrderId);
+        // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi siparişlerinin pick-pack'lerine erişebilmeli
+        var order = await _orderService.GetByIdAsync(pickPack.OrderId, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -61,22 +86,34 @@ public class PickPacksController : BaseController
         return Ok(pickPack);
     }
 
+    /// <summary>
+    /// Paket numarasına göre pick-pack getirir
+    /// </summary>
     [HttpGet("pack-number/{packNumber}")]
-    public async Task<ActionResult<PickPackDto>> GetPickPackByPackNumber(string packNumber)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(PickPackDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PickPackDto>> GetPickPackByPackNumber(
+        string packNumber,
+        CancellationToken cancellationToken = default)
     {
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        var pickPack = await _pickPackService.GetPickPackByPackNumberAsync(packNumber);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var pickPack = await _pickPackService.GetPickPackByPackNumberAsync(packNumber, cancellationToken);
         if (pickPack == null)
         {
             return NotFound();
         }
 
-        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin pick-pack'lerine erişebilmeli
-        var order = await _orderService.GetByIdAsync(pickPack.OrderId);
+        // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi siparişlerinin pick-pack'lerine erişebilmeli
+        var order = await _orderService.GetByIdAsync(pickPack.OrderId, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -90,16 +127,27 @@ public class PickPacksController : BaseController
         return Ok(pickPack);
     }
 
+    /// <summary>
+    /// Siparişe ait pick-pack'leri getirir
+    /// </summary>
     [HttpGet("order/{orderId}")]
-    public async Task<ActionResult<IEnumerable<PickPackDto>>> GetPickPacksByOrder(Guid orderId)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(IEnumerable<PickPackDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<IEnumerable<PickPackDto>>> GetPickPacksByOrder(
+        Guid orderId,
+        CancellationToken cancellationToken = default)
     {
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin pick-pack'lerine erişebilmeli
-        var order = await _orderService.GetByIdAsync(orderId);
+        // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi siparişlerinin pick-pack'lerine erişebilmeli
+        var order = await _orderService.GetByIdAsync(orderId, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -110,29 +158,57 @@ public class PickPacksController : BaseController
             return Forbid();
         }
 
-        var pickPacks = await _pickPackService.GetPickPacksByOrderIdAsync(orderId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var pickPacks = await _pickPackService.GetPickPacksByOrderIdAsync(orderId, cancellationToken);
         return Ok(pickPacks);
     }
 
+    /// <summary>
+    /// Tüm pick-pack'leri getirir (pagination ile)
+    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<PickPackDto>>> GetAllPickPacks(
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(PagedResult<PickPackDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PagedResult<PickPackDto>>> GetAllPickPacks(
         [FromQuery] string? status = null,
         [FromQuery] Guid? warehouseId = null,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var pickPacks = await _pickPackService.GetAllPickPacksAsync(status, warehouseId, page, pageSize);
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+        if (pageSize > 100) pageSize = 100; // Max limit
+
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var pickPacks = await _pickPackService.GetAllPickPacksAsync(status, warehouseId, page, pageSize, cancellationToken);
         return Ok(pickPacks);
     }
 
+    /// <summary>
+    /// Pick-pack durumunu günceller
+    /// </summary>
     [HttpPut("{id}/status")]
-    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdatePickPackStatusDto dto)
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> UpdateStatus(
+        Guid id,
+        [FromBody] UpdatePickPackStatusDto dto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
         var userId = GetUserIdOrNull();
-        var success = await _pickPackService.UpdatePickPackStatusAsync(id, dto, userId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var success = await _pickPackService.UpdatePickPackStatusAsync(id, dto, userId, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -140,11 +216,23 @@ public class PickPacksController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Pick işlemini başlatır
+    /// </summary>
     [HttpPost("{id}/start-picking")]
-    public async Task<IActionResult> StartPicking(Guid id)
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> StartPicking(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var success = await _pickPackService.StartPickingAsync(id, userId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var success = await _pickPackService.StartPickingAsync(id, userId, cancellationToken);
         if (!success)
         {
             return BadRequest();
@@ -152,11 +240,23 @@ public class PickPacksController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Pick işlemini tamamlar
+    /// </summary>
     [HttpPost("{id}/complete-picking")]
-    public async Task<IActionResult> CompletePicking(Guid id)
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> CompletePicking(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var success = await _pickPackService.CompletePickingAsync(id, userId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var success = await _pickPackService.CompletePickingAsync(id, userId, cancellationToken);
         if (!success)
         {
             return BadRequest();
@@ -164,11 +264,23 @@ public class PickPacksController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Pack işlemini başlatır
+    /// </summary>
     [HttpPost("{id}/start-packing")]
-    public async Task<IActionResult> StartPacking(Guid id)
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> StartPacking(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var success = await _pickPackService.StartPackingAsync(id, userId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var success = await _pickPackService.StartPackingAsync(id, userId, cancellationToken);
         if (!success)
         {
             return BadRequest();
@@ -176,11 +288,23 @@ public class PickPacksController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Pack işlemini tamamlar
+    /// </summary>
     [HttpPost("{id}/complete-packing")]
-    public async Task<IActionResult> CompletePacking(Guid id)
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> CompletePacking(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var success = await _pickPackService.CompletePackingAsync(id, userId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var success = await _pickPackService.CompletePackingAsync(id, userId, cancellationToken);
         if (!success)
         {
             return BadRequest();
@@ -188,10 +312,22 @@ public class PickPacksController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Pick-pack'i kargoya verildi olarak işaretler
+    /// </summary>
     [HttpPost("{id}/mark-shipped")]
-    public async Task<IActionResult> MarkAsShipped(Guid id)
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> MarkAsShipped(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
-        var success = await _pickPackService.MarkAsShippedAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var success = await _pickPackService.MarkAsShippedAsync(id, cancellationToken);
         if (!success)
         {
             return BadRequest();
@@ -199,13 +335,27 @@ public class PickPacksController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Pick-pack item durumunu günceller
+    /// </summary>
     [HttpPut("items/{itemId}/status")]
-    public async Task<IActionResult> UpdateItemStatus(Guid itemId, [FromBody] PickPackItemStatusDto dto)
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> UpdateItemStatus(
+        Guid itemId,
+        [FromBody] PickPackItemStatusDto dto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var success = await _pickPackService.UpdatePickPackItemStatusAsync(itemId, dto);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var success = await _pickPackService.UpdatePickPackItemStatusAsync(itemId, dto, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -213,13 +363,24 @@ public class PickPacksController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Pick-pack istatistiklerini getirir
+    /// </summary>
     [HttpGet("stats")]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(Dictionary<string, int>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    // ⚠️ NOTE: Dictionary<string, int> burada kabul edilebilir çünkü stats için key-value çiftleri dinamik
     public async Task<ActionResult<Dictionary<string, int>>> GetStats(
         [FromQuery] Guid? warehouseId = null,
         [FromQuery] DateTime? startDate = null,
-        [FromQuery] DateTime? endDate = null)
+        [FromQuery] DateTime? endDate = null,
+        CancellationToken cancellationToken = default)
     {
-        var stats = await _pickPackService.GetPickPackStatsAsync(warehouseId, startDate, endDate);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var stats = await _pickPackService.GetPickPackStatsAsync(warehouseId, startDate, endDate, cancellationToken);
         return Ok(stats);
     }
 }

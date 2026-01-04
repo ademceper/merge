@@ -517,14 +517,10 @@ public class MappingProfile : Profile
                 src.Author != null ? $"{src.Author.FirstName} {src.Author.LastName}" : null));
 
         // SEO mappings
+        // ✅ BOLUM 4.3: Over-Posting Koruması - Dictionary&lt;string, object&gt; YASAK
+        // StructuredData artık string olarak map ediliyor (StructuredDataJson)
         CreateMap<SEOSettings, SEOSettingsDto>()
-            .AfterMap((src, dest) => 
-            {
-                // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
-                dest.StructuredData = !string.IsNullOrEmpty(src.StructuredData) 
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.StructuredData) 
-                    : null;
-            });
+            .ForMember(dest => dest.StructuredDataJson, opt => opt.MapFrom(src => src.StructuredData));
 
         CreateMap<SitemapEntry, SitemapEntryDto>();
 

@@ -36,6 +36,18 @@ public abstract class BaseController : ControllerBase
         return true;
     }
 
+    protected bool TryGetUserRole(out string role)
+    {
+        role = string.Empty;
+        var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+        if (string.IsNullOrEmpty(roleClaim))
+        {
+            return false;
+        }
+        role = roleClaim;
+        return true;
+    }
+
     /// <summary>
     /// ModelState validation kontrolü yapar. Geçersizse BadRequest döner.
     /// </summary>

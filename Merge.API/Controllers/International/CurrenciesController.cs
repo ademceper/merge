@@ -3,7 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.International;
 using Merge.Application.DTOs.International;
-
+using Merge.Application.Common;
+using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.International;
 
@@ -19,32 +20,52 @@ public class CurrenciesController : BaseController
     }
 
     /// <summary>
-    /// Get all currencies
+    /// Tüm para birimlerini getirir
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<CurrencyDto>>> GetAllCurrencies()
+    [AllowAnonymous]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(IEnumerable<CurrencyDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<IEnumerable<CurrencyDto>>> GetAllCurrencies(
+        CancellationToken cancellationToken = default)
     {
-        var currencies = await _currencyService.GetAllCurrenciesAsync();
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var currencies = await _currencyService.GetAllCurrenciesAsync(cancellationToken);
         return Ok(currencies);
     }
 
     /// <summary>
-    /// Get active currencies only
+    /// Aktif para birimlerini getirir
     /// </summary>
     [HttpGet("active")]
-    public async Task<ActionResult<IEnumerable<CurrencyDto>>> GetActiveCurrencies()
+    [AllowAnonymous]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(IEnumerable<CurrencyDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<IEnumerable<CurrencyDto>>> GetActiveCurrencies(
+        CancellationToken cancellationToken = default)
     {
-        var currencies = await _currencyService.GetActiveCurrenciesAsync();
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var currencies = await _currencyService.GetActiveCurrenciesAsync(cancellationToken);
         return Ok(currencies);
     }
 
     /// <summary>
-    /// Get currency by ID
+    /// Para birimi detaylarını getirir
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<CurrencyDto>> GetCurrencyById(Guid id)
+    [AllowAnonymous]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(CurrencyDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<CurrencyDto>> GetCurrencyById(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
-        var currency = await _currencyService.GetCurrencyByIdAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var currency = await _currencyService.GetCurrencyByIdAsync(id, cancellationToken);
 
         if (currency == null)
         {
@@ -55,12 +76,20 @@ public class CurrenciesController : BaseController
     }
 
     /// <summary>
-    /// Get currency by code
+    /// Para birimi koduna göre getirir
     /// </summary>
     [HttpGet("code/{code}")]
-    public async Task<ActionResult<CurrencyDto>> GetCurrencyByCode(string code)
+    [AllowAnonymous]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(CurrencyDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<CurrencyDto>> GetCurrencyByCode(
+        string code,
+        CancellationToken cancellationToken = default)
     {
-        var currency = await _currencyService.GetCurrencyByCodeAsync(code);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var currency = await _currencyService.GetCurrencyByCodeAsync(code, cancellationToken);
 
         if (currency == null)
         {
@@ -71,141 +100,244 @@ public class CurrenciesController : BaseController
     }
 
     /// <summary>
-    /// Create a new currency (Admin only)
+    /// Yeni para birimi oluşturur (Admin only)
     /// </summary>
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<CurrencyDto>> CreateCurrency([FromBody] CreateCurrencyDto dto)
-    {
-        var currency = await _currencyService.CreateCurrencyAsync(dto);
-        return CreatedAtAction(nameof(GetCurrencyById), new { id = currency.Id }, currency);
-    }
-
-    /// <summary>
-    /// Update currency (Admin only)
-    /// </summary>
-    [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<CurrencyDto>> UpdateCurrency(Guid id, [FromBody] UpdateCurrencyDto dto)
-    {
-        var currency = await _currencyService.UpdateCurrencyAsync(id, dto);
-        if (currency == null)
-        {
-            return NotFound();
-        }
-        return Ok(currency);
-    }
-
-    /// <summary>
-    /// Delete currency (Admin only)
-    /// </summary>
-    [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> DeleteCurrency(Guid id)
-    {
-        await _currencyService.DeleteCurrencyAsync(id);
-        return NoContent();
-    }
-
-    /// <summary>
-    /// Update exchange rate (Admin only)
-    /// </summary>
-    [HttpPut("{currencyCode}/exchange-rate")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> UpdateExchangeRate(
-        string currencyCode,
-        [FromBody] decimal newRate,
-        [FromQuery] string source = "Manual")
-    {
-        await _currencyService.UpdateExchangeRateAsync(currencyCode, newRate, source);
-        return NoContent();
-    }
-
-    /// <summary>
-    /// Convert price between currencies
-    /// </summary>
-    [HttpPost("convert")]
-    public async Task<ActionResult<ConvertedPriceDto>> ConvertPrice([FromBody] ConvertPriceDto dto)
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [ProducesResponseType(typeof(CurrencyDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<CurrencyDto>> CreateCurrency(
+        [FromBody] CreateCurrencyDto dto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var result = await _currencyService.ConvertPriceAsync(dto.Amount, dto.FromCurrency, dto.ToCurrency);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var currency = await _currencyService.CreateCurrencyAsync(dto, cancellationToken);
+        return CreatedAtAction(nameof(GetCurrencyById), new { id = currency.Id }, currency);
+    }
+
+    /// <summary>
+    /// Para birimini günceller (Admin only)
+    /// </summary>
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [ProducesResponseType(typeof(CurrencyDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<CurrencyDto>> UpdateCurrency(
+        Guid id,
+        [FromBody] UpdateCurrencyDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var currency = await _currencyService.UpdateCurrencyAsync(id, dto, cancellationToken);
+        if (currency == null)
+        {
+            return NotFound();
+        }
+        return Ok(currency);
+    }
+
+    /// <summary>
+    /// Para birimini siler (Admin only)
+    /// </summary>
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> DeleteCurrency(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        await _currencyService.DeleteCurrencyAsync(id, cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Döviz kuru günceller (Admin only)
+    /// </summary>
+    [HttpPut("{currencyCode}/exchange-rate")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> UpdateExchangeRate(
+        string currencyCode,
+        [FromBody] decimal newRate,
+        [FromQuery] string source = "Manual",
+        CancellationToken cancellationToken = default)
+    {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        await _currencyService.UpdateExchangeRateAsync(currencyCode, newRate, source, cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Para birimleri arasında fiyat dönüştürür
+    /// </summary>
+    [HttpPost("convert")]
+    [AllowAnonymous]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(ConvertedPriceDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<ConvertedPriceDto>> ConvertPrice(
+        [FromBody] ConvertPriceDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var result = await _currencyService.ConvertPriceAsync(dto.Amount, dto.FromCurrency, dto.ToCurrency, cancellationToken);
         return Ok(result);
     }
 
     /// <summary>
-    /// Format price in specific currency
+    /// Belirli para biriminde fiyat formatlar
     /// </summary>
     [HttpGet("format")]
+    [AllowAnonymous]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<string>> FormatPrice(
         [FromQuery] decimal amount,
-        [FromQuery] string currencyCode)
+        [FromQuery] string currencyCode,
+        CancellationToken cancellationToken = default)
     {
-        var formatted = await _currencyService.FormatPriceAsync(amount, currencyCode);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var formatted = await _currencyService.FormatPriceAsync(amount, currencyCode, cancellationToken);
         return Ok(new { formatted });
     }
 
     /// <summary>
-    /// Get exchange rate history
+    /// Döviz kuru geçmişini getirir
     /// </summary>
     [HttpGet("{currencyCode}/history")]
+    [AllowAnonymous]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(IEnumerable<ExchangeRateHistoryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<IEnumerable<ExchangeRateHistoryDto>>> GetExchangeRateHistory(
         string currencyCode,
-        [FromQuery] int days = 30)
+        [FromQuery] int days = 30,
+        CancellationToken cancellationToken = default)
     {
-        var history = await _currencyService.GetExchangeRateHistoryAsync(currencyCode, days);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var history = await _currencyService.GetExchangeRateHistoryAsync(currencyCode, days, cancellationToken);
         return Ok(history);
     }
 
     /// <summary>
-    /// Set user's currency preference
+    /// Kullanıcının para birimi tercihini ayarlar
     /// </summary>
     [HttpPost("preference")]
     [Authorize]
-    public async Task<IActionResult> SetCurrencyPreference([FromBody] string currencyCode)
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> SetCurrencyPreference(
+        [FromBody] string currencyCode,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(currencyCode))
         {
             return BadRequest("Para birimi kodu boş olamaz.");
         }
 
-        var userId = GetUserId();
-        await _currencyService.SetUserCurrencyPreferenceAsync(userId, currencyCode);
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi tercihini ayarlayabilir
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        await _currencyService.SetUserCurrencyPreferenceAsync(userId, currencyCode, cancellationToken);
         return NoContent();
     }
 
     /// <summary>
-    /// Get user's currency preference
+    /// Kullanıcının para birimi tercihini getirir
     /// </summary>
     [HttpGet("preference")]
     [Authorize]
-    public async Task<ActionResult<string>> GetCurrencyPreference()
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<string>> GetCurrencyPreference(
+        CancellationToken cancellationToken = default)
     {
-        var userId = GetUserId();
-        var currencyCode = await _currencyService.GetUserCurrencyPreferenceAsync(userId);
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi tercihini görebilir
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var currencyCode = await _currencyService.GetUserCurrencyPreferenceAsync(userId, cancellationToken);
         return Ok(new { currencyCode });
     }
 
     /// <summary>
-    /// Get currency statistics (Admin only)
+    /// Para birimi istatistiklerini getirir (Admin only)
     /// </summary>
     [HttpGet("stats")]
     [Authorize(Roles = "Admin,Manager")]
-    public async Task<ActionResult<CurrencyStatsDto>> GetCurrencyStats()
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(CurrencyStatsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<CurrencyStatsDto>> GetCurrencyStats(
+        CancellationToken cancellationToken = default)
     {
-        var stats = await _currencyService.GetCurrencyStatsAsync();
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var stats = await _currencyService.GetCurrencyStatsAsync(cancellationToken);
         return Ok(stats);
     }
 
     /// <summary>
-    /// Sync exchange rates from external API (Admin only)
+    /// Döviz kurlarını harici API'den senkronize eder (Admin only)
     /// </summary>
     [HttpPost("sync")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> SyncExchangeRates()
+    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika (tehlikeli işlem)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> SyncExchangeRates(
+        CancellationToken cancellationToken = default)
     {
-        await _currencyService.SyncExchangeRatesAsync();
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        await _currencyService.SyncExchangeRatesAsync(cancellationToken);
         return NoContent();
     }
 }

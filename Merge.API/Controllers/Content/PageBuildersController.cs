@@ -47,7 +47,7 @@ public class PageBuildersController : BaseController
     /// Page builder sayfası detaylarını getirir
     /// </summary>
     [HttpGet("{id}")]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(PageBuilderDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -69,7 +69,7 @@ public class PageBuildersController : BaseController
     /// Slug'a göre page builder sayfası getirir
     /// </summary>
     [HttpGet("slug/{slug}")]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(PageBuilderDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -92,7 +92,7 @@ public class PageBuildersController : BaseController
     /// </summary>
     [HttpGet]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(PagedResult<PageBuilderDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -133,6 +133,27 @@ public class PageBuildersController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi sayfalarını güncelleyebilmeli (Admin hariç)
+        var page = await _pageBuilderService.GetPageAsync(id, cancellationToken);
+        if (page == null)
+        {
+            return NotFound();
+        }
+
+        // Manager rolü sadece kendi sayfalarını güncelleyebilir (Admin hariç)
+        if (User.IsInRole("Manager") && !User.IsInRole("Admin"))
+        {
+            if (page.AuthorId.HasValue && page.AuthorId.Value != userId)
+            {
+                return Forbid();
+            }
+        }
+
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var result = await _pageBuilderService.UpdatePageAsync(id, dto, cancellationToken);
         if (result == false)
@@ -157,6 +178,27 @@ public class PageBuildersController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi sayfalarını silebilmeli (Admin hariç)
+        var page = await _pageBuilderService.GetPageAsync(id, cancellationToken);
+        if (page == null)
+        {
+            return NotFound();
+        }
+
+        // Manager rolü sadece kendi sayfalarını silebilir (Admin hariç)
+        if (User.IsInRole("Manager") && !User.IsInRole("Admin"))
+        {
+            if (page.AuthorId.HasValue && page.AuthorId.Value != userId)
+            {
+                return Forbid();
+            }
+        }
+
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var result = await _pageBuilderService.DeletePageAsync(id, cancellationToken);
         if (!result)
@@ -181,6 +223,27 @@ public class PageBuildersController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi sayfalarını yayınlayabilmeli (Admin hariç)
+        var page = await _pageBuilderService.GetPageAsync(id, cancellationToken);
+        if (page == null)
+        {
+            return NotFound();
+        }
+
+        // Manager rolü sadece kendi sayfalarını yayınlayabilir (Admin hariç)
+        if (User.IsInRole("Manager") && !User.IsInRole("Admin"))
+        {
+            if (page.AuthorId.HasValue && page.AuthorId.Value != userId)
+            {
+                return Forbid();
+            }
+        }
+
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var result = await _pageBuilderService.PublishPageAsync(id, cancellationToken);
         if (!result)
@@ -205,6 +268,27 @@ public class PageBuildersController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi sayfalarını yayından kaldırabilmeli (Admin hariç)
+        var page = await _pageBuilderService.GetPageAsync(id, cancellationToken);
+        if (page == null)
+        {
+            return NotFound();
+        }
+
+        // Manager rolü sadece kendi sayfalarını yayından kaldırabilir (Admin hariç)
+        if (User.IsInRole("Manager") && !User.IsInRole("Admin"))
+        {
+            if (page.AuthorId.HasValue && page.AuthorId.Value != userId)
+            {
+                return Forbid();
+            }
+        }
+
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var result = await _pageBuilderService.UnpublishPageAsync(id, cancellationToken);
         if (!result)

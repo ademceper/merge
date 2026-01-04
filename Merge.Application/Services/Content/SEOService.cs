@@ -31,57 +31,82 @@ public class SEOService : ISEOService
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<SEOSettingsDto> CreateOrUpdateSEOSettingsAsync(CreateSEOSettingsDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var existing = await _context.Set<SEOSettings>()
-            .FirstOrDefaultAsync(s => s.PageType == dto.PageType && 
-                                    s.EntityId == dto.EntityId, cancellationToken);
+        _logger.LogInformation("SEO ayarlari olusturuluyor/guncelleniyor. PageType: {PageType}, EntityId: {EntityId}", 
+            dto.PageType, dto.EntityId);
 
-        if (existing != null)
+        try
         {
-            existing.MetaTitle = dto.MetaTitle;
-            existing.MetaDescription = dto.MetaDescription;
-            existing.MetaKeywords = dto.MetaKeywords;
-            existing.CanonicalUrl = dto.CanonicalUrl;
-            existing.OgTitle = dto.OgTitle;
-            existing.OgDescription = dto.OgDescription;
-            existing.OgImageUrl = dto.OgImageUrl;
-            existing.TwitterCard = dto.TwitterCard;
-            existing.StructuredData = dto.StructuredData != null ? JsonSerializer.Serialize(dto.StructuredData) : null;
-            existing.IsIndexed = dto.IsIndexed;
-            existing.FollowLinks = dto.FollowLinks;
-            existing.Priority = dto.Priority;
-            existing.ChangeFrequency = dto.ChangeFrequency;
-            existing.UpdatedAt = DateTime.UtcNow;
+            // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
+            var existing = await _context.Set<SEOSettings>()
+                .FirstOrDefaultAsync(s => s.PageType == dto.PageType && 
+                                        s.EntityId == dto.EntityId, cancellationToken);
 
+            if (existing != null)
+            {
+                existing.MetaTitle = dto.MetaTitle;
+                existing.MetaDescription = dto.MetaDescription;
+                existing.MetaKeywords = dto.MetaKeywords;
+                existing.CanonicalUrl = dto.CanonicalUrl;
+                existing.OgTitle = dto.OgTitle;
+                existing.OgDescription = dto.OgDescription;
+                existing.OgImageUrl = dto.OgImageUrl;
+                existing.TwitterCard = dto.TwitterCard;
+                // ✅ BOLUM 4.3: Over-Posting Koruması - Dictionary&lt;string, object&gt; YASAK
+                // StructuredData artık string olarak geliyor (StructuredDataJson)
+                existing.StructuredData = dto.StructuredDataJson;
+                existing.IsIndexed = dto.IsIndexed;
+                existing.FollowLinks = dto.FollowLinks;
+                existing.Priority = dto.Priority;
+                existing.ChangeFrequency = dto.ChangeFrequency;
+                existing.UpdatedAt = DateTime.UtcNow;
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                _logger.LogInformation("SEO ayarlari guncellendi. SEOSettingsId: {SEOSettingsId}, PageType: {PageType}", 
+                    existing.Id, dto.PageType);
+
+                return _mapper.Map<SEOSettingsDto>(existing);
+            }
+
+            var seoSettings = new SEOSettings
+            {
+                PageType = dto.PageType,
+                EntityId = dto.EntityId,
+                MetaTitle = dto.MetaTitle,
+                MetaDescription = dto.MetaDescription,
+                MetaKeywords = dto.MetaKeywords,
+                CanonicalUrl = dto.CanonicalUrl,
+                OgTitle = dto.OgTitle,
+                OgDescription = dto.OgDescription,
+                OgImageUrl = dto.OgImageUrl,
+                TwitterCard = dto.TwitterCard,
+                // ✅ BOLUM 4.3: Over-Posting Koruması - Dictionary&lt;string, object&gt; YASAK
+                // StructuredData artık string olarak geliyor (StructuredDataJson)
+                StructuredData = dto.StructuredDataJson,
+                IsIndexed = dto.IsIndexed,
+                FollowLinks = dto.FollowLinks,
+                Priority = dto.Priority,
+                ChangeFrequency = dto.ChangeFrequency
+            };
+
+            await _context.Set<SEOSettings>().AddAsync(seoSettings, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-            return _mapper.Map<SEOSettingsDto>(existing);
+
+            _logger.LogInformation("SEO ayarlari olusturuldu. SEOSettingsId: {SEOSettingsId}, PageType: {PageType}", 
+                seoSettings.Id, dto.PageType);
+
+            return _mapper.Map<SEOSettingsDto>(seoSettings);
         }
-
-        var seoSettings = new SEOSettings
+        catch (Exception ex)
         {
-            PageType = dto.PageType,
-            EntityId = dto.EntityId,
-            MetaTitle = dto.MetaTitle,
-            MetaDescription = dto.MetaDescription,
-            MetaKeywords = dto.MetaKeywords,
-            CanonicalUrl = dto.CanonicalUrl,
-            OgTitle = dto.OgTitle,
-            OgDescription = dto.OgDescription,
-            OgImageUrl = dto.OgImageUrl,
-            TwitterCard = dto.TwitterCard,
-            StructuredData = dto.StructuredData != null ? JsonSerializer.Serialize(dto.StructuredData) : null,
-            IsIndexed = dto.IsIndexed,
-            FollowLinks = dto.FollowLinks,
-            Priority = dto.Priority,
-            ChangeFrequency = dto.ChangeFrequency
-        };
-
-        await _context.Set<SEOSettings>().AddAsync(seoSettings, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return _mapper.Map<SEOSettingsDto>(seoSettings);
+            _logger.LogError(ex, "SEO ayarlari olusturma/guncelleme hatasi. PageType: {PageType}, EntityId: {EntityId}", 
+                dto.PageType, dto.EntityId);
+            throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
+        }
     }
 
     public async Task<SEOSettingsDto?> GetSEOSettingsAsync(string pageType, Guid? entityId = null, CancellationToken cancellationToken = default)

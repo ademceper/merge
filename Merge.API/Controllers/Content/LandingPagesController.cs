@@ -48,7 +48,7 @@ public class LandingPagesController : BaseController
     /// </summary>
     [HttpGet("{id}")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(LandingPageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -70,7 +70,7 @@ public class LandingPagesController : BaseController
     /// </summary>
     [HttpGet("slug/{slug}")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(LandingPageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -92,7 +92,7 @@ public class LandingPagesController : BaseController
     /// </summary>
     [HttpGet]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(PagedResult<LandingPageDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -132,6 +132,27 @@ public class LandingPagesController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi landing page'lerini güncelleyebilmeli (Admin hariç)
+        var landingPage = await _landingPageService.GetLandingPageByIdAsync(id, cancellationToken);
+        if (landingPage == null)
+        {
+            return NotFound();
+        }
+
+        // Manager rolü sadece kendi landing page'lerini güncelleyebilir (Admin hariç)
+        if (User.IsInRole("Manager") && !User.IsInRole("Admin"))
+        {
+            if (landingPage.AuthorId.HasValue && landingPage.AuthorId.Value != userId)
+            {
+                return Forbid();
+            }
+        }
+
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var result = await _landingPageService.UpdateLandingPageAsync(id, dto, cancellationToken);
         if (!result)
@@ -156,6 +177,27 @@ public class LandingPagesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi landing page'lerini silebilmeli (Admin hariç)
+        var landingPage = await _landingPageService.GetLandingPageByIdAsync(id, cancellationToken);
+        if (landingPage == null)
+        {
+            return NotFound();
+        }
+
+        // Manager rolü sadece kendi landing page'lerini silebilir (Admin hariç)
+        if (User.IsInRole("Manager") && !User.IsInRole("Admin"))
+        {
+            if (landingPage.AuthorId.HasValue && landingPage.AuthorId.Value != userId)
+            {
+                return Forbid();
+            }
+        }
+
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var result = await _landingPageService.DeleteLandingPageAsync(id, cancellationToken);
         if (!result)
@@ -180,6 +222,27 @@ public class LandingPagesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi landing page'lerini yayınlayabilmeli (Admin hariç)
+        var landingPage = await _landingPageService.GetLandingPageByIdAsync(id, cancellationToken);
+        if (landingPage == null)
+        {
+            return NotFound();
+        }
+
+        // Manager rolü sadece kendi landing page'lerini yayınlayabilir (Admin hariç)
+        if (User.IsInRole("Manager") && !User.IsInRole("Admin"))
+        {
+            if (landingPage.AuthorId.HasValue && landingPage.AuthorId.Value != userId)
+            {
+                return Forbid();
+            }
+        }
+
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var result = await _landingPageService.PublishLandingPageAsync(id, cancellationToken);
         if (!result)
@@ -231,6 +294,27 @@ public class LandingPagesController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi landing page'lerinin variant'ını oluşturabilmeli (Admin hariç)
+        var landingPage = await _landingPageService.GetLandingPageByIdAsync(id, cancellationToken);
+        if (landingPage == null)
+        {
+            return NotFound();
+        }
+
+        // Manager rolü sadece kendi landing page'lerinin variant'ını oluşturabilir (Admin hariç)
+        if (User.IsInRole("Manager") && !User.IsInRole("Admin"))
+        {
+            if (landingPage.AuthorId.HasValue && landingPage.AuthorId.Value != userId)
+            {
+                return Forbid();
+            }
+        }
+
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var variant = await _landingPageService.CreateVariantAsync(id, dto, cancellationToken);
         return CreatedAtAction(nameof(GetLandingPageById), new { id = variant.Id }, variant);
@@ -241,7 +325,7 @@ public class LandingPagesController : BaseController
     /// </summary>
     [HttpGet("{id}/analytics")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(MaxRequests = 30, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
     [ProducesResponseType(typeof(LandingPageAnalyticsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]

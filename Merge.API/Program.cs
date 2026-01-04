@@ -62,6 +62,8 @@ builder.Services.Configure<Merge.Application.Configuration.AnalyticsSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.AnalyticsSettings.SectionName));
 builder.Services.Configure<Merge.Application.Configuration.CartSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.CartSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.ContentSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.ContentSettings.SectionName));
 
 // Add services to the container
 builder.Services.AddControllers();

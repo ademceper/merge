@@ -37,89 +37,122 @@ public class EmailVerificationService : IEmailVerificationService
         _emailService = emailService;
     }
 
-    public async Task<string> GenerateVerificationTokenAsync(Guid userId, string email)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<string> GenerateVerificationTokenAsync(Guid userId, string email, CancellationToken cancellationToken = default)
     {
-        var user = await _userManager.FindByIdAsync(userId.ToString());
-        if (user == null)
+        _logger.LogInformation("Email doğrulama token'ı oluşturuluyor. UserId: {UserId}, Email: {Email}", userId, email);
+
+        try
         {
-            throw new NotFoundException("Kullanıcı", userId);
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null)
+            {
+                _logger.LogWarning("Kullanıcı bulunamadı. UserId: {UserId}", userId);
+                throw new NotFoundException("Kullanıcı", userId);
+            }
+
+            // ✅ PERFORMANCE: Bulk delete ile N+1 query önlenir
+            // ✅ PERFORMANCE: !ev.IsVerified kontrolü IsDeleted değil, farklı property (kabul edilebilir)
+            var oldVerifications = _context.EmailVerifications
+                .Where(ev => ev.UserId == userId && !ev.IsVerified);
+
+            _context.EmailVerifications.RemoveRange(oldVerifications);
+
+            // Yeni token oluştur
+            var token = Guid.NewGuid().ToString("N");
+            var verification = new EmailVerification
+            {
+                UserId = userId,
+                Email = email,
+                Token = token,
+                ExpiresAt = DateTime.UtcNow.AddHours(24), // 24 saat geçerli
+                IsVerified = false
+            };
+
+            await _emailVerificationRepository.AddAsync(verification);
+            // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Email gönder
+            if (_emailService != null)
+            {
+                var verificationUrl = $"/verify-email?token={token}";
+                var emailBody = $@"
+                    <h2>Email Doğrulama</h2>
+                    <p>Hesabınızı doğrulamak için aşağıdaki linke tıklayın:</p>
+                    <p><a href=""{verificationUrl}"">Email'i Doğrula</a></p>
+                    <p>Bu link 24 saat geçerlidir.</p>
+                ";
+                await _emailService.SendEmailAsync(email, "Email Doğrulama", emailBody);
+            }
+
+            _logger.LogInformation("Email doğrulama token'ı oluşturuldu. UserId: {UserId}, Email: {Email}", userId, email);
+            return token;
         }
-
-        // ✅ PERFORMANCE: Bulk delete ile N+1 query önlenir
-        // ✅ PERFORMANCE: !ev.IsVerified kontrolü IsDeleted değil, farklı property (kabul edilebilir)
-        var oldVerifications = _context.EmailVerifications
-            .Where(ev => ev.UserId == userId && !ev.IsVerified);
-
-        _context.EmailVerifications.RemoveRange(oldVerifications);
-
-        // Yeni token oluştur
-        var token = Guid.NewGuid().ToString("N");
-        var verification = new EmailVerification
+        catch (Exception ex)
         {
-            UserId = userId,
-            Email = email,
-            Token = token,
-            ExpiresAt = DateTime.UtcNow.AddHours(24), // 24 saat geçerli
-            IsVerified = false
-        };
-
-        await _emailVerificationRepository.AddAsync(verification);
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
-
-        // Email gönder
-        if (_emailService != null)
-        {
-            var verificationUrl = $"/verify-email?token={token}";
-            var emailBody = $@"
-                <h2>Email Doğrulama</h2>
-                <p>Hesabınızı doğrulamak için aşağıdaki linke tıklayın:</p>
-                <p><a href=""{verificationUrl}"">Email'i Doğrula</a></p>
-                <p>Bu link 24 saat geçerlidir.</p>
-            ";
-            await _emailService.SendEmailAsync(email, "Email Doğrulama", emailBody);
+            _logger.LogError(ex, "Email doğrulama token'ı oluşturma hatası. UserId: {UserId}, Email: {Email}", userId, email);
+            throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
         }
-
-        return token;
     }
 
-    public async Task<bool> VerifyEmailAsync(string token)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<bool> VerifyEmailAsync(string token, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        var verification = await _context.EmailVerifications
-            .Include(ev => ev.User)
-            .FirstOrDefaultAsync(ev => ev.Token == token);
+        _logger.LogInformation("Email doğrulama token'ı doğrulanıyor. Token: {Token}", token);
 
-        if (verification == null)
+        try
         {
-            return false;
-        }
+            // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
+            var verification = await _context.EmailVerifications
+                .Include(ev => ev.User)
+                .FirstOrDefaultAsync(ev => ev.Token == token, cancellationToken);
 
-        if (verification.IsVerified)
+            if (verification == null)
+            {
+                _logger.LogWarning("Geçersiz email doğrulama token'ı. Token: {Token}", token);
+                return false;
+            }
+
+            if (verification.IsVerified)
+            {
+                _logger.LogInformation("Email zaten doğrulanmış. UserId: {UserId}", verification.UserId);
+                return true; // Zaten doğrulanmış
+            }
+
+            if (verification.ExpiresAt < DateTime.UtcNow)
+            {
+                _logger.LogWarning("Email doğrulama token'ı süresi dolmuş. Token: {Token}, ExpiresAt: {ExpiresAt}", token, verification.ExpiresAt);
+                throw new BusinessException("Doğrulama linki süresi dolmuş.");
+            }
+
+            // Email'i doğrula
+            verification.IsVerified = true;
+            verification.VerifiedAt = DateTime.UtcNow;
+            await _emailVerificationRepository.UpdateAsync(verification);
+            // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Kullanıcının email doğrulama durumunu güncelle
+            verification.User.EmailConfirmed = true;
+            await _userManager.UpdateAsync(verification.User);
+
+            _logger.LogInformation("Email doğrulandı. UserId: {UserId}, Email: {Email}", verification.UserId, verification.Email);
+            return true;
+        }
+        catch (Exception ex)
         {
-            return true; // Zaten doğrulanmış
+            _logger.LogError(ex, "Email doğrulama hatası. Token: {Token}", token);
+            throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
         }
-
-        if (verification.ExpiresAt < DateTime.UtcNow)
-        {
-            throw new BusinessException("Doğrulama linki süresi dolmuş.");
-        }
-
-        // Email'i doğrula
-        verification.IsVerified = true;
-        verification.VerifiedAt = DateTime.UtcNow;
-        await _emailVerificationRepository.UpdateAsync(verification);
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
-
-        // Kullanıcının email doğrulama durumunu güncelle
-        verification.User.EmailConfirmed = true;
-        await _userManager.UpdateAsync(verification.User);
-
-        return true;
     }
 
-    public async Task<bool> ResendVerificationEmailAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ResendVerificationEmailAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var user = await _userManager.FindByIdAsync(userId.ToString());
         if (user == null)
@@ -132,11 +165,12 @@ public class EmailVerificationService : IEmailVerificationService
             throw new BusinessException("Email zaten doğrulanmış.");
         }
 
-        var token = await GenerateVerificationTokenAsync(userId, user.Email ?? string.Empty);
+        var token = await GenerateVerificationTokenAsync(userId, user.Email ?? string.Empty, cancellationToken);
         return !string.IsNullOrEmpty(token);
     }
 
-    public async Task<bool> IsEmailVerifiedAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> IsEmailVerifiedAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var user = await _userManager.FindByIdAsync(userId.ToString());
         return user?.EmailConfirmed ?? false;

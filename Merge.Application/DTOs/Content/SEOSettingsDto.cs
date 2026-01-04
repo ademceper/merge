@@ -13,7 +13,9 @@ public class SEOSettingsDto
     public string? OgDescription { get; set; }
     public string? OgImageUrl { get; set; }
     public string? TwitterCard { get; set; }
-    public Dictionary<string, object>? StructuredData { get; set; }
+    // ✅ BOLUM 4.3: Over-Posting Koruması - Dictionary&lt;string, object&gt; YASAK
+    // StructuredData JSON string olarak döndürülür (güvenlik için)
+    public string? StructuredDataJson { get; set; }
     public bool IsIndexed { get; set; }
     public bool FollowLinks { get; set; }
     public decimal Priority { get; set; }

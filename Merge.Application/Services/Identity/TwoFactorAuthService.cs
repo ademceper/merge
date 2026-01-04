@@ -46,11 +46,12 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         _logger = logger;
     }
 
-    public async Task<TwoFactorSetupResponseDto> Setup2FAAsync(Guid userId, TwoFactorSetupDto setupDto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<TwoFactorSetupResponseDto> Setup2FAAsync(Guid userId, TwoFactorSetupDto setupDto, CancellationToken cancellationToken = default)
     {
         var user = await _context.Users
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == userId);
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
         if (user == null)
         {
             throw new NotFoundException("Kullanıcı", userId);
@@ -58,7 +59,7 @@ public class TwoFactorAuthService : ITwoFactorAuthService
 
         var existing2FA = await _context.Set<TwoFactorAuth>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.UserId == userId);
+            .FirstOrDefaultAsync(t => t.UserId == userId, cancellationToken);
 
         if (existing2FA != null && existing2FA.IsEnabled)
         {
@@ -87,7 +88,7 @@ public class TwoFactorAuthService : ITwoFactorAuthService
             await _twoFactorRepository.UpdateAsync(twoFactorAuth);
         }
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var response = new TwoFactorSetupResponseDto
@@ -105,19 +106,20 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         // For SMS/Email methods, send verification code
         else
         {
-            await SendVerificationCodeAsync(userId, "Enable2FA");
+            await SendVerificationCodeAsync(userId, "Enable2FA", cancellationToken);
             response.Message = $"Verification code sent via {setupDto.Method}. Please verify to enable 2FA.";
         }
 
         return response;
     }
 
-    public async Task<bool> Enable2FAAsync(Guid userId, Enable2FADto enableDto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> Enable2FAAsync(Guid userId, Enable2FADto enableDto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var twoFactorAuth = await _context.Set<TwoFactorAuth>()
-            .FirstOrDefaultAsync(t => t.UserId == userId);
+            .FirstOrDefaultAsync(t => t.UserId == userId, cancellationToken);
 
         if (twoFactorAuth == null)
         {
@@ -145,13 +147,13 @@ public class TwoFactorAuthService : ITwoFactorAuthService
                     c.Code == enableDto.Code &&
                     c.Purpose == "Enable2FA" &&
                     !c.IsUsed &&
-                    c.ExpiresAt > DateTime.UtcNow);
+                    c.ExpiresAt > DateTime.UtcNow, cancellationToken);
 
             if (code != null)
             {
                 code.IsUsed = true;
                 code.UsedAt = DateTime.UtcNow;
-                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
                 isValid = true;
             }
         }
@@ -165,17 +167,18 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         twoFactorAuth.IsVerified = true;
         await _twoFactorRepository.UpdateAsync(twoFactorAuth);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> Disable2FAAsync(Guid userId, Disable2FADto disableDto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> Disable2FAAsync(Guid userId, Disable2FADto disableDto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var twoFactorAuth = await _context.Set<TwoFactorAuth>()
-            .FirstOrDefaultAsync(t => t.UserId == userId);
+            .FirstOrDefaultAsync(t => t.UserId == userId, cancellationToken);
 
         if (twoFactorAuth == null || !twoFactorAuth.IsEnabled)
         {
@@ -183,7 +186,7 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         }
 
         // Verify current 2FA code
-        var isValid = await Verify2FACodeAsync(userId, disableDto.Code);
+        var isValid = await Verify2FACodeAsync(userId, disableDto.Code, cancellationToken);
 
         if (!isValid)
         {
@@ -193,17 +196,18 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         twoFactorAuth.IsEnabled = false;
         await _twoFactorRepository.UpdateAsync(twoFactorAuth);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<TwoFactorStatusDto?> Get2FAStatusAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<TwoFactorStatusDto?> Get2FAStatusAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var twoFactorAuth = await _context.Set<TwoFactorAuth>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.UserId == userId);
+            .FirstOrDefaultAsync(t => t.UserId == userId, cancellationToken);
 
         if (twoFactorAuth == null)
         {
@@ -225,12 +229,13 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         return dto;
     }
 
-    public async Task<bool> Verify2FACodeAsync(Guid userId, string code)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> Verify2FACodeAsync(Guid userId, string code, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var twoFactorAuth = await _context.Set<TwoFactorAuth>()
-            .FirstOrDefaultAsync(t => t.UserId == userId);
+            .FirstOrDefaultAsync(t => t.UserId == userId, cancellationToken);
 
         if (twoFactorAuth == null || !twoFactorAuth.IsEnabled)
         {
@@ -258,13 +263,13 @@ public class TwoFactorAuthService : ITwoFactorAuthService
                     c.UserId == userId &&
                     c.Code == code &&
                     !c.IsUsed &&
-                    c.ExpiresAt > DateTime.UtcNow);
+                    c.ExpiresAt > DateTime.UtcNow, cancellationToken);
 
             if (twoFactorCode != null)
             {
                 twoFactorCode.IsUsed = true;
                 twoFactorCode.UsedAt = DateTime.UtcNow;
-                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
                 isValid = true;
             }
         }
@@ -282,7 +287,7 @@ public class TwoFactorAuthService : ITwoFactorAuthService
 
             await _twoFactorRepository.UpdateAsync(twoFactorAuth);
             // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
             return false;
         }
 
@@ -291,16 +296,17 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         twoFactorAuth.LastAttemptAt = DateTime.UtcNow;
         await _twoFactorRepository.UpdateAsync(twoFactorAuth);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> SendVerificationCodeAsync(Guid userId, string purpose = "Login")
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> SendVerificationCodeAsync(Guid userId, string purpose = "Login", CancellationToken cancellationToken = default)
     {
         var twoFactorAuth = await _context.Set<TwoFactorAuth>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.UserId == userId);
+            .FirstOrDefaultAsync(t => t.UserId == userId, cancellationToken);
 
         if (twoFactorAuth == null)
         {
@@ -321,7 +327,7 @@ public class TwoFactorAuthService : ITwoFactorAuthService
 
         await _codeRepository.AddAsync(twoFactorCode);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Send code via appropriate method
         if (twoFactorAuth.Method == TwoFactorMethod.SMS && !string.IsNullOrEmpty(twoFactorAuth.PhoneNumber))
@@ -336,10 +342,11 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         return true;
     }
 
-    public async Task<BackupCodesResponseDto> RegenerateBackupCodesAsync(Guid userId, RegenerateBackupCodesDto regenerateDto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<BackupCodesResponseDto> RegenerateBackupCodesAsync(Guid userId, RegenerateBackupCodesDto regenerateDto, CancellationToken cancellationToken = default)
     {
         var twoFactorAuth = await _context.Set<TwoFactorAuth>()
-            .FirstOrDefaultAsync(t => t.UserId == userId);
+            .FirstOrDefaultAsync(t => t.UserId == userId, cancellationToken);
 
         if (twoFactorAuth == null || !twoFactorAuth.IsEnabled)
         {
@@ -347,7 +354,7 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         }
 
         // Verify current 2FA code
-        var isValid = await Verify2FACodeAsync(userId, regenerateDto.Code);
+        var isValid = await Verify2FACodeAsync(userId, regenerateDto.Code, cancellationToken);
 
         if (!isValid)
         {
@@ -358,7 +365,7 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         twoFactorAuth.BackupCodes = backupCodes;
         await _twoFactorRepository.UpdateAsync(twoFactorAuth);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return new BackupCodesResponseDto
@@ -368,12 +375,13 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         };
     }
 
-    public async Task<bool> VerifyBackupCodeAsync(Guid userId, string backupCode)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> VerifyBackupCodeAsync(Guid userId, string backupCode, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var twoFactorAuth = await _context.Set<TwoFactorAuth>()
-            .FirstOrDefaultAsync(t => t.UserId == userId);
+            .FirstOrDefaultAsync(t => t.UserId == userId, cancellationToken);
 
         if (twoFactorAuth == null || !twoFactorAuth.IsEnabled || twoFactorAuth.BackupCodes == null)
         {
@@ -392,7 +400,7 @@ public class TwoFactorAuthService : ITwoFactorAuthService
 
             await _twoFactorRepository.UpdateAsync(twoFactorAuth);
             // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
             return true;
         }
 

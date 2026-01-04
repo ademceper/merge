@@ -9,6 +9,7 @@ using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.LiveCommerce;
+using Merge.Application.Common;
 
 namespace Merge.Application.Services.LiveCommerce;
 
@@ -31,38 +32,54 @@ public class LiveCommerceService : ILiveCommerceService
         _mapper = mapper;
     }
 
-    public async Task<LiveStreamDto> CreateStreamAsync(CreateLiveStreamDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<LiveStreamDto> CreateStreamAsync(CreateLiveStreamDto dto, CancellationToken cancellationToken = default)
     {
-        var stream = new LiveStream
+        _logger.LogInformation("Canli yayin olusturuluyor. SellerId: {SellerId}, Title: {Title}", dto.SellerId, dto.Title);
+
+        try
         {
-            SellerId = dto.SellerId,
-            Title = dto.Title,
-            Description = dto.Description,
-            Status = LiveStreamStatus.Scheduled,
-            ScheduledStartTime = dto.ScheduledStartTime,
-            StreamUrl = dto.StreamUrl,
-            StreamKey = dto.StreamKey,
-            ThumbnailUrl = dto.ThumbnailUrl,
-            Category = dto.Category,
-            Tags = dto.Tags
-        };
+            var stream = new LiveStream
+            {
+                SellerId = dto.SellerId,
+                Title = dto.Title,
+                Description = dto.Description,
+                Status = LiveStreamStatus.Scheduled,
+                ScheduledStartTime = dto.ScheduledStartTime,
+                StreamUrl = dto.StreamUrl,
+                StreamKey = dto.StreamKey,
+                ThumbnailUrl = dto.ThumbnailUrl,
+                Category = dto.Category,
+                Tags = dto.Tags
+            };
 
-        await _context.LiveStreams.AddAsync(stream);
-        await _unitOfWork.SaveChangesAsync();
+            await _context.LiveStreams.AddAsync(stream, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan, manuel mapping YASAK
-        // ✅ PERFORMANCE: AsNoTracking + Include ile tek query'de getir
-        var createdStream = await _context.LiveStreams
-            .AsNoTracking()
-            .Include(s => s.Seller)
-            .Include(s => s.Products)
-                .ThenInclude(p => p.Product)
-            .FirstOrDefaultAsync(s => s.Id == stream.Id);
+            // ✅ ARCHITECTURE: AutoMapper kullan, manuel mapping YASAK
+            // ✅ PERFORMANCE: AsNoTracking + Include ile tek query'de getir
+            var createdStream = await _context.LiveStreams
+                .AsNoTracking()
+                .Include(s => s.Seller)
+                .Include(s => s.Products)
+                    .ThenInclude(p => p.Product)
+                .FirstOrDefaultAsync(s => s.Id == stream.Id, cancellationToken);
 
-        return _mapper.Map<LiveStreamDto>(createdStream);
+            _logger.LogInformation("Canli yayin olusturuldu. StreamId: {StreamId}, SellerId: {SellerId}", stream.Id, stream.SellerId);
+
+            return _mapper.Map<LiveStreamDto>(createdStream!);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Canli yayin olusturma hatasi. SellerId: {SellerId}, Title: {Title}", dto.SellerId, dto.Title);
+            throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
+        }
     }
 
-    public async Task<LiveStreamDto?> GetStreamAsync(Guid streamId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<LiveStreamDto?> GetStreamAsync(Guid streamId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: Include ile N+1 önlenir
@@ -71,16 +88,19 @@ public class LiveCommerceService : ILiveCommerceService
             .Include(s => s.Seller)
             .Include(s => s.Products)
                 .ThenInclude(p => p.Product)
-            .FirstOrDefaultAsync(s => s.Id == streamId);
+            .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
         return stream != null ? _mapper.Map<LiveStreamDto>(stream) : null;
     }
 
-    public async Task<IEnumerable<LiveStreamDto>> GetStreamsAsync(Guid? sellerId = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+    public async Task<IEnumerable<LiveStreamDto>> GetStreamsAsync(Guid? sellerId = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: Include ile N+1 önlenir
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         var query = _context.LiveStreams
             .AsNoTracking()
             .Include(s => s.Seller)
@@ -95,17 +115,19 @@ public class LiveCommerceService : ILiveCommerceService
 
         var streams = await query
             .OrderByDescending(s => s.CreatedAt)
-            .ToListAsync();
+            .Take(100) // ✅ Güvenlik: Maksimum 100 stream
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (batch mapping)
         return _mapper.Map<IEnumerable<LiveStreamDto>>(streams);
     }
 
-    public async Task<LiveStreamDto> UpdateStreamAsync(Guid streamId, CreateLiveStreamDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<LiveStreamDto> UpdateStreamAsync(Guid streamId, CreateLiveStreamDto dto, CancellationToken cancellationToken = default)
     {
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
         var stream = await _context.LiveStreams
-            .FirstOrDefaultAsync(s => s.Id == streamId);
+            .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream == null)
         {
@@ -122,65 +144,109 @@ public class LiveCommerceService : ILiveCommerceService
         stream.Tags = dto.Tags;
         stream.UpdatedAt = DateTime.UtcNow;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return await GetStreamAsync(streamId) ?? throw new NotFoundException("Yayın", streamId);
+        return await GetStreamAsync(streamId, cancellationToken) ?? throw new NotFoundException("Yayın", streamId);
     }
 
-    public async Task<bool> DeleteStreamAsync(Guid streamId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteStreamAsync(Guid streamId, CancellationToken cancellationToken = default)
     {
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
         var stream = await _context.LiveStreams
-            .FirstOrDefaultAsync(s => s.Id == streamId);
+            .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream == null) return false;
 
         stream.IsDeleted = true;
         stream.UpdatedAt = DateTime.UtcNow;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<IEnumerable<LiveStreamDto>> GetActiveStreamsAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<LiveStreamDto>> GetActiveStreamsAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+        if (page < 1) page = 1;
+        if (pageSize > 100) pageSize = 100; // Max limit
+
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: Include ile N+1 önlenir
-        var streams = await _context.LiveStreams
+        var query = _context.LiveStreams
             .AsNoTracking()
             .Include(s => s.Seller)
             .Include(s => s.Products)
                 .ThenInclude(p => p.Product)
-            .Where(s => s.Status == LiveStreamStatus.Live && s.IsActive)
+            .Where(s => s.Status == LiveStreamStatus.Live && s.IsActive);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var streams = await query
             .OrderByDescending(s => s.ActualStartTime)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (batch mapping)
-        return _mapper.Map<IEnumerable<LiveStreamDto>>(streams);
+        var items = _mapper.Map<IEnumerable<LiveStreamDto>>(streams);
+
+        return new PagedResult<LiveStreamDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+        };
     }
 
-    public async Task<IEnumerable<LiveStreamDto>> GetStreamsBySellerAsync(Guid sellerId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<LiveStreamDto>> GetStreamsBySellerAsync(Guid sellerId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+        if (page < 1) page = 1;
+        if (pageSize > 100) pageSize = 100; // Max limit
+
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: Include ile N+1 önlenir
-        var streams = await _context.LiveStreams
+        var query = _context.LiveStreams
             .AsNoTracking()
             .Include(s => s.Seller)
             .Include(s => s.Products)
                 .ThenInclude(p => p.Product)
-            .Where(s => s.SellerId == sellerId)
+            .Where(s => s.SellerId == sellerId);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var streams = await query
             .OrderByDescending(s => s.CreatedAt)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (batch mapping)
-        return _mapper.Map<IEnumerable<LiveStreamDto>>(streams);
+        var items = _mapper.Map<IEnumerable<LiveStreamDto>>(streams);
+
+        return new PagedResult<LiveStreamDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+        };
     }
 
-    public async Task<bool> StartStreamAsync(Guid streamId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> StartStreamAsync(Guid streamId, CancellationToken cancellationToken = default)
     {
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
         var stream = await _context.LiveStreams
-            .FirstOrDefaultAsync(s => s.Id == streamId);
+            .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream == null) return false;
 
@@ -188,15 +254,16 @@ public class LiveCommerceService : ILiveCommerceService
         stream.ActualStartTime = DateTime.UtcNow;
         stream.UpdatedAt = DateTime.UtcNow;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<bool> EndStreamAsync(Guid streamId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> EndStreamAsync(Guid streamId, CancellationToken cancellationToken = default)
     {
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
         var stream = await _context.LiveStreams
-            .FirstOrDefaultAsync(s => s.Id == streamId);
+            .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream == null) return false;
 
@@ -205,15 +272,16 @@ public class LiveCommerceService : ILiveCommerceService
         stream.IsActive = false;
         stream.UpdatedAt = DateTime.UtcNow;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<LiveStreamDto> AddProductToStreamAsync(Guid streamId, Guid productId, AddProductToStreamDto? dto = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<LiveStreamDto?> AddProductToStreamAsync(Guid streamId, Guid productId, AddProductToStreamDto? dto = null, CancellationToken cancellationToken = default)
     {
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
         var stream = await _context.LiveStreams
-            .FirstOrDefaultAsync(s => s.Id == streamId);
+            .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream == null)
         {
@@ -221,7 +289,7 @@ public class LiveCommerceService : ILiveCommerceService
         }
 
         var existing = await _context.LiveStreamProducts
-            .FirstOrDefaultAsync(p => p.LiveStreamId == streamId && p.ProductId == productId);
+            .FirstOrDefaultAsync(p => p.LiveStreamId == streamId && p.ProductId == productId, cancellationToken);
 
         if (existing != null)
         {
@@ -237,17 +305,18 @@ public class LiveCommerceService : ILiveCommerceService
             ShowcaseNotes = dto?.ShowcaseNotes
         };
 
-        await _context.LiveStreamProducts.AddAsync(streamProduct);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.LiveStreamProducts.AddAsync(streamProduct, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return await GetStreamAsync(streamId) ?? throw new NotFoundException("Yayın", streamId);
+        return await GetStreamAsync(streamId, cancellationToken);
     }
 
-    public async Task<bool> ShowcaseProductAsync(Guid streamId, Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ShowcaseProductAsync(Guid streamId, Guid productId, CancellationToken cancellationToken = default)
     {
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
         var streamProduct = await _context.LiveStreamProducts
-            .FirstOrDefaultAsync(p => p.LiveStreamId == streamId && p.ProductId == productId);
+            .FirstOrDefaultAsync(p => p.LiveStreamId == streamId && p.ProductId == productId, cancellationToken);
 
         if (streamProduct == null) return false;
 
@@ -255,7 +324,7 @@ public class LiveCommerceService : ILiveCommerceService
         // ⚠️ Batch update için ToListAsync gerekli (tracking ile)
         var allProducts = await _context.LiveStreamProducts
             .Where(p => p.LiveStreamId == streamId)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         foreach (var product in allProducts)
         {
@@ -267,11 +336,12 @@ public class LiveCommerceService : ILiveCommerceService
         streamProduct.ShowcasedAt = DateTime.UtcNow;
         streamProduct.UpdatedAt = DateTime.UtcNow;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<bool> JoinStreamAsync(Guid streamId, Guid? userId, string? guestId = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> JoinStreamAsync(Guid streamId, Guid? userId, string? guestId = null, CancellationToken cancellationToken = default)
     {
         var viewer = new LiveStreamViewer
         {
@@ -282,18 +352,18 @@ public class LiveCommerceService : ILiveCommerceService
             IsActive = true
         };
 
-        await _context.LiveStreamViewers.AddAsync(viewer);
+        await _context.LiveStreamViewers.AddAsync(viewer, cancellationToken);
 
         // Update viewer count
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
         var stream = await _context.LiveStreams
-            .FirstOrDefaultAsync(s => s.Id == streamId);
+            .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream != null)
         {
             // ✅ PERFORMANCE: Database'de count (memory'de YASAK)
             stream.ViewerCount = await _context.LiveStreamViewers
-                .CountAsync(v => v.LiveStreamId == streamId && v.IsActive);
+                .CountAsync(v => v.LiveStreamId == streamId && v.IsActive, cancellationToken);
             stream.TotalViewerCount++;
             if (stream.ViewerCount > stream.PeakViewerCount)
             {
@@ -301,17 +371,18 @@ public class LiveCommerceService : ILiveCommerceService
             }
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<bool> LeaveStreamAsync(Guid streamId, Guid? userId, string? guestId = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> LeaveStreamAsync(Guid streamId, Guid? userId, string? guestId = null, CancellationToken cancellationToken = default)
     {
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
         var viewer = await _context.LiveStreamViewers
             .FirstOrDefaultAsync(v => v.LiveStreamId == streamId &&
                 (userId.HasValue ? v.UserId == userId : v.GuestId == guestId) &&
-                v.IsActive);
+                v.IsActive, cancellationToken);
 
         if (viewer == null) return false;
 
@@ -323,24 +394,25 @@ public class LiveCommerceService : ILiveCommerceService
         // Update viewer count
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
         var stream = await _context.LiveStreams
-            .FirstOrDefaultAsync(s => s.Id == streamId);
+            .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream != null)
         {
             // ✅ PERFORMANCE: Database'de count (memory'de YASAK)
             stream.ViewerCount = await _context.LiveStreamViewers
-                .CountAsync(v => v.LiveStreamId == streamId && v.IsActive);
+                .CountAsync(v => v.LiveStreamId == streamId && v.IsActive, cancellationToken);
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<LiveStreamOrderDto> CreateOrderFromStreamAsync(Guid streamId, Guid orderId, Guid? productId = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<LiveStreamOrderDto> CreateOrderFromStreamAsync(Guid streamId, Guid orderId, Guid? productId = null, CancellationToken cancellationToken = default)
     {
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
         var order = await _context.Orders
-            .FirstOrDefaultAsync(o => o.Id == orderId);
+            .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
 
         if (order == null)
         {
@@ -356,12 +428,12 @@ public class LiveCommerceService : ILiveCommerceService
             OrderAmount = order.TotalAmount
         };
 
-        await _context.LiveStreamOrders.AddAsync(streamOrder);
+        await _context.LiveStreamOrders.AddAsync(streamOrder, cancellationToken);
 
         // Update stream stats
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
         var stream = await _context.LiveStreams
-            .FirstOrDefaultAsync(s => s.Id == streamId);
+            .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream != null)
         {
@@ -373,7 +445,7 @@ public class LiveCommerceService : ILiveCommerceService
         if (productId.HasValue)
         {
             var streamProduct = await _context.LiveStreamProducts
-                .FirstOrDefaultAsync(p => p.LiveStreamId == streamId && p.ProductId == productId.Value);
+                .FirstOrDefaultAsync(p => p.LiveStreamId == streamId && p.ProductId == productId.Value, cancellationToken);
 
             if (streamProduct != null)
             {
@@ -381,18 +453,19 @@ public class LiveCommerceService : ILiveCommerceService
             }
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
         return _mapper.Map<LiveStreamOrderDto>(streamOrder);
     }
 
-    public async Task<LiveStreamStatsDto> GetStreamStatsAsync(Guid streamId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<LiveStreamStatsDto> GetStreamStatsAsync(Guid streamId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         var stream = await _context.LiveStreams
             .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == streamId);
+            .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream == null)
         {
@@ -401,14 +474,14 @@ public class LiveCommerceService : ILiveCommerceService
 
         // ✅ PERFORMANCE: Database'de aggregation (memory'de YASAK)
         var totalViewers = await _context.LiveStreamViewers
-            .CountAsync(v => v.LiveStreamId == streamId);
+            .CountAsync(v => v.LiveStreamId == streamId, cancellationToken);
 
         var totalOrders = await _context.LiveStreamOrders
-            .CountAsync(o => o.LiveStreamId == streamId);
+            .CountAsync(o => o.LiveStreamId == streamId, cancellationToken);
 
         var totalRevenue = await _context.LiveStreamOrders
             .Where(o => o.LiveStreamId == streamId)
-            .SumAsync(o => (decimal?)o.OrderAmount) ?? 0;
+            .SumAsync(o => (decimal?)o.OrderAmount, cancellationToken) ?? 0;
 
         return new LiveStreamStatsDto
         {

@@ -1,15 +1,16 @@
 using Merge.Application.DTOs.Logistics;
 
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Logistics;
 
 public interface IShippingAddressService
 {
-    Task<ShippingAddressDto> CreateShippingAddressAsync(Guid userId, CreateShippingAddressDto dto);
-    Task<ShippingAddressDto?> GetShippingAddressByIdAsync(Guid id);
-    Task<IEnumerable<ShippingAddressDto>> GetUserShippingAddressesAsync(Guid userId, bool? isActive = null);
-    Task<ShippingAddressDto?> GetDefaultShippingAddressAsync(Guid userId);
-    Task<bool> UpdateShippingAddressAsync(Guid id, UpdateShippingAddressDto dto);
-    Task<bool> DeleteShippingAddressAsync(Guid id);
-    Task<bool> SetDefaultShippingAddressAsync(Guid userId, Guid addressId);
+    Task<ShippingAddressDto> CreateShippingAddressAsync(Guid userId, CreateShippingAddressDto dto, CancellationToken cancellationToken = default);
+    Task<ShippingAddressDto?> GetShippingAddressByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IEnumerable<ShippingAddressDto>> GetUserShippingAddressesAsync(Guid userId, bool? isActive = null, CancellationToken cancellationToken = default);
+    Task<ShippingAddressDto?> GetDefaultShippingAddressAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<bool> UpdateShippingAddressAsync(Guid id, UpdateShippingAddressDto dto, CancellationToken cancellationToken = default);
+    Task<bool> DeleteShippingAddressAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<bool> SetDefaultShippingAddressAsync(Guid userId, Guid addressId, CancellationToken cancellationToken = default);
 }
 

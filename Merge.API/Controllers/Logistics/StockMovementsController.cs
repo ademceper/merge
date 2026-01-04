@@ -5,7 +5,8 @@ using Merge.Application.Interfaces.Logistics;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.Interfaces.Catalog;
 using Merge.Application.DTOs.Logistics;
-
+using Merge.Application.Common;
+using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Logistics;
 
@@ -28,22 +29,34 @@ public class StockMovementsController : BaseController
         _inventoryService = inventoryService;
     }
 
+    /// <summary>
+    /// Stok hareketi detaylarını getirir
+    /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<StockMovementDto>> GetById(Guid id)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(StockMovementDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<StockMovementDto>> GetById(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        var movement = await _stockMovementService.GetByIdAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var movement = await _stockMovementService.GetByIdAsync(id, cancellationToken);
         if (movement == null)
         {
             return NotFound();
         }
 
-        // ✅ SECURITY: IDOR koruması - Seller sadece kendi ürünlerinin stock movement'larına erişebilmeli
-        var product = await _productService.GetByIdAsync(movement.ProductId);
+        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi ürünlerinin stock movement'larına erişebilmeli
+        var product = await _productService.GetByIdAsync(movement.ProductId, cancellationToken);
         if (product == null)
         {
             return NotFound();
@@ -57,22 +70,33 @@ public class StockMovementsController : BaseController
         return Ok(movement);
     }
 
+    /// <summary>
+    /// Envanter ID'sine göre stok hareketlerini getirir
+    /// </summary>
     [HttpGet("inventory/{inventoryId}")]
-    public async Task<ActionResult<IEnumerable<StockMovementDto>>> GetByInventory(Guid inventoryId)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(IEnumerable<StockMovementDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<IEnumerable<StockMovementDto>>> GetByInventory(
+        Guid inventoryId,
+        CancellationToken cancellationToken = default)
     {
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        // ✅ SECURITY: IDOR koruması - Önce inventory'yi kontrol et
-        var inventory = await _inventoryService.GetByIdAsync(inventoryId);
+        // ✅ BOLUM 3.2: IDOR Koruması - Önce inventory'yi kontrol et
+        var inventory = await _inventoryService.GetByIdAsync(inventoryId, cancellationToken);
         if (inventory == null)
         {
             return NotFound();
         }
 
-        var product = await _productService.GetByIdAsync(inventory.ProductId);
+        var product = await _productService.GetByIdAsync(inventory.ProductId, cancellationToken);
         if (product == null)
         {
             return NotFound();
@@ -83,23 +107,34 @@ public class StockMovementsController : BaseController
             return Forbid();
         }
 
-        var movements = await _stockMovementService.GetByInventoryIdAsync(inventoryId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var movements = await _stockMovementService.GetByInventoryIdAsync(inventoryId, cancellationToken);
         return Ok(movements);
     }
 
+    /// <summary>
+    /// Ürün ID'sine göre stok hareketlerini getirir (pagination ile)
+    /// </summary>
     [HttpGet("product/{productId}")]
-    public async Task<ActionResult<IEnumerable<StockMovementDto>>> GetByProduct(
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(PagedResult<StockMovementDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PagedResult<StockMovementDto>>> GetByProduct(
         Guid productId,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        // ✅ SECURITY: IDOR koruması - Seller sadece kendi ürünlerinin stock movement'larına erişebilmeli
-        var product = await _productService.GetByIdAsync(productId);
+        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi ürünlerinin stock movement'larına erişebilmeli
+        var product = await _productService.GetByIdAsync(productId, cancellationToken);
         if (product == null)
         {
             return NotFound();
@@ -110,22 +145,50 @@ public class StockMovementsController : BaseController
             return Forbid();
         }
 
-        var movements = await _stockMovementService.GetByProductIdAsync(productId, page, pageSize);
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+        if (pageSize > 100) pageSize = 100; // Max limit
+
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var movements = await _stockMovementService.GetByProductIdAsync(productId, page, pageSize, cancellationToken);
         return Ok(movements);
     }
 
+    /// <summary>
+    /// Depo ID'sine göre stok hareketlerini getirir (pagination ile)
+    /// </summary>
     [HttpGet("warehouse/{warehouseId}")]
-    public async Task<ActionResult<IEnumerable<StockMovementDto>>> GetByWarehouse(
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(PagedResult<StockMovementDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PagedResult<StockMovementDto>>> GetByWarehouse(
         Guid warehouseId,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var movements = await _stockMovementService.GetByWarehouseIdAsync(warehouseId, page, pageSize);
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+        if (pageSize > 100) pageSize = 100; // Max limit
+
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var movements = await _stockMovementService.GetByWarehouseIdAsync(warehouseId, page, pageSize, cancellationToken);
         return Ok(movements);
     }
 
+    /// <summary>
+    /// Filtrelenmiş stok hareketlerini getirir
+    /// </summary>
     [HttpPost("filter")]
-    public async Task<ActionResult<IEnumerable<StockMovementDto>>> GetFiltered([FromBody] StockMovementFilterDto filter)
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika
+    [ProducesResponseType(typeof(IEnumerable<StockMovementDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<IEnumerable<StockMovementDto>>> GetFiltered(
+        [FromBody] StockMovementFilterDto filter,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
@@ -135,11 +198,11 @@ public class StockMovementsController : BaseController
             return Unauthorized();
         }
 
-        // ✅ SECURITY: IDOR koruması - Seller sadece kendi ürünlerinin stock movement'larına erişebilmeli
+        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi ürünlerinin stock movement'larına erişebilmeli
         // Eğer ProductId filtresi varsa kontrol et
         if (filter.ProductId.HasValue)
         {
-            var product = await _productService.GetByIdAsync(filter.ProductId.Value);
+            var product = await _productService.GetByIdAsync(filter.ProductId.Value, cancellationToken);
             if (product == null)
             {
                 return NotFound();
@@ -151,12 +214,24 @@ public class StockMovementsController : BaseController
             }
         }
 
-        var movements = await _stockMovementService.GetFilteredAsync(filter);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var movements = await _stockMovementService.GetFilteredAsync(filter, cancellationToken);
         return Ok(movements);
     }
 
+    /// <summary>
+    /// Yeni stok hareketi oluşturur
+    /// </summary>
     [HttpPost]
-    public async Task<ActionResult<StockMovementDto>> Create([FromBody] CreateStockMovementDto createDto)
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [ProducesResponseType(typeof(StockMovementDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<StockMovementDto>> Create(
+        [FromBody] CreateStockMovementDto createDto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
@@ -166,8 +241,8 @@ public class StockMovementsController : BaseController
             return Unauthorized();
         }
 
-        // ✅ SECURITY: IDOR koruması - Seller sadece kendi ürünlerinin stock movement'larını oluşturabilmeli
-        var product = await _productService.GetByIdAsync(createDto.ProductId);
+        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi ürünlerinin stock movement'larını oluşturabilmeli
+        var product = await _productService.GetByIdAsync(createDto.ProductId, cancellationToken);
         if (product == null)
         {
             return NotFound();
@@ -178,7 +253,8 @@ public class StockMovementsController : BaseController
             return Forbid();
         }
 
-        var movement = await _stockMovementService.CreateAsync(createDto, userId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var movement = await _stockMovementService.CreateAsync(createDto, userId, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = movement.Id }, movement);
     }
 }

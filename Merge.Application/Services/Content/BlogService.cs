@@ -1,9 +1,11 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Content;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
@@ -22,13 +24,21 @@ public class BlogService : IBlogService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<BlogService> _logger;
+    private readonly ContentSettings _contentSettings;
 
-    public BlogService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<BlogService> logger)
+    // ✅ BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
+    public BlogService(
+        ApplicationDbContext context,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        ILogger<BlogService> logger,
+        IOptions<ContentSettings> contentSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _contentSettings = contentSettings.Value;
     }
 
     // Categories
@@ -94,9 +104,11 @@ public class BlogService : IBlogService
             query = query.Where(c => c.IsActive == isActive.Value);
         }
 
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Kategoriler genelde sınırlı ama güvenlik için limit ekle
         var categories = await query
             .OrderBy(c => c.DisplayOrder)
             .ThenBy(c => c.Name)
+            .Take(200) // ✅ Güvenlik: Maksimum 200 kategori
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Navigation property'den ID'leri al (zaten ToListAsync ile yüklenmiş, memory'de Select kabul edilebilir)
@@ -108,7 +120,8 @@ public class BlogService : IBlogService
             .Select(g => new { CategoryId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.CategoryId, x => x.Count, cancellationToken);
 
-        var result = new List<BlogCategoryDto>();
+        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
+        var result = new List<BlogCategoryDto>(categories.Count);
         foreach (var category in categories)
         {
             result.Add(MapToCategoryDtoWithAutoMapper(category, postCounts));
@@ -162,51 +175,69 @@ public class BlogService : IBlogService
 
     // Posts
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<BlogPostDto> CreatePostAsync(Guid authorId, CreateBlogPostDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
-        var category = await _context.Set<BlogCategory>()
-            .FirstOrDefaultAsync(c => c.Id == dto.CategoryId && c.IsActive, cancellationToken);
+        _logger.LogInformation("Blog post olusturuluyor. AuthorId: {AuthorId}, CategoryId: {CategoryId}, Title: {Title}", 
+            authorId, dto.CategoryId, dto.Title);
 
-        if (category == null)
+        try
         {
-            throw new NotFoundException("Kategori", dto.CategoryId);
+            // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
+            var category = await _context.Set<BlogCategory>()
+                .FirstOrDefaultAsync(c => c.Id == dto.CategoryId && c.IsActive, cancellationToken);
+
+            if (category == null)
+            {
+                _logger.LogWarning("Blog post olusturma hatasi: Kategori bulunamadi. CategoryId: {CategoryId}", dto.CategoryId);
+                throw new NotFoundException("Kategori", dto.CategoryId);
+            }
+
+            var slug = GenerateSlug(dto.Title);
+            // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
+            if (await _context.Set<BlogPost>().AnyAsync(p => p.Slug == slug, cancellationToken))
+            {
+                slug = $"{slug}-{DateTime.UtcNow.Ticks}";
+            }
+
+            var readingTime = CalculateReadingTime(dto.Content);
+
+            var post = new BlogPost
+            {
+                CategoryId = dto.CategoryId,
+                AuthorId = authorId,
+                Title = dto.Title,
+                Slug = slug,
+                Excerpt = dto.Excerpt,
+                Content = dto.Content,
+                FeaturedImageUrl = dto.FeaturedImageUrl,
+                Status = Enum.TryParse<ContentStatus>(dto.Status, true, out var statusEnum) ? statusEnum : ContentStatus.Draft,
+                Tags = dto.Tags != null ? string.Join(",", dto.Tags) : null,
+                IsFeatured = dto.IsFeatured,
+                AllowComments = dto.AllowComments,
+                MetaTitle = dto.MetaTitle,
+                MetaDescription = dto.MetaDescription,
+                MetaKeywords = dto.MetaKeywords,
+                OgImageUrl = dto.OgImageUrl,
+                ReadingTimeMinutes = readingTime,
+                PublishedAt = (Enum.TryParse<ContentStatus>(dto.Status, true, out var status) && status == ContentStatus.Published) ? DateTime.UtcNow : null
+            };
+
+            await _context.Set<BlogPost>().AddAsync(post, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Blog post olusturuldu. PostId: {PostId}, Slug: {Slug}, AuthorId: {AuthorId}", 
+                post.Id, post.Slug, authorId);
+
+            return _mapper.Map<BlogPostDto>(post);
         }
-
-        var slug = GenerateSlug(dto.Title);
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        if (await _context.Set<BlogPost>().AnyAsync(p => p.Slug == slug, cancellationToken))
+        catch (Exception ex)
         {
-            slug = $"{slug}-{DateTime.UtcNow.Ticks}";
+            _logger.LogError(ex, "Blog post olusturma hatasi. AuthorId: {AuthorId}, CategoryId: {CategoryId}, Title: {Title}", 
+                authorId, dto.CategoryId, dto.Title);
+            throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
         }
-
-        var readingTime = CalculateReadingTime(dto.Content);
-
-        var post = new BlogPost
-        {
-            CategoryId = dto.CategoryId,
-            AuthorId = authorId,
-            Title = dto.Title,
-            Slug = slug,
-            Excerpt = dto.Excerpt,
-            Content = dto.Content,
-            FeaturedImageUrl = dto.FeaturedImageUrl,
-            Status = Enum.TryParse<ContentStatus>(dto.Status, true, out var statusEnum) ? statusEnum : ContentStatus.Draft,
-            Tags = dto.Tags != null ? string.Join(",", dto.Tags) : null,
-            IsFeatured = dto.IsFeatured,
-            AllowComments = dto.AllowComments,
-            MetaTitle = dto.MetaTitle,
-            MetaDescription = dto.MetaDescription,
-            MetaKeywords = dto.MetaKeywords,
-            OgImageUrl = dto.OgImageUrl,
-            ReadingTimeMinutes = readingTime,
-            PublishedAt = (Enum.TryParse<ContentStatus>(dto.Status, true, out var status) && status == ContentStatus.Published) ? DateTime.UtcNow : null
-        };
-
-        await _context.Set<BlogPost>().AddAsync(post, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return _mapper.Map<BlogPostDto>(post);
     }
 
     public async Task<BlogPostDto?> GetPostByIdAsync(Guid id, bool trackView = false, CancellationToken cancellationToken = default)
@@ -287,8 +318,13 @@ public class BlogService : IBlogService
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
     public async Task<IEnumerable<BlogPostDto>> GetFeaturedPostsAsync(int count = 5, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Configuration'dan max limit
+        if (count > _contentSettings.MaxFeaturedPostsCount)
+            count = _contentSettings.MaxFeaturedPostsCount;
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var posts = await _context.Set<BlogPost>()
             .AsNoTracking()
@@ -309,6 +345,10 @@ public class BlogService : IBlogService
 
     public async Task<IEnumerable<BlogPostDto>> GetRecentPostsAsync(int count = 10, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Configuration'dan max limit
+        if (count > _contentSettings.MaxRecentPostsCount)
+            count = _contentSettings.MaxRecentPostsCount;
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var posts = await _context.Set<BlogPost>()
             .AsNoTracking()
@@ -642,11 +682,12 @@ public class BlogService : IBlogService
         return slug.Trim('-');
     }
 
+    // ✅ BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
     private int CalculateReadingTime(string content)
     {
-        // Average reading speed: 200 words per minute
+        // ✅ BOLUM 2.3: Configuration'dan al (hardcoded 200 YASAK)
         var wordCount = content.Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).Length;
-        return Math.Max(1, wordCount / 200);
+        return Math.Max(1, wordCount / _contentSettings.AverageReadingSpeedWordsPerMinute);
     }
 
     private BlogCategoryDto MapToCategoryDtoWithAutoMapper(BlogCategory category, Dictionary<Guid, int>? postCounts = null)

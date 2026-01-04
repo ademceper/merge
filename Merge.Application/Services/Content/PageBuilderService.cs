@@ -28,28 +28,42 @@ public class PageBuilderService : IPageBuilderService
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<PageBuilderDto> CreatePageAsync(CreatePageBuilderDto dto, CancellationToken cancellationToken = default)
     {
-        var page = new PageBuilder
+        _logger.LogInformation("Page builder sayfasi olusturuluyor. Name: {Name}, AuthorId: {AuthorId}", dto.Name, dto.AuthorId);
+
+        try
         {
-            Name = dto.Name,
-            Slug = dto.Slug,
-            Title = dto.Title,
-            Content = dto.Content,
-            Template = dto.Template,
-            Status = ContentStatus.Draft,
-            AuthorId = dto.AuthorId,
-            PageType = dto.PageType,
-            RelatedEntityId = dto.RelatedEntityId,
-            MetaTitle = dto.MetaTitle,
-            MetaDescription = dto.MetaDescription,
-            OgImageUrl = dto.OgImageUrl
-        };
+            var page = new PageBuilder
+            {
+                Name = dto.Name,
+                Slug = dto.Slug,
+                Title = dto.Title,
+                Content = dto.Content,
+                Template = dto.Template,
+                Status = ContentStatus.Draft,
+                AuthorId = dto.AuthorId,
+                PageType = dto.PageType,
+                RelatedEntityId = dto.RelatedEntityId,
+                MetaTitle = dto.MetaTitle,
+                MetaDescription = dto.MetaDescription,
+                OgImageUrl = dto.OgImageUrl
+            };
 
-        await _context.PageBuilders.AddAsync(page, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _context.PageBuilders.AddAsync(page, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return _mapper.Map<PageBuilderDto>(page);
+            _logger.LogInformation("Page builder sayfasi olusturuldu. PageId: {PageId}, Name: {Name}", page.Id, page.Name);
+
+            return _mapper.Map<PageBuilderDto>(page);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Page builder sayfasi olusturma hatasi. Name: {Name}, AuthorId: {AuthorId}", dto.Name, dto.AuthorId);
+            throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
+        }
     }
 
     public async Task<PageBuilderDto?> GetPageAsync(Guid id, CancellationToken cancellationToken = default)
@@ -111,26 +125,45 @@ public class PageBuilderService : IPageBuilderService
         };
     }
 
+    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<bool> UpdatePageAsync(Guid id, UpdatePageBuilderDto dto, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var page = await _context.PageBuilders
-            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+        _logger.LogInformation("Page builder sayfasi guncelleniyor. PageId: {PageId}, Name: {Name}", id, dto.Name);
 
-        if (page == null) return false;
+        try
+        {
+            // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
+            var page = await _context.PageBuilders
+                .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
-        if (!string.IsNullOrEmpty(dto.Name)) page.Name = dto.Name;
-        if (!string.IsNullOrEmpty(dto.Slug)) page.Slug = dto.Slug;
-        if (!string.IsNullOrEmpty(dto.Title)) page.Title = dto.Title;
-        if (!string.IsNullOrEmpty(dto.Content)) page.Content = dto.Content;
-        if (dto.Template != null) page.Template = dto.Template;
-        if (dto.MetaTitle != null) page.MetaTitle = dto.MetaTitle;
-        if (dto.MetaDescription != null) page.MetaDescription = dto.MetaDescription;
-        if (dto.OgImageUrl != null) page.OgImageUrl = dto.OgImageUrl;
-        page.UpdatedAt = DateTime.UtcNow;
+            if (page == null)
+            {
+                _logger.LogWarning("Page builder sayfasi bulunamadi. PageId: {PageId}", id);
+                return false;
+            }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return true;
+            if (!string.IsNullOrEmpty(dto.Name)) page.Name = dto.Name;
+            if (!string.IsNullOrEmpty(dto.Slug)) page.Slug = dto.Slug;
+            if (!string.IsNullOrEmpty(dto.Title)) page.Title = dto.Title;
+            if (!string.IsNullOrEmpty(dto.Content)) page.Content = dto.Content;
+            if (dto.Template != null) page.Template = dto.Template;
+            if (dto.MetaTitle != null) page.MetaTitle = dto.MetaTitle;
+            if (dto.MetaDescription != null) page.MetaDescription = dto.MetaDescription;
+            if (dto.OgImageUrl != null) page.OgImageUrl = dto.OgImageUrl;
+            page.UpdatedAt = DateTime.UtcNow;
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Page builder sayfasi guncellendi. PageId: {PageId}, Name: {Name}", page.Id, page.Name);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Page builder sayfasi guncelleme hatasi. PageId: {PageId}, Name: {Name}", id, dto.Name);
+            throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
+        }
     }
 
     public async Task<bool> DeletePageAsync(Guid id, CancellationToken cancellationToken = default)

@@ -21,7 +21,7 @@ public class BannersController : BaseController
     /// Aktif banner'ları getirir
     /// </summary>
     [HttpGet]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(PagedResult<BannerDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -44,7 +44,7 @@ public class BannersController : BaseController
     /// </summary>
     [HttpGet("all")]
     [Authorize(Roles = "Admin")]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(PagedResult<BannerDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -67,7 +67,7 @@ public class BannersController : BaseController
     /// Banner detaylarını getirir
     /// </summary>
     [HttpGet("{id}")]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(BannerDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]

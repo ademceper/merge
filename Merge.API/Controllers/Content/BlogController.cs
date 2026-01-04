@@ -26,7 +26,7 @@ public class BlogController : BaseController
     /// </summary>
     [HttpGet("categories")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(IEnumerable<BlogCategoryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<IEnumerable<BlogCategoryDto>>> GetAllCategories(
@@ -44,7 +44,7 @@ public class BlogController : BaseController
     /// </summary>
     [HttpGet("categories/{id}")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(BlogCategoryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -66,7 +66,7 @@ public class BlogController : BaseController
     /// </summary>
     [HttpGet("categories/slug/{slug}")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(BlogCategoryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -165,7 +165,7 @@ public class BlogController : BaseController
     /// </summary>
     [HttpGet("posts")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(PagedResult<BlogPostDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -196,7 +196,7 @@ public class BlogController : BaseController
     /// </summary>
     [HttpGet("posts/{id}")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(BlogPostDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -219,7 +219,7 @@ public class BlogController : BaseController
     /// </summary>
     [HttpGet("posts/slug/{slug}")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(BlogPostDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -242,7 +242,7 @@ public class BlogController : BaseController
     /// </summary>
     [HttpGet("posts/featured")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(IEnumerable<BlogPostDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<IEnumerable<BlogPostDto>>> GetFeaturedPosts(
@@ -261,7 +261,7 @@ public class BlogController : BaseController
     /// </summary>
     [HttpGet("posts/recent")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(IEnumerable<BlogPostDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<IEnumerable<BlogPostDto>>> GetRecentPosts(
@@ -280,7 +280,7 @@ public class BlogController : BaseController
     /// </summary>
     [HttpGet("posts/search")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(PagedResult<BlogPostDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -343,6 +343,27 @@ public class BlogController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Writer sadece kendi post'larını güncelleyebilmeli
+        var post = await _blogService.GetPostByIdAsync(id, false, cancellationToken);
+        if (post == null)
+        {
+            return NotFound();
+        }
+
+        // Writer rolü sadece kendi post'larını güncelleyebilir (Admin ve Manager hariç)
+        if (User.IsInRole("Writer") && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
+        {
+            if (post.AuthorId != userId)
+            {
+                return Forbid();
+            }
+        }
+
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var success = await _blogService.UpdatePostAsync(id, dto, cancellationToken);
         if (!success)
@@ -367,6 +388,27 @@ public class BlogController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi post'larını silebilmeli (Admin hariç)
+        var post = await _blogService.GetPostByIdAsync(id, false, cancellationToken);
+        if (post == null)
+        {
+            return NotFound();
+        }
+
+        // Manager rolü sadece kendi post'larını silebilir (Admin hariç)
+        if (User.IsInRole("Manager") && !User.IsInRole("Admin"))
+        {
+            if (post.AuthorId != userId)
+            {
+                return Forbid();
+            }
+        }
+
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var success = await _blogService.DeletePostAsync(id, cancellationToken);
         if (!success)
@@ -391,6 +433,27 @@ public class BlogController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi post'larını yayınlayabilmeli (Admin hariç)
+        var post = await _blogService.GetPostByIdAsync(id, false, cancellationToken);
+        if (post == null)
+        {
+            return NotFound();
+        }
+
+        // Manager rolü sadece kendi post'larını yayınlayabilir (Admin hariç)
+        if (User.IsInRole("Manager") && !User.IsInRole("Admin"))
+        {
+            if (post.AuthorId != userId)
+            {
+                return Forbid();
+            }
+        }
+
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var success = await _blogService.PublishPostAsync(id, cancellationToken);
         if (!success)
@@ -406,7 +469,7 @@ public class BlogController : BaseController
     /// </summary>
     [HttpGet("posts/{postId}/comments")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(PagedResult<BlogCommentDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -507,7 +570,7 @@ public class BlogController : BaseController
     /// </summary>
     [HttpGet("analytics")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(MaxRequests = 30, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
     [ProducesResponseType(typeof(BlogAnalyticsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]

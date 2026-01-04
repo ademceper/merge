@@ -47,13 +47,21 @@ public class BannerService : IBannerService
     public async Task<IEnumerable<BannerDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         var banners = await _context.Banners
             .AsNoTracking()
             .OrderBy(b => b.Position)
             .ThenBy(b => b.SortOrder)
+            .Take(500) // ✅ Güvenlik: Maksimum 500 banner
             .ToListAsync(cancellationToken);
 
-        return _mapper.Map<IEnumerable<BannerDto>>(banners);
+        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
+        var result = new List<BannerDto>(banners.Count);
+        foreach (var banner in banners)
+        {
+            result.Add(_mapper.Map<BannerDto>(banner));
+        }
+        return result;
     }
 
     public async Task<PagedResult<BannerDto>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken = default)
@@ -81,6 +89,7 @@ public class BannerService : IBannerService
     public async Task<IEnumerable<BannerDto>> GetActiveBannersAsync(string? position = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         var now = DateTime.UtcNow;
         var query = _context.Banners
             .AsNoTracking()
@@ -95,9 +104,16 @@ public class BannerService : IBannerService
 
         var banners = await query
             .OrderBy(b => b.SortOrder)
+            .Take(200) // ✅ Güvenlik: Maksimum 200 aktif banner
             .ToListAsync(cancellationToken);
 
-        return _mapper.Map<IEnumerable<BannerDto>>(banners);
+        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
+        var result = new List<BannerDto>(banners.Count);
+        foreach (var banner in banners)
+        {
+            result.Add(_mapper.Map<BannerDto>(banner));
+        }
+        return result;
     }
 
     public async Task<PagedResult<BannerDto>> GetActiveBannersAsync(string? position, int page, int pageSize, CancellationToken cancellationToken = default)
@@ -130,6 +146,8 @@ public class BannerService : IBannerService
         };
     }
 
+    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<BannerDto> CreateAsync(CreateBannerDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
@@ -137,12 +155,27 @@ public class BannerService : IBannerService
             throw new ArgumentNullException(nameof(dto));
         }
 
-        var banner = _mapper.Map<Banner>(dto);
-        banner = await _bannerRepository.AddAsync(banner);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return _mapper.Map<BannerDto>(banner);
+        _logger.LogInformation("Banner olusturuluyor. Title: {Title}, Position: {Position}", dto.Title, dto.Position);
+
+        try
+        {
+            var banner = _mapper.Map<Banner>(dto);
+            banner = await _bannerRepository.AddAsync(banner);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Banner olusturuldu. BannerId: {BannerId}, Title: {Title}", banner.Id, banner.Title);
+
+            return _mapper.Map<BannerDto>(banner);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Banner olusturma hatasi. Title: {Title}, Position: {Position}", dto.Title, dto.Position);
+            throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
+        }
     }
 
+    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<BannerDto> UpdateAsync(Guid id, UpdateBannerDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
@@ -150,27 +183,41 @@ public class BannerService : IBannerService
             throw new ArgumentNullException(nameof(dto));
         }
 
-        var banner = await _bannerRepository.GetByIdAsync(id, cancellationToken);
-        if (banner == null)
+        _logger.LogInformation("Banner guncelleniyor. BannerId: {BannerId}, Title: {Title}", id, dto.Title);
+
+        try
         {
-            throw new NotFoundException("Banner", id);
+            var banner = await _bannerRepository.GetByIdAsync(id, cancellationToken);
+            if (banner == null)
+            {
+                _logger.LogWarning("Banner bulunamadi. BannerId: {BannerId}", id);
+                throw new NotFoundException("Banner", id);
+            }
+
+            banner.Title = dto.Title;
+            banner.Description = dto.Description;
+            banner.ImageUrl = dto.ImageUrl;
+            banner.LinkUrl = dto.LinkUrl;
+            banner.Position = dto.Position;
+            banner.SortOrder = dto.SortOrder;
+            banner.IsActive = dto.IsActive;
+            banner.StartDate = dto.StartDate;
+            banner.EndDate = dto.EndDate;
+            banner.CategoryId = dto.CategoryId;
+            banner.ProductId = dto.ProductId;
+
+            await _bannerRepository.UpdateAsync(banner);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Banner guncellendi. BannerId: {BannerId}, Title: {Title}", banner.Id, banner.Title);
+
+            return _mapper.Map<BannerDto>(banner);
         }
-
-        banner.Title = dto.Title;
-        banner.Description = dto.Description;
-        banner.ImageUrl = dto.ImageUrl;
-        banner.LinkUrl = dto.LinkUrl;
-        banner.Position = dto.Position;
-        banner.SortOrder = dto.SortOrder;
-        banner.IsActive = dto.IsActive;
-        banner.StartDate = dto.StartDate;
-        banner.EndDate = dto.EndDate;
-        banner.CategoryId = dto.CategoryId;
-        banner.ProductId = dto.ProductId;
-
-        await _bannerRepository.UpdateAsync(banner);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return _mapper.Map<BannerDto>(banner);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Banner guncelleme hatasi. BannerId: {BannerId}, Title: {Title}", id, dto.Title);
+            throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
+        }
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)

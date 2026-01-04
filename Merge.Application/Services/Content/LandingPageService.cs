@@ -30,40 +30,55 @@ public class LandingPageService : ILandingPageService
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<LandingPageDto> CreateLandingPageAsync(Guid? authorId, CreateLandingPageDto dto, CancellationToken cancellationToken = default)
     {
-        var slug = GenerateSlug(dto.Name);
-        // ✅ PERFORMANCE: Removed manual !lp.IsDeleted (Global Query Filter)
-        if (await _context.Set<LandingPage>().AnyAsync(lp => lp.Slug == slug, cancellationToken))
+        _logger.LogInformation("Landing page olusturuluyor. Name: {Name}, AuthorId: {AuthorId}", dto.Name, authorId);
+
+        try
         {
-            slug = $"{slug}-{DateTime.UtcNow.Ticks}";
+            var slug = GenerateSlug(dto.Name);
+            // ✅ PERFORMANCE: Removed manual !lp.IsDeleted (Global Query Filter)
+            if (await _context.Set<LandingPage>().AnyAsync(lp => lp.Slug == slug, cancellationToken))
+            {
+                slug = $"{slug}-{DateTime.UtcNow.Ticks}";
+            }
+
+            var landingPage = new LandingPage
+            {
+                Name = dto.Name,
+                Slug = slug,
+                Title = dto.Title,
+                Content = dto.Content,
+                Template = dto.Template,
+                Status = Enum.TryParse<ContentStatus>(dto.Status, true, out var statusEnum) ? statusEnum : ContentStatus.Draft,
+                AuthorId = authorId,
+                StartDate = dto.StartDate,
+                EndDate = dto.EndDate,
+                IsActive = true,
+                MetaTitle = dto.MetaTitle,
+                MetaDescription = dto.MetaDescription,
+                OgImageUrl = dto.OgImageUrl,
+                EnableABTesting = dto.EnableABTesting,
+                VariantOfId = dto.VariantOfId,
+                TrafficSplit = dto.TrafficSplit,
+                PublishedAt = (Enum.TryParse<ContentStatus>(dto.Status, true, out var status) && status == ContentStatus.Published) ? DateTime.UtcNow : null
+            };
+
+            await _context.Set<LandingPage>().AddAsync(landingPage, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Landing page olusturuldu. LandingPageId: {LandingPageId}, Name: {Name}, Slug: {Slug}", 
+                landingPage.Id, landingPage.Name, landingPage.Slug);
+
+            return _mapper.Map<LandingPageDto>(landingPage);
         }
-
-        var landingPage = new LandingPage
+        catch (Exception ex)
         {
-            Name = dto.Name,
-            Slug = slug,
-            Title = dto.Title,
-            Content = dto.Content,
-            Template = dto.Template,
-            Status = Enum.TryParse<ContentStatus>(dto.Status, true, out var statusEnum) ? statusEnum : ContentStatus.Draft,
-            AuthorId = authorId,
-            StartDate = dto.StartDate,
-            EndDate = dto.EndDate,
-            IsActive = true,
-            MetaTitle = dto.MetaTitle,
-            MetaDescription = dto.MetaDescription,
-            OgImageUrl = dto.OgImageUrl,
-            EnableABTesting = dto.EnableABTesting,
-            VariantOfId = dto.VariantOfId,
-            TrafficSplit = dto.TrafficSplit,
-            PublishedAt = (Enum.TryParse<ContentStatus>(dto.Status, true, out var status) && status == ContentStatus.Published) ? DateTime.UtcNow : null
-        };
-
-        await _context.Set<LandingPage>().AddAsync(landingPage, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return _mapper.Map<LandingPageDto>(landingPage);
+            _logger.LogError(ex, "Landing page olusturma hatasi. Name: {Name}, AuthorId: {AuthorId}", dto.Name, authorId);
+            throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
+        }
     }
 
     public async Task<LandingPageDto?> GetLandingPageByIdAsync(Guid id, CancellationToken cancellationToken = default)

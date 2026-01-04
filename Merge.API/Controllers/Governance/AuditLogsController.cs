@@ -4,7 +4,7 @@ using System.Security.Claims;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Governance;
 using Merge.Application.DTOs.Security;
-
+using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Governance;
 
@@ -21,12 +21,23 @@ public class AuditLogsController : BaseController
     }
 
     /// <summary>
-    /// Create an audit log entry
+    /// Audit log entry oluşturur
     /// </summary>
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> CreateAuditLog([FromBody] CreateAuditLogDto auditDto)
+    [RateLimit(100, 60)] // ✅ BOLUM 3.3: Rate Limiting - 100/dakika (audit logging için yüksek limit)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> CreateAuditLog(
+        [FromBody] CreateAuditLogDto auditDto,
+        CancellationToken cancellationToken = default)
     {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
         var userAgent = Request.Headers["User-Agent"].ToString();
 
@@ -41,17 +52,27 @@ public class AuditLogsController : BaseController
             auditDto.UserEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
         }
 
-        await _auditLogService.LogAsync(auditDto, ipAddress, userAgent);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        await _auditLogService.LogAsync(auditDto, ipAddress, userAgent, cancellationToken);
         return Ok();
     }
 
     /// <summary>
-    /// Get audit log by ID
+    /// Audit log detaylarını getirir
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<AuditLogDto>> GetAuditById(Guid id)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(AuditLogDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<AuditLogDto>> GetAuditById(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
-        var audit = await _auditLogService.GetAuditByIdAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var audit = await _auditLogService.GetAuditByIdAsync(id, cancellationToken);
 
         if (audit == null)
         {
@@ -62,25 +83,48 @@ public class AuditLogsController : BaseController
     }
 
     /// <summary>
-    /// Get audit logs with filtering
+    /// Audit log'ları filtreleyerek getirir (sayfalanmış)
     /// </summary>
     [HttpPost("search")]
-    public async Task<ActionResult<IEnumerable<AuditLogDto>>> SearchAuditLogs(
-        [FromBody] AuditLogFilterDto filter)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(PagedResult<AuditLogDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PagedResult<AuditLogDto>>> SearchAuditLogs(
+        [FromBody] AuditLogFilterDto filter,
+        CancellationToken cancellationToken = default)
     {
-        var audits = await _auditLogService.GetAuditLogsAsync(filter);
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (filter.PageSize > 100) filter.PageSize = 100;
+        if (filter.PageNumber < 1) filter.PageNumber = 1;
+
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var audits = await _auditLogService.GetAuditLogsAsync(filter, cancellationToken);
         return Ok(audits);
     }
 
     /// <summary>
-    /// Get entity audit history
+    /// Entity audit geçmişini getirir
     /// </summary>
     [HttpGet("entity/{entityType}/{entityId}")]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(EntityAuditHistoryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<EntityAuditHistoryDto>> GetEntityHistory(
         string entityType,
-        Guid entityId)
+        Guid entityId,
+        CancellationToken cancellationToken = default)
     {
-        var history = await _auditLogService.GetEntityHistoryAsync(entityType, entityId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var history = await _auditLogService.GetEntityHistoryAsync(entityType, entityId, cancellationToken);
 
         if (history == null)
         {
@@ -91,57 +135,101 @@ public class AuditLogsController : BaseController
     }
 
     /// <summary>
-    /// Get audit statistics
+    /// Audit istatistiklerini getirir
     /// </summary>
     [HttpGet("stats")]
-    public async Task<ActionResult<AuditStatsDto>> GetAuditStats([FromQuery] int days = 30)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(AuditStatsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<AuditStatsDto>> GetAuditStats(
+        [FromQuery] int days = 30,
+        CancellationToken cancellationToken = default)
     {
-        var stats = await _auditLogService.GetAuditStatsAsync(days);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var stats = await _auditLogService.GetAuditStatsAsync(days, cancellationToken);
         return Ok(stats);
     }
 
     /// <summary>
-    /// Get user audit history
+    /// Kullanıcı audit geçmişini getirir
     /// </summary>
     [HttpGet("user/{userId}")]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(IEnumerable<AuditLogDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<IEnumerable<AuditLogDto>>> GetUserAuditHistory(
         Guid userId,
-        [FromQuery] int days = 30)
+        [FromQuery] int days = 30,
+        CancellationToken cancellationToken = default)
     {
-        var audits = await _auditLogService.GetUserAuditHistoryAsync(userId, days);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var audits = await _auditLogService.GetUserAuditHistoryAsync(userId, days, cancellationToken);
         return Ok(audits);
     }
 
     /// <summary>
-    /// Get my audit history
+    /// Kendi audit geçmişini getirir
     /// </summary>
     [HttpGet("my-history")]
     [Authorize]
-    public async Task<ActionResult<IEnumerable<AuditLogDto>>> GetMyAuditHistory([FromQuery] int days = 30)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(IEnumerable<AuditLogDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<IEnumerable<AuditLogDto>>> GetMyAuditHistory(
+        [FromQuery] int days = 30,
+        CancellationToken cancellationToken = default)
     {
-        var userId = GetUserId();
-        var audits = await _auditLogService.GetUserAuditHistoryAsync(userId, days);
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi audit geçmişini görebilir
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var audits = await _auditLogService.GetUserAuditHistoryAsync(userId, days, cancellationToken);
         return Ok(audits);
     }
 
     /// <summary>
-    /// Compare old and new values in an audit log
+    /// Audit log değişikliklerini karşılaştırır
     /// </summary>
     [HttpGet("{auditLogId}/compare")]
-    public async Task<ActionResult<IEnumerable<AuditComparisonDto>>> CompareChanges(Guid auditLogId)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(IEnumerable<AuditComparisonDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<IEnumerable<AuditComparisonDto>>> CompareChanges(
+        Guid auditLogId,
+        CancellationToken cancellationToken = default)
     {
-        var comparisons = await _auditLogService.CompareChangesAsync(auditLogId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var comparisons = await _auditLogService.CompareChangesAsync(auditLogId, cancellationToken);
         return Ok(comparisons);
     }
 
     /// <summary>
-    /// Delete old audit logs (Admin only)
+    /// Eski audit log'ları siler (Admin only)
     /// </summary>
     [HttpDelete("cleanup")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> DeleteOldAuditLogs([FromQuery] int daysToKeep = 365)
+    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5/dakika (tehlikeli işlem)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> DeleteOldAuditLogs(
+        [FromQuery] int daysToKeep = 365,
+        CancellationToken cancellationToken = default)
     {
-        await _auditLogService.DeleteOldAuditLogsAsync(daysToKeep);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        await _auditLogService.DeleteOldAuditLogsAsync(daysToKeep, cancellationToken);
         return Ok(new { message = $"Audit logs older than {daysToKeep} days deleted successfully" });
     }
 }

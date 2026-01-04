@@ -36,7 +36,13 @@ public class CreateSEOSettingsDto
     [StringLength(50)]
     public string? TwitterCard { get; set; }
     
-    public Dictionary<string, object>? StructuredData { get; set; }
+    // ✅ BOLUM 4.3: Over-Posting Koruması - Dictionary&lt;string, object&gt; YASAK, Typed DTO kullan
+    // StructuredData JSON-LD formatında string olarak saklanır (güvenlik için)
+    [StringLength(10000, ErrorMessage = "Structured data en fazla 10000 karakter olabilir.")]
+    public string? StructuredDataJson { get; set; } // JSON string olarak saklanır
+    
+    // Alternatif: Typed DTO (daha güvenli ama daha az esnek)
+    // public StructuredDataDto? StructuredData { get; set; }
     
     public bool IsIndexed { get; set; } = true;
     

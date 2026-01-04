@@ -29,56 +29,69 @@ public class LanguageService : ILanguageService
 
     #region Language Management
 
-    public async Task<IEnumerable<LanguageDto>> GetAllLanguagesAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+    public async Task<IEnumerable<LanguageDto>> GetAllLanguagesAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !l.IsDeleted (Global Query Filter)
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         var languages = await _context.Set<Language>()
             .AsNoTracking()
             .OrderBy(l => l.Name)
-            .ToListAsync();
+            .Take(200) // ✅ Güvenlik: Maksimum 200 dil
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper'ın Map<IEnumerable<T>> metodunu kullan
         return _mapper.Map<IEnumerable<LanguageDto>>(languages);
     }
 
-    public async Task<IEnumerable<LanguageDto>> GetActiveLanguagesAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+    public async Task<IEnumerable<LanguageDto>> GetActiveLanguagesAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !l.IsDeleted (Global Query Filter)
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         var languages = await _context.Set<Language>()
             .AsNoTracking()
             .Where(l => l.IsActive)
             .OrderBy(l => l.Name)
-            .ToListAsync();
+            .Take(100) // ✅ Güvenlik: Maksimum 100 aktif dil
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper'ın Map<IEnumerable<T>> metodunu kullan
         return _mapper.Map<IEnumerable<LanguageDto>>(languages);
     }
 
-    public async Task<LanguageDto?> GetLanguageByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<LanguageDto?> GetLanguageByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !l.IsDeleted (Global Query Filter)
         var language = await _context.Set<Language>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(l => l.Id == id);
+            .FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return language != null ? _mapper.Map<LanguageDto>(language) : null;
     }
 
-    public async Task<LanguageDto?> GetLanguageByCodeAsync(string code)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<LanguageDto?> GetLanguageByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !l.IsDeleted (Global Query Filter)
         var language = await _context.Set<Language>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(l => l.Code.ToLower() == code.ToLower());
+            .FirstOrDefaultAsync(l => l.Code.ToLower() == code.ToLower(), cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return language != null ? _mapper.Map<LanguageDto>(language) : null;
     }
 
-    public async Task<LanguageDto> CreateLanguageAsync(CreateLanguageDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<LanguageDto> CreateLanguageAsync(CreateLanguageDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
@@ -95,50 +108,64 @@ public class LanguageService : ILanguageService
             throw new ValidationException("Dil adı boş olamaz.");
         }
 
-        // ✅ PERFORMANCE: Removed manual !l.IsDeleted (Global Query Filter)
-        var exists = await _context.Set<Language>()
-            .AnyAsync(l => l.Code.ToLower() == dto.Code.ToLower());
+        _logger.LogInformation("Dil olusturuluyor. Code: {Code}, Name: {Name}", dto.Code, dto.Name);
 
-        if (exists)
-        {
-            throw new BusinessException($"Bu dil kodu zaten mevcut: {dto.Code}");
-        }
-
-        if (dto.IsDefault)
+        try
         {
             // ✅ PERFORMANCE: Removed manual !l.IsDeleted (Global Query Filter)
-            var currentDefault = await _context.Set<Language>()
-                .FirstOrDefaultAsync(l => l.IsDefault);
+            var exists = await _context.Set<Language>()
+                .AnyAsync(l => l.Code.ToLower() == dto.Code.ToLower(), cancellationToken);
 
-            if (currentDefault != null)
+            if (exists)
             {
-                currentDefault.IsDefault = false;
+                _logger.LogWarning("Dil kodu zaten mevcut. Code: {Code}", dto.Code);
+                throw new BusinessException($"Bu dil kodu zaten mevcut: {dto.Code}");
             }
+
+            if (dto.IsDefault)
+            {
+                // ✅ PERFORMANCE: Removed manual !l.IsDeleted (Global Query Filter)
+                var currentDefault = await _context.Set<Language>()
+                    .FirstOrDefaultAsync(l => l.IsDefault, cancellationToken);
+
+                if (currentDefault != null)
+                {
+                    currentDefault.IsDefault = false;
+                }
+            }
+
+            var language = new Language
+            {
+                Code = dto.Code.ToLower(),
+                Name = dto.Name,
+                NativeName = dto.NativeName,
+                IsDefault = dto.IsDefault,
+                IsActive = dto.IsActive,
+                IsRTL = dto.IsRTL,
+                FlagIcon = dto.FlagIcon
+            };
+
+            await _context.Set<Language>().AddAsync(language, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Dil olusturuldu. LanguageId: {LanguageId}, Code: {Code}", language.Id, language.Code);
+
+            // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+            return _mapper.Map<LanguageDto>(language);
         }
-
-        var language = new Language
+        catch (Exception ex)
         {
-            Code = dto.Code.ToLower(),
-            Name = dto.Name,
-            NativeName = dto.NativeName,
-            IsDefault = dto.IsDefault,
-            IsActive = dto.IsActive,
-            IsRTL = dto.IsRTL,
-            FlagIcon = dto.FlagIcon
-        };
-
-        await _context.Set<Language>().AddAsync(language);
-        await _unitOfWork.SaveChangesAsync();
-
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<LanguageDto>(language);
+            _logger.LogError(ex, "Dil olusturma hatasi. Code: {Code}, Name: {Name}", dto.Code, dto.Name);
+            throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
+        }
     }
 
-    public async Task<LanguageDto> UpdateLanguageAsync(Guid id, UpdateLanguageDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<LanguageDto> UpdateLanguageAsync(Guid id, UpdateLanguageDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !l.IsDeleted (Global Query Filter)
         var language = await _context.Set<Language>()
-            .FirstOrDefaultAsync(l => l.Id == id);
+            .FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
 
         if (language == null)
         {
@@ -151,17 +178,18 @@ public class LanguageService : ILanguageService
         language.IsRTL = dto.IsRTL;
         language.FlagIcon = dto.FlagIcon;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<LanguageDto>(language);
     }
 
-    public async Task DeleteLanguageAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task DeleteLanguageAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !l.IsDeleted (Global Query Filter)
         var language = await _context.Set<Language>()
-            .FirstOrDefaultAsync(l => l.Id == id);
+            .FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
 
         if (language == null)
         {
@@ -174,18 +202,19 @@ public class LanguageService : ILanguageService
         }
 
         language.IsDeleted = true;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     #endregion
 
     #region Product Translations
 
-    public async Task<ProductTranslationDto> CreateProductTranslationAsync(CreateProductTranslationDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ProductTranslationDto> CreateProductTranslationAsync(CreateProductTranslationDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !l.IsDeleted (Global Query Filter)
         var language = await _context.Set<Language>()
-            .FirstOrDefaultAsync(l => l.Code.ToLower() == dto.LanguageCode.ToLower());
+            .FirstOrDefaultAsync(l => l.Code.ToLower() == dto.LanguageCode.ToLower(), cancellationToken);
 
         if (language == null)
         {
@@ -195,7 +224,7 @@ public class LanguageService : ILanguageService
         // ✅ PERFORMANCE: Removed manual !pt.IsDeleted (Global Query Filter)
         var exists = await _context.Set<ProductTranslation>()
             .AnyAsync(pt => pt.ProductId == dto.ProductId &&
-                           pt.LanguageCode.ToLower() == dto.LanguageCode.ToLower());
+                           pt.LanguageCode.ToLower() == dto.LanguageCode.ToLower(), cancellationToken);
 
         if (exists)
         {
@@ -215,18 +244,19 @@ public class LanguageService : ILanguageService
             MetaKeywords = dto.MetaKeywords
         };
 
-        await _context.Set<ProductTranslation>().AddAsync(translation);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<ProductTranslation>().AddAsync(translation, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<ProductTranslationDto>(translation);
     }
 
-    public async Task<ProductTranslationDto> UpdateProductTranslationAsync(Guid id, CreateProductTranslationDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ProductTranslationDto> UpdateProductTranslationAsync(Guid id, CreateProductTranslationDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !pt.IsDeleted (Global Query Filter)
         var translation = await _context.Set<ProductTranslation>()
-            .FirstOrDefaultAsync(pt => pt.Id == id);
+            .FirstOrDefaultAsync(pt => pt.Id == id, cancellationToken);
 
         if (translation == null)
         {
@@ -240,42 +270,48 @@ public class LanguageService : ILanguageService
         translation.MetaDescription = dto.MetaDescription;
         translation.MetaKeywords = dto.MetaKeywords;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<ProductTranslationDto>(translation);
     }
 
-    public async Task<IEnumerable<ProductTranslationDto>> GetProductTranslationsAsync(Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+    public async Task<IEnumerable<ProductTranslationDto>> GetProductTranslationsAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pt.IsDeleted (Global Query Filter)
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         var translations = await _context.Set<ProductTranslation>()
             .AsNoTracking()
             .Where(pt => pt.ProductId == productId)
-            .ToListAsync();
+            .Take(50) // ✅ Güvenlik: Maksimum 50 çeviri
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper'ın Map<IEnumerable<T>> metodunu kullan
         return _mapper.Map<IEnumerable<ProductTranslationDto>>(translations);
     }
 
-    public async Task<ProductTranslationDto?> GetProductTranslationAsync(Guid productId, string languageCode)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ProductTranslationDto?> GetProductTranslationAsync(Guid productId, string languageCode, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pt.IsDeleted (Global Query Filter)
         var translation = await _context.Set<ProductTranslation>()
             .AsNoTracking()
             .FirstOrDefaultAsync(pt => pt.ProductId == productId &&
-                                      pt.LanguageCode.ToLower() == languageCode.ToLower());
+                                      pt.LanguageCode.ToLower() == languageCode.ToLower(), cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return translation != null ? _mapper.Map<ProductTranslationDto>(translation) : null;
     }
 
-    public async Task DeleteProductTranslationAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task DeleteProductTranslationAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !pt.IsDeleted (Global Query Filter)
         var translation = await _context.Set<ProductTranslation>()
-            .FirstOrDefaultAsync(pt => pt.Id == id);
+            .FirstOrDefaultAsync(pt => pt.Id == id, cancellationToken);
 
         if (translation == null)
         {
@@ -283,18 +319,19 @@ public class LanguageService : ILanguageService
         }
 
         translation.IsDeleted = true;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     #endregion
 
     #region Category Translations
 
-    public async Task<CategoryTranslationDto> CreateCategoryTranslationAsync(CreateCategoryTranslationDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<CategoryTranslationDto> CreateCategoryTranslationAsync(CreateCategoryTranslationDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !l.IsDeleted (Global Query Filter)
         var language = await _context.Set<Language>()
-            .FirstOrDefaultAsync(l => l.Code.ToLower() == dto.LanguageCode.ToLower());
+            .FirstOrDefaultAsync(l => l.Code.ToLower() == dto.LanguageCode.ToLower(), cancellationToken);
 
         if (language == null)
         {
@@ -304,7 +341,7 @@ public class LanguageService : ILanguageService
         // ✅ PERFORMANCE: Removed manual !ct.IsDeleted (Global Query Filter)
         var exists = await _context.Set<CategoryTranslation>()
             .AnyAsync(ct => ct.CategoryId == dto.CategoryId &&
-                           ct.LanguageCode.ToLower() == dto.LanguageCode.ToLower());
+                           ct.LanguageCode.ToLower() == dto.LanguageCode.ToLower(), cancellationToken);
 
         if (exists)
         {
@@ -320,18 +357,19 @@ public class LanguageService : ILanguageService
             Description = dto.Description
         };
 
-        await _context.Set<CategoryTranslation>().AddAsync(translation);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<CategoryTranslation>().AddAsync(translation, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<CategoryTranslationDto>(translation);
     }
 
-    public async Task<CategoryTranslationDto> UpdateCategoryTranslationAsync(Guid id, CreateCategoryTranslationDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<CategoryTranslationDto> UpdateCategoryTranslationAsync(Guid id, CreateCategoryTranslationDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !ct.IsDeleted (Global Query Filter)
         var translation = await _context.Set<CategoryTranslation>()
-            .FirstOrDefaultAsync(ct => ct.Id == id);
+            .FirstOrDefaultAsync(ct => ct.Id == id, cancellationToken);
 
         if (translation == null)
         {
@@ -341,42 +379,48 @@ public class LanguageService : ILanguageService
         translation.Name = dto.Name;
         translation.Description = dto.Description;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<CategoryTranslationDto>(translation);
     }
 
-    public async Task<IEnumerable<CategoryTranslationDto>> GetCategoryTranslationsAsync(Guid categoryId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+    public async Task<IEnumerable<CategoryTranslationDto>> GetCategoryTranslationsAsync(Guid categoryId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !ct.IsDeleted (Global Query Filter)
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         var translations = await _context.Set<CategoryTranslation>()
             .AsNoTracking()
             .Where(ct => ct.CategoryId == categoryId)
-            .ToListAsync();
+            .Take(50) // ✅ Güvenlik: Maksimum 50 çeviri
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper'ın Map<IEnumerable<T>> metodunu kullan
         return _mapper.Map<IEnumerable<CategoryTranslationDto>>(translations);
     }
 
-    public async Task<CategoryTranslationDto?> GetCategoryTranslationAsync(Guid categoryId, string languageCode)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<CategoryTranslationDto?> GetCategoryTranslationAsync(Guid categoryId, string languageCode, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !ct.IsDeleted (Global Query Filter)
         var translation = await _context.Set<CategoryTranslation>()
             .AsNoTracking()
             .FirstOrDefaultAsync(ct => ct.CategoryId == categoryId &&
-                                      ct.LanguageCode.ToLower() == languageCode.ToLower());
+                                      ct.LanguageCode.ToLower() == languageCode.ToLower(), cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return translation != null ? _mapper.Map<CategoryTranslationDto>(translation) : null;
     }
 
-    public async Task DeleteCategoryTranslationAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task DeleteCategoryTranslationAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !ct.IsDeleted (Global Query Filter)
         var translation = await _context.Set<CategoryTranslation>()
-            .FirstOrDefaultAsync(ct => ct.Id == id);
+            .FirstOrDefaultAsync(ct => ct.Id == id, cancellationToken);
 
         if (translation == null)
         {
@@ -384,18 +428,19 @@ public class LanguageService : ILanguageService
         }
 
         translation.IsDeleted = true;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     #endregion
 
     #region Static Translations
 
-    public async Task<StaticTranslationDto> CreateStaticTranslationAsync(CreateStaticTranslationDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<StaticTranslationDto> CreateStaticTranslationAsync(CreateStaticTranslationDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !l.IsDeleted (Global Query Filter)
         var language = await _context.Set<Language>()
-            .FirstOrDefaultAsync(l => l.Code.ToLower() == dto.LanguageCode.ToLower());
+            .FirstOrDefaultAsync(l => l.Code.ToLower() == dto.LanguageCode.ToLower(), cancellationToken);
 
         if (language == null)
         {
@@ -405,7 +450,7 @@ public class LanguageService : ILanguageService
         // ✅ PERFORMANCE: Removed manual !st.IsDeleted (Global Query Filter)
         var exists = await _context.Set<StaticTranslation>()
             .AnyAsync(st => st.Key == dto.Key &&
-                           st.LanguageCode.ToLower() == dto.LanguageCode.ToLower());
+                           st.LanguageCode.ToLower() == dto.LanguageCode.ToLower(), cancellationToken);
 
         if (exists)
         {
@@ -421,18 +466,19 @@ public class LanguageService : ILanguageService
             Category = dto.Category
         };
 
-        await _context.Set<StaticTranslation>().AddAsync(translation);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<StaticTranslation>().AddAsync(translation, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<StaticTranslationDto>(translation);
     }
 
-    public async Task<StaticTranslationDto> UpdateStaticTranslationAsync(Guid id, CreateStaticTranslationDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<StaticTranslationDto> UpdateStaticTranslationAsync(Guid id, CreateStaticTranslationDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !st.IsDeleted (Global Query Filter)
         var translation = await _context.Set<StaticTranslation>()
-            .FirstOrDefaultAsync(st => st.Id == id);
+            .FirstOrDefaultAsync(st => st.Id == id, cancellationToken);
 
         if (translation == null)
         {
@@ -442,15 +488,19 @@ public class LanguageService : ILanguageService
         translation.Value = dto.Value;
         translation.Category = dto.Category;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<StaticTranslationDto>(translation);
     }
 
-    public async Task<Dictionary<string, string>> GetStaticTranslationsAsync(string languageCode, string? category = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+    // ⚠️ NOTE: Dictionary<string, string> burada kabul edilebilir çünkü key-value çiftleri dinamik ve güvenlik riski düşük
+    public async Task<Dictionary<string, string>> GetStaticTranslationsAsync(string languageCode, string? category = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !st.IsDeleted (Global Query Filter)
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         var query = _context.Set<StaticTranslation>()
             .AsNoTracking()
             .Where(st => st.LanguageCode.ToLower() == languageCode.ToLower());
@@ -460,27 +510,32 @@ public class LanguageService : ILanguageService
             query = query.Where(st => st.Category == category);
         }
 
-        var translations = await query.ToDictionaryAsync(st => st.Key, st => st.Value);
+        // ✅ Güvenlik: Maksimum 1000 çeviri
+        var translations = await query
+            .Take(1000)
+            .ToDictionaryAsync(st => st.Key, st => st.Value, cancellationToken);
 
         return translations;
     }
 
-    public async Task<string> GetStaticTranslationAsync(string key, string languageCode)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<string> GetStaticTranslationAsync(string key, string languageCode, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !st.IsDeleted (Global Query Filter)
         var translation = await _context.Set<StaticTranslation>()
             .AsNoTracking()
             .FirstOrDefaultAsync(st => st.Key == key &&
-                                      st.LanguageCode.ToLower() == languageCode.ToLower());
+                                      st.LanguageCode.ToLower() == languageCode.ToLower(), cancellationToken);
 
         return translation?.Value ?? key;
     }
 
-    public async Task DeleteStaticTranslationAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task DeleteStaticTranslationAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !st.IsDeleted (Global Query Filter)
         var translation = await _context.Set<StaticTranslation>()
-            .FirstOrDefaultAsync(st => st.Id == id);
+            .FirstOrDefaultAsync(st => st.Id == id, cancellationToken);
 
         if (translation == null)
         {
@@ -488,14 +543,15 @@ public class LanguageService : ILanguageService
         }
 
         translation.IsDeleted = true;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task BulkCreateStaticTranslationsAsync(BulkTranslationDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task BulkCreateStaticTranslationsAsync(BulkTranslationDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !l.IsDeleted (Global Query Filter)
         var language = await _context.Set<Language>()
-            .FirstOrDefaultAsync(l => l.Code.ToLower() == dto.LanguageCode.ToLower());
+            .FirstOrDefaultAsync(l => l.Code.ToLower() == dto.LanguageCode.ToLower(), cancellationToken);
 
         if (language == null)
         {
@@ -507,33 +563,39 @@ public class LanguageService : ILanguageService
             .AsNoTracking()
             .Where(st => st.LanguageCode.ToLower() == dto.LanguageCode.ToLower())
             .Select(st => st.Key)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
-        var newTranslations = dto.Translations
-            .Where(kvp => !existingKeys.Contains(kvp.Key))
-            .Select(kvp => new StaticTranslation
+        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
+        var newTranslations = new List<StaticTranslation>(dto.Translations.Count);
+        foreach (var kvp in dto.Translations)
+        {
+            if (!existingKeys.Contains(kvp.Key))
             {
-                Key = kvp.Key,
-                LanguageId = language.Id,
-                LanguageCode = language.Code,
-                Value = kvp.Value,
-                Category = "UI"
-            })
-            .ToList();
+                newTranslations.Add(new StaticTranslation
+                {
+                    Key = kvp.Key,
+                    LanguageId = language.Id,
+                    LanguageCode = language.Code,
+                    Value = kvp.Value,
+                    Category = "UI"
+                });
+            }
+        }
 
-        await _context.Set<StaticTranslation>().AddRangeAsync(newTranslations);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<StaticTranslation>().AddRangeAsync(newTranslations, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     #endregion
 
     #region User Preferences
 
-    public async Task SetUserLanguagePreferenceAsync(Guid userId, string languageCode)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task SetUserLanguagePreferenceAsync(Guid userId, string languageCode, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !l.IsDeleted (Global Query Filter)
         var language = await _context.Set<Language>()
-            .FirstOrDefaultAsync(l => l.Code.ToLower() == languageCode.ToLower() && l.IsActive);
+            .FirstOrDefaultAsync(l => l.Code.ToLower() == languageCode.ToLower() && l.IsActive, cancellationToken);
 
         if (language == null)
         {
@@ -542,7 +604,7 @@ public class LanguageService : ILanguageService
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var preference = await _context.Set<UserLanguagePreference>()
-            .FirstOrDefaultAsync(p => p.UserId == userId);
+            .FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
 
         if (preference == null)
         {
@@ -552,7 +614,7 @@ public class LanguageService : ILanguageService
                 LanguageId = language.Id,
                 LanguageCode = language.Code
             };
-            await _context.Set<UserLanguagePreference>().AddAsync(preference);
+            await _context.Set<UserLanguagePreference>().AddAsync(preference, cancellationToken);
         }
         else
         {
@@ -560,15 +622,16 @@ public class LanguageService : ILanguageService
             preference.LanguageCode = language.Code;
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<string> GetUserLanguagePreferenceAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<string> GetUserLanguagePreferenceAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var preference = await _context.Set<UserLanguagePreference>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.UserId == userId);
+            .FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
 
         if (preference != null)
         {
@@ -578,7 +641,7 @@ public class LanguageService : ILanguageService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !l.IsDeleted (Global Query Filter)
         var defaultLanguage = await _context.Set<Language>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(l => l.IsDefault);
+            .FirstOrDefaultAsync(l => l.IsDefault, cancellationToken);
 
         return defaultLanguage?.Code ?? "en";
     }
@@ -587,29 +650,30 @@ public class LanguageService : ILanguageService
 
     #region Statistics
 
-    public async Task<TranslationStatsDto> GetTranslationStatsAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<TranslationStatsDto> GetTranslationStatsAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !l.IsDeleted (Global Query Filter)
         var totalLanguages = await _context.Set<Language>()
             .AsNoTracking()
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !l.IsDeleted (Global Query Filter)
         var activeLanguages = await _context.Set<Language>()
             .AsNoTracking()
-            .CountAsync(l => l.IsActive);
+            .CountAsync(l => l.IsActive, cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !l.IsDeleted (Global Query Filter)
         var defaultLanguage = await _context.Set<Language>()
             .AsNoTracking()
             .Where(l => l.IsDefault)
             .Select(l => l.Code)
-            .FirstOrDefaultAsync() ?? "en";
+            .FirstOrDefaultAsync(cancellationToken) ?? "en";
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var totalProducts = await _context.Products
             .AsNoTracking()
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: Removed manual !l.IsDeleted (Global Query Filter)
@@ -630,7 +694,7 @@ public class LanguageService : ILanguageService
                         .Count(pt => pt.LanguageCode == l.Code) / totalProducts * 100
                     : 0
             })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return new TranslationStatsDto
         {

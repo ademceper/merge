@@ -46,7 +46,7 @@ public class SEOController : BaseController
     /// </summary>
     [HttpGet("settings")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(SEOSettingsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -178,7 +178,7 @@ public class SEOController : BaseController
     /// </summary>
     [HttpGet("sitemap/entries")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 60, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(PagedResult<SitemapEntryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -253,7 +253,7 @@ public class SEOController : BaseController
     /// </summary>
     [HttpGet("sitemap.xml")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 10, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika (sitemap için düşük limit)
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika (sitemap için düşük limit)
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> GetSitemapXml(
@@ -269,7 +269,7 @@ public class SEOController : BaseController
     /// </summary>
     [HttpGet("robots.txt")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 10, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika (robots.txt için düşük limit)
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika (robots.txt için düşük limit)
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> GetRobotsTxt(
