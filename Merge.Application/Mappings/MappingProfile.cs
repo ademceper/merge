@@ -71,7 +71,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.TotalPrice, opt => opt.MapFrom(src => src.Quantity * src.Price));
 
         CreateMap<Cart, CartDto>()
-            .ForMember(dest => dest.TotalAmount, opt => opt.MapFrom(src => src.TotalAmount));
+            .ForMember(dest => dest.TotalAmount, opt => opt.MapFrom(src => src.CalculateTotalAmount()));
 
         CreateMap<SavedCartItem, SavedCartItemDto>()
             .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : string.Empty))
@@ -118,8 +118,9 @@ public class MappingProfile : Profile
             .AfterMap((src, dest) =>
             {
                 // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
+                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
                 dest.Criteria = !string.IsNullOrEmpty(src.Criteria)
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Criteria)
+                    ? JsonSerializer.Deserialize<TrustBadgeSettingsDto>(src.Criteria)
                     : null;
             });
         CreateMap<CreateTrustBadgeDto, TrustBadge>();
@@ -281,8 +282,9 @@ public class MappingProfile : Profile
             .AfterMap((src, dest) =>
             {
                 // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
+                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
                 dest.Settings = !string.IsNullOrEmpty(src.Settings)
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Settings)
+                    ? JsonSerializer.Deserialize<PaymentMethodSettingsDto>(src.Settings)
                     : null;
             });
 
@@ -344,8 +346,9 @@ public class MappingProfile : Profile
             .AfterMap((src, dest) =>
             {
                 // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
+                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
                 dest.Conditions = !string.IsNullOrEmpty(src.Conditions)
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Conditions!)
+                    ? JsonSerializer.Deserialize<DeliveryTimeSettingsDto>(src.Conditions!)
                     : null;
             });
         CreateMap<CreateDeliveryTimeEstimationDto, DeliveryTimeEstimation>();
@@ -621,20 +624,22 @@ public class MappingProfile : Profile
             .AfterMap((src, dest) =>
             {
                 // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
+                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
                 dest.Settings = !string.IsNullOrEmpty(src.Settings)
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Settings)
+                    ? JsonSerializer.Deserialize<OrganizationSettingsDto>(src.Settings)
                     : null;
             });
 
         CreateMap<Team, TeamDto>()
             .ForMember(dest => dest.OrganizationName, opt => opt.MapFrom(src => src.Organization != null ? src.Organization.Name : string.Empty))
-            .ForMember(dest => dest.TeamLeadName, opt => opt.MapFrom(src => 
+            .ForMember(dest => dest.TeamLeadName, opt => opt.MapFrom(src =>
                 src.TeamLead != null ? $"{src.TeamLead.FirstName} {src.TeamLead.LastName}" : null))
             .AfterMap((src, dest) =>
             {
                 // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
+                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
                 dest.Settings = !string.IsNullOrEmpty(src.Settings)
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Settings)
+                    ? JsonSerializer.Deserialize<TeamSettingsDto>(src.Settings)
                     : null;
             });
 
@@ -670,8 +675,9 @@ public class MappingProfile : Profile
             .AfterMap((src, dest) =>
             {
                 // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
+                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
                 dest.Conditions = !string.IsNullOrEmpty(src.Conditions)
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Conditions)
+                    ? JsonSerializer.Deserialize<FraudRuleConditionsDto>(src.Conditions)
                     : null;
             });
         CreateMap<CreateFraudDetectionRuleDto, FraudDetectionRule>();
@@ -693,8 +699,9 @@ public class MappingProfile : Profile
             .AfterMap((src, dest) =>
             {
                 // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
+                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
                 dest.CustomSettings = !string.IsNullOrEmpty(src.CustomSettings)
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.CustomSettings)
+                    ? JsonSerializer.Deserialize<NotificationPreferenceSettingsDto>(src.CustomSettings)
                     : null;
             });
         CreateMap<CreateNotificationPreferenceDto, NotificationPreference>();
@@ -703,11 +710,12 @@ public class MappingProfile : Profile
             .AfterMap((src, dest) =>
             {
                 // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
+                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
                 dest.Variables = !string.IsNullOrEmpty(src.Variables)
-                    ? JsonSerializer.Deserialize<Dictionary<string, string>>(src.Variables)
+                    ? JsonSerializer.Deserialize<NotificationVariablesDto>(src.Variables)
                     : null;
                 dest.DefaultData = !string.IsNullOrEmpty(src.DefaultData)
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.DefaultData)
+                    ? JsonSerializer.Deserialize<NotificationTemplateSettingsDto>(src.DefaultData)
                     : null;
             });
         CreateMap<CreateNotificationTemplateDto, NotificationTemplate>();
@@ -738,38 +746,41 @@ public class MappingProfile : Profile
                 src.VerifiedBy != null ? $"{src.VerifiedBy.FirstName} {src.VerifiedBy.LastName}" : null));
 
         CreateMap<PaymentFraudPrevention, PaymentFraudPreventionDto>()
-            .ForMember(dest => dest.PaymentTransactionId, opt => opt.MapFrom(src => 
+            .ForMember(dest => dest.PaymentTransactionId, opt => opt.MapFrom(src =>
                 src.Payment != null ? src.Payment.TransactionId : string.Empty))
             .AfterMap((src, dest) =>
             {
+                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
                 dest.CheckResult = !string.IsNullOrEmpty(src.CheckResult)
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.CheckResult)
+                    ? JsonSerializer.Deserialize<FraudDetectionMetadataDto>(src.CheckResult)
                     : null;
             });
 
         CreateMap<AccountSecurityEvent, AccountSecurityEventDto>()
-            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => 
+            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src =>
                 src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty))
-            .ForMember(dest => dest.ActionTakenByName, opt => opt.MapFrom(src => 
+            .ForMember(dest => dest.ActionTakenByName, opt => opt.MapFrom(src =>
                 src.ActionTakenBy != null ? $"{src.ActionTakenBy.FirstName} {src.ActionTakenBy.LastName}" : null))
             .AfterMap((src, dest) =>
             {
+                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
                 dest.Details = !string.IsNullOrEmpty(src.Details)
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Details)
+                    ? JsonSerializer.Deserialize<SecurityEventMetadataDto>(src.Details)
                     : null;
             });
 
         CreateMap<SecurityAlert, SecurityAlertDto>()
-            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => 
+            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src =>
                 src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : null))
-            .ForMember(dest => dest.AcknowledgedByName, opt => opt.MapFrom(src => 
+            .ForMember(dest => dest.AcknowledgedByName, opt => opt.MapFrom(src =>
                 src.AcknowledgedBy != null ? $"{src.AcknowledgedBy.FirstName} {src.AcknowledgedBy.LastName}" : null))
-            .ForMember(dest => dest.ResolvedByName, opt => opt.MapFrom(src => 
+            .ForMember(dest => dest.ResolvedByName, opt => opt.MapFrom(src =>
                 src.ResolvedBy != null ? $"{src.ResolvedBy.FirstName} {src.ResolvedBy.LastName}" : null))
             .AfterMap((src, dest) =>
             {
+                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
                 dest.Metadata = !string.IsNullOrEmpty(src.Metadata)
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Metadata)
+                    ? JsonSerializer.Deserialize<SecurityEventMetadataDto>(src.Metadata)
                     : null;
             });
 
@@ -807,13 +818,14 @@ public class MappingProfile : Profile
         CreateMap<SellerCommissionSettings, SellerCommissionSettingsDto>();
 
         CreateMap<Store, StoreDto>()
-            .ForMember(dest => dest.SellerName, opt => opt.MapFrom(src => 
+            .ForMember(dest => dest.SellerName, opt => opt.MapFrom(src =>
                 src.Seller != null ? $"{src.Seller.FirstName} {src.Seller.LastName}" : string.Empty))
             .ForMember(dest => dest.ProductCount, opt => opt.Ignore()) // Will be set in StoreService after batch loading
             .AfterMap((src, dest) =>
             {
+                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
                 dest.Settings = !string.IsNullOrEmpty(src.Settings)
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Settings)
+                    ? JsonSerializer.Deserialize<StoreSettingsDto>(src.Settings)
                     : null;
             });
 
@@ -823,8 +835,9 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.SubscriberCount, opt => opt.Ignore()) // Will be set in SubscriptionService after batch loading
             .AfterMap((src, dest) =>
             {
+                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
                 dest.Features = !string.IsNullOrEmpty(src.Features)
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Features)
+                    ? JsonSerializer.Deserialize<SubscriptionPlanFeaturesDto>(src.Features)
                     : null;
             });
 
@@ -874,8 +887,9 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Metadata, opt => opt.Ignore()) // Will be set in AfterMap
             .AfterMap((src, dest) =>
             {
+                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
                 dest.Metadata = !string.IsNullOrEmpty(src.Metadata)
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(src.Metadata)
+                    ? JsonSerializer.Deserialize<CustomerCommunicationSettingsDto>(src.Metadata)
                     : null;
             });
 

@@ -11,6 +11,8 @@ using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using OrganizationEntity = Merge.Domain.Entities.Organization;
+using ProductEntity = Merge.Domain.Entities.Product;
+using CategoryEntity = Merge.Domain.Entities.Category;
 using System.Text.Json;
 using Merge.Application.DTOs.B2B;
 using AutoMapper;
@@ -279,7 +281,7 @@ public class B2BService : IB2BService
             throw new NotFoundException("Ürün", dto.ProductId);
         }
 
-        Organization? organization = null;
+        OrganizationEntity? organization = null;
         if (dto.OrganizationId.HasValue)
         {
             organization = await _context.Set<OrganizationEntity>()
@@ -413,14 +415,13 @@ public class B2BService : IB2BService
 
         if (price == null) return false;
 
-        price.MinQuantity = dto.MinQuantity;
-        price.MaxQuantity = dto.MaxQuantity;
-        price.Price = dto.Price;
-        price.IsActive = dto.IsActive;
-        price.StartDate = dto.StartDate;
-        price.EndDate = dto.EndDate;
-
-        price.UpdatedAt = DateTime.UtcNow;
+        price.UpdateQuantityRange(dto.MinQuantity, dto.MaxQuantity);
+        price.UpdatePrice(dto.Price);
+        price.UpdateDates(dto.StartDate, dto.EndDate);
+        if (dto.IsActive)
+            price.Activate();
+        else
+            price.Deactivate();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -1062,21 +1063,21 @@ public class B2BService : IB2BService
             throw new ValidationException("Maksimum miktar minimum miktardan küçük olamaz.");
         }
 
-        Product? product = null;
+        ProductEntity? product = null;
         if (dto.ProductId.HasValue)
         {
             product = await _context.Products
                 .FirstOrDefaultAsync(p => p.Id == dto.ProductId.Value, cancellationToken);
         }
 
-        Category? category = null;
+        CategoryEntity? category = null;
         if (dto.CategoryId.HasValue)
         {
             category = await _context.Categories
                 .FirstOrDefaultAsync(c => c.Id == dto.CategoryId.Value, cancellationToken);
         }
 
-        Organization? organization = null;
+        OrganizationEntity? organization = null;
         if (dto.OrganizationId.HasValue)
         {
             organization = await _context.Set<OrganizationEntity>()
@@ -1227,15 +1228,13 @@ public class B2BService : IB2BService
 
         if (discount == null) return false;
 
-        discount.MinQuantity = dto.MinQuantity;
-        discount.MaxQuantity = dto.MaxQuantity;
-        discount.DiscountPercentage = dto.DiscountPercentage;
-        discount.FixedDiscountAmount = dto.FixedDiscountAmount;
-        discount.IsActive = dto.IsActive;
-        discount.StartDate = dto.StartDate;
-        discount.EndDate = dto.EndDate;
-
-        discount.UpdatedAt = DateTime.UtcNow;
+        discount.UpdateQuantityRange(dto.MinQuantity, dto.MaxQuantity);
+        discount.UpdateDiscount(dto.DiscountPercentage, dto.FixedDiscountAmount);
+        discount.UpdateDates(dto.StartDate, dto.EndDate);
+        if (dto.IsActive)
+            discount.Activate();
+        else
+            discount.Deactivate();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

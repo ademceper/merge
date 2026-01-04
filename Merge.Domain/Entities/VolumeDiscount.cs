@@ -160,5 +160,17 @@ public class VolumeDiscount : BaseEntity
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    // ✅ BOLUM 1.1: Domain Logic - Update dates
+    public void UpdateDates(DateTime? startDate, DateTime? endDate)
+    {
+        // ✅ BOLUM 1.6: Invariant validation
+        if (startDate.HasValue && endDate.HasValue && endDate.Value < startDate.Value)
+            throw new DomainException("Bitiş tarihi başlangıç tarihinden önce olamaz");
+
+        StartDate = startDate;
+        EndDate = endDate;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }
 

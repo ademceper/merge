@@ -29,7 +29,8 @@ public class CreateAccountSecurityEventDto
     
     public bool IsSuspicious { get; set; } = false;
     
-    public Dictionary<string, object>? Details { get; set; }
+    /// Typed DTO (Over-posting korumasi)
+    public SecurityEventMetadataDto? Details { get; set; }
     
     public bool RequiresAction { get; set; } = false;
 }

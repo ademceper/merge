@@ -27,8 +27,14 @@ public class CreateNotificationTemplateDto
     public string? LinkTemplate { get; set; }
     
     public bool IsActive { get; set; } = true;
-    
-    public Dictionary<string, string>? Variables { get; set; }
-    
-    public Dictionary<string, object>? DefaultData { get; set; }
+
+    /// <summary>
+    /// Template degiskenleri - Typed DTO (Over-posting korumasi)
+    /// </summary>
+    public NotificationVariablesDto? Variables { get; set; }
+
+    /// <summary>
+    /// Template ayarlari - Typed DTO (Over-posting korumasi)
+    /// </summary>
+    public NotificationTemplateSettingsDto? DefaultData { get; set; }
 }

@@ -195,11 +195,10 @@ public class LiveCommerceService : ILiveCommerceService
 
         return new PagedResult<LiveStreamDto>
         {
-            Items = items,
+            Items = items.ToList(),
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize,
-            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
         };
     }
 
@@ -233,11 +232,10 @@ public class LiveCommerceService : ILiveCommerceService
 
         return new PagedResult<LiveStreamDto>
         {
-            Items = items,
+            Items = items.ToList(),
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize,
-            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
         };
     }
 

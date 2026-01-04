@@ -521,7 +521,7 @@ public class ProductComparisonService : IProductComparisonService
                 .Select(g => new
                 {
                     ProductId = g.Key,
-                    Rating = g.Average(r => r.Rating),
+                    Rating = (decimal)g.Average(r => r.Rating),
                     Count = g.Count()
                 })
                 .ToListAsync(cancellationToken);

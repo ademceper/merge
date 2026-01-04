@@ -12,7 +12,8 @@ public class CreateFraudDetectionRuleDto
     [StringLength(50)]
     public string RuleType { get; set; } = string.Empty;
     
-    public Dictionary<string, object>? Conditions { get; set; }
+    /// Typed DTO (Over-posting korumasi)
+    public FraudRuleConditionsDto? Conditions { get; set; }
     
     [Required]
     [Range(0, 100, ErrorMessage = "Risk skoru 0 ile 100 arasında olmalıdır.")]

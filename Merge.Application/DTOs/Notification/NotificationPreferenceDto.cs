@@ -7,7 +7,10 @@ public class NotificationPreferenceDto
     public string NotificationType { get; set; } = string.Empty;
     public string Channel { get; set; } = string.Empty;
     public bool IsEnabled { get; set; }
-    public Dictionary<string, object>? CustomSettings { get; set; }
+    /// <summary>
+    /// Bildirim tercihi ayarlari - Typed DTO (Over-posting korumasi)
+    /// </summary>
+    public NotificationPreferenceSettingsDto? CustomSettings { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 }

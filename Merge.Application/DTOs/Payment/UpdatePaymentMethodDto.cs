@@ -31,9 +31,12 @@ public class UpdatePaymentMethodDto
     
     [Range(0, 100, ErrorMessage = "İşlem ücreti yüzdesi 0 ile 100 arasında olmalıdır.")]
     public decimal? ProcessingFeePercentage { get; set; }
-    
-    public Dictionary<string, object>? Settings { get; set; }
-    
+
+    /// <summary>
+    /// Odeme yontemi ayarlari - Typed DTO (Over-posting korumasi)
+    /// </summary>
+    public PaymentMethodSettingsDto? Settings { get; set; }
+
     [Range(0, int.MaxValue)]
     public int? DisplayOrder { get; set; }
     

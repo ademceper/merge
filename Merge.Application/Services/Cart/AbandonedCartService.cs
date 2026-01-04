@@ -73,7 +73,13 @@ public class AbandonedCartService : IAbandonedCartService
 
         if (abandonedCartIds.Count == 0)
         {
-            return Enumerable.Empty<AbandonedCartDto>();
+            return new PagedResult<AbandonedCartDto>
+            {
+                Items = new List<AbandonedCartDto>(),
+                TotalCount = 0,
+                Page = page,
+                PageSize = pageSize
+            };
         }
 
         // Step 2: Get user IDs for these carts
@@ -476,14 +482,14 @@ public class AbandonedCartService : IAbandonedCartService
     // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
     public async Task SendBulkRecoveryEmailsAsync(int minHours = 2, AbandonedCartEmailType emailType = AbandonedCartEmailType.First, CancellationToken cancellationToken = default)
     {
-        var abandonedCarts = await GetAbandonedCartsAsync(minHours, 30);
+        var abandonedCarts = await GetAbandonedCartsAsync(minHours, 30, 1, 1000, cancellationToken);
 
         // ✅ PERFORMANCE: Filter carts that haven't received this email type yet
         // Business logic için memory'de filtreleme yapıyoruz (email type kontrolü)
         // Bu işlem database'de yapılamaz çünkü complex business logic gerekiyor
         // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
         var cartsToEmail = new List<AbandonedCartDto>();
-        foreach (var c in abandonedCarts)
+        foreach (var c in abandonedCarts.Items)
         {
             bool shouldEmail = false;
             if (emailType == AbandonedCartEmailType.First)

@@ -35,6 +35,8 @@ public class CreatePreOrderCampaignDto : IValidatableObject
     [Range(0, double.MaxValue, ErrorMessage = "Özel fiyat 0 veya daha büyük olmalıdır.")]
     public decimal SpecialPrice { get; set; } = 0;
 
+    public bool NotifyOnAvailable { get; set; } = true;
+
     // ✅ BOLUM 4.1: Custom Validation - Date validations
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {

@@ -64,6 +64,16 @@ builder.Services.Configure<Merge.Application.Configuration.CartSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.CartSettings.SectionName));
 builder.Services.Configure<Merge.Application.Configuration.ContentSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.ContentSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.SellerSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.SellerSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.EmailSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.EmailSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.SecuritySettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.SecuritySettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.SupportSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.SupportSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.MLSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.MLSettings.SectionName));
 
 // Add services to the container
 builder.Services.AddControllers();

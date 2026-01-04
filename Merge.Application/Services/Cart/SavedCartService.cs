@@ -99,9 +99,9 @@ public class SavedCartService : ISavedCartService
 
         if (existing != null)
         {
-            existing.Quantity = dto.Quantity;
-            existing.Price = currentPrice;
-            existing.Notes = dto.Notes;
+            existing.UpdateQuantity(dto.Quantity);
+            existing.UpdatePrice(currentPrice);
+            existing.UpdateNotes(dto.Notes);
             await _savedCartItemRepository.UpdateAsync(existing);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

@@ -43,6 +43,9 @@ public class CreateOrganizationDto
     
     [StringLength(100)]
     public string? Country { get; set; }
-    
-    public Dictionary<string, object>? Settings { get; set; }
+
+    /// <summary>
+    /// Organizasyon ayarlari - Typed DTO (Over-posting korumasi)
+    /// </summary>
+    public OrganizationSettingsDto? Settings { get; set; }
 }

@@ -10,6 +10,7 @@ using Merge.Infrastructure.Repositories;
 using System.Text;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Content;
+using Merge.Application.Common;
 
 
 namespace Merge.Application.Services.Content;

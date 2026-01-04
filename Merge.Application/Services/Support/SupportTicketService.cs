@@ -85,6 +85,7 @@ public class SupportTicketService : ISupportTicketService
                 user.Email ?? string.Empty,
                 $"Support Ticket Created - {ticketNumber}",
                 $"Your support ticket has been created. Ticket Number: {ticketNumber}. Subject: {dto.Subject}. We'll respond as soon as possible.",
+                true,
                 cancellationToken);
             _logger.LogInformation("Confirmation email sent for ticket {TicketNumber}", ticketNumber);
         }
@@ -483,6 +484,7 @@ public class SupportTicketService : ISupportTicketService
                 ticket.User?.Email ?? string.Empty,
                 $"Ticket Closed - {ticket.TicketNumber}",
                 $"Your support ticket #{ticket.TicketNumber} has been closed. If you need further assistance, please open a new ticket.",
+                true,
                 cancellationToken);
             _logger.LogInformation("Closure email sent for ticket {TicketNumber}", ticket.TicketNumber);
         }
@@ -578,6 +580,7 @@ public class SupportTicketService : ISupportTicketService
                     ticket.User?.Email ?? string.Empty,
                     $"New Response on Ticket {ticket.TicketNumber}",
                     $"You have received a new response on your support ticket #{ticket.TicketNumber}.",
+                    true,
                     cancellationToken);
                 _logger.LogInformation("Response notification email sent for ticket {TicketNumber}", ticket.TicketNumber);
             }

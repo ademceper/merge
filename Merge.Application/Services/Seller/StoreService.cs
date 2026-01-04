@@ -14,6 +14,7 @@ using Merge.Infrastructure.Repositories;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Merge.Application.DTOs.Seller;
+using Merge.Application.Common;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)

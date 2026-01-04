@@ -106,11 +106,10 @@ public class StockMovementService : IStockMovementService
 
         return new PagedResult<StockMovementDto>
         {
-            Items = items,
+            Items = items.ToList(),
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize,
-            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
         };
     }
 
@@ -145,11 +144,10 @@ public class StockMovementService : IStockMovementService
 
         return new PagedResult<StockMovementDto>
         {
-            Items = items,
+            Items = items.ToList(),
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize,
-            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
         };
     }
 
@@ -238,12 +236,9 @@ public class StockMovementService : IStockMovementService
                 throw new ValidationException("Stok miktarı negatif olamaz.");
             }
 
-            // Update inventory
-            inventory.Quantity = quantityAfter;
-            if (createDto.Quantity > 0)
-            {
-                inventory.LastRestockedAt = DateTime.UtcNow;
-            }
+            // Update inventory using domain method
+            var quantityChange = quantityAfter - inventory.Quantity;
+            inventory.AdjustQuantity(quantityChange);
 
             // Create stock movement
             var stockMovement = new StockMovement

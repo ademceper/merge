@@ -7,7 +7,8 @@ public class TrustBadgeDto
     public string Description { get; set; } = string.Empty;
     public string IconUrl { get; set; } = string.Empty;
     public string BadgeType { get; set; } = string.Empty;
-    public Dictionary<string, object>? Criteria { get; set; }
+    /// Typed DTO (Over-posting korumasi)
+    public TrustBadgeSettingsDto? Criteria { get; set; }
     public bool IsActive { get; set; }
     public int DisplayOrder { get; set; }
     public string? Color { get; set; }

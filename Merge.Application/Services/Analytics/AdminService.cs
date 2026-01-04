@@ -145,7 +145,8 @@ public class AdminService : IAdminService
     public async Task<InventoryOverviewDto> GetInventoryOverviewAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Materialize IEnumerable to avoid re-enumeration
-        var lowStockAlerts = (await _inventoryService.GetLowStockAlertsAsync()).ToList();
+        var lowStockAlertsResult = await _inventoryService.GetLowStockAlertsAsync(cancellationToken: cancellationToken);
+        var lowStockAlerts = lowStockAlertsResult.Items;
         
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !i.IsDeleted checks (Global Query Filter handles it)

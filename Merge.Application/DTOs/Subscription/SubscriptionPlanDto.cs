@@ -12,7 +12,8 @@ public class SubscriptionPlanDto
     public decimal Price { get; set; }
     public int DurationDays { get; set; }
     public int? TrialDays { get; set; }
-    public Dictionary<string, object>? Features { get; set; }
+    /// Typed DTO (Over-posting korumasi)
+    public SubscriptionPlanFeaturesDto? Features { get; set; }
     public bool IsActive { get; set; }
     public int DisplayOrder { get; set; }
     // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)

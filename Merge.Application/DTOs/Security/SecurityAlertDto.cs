@@ -17,6 +17,7 @@ public class SecurityAlertDto
     public string? ResolvedByName { get; set; }
     public DateTime? ResolvedAt { get; set; }
     public string? ResolutionNotes { get; set; }
-    public Dictionary<string, object>? Metadata { get; set; }
+    /// Typed DTO (Over-posting korumasi)
+    public SecurityEventMetadataDto? Metadata { get; set; }
     public DateTime CreatedAt { get; set; }
 }

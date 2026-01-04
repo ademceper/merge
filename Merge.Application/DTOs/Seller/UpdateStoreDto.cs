@@ -39,6 +39,9 @@ public class UpdateStoreDto
     public string? Status { get; set; }
     
     public bool? IsPrimary { get; set; }
-    
-    public Dictionary<string, object>? Settings { get; set; }
+
+    /// <summary>
+    /// Magaza ayarlari - Typed DTO (Over-posting korumasi)
+    /// </summary>
+    public StoreSettingsDto? Settings { get; set; }
 }

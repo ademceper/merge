@@ -12,7 +12,8 @@ public class AccountSecurityEventDto
     public string? Location { get; set; }
     public string? DeviceFingerprint { get; set; }
     public bool IsSuspicious { get; set; }
-    public Dictionary<string, object>? Details { get; set; }
+    /// Typed DTO (Over-posting korumasi)
+    public SecurityEventMetadataDto? Details { get; set; }
     public bool RequiresAction { get; set; }
     public string? ActionTaken { get; set; }
     public Guid? ActionTakenByUserId { get; set; }

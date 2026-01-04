@@ -9,6 +9,7 @@ using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Logistics;
+using Merge.Application.Common;
 
 
 namespace Merge.Application.Services.Catalog;

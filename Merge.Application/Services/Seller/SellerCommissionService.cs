@@ -590,6 +590,7 @@ public class SellerCommissionService : ISellerCommissionService
             payout.Seller?.Email ?? string.Empty,
             $"Payout Completed - {payout.PayoutNumber}",
             $"Your payout of {payout.NetAmount:C} has been completed. Transaction Reference: {payout.TransactionReference}",
+            true,
             cancellationToken
         );
 

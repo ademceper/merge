@@ -1,4 +1,5 @@
 using Merge.Application.DTOs.Content;
+using Merge.Application.Common;
 
 namespace Merge.Application.Interfaces.Content;
 

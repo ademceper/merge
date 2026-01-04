@@ -13,6 +13,9 @@ public class CreateNotificationPreferenceDto
     public string Channel { get; set; } = string.Empty;
     
     public bool IsEnabled { get; set; } = true;
-    
-    public Dictionary<string, object>? CustomSettings { get; set; }
+
+    /// <summary>
+    /// Bildirim tercihi ayarlari - Typed DTO (Over-posting korumasi)
+    /// </summary>
+    public NotificationPreferenceSettingsDto? CustomSettings { get; set; }
 }

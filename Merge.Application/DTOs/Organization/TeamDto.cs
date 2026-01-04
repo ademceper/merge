@@ -10,7 +10,10 @@ public class TeamDto
     public Guid? TeamLeadId { get; set; }
     public string? TeamLeadName { get; set; }
     public bool IsActive { get; set; }
-    public Dictionary<string, object>? Settings { get; set; }
+    /// <summary>
+    /// Takim ayarlari - Typed DTO (Over-posting korumasi)
+    /// </summary>
+    public TeamSettingsDto? Settings { get; set; }
     public int MemberCount { get; set; }
     public DateTime CreatedAt { get; set; }
 }

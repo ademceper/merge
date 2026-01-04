@@ -6,8 +6,10 @@ using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces.Seller;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
@@ -29,6 +31,7 @@ public class SellerOnboardingService : ISellerOnboardingService
     private readonly IEmailService _emailService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<SellerOnboardingService> _logger;
+    private readonly SellerSettings _sellerSettings;
 
     public SellerOnboardingService(
         IRepository<SellerApplication> applicationRepository,
@@ -37,7 +40,8 @@ public class SellerOnboardingService : ISellerOnboardingService
         IMapper mapper,
         IEmailService emailService,
         IUnitOfWork unitOfWork,
-        ILogger<SellerOnboardingService> logger)
+        ILogger<SellerOnboardingService> logger,
+        IOptions<SellerSettings> sellerSettings)
     {
         _applicationRepository = applicationRepository;
         _userManager = userManager;
@@ -46,6 +50,7 @@ public class SellerOnboardingService : ISellerOnboardingService
         _emailService = emailService;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _sellerSettings = sellerSettings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -91,6 +96,7 @@ public class SellerOnboardingService : ISellerOnboardingService
             "Seller Application Received",
             $"Dear {user.FirstName},\n\nWe have received your seller application for {applicationDto.BusinessName}. " +
             "Our team will review it and get back to you within 2-3 business days.\n\nThank you!",
+            true,
             cancellationToken
         );
 
@@ -227,7 +233,7 @@ public class SellerOnboardingService : ISellerOnboardingService
                     : $"Your seller application status has been updated to: {reviewDto.Status}.\n\n" +
                       (string.IsNullOrEmpty(reviewDto.RejectionReason) ? "" : $"Reason: {reviewDto.RejectionReason}");
 
-                await _emailService.SendEmailAsync(user.Email ?? string.Empty, subject, message, cancellationToken);
+                await _emailService.SendEmailAsync(user.Email ?? string.Empty, subject, message, true, cancellationToken);
             }
 
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
@@ -283,6 +289,7 @@ public class SellerOnboardingService : ISellerOnboardingService
                     "Seller Application Approved!",
                     $"Congratulations! Your seller application for {application.BusinessName} has been approved. " +
                     "You can now start selling on our platform.",
+                    true,
                     cancellationToken
                 );
 
@@ -348,6 +355,7 @@ public class SellerOnboardingService : ISellerOnboardingService
                 $"We regret to inform you that your seller application for {application.BusinessName} " +
                 $"has been rejected.\n\nReason: {reason}\n\n" +
                 "You can submit a new application after addressing the concerns mentioned above.",
+                true,
                 cancellationToken
             );
         }
@@ -410,7 +418,7 @@ public class SellerOnboardingService : ISellerOnboardingService
         {
             UserId = application.UserId,
             StoreName = application.BusinessName,
-            CommissionRate = 15, // Default commission rate
+            CommissionRate = _sellerSettings.DefaultCommissionRate, // Configuration'dan alinan deger
             Status = SellerStatus.Approved,
             VerifiedAt = DateTime.UtcNow
         };

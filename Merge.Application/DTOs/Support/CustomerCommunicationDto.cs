@@ -21,6 +21,7 @@ public class CustomerCommunicationDto
     public DateTime? DeliveredAt { get; set; }
     public DateTime? ReadAt { get; set; }
     public string? ErrorMessage { get; set; }
-    public Dictionary<string, object>? Metadata { get; set; }
+    /// Typed DTO (Over-posting korumasi)
+    public CustomerCommunicationSettingsDto? Metadata { get; set; }
     public DateTime CreatedAt { get; set; }
 }

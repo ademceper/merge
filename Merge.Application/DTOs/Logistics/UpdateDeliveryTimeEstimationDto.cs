@@ -15,5 +15,6 @@ public class UpdateDeliveryTimeEstimationDto
     
     public bool? IsActive { get; set; }
     
-    public Dictionary<string, object>? Conditions { get; set; }
+    /// Typed DTO (Over-posting korumasi)
+    public DeliveryTimeSettingsDto? Conditions { get; set; }
 }

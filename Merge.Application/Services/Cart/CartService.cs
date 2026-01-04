@@ -58,7 +58,7 @@ public class CartService : ICartService
         if (cart == null)
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
-            var newCart = Cart.Create(userId);
+            var newCart = CartEntity.Create(userId);
             newCart = await _cartRepository.AddAsync(newCart);
             await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Explicit SaveChanges via UnitOfWork
 
@@ -140,7 +140,7 @@ public class CartService : ICartService
             {
                 _logger.LogInformation("Creating new cart for user {UserId}", userId);
                 // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
-                cart = Cart.Create(userId);
+                cart = CartEntity.Create(userId);
                 cart = await _cartRepository.AddAsync(cart);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
             }

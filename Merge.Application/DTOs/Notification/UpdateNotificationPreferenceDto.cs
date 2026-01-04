@@ -5,6 +5,9 @@ namespace Merge.Application.DTOs.Notification;
 public class UpdateNotificationPreferenceDto
 {
     public bool? IsEnabled { get; set; }
-    
-    public Dictionary<string, object>? CustomSettings { get; set; }
+
+    /// <summary>
+    /// Bildirim tercihi ayarlari - Typed DTO (Over-posting korumasi)
+    /// </summary>
+    public NotificationPreferenceSettingsDto? CustomSettings { get; set; }
 }

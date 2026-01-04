@@ -27,7 +27,8 @@ public class CreateSubscriptionPlanDto
     [Range(0, int.MaxValue)]
     public int? TrialDays { get; set; }
 
-    public Dictionary<string, object>? Features { get; set; }
+    /// Typed DTO (Over-posting korumasi)
+    public SubscriptionPlanFeaturesDto? Features { get; set; }
 
     public bool IsActive { get; set; } = true;
 

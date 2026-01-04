@@ -39,5 +39,6 @@ public class CreateCustomerCommunicationDto
     [StringLength(20)]
     public string? RecipientPhone { get; set; }
     
-    public Dictionary<string, object>? Metadata { get; set; }
+    /// Typed DTO (Over-posting korumasi)
+    public CustomerCommunicationSettingsDto? Metadata { get; set; }
 }

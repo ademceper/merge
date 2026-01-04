@@ -18,7 +18,10 @@ public class OrganizationDto
     public string Status { get; set; } = string.Empty;
     public bool IsVerified { get; set; }
     public DateTime? VerifiedAt { get; set; }
-    public Dictionary<string, object>? Settings { get; set; }
+    /// <summary>
+    /// Organizasyon ayarlari - Typed DTO (Over-posting korumasi)
+    /// </summary>
+    public OrganizationSettingsDto? Settings { get; set; }
     public int UserCount { get; set; }
     public int TeamCount { get; set; }
     public DateTime CreatedAt { get; set; }

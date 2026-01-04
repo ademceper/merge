@@ -10,6 +10,9 @@ public class CreateNotificationFromTemplateDto
     [Required]
     [StringLength(50)]
     public string TemplateType { get; set; } = string.Empty;
-    
-    public Dictionary<string, object>? Variables { get; set; }
+
+    /// <summary>
+    /// Template degiskenleri - Typed DTO (Over-posting korumasi)
+    /// </summary>
+    public NotificationVariablesDto? Variables { get; set; }
 }

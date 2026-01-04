@@ -240,11 +240,10 @@ public class PickPackService : IPickPackService
 
         return new PagedResult<PickPackDto>
         {
-            Items = items,
+            Items = items.ToList(),
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize,
-            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
         };
     }
 

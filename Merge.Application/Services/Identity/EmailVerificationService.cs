@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Services.Notification;
 using UserEntity = Merge.Domain.Entities.User;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.Identity;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
@@ -20,6 +22,7 @@ public class EmailVerificationService : IEmailVerificationService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<EmailVerificationService> _logger;
+    private readonly EmailSettings _emailSettings;
 
     public EmailVerificationService(
         IRepository<EmailVerification> emailVerificationRepository,
@@ -27,6 +30,7 @@ public class EmailVerificationService : IEmailVerificationService
         ApplicationDbContext context,
         IUnitOfWork unitOfWork,
         ILogger<EmailVerificationService> logger,
+        IOptions<EmailSettings> emailSettings,
         IEmailService? emailService = null)
     {
         _emailVerificationRepository = emailVerificationRepository;
@@ -34,6 +38,7 @@ public class EmailVerificationService : IEmailVerificationService
         _context = context;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _emailSettings = emailSettings.Value;
         _emailService = emailService;
     }
 
@@ -67,7 +72,7 @@ public class EmailVerificationService : IEmailVerificationService
                 UserId = userId,
                 Email = email,
                 Token = token,
-                ExpiresAt = DateTime.UtcNow.AddHours(24), // 24 saat geçerli
+                ExpiresAt = DateTime.UtcNow.AddHours(_emailSettings.VerificationTokenExpirationHours), // Configuration'dan alinan deger
                 IsVerified = false
             };
 

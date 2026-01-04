@@ -11,6 +11,7 @@ using System.Text.Json;
 using OrganizationEntity = Merge.Domain.Entities.Organization;
 using UserEntity = Merge.Domain.Entities.User;
 using Merge.Application.DTOs.Organization;
+using Merge.Application.Common;
 
 
 namespace Merge.Application.Services.Organization;

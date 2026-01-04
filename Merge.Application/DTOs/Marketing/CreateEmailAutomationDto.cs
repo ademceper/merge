@@ -21,5 +21,6 @@ public class CreateEmailAutomationDto
     [Range(0, int.MaxValue, ErrorMessage = "Gecikme saati 0 veya daha büyük olmalıdır.")]
     public int DelayHours { get; set; } = 0;
     
-    public Dictionary<string, object>? TriggerConditions { get; set; }
+    /// Typed DTO (Over-posting korumasi)
+    public EmailAutomationSettingsDto? TriggerConditions { get; set; }
 }

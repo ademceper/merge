@@ -13,6 +13,9 @@ public class UpdateTeamDto
     public Guid? TeamLeadId { get; set; }
     
     public bool? IsActive { get; set; }
-    
-    public Dictionary<string, object>? Settings { get; set; }
+
+    /// <summary>
+    /// Takim ayarlari - Typed DTO (Over-posting korumasi)
+    /// </summary>
+    public TeamSettingsDto? Settings { get; set; }
 }

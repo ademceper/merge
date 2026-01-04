@@ -299,6 +299,7 @@ public class EmailCampaignService : IEmailCampaignService
             dto.TestEmail,
             campaign.Subject + " [TEST]",
             content,
+            true,
             cancellationToken
         );
     }
@@ -1010,6 +1011,7 @@ public class EmailCampaignService : IEmailCampaignService
                     recipient.Subscriber.Email,
                     campaign.Subject,
                     content,
+                    true,
                     cancellationToken
                 );
 

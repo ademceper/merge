@@ -10,7 +10,8 @@ public class PaymentFraudPreventionDto
     public bool IsBlocked { get; set; }
     public string? BlockReason { get; set; }
     public int RiskScore { get; set; }
-    public Dictionary<string, object>? CheckResult { get; set; }
+    /// Typed DTO (Over-posting korumasi)
+    public FraudDetectionMetadataDto? CheckResult { get; set; }
     public DateTime? CheckedAt { get; set; }
     public string? DeviceFingerprint { get; set; }
     public string? IpAddress { get; set; }

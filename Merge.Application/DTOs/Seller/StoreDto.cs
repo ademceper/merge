@@ -19,7 +19,8 @@ public class StoreDto
     public bool IsPrimary { get; set; }
     public bool IsVerified { get; set; }
     public DateTime? VerifiedAt { get; set; }
-    public Dictionary<string, object>? Settings { get; set; }
+    // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
+    public StoreSettingsDto? Settings { get; set; }
     public int ProductCount { get; set; }
     public DateTime CreatedAt { get; set; }
 }

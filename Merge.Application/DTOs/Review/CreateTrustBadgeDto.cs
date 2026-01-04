@@ -19,7 +19,8 @@ public class CreateTrustBadgeDto
     [StringLength(50)]
     public string BadgeType { get; set; } = string.Empty;
     
-    public Dictionary<string, object>? Criteria { get; set; }
+    /// Typed DTO (Over-posting korumasi)
+    public TrustBadgeSettingsDto? Criteria { get; set; }
     
     public bool IsActive { get; set; } = true;
     

@@ -14,7 +14,10 @@ public class PaymentMethodDto
     public decimal? MaximumAmount { get; set; }
     public decimal? ProcessingFee { get; set; }
     public decimal? ProcessingFeePercentage { get; set; }
-    public Dictionary<string, object>? Settings { get; set; }
+    /// <summary>
+    /// Odeme yontemi ayarlari - Typed DTO (Over-posting korumasi)
+    /// </summary>
+    public PaymentMethodSettingsDto? Settings { get; set; }
     public int DisplayOrder { get; set; }
     public bool IsDefault { get; set; }
     public DateTime CreatedAt { get; set; }

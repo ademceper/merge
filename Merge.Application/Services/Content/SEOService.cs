@@ -12,6 +12,7 @@ using System.Text;
 using System.Text.Json;
 using System.Xml.Linq;
 using Merge.Application.DTOs.Content;
+using Merge.Application.Common;
 
 namespace Merge.Application.Services.Content;
 

@@ -37,6 +37,9 @@ public class CreateStoreDto
     public string? Country { get; set; }
     
     public bool IsPrimary { get; set; } = false;
-    
-    public Dictionary<string, object>? Settings { get; set; }
+
+    /// <summary>
+    /// Magaza ayarlari - Typed DTO (Over-posting korumasi)
+    /// </summary>
+    public StoreSettingsDto? Settings { get; set; }
 }

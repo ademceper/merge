@@ -22,5 +22,6 @@ public class CreateSecurityAlertDto
     [StringLength(2000, MinimumLength = 5, ErrorMessage = "Açıklama en az 5, en fazla 2000 karakter olmalıdır.")]
     public string Description { get; set; } = string.Empty;
     
-    public Dictionary<string, object>? Metadata { get; set; }
+    /// Typed DTO (Over-posting korumasi)
+    public SecurityEventMetadataDto? Metadata { get; set; }
 }

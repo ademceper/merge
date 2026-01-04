@@ -184,9 +184,15 @@ public class NotificationTemplateService : INotificationTemplateService
         var allVariables = new Dictionary<string, object>();
         if (template.DefaultData != null)
         {
-            foreach (var kvp in template.DefaultData)
+            // Convert NotificationTemplateSettingsDto to Dictionary
+            var defaultDataProps = typeof(NotificationTemplateSettingsDto).GetProperties();
+            foreach (var prop in defaultDataProps)
             {
-                allVariables[kvp.Key] = kvp.Value;
+                var value = prop.GetValue(template.DefaultData);
+                if (value != null)
+                {
+                    allVariables[prop.Name] = value;
+                }
             }
         }
         if (variables != null)

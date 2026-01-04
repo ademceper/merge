@@ -16,6 +16,7 @@ public class DeliveryTimeEstimationDto
     public int MaxDays { get; set; }
     public int AverageDays { get; set; }
     public bool IsActive { get; set; }
-    public Dictionary<string, object>? Conditions { get; set; }
+    /// Typed DTO (Over-posting korumasi)
+    public DeliveryTimeSettingsDto? Conditions { get; set; }
     public DateTime CreatedAt { get; set; }
 }

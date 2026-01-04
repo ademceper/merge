@@ -45,6 +45,9 @@ public class UpdateOrganizationDto
     
     [StringLength(50)]
     public string? Status { get; set; }
-    
-    public Dictionary<string, object>? Settings { get; set; }
+
+    /// <summary>
+    /// Organizasyon ayarlari - Typed DTO (Over-posting korumasi)
+    /// </summary>
+    public OrganizationSettingsDto? Settings { get; set; }
 }
