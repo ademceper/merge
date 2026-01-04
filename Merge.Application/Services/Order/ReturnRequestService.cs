@@ -38,14 +38,15 @@ public class ReturnRequestService : IReturnRequestService
         _logger = logger;
     }
 
-    public async Task<ReturnRequestDto?> GetByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ReturnRequestDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var returnRequest = await _context.ReturnRequests
             .AsNoTracking()
             .Include(r => r.Order)
             .Include(r => r.User)
-            .FirstOrDefaultAsync(r => r.Id == id);
+            .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
         if (returnRequest == null) return null;
 
@@ -55,14 +56,22 @@ public class ReturnRequestService : IReturnRequestService
     }
 
     // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
-    public async Task<IEnumerable<ReturnRequestDto>> GetByUserIdAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PagedResult<ReturnRequestDto>> GetByUserIdAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        if (pageSize > 100) pageSize = 100; // Max limit
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
-        var returnRequests = await _context.ReturnRequests
+        var query = _context.ReturnRequests
             .AsNoTracking()
             .Include(r => r.Order)
             .Include(r => r.User)
-            .Where(r => r.UserId == userId)
+            .Where(r => r.UserId == userId);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var returnRequests = await query
             .OrderByDescending(r => r.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -71,11 +80,23 @@ public class ReturnRequestService : IReturnRequestService
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper kullan
         // Not: OrderNumber ve UserName AutoMapper'da zaten map ediliyor
-        return _mapper.Map<IEnumerable<ReturnRequestDto>>(returnRequests);
+        var dtos = _mapper.Map<IEnumerable<ReturnRequestDto>>(returnRequests);
+
+        return new PagedResult<ReturnRequestDto>
+        {
+            Items = dtos.ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<IEnumerable<ReturnRequestDto>> GetAllAsync(string? status = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PagedResult<ReturnRequestDto>> GetAllAsync(string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        if (pageSize > 100) pageSize = 100; // Max limit
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         IQueryable<ReturnRequest> query = _context.ReturnRequests
             .AsNoTracking()
@@ -88,18 +109,36 @@ public class ReturnRequestService : IReturnRequestService
             query = query.Where(r => r.Status == statusEnum);
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var returnRequests = await query
             .OrderByDescending(r => r.CreatedAt)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper kullan
         // Not: OrderNumber ve UserName AutoMapper'da zaten map ediliyor
-        return _mapper.Map<IEnumerable<ReturnRequestDto>>(returnRequests);
+        var dtos = _mapper.Map<IEnumerable<ReturnRequestDto>>(returnRequests);
+
+        return new PagedResult<ReturnRequestDto>
+        {
+            Items = dtos.ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<ReturnRequestDto> CreateAsync(CreateReturnRequestDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ReturnRequestDto> CreateAsync(CreateReturnRequestDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Return request oluşturuluyor. OrderId: {OrderId}, UserId: {UserId}, Reason: {Reason}",
+            dto.OrderId, dto.UserId, dto.Reason);
+
         if (dto == null)
         {
             throw new ArgumentNullException(nameof(dto));
@@ -118,7 +157,7 @@ public class ReturnRequestService : IReturnRequestService
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
         var order = await _context.Orders
             .Include(o => o.OrderItems)
-            .FirstOrDefaultAsync(o => o.Id == dto.OrderId && o.UserId == dto.UserId);
+            .FirstOrDefaultAsync(o => o.Id == dto.OrderId && o.UserId == dto.UserId, cancellationToken);
 
         if (order == null)
         {
@@ -140,7 +179,7 @@ public class ReturnRequestService : IReturnRequestService
         // İade edilecek kalemlerin toplam tutarını hesapla
         var refundAmount = await _context.OrderItems
             .Where(oi => oi.OrderId == dto.OrderId && dto.OrderItemIds.Contains(oi.Id))
-            .SumAsync(oi => (decimal?)oi.TotalPrice) ?? 0;
+            .SumAsync(oi => (decimal?)oi.TotalPrice, cancellationToken) ?? 0;
 
         if (refundAmount == 0)
         {
@@ -158,21 +197,27 @@ public class ReturnRequestService : IReturnRequestService
         };
 
         returnRequest = await _returnRequestRepository.AddAsync(returnRequest);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
         returnRequest = await _context.ReturnRequests
             .AsNoTracking()
             .Include(r => r.Order)
             .Include(r => r.User)
-            .FirstOrDefaultAsync(r => r.Id == returnRequest.Id);
+            .FirstOrDefaultAsync(r => r.Id == returnRequest.Id, cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Return request oluşturuldu. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, RefundAmount: {RefundAmount}",
+            returnRequest.Id, dto.OrderId, refundAmount);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: OrderNumber ve UserName AutoMapper'da zaten map ediliyor
         return _mapper.Map<ReturnRequestDto>(returnRequest);
     }
 
-    public async Task<ReturnRequestDto> UpdateStatusAsync(Guid id, string status, string? rejectionReason = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ReturnRequestDto> UpdateStatusAsync(Guid id, string status, string? rejectionReason = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(status))
         {
@@ -200,21 +245,22 @@ public class ReturnRequestService : IReturnRequestService
         }
 
         await _returnRequestRepository.UpdateAsync(returnRequest);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
         returnRequest = await _context.ReturnRequests
             .AsNoTracking()
             .Include(r => r.Order)
             .Include(r => r.User)
-            .FirstOrDefaultAsync(r => r.Id == id);
+            .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: OrderNumber ve UserName AutoMapper'da zaten map ediliyor
         return _mapper.Map<ReturnRequestDto>(returnRequest);
     }
 
-    public async Task<bool> ApproveAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ApproveAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var returnRequest = await _returnRequestRepository.GetByIdAsync(id);
         if (returnRequest == null)
@@ -225,7 +271,7 @@ public class ReturnRequestService : IReturnRequestService
         returnRequest.Status = ReturnRequestStatus.Approved;
         returnRequest.ApprovedAt = DateTime.UtcNow;
         await _returnRequestRepository.UpdateAsync(returnRequest);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Ödeme iadesi yapılacak (Payment service ile entegre edilecek)
         // Burada sadece status güncelleniyor
@@ -233,12 +279,14 @@ public class ReturnRequestService : IReturnRequestService
         return true;
     }
 
-    public async Task<bool> RejectAsync(Guid id, string reason)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> RejectAsync(Guid id, string reason, CancellationToken cancellationToken = default)
     {
-        return await UpdateStatusAsync(id, "Rejected", reason) != null;
+        return await UpdateStatusAsync(id, "Rejected", reason, cancellationToken) != null;
     }
 
-    public async Task<bool> CompleteAsync(Guid id, string trackingNumber)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> CompleteAsync(Guid id, string trackingNumber, CancellationToken cancellationToken = default)
     {
         var returnRequest = await _returnRequestRepository.GetByIdAsync(id);
         if (returnRequest == null)
@@ -250,7 +298,7 @@ public class ReturnRequestService : IReturnRequestService
         returnRequest.CompletedAt = DateTime.UtcNow;
         returnRequest.TrackingNumber = trackingNumber;
         await _returnRequestRepository.UpdateAsync(returnRequest);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }

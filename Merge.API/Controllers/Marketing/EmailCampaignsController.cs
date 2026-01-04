@@ -323,21 +323,26 @@ public class EmailCampaignsController : BaseController
     }
 
     /// <summary>
-    /// Email template'lerini getirir (Admin, Manager)
+    /// Email template'lerini getirir (pagination ile) (Admin, Manager)
     /// </summary>
     [HttpGet("templates")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
-    [ProducesResponseType(typeof(IEnumerable<EmailTemplateDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<EmailTemplateDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<ActionResult<IEnumerable<EmailTemplateDto>>> GetTemplates(
+    public async Task<ActionResult<PagedResult<EmailTemplateDto>>> GetTemplates(
         [FromQuery] string? type = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+        if (pageSize > 100) pageSize = 100; // Max limit
+
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var templates = await _campaignService.GetTemplatesAsync(type, cancellationToken);
+        var templates = await _campaignService.GetTemplatesAsync(type, page, pageSize, cancellationToken);
         return Ok(templates);
     }
 
@@ -652,20 +657,25 @@ public class EmailCampaignsController : BaseController
     }
 
     /// <summary>
-    /// Email otomasyonlarını getirir (Admin, Manager)
+    /// Email otomasyonlarını getirir (pagination ile) (Admin, Manager)
     /// </summary>
     [HttpGet("automations")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
-    [ProducesResponseType(typeof(IEnumerable<EmailAutomationDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<EmailAutomationDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<ActionResult<IEnumerable<EmailAutomationDto>>> GetAutomations(
+    public async Task<ActionResult<PagedResult<EmailAutomationDto>>> GetAutomations(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+        if (pageSize > 100) pageSize = 100; // Max limit
+
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var automations = await _campaignService.GetAutomationsAsync(cancellationToken);
+        var automations = await _campaignService.GetAutomationsAsync(page, pageSize, cancellationToken);
         return Ok(automations);
     }
 

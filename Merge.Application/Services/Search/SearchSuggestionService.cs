@@ -26,7 +26,8 @@ public class SearchSuggestionService : ISearchSuggestionService
         _logger = logger;
     }
 
-    public async Task<AutocompleteResultDto> GetAutocompleteSuggestionsAsync(string query, int maxResults = 10)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<AutocompleteResultDto> GetAutocompleteSuggestionsAsync(string query, int maxResults = 10, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
         {
@@ -46,7 +47,7 @@ public class SearchSuggestionService : ISearchSuggestionService
             .OrderByDescending(p => p.Rating)
             .ThenByDescending(p => p.ReviewCount)
             .Take(maxResults)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
         
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var productSuggestionDtos = _mapper.Map<IEnumerable<ProductSuggestionDto>>(productSuggestions).ToList();
@@ -59,7 +60,7 @@ public class SearchSuggestionService : ISearchSuggestionService
             .OrderBy(c => c.Name)
             .Take(5)
             .Select(c => c.Name)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // Brand suggestions
@@ -70,7 +71,7 @@ public class SearchSuggestionService : ISearchSuggestionService
             .Select(p => p.Brand)
             .Distinct()
             .Take(5)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !ps.IsDeleted (Global Query Filter)
         // Popular searches containing the query
@@ -80,7 +81,7 @@ public class SearchSuggestionService : ISearchSuggestionService
             .OrderByDescending(ps => ps.SearchCount)
             .Take(5)
             .Select(ps => ps.SearchTerm)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return new AutocompleteResultDto
         {
@@ -91,7 +92,8 @@ public class SearchSuggestionService : ISearchSuggestionService
         };
     }
 
-    public async Task<IEnumerable<string>> GetPopularSearchesAsync(int maxResults = 10)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<string>> GetPopularSearchesAsync(int maxResults = 10, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !ps.IsDeleted (Global Query Filter)
         var popularSearches = await _context.Set<PopularSearch>()
@@ -99,17 +101,24 @@ public class SearchSuggestionService : ISearchSuggestionService
             .OrderByDescending(ps => ps.SearchCount)
             .Take(maxResults)
             .Select(ps => ps.SearchTerm)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return popularSearches;
     }
 
-    public async Task RecordSearchAsync(string searchTerm, Guid? userId, int resultCount, string? userAgent = null, string? ipAddress = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task RecordSearchAsync(string searchTerm, Guid? userId, int resultCount, string? userAgent = null, string? ipAddress = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
         {
             return;
         }
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Search kaydediliyor. SearchTerm: {SearchTerm}, UserId: {UserId}, ResultCount: {ResultCount}",
+            searchTerm, userId, resultCount);
 
         var normalizedTerm = searchTerm.Trim();
 
@@ -123,12 +132,12 @@ public class SearchSuggestionService : ISearchSuggestionService
             IpAddress = ipAddress
         };
 
-        await _context.Set<SearchHistory>().AddAsync(searchHistory);
+        await _context.Set<SearchHistory>().AddAsync(searchHistory, cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !ps.IsDeleted (Global Query Filter)
         // Update or create popular search
         var popularSearch = await _context.Set<PopularSearch>()
-            .FirstOrDefaultAsync(ps => ps.SearchTerm.ToLower() == normalizedTerm.ToLower());
+            .FirstOrDefaultAsync(ps => ps.SearchTerm.ToLower() == normalizedTerm.ToLower(), cancellationToken);
 
         if (popularSearch == null)
         {
@@ -140,7 +149,7 @@ public class SearchSuggestionService : ISearchSuggestionService
                 ClickThroughRate = 0,
                 LastSearchedAt = DateTime.UtcNow
             };
-            await _context.Set<PopularSearch>().AddAsync(popularSearch);
+            await _context.Set<PopularSearch>().AddAsync(popularSearch, cancellationToken);
         }
         else
         {
@@ -151,14 +160,21 @@ public class SearchSuggestionService : ISearchSuggestionService
                 : 0;
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Search kaydedildi. SearchTerm: {SearchTerm}, UserId: {UserId}",
+            searchTerm, userId);
     }
 
-    public async Task RecordClickAsync(Guid searchHistoryId, Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task RecordClickAsync(Guid searchHistoryId, Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sh.IsDeleted (Global Query Filter)
         var searchHistory = await _context.Set<SearchHistory>()
-            .FirstOrDefaultAsync(sh => sh.Id == searchHistoryId);
+            .FirstOrDefaultAsync(sh => sh.Id == searchHistoryId, cancellationToken);
 
         if (searchHistory == null)
         {
@@ -171,7 +187,7 @@ public class SearchSuggestionService : ISearchSuggestionService
         // ✅ PERFORMANCE: Removed manual !ps.IsDeleted (Global Query Filter)
         // Update popular search click-through rate
         var popularSearch = await _context.Set<PopularSearch>()
-            .FirstOrDefaultAsync(ps => ps.SearchTerm.ToLower() == searchHistory.SearchTerm.ToLower());
+            .FirstOrDefaultAsync(ps => ps.SearchTerm.ToLower() == searchHistory.SearchTerm.ToLower(), cancellationToken);
 
         if (popularSearch != null)
         {
@@ -179,10 +195,16 @@ public class SearchSuggestionService : ISearchSuggestionService
             popularSearch.ClickThroughRate = (decimal)popularSearch.ClickThroughCount / popularSearch.SearchCount * 100;
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Search click kaydedildi. SearchHistoryId: {SearchHistoryId}, ProductId: {ProductId}",
+            searchHistoryId, productId);
     }
 
-    public async Task<IEnumerable<SearchSuggestionDto>> GetTrendingSearchesAsync(int days = 7, int maxResults = 10)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<SearchSuggestionDto>> GetTrendingSearchesAsync(int days = 7, int maxResults = 10, CancellationToken cancellationToken = default)
     {
         var startDate = DateTime.UtcNow.AddDays(-days);
 
@@ -200,7 +222,7 @@ public class SearchSuggestionService : ISearchSuggestionService
             })
             .OrderByDescending(s => s.Frequency)
             .Take(maxResults)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return trendingSearches;
     }

@@ -5,6 +5,7 @@ using UserEntity = Merge.Domain.Entities.User;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.Exceptions;
+using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
@@ -31,8 +32,15 @@ public class ProductComparisonService : IProductComparisonService
         _logger = logger;
     }
 
-    public async Task<ProductComparisonDto> CreateComparisonAsync(Guid userId, CreateComparisonDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<ProductComparisonDto> CreateComparisonAsync(Guid userId, CreateComparisonDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Product comparison oluşturuluyor. UserId: {UserId}, ProductCount: {ProductCount}",
+            userId, dto.ProductIds.Count);
+
         if (dto.ProductIds.Count > 5)
         {
             throw new ValidationException("Aynı anda en fazla 5 ürün karşılaştırılabilir.");
@@ -45,15 +53,15 @@ public class ProductComparisonService : IProductComparisonService
             IsSaved = !string.IsNullOrEmpty(dto.Name)
         };
 
-        await _context.Set<ProductComparison>().AddAsync(comparison);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<ProductComparison>().AddAsync(comparison, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load products to avoid N+1 queries
         var productIds = dto.ProductIds.Distinct().ToList();
         var products = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id))
-            .ToDictionaryAsync(p => p.Id);
+            .ToDictionaryAsync(p => p.Id, cancellationToken);
 
         int position = 0;
         foreach (var productId in dto.ProductIds)
@@ -67,11 +75,11 @@ public class ProductComparisonService : IProductComparisonService
                     Position = position++
                 };
 
-                await _context.Set<ProductComparisonItem>().AddAsync(item);
+                await _context.Set<ProductComparisonItem>().AddAsync(item, cancellationToken);
             }
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         comparison = await _context.Set<ProductComparison>()
@@ -79,13 +87,19 @@ public class ProductComparisonService : IProductComparisonService
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)
-            .FirstOrDefaultAsync(c => c.Id == comparison.Id);
+            .FirstOrDefaultAsync(c => c.Id == comparison.Id, cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Product comparison oluşturuldu. ComparisonId: {ComparisonId}, UserId: {UserId}",
+            comparison!.Id, userId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return await MapToDto(comparison);
+        return await MapToDto(comparison, cancellationToken);
     }
 
-    public async Task<ProductComparisonDto?> GetComparisonAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ProductComparisonDto?> GetComparisonAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var comparison = await _context.Set<ProductComparison>()
@@ -93,13 +107,14 @@ public class ProductComparisonService : IProductComparisonService
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return comparison != null ? await MapToDto(comparison) : null;
+        return comparison != null ? await MapToDto(comparison, cancellationToken) : null;
     }
 
-    public async Task<ProductComparisonDto?> GetUserComparisonAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ProductComparisonDto?> GetUserComparisonAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var comparison = await _context.Set<ProductComparison>()
@@ -109,7 +124,7 @@ public class ProductComparisonService : IProductComparisonService
                     .ThenInclude(p => p.Category)
             .Where(c => c.UserId == userId && !c.IsSaved)
             .OrderByDescending(c => c.CreatedAt)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (comparison == null)
         {
@@ -121,16 +136,22 @@ public class ProductComparisonService : IProductComparisonService
                 IsSaved = false
             };
 
-            await _context.Set<ProductComparison>().AddAsync(comparison);
-            await _unitOfWork.SaveChangesAsync();
+            await _context.Set<ProductComparison>().AddAsync(comparison, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return await MapToDto(comparison);
+        return await MapToDto(comparison, cancellationToken);
     }
 
-    public async Task<IEnumerable<ProductComparisonDto>> GetUserComparisonsAsync(Guid userId, bool savedOnly = false)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<ProductComparisonDto>> GetUserComparisonsAsync(Guid userId, bool savedOnly = false, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var query = _context.Set<ProductComparison>()
             .AsNoTracking()
@@ -144,22 +165,33 @@ public class ProductComparisonService : IProductComparisonService
             query = query.Where(c => c.IsSaved);
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var comparisons = await query
             .OrderByDescending(c => c.CreatedAt)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: MapToDto metodu hala kullanılıyor çünkü Products listesi manuel set ediliyor
-        var dtos = new List<ProductComparisonDto>();
+        var dtos = new List<ProductComparisonDto>(comparisons.Count);
         foreach (var comparison in comparisons)
         {
-            dtos.Add(await MapToDto(comparison));
+            dtos.Add(await MapToDto(comparison, cancellationToken));
         }
 
-        return dtos;
+        return new PagedResult<ProductComparisonDto>
+        {
+            Items = dtos,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<ProductComparisonDto?> GetComparisonByShareCodeAsync(string shareCode)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ProductComparisonDto?> GetComparisonByShareCodeAsync(string shareCode, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var comparison = await _context.Set<ProductComparison>()
@@ -167,20 +199,21 @@ public class ProductComparisonService : IProductComparisonService
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)
-            .FirstOrDefaultAsync(c => c.ShareCode == shareCode);
+            .FirstOrDefaultAsync(c => c.ShareCode == shareCode, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return comparison != null ? await MapToDto(comparison) : null;
+        return comparison != null ? await MapToDto(comparison, cancellationToken) : null;
     }
 
-    public async Task<ProductComparisonDto> AddProductToComparisonAsync(Guid userId, Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ProductComparisonDto> AddProductToComparisonAsync(Guid userId, Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var comparison = await _context.Set<ProductComparison>()
             .Include(c => c.Items)
             .Where(c => c.UserId == userId && !c.IsSaved)
             .OrderByDescending(c => c.CreatedAt)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (comparison == null)
         {
@@ -191,8 +224,8 @@ public class ProductComparisonService : IProductComparisonService
                 IsSaved = false
             };
 
-            await _context.Set<ProductComparison>().AddAsync(comparison);
-            await _unitOfWork.SaveChangesAsync();
+            await _context.Set<ProductComparison>().AddAsync(comparison, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         if (comparison.Items.Count >= 5)
@@ -210,7 +243,7 @@ public class ProductComparisonService : IProductComparisonService
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var product = await _context.Set<ProductEntity>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == productId);
+            .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
         if (product == null)
         {
@@ -224,8 +257,8 @@ public class ProductComparisonService : IProductComparisonService
             Position = comparison.Items.Count
         };
 
-        await _context.Set<ProductComparisonItem>().AddAsync(item);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<ProductComparisonItem>().AddAsync(item, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         comparison = await _context.Set<ProductComparison>()
@@ -233,20 +266,21 @@ public class ProductComparisonService : IProductComparisonService
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)
-            .FirstOrDefaultAsync(c => c.Id == comparison.Id);
+            .FirstOrDefaultAsync(c => c.Id == comparison.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return await MapToDto(comparison!);
+        return await MapToDto(comparison!, cancellationToken);
     }
 
-    public async Task<bool> RemoveProductFromComparisonAsync(Guid userId, Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> RemoveProductFromComparisonAsync(Guid userId, Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var comparison = await _context.Set<ProductComparison>()
             .Include(c => c.Items)
             .Where(c => c.UserId == userId && !c.IsSaved)
             .OrderByDescending(c => c.CreatedAt)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (comparison == null) return false;
 
@@ -267,34 +301,36 @@ public class ProductComparisonService : IProductComparisonService
             remainingItems[i].Position = i;
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> SaveComparisonAsync(Guid userId, string name)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> SaveComparisonAsync(Guid userId, string name, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var comparison = await _context.Set<ProductComparison>()
             .Where(c => c.UserId == userId && !c.IsSaved)
             .OrderByDescending(c => c.CreatedAt)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (comparison == null) return false;
 
         comparison.Name = name;
         comparison.IsSaved = true;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<string> GenerateShareCodeAsync(Guid comparisonId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<string> GenerateShareCodeAsync(Guid comparisonId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var comparison = await _context.Set<ProductComparison>()
-            .FirstOrDefaultAsync(c => c.Id == comparisonId);
+            .FirstOrDefaultAsync(c => c.Id == comparisonId, cancellationToken);
 
         if (comparison == null)
         {
@@ -309,19 +345,20 @@ public class ProductComparisonService : IProductComparisonService
         var shareCode = GenerateUniqueShareCode();
         comparison.ShareCode = shareCode;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return shareCode;
     }
 
-    public async Task<bool> ClearComparisonAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ClearComparisonAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var comparison = await _context.Set<ProductComparison>()
             .Include(c => c.Items)
             .Where(c => c.UserId == userId && !c.IsSaved)
             .OrderByDescending(c => c.CreatedAt)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (comparison == null) return false;
 
@@ -330,26 +367,28 @@ public class ProductComparisonService : IProductComparisonService
             item.IsDeleted = true;
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeleteComparisonAsync(Guid id, Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteComparisonAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var comparison = await _context.Set<ProductComparison>()
-            .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId);
+            .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId, cancellationToken);
 
         if (comparison == null) return false;
 
         comparison.IsDeleted = true;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<ComparisonMatrixDto> GetComparisonMatrixAsync(Guid comparisonId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ComparisonMatrixDto> GetComparisonMatrixAsync(Guid comparisonId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var comparison = await _context.Set<ProductComparison>()
@@ -357,7 +396,7 @@ public class ProductComparisonService : IProductComparisonService
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)
-            .FirstOrDefaultAsync(c => c.Id == comparisonId);
+            .FirstOrDefaultAsync(c => c.Id == comparisonId, cancellationToken);
 
         if (comparison == null)
         {
@@ -381,7 +420,7 @@ public class ProductComparisonService : IProductComparisonService
                 Rating = g.Average(r => r.Rating),
                 Count = g.Count()
             })
-            .ToDictionaryAsync(x => x.ProductId);
+            .ToDictionaryAsync(x => x.ProductId, cancellationToken);
 
         var matrix = new ComparisonMatrixDto
         {
@@ -458,7 +497,8 @@ public class ProductComparisonService : IProductComparisonService
         return matrix;
     }
 
-    private async Task<ProductComparisonDto> MapToDto(ProductComparison comparison)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    private async Task<ProductComparisonDto> MapToDto(ProductComparison comparison, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !i.IsDeleted (Global Query Filter)
         var items = await _context.Set<ProductComparisonItem>()
@@ -467,21 +507,30 @@ public class ProductComparisonService : IProductComparisonService
                 .ThenInclude(p => p.Category)
             .Where(i => i.ComparisonId == comparison.Id)
             .OrderBy(i => i.Position)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load reviews to avoid N+1 queries
         var productIds = items.Select(i => i.ProductId).ToList();
-        var reviewsDict = await _context.Set<ReviewEntity>()
-            .AsNoTracking()
-            .Where(r => productIds.Contains(r.ProductId))
-            .GroupBy(r => r.ProductId)
-            .Select(g => new
-            {
-                ProductId = g.Key,
-                Rating = g.Average(r => r.Rating),
-                Count = g.Count()
-            })
-            .ToDictionaryAsync(x => x.ProductId);
+        Dictionary<Guid, (decimal Rating, int Count)> reviewsDict;
+        if (productIds.Any())
+        {
+            var reviews = await _context.Set<ReviewEntity>()
+                .AsNoTracking()
+                .Where(r => productIds.Contains(r.ProductId))
+                .GroupBy(r => r.ProductId)
+                .Select(g => new
+                {
+                    ProductId = g.Key,
+                    Rating = g.Average(r => r.Rating),
+                    Count = g.Count()
+                })
+                .ToListAsync(cancellationToken);
+            reviewsDict = reviews.ToDictionary(x => x.ProductId, x => (x.Rating, x.Count));
+        }
+        else
+        {
+            reviewsDict = new Dictionary<Guid, (decimal Rating, int Count)>();
+        }
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: ComparisonProductDto için AutoMapper mapping'i eklenmeli
@@ -489,14 +538,14 @@ public class ProductComparisonService : IProductComparisonService
 
         foreach (var item in items)
         {
-            var reviewStats = reviewsDict.TryGetValue(item.ProductId, out var stats) ? stats : null;
+            var hasReviewStats = reviewsDict.TryGetValue(item.ProductId, out var stats);
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
             // Not: ProductComparisonItem → ComparisonProductDto mapping'i eklenmeli
             var compProduct = _mapper.Map<ComparisonProductDto>(item.Product);
             compProduct.Position = item.Position;
-            compProduct.Rating = reviewStats != null ? (decimal?)reviewStats.Rating : null;
-            compProduct.ReviewCount = reviewStats?.Count ?? 0;
+            compProduct.Rating = hasReviewStats ? (decimal?)stats.Rating : null;
+            compProduct.ReviewCount = hasReviewStats ? stats.Count : 0;
             compProduct.Specifications = new Dictionary<string, string>(); // TODO: Map from product specifications
             compProduct.Features = new List<string>(); // TODO: Map from product features
             products.Add(compProduct);

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Payment;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.DTOs.Payment;
+using Merge.Application.Common;
 
 
 namespace Merge.API.Controllers.Payment;
@@ -22,30 +23,52 @@ public class InvoicesController : BaseController
         _orderService = orderService;
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<InvoiceDto>>> GetMyInvoices()
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(PagedResult<InvoiceDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PagedResult<InvoiceDto>>> GetMyInvoices(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var userId = GetUserId();
-        var invoices = await _invoiceService.GetByUserIdAsync(userId);
+        var invoices = await _invoiceService.GetByUserIdAsync(userId, page, pageSize, cancellationToken);
         return Ok(invoices);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpGet("{id}")]
-    public async Task<ActionResult<InvoiceDto>> GetById(Guid id)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(InvoiceDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<InvoiceDto>> GetById(Guid id, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        var invoice = await _invoiceService.GetByIdAsync(id);
+        var invoice = await _invoiceService.GetByIdAsync(id, cancellationToken);
         if (invoice == null)
         {
             return NotFound();
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin faturalarına erişebilmeli
-        var order = await _orderService.GetByIdAsync(invoice.OrderId);
+        var order = await _orderService.GetByIdAsync(invoice.OrderId, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -59,16 +82,26 @@ public class InvoicesController : BaseController
         return Ok(invoice);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpGet("order/{orderId}")]
-    public async Task<ActionResult<InvoiceDto>> GetByOrderId(Guid orderId)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(InvoiceDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<InvoiceDto>> GetByOrderId(Guid orderId, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
         // ✅ SECURITY: IDOR koruması - Önce Order'ın kullanıcıya ait olduğunu kontrol et
-        var order = await _orderService.GetByIdAsync(orderId);
+        var order = await _orderService.GetByIdAsync(orderId, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -79,7 +112,7 @@ public class InvoicesController : BaseController
             return Forbid();
         }
 
-        var invoice = await _invoiceService.GetByOrderIdAsync(orderId);
+        var invoice = await _invoiceService.GetByOrderIdAsync(orderId, cancellationToken);
         if (invoice == null)
         {
             return NotFound();
@@ -88,11 +121,21 @@ public class InvoicesController : BaseController
         return Ok(invoice);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpPost("generate/{orderId}")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<InvoiceDto>> GenerateInvoice(Guid orderId)
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
+    [ProducesResponseType(typeof(InvoiceDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<InvoiceDto>> GenerateInvoice(Guid orderId, CancellationToken cancellationToken = default)
     {
-        var invoice = await _invoiceService.GenerateInvoiceAsync(orderId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var invoice = await _invoiceService.GenerateInvoiceAsync(orderId, cancellationToken);
         if (invoice == null)
         {
             return NotFound();
@@ -100,11 +143,21 @@ public class InvoicesController : BaseController
         return CreatedAtAction(nameof(GetById), new { id = invoice.Id }, invoice);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpPost("{id}/send")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> SendInvoice(Guid id)
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> SendInvoice(Guid id, CancellationToken cancellationToken = default)
     {
-        var result = await _invoiceService.SendInvoiceAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var result = await _invoiceService.SendInvoiceAsync(id, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -112,22 +165,32 @@ public class InvoicesController : BaseController
         return NoContent();
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpGet("{id}/pdf")]
-    public async Task<ActionResult<string>> GetInvoicePdf(Guid id)
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika (PDF generation is expensive)
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<string>> GetInvoicePdf(Guid id, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        var invoice = await _invoiceService.GetByIdAsync(id);
+        var invoice = await _invoiceService.GetByIdAsync(id, cancellationToken);
         if (invoice == null)
         {
             return NotFound();
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin faturalarına erişebilmeli
-        var order = await _orderService.GetByIdAsync(invoice.OrderId);
+        var order = await _orderService.GetByIdAsync(invoice.OrderId, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -138,7 +201,7 @@ public class InvoicesController : BaseController
             return Forbid();
         }
 
-        var pdfUrl = await _invoiceService.GenerateInvoicePdfAsync(id);
+        var pdfUrl = await _invoiceService.GenerateInvoicePdfAsync(id, cancellationToken);
         return Ok(new { pdfUrl });
     }
 }

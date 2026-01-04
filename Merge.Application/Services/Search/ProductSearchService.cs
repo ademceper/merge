@@ -24,8 +24,15 @@ public class ProductSearchService : IProductSearchService
         _logger = logger;
     }
 
-    public async Task<SearchResultDto> SearchAsync(SearchRequestDto request)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<SearchResultDto> SearchAsync(SearchRequestDto request, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Product search yapılıyor. SearchTerm: {SearchTerm}, CategoryId: {CategoryId}, Page: {Page}, PageSize: {PageSize}",
+            request.SearchTerm, request.CategoryId, request.Page, request.PageSize);
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var query = _context.Products
             .AsNoTracking()
@@ -81,8 +88,13 @@ public class ProductSearchService : IProductSearchService
         var page = request.Page ?? 1;
         var pageSize = request.PageSize ?? 20;
         
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+        
         // Toplam kayıt sayısı
-        var totalCount = await query.CountAsync();
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var totalCount = await query.CountAsync(cancellationToken);
         
         // ✅ PERFORMANCE: Apply pagination before materializing the query
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
@@ -90,7 +102,7 @@ public class ProductSearchService : IProductSearchService
         var products = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
         
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var productDtos = _mapper.Map<IEnumerable<ProductDto>>(products).ToList();
@@ -99,24 +111,31 @@ public class ProductSearchService : IProductSearchService
         var rankedProducts = ApplySearchRanking(productDtos, request.SearchTerm ?? string.Empty, request.SortBy);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var brands = await _context.Products
             .AsNoTracking()
             .Where(p => p.IsActive && !string.IsNullOrEmpty(p.Brand))
             .Select(p => p.Brand)
             .Distinct()
             .OrderBy(b => b)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var minPrice = await _context.Products
             .AsNoTracking()
             .Where(p => p.IsActive)
-            .MinAsync(p => (decimal?)p.Price) ?? 0;
+            .MinAsync(p => (decimal?)p.Price, cancellationToken) ?? 0;
         
         var maxPrice = await _context.Products
             .AsNoTracking()
             .Where(p => p.IsActive)
-            .MaxAsync(p => (decimal?)p.Price) ?? 0;
+            .MaxAsync(p => (decimal?)p.Price, cancellationToken) ?? 0;
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Product search tamamlandı. TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}",
+            totalCount, page, pageSize);
 
         return new SearchResultDto
         {

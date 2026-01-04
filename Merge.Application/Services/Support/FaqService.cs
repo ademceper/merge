@@ -34,39 +34,43 @@ public class FaqService : IFaqService
         _logger = logger;
     }
 
-    public async Task<FaqDto?> GetByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<FaqDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Direct DbContext query for better control
+        // ✅ PERFORMANCE: Removed manual !f.IsDeleted (Global Query Filter)
         var faq = await _context.FAQs
             .AsNoTracking()
-            .FirstOrDefaultAsync(f => f.Id == id);
+            .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
         return faq == null ? null : _mapper.Map<FaqDto>(faq);
     }
 
-    public async Task<IEnumerable<FaqDto>> GetAllAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<FaqDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !f.IsDeleted (Global Query Filter)
         var faqs = await _context.FAQs
             .AsNoTracking()
             .OrderBy(f => f.SortOrder)
             .ThenBy(f => f.Question)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return _mapper.Map<IEnumerable<FaqDto>>(faqs);
     }
 
-    public async Task<PagedResult<FaqDto>> GetAllAsync(int page, int pageSize)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PagedResult<FaqDto>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _context.FAQs
             .AsNoTracking()
             .OrderBy(f => f.SortOrder)
             .ThenBy(f => f.Question);
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(cancellationToken);
         var faqs = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return new PagedResult<FaqDto>
         {
@@ -77,7 +81,8 @@ public class FaqService : IFaqService
         };
     }
 
-    public async Task<IEnumerable<FaqDto>> GetByCategoryAsync(string category)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<FaqDto>> GetByCategoryAsync(string category, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !f.IsDeleted (Global Query Filter)
         var faqs = await _context.FAQs
@@ -85,12 +90,13 @@ public class FaqService : IFaqService
             .Where(f => f.Category == category && f.IsPublished)
             .OrderBy(f => f.SortOrder)
             .ThenBy(f => f.Question)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return _mapper.Map<IEnumerable<FaqDto>>(faqs);
     }
 
-    public async Task<PagedResult<FaqDto>> GetByCategoryAsync(string category, int page, int pageSize)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PagedResult<FaqDto>> GetByCategoryAsync(string category, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _context.FAQs
             .AsNoTracking()
@@ -98,11 +104,11 @@ public class FaqService : IFaqService
             .OrderBy(f => f.SortOrder)
             .ThenBy(f => f.Question);
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(cancellationToken);
         var faqs = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return new PagedResult<FaqDto>
         {
@@ -113,7 +119,8 @@ public class FaqService : IFaqService
         };
     }
 
-    public async Task<IEnumerable<FaqDto>> GetPublishedAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<FaqDto>> GetPublishedAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !f.IsDeleted (Global Query Filter)
         var faqs = await _context.FAQs
@@ -121,12 +128,13 @@ public class FaqService : IFaqService
             .Where(f => f.IsPublished)
             .OrderBy(f => f.SortOrder)
             .ThenBy(f => f.Question)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return _mapper.Map<IEnumerable<FaqDto>>(faqs);
     }
 
-    public async Task<PagedResult<FaqDto>> GetPublishedAsync(int page, int pageSize)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PagedResult<FaqDto>> GetPublishedAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _context.FAQs
             .AsNoTracking()
@@ -134,11 +142,11 @@ public class FaqService : IFaqService
             .OrderBy(f => f.SortOrder)
             .ThenBy(f => f.Question);
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(cancellationToken);
         var faqs = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return new PagedResult<FaqDto>
         {
@@ -149,18 +157,20 @@ public class FaqService : IFaqService
         };
     }
 
-    public async Task<FaqDto> CreateAsync(CreateFaqDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<FaqDto> CreateAsync(CreateFaqDto dto, CancellationToken cancellationToken = default)
     {
         var faq = _mapper.Map<FAQ>(dto);
-        faq = await _faqRepository.AddAsync(faq);
+        faq = await _faqRepository.AddAsync(faq, cancellationToken);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return _mapper.Map<FaqDto>(faq);
     }
 
-    public async Task<FaqDto> UpdateAsync(Guid id, UpdateFaqDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<FaqDto> UpdateAsync(Guid id, UpdateFaqDto dto, CancellationToken cancellationToken = default)
     {
-        var faq = await _faqRepository.GetByIdAsync(id);
+        var faq = await _faqRepository.GetByIdAsync(id, cancellationToken);
         if (faq == null)
         {
             throw new NotFoundException("SSS", id);
@@ -172,35 +182,37 @@ public class FaqService : IFaqService
         faq.SortOrder = dto.SortOrder;
         faq.IsPublished = dto.IsPublished;
 
-        await _faqRepository.UpdateAsync(faq);
+        await _faqRepository.UpdateAsync(faq, cancellationToken);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return _mapper.Map<FaqDto>(faq);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var faq = await _faqRepository.GetByIdAsync(id);
+        var faq = await _faqRepository.GetByIdAsync(id, cancellationToken);
         if (faq == null)
         {
             return false;
         }
 
-        await _faqRepository.DeleteAsync(faq);
+        await _faqRepository.DeleteAsync(faq, cancellationToken);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task IncrementViewCountAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task IncrementViewCountAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var faq = await _faqRepository.GetByIdAsync(id);
+        var faq = await _faqRepository.GetByIdAsync(id, cancellationToken);
         if (faq != null)
         {
             faq.ViewCount++;
-            await _faqRepository.UpdateAsync(faq);
+            await _faqRepository.UpdateAsync(faq, cancellationToken);
             // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
     }
 }

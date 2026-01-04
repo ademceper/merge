@@ -89,6 +89,11 @@ public class NotificationService : INotificationService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<NotificationDto> CreateNotificationAsync(CreateNotificationDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Notification oluşturuluyor. UserId: {UserId}, Type: {Type}, Title: {Title}",
+            dto.UserId, dto.Type, dto.Title);
+
         var notification = new NotificationEntity
         {
             UserId = dto.UserId,
@@ -100,6 +105,11 @@ public class NotificationService : INotificationService
 
         await _notificationRepository.AddAsync(notification);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Notification oluşturuldu. NotificationId: {NotificationId}, UserId: {UserId}, Type: {Type}",
+            notification.Id, dto.UserId, dto.Type);
         
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<NotificationDto>(notification);

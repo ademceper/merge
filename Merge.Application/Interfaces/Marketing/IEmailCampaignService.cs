@@ -23,6 +23,8 @@ public interface IEmailCampaignService
     Task<EmailTemplateDto> CreateTemplateAsync(CreateEmailTemplateDto dto, CancellationToken cancellationToken = default);
     Task<EmailTemplateDto?> GetTemplateAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IEnumerable<EmailTemplateDto>> GetTemplatesAsync(string? type = null, CancellationToken cancellationToken = default);
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    Task<PagedResult<EmailTemplateDto>> GetTemplatesAsync(string? type, int page, int pageSize, CancellationToken cancellationToken = default);
     Task<EmailTemplateDto> UpdateTemplateAsync(Guid id, CreateEmailTemplateDto dto, CancellationToken cancellationToken = default);
     Task<bool> DeleteTemplateAsync(Guid id, CancellationToken cancellationToken = default);
 
@@ -45,6 +47,8 @@ public interface IEmailCampaignService
     // Automation
     Task<EmailAutomationDto> CreateAutomationAsync(CreateEmailAutomationDto dto, CancellationToken cancellationToken = default);
     Task<IEnumerable<EmailAutomationDto>> GetAutomationsAsync(CancellationToken cancellationToken = default);
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    Task<PagedResult<EmailAutomationDto>> GetAutomationsAsync(int page, int pageSize, CancellationToken cancellationToken = default);
     Task<bool> ToggleAutomationAsync(Guid id, bool isActive, CancellationToken cancellationToken = default);
     Task<bool> DeleteAutomationAsync(Guid id, CancellationToken cancellationToken = default);
 }

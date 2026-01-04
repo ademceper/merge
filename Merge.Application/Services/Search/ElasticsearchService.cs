@@ -24,7 +24,8 @@ public class ElasticsearchService : IElasticsearchService
         _productSearchService = productSearchService;
     }
 
-    public async Task<bool> IndexProductAsync(ProductDto product)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> IndexProductAsync(ProductDto product, CancellationToken cancellationToken = default)
     {
         var elasticsearchUrl = _configuration["Elasticsearch:Url"];
         var indexName = _configuration["Elasticsearch:IndexName"] ?? "products";
@@ -37,14 +38,15 @@ public class ElasticsearchService : IElasticsearchService
 
         // Mock implementation - Gerçek implementasyonda Elasticsearch.NET client kullanılacak
         // var client = new ElasticClient(new Uri(elasticsearchUrl));
-        // await client.IndexAsync(product, idx => idx.Index(indexName).Id(product.Id));
+        // await client.IndexAsync(product, idx => idx.Index(indexName).Id(product.Id), cancellationToken);
         
         _logger.LogInformation("Product indexed to Elasticsearch: {ProductId}", product.Id);
         await Task.CompletedTask;
         return true;
     }
 
-    public async Task<bool> IndexProductsAsync(IEnumerable<ProductDto> products)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> IndexProductsAsync(IEnumerable<ProductDto> products, CancellationToken cancellationToken = default)
     {
         var elasticsearchUrl = _configuration["Elasticsearch:Url"];
 
@@ -60,13 +62,15 @@ public class ElasticsearchService : IElasticsearchService
         
         foreach (var product in productList)
         {
-            await IndexProductAsync(product);
+            cancellationToken.ThrowIfCancellationRequested();
+            await IndexProductAsync(product, cancellationToken);
         }
         
         return true;
     }
 
-    public async Task<bool> DeleteProductAsync(Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteProductAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         var elasticsearchUrl = _configuration["Elasticsearch:Url"];
         var indexName = _configuration["Elasticsearch:IndexName"] ?? "products";
@@ -78,22 +82,23 @@ public class ElasticsearchService : IElasticsearchService
 
         // Mock implementation
         // var client = new ElasticClient(new Uri(elasticsearchUrl));
-        // await client.DeleteAsync<ProductDto>(productId, idx => idx.Index(indexName));
+        // await client.DeleteAsync<ProductDto>(productId, idx => idx.Index(indexName), cancellationToken);
         
         _logger.LogInformation("Product deleted from Elasticsearch: {ProductId}", productId);
         await Task.CompletedTask;
         return true;
     }
 
-    public async Task<SearchResultDto> SearchAsync(SearchRequestDto request)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<SearchResultDto> SearchAsync(SearchRequestDto request, CancellationToken cancellationToken = default)
     {
         var elasticsearchUrl = _configuration["Elasticsearch:Url"];
 
-        if (string.IsNullOrEmpty(elasticsearchUrl) || !await IsAvailableAsync())
+        if (string.IsNullOrEmpty(elasticsearchUrl) || !await IsAvailableAsync(cancellationToken))
         {
             // Fallback to SQL-based search
             _logger.LogInformation("Elasticsearch not available, using SQL search");
-            return await _productSearchService.SearchAsync(request);
+            return await _productSearchService.SearchAsync(request, cancellationToken);
         }
 
         // Mock implementation - Gerçek implementasyonda Elasticsearch query yapılacak
@@ -107,16 +112,16 @@ public class ElasticsearchService : IElasticsearchService
         //         )
         //     )
         //     .From((request.Page ?? 1 - 1) * (request.PageSize ?? 20))
-        //     .Size(request.PageSize ?? 20)
-        // );
+        //     .Size(request.PageSize ?? 20), cancellationToken);
         
         _logger.LogInformation("Elasticsearch search executed: {SearchTerm}", request.SearchTerm);
         
         // Fallback to SQL search for now
-        return await _productSearchService.SearchAsync(request);
+        return await _productSearchService.SearchAsync(request, cancellationToken);
     }
 
-    public async Task<bool> ReindexAllProductsAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ReindexAllProductsAsync(CancellationToken cancellationToken = default)
     {
         var elasticsearchUrl = _configuration["Elasticsearch:Url"];
 
@@ -128,11 +133,12 @@ public class ElasticsearchService : IElasticsearchService
 
         // Mock implementation - Gerçek implementasyonda tüm ürünler indexlenecek
         _logger.LogInformation("Reindexing all products to Elasticsearch");
-        await Task.Delay(1000); // Simulate reindexing
+        await Task.Delay(1000, cancellationToken); // Simulate reindexing
         return true;
     }
 
-    public async Task<bool> IsAvailableAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)
     {
         var elasticsearchUrl = _configuration["Elasticsearch:Url"];
 
@@ -143,7 +149,7 @@ public class ElasticsearchService : IElasticsearchService
 
         // Mock implementation - Gerçek implementasyonda Elasticsearch health check yapılacak
         // var client = new ElasticClient(new Uri(elasticsearchUrl));
-        // var health = await client.Cluster.HealthAsync();
+        // var health = await client.Cluster.HealthAsync(cancellationToken);
         // return health.IsValid;
         
         await Task.CompletedTask;

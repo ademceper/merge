@@ -35,8 +35,14 @@ public class NotificationTemplateService : INotificationTemplateService
         _logger = logger;
     }
 
-    public async Task<NotificationTemplateDto> CreateTemplateAsync(CreateNotificationTemplateDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<NotificationTemplateDto> CreateTemplateAsync(CreateNotificationTemplateDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Notification template oluşturuluyor. Name: {Name}, Type: {Type}",
+            dto.Name, dto.Type);
+
         var template = new NotificationTemplate
         {
             Name = dto.Name,
@@ -50,36 +56,44 @@ public class NotificationTemplateService : INotificationTemplateService
             DefaultData = dto.DefaultData != null ? JsonSerializer.Serialize(dto.DefaultData) : null
         };
 
-        await _context.Set<NotificationTemplate>().AddAsync(template);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<NotificationTemplate>().AddAsync(template, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Notification template oluşturuldu. TemplateId: {TemplateId}, Name: {Name}",
+            template.Id, dto.Name);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<NotificationTemplateDto>(template);
     }
 
-    public async Task<NotificationTemplateDto?> GetTemplateAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<NotificationTemplateDto?> GetTemplateAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var template = await _context.Set<NotificationTemplate>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == id);
+            .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return template != null ? _mapper.Map<NotificationTemplateDto>(template) : null;
     }
 
-    public async Task<NotificationTemplateDto?> GetTemplateByTypeAsync(string type)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<NotificationTemplateDto?> GetTemplateByTypeAsync(string type, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var template = await _context.Set<NotificationTemplate>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Type == type && t.IsActive);
+            .FirstOrDefaultAsync(t => t.Type == type && t.IsActive, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return template != null ? _mapper.Map<NotificationTemplateDto>(template) : null;
     }
 
-    public async Task<IEnumerable<NotificationTemplateDto>> GetTemplatesAsync(string? type = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<NotificationTemplateDto>> GetTemplatesAsync(string? type = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         IQueryable<NotificationTemplate> query = _context.Set<NotificationTemplate>()
@@ -92,18 +106,19 @@ public class NotificationTemplateService : INotificationTemplateService
 
         var templates = await query
             .OrderBy(t => t.Name)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper kullan
         return _mapper.Map<IEnumerable<NotificationTemplateDto>>(templates);
     }
 
-    public async Task<NotificationTemplateDto> UpdateTemplateAsync(Guid id, UpdateNotificationTemplateDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<NotificationTemplateDto> UpdateTemplateAsync(Guid id, UpdateNotificationTemplateDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var template = await _context.Set<NotificationTemplate>()
-            .FirstOrDefaultAsync(t => t.Id == id);
+            .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
         if (template == null)
         {
@@ -130,33 +145,36 @@ public class NotificationTemplateService : INotificationTemplateService
             template.DefaultData = JsonSerializer.Serialize(dto.DefaultData);
 
         template.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<NotificationTemplateDto>(template);
     }
 
-    public async Task<bool> DeleteTemplateAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteTemplateAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var template = await _context.Set<NotificationTemplate>()
-            .FirstOrDefaultAsync(t => t.Id == id);
+            .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
         if (template == null) return false;
 
         template.IsDeleted = true;
         template.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<NotificationDto> CreateNotificationFromTemplateAsync(
         Guid userId, 
         string templateType, 
-        Dictionary<string, object>? variables = null)
+        Dictionary<string, object>? variables = null,
+        CancellationToken cancellationToken = default)
     {
-        var template = await GetTemplateByTypeAsync(templateType);
+        var template = await GetTemplateByTypeAsync(templateType, cancellationToken);
         if (template == null)
         {
             throw new NotFoundException("Şablon", Guid.Empty);
@@ -195,7 +213,7 @@ public class NotificationTemplateService : INotificationTemplateService
             Link = link
         };
 
-        return await _notificationService.CreateNotificationAsync(createDto);
+        return await _notificationService.CreateNotificationAsync(createDto, cancellationToken);
     }
 
     private string ReplaceVariables(string template, Dictionary<string, object> variables)

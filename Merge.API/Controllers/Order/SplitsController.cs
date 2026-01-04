@@ -3,8 +3,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.DTOs.Order;
+using Merge.API.Middleware;
 
-
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+// ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+// ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
 namespace Merge.API.Controllers.Order;
 
 [ApiController]
@@ -21,12 +24,21 @@ public class OrderSplitsController : BaseController
         _orderService = orderService;
     }
 
+    /// <summary>
+    /// Siparişi böler
+    /// </summary>
     [HttpPost("order/{orderId}")]
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
     [ProducesResponseType(typeof(OrderSplitDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<OrderSplitDto>> SplitOrder(Guid orderId, [FromBody] CreateOrderSplitDto dto)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<OrderSplitDto>> SplitOrder(
+        Guid orderId,
+        [FromBody] CreateOrderSplitDto dto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
@@ -37,7 +49,8 @@ public class OrderSplitsController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerini bölebilmeli
-        var order = await _orderService.GetByIdAsync(orderId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var order = await _orderService.GetByIdAsync(orderId, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -48,29 +61,38 @@ public class OrderSplitsController : BaseController
             return Forbid();
         }
 
-        var split = await _orderSplitService.SplitOrderAsync(orderId, dto);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var split = await _orderSplitService.SplitOrderAsync(orderId, dto, cancellationToken);
         return CreatedAtAction(nameof(GetSplit), new { id = split.Id }, split);
     }
 
+    /// <summary>
+    /// Split detaylarını getirir
+    /// </summary>
     [HttpGet("{id}")]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(OrderSplitDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<OrderSplitDto>> GetSplit(Guid id)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<OrderSplitDto>> GetSplit(Guid id, CancellationToken cancellationToken = default)
     {
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        var split = await _orderSplitService.GetSplitAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var split = await _orderSplitService.GetSplitAsync(id, cancellationToken);
         if (split == null)
         {
             return NotFound();
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin split'lerine erişebilmeli
-        var order = await _orderService.GetByIdAsync(split.OriginalOrderId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var order = await _orderService.GetByIdAsync(split.OriginalOrderId, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -84,11 +106,19 @@ public class OrderSplitsController : BaseController
         return Ok(split);
     }
 
+    /// <summary>
+    /// Siparişin split'lerini getirir
+    /// </summary>
     [HttpGet("order/{orderId}")]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(IEnumerable<OrderSplitDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<IEnumerable<OrderSplitDto>>> GetOrderSplits(Guid orderId)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<IEnumerable<OrderSplitDto>>> GetOrderSplits(
+        Guid orderId,
+        CancellationToken cancellationToken = default)
     {
         if (!TryGetUserId(out var userId))
         {
@@ -96,7 +126,8 @@ public class OrderSplitsController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin split'lerine erişebilmeli
-        var order = await _orderService.GetByIdAsync(orderId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var order = await _orderService.GetByIdAsync(orderId, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -107,15 +138,24 @@ public class OrderSplitsController : BaseController
             return Forbid();
         }
 
-        var splits = await _orderSplitService.GetOrderSplitsAsync(orderId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var splits = await _orderSplitService.GetOrderSplitsAsync(orderId, cancellationToken);
         return Ok(splits);
     }
 
+    /// <summary>
+    /// Split order'ın split'lerini getirir
+    /// </summary>
     [HttpGet("split-order/{splitOrderId}")]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(IEnumerable<OrderSplitDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<IEnumerable<OrderSplitDto>>> GetSplitOrders(Guid splitOrderId)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<IEnumerable<OrderSplitDto>>> GetSplitOrders(
+        Guid splitOrderId,
+        CancellationToken cancellationToken = default)
     {
         if (!TryGetUserId(out var userId))
         {
@@ -123,7 +163,8 @@ public class OrderSplitsController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin split'lerine erişebilmeli
-        var splitOrder = await _orderService.GetByIdAsync(splitOrderId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var splitOrder = await _orderService.GetByIdAsync(splitOrderId, cancellationToken);
         if (splitOrder == null)
         {
             return NotFound();
@@ -134,15 +175,22 @@ public class OrderSplitsController : BaseController
             return Forbid();
         }
 
-        var splits = await _orderSplitService.GetSplitOrdersAsync(splitOrderId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var splits = await _orderSplitService.GetSplitOrdersAsync(splitOrderId, cancellationToken);
         return Ok(splits);
     }
 
+    /// <summary>
+    /// Split'i iptal eder
+    /// </summary>
     [HttpPost("{id}/cancel")]
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> CancelSplit(Guid id)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> CancelSplit(Guid id, CancellationToken cancellationToken = default)
     {
         if (!TryGetUserId(out var userId))
         {
@@ -150,13 +198,15 @@ public class OrderSplitsController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin split'lerini iptal edebilmeli
-        var split = await _orderSplitService.GetSplitAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var split = await _orderSplitService.GetSplitAsync(id, cancellationToken);
         if (split == null)
         {
             return NotFound();
         }
 
-        var order = await _orderService.GetByIdAsync(split.OriginalOrderId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var order = await _orderService.GetByIdAsync(split.OriginalOrderId, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -167,7 +217,8 @@ public class OrderSplitsController : BaseController
             return Forbid();
         }
 
-        var success = await _orderSplitService.CancelSplitAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var success = await _orderSplitService.CancelSplitAsync(id, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -175,11 +226,17 @@ public class OrderSplitsController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Split'i tamamlar
+    /// </summary>
     [HttpPost("{id}/complete")]
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> CompleteSplit(Guid id)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> CompleteSplit(Guid id, CancellationToken cancellationToken = default)
     {
         if (!TryGetUserId(out var userId))
         {
@@ -187,13 +244,15 @@ public class OrderSplitsController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin split'lerini tamamlayabilmeli
-        var split = await _orderSplitService.GetSplitAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var split = await _orderSplitService.GetSplitAsync(id, cancellationToken);
         if (split == null)
         {
             return NotFound();
         }
 
-        var order = await _orderService.GetByIdAsync(split.OriginalOrderId);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var order = await _orderService.GetByIdAsync(split.OriginalOrderId, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -204,7 +263,8 @@ public class OrderSplitsController : BaseController
             return Forbid();
         }
 
-        var success = await _orderSplitService.CompleteSplitAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var success = await _orderSplitService.CompleteSplitAsync(id, cancellationToken);
         if (!success)
         {
             return NotFound();

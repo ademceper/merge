@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.DTOs.Product;
+using Merge.Application.Common;
+using Merge.API.Middleware;
 
 
 namespace Merge.API.Controllers.Product;
@@ -19,20 +21,36 @@ public class ProductsController : BaseController
         _productService = productService;
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<ProductDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<ProductDto>>> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(PagedResult<ProductDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PagedResult<ProductDto>>> GetAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var products = await _productService.GetAllAsync(page, pageSize);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var products = await _productService.GetAllAsync(page, pageSize, cancellationToken);
         return Ok(products);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpGet("{id}")]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ProductDto>> GetById(Guid id)
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<ProductDto>> GetById(Guid id, CancellationToken cancellationToken = default)
     {
-        var product = await _productService.GetByIdAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var product = await _productService.GetByIdAsync(id, cancellationToken);
         if (product == null)
         {
             return NotFound();
@@ -40,29 +58,61 @@ public class ProductsController : BaseController
         return Ok(product);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     [HttpGet("category/{categoryId}")]
-    [ProducesResponseType(typeof(IEnumerable<ProductDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<ProductDto>>> GetByCategory(Guid categoryId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(PagedResult<ProductDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PagedResult<ProductDto>>> GetByCategory(
+        Guid categoryId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var products = await _productService.GetByCategoryAsync(categoryId, page, pageSize);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var products = await _productService.GetByCategoryAsync(categoryId, page, pageSize, cancellationToken);
         return Ok(products);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     [HttpGet("search")]
-    [ProducesResponseType(typeof(IEnumerable<ProductDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<ProductDto>>> Search([FromQuery] string q, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(PagedResult<ProductDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PagedResult<ProductDto>>> Search(
+        [FromQuery] string q,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var products = await _productService.SearchAsync(q, page, pageSize);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var products = await _productService.SearchAsync(q, page, pageSize, cancellationToken);
         return Ok(products);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpPost]
     [Authorize(Roles = "Admin,Seller")]
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika (Spam koruması)
     [ProducesResponseType(typeof(ProductDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<ProductDto>> Create([FromBody] ProductDto productDto)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<ProductDto>> Create(
+        [FromBody] ProductDto productDto,
+        CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
@@ -78,18 +128,28 @@ public class ProductsController : BaseController
             productDto.SellerId = userId;
         }
 
-        var product = await _productService.CreateAsync(productDto);
+        var product = await _productService.CreateAsync(productDto, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = product.Id }, product);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,Seller")]
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
     [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<ProductDto>> Update(Guid id, [FromBody] ProductDto productDto)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<ProductDto>> Update(
+        Guid id,
+        [FromBody] ProductDto productDto,
+        CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
@@ -99,7 +159,7 @@ public class ProductsController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Seller sadece kendi ürünlerini güncelleyebilir
-        var existingProduct = await _productService.GetByIdAsync(id);
+        var existingProduct = await _productService.GetByIdAsync(id, cancellationToken);
         if (existingProduct == null)
         {
             return NotFound();
@@ -110,7 +170,7 @@ public class ProductsController : BaseController
             return Forbid();
         }
 
-        var product = await _productService.UpdateAsync(id, productDto);
+        var product = await _productService.UpdateAsync(id, productDto, cancellationToken);
         if (product == null)
         {
             return NotFound();
@@ -118,20 +178,27 @@ public class ProductsController : BaseController
         return Ok(product);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Seller")]
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> Delete(Guid id)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
         // ✅ SECURITY: IDOR koruması - Seller sadece kendi ürünlerini silebilir
-        var existingProduct = await _productService.GetByIdAsync(id);
+        var existingProduct = await _productService.GetByIdAsync(id, cancellationToken);
         if (existingProduct == null)
         {
             return NotFound();
@@ -142,7 +209,7 @@ public class ProductsController : BaseController
             return Forbid();
         }
 
-        var result = await _productService.DeleteAsync(id);
+        var result = await _productService.DeleteAsync(id, cancellationToken);
         if (!result)
         {
             return NotFound();

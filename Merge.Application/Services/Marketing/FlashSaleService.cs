@@ -9,6 +9,7 @@ using Merge.Domain.Entities;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Marketing;
+using Merge.Application.Common;
 
 
 namespace Merge.Application.Services.Marketing;
@@ -41,13 +42,14 @@ public class FlashSaleService : IFlashSaleService
         _logger = logger;
     }
 
-    public async Task<FlashSaleDto?> GetByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<FlashSaleDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var flashSale = await _context.FlashSales
             .AsNoTracking()
             .Include(fs => fs.FlashSaleProducts)
                 .ThenInclude(fsp => fsp.Product)
-            .FirstOrDefaultAsync(fs => fs.Id == id);
+            .FirstOrDefaultAsync(fs => fs.Id == id, cancellationToken);
 
         if (flashSale == null) return null;
 
@@ -56,7 +58,8 @@ public class FlashSaleService : IFlashSaleService
         return _mapper.Map<FlashSaleDto>(flashSale);
     }
 
-    public async Task<IEnumerable<FlashSaleDto>> GetActiveSalesAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<FlashSaleDto>> GetActiveSalesAsync(CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
@@ -67,13 +70,41 @@ public class FlashSaleService : IFlashSaleService
                 .ThenInclude(fsp => fsp.Product)
             .Where(fs => fs.IsActive && fs.StartDate <= now && fs.EndDate >= now)
             .OrderByDescending(fs => fs.StartDate)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<IEnumerable<FlashSaleDto>>(flashSales);
     }
 
-    public async Task<IEnumerable<FlashSaleDto>> GetAllAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<FlashSaleDto>> GetActiveSalesAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        var query = _context.FlashSales
+            .AsNoTracking()
+            .Include(fs => fs.FlashSaleProducts)
+                .ThenInclude(fsp => fsp.Product)
+            .Where(fs => fs.IsActive && fs.StartDate <= now && fs.EndDate >= now)
+            .OrderByDescending(fs => fs.StartDate);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var flashSales = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<FlashSaleDto>
+        {
+            Items = _mapper.Map<List<FlashSaleDto>>(flashSales),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<FlashSaleDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: Include ile N+1 önlenir
@@ -82,14 +113,45 @@ public class FlashSaleService : IFlashSaleService
             .Include(fs => fs.FlashSaleProducts)
                 .ThenInclude(fsp => fsp.Product)
             .OrderByDescending(fs => fs.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<IEnumerable<FlashSaleDto>>(flashSales);
     }
 
-    public async Task<FlashSaleDto> CreateAsync(CreateFlashSaleDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<FlashSaleDto>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
+        var query = _context.FlashSales
+            .AsNoTracking()
+            .Include(fs => fs.FlashSaleProducts)
+                .ThenInclude(fsp => fsp.Product)
+            .OrderByDescending(fs => fs.CreatedAt);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var flashSales = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<FlashSaleDto>
+        {
+            Items = _mapper.Map<List<FlashSaleDto>>(flashSales),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<FlashSaleDto> CreateAsync(CreateFlashSaleDto dto, CancellationToken cancellationToken = default)
+    {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Flash sale oluşturuluyor. Title: {Title}, StartDate: {StartDate}, EndDate: {EndDate}",
+            dto.Title, dto.StartDate, dto.EndDate);
+
         if (dto == null)
         {
             throw new ArgumentNullException(nameof(dto));
@@ -108,7 +170,7 @@ public class FlashSaleService : IFlashSaleService
         var flashSale = _mapper.Map<FlashSale>(dto);
         flashSale = await _flashSaleRepository.AddAsync(flashSale);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !fs.IsDeleted (Global Query Filter)
@@ -116,13 +178,19 @@ public class FlashSaleService : IFlashSaleService
             .AsNoTracking()
             .Include(fs => fs.FlashSaleProducts)
                 .ThenInclude(fsp => fsp.Product)
-            .FirstOrDefaultAsync(fs => fs.Id == flashSale.Id);
+            .FirstOrDefaultAsync(fs => fs.Id == flashSale.Id, cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Flash sale oluşturuldu. FlashSaleId: {FlashSaleId}, Title: {Title}",
+            flashSale.Id, dto.Title);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<FlashSaleDto>(createdFlashSale!);
     }
 
-    public async Task<FlashSaleDto> UpdateAsync(Guid id, UpdateFlashSaleDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<FlashSaleDto> UpdateAsync(Guid id, UpdateFlashSaleDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
@@ -149,7 +217,7 @@ public class FlashSaleService : IFlashSaleService
 
         await _flashSaleRepository.UpdateAsync(flashSale);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !fs.IsDeleted (Global Query Filter)
@@ -157,13 +225,14 @@ public class FlashSaleService : IFlashSaleService
             .AsNoTracking()
             .Include(fs => fs.FlashSaleProducts)
                 .ThenInclude(fsp => fsp.Product)
-            .FirstOrDefaultAsync(fs => fs.Id == id);
+            .FirstOrDefaultAsync(fs => fs.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<FlashSaleDto>(updatedFlashSale!);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var flashSale = await _flashSaleRepository.GetByIdAsync(id);
         if (flashSale == null)
@@ -173,11 +242,12 @@ public class FlashSaleService : IFlashSaleService
 
         await _flashSaleRepository.DeleteAsync(flashSale);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<bool> AddProductToSaleAsync(Guid flashSaleId, AddProductToSaleDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> AddProductToSaleAsync(Guid flashSaleId, AddProductToSaleDto dto, CancellationToken cancellationToken = default)
     {
         var flashSale = await _flashSaleRepository.GetByIdAsync(flashSaleId);
         if (flashSale == null)
@@ -194,7 +264,7 @@ public class FlashSaleService : IFlashSaleService
         // ✅ PERFORMANCE: Removed manual !fsp.IsDeleted (Global Query Filter)
         var existing = await _context.FlashSaleProducts
             .FirstOrDefaultAsync(fsp => fsp.FlashSaleId == flashSaleId && 
-                                  fsp.ProductId == dto.ProductId);
+                                  fsp.ProductId == dto.ProductId, cancellationToken);
 
         if (existing != null)
         {
@@ -212,16 +282,17 @@ public class FlashSaleService : IFlashSaleService
 
         await _flashSaleProductRepository.AddAsync(flashSaleProduct);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<bool> RemoveProductFromSaleAsync(Guid flashSaleId, Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> RemoveProductFromSaleAsync(Guid flashSaleId, Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !fsp.IsDeleted (Global Query Filter)
         var flashSaleProduct = await _context.FlashSaleProducts
             .FirstOrDefaultAsync(fsp => fsp.FlashSaleId == flashSaleId && 
-                                  fsp.ProductId == productId);
+                                  fsp.ProductId == productId, cancellationToken);
 
         if (flashSaleProduct == null)
         {
@@ -230,7 +301,7 @@ public class FlashSaleService : IFlashSaleService
 
         await _flashSaleProductRepository.DeleteAsync(flashSaleProduct);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 }

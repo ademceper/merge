@@ -30,12 +30,18 @@ public class PaymentMethodService : IPaymentMethodService
         _logger = logger;
     }
 
-    public async Task<PaymentMethodDto> CreatePaymentMethodAsync(CreatePaymentMethodDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PaymentMethodDto> CreatePaymentMethodAsync(CreatePaymentMethodDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Payment method oluşturuluyor. Name: {Name}, Code: {Code}, IsActive: {IsActive}",
+            dto.Name, dto.Code, dto.IsActive);
+
         // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
         // Check if code already exists
         var existing = await _context.Set<PaymentMethod>()
-            .FirstOrDefaultAsync(pm => pm.Code == dto.Code);
+            .FirstOrDefaultAsync(pm => pm.Code == dto.Code, cancellationToken);
 
         if (existing != null)
         {
@@ -48,7 +54,7 @@ public class PaymentMethodService : IPaymentMethodService
         {
             var existingDefault = await _context.Set<PaymentMethod>()
                 .Where(pm => pm.IsDefault)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             foreach (var method in existingDefault)
             {
@@ -74,36 +80,44 @@ public class PaymentMethodService : IPaymentMethodService
             IsDefault = dto.IsDefault
         };
 
-        await _context.Set<PaymentMethod>().AddAsync(paymentMethod);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<PaymentMethod>().AddAsync(paymentMethod, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Payment method oluşturuldu. PaymentMethodId: {PaymentMethodId}, Name: {Name}, Code: {Code}",
+            paymentMethod.Id, dto.Name, dto.Code);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<PaymentMethodDto>(paymentMethod);
     }
 
-    public async Task<PaymentMethodDto?> GetPaymentMethodByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PaymentMethodDto?> GetPaymentMethodByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pm.IsDeleted (Global Query Filter)
         var paymentMethod = await _context.Set<PaymentMethod>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(pm => pm.Id == id);
+            .FirstOrDefaultAsync(pm => pm.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return paymentMethod != null ? _mapper.Map<PaymentMethodDto>(paymentMethod) : null;
     }
 
-    public async Task<PaymentMethodDto?> GetPaymentMethodByCodeAsync(string code)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PaymentMethodDto?> GetPaymentMethodByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pm.IsDeleted (Global Query Filter)
         var paymentMethod = await _context.Set<PaymentMethod>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(pm => pm.Code == code && pm.IsActive);
+            .FirstOrDefaultAsync(pm => pm.Code == code && pm.IsActive, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return paymentMethod != null ? _mapper.Map<PaymentMethodDto>(paymentMethod) : null;
     }
 
-    public async Task<IEnumerable<PaymentMethodDto>> GetAllPaymentMethodsAsync(bool? isActive = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<PaymentMethodDto>> GetAllPaymentMethodsAsync(bool? isActive = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pm.IsDeleted (Global Query Filter)
         var query = _context.Set<PaymentMethod>()
@@ -118,14 +132,15 @@ public class PaymentMethodService : IPaymentMethodService
         var methods = await query
             .OrderBy(pm => pm.DisplayOrder)
             .ThenBy(pm => pm.Name)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select(MapToDto) YASAK - AutoMapper kullan
         return _mapper.Map<IEnumerable<PaymentMethodDto>>(methods);
     }
 
-    public async Task<IEnumerable<PaymentMethodDto>> GetAvailablePaymentMethodsAsync(decimal orderAmount)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<PaymentMethodDto>> GetAvailablePaymentMethodsAsync(decimal orderAmount, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pm.IsDeleted (Global Query Filter)
         var methods = await _context.Set<PaymentMethod>()
@@ -135,18 +150,19 @@ public class PaymentMethodService : IPaymentMethodService
                   (!pm.MaximumAmount.HasValue || orderAmount <= pm.MaximumAmount.Value))
             .OrderBy(pm => pm.DisplayOrder)
             .ThenBy(pm => pm.Name)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select(MapToDto) YASAK - AutoMapper kullan
         return _mapper.Map<IEnumerable<PaymentMethodDto>>(methods);
     }
 
-    public async Task<bool> UpdatePaymentMethodAsync(Guid id, UpdatePaymentMethodDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> UpdatePaymentMethodAsync(Guid id, UpdatePaymentMethodDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
         var paymentMethod = await _context.Set<PaymentMethod>()
-            .FirstOrDefaultAsync(pm => pm.Id == id);
+            .FirstOrDefaultAsync(pm => pm.Id == id, cancellationToken);
 
         if (paymentMethod == null) return false;
 
@@ -216,7 +232,7 @@ public class PaymentMethodService : IPaymentMethodService
             // Unset other default methods
             var existingDefault = await _context.Set<PaymentMethod>()
                 .Where(pm => pm.IsDefault && pm.Id != id)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             foreach (var method in existingDefault)
             {
@@ -231,16 +247,17 @@ public class PaymentMethodService : IPaymentMethodService
         }
 
         paymentMethod.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeletePaymentMethodAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeletePaymentMethodAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
         var paymentMethod = await _context.Set<PaymentMethod>()
-            .FirstOrDefaultAsync(pm => pm.Id == id);
+            .FirstOrDefaultAsync(pm => pm.Id == id, cancellationToken);
 
         if (paymentMethod == null) return false;
 
@@ -248,7 +265,7 @@ public class PaymentMethodService : IPaymentMethodService
         // Check if method is used in any orders
         var hasOrders = await _context.Orders
             .AsNoTracking()
-            .AnyAsync(o => o.PaymentMethod == paymentMethod.Code);
+            .AnyAsync(o => o.PaymentMethod == paymentMethod.Code, cancellationToken);
 
         if (hasOrders)
         {
@@ -263,16 +280,17 @@ public class PaymentMethodService : IPaymentMethodService
         }
 
         paymentMethod.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> SetDefaultPaymentMethodAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> SetDefaultPaymentMethodAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
         var paymentMethod = await _context.Set<PaymentMethod>()
-            .FirstOrDefaultAsync(pm => pm.Id == id);
+            .FirstOrDefaultAsync(pm => pm.Id == id, cancellationToken);
 
         if (paymentMethod == null) return false;
 
@@ -280,7 +298,7 @@ public class PaymentMethodService : IPaymentMethodService
         // Unset other default methods
         var existingDefault = await _context.Set<PaymentMethod>()
             .Where(pm => pm.IsDefault && pm.Id != id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         foreach (var method in existingDefault)
         {
@@ -289,17 +307,18 @@ public class PaymentMethodService : IPaymentMethodService
 
         paymentMethod.IsDefault = true;
         paymentMethod.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<decimal> CalculateProcessingFeeAsync(Guid paymentMethodId, decimal amount)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<decimal> CalculateProcessingFeeAsync(Guid paymentMethodId, decimal amount, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pm.IsDeleted (Global Query Filter)
         var paymentMethod = await _context.Set<PaymentMethod>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(pm => pm.Id == paymentMethodId && pm.IsActive);
+            .FirstOrDefaultAsync(pm => pm.Id == paymentMethodId && pm.IsActive, cancellationToken);
 
         if (paymentMethod == null)
         {

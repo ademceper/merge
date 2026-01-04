@@ -12,6 +12,7 @@ using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text.Json;
 using Merge.Application.DTOs.Marketing;
+using Merge.Application.Common;
 
 
 namespace Merge.Application.Services.Marketing;
@@ -34,8 +35,14 @@ public class EmailCampaignService : IEmailCampaignService
     }
 
     // Campaign Management
-    public async Task<EmailCampaignDto> CreateCampaignAsync(CreateEmailCampaignDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<EmailCampaignDto> CreateCampaignAsync(CreateEmailCampaignDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Email kampanyası oluşturuluyor. Name: {Name}, Type: {Type}, TargetSegment: {TargetSegment}",
+            dto.Name, dto.Type, dto.TargetSegment);
+
         var campaign = new EmailCampaign
         {
             Name = dto.Name,
@@ -52,33 +59,41 @@ public class EmailCampaignService : IEmailCampaignService
             Tags = dto.Tags != null ? JsonSerializer.Serialize(dto.Tags) : null
         };
 
-        await _context.Set<EmailCampaign>().AddAsync(campaign);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<EmailCampaign>().AddAsync(campaign, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var createdCampaign = await _context.Set<EmailCampaign>()
             .AsNoTracking()
             .Include(c => c.Template)
-            .FirstOrDefaultAsync(c => c.Id == campaign.Id);
+            .FirstOrDefaultAsync(c => c.Id == campaign.Id, cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Email kampanyası oluşturuldu. CampaignId: {CampaignId}, Name: {Name}",
+            campaign.Id, dto.Name);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<EmailCampaignDto>(createdCampaign!);
     }
 
-    public async Task<EmailCampaignDto?> GetCampaignAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<EmailCampaignDto?> GetCampaignAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var campaign = await _context.Set<EmailCampaign>()
             .AsNoTracking()
             .Include(c => c.Template)
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return campaign != null ? _mapper.Map<EmailCampaignDto>(campaign) : null;
     }
 
-    public async Task<IEnumerable<EmailCampaignDto>> GetCampaignsAsync(string? status = null, int page = 1, int pageSize = 20)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+    public async Task<PagedResult<EmailCampaignDto>> GetCampaignsAsync(string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         IQueryable<EmailCampaign> query = _context.Set<EmailCampaign>()
@@ -92,21 +107,30 @@ public class EmailCampaignService : IEmailCampaignService
             }
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var campaigns = await query
             .OrderByDescending(c => c.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<EmailCampaignDto>>(campaigns);
+        return new PagedResult<EmailCampaignDto>
+        {
+            Items = _mapper.Map<List<EmailCampaignDto>>(campaigns),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<EmailCampaignDto> UpdateCampaignAsync(Guid id, UpdateEmailCampaignDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<EmailCampaignDto> UpdateCampaignAsync(Guid id, UpdateEmailCampaignDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var campaign = await _context.Set<EmailCampaign>()
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (campaign == null)
         {
@@ -128,24 +152,25 @@ public class EmailCampaignService : IEmailCampaignService
         if (dto.ScheduledAt.HasValue) campaign.ScheduledAt = dto.ScheduledAt;
         if (dto.TargetSegment != null) campaign.TargetSegment = dto.TargetSegment;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var updatedCampaign = await _context.Set<EmailCampaign>()
             .AsNoTracking()
             .Include(c => c.Template)
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<EmailCampaignDto>(updatedCampaign!);
     }
 
-    public async Task<bool> DeleteCampaignAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteCampaignAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var campaign = await _context.Set<EmailCampaign>()
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (campaign == null) return false;
 
@@ -155,16 +180,17 @@ public class EmailCampaignService : IEmailCampaignService
         }
 
         campaign.IsDeleted = true;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> ScheduleCampaignAsync(Guid id, DateTime scheduledAt)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ScheduleCampaignAsync(Guid id, DateTime scheduledAt, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var campaign = await _context.Set<EmailCampaign>()
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (campaign == null) return false;
 
@@ -176,18 +202,19 @@ public class EmailCampaignService : IEmailCampaignService
         campaign.ScheduledAt = scheduledAt;
         campaign.Status = EmailCampaignStatus.Scheduled;
 
-        await PrepareCampaignRecipientsAsync(campaign);
-        await _unitOfWork.SaveChangesAsync();
+        await PrepareCampaignRecipientsAsync(campaign, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> SendCampaignAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> SendCampaignAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var campaign = await _context.Set<EmailCampaign>()
             .Include(c => c.Recipients)
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (campaign == null) return false;
 
@@ -197,29 +224,30 @@ public class EmailCampaignService : IEmailCampaignService
         }
 
         campaign.Status = EmailCampaignStatus.Sending;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Prepare recipients if not already done
         if (campaign.Recipients.Count == 0)
         {
-            await PrepareCampaignRecipientsAsync(campaign);
+            await PrepareCampaignRecipientsAsync(campaign, cancellationToken);
         }
 
         // Send emails (in production, this would be queued)
-        await SendCampaignEmailsAsync(campaign);
+        await SendCampaignEmailsAsync(campaign, cancellationToken);
 
         campaign.Status = EmailCampaignStatus.Sent;
         campaign.SentAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> PauseCampaignAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> PauseCampaignAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var campaign = await _context.Set<EmailCampaign>()
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (campaign == null) return false;
 
@@ -229,32 +257,34 @@ public class EmailCampaignService : IEmailCampaignService
         }
 
         campaign.Status = EmailCampaignStatus.Paused;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> CancelCampaignAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> CancelCampaignAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var campaign = await _context.Set<EmailCampaign>()
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (campaign == null) return false;
 
         campaign.Status = EmailCampaignStatus.Cancelled;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task SendTestEmailAsync(SendTestEmailDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task SendTestEmailAsync(SendTestEmailDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var campaign = await _context.Set<EmailCampaign>()
             .AsNoTracking()
             .Include(c => c.Template)
-            .FirstOrDefaultAsync(c => c.Id == dto.CampaignId);
+            .FirstOrDefaultAsync(c => c.Id == dto.CampaignId, cancellationToken);
 
         if (campaign == null)
         {
@@ -268,13 +298,20 @@ public class EmailCampaignService : IEmailCampaignService
         await _emailService.SendEmailAsync(
             dto.TestEmail,
             campaign.Subject + " [TEST]",
-            content
+            content,
+            cancellationToken
         );
     }
 
     // Template Management
-    public async Task<EmailTemplateDto> CreateTemplateAsync(CreateEmailTemplateDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<EmailTemplateDto> CreateTemplateAsync(CreateEmailTemplateDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Email template oluşturuluyor. Name: {Name}, Type: {Type}",
+            dto.Name, dto.Type);
+
         var template = new EmailTemplate
         {
             Name = dto.Name,
@@ -286,31 +323,38 @@ public class EmailCampaignService : IEmailCampaignService
             Variables = dto.Variables != null ? JsonSerializer.Serialize(dto.Variables) : null
         };
 
-        await _context.Set<EmailTemplate>().AddAsync(template);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<EmailTemplate>().AddAsync(template, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var createdTemplate = await _context.Set<EmailTemplate>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == template.Id);
+            .FirstOrDefaultAsync(t => t.Id == template.Id, cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Email template oluşturuldu. TemplateId: {TemplateId}, Name: {Name}",
+            template.Id, dto.Name);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<EmailTemplateDto>(createdTemplate!);
     }
 
-    public async Task<EmailTemplateDto?> GetTemplateAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<EmailTemplateDto?> GetTemplateAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var template = await _context.Set<EmailTemplate>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == id);
+            .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return template != null ? _mapper.Map<EmailTemplateDto>(template) : null;
     }
 
-    public async Task<IEnumerable<EmailTemplateDto>> GetTemplatesAsync(string? type = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<EmailTemplateDto>> GetTemplatesAsync(string? type = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         IQueryable<EmailTemplate> query = _context.Set<EmailTemplate>()
@@ -327,17 +371,51 @@ public class EmailCampaignService : IEmailCampaignService
 
         var templates = await query
             .OrderBy(t => t.Name)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<IEnumerable<EmailTemplateDto>>(templates);
     }
 
-    public async Task<EmailTemplateDto> UpdateTemplateAsync(Guid id, CreateEmailTemplateDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<EmailTemplateDto>> GetTemplatesAsync(string? type, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
+        IQueryable<EmailTemplate> query = _context.Set<EmailTemplate>()
+            .AsNoTracking()
+            .Where(t => t.IsActive);
+
+        if (!string.IsNullOrEmpty(type))
+        {
+            if (Enum.TryParse<EmailTemplateType>(type, true, out var typeEnum))
+            {
+                query = query.Where(t => t.Type == typeEnum);
+            }
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var templates = await query
+            .OrderBy(t => t.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<EmailTemplateDto>
+        {
+            Items = _mapper.Map<List<EmailTemplateDto>>(templates),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<EmailTemplateDto> UpdateTemplateAsync(Guid id, CreateEmailTemplateDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var template = await _context.Set<EmailTemplate>()
-            .FirstOrDefaultAsync(t => t.Id == id);
+            .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
         if (template == null)
         {
@@ -352,37 +430,44 @@ public class EmailCampaignService : IEmailCampaignService
         template.Type = Enum.Parse<EmailTemplateType>(dto.Type, true);
         template.Variables = dto.Variables != null ? JsonSerializer.Serialize(dto.Variables) : null;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var updatedTemplate = await _context.Set<EmailTemplate>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == id);
+            .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<EmailTemplateDto>(updatedTemplate!);
     }
 
-    public async Task<bool> DeleteTemplateAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteTemplateAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var template = await _context.Set<EmailTemplate>()
-            .FirstOrDefaultAsync(t => t.Id == id);
+            .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
         if (template == null) return false;
 
         template.IsDeleted = true;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // Subscriber Management
-    public async Task<EmailSubscriberDto> SubscribeAsync(CreateEmailSubscriberDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<EmailSubscriberDto> SubscribeAsync(CreateEmailSubscriberDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Email aboneliği oluşturuluyor. Email: {Email}, Source: {Source}",
+            dto.Email, dto.Source);
+
         var existing = await _context.Set<EmailSubscriber>()
-            .FirstOrDefaultAsync(s => s.Email.ToLower() == dto.Email.ToLower());
+            .FirstOrDefaultAsync(s => s.Email.ToLower() == dto.Email.ToLower(), cancellationToken);
 
         if (existing != null)
         {
@@ -400,13 +485,18 @@ public class EmailCampaignService : IEmailCampaignService
             existing.Tags = dto.Tags != null ? JsonSerializer.Serialize(dto.Tags) : null;
             existing.CustomFields = dto.CustomFields != null ? JsonSerializer.Serialize(dto.CustomFields) : null;
 
-            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
             
             // ✅ PERFORMANCE: Reload in one query (N+1 fix)
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
             var reloadedExisting = await _context.Set<EmailSubscriber>()
                 .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.Id == existing.Id);
+                .FirstOrDefaultAsync(s => s.Id == existing.Id, cancellationToken);
+
+            // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+            _logger.LogInformation(
+                "Email aboneliği güncellendi (mevcut kullanıcı). SubscriberId: {SubscriberId}, Email: {Email}",
+                existing.Id, dto.Email);
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
             return _mapper.Map<EmailSubscriberDto>(reloadedExisting!);
@@ -422,57 +512,67 @@ public class EmailCampaignService : IEmailCampaignService
             CustomFields = dto.CustomFields != null ? JsonSerializer.Serialize(dto.CustomFields) : null
         };
 
-        await _context.Set<EmailSubscriber>().AddAsync(subscriber);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<EmailSubscriber>().AddAsync(subscriber, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
         var createdSubscriber = await _context.Set<EmailSubscriber>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == subscriber.Id);
+            .FirstOrDefaultAsync(s => s.Id == subscriber.Id, cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Email aboneliği oluşturuldu. SubscriberId: {SubscriberId}, Email: {Email}",
+            subscriber.Id, dto.Email);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<EmailSubscriberDto>(createdSubscriber!);
     }
 
-    public async Task<bool> UnsubscribeAsync(string email)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> UnsubscribeAsync(string email, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         var subscriber = await _context.Set<EmailSubscriber>()
-            .FirstOrDefaultAsync(s => s.Email.ToLower() == email.ToLower());
+            .FirstOrDefaultAsync(s => s.Email.ToLower() == email.ToLower(), cancellationToken);
 
         if (subscriber == null) return false;
 
         subscriber.IsSubscribed = false;
         subscriber.UnsubscribedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<EmailSubscriberDto?> GetSubscriberAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<EmailSubscriberDto?> GetSubscriberAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
         var subscriber = await _context.Set<EmailSubscriber>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == id);
+            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return subscriber != null ? _mapper.Map<EmailSubscriberDto>(subscriber) : null;
     }
 
-    public async Task<EmailSubscriberDto?> GetSubscriberByEmailAsync(string email)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<EmailSubscriberDto?> GetSubscriberByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
         var subscriber = await _context.Set<EmailSubscriber>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Email.ToLower() == email.ToLower());
+            .FirstOrDefaultAsync(s => s.Email.ToLower() == email.ToLower(), cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return subscriber != null ? _mapper.Map<EmailSubscriberDto>(subscriber) : null;
     }
 
-    public async Task<IEnumerable<EmailSubscriberDto>> GetSubscribersAsync(bool? isSubscribed = null, int page = 1, int pageSize = 50)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+    public async Task<PagedResult<EmailSubscriberDto>> GetSubscribersAsync(bool? isSubscribed = null, int page = 1, int pageSize = 50, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
         IQueryable<EmailSubscriber> query = _context.Set<EmailSubscriber>()
@@ -483,21 +583,30 @@ public class EmailCampaignService : IEmailCampaignService
             query = query.Where(s => s.IsSubscribed == isSubscribed.Value);
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var subscribers = await query
             .OrderByDescending(s => s.SubscribedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<EmailSubscriberDto>>(subscribers);
+        return new PagedResult<EmailSubscriberDto>
+        {
+            Items = _mapper.Map<List<EmailSubscriberDto>>(subscribers),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<bool> UpdateSubscriberAsync(Guid id, CreateEmailSubscriberDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> UpdateSubscriberAsync(Guid id, CreateEmailSubscriberDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         var subscriber = await _context.Set<EmailSubscriber>()
-            .FirstOrDefaultAsync(s => s.Id == id);
+            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
         if (subscriber == null) return false;
 
@@ -506,11 +615,12 @@ public class EmailCampaignService : IEmailCampaignService
         subscriber.Tags = dto.Tags != null ? JsonSerializer.Serialize(dto.Tags) : null;
         subscriber.CustomFields = dto.CustomFields != null ? JsonSerializer.Serialize(dto.CustomFields) : null;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<int> BulkImportSubscribersAsync(BulkImportSubscribersDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<int> BulkImportSubscribersAsync(BulkImportSubscribersDto dto, CancellationToken cancellationToken = default)
     {
         if (dto.Subscribers == null || !dto.Subscribers.Any())
         {
@@ -521,7 +631,7 @@ public class EmailCampaignService : IEmailCampaignService
         var emails = dto.Subscribers.Select(s => s.Email.ToLower()).Distinct().ToList();
         var existingSubscribers = await _context.Set<EmailSubscriber>()
             .Where(s => emails.Contains(s.Email.ToLower()))
-            .ToDictionaryAsync(s => s.Email.ToLower());
+            .ToDictionaryAsync(s => s.Email.ToLower(), cancellationToken);
 
         var newSubscribers = new List<EmailSubscriber>();
         var updatedSubscribers = new List<EmailSubscriber>();
@@ -568,21 +678,22 @@ public class EmailCampaignService : IEmailCampaignService
 
         if (newSubscribers.Count > 0)
         {
-            await _context.Set<EmailSubscriber>().AddRangeAsync(newSubscribers);
+            await _context.Set<EmailSubscriber>().AddRangeAsync(newSubscribers, cancellationToken);
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return newSubscribers.Count + updatedSubscribers.Count;
     }
 
     // Analytics
-    public async Task<EmailCampaignAnalyticsDto?> GetCampaignAnalyticsAsync(Guid campaignId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<EmailCampaignAnalyticsDto?> GetCampaignAnalyticsAsync(Guid campaignId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var campaign = await _context.Set<EmailCampaign>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == campaignId);
+            .FirstOrDefaultAsync(c => c.Id == campaignId, cancellationToken);
 
         if (campaign == null) return null;
 
@@ -596,38 +707,39 @@ public class EmailCampaignService : IEmailCampaignService
         return dto;
     }
 
-    public async Task<EmailCampaignStatsDto> GetCampaignStatsAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<EmailCampaignStatsDto> GetCampaignStatsAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var totalCampaigns = await _context.Set<EmailCampaign>()
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         var activeCampaigns = await _context.Set<EmailCampaign>()
-            .CountAsync(c => c.Status == EmailCampaignStatus.Sending || c.Status == EmailCampaignStatus.Scheduled);
+            .CountAsync(c => c.Status == EmailCampaignStatus.Sending || c.Status == EmailCampaignStatus.Scheduled, cancellationToken);
 
         var totalSubscribers = await _context.Set<EmailSubscriber>()
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         var activeSubscribers = await _context.Set<EmailSubscriber>()
-            .CountAsync(s => s.IsSubscribed);
+            .CountAsync(s => s.IsSubscribed, cancellationToken);
 
         var totalEmailsSent = await _context.Set<EmailCampaign>()
-            .SumAsync(c => (long)c.SentCount);
+            .SumAsync(c => (long)c.SentCount, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         var sentCampaignsCount = await _context.Set<EmailCampaign>()
-            .CountAsync(c => c.Status == EmailCampaignStatus.Sent);
+            .CountAsync(c => c.Status == EmailCampaignStatus.Sent, cancellationToken);
 
         var avgOpenRate = sentCampaignsCount > 0
             ? await _context.Set<EmailCampaign>()
                 .Where(c => c.Status == EmailCampaignStatus.Sent)
-                .AverageAsync(c => (decimal?)c.OpenRate) ?? 0
+                .AverageAsync(c => (decimal?)c.OpenRate, cancellationToken) ?? 0
             : 0;
 
         var avgClickRate = sentCampaignsCount > 0
             ? await _context.Set<EmailCampaign>()
                 .Where(c => c.Status == EmailCampaignStatus.Sent)
-                .AverageAsync(c => (decimal?)c.ClickRate) ?? 0
+                .AverageAsync(c => (decimal?)c.ClickRate, cancellationToken) ?? 0
             : 0;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
@@ -635,7 +747,7 @@ public class EmailCampaignService : IEmailCampaignService
             .AsNoTracking()
             .OrderByDescending(c => c.CreatedAt)
             .Take(5)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return new EmailCampaignStatsDto
@@ -651,10 +763,11 @@ public class EmailCampaignService : IEmailCampaignService
         };
     }
 
-    public async Task RecordEmailOpenAsync(Guid campaignId, Guid subscriberId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task RecordEmailOpenAsync(Guid campaignId, Guid subscriberId, CancellationToken cancellationToken = default)
     {
         var recipient = await _context.Set<EmailCampaignRecipient>()
-            .FirstOrDefaultAsync(r => r.CampaignId == campaignId && r.SubscriberId == subscriberId);
+            .FirstOrDefaultAsync(r => r.CampaignId == campaignId && r.SubscriberId == subscriberId, cancellationToken);
 
         if (recipient == null) return;
 
@@ -665,7 +778,7 @@ public class EmailCampaignService : IEmailCampaignService
 
             // ✅ PERFORMANCE: Batch load campaign and subscriber (N+1 fix)
             var campaign = await _context.Set<EmailCampaign>()
-                .FirstOrDefaultAsync(c => c.Id == campaignId);
+                .FirstOrDefaultAsync(c => c.Id == campaignId, cancellationToken);
 
             if (campaign != null)
             {
@@ -674,7 +787,7 @@ public class EmailCampaignService : IEmailCampaignService
             }
 
             var subscriber = await _context.Set<EmailSubscriber>()
-                .FirstOrDefaultAsync(s => s.Id == subscriberId);
+                .FirstOrDefaultAsync(s => s.Id == subscriberId, cancellationToken);
 
             if (subscriber != null)
             {
@@ -684,13 +797,14 @@ public class EmailCampaignService : IEmailCampaignService
         }
 
         recipient.OpenCount++;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task RecordEmailClickAsync(Guid campaignId, Guid subscriberId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task RecordEmailClickAsync(Guid campaignId, Guid subscriberId, CancellationToken cancellationToken = default)
     {
         var recipient = await _context.Set<EmailCampaignRecipient>()
-            .FirstOrDefaultAsync(r => r.CampaignId == campaignId && r.SubscriberId == subscriberId);
+            .FirstOrDefaultAsync(r => r.CampaignId == campaignId && r.SubscriberId == subscriberId, cancellationToken);
 
         if (recipient == null) return;
 
@@ -701,7 +815,7 @@ public class EmailCampaignService : IEmailCampaignService
 
             // ✅ PERFORMANCE: Batch load campaign and subscriber (N+1 fix)
             var campaign = await _context.Set<EmailCampaign>()
-                .FirstOrDefaultAsync(c => c.Id == campaignId);
+                .FirstOrDefaultAsync(c => c.Id == campaignId, cancellationToken);
 
             if (campaign != null)
             {
@@ -710,7 +824,7 @@ public class EmailCampaignService : IEmailCampaignService
             }
 
             var subscriber = await _context.Set<EmailSubscriber>()
-                .FirstOrDefaultAsync(s => s.Id == subscriberId);
+                .FirstOrDefaultAsync(s => s.Id == subscriberId, cancellationToken);
 
             if (subscriber != null)
             {
@@ -719,12 +833,18 @@ public class EmailCampaignService : IEmailCampaignService
         }
 
         recipient.ClickCount++;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     // Automation
-    public async Task<EmailAutomationDto> CreateAutomationAsync(CreateEmailAutomationDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<EmailAutomationDto> CreateAutomationAsync(CreateEmailAutomationDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Email otomasyonu oluşturuluyor. Name: {Name}, Type: {Type}, DelayHours: {DelayHours}",
+            dto.Name, dto.Type, dto.DelayHours);
+
         var automation = new EmailAutomation
         {
             Name = dto.Name,
@@ -735,21 +855,27 @@ public class EmailCampaignService : IEmailCampaignService
             TriggerConditions = dto.TriggerConditions != null ? JsonSerializer.Serialize(dto.TriggerConditions) : null
         };
 
-        await _context.Set<EmailAutomation>().AddAsync(automation);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<EmailAutomation>().AddAsync(automation, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         var createdAutomation = await _context.Set<EmailAutomation>()
             .AsNoTracking()
             .Include(a => a.Template)
-            .FirstOrDefaultAsync(a => a.Id == automation.Id);
+            .FirstOrDefaultAsync(a => a.Id == automation.Id, cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Email otomasyonu oluşturuldu. AutomationId: {AutomationId}, Name: {Name}",
+            automation.Id, dto.Name);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<EmailAutomationDto>(createdAutomation!);
     }
 
-    public async Task<IEnumerable<EmailAutomationDto>> GetAutomationsAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<EmailAutomationDto>> GetAutomationsAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Include ile N+1 önlenir
@@ -757,44 +883,71 @@ public class EmailCampaignService : IEmailCampaignService
             .AsNoTracking()
             .Include(a => a.Template)
             .OrderByDescending(a => a.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<IEnumerable<EmailAutomationDto>>(automations);
     }
 
-    public async Task<bool> ToggleAutomationAsync(Guid id, bool isActive)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<EmailAutomationDto>> GetAutomationsAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Set<EmailAutomation>()
+            .AsNoTracking()
+            .Include(a => a.Template)
+            .OrderByDescending(a => a.CreatedAt);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var automations = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<EmailAutomationDto>
+        {
+            Items = _mapper.Map<List<EmailAutomationDto>>(automations),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ToggleAutomationAsync(Guid id, bool isActive, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         var automation = await _context.Set<EmailAutomation>()
-            .FirstOrDefaultAsync(a => a.Id == id);
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (automation == null) return false;
 
         automation.IsActive = isActive;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeleteAutomationAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteAutomationAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         var automation = await _context.Set<EmailAutomation>()
-            .FirstOrDefaultAsync(a => a.Id == id);
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (automation == null) return false;
 
         automation.IsDeleted = true;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // Private Helper Methods
-    private async Task PrepareCampaignRecipientsAsync(EmailCampaign campaign)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    private async Task PrepareCampaignRecipientsAsync(EmailCampaign campaign, CancellationToken cancellationToken = default)
     {
-        var subscribers = await GetTargetedSubscribersAsync(campaign.TargetSegment);
+        var subscribers = await GetTargetedSubscribersAsync(campaign.TargetSegment, cancellationToken);
 
         foreach (var subscriber in subscribers)
         {
@@ -805,14 +958,15 @@ public class EmailCampaignService : IEmailCampaignService
                 Status = EmailRecipientStatus.Pending
             };
 
-            await _context.Set<EmailCampaignRecipient>().AddAsync(recipient);
+            await _context.Set<EmailCampaignRecipient>().AddAsync(recipient, cancellationToken);
         }
 
         campaign.TotalRecipients = subscribers.Count;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task<List<EmailSubscriber>> GetTargetedSubscribersAsync(string segment)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    private async Task<List<EmailSubscriber>> GetTargetedSubscribersAsync(string segment, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         IQueryable<EmailSubscriber> query = _context.Set<EmailSubscriber>()
@@ -833,15 +987,16 @@ public class EmailCampaignService : IEmailCampaignService
                 break;
         }
 
-        return await query.ToListAsync();
+        return await query.ToListAsync(cancellationToken);
     }
 
-    private async Task SendCampaignEmailsAsync(EmailCampaign campaign)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    private async Task SendCampaignEmailsAsync(EmailCampaign campaign, CancellationToken cancellationToken = default)
     {
         var recipients = await _context.Set<EmailCampaignRecipient>()
             .Include(r => r.Subscriber)
             .Where(r => r.CampaignId == campaign.Id && r.Status == EmailRecipientStatus.Pending)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var content = !string.IsNullOrEmpty(campaign.Content)
             ? campaign.Content
@@ -854,7 +1009,8 @@ public class EmailCampaignService : IEmailCampaignService
                 await _emailService.SendEmailAsync(
                     recipient.Subscriber.Email,
                     campaign.Subject,
-                    content
+                    content,
+                    cancellationToken
                 );
 
                 recipient.Status = EmailRecipientStatus.Sent;
@@ -867,12 +1023,15 @@ public class EmailCampaignService : IEmailCampaignService
             }
             catch (Exception ex)
             {
+                // ✅ BOLUM 2.1: Exception handling - Exception yutulmuyor, loglanıyor ve işlem devam ediyor
+                _logger.LogError(ex, "Email gönderilemedi. CampaignId: {CampaignId}, SubscriberId: {SubscriberId}", 
+                    campaign.Id, recipient.SubscriberId);
                 recipient.Status = EmailRecipientStatus.Failed;
                 recipient.ErrorMessage = ex.Message;
             }
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
 }

@@ -39,21 +39,25 @@ public class OrderSplitService : IOrderSplitService
         _logger = logger;
     }
 
-    public async Task<OrderSplitDto> SplitOrderAsync(Guid orderId, CreateOrderSplitDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<OrderSplitDto> SplitOrderAsync(Guid orderId, CreateOrderSplitDto dto, CancellationToken cancellationToken = default)
     {
         if (dto == null)
         {
             throw new ArgumentNullException(nameof(dto));
         }
 
-        _logger.LogInformation("Sipariş bölme işlemi başlatılıyor. OrderId: {OrderId}", orderId);
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Sipariş bölme işlemi başlatılıyor. OrderId: {OrderId}, ItemsCount: {ItemsCount}",
+            orderId, dto.Items?.Count ?? 0);
 
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
         var originalOrder = await _context.Orders
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .Include(o => o.Address)
-            .FirstOrDefaultAsync(o => o.Id == orderId);
+            .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
 
         if (originalOrder == null)
         {
@@ -95,7 +99,7 @@ public class OrderSplitService : IOrderSplitService
             // Address entity'sini çek
             var addressId = dto.NewAddressId ?? originalOrder.AddressId;
             var address = await _context.Addresses
-                .FirstOrDefaultAsync(a => a.Id == addressId);
+                .FirstOrDefaultAsync(a => a.Id == addressId, cancellationToken);
             
             if (address == null)
             {
@@ -119,7 +123,7 @@ public class OrderSplitService : IOrderSplitService
                 
                 // Product'ı çek (AddItem için gerekli)
                 var product = await _context.Products
-                    .FirstOrDefaultAsync(p => p.Id == originalItem.ProductId);
+                    .FirstOrDefaultAsync(p => p.Id == originalItem.ProductId, cancellationToken);
                 
                 if (product == null)
                 {
@@ -152,7 +156,7 @@ public class OrderSplitService : IOrderSplitService
             foreach (var item in dto.Items)
             {
                 var originalItem = originalOrder.OrderItems.First(oi => oi.Id == item.OrderItemId);
-                var product = await _context.Set<ProductEntity>().FirstOrDefaultAsync(p => p.Id == originalItem.ProductId);
+                var product = await _context.Set<ProductEntity>().FirstOrDefaultAsync(p => p.Id == originalItem.ProductId, cancellationToken);
                 if (product != null)
                 {
                     splitOrder.AddItem(product, item.Quantity);
@@ -160,8 +164,8 @@ public class OrderSplitService : IOrderSplitService
                 }
             }
             
-            await _context.Orders.AddAsync(splitOrder);
-            await _unitOfWork.SaveChangesAsync();
+            await _context.Orders.AddAsync(splitOrder, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Create OrderSplit record
             var orderSplit = new OrderSplit
@@ -173,7 +177,7 @@ public class OrderSplitService : IOrderSplitService
                 Status = OrderSplitStatus.Pending
             };
 
-            await _context.Set<OrderSplit>().AddAsync(orderSplit);
+            await _context.Set<OrderSplit>().AddAsync(orderSplit, cancellationToken);
 
             // Create OrderSplitItem records
             var splitItemRecords = new List<OrderSplitItem>();
@@ -191,13 +195,16 @@ public class OrderSplitService : IOrderSplitService
                 });
             }
 
-            await _context.Set<OrderSplitItem>().AddRangeAsync(splitItemRecords);
-            await _unitOfWork.SaveChangesAsync();
+            await _context.Set<OrderSplitItem>().AddRangeAsync(splitItemRecords, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // ✅ ARCHITECTURE: Transaction commit
             await _unitOfWork.CommitTransactionAsync();
 
-            _logger.LogInformation("Sipariş başarıyla bölündü. OriginalOrderId: {OriginalOrderId}, SplitOrderId: {SplitOrderId}", orderId, splitOrder.Id);
+            // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+            _logger.LogInformation(
+                "Sipariş başarıyla bölündü. OriginalOrderId: {OriginalOrderId}, SplitOrderId: {SplitOrderId}",
+                orderId, splitOrder.Id);
 
             // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
             orderSplit = await _context.Set<OrderSplit>()
@@ -210,7 +217,7 @@ public class OrderSplitService : IOrderSplitService
                         .ThenInclude(oi => oi.Product)
                 .Include(s => s.OrderSplitItems)
                     .ThenInclude(si => si.SplitOrderItem)
-                .FirstOrDefaultAsync(s => s.Id == orderSplit.Id);
+                .FirstOrDefaultAsync(s => s.Id == orderSplit.Id, cancellationToken);
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
             return _mapper.Map<OrderSplitDto>(orderSplit);
@@ -224,7 +231,8 @@ public class OrderSplitService : IOrderSplitService
         }
     }
 
-    public async Task<OrderSplitDto?> GetSplitAsync(Guid splitId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<OrderSplitDto?> GetSplitAsync(Guid splitId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
         var split = await _context.Set<OrderSplit>()
@@ -237,13 +245,14 @@ public class OrderSplitService : IOrderSplitService
                     .ThenInclude(oi => oi.Product)
             .Include(s => s.OrderSplitItems)
                 .ThenInclude(si => si.SplitOrderItem)
-            .FirstOrDefaultAsync(s => s.Id == splitId);
+            .FirstOrDefaultAsync(s => s.Id == splitId, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return split != null ? _mapper.Map<OrderSplitDto>(split) : null;
     }
 
-    public async Task<IEnumerable<OrderSplitDto>> GetOrderSplitsAsync(Guid orderId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<OrderSplitDto>> GetOrderSplitsAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
         var splits = await _context.Set<OrderSplit>()
@@ -257,14 +266,15 @@ public class OrderSplitService : IOrderSplitService
             .Include(s => s.OrderSplitItems)
                 .ThenInclude(si => si.SplitOrderItem)
             .Where(s => s.OriginalOrderId == orderId)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası foreach içinde MapToDto YASAK - AutoMapper kullan
         return _mapper.Map<IEnumerable<OrderSplitDto>>(splits);
     }
 
-    public async Task<IEnumerable<OrderSplitDto>> GetSplitOrdersAsync(Guid splitOrderId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<OrderSplitDto>> GetSplitOrdersAsync(Guid splitOrderId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
         var splits = await _context.Set<OrderSplit>()
@@ -278,20 +288,21 @@ public class OrderSplitService : IOrderSplitService
             .Include(s => s.OrderSplitItems)
                 .ThenInclude(si => si.SplitOrderItem)
             .Where(s => s.SplitOrderId == splitOrderId)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası foreach içinde MapToDto YASAK - AutoMapper kullan
         return _mapper.Map<IEnumerable<OrderSplitDto>>(splits);
     }
 
-    public async Task<bool> CancelSplitAsync(Guid splitId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> CancelSplitAsync(Guid splitId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         var split = await _context.Set<OrderSplit>()
             .Include(s => s.SplitOrder)
             .Include(s => s.OriginalOrder)
-            .FirstOrDefaultAsync(s => s.Id == splitId);
+            .FirstOrDefaultAsync(s => s.Id == splitId, cancellationToken);
 
         if (split == null) return false;
 
@@ -308,7 +319,7 @@ public class OrderSplitService : IOrderSplitService
             .Include(si => si.SplitOrderItem)
                 .ThenInclude(oi => oi.Product)
             .Where(si => si.OrderSplitId == splitId)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         foreach (var splitItem in splitItems)
         {
@@ -329,20 +340,21 @@ public class OrderSplitService : IOrderSplitService
         split.Status = OrderSplitStatus.Cancelled;
         split.IsDeleted = true;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<bool> CompleteSplitAsync(Guid splitId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> CompleteSplitAsync(Guid splitId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         var split = await _context.Set<OrderSplit>()
-            .FirstOrDefaultAsync(s => s.Id == splitId);
+            .FirstOrDefaultAsync(s => s.Id == splitId, cancellationToken);
 
         if (split == null) return false;
 
         split.Status = OrderSplitStatus.Completed;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 

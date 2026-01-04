@@ -31,8 +31,15 @@ public class SizeGuideService : ISizeGuideService
         _logger = logger;
     }
 
-    public async Task<SizeGuideDto> CreateSizeGuideAsync(CreateSizeGuideDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<SizeGuideDto> CreateSizeGuideAsync(CreateSizeGuideDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Size guide oluşturuluyor. Name: {Name}, CategoryId: {CategoryId}",
+            dto.Name, dto.CategoryId);
+
         var sizeGuide = new SizeGuide
         {
             Name = dto.Name,
@@ -43,8 +50,8 @@ public class SizeGuideService : ISizeGuideService
             MeasurementUnit = dto.MeasurementUnit
         };
 
-        await _context.Set<SizeGuide>().AddAsync(sizeGuide);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<SizeGuide>().AddAsync(sizeGuide, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         foreach (var entryDto in dto.Entries)
         {
@@ -66,36 +73,43 @@ public class SizeGuideService : ISizeGuideService
                 DisplayOrder = entryDto.DisplayOrder
             };
 
-            await _context.Set<SizeGuideEntry>().AddAsync(entry);
+            await _context.Set<SizeGuideEntry>().AddAsync(entry, cancellationToken);
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         sizeGuide = await _context.Set<SizeGuide>()
             .AsNoTracking()
             .Include(sg => sg.Category)
             .Include(sg => sg.Entries)
-            .FirstOrDefaultAsync(sg => sg.Id == sizeGuide.Id);
+            .FirstOrDefaultAsync(sg => sg.Id == sizeGuide.Id, cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Size guide oluşturuldu. SizeGuideId: {SizeGuideId}, Name: {Name}",
+            sizeGuide!.Id, sizeGuide.Name);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<SizeGuideDto>(sizeGuide);
     }
 
-    public async Task<SizeGuideDto?> GetSizeGuideAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<SizeGuideDto?> GetSizeGuideAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sg.IsDeleted (Global Query Filter)
         var sizeGuide = await _context.Set<SizeGuide>()
             .AsNoTracking()
             .Include(sg => sg.Category)
             .Include(sg => sg.Entries)
-            .FirstOrDefaultAsync(sg => sg.Id == id);
+            .FirstOrDefaultAsync(sg => sg.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return sizeGuide != null ? _mapper.Map<SizeGuideDto>(sizeGuide) : null;
     }
 
-    public async Task<IEnumerable<SizeGuideDto>> GetSizeGuidesByCategoryAsync(Guid categoryId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<SizeGuideDto>> GetSizeGuidesByCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sg.IsDeleted (Global Query Filter)
         var sizeGuides = await _context.Set<SizeGuide>()
@@ -103,13 +117,14 @@ public class SizeGuideService : ISizeGuideService
             .Include(sg => sg.Category)
             .Include(sg => sg.Entries)
             .Where(sg => sg.CategoryId == categoryId && sg.IsActive)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<IEnumerable<SizeGuideDto>>(sizeGuides);
     }
 
-    public async Task<IEnumerable<SizeGuideDto>> GetAllSizeGuidesAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<SizeGuideDto>> GetAllSizeGuidesAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sg.IsDeleted (Global Query Filter)
         var sizeGuides = await _context.Set<SizeGuide>()
@@ -117,18 +132,19 @@ public class SizeGuideService : ISizeGuideService
             .Include(sg => sg.Category)
             .Include(sg => sg.Entries)
             .Where(sg => sg.IsActive)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<IEnumerable<SizeGuideDto>>(sizeGuides);
     }
 
-    public async Task<bool> UpdateSizeGuideAsync(Guid id, CreateSizeGuideDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> UpdateSizeGuideAsync(Guid id, CreateSizeGuideDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sg.IsDeleted (Global Query Filter)
         var sizeGuide = await _context.Set<SizeGuide>()
             .Include(sg => sg.Entries)
-            .FirstOrDefaultAsync(sg => sg.Id == id);
+            .FirstOrDefaultAsync(sg => sg.Id == id, cancellationToken);
 
         if (sizeGuide == null) return false;
 
@@ -166,29 +182,31 @@ public class SizeGuideService : ISizeGuideService
                 DisplayOrder = entryDto.DisplayOrder
             };
 
-            await _context.Set<SizeGuideEntry>().AddAsync(entry);
+            await _context.Set<SizeGuideEntry>().AddAsync(entry, cancellationToken);
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeleteSizeGuideAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteSizeGuideAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sg.IsDeleted (Global Query Filter)
         var sizeGuide = await _context.Set<SizeGuide>()
-            .FirstOrDefaultAsync(sg => sg.Id == id);
+            .FirstOrDefaultAsync(sg => sg.Id == id, cancellationToken);
 
         if (sizeGuide == null) return false;
 
         sizeGuide.IsDeleted = true;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<ProductSizeGuideDto?> GetProductSizeGuideAsync(Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ProductSizeGuideDto?> GetProductSizeGuideAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !psg.IsDeleted (Global Query Filter)
         var productSizeGuide = await _context.Set<ProductSizeGuide>()
@@ -198,7 +216,7 @@ public class SizeGuideService : ISizeGuideService
                 .ThenInclude(sg => sg.Category)
             .Include(psg => psg.SizeGuide)
                 .ThenInclude(sg => sg.Entries)
-            .FirstOrDefaultAsync(psg => psg.ProductId == productId);
+            .FirstOrDefaultAsync(psg => psg.ProductId == productId, cancellationToken);
 
         if (productSizeGuide == null) return null;
 
@@ -214,11 +232,12 @@ public class SizeGuideService : ISizeGuideService
         };
     }
 
-    public async Task AssignSizeGuideToProductAsync(AssignSizeGuideDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task AssignSizeGuideToProductAsync(AssignSizeGuideDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !psg.IsDeleted (Global Query Filter)
         var existing = await _context.Set<ProductSizeGuide>()
-            .FirstOrDefaultAsync(psg => psg.ProductId == dto.ProductId);
+            .FirstOrDefaultAsync(psg => psg.ProductId == dto.ProductId, cancellationToken);
 
         if (existing != null)
         {
@@ -236,34 +255,36 @@ public class SizeGuideService : ISizeGuideService
                 FitDescription = dto.FitDescription
             };
 
-            await _context.Set<ProductSizeGuide>().AddAsync(productSizeGuide);
+            await _context.Set<ProductSizeGuide>().AddAsync(productSizeGuide, cancellationToken);
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<bool> RemoveSizeGuideFromProductAsync(Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> RemoveSizeGuideFromProductAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !psg.IsDeleted (Global Query Filter)
         var productSizeGuide = await _context.Set<ProductSizeGuide>()
-            .FirstOrDefaultAsync(psg => psg.ProductId == productId);
+            .FirstOrDefaultAsync(psg => psg.ProductId == productId, cancellationToken);
 
         if (productSizeGuide == null) return false;
 
         productSizeGuide.IsDeleted = true;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<SizeRecommendationDto> GetSizeRecommendationAsync(Guid productId, decimal height, decimal weight, decimal? chest = null, decimal? waist = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<SizeRecommendationDto> GetSizeRecommendationAsync(Guid productId, decimal height, decimal weight, decimal? chest = null, decimal? waist = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !psg.IsDeleted (Global Query Filter)
         var productSizeGuide = await _context.Set<ProductSizeGuide>()
             .AsNoTracking()
             .Include(psg => psg.SizeGuide)
                 .ThenInclude(sg => sg.Entries)
-            .FirstOrDefaultAsync(psg => psg.ProductId == productId);
+            .FirstOrDefaultAsync(psg => psg.ProductId == productId, cancellationToken);
 
         if (productSizeGuide == null)
         {

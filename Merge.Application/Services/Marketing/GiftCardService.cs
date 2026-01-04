@@ -10,6 +10,7 @@ using Merge.Domain.ValueObjects;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Marketing;
+using Merge.Application.Common;
 
 
 namespace Merge.Application.Services.Marketing;
@@ -39,51 +40,84 @@ public class GiftCardService : IGiftCardService
         _logger = logger;
     }
 
-    public async Task<GiftCardDto?> GetByCodeAsync(string code)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<GiftCardDto?> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !gc.IsDeleted (Global Query Filter)
         var giftCard = await _context.GiftCards
             .AsNoTracking()
-            .FirstOrDefaultAsync(gc => gc.Code == code);
+            .FirstOrDefaultAsync(gc => gc.Code == code, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return giftCard == null ? null : _mapper.Map<GiftCardDto>(giftCard);
     }
 
-    public async Task<GiftCardDto?> GetByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<GiftCardDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !gc.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Repository yerine direct context kullan (FindAsync yerine FirstOrDefaultAsync)
         var giftCard = await _context.GiftCards
             .AsNoTracking()
-            .FirstOrDefaultAsync(gc => gc.Id == id);
+            .FirstOrDefaultAsync(gc => gc.Id == id, cancellationToken);
         
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return giftCard == null ? null : _mapper.Map<GiftCardDto>(giftCard);
     }
 
-    public async Task<IEnumerable<GiftCardDto>> GetUserGiftCardsAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<GiftCardDto>> GetUserGiftCardsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !gc.IsDeleted (Global Query Filter)
         var giftCards = await _context.GiftCards
             .AsNoTracking()
             .Where(gc => gc.PurchasedByUserId == userId || gc.AssignedToUserId == userId)
             .OrderByDescending(gc => gc.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<IEnumerable<GiftCardDto>>(giftCards);
     }
 
-    public async Task<GiftCardDto> PurchaseGiftCardAsync(Guid userId, PurchaseGiftCardDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<GiftCardDto>> GetUserGiftCardsAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
+        var query = _context.GiftCards
+            .AsNoTracking()
+            .Where(gc => gc.PurchasedByUserId == userId || gc.AssignedToUserId == userId)
+            .OrderByDescending(gc => gc.CreatedAt);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var giftCards = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<GiftCardDto>
+        {
+            Items = _mapper.Map<List<GiftCardDto>>(giftCards),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<GiftCardDto> PurchaseGiftCardAsync(Guid userId, PurchaseGiftCardDto dto, CancellationToken cancellationToken = default)
+    {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Hediye kartı satın alma işlemi başlatılıyor. UserId: {UserId}, Amount: {Amount}",
+            userId, dto.Amount);
+
         if (dto.Amount <= 0)
         {
             throw new ValidationException("Hediye kartı tutarı 0'dan büyük olmalıdır.");
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
-        var code = await GenerateGiftCardCodeAsync();
+        var code = await GenerateGiftCardCodeAsync(cancellationToken);
         var amount = new Money(dto.Amount);
         var expiresAt = dto.ExpiresAt ?? DateTime.UtcNow.AddYears(1);
         
@@ -108,23 +142,29 @@ public class GiftCardService : IGiftCardService
         };
         await _transactionRepository.AddAsync(transaction);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !gc.IsDeleted (Global Query Filter)
         var createdGiftCard = await _context.GiftCards
             .AsNoTracking()
-            .FirstOrDefaultAsync(gc => gc.Id == giftCard.Id);
+            .FirstOrDefaultAsync(gc => gc.Id == giftCard.Id, cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Hediye kartı satın alma işlemi tamamlandı. GiftCardId: {GiftCardId}, Code: {Code}, UserId: {UserId}",
+            giftCard.Id, code, userId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<GiftCardDto>(createdGiftCard!);
     }
 
-    public async Task<GiftCardDto> RedeemGiftCardAsync(string code, Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<GiftCardDto> RedeemGiftCardAsync(string code, Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !gc.IsDeleted (Global Query Filter)
         var giftCard = await _context.GiftCards
-            .FirstOrDefaultAsync(gc => gc.Code == code);
+            .FirstOrDefaultAsync(gc => gc.Code == code, cancellationToken);
 
         if (giftCard == null)
         {
@@ -161,21 +201,22 @@ public class GiftCardService : IGiftCardService
 
         await _giftCardRepository.UpdateAsync(giftCard);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !gc.IsDeleted (Global Query Filter)
         var updatedGiftCard = await _context.GiftCards
             .AsNoTracking()
-            .FirstOrDefaultAsync(gc => gc.Code == code);
+            .FirstOrDefaultAsync(gc => gc.Code == code, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<GiftCardDto>(updatedGiftCard!);
     }
 
-    public async Task<decimal> CalculateDiscountAsync(string code, decimal orderAmount)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<decimal> CalculateDiscountAsync(string code, decimal orderAmount, CancellationToken cancellationToken = default)
     {
-        var giftCard = await GetByCodeAsync(code);
+        var giftCard = await GetByCodeAsync(code, cancellationToken);
         if (giftCard == null || !giftCard.IsValid)
         {
             return 0;
@@ -185,11 +226,12 @@ public class GiftCardService : IGiftCardService
         return Math.Min(giftCard.RemainingAmount, orderAmount);
     }
 
-    public async Task<bool> ApplyGiftCardToOrderAsync(string code, Guid orderId, Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ApplyGiftCardToOrderAsync(string code, Guid orderId, Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !gc.IsDeleted (Global Query Filter)
         var giftCard = await _context.GiftCards
-            .FirstOrDefaultAsync(gc => gc.Code == code);
+            .FirstOrDefaultAsync(gc => gc.Code == code, cancellationToken);
 
         if (giftCard == null || !giftCard.IsActive || giftCard.RemainingAmount <= 0)
         {
@@ -198,7 +240,7 @@ public class GiftCardService : IGiftCardService
 
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
         var order = await _context.Orders
-            .FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId);
+            .FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId, cancellationToken);
 
         if (order == null)
         {
@@ -215,7 +257,7 @@ public class GiftCardService : IGiftCardService
         order.ApplyGiftCardDiscount(discountMoney);
 
         await _giftCardRepository.UpdateAsync(giftCard);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Transaction kaydı
         var transaction = new GiftCardTransaction
@@ -231,7 +273,8 @@ public class GiftCardService : IGiftCardService
         return true;
     }
 
-    private async Task<string> GenerateGiftCardCodeAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    private async Task<string> GenerateGiftCardCodeAsync(CancellationToken cancellationToken = default)
     {
         // Benzersiz kod oluştur (örn: MERGE-XXXX-XXXX)
         // ✅ THREAD SAFETY: Random.Shared kullan (new Random() thread-safe değil)
@@ -242,7 +285,7 @@ public class GiftCardService : IGiftCardService
 
         // ✅ PERFORMANCE: Removed manual !gc.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AnyAsync kullan (async)
-        while (await _context.GiftCards.AnyAsync(gc => gc.Code == code))
+        while (await _context.GiftCards.AnyAsync(gc => gc.Code == code, cancellationToken))
         {
             part1 = random.Next(1000, 9999).ToString();
             part2 = random.Next(1000, 9999).ToString();

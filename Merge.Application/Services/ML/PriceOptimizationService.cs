@@ -26,13 +26,14 @@ public class PriceOptimizationService : IPriceOptimizationService
         _logger = logger;
     }
 
-    public async Task<PriceOptimizationDto> OptimizePriceAsync(Guid productId, PriceOptimizationRequestDto? request = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PriceOptimizationDto> OptimizePriceAsync(Guid productId, PriceOptimizationRequestDto? request = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var product = await _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
-            .FirstOrDefaultAsync(p => p.Id == productId);
+            .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
         if (product == null)
         {
@@ -45,10 +46,10 @@ public class PriceOptimizationService : IPriceOptimizationService
             .Where(p => p.CategoryId == product.CategoryId && 
                        p.Id != product.Id && 
                        p.IsActive)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // Basit fiyat optimizasyon algoritması
-        var recommendation = await CalculateOptimalPriceAsync(product, similarProducts);
+        var recommendation = await CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
 
         // Fiyatı güncelle (opsiyonel - sadece öneri döndürmek için kullanılabilir)
         if (request?.ApplyOptimization == true)
@@ -57,9 +58,11 @@ public class PriceOptimizationService : IPriceOptimizationService
             var oldPrice = product.Price;
             var newPrice = new Money(recommendation.OptimalPrice);
             product.SetPrice(newPrice);
-            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation("Price optimized for product {ProductId}: {OldPrice} -> {NewPrice}", 
+            // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+            _logger.LogInformation(
+                "Price optimized for product. ProductId: {ProductId}, OldPrice: {OldPrice}, NewPrice: {NewPrice}",
                 productId, oldPrice, recommendation.OptimalPrice);
         }
 
@@ -79,14 +82,15 @@ public class PriceOptimizationService : IPriceOptimizationService
         };
     }
 
-    public async Task<IEnumerable<PriceOptimizationDto>> OptimizePricesForCategoryAsync(Guid categoryId, PriceOptimizationRequestDto? request = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<PriceOptimizationDto>> OptimizePricesForCategoryAsync(Guid categoryId, PriceOptimizationRequestDto? request = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var products = await _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.CategoryId == categoryId && p.IsActive)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load competitor prices (N+1 fix)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() ve Distinct() YASAK - Database'de Select ve Distinct yap
@@ -95,12 +99,12 @@ public class PriceOptimizationService : IPriceOptimizationService
             .Where(p => p.CategoryId == categoryId && p.IsActive)
             .Select(p => p.CategoryId)
             .Distinct()
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
         
         var allSimilarProducts = await _context.Products
             .AsNoTracking()
             .Where(p => categoryIds.Contains(p.CategoryId) && p.IsActive)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: ToListAsync() sonrası GroupBy() ve ToDictionary() YASAK
         // Not: Bu durumda entity grouping yapılıyor, database'de ToDictionaryAsync yapılamaz
@@ -121,7 +125,7 @@ public class PriceOptimizationService : IPriceOptimizationService
                 ? similar.Where(p => p.Id != product.Id).ToList() 
                 : new List<ProductEntity>();
             
-            var recommendation = await CalculateOptimalPriceAsync(product, similarProducts);
+            var recommendation = await CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
             results.Add(new PriceOptimizationDto
             {
                 ProductId = product.Id,
@@ -144,13 +148,14 @@ public class PriceOptimizationService : IPriceOptimizationService
         return results.OrderByDescending(r => r.ExpectedRevenueChange);
     }
 
-    public async Task<PriceRecommendationDto> GetPriceRecommendationAsync(Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PriceRecommendationDto> GetPriceRecommendationAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var product = await _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
-            .FirstOrDefaultAsync(p => p.Id == productId);
+            .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
         if (product == null)
         {
@@ -163,18 +168,19 @@ public class PriceOptimizationService : IPriceOptimizationService
             .Where(p => p.CategoryId == product.CategoryId && 
                        p.Id != product.Id && 
                        p.IsActive)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
-        return await CalculateOptimalPriceAsync(product, similarProducts);
+        return await CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
     }
 
-    public async Task<IEnumerable<PriceRecommendationDto>> GetPriceRecommendationsAsync(Guid productId, int count = 5)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<PriceRecommendationDto>> GetPriceRecommendationsAsync(Guid productId, int count = 5, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var product = await _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
-            .FirstOrDefaultAsync(p => p.Id == productId);
+            .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
         if (product == null)
         {
@@ -187,13 +193,14 @@ public class PriceOptimizationService : IPriceOptimizationService
             .Where(p => p.CategoryId == product.CategoryId && 
                        p.Id != product.Id && 
                        p.IsActive)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
-        var recommendation = await CalculateOptimalPriceAsync(product, similarProducts);
+        var recommendation = await CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
         return new[] { recommendation };
     }
 
-    public async Task<PriceOptimizationStatsDto> GetOptimizationStatsAsync(DateTime? startDate = null, DateTime? endDate = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<PriceOptimizationStatsDto> GetOptimizationStatsAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
         var start = startDate ?? DateTime.UtcNow.AddDays(-30);
         var end = endDate ?? DateTime.UtcNow;
@@ -203,10 +210,10 @@ public class PriceOptimizationService : IPriceOptimizationService
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var totalProducts = await _context.Products
-            .CountAsync(p => p.IsActive);
+            .CountAsync(p => p.IsActive, cancellationToken);
 
         var productsWithDiscount = await _context.Products
-            .CountAsync(p => p.IsActive && p.DiscountPrice.HasValue);
+            .CountAsync(p => p.IsActive && p.DiscountPrice.HasValue, cancellationToken);
 
         return new PriceOptimizationStatsDto
         {
@@ -218,7 +225,8 @@ public class PriceOptimizationService : IPriceOptimizationService
         };
     }
 
-    private async Task<PriceRecommendationDto> CalculateOptimalPriceAsync(ProductEntity product, List<ProductEntity>? similarProducts = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    private async Task<PriceRecommendationDto> CalculateOptimalPriceAsync(ProductEntity product, List<ProductEntity>? similarProducts = null, CancellationToken cancellationToken = default)
     {
         // Basit fiyat optimizasyon algoritması
         // Gerçek implementasyonda ML modeli kullanılabilir
@@ -235,7 +243,7 @@ public class PriceOptimizationService : IPriceOptimizationService
                 .Where(p => p.CategoryId == product.CategoryId && 
                            p.Id != product.Id && 
                            p.IsActive)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
         }
 
         // ✅ PERFORMANCE: Memory'de minimal işlem (business logic için gerekli)

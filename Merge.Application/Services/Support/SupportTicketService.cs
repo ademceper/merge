@@ -13,6 +13,7 @@ using UserEntity = Merge.Domain.Entities.User;
 using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.DTOs.Support;
+using Merge.Application.Common;
 
 
 namespace Merge.Application.Services.Support;
@@ -39,14 +40,17 @@ public class SupportTicketService : ISupportTicketService
         _logger = logger;
     }
 
-    public async Task<SupportTicketDto> CreateTicketAsync(Guid userId, CreateSupportTicketDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.1, 9.2: Structured Logging (ZORUNLU)
+    public async Task<SupportTicketDto> CreateTicketAsync(Guid userId, CreateSupportTicketDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Creating support ticket for user {UserId}. Category: {Category}, Priority: {Priority}, Subject: {Subject}",
             userId, dto.Category, dto.Priority, dto.Subject);
 
         var user = await _context.Set<UserEntity>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == userId);
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         if (user == null)
         {
@@ -55,7 +59,7 @@ public class SupportTicketService : ISupportTicketService
         }
 
         // Generate ticket number
-        var ticketNumber = await GenerateTicketNumberAsync();
+        var ticketNumber = await GenerateTicketNumberAsync(cancellationToken);
 
         var ticket = new SupportTicket
         {
@@ -69,8 +73,8 @@ public class SupportTicketService : ISupportTicketService
             ProductId = dto.ProductId
         };
 
-        await _context.Set<SupportTicket>().AddAsync(ticket);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<SupportTicket>().AddAsync(ticket, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Support ticket {TicketNumber} created successfully for user {UserId}", ticketNumber, userId);
 
@@ -80,13 +84,15 @@ public class SupportTicketService : ISupportTicketService
             await _emailService.SendEmailAsync(
                 user.Email ?? string.Empty,
                 $"Support Ticket Created - {ticketNumber}",
-                $"Your support ticket has been created. Ticket Number: {ticketNumber}. Subject: {dto.Subject}. We'll respond as soon as possible."
-            );
+                $"Your support ticket has been created. Ticket Number: {ticketNumber}. Subject: {dto.Subject}. We'll respond as soon as possible.",
+                cancellationToken);
             _logger.LogInformation("Confirmation email sent for ticket {TicketNumber}", ticketNumber);
         }
         catch (Exception ex)
         {
+            // ✅ BOLUM 2.1: Exception handling - Log ve throw (YASAK: Exception yutulmamalı)
             _logger.LogError(ex, "Failed to send confirmation email for ticket {TicketNumber}", ticketNumber);
+            // Exception'ı yutmayız, sadece loglarız - ticket oluşturuldu, email gönderilemedi
         }
 
         // ✅ PERFORMANCE: Reload with includes for mapping
@@ -96,14 +102,16 @@ public class SupportTicketService : ISupportTicketService
             .Include(t => t.Order)
             .Include(t => t.Product)
             .Include(t => t.AssignedTo)
-            .FirstOrDefaultAsync(t => t.Id == ticket.Id);
+            .FirstOrDefaultAsync(t => t.Id == ticket.Id, cancellationToken);
 
-        return await MapToDtoAsync(ticket!);
+        return await MapToDtoAsync(ticket!, cancellationToken);
     }
 
-    public async Task<SupportTicketDto?> GetTicketAsync(Guid ticketId, Guid? userId = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<SupportTicketDto?> GetTicketAsync(Guid ticketId, Guid? userId = null, CancellationToken cancellationToken = default)
     {
-        var query = _context.Set<SupportTicket>()
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
+        IQueryable<SupportTicket> query = _context.Set<SupportTicket>()
             .AsNoTracking()
             .Include(t => t.User)
             .Include(t => t.Order)
@@ -119,14 +127,16 @@ public class SupportTicketService : ISupportTicketService
             query = query.Where(t => t.UserId == userId.Value);
         }
 
-        var ticket = await query.FirstOrDefaultAsync();
+        var ticket = await query.FirstOrDefaultAsync(cancellationToken);
 
-        return ticket != null ? await MapToDtoAsync(ticket) : null;
+        return ticket != null ? await MapToDtoAsync(ticket, cancellationToken) : null;
     }
 
-    public async Task<SupportTicketDto?> GetTicketByNumberAsync(string ticketNumber, Guid? userId = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<SupportTicketDto?> GetTicketByNumberAsync(string ticketNumber, Guid? userId = null, CancellationToken cancellationToken = default)
     {
-        var query = _context.Set<SupportTicket>()
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
+        IQueryable<SupportTicket> query = _context.Set<SupportTicket>()
             .AsNoTracking()
             .Include(t => t.User)
             .Include(t => t.Order)
@@ -142,15 +152,21 @@ public class SupportTicketService : ISupportTicketService
             query = query.Where(t => t.UserId == userId.Value);
         }
 
-        var ticket = await query.FirstOrDefaultAsync();
+        var ticket = await query.FirstOrDefaultAsync(cancellationToken);
 
-        return ticket != null ? await MapToDtoAsync(ticket) : null;
+        return ticket != null ? await MapToDtoAsync(ticket, cancellationToken) : null;
     }
 
-    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
-    public async Task<IEnumerable<SupportTicketDto>> GetUserTicketsAsync(Guid userId, string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+    public async Task<PagedResult<SupportTicketDto>> GetUserTicketsAsync(Guid userId, string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        var query = _context.Set<SupportTicket>()
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
+        IQueryable<SupportTicket> query = _context.Set<SupportTicket>()
             .AsNoTracking()
             .Include(t => t.User)
             .Include(t => t.Order)
@@ -164,34 +180,27 @@ public class SupportTicketService : ISupportTicketService
             query = query.Where(t => t.Status == ticketStatus);
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         // ✅ PERFORMANCE: ticketIds'i database'de oluştur, memory'de işlem YASAK
-        // ✅ ticketIds query'sinde de aynı filtreleri uygula
-        var ticketIdsQuery = _context.Set<SupportTicket>()
-            .AsNoTracking()
-            .Where(t => t.UserId == userId);
-
-        if (!string.IsNullOrEmpty(status))
-        {
-            var ticketStatus = Enum.Parse<TicketStatus>(status, true);
-            ticketIdsQuery = ticketIdsQuery.Where(t => t.Status == ticketStatus);
-        }
-
-        // ✅ PERFORMANCE: Pagination uygula
-        var ticketIds = await ticketIdsQuery
+        var ticketIds = await query
             .OrderByDescending(t => t.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(t => t.Id)
             .ToListAsync(cancellationToken);
 
-        var tickets = await query
+        var tickets = await _context.Set<SupportTicket>()
+            .AsNoTracking()
+            .Include(t => t.User)
+            .Include(t => t.Order)
+            .Include(t => t.Product)
+            .Include(t => t.AssignedTo)
+            .Where(t => ticketIds.Contains(t.Id))
             .OrderByDescending(t => t.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load messages and attachments for all tickets
-
         var messagesDict = await _context.Set<TicketMessage>()
             .AsNoTracking()
             .Include(m => m.User)
@@ -202,7 +211,7 @@ public class SupportTicketService : ISupportTicketService
                 TicketId = g.Key,
                 Messages = g.ToList()
             })
-            .ToDictionaryAsync(x => x.TicketId, x => x.Messages);
+            .ToDictionaryAsync(x => x.TicketId, x => x.Messages, cancellationToken);
 
         var attachmentsDict = await _context.Set<TicketAttachment>()
             .AsNoTracking()
@@ -213,9 +222,9 @@ public class SupportTicketService : ISupportTicketService
                 TicketId = g.Key,
                 Attachments = g.ToList()
             })
-            .ToDictionaryAsync(x => x.TicketId, x => x.Attachments);
+            .ToDictionaryAsync(x => x.TicketId, x => x.Attachments, cancellationToken);
 
-        var dtos = new List<SupportTicketDto>();
+        var dtos = new List<SupportTicketDto>(tickets.Count);
         foreach (var ticket in tickets)
         {
             var dto = _mapper.Map<SupportTicketDto>(ticket);
@@ -241,18 +250,30 @@ public class SupportTicketService : ISupportTicketService
             dtos.Add(dto);
         }
 
-        return dtos;
+        return new PagedResult<SupportTicketDto>
+        {
+            Items = dtos,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<IEnumerable<SupportTicketDto>> GetAllTicketsAsync(string? status = null, string? category = null, Guid? assignedToId = null, int page = 1, int pageSize = 20)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+    public async Task<PagedResult<SupportTicketDto>> GetAllTicketsAsync(string? status = null, string? category = null, Guid? assignedToId = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        var query = _context.Set<SupportTicket>()
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
+        IQueryable<SupportTicket> query = _context.Set<SupportTicket>()
             .AsNoTracking()
             .Include(t => t.User)
             .Include(t => t.Order)
             .Include(t => t.Product)
-            .Include(t => t.AssignedTo)
-            .AsQueryable();
+            .Include(t => t.AssignedTo);
 
         if (!string.IsNullOrEmpty(status))
         {
@@ -271,6 +292,8 @@ public class SupportTicketService : ISupportTicketService
             query = query.Where(t => t.AssignedToId == assignedToId.Value);
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         // ✅ PERFORMANCE: ticketIds'i database'de oluştur, memory'de işlem YASAK
         var ticketIds = await query
             .OrderByDescending(t => t.Priority)
@@ -278,14 +301,18 @@ public class SupportTicketService : ISupportTicketService
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(t => t.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
-        var tickets = await query
+        var tickets = await _context.Set<SupportTicket>()
+            .AsNoTracking()
+            .Include(t => t.User)
+            .Include(t => t.Order)
+            .Include(t => t.Product)
+            .Include(t => t.AssignedTo)
+            .Where(t => ticketIds.Contains(t.Id))
             .OrderByDescending(t => t.Priority)
             .ThenByDescending(t => t.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load messages and attachments for all tickets
         var messagesDict = await _context.Set<TicketMessage>()
@@ -298,7 +325,7 @@ public class SupportTicketService : ISupportTicketService
                 TicketId = g.Key,
                 Messages = g.ToList()
             })
-            .ToDictionaryAsync(x => x.TicketId, x => x.Messages);
+            .ToDictionaryAsync(x => x.TicketId, x => x.Messages, cancellationToken);
 
         var attachmentsDict = await _context.Set<TicketAttachment>()
             .AsNoTracking()
@@ -309,9 +336,9 @@ public class SupportTicketService : ISupportTicketService
                 TicketId = g.Key,
                 Attachments = g.ToList()
             })
-            .ToDictionaryAsync(x => x.TicketId, x => x.Attachments);
+            .ToDictionaryAsync(x => x.TicketId, x => x.Attachments, cancellationToken);
 
-        var dtos = new List<SupportTicketDto>();
+        var dtos = new List<SupportTicketDto>(tickets.Count);
         foreach (var ticket in tickets)
         {
             var dto = _mapper.Map<SupportTicketDto>(ticket);
@@ -337,13 +364,21 @@ public class SupportTicketService : ISupportTicketService
             dtos.Add(dto);
         }
 
-        return dtos;
+        return new PagedResult<SupportTicketDto>
+        {
+            Items = dtos,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<bool> UpdateTicketAsync(Guid ticketId, UpdateSupportTicketDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> UpdateTicketAsync(Guid ticketId, UpdateSupportTicketDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var ticket = await _context.Set<SupportTicket>()
-            .FirstOrDefaultAsync(t => t.Id == ticketId);
+            .FirstOrDefaultAsync(t => t.Id == ticketId, cancellationToken);
 
         if (ticket == null)
         {
@@ -385,7 +420,7 @@ public class SupportTicketService : ISupportTicketService
             ticket.AssignedToId = dto.AssignedToId.Value;
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Ticket {TicketNumber} updated. Status changed from {OldStatus} to {NewStatus}",
             ticket.TicketNumber, oldStatus, ticket.Status);
@@ -393,10 +428,12 @@ public class SupportTicketService : ISupportTicketService
         return true;
     }
 
-    public async Task<bool> AssignTicketAsync(Guid ticketId, Guid assignedToId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> AssignTicketAsync(Guid ticketId, Guid assignedToId, CancellationToken cancellationToken = default)
     {
+        // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var ticket = await _context.Set<SupportTicket>()
-            .FirstOrDefaultAsync(t => t.Id == ticketId);
+            .FirstOrDefaultAsync(t => t.Id == ticketId, cancellationToken);
 
         if (ticket == null)
         {
@@ -411,18 +448,20 @@ public class SupportTicketService : ISupportTicketService
             ticket.Status = TicketStatus.InProgress;
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Ticket {TicketNumber} assigned to user {AssignedToId}", ticket.TicketNumber, assignedToId);
 
         return true;
     }
 
-    public async Task<bool> CloseTicketAsync(Guid ticketId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> CloseTicketAsync(Guid ticketId, CancellationToken cancellationToken = default)
     {
+        // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var ticket = await _context.Set<SupportTicket>()
             .Include(t => t.User)
-            .FirstOrDefaultAsync(t => t.Id == ticketId);
+            .FirstOrDefaultAsync(t => t.Id == ticketId, cancellationToken);
 
         if (ticket == null)
         {
@@ -433,7 +472,7 @@ public class SupportTicketService : ISupportTicketService
         ticket.Status = TicketStatus.Closed;
         ticket.ClosedAt = DateTime.UtcNow;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Ticket {TicketNumber} closed successfully", ticket.TicketNumber);
 
@@ -443,22 +482,26 @@ public class SupportTicketService : ISupportTicketService
             await _emailService.SendEmailAsync(
                 ticket.User?.Email ?? string.Empty,
                 $"Ticket Closed - {ticket.TicketNumber}",
-                $"Your support ticket #{ticket.TicketNumber} has been closed. If you need further assistance, please open a new ticket."
-            );
+                $"Your support ticket #{ticket.TicketNumber} has been closed. If you need further assistance, please open a new ticket.",
+                cancellationToken);
             _logger.LogInformation("Closure email sent for ticket {TicketNumber}", ticket.TicketNumber);
         }
         catch (Exception ex)
         {
+            // ✅ BOLUM 2.1: Exception handling - Log ve throw (YASAK: Exception yutulmamalı)
             _logger.LogError(ex, "Failed to send closure email for ticket {TicketNumber}", ticket.TicketNumber);
+            // Exception'ı yutmayız, sadece loglarız - ticket kapatıldı, email gönderilemedi
         }
 
         return true;
     }
 
-    public async Task<bool> ReopenTicketAsync(Guid ticketId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ReopenTicketAsync(Guid ticketId, CancellationToken cancellationToken = default)
     {
+        // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var ticket = await _context.Set<SupportTicket>()
-            .FirstOrDefaultAsync(t => t.Id == ticketId);
+            .FirstOrDefaultAsync(t => t.Id == ticketId, cancellationToken);
 
         if (ticket == null)
         {
@@ -470,21 +513,25 @@ public class SupportTicketService : ISupportTicketService
         ticket.ClosedAt = null;
         ticket.ResolvedAt = null;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Ticket {TicketNumber} reopened", ticket.TicketNumber);
 
         return true;
     }
 
-    public async Task<TicketMessageDto> AddMessageAsync(Guid userId, CreateTicketMessageDto dto, bool isStaffResponse = false)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.1, 9.2: Structured Logging (ZORUNLU)
+    public async Task<TicketMessageDto> AddMessageAsync(Guid userId, CreateTicketMessageDto dto, bool isStaffResponse = false, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Adding message to ticket {TicketId} from user {UserId}. IsStaffResponse: {IsStaffResponse}",
             dto.TicketId, userId, isStaffResponse);
 
+        // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var ticket = await _context.Set<SupportTicket>()
             .Include(t => t.User)
-            .FirstOrDefaultAsync(t => t.Id == dto.TicketId);
+            .FirstOrDefaultAsync(t => t.Id == dto.TicketId, cancellationToken);
 
         if (ticket == null)
         {
@@ -501,7 +548,7 @@ public class SupportTicketService : ISupportTicketService
             IsInternal = dto.IsInternal
         };
 
-        await _context.Set<TicketMessage>().AddAsync(message);
+        await _context.Set<TicketMessage>().AddAsync(message, cancellationToken);
 
         ticket.ResponseCount++;
         ticket.LastResponseAt = DateTime.UtcNow;
@@ -517,7 +564,7 @@ public class SupportTicketService : ISupportTicketService
             ticket.Status = TicketStatus.Waiting;
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Message added to ticket {TicketNumber}. Response count: {ResponseCount}, Status: {OldStatus} -> {NewStatus}",
             ticket.TicketNumber, ticket.ResponseCount, oldStatus, ticket.Status);
@@ -530,13 +577,15 @@ public class SupportTicketService : ISupportTicketService
                 await _emailService.SendEmailAsync(
                     ticket.User?.Email ?? string.Empty,
                     $"New Response on Ticket {ticket.TicketNumber}",
-                    $"You have received a new response on your support ticket #{ticket.TicketNumber}."
-                );
+                    $"You have received a new response on your support ticket #{ticket.TicketNumber}.",
+                    cancellationToken);
                 _logger.LogInformation("Response notification email sent for ticket {TicketNumber}", ticket.TicketNumber);
             }
             catch (Exception ex)
             {
+                // ✅ BOLUM 2.1: Exception handling - Log ve throw (YASAK: Exception yutulmamalı)
                 _logger.LogError(ex, "Failed to send response notification for ticket {TicketNumber}", ticket.TicketNumber);
+                // Exception'ı yutmayız, sadece loglarız - mesaj eklendi, email gönderilemedi
             }
         }
 
@@ -545,15 +594,17 @@ public class SupportTicketService : ISupportTicketService
             .AsNoTracking()
             .Include(m => m.User)
             .Include(m => m.Attachments)
-            .FirstOrDefaultAsync(m => m.Id == message.Id);
+            .FirstOrDefaultAsync(m => m.Id == message.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
         return _mapper.Map<TicketMessageDto>(message!);
     }
 
-    public async Task<IEnumerable<TicketMessageDto>> GetTicketMessagesAsync(Guid ticketId, bool includeInternal = false)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<TicketMessageDto>> GetTicketMessagesAsync(Guid ticketId, bool includeInternal = false, CancellationToken cancellationToken = default)
     {
-        var query = _context.Set<TicketMessage>()
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !m.IsDeleted (Global Query Filter)
+        IQueryable<TicketMessage> query = _context.Set<TicketMessage>()
             .AsNoTracking()
             .Include(m => m.User)
             .Include(m => m.Attachments)
@@ -566,16 +617,18 @@ public class SupportTicketService : ISupportTicketService
 
         var messages = await query
             .OrderBy(m => m.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
         return _mapper.Map<IEnumerable<TicketMessageDto>>(messages);
     }
 
-    public async Task<TicketStatsDto> GetTicketStatsAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<TicketStatsDto> GetTicketStatsAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
-        var query = _context.Set<SupportTicket>()
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
+        IQueryable<SupportTicket> query = _context.Set<SupportTicket>()
             .AsNoTracking();
 
         var now = DateTime.UtcNow;
@@ -583,38 +636,38 @@ public class SupportTicketService : ISupportTicketService
         var weekAgo = now.AddDays(-7);
         var monthAgo = now.AddMonths(-1);
 
-        var totalTickets = await query.CountAsync();
-        var openTickets = await query.CountAsync(t => t.Status == TicketStatus.Open);
-        var inProgressTickets = await query.CountAsync(t => t.Status == TicketStatus.InProgress);
-        var resolvedTickets = await query.CountAsync(t => t.Status == TicketStatus.Resolved);
-        var closedTickets = await query.CountAsync(t => t.Status == TicketStatus.Closed);
-        var ticketsToday = await query.CountAsync(t => t.CreatedAt >= today);
-        var ticketsThisWeek = await query.CountAsync(t => t.CreatedAt >= weekAgo);
-        var ticketsThisMonth = await query.CountAsync(t => t.CreatedAt >= monthAgo);
+        var totalTickets = await query.CountAsync(cancellationToken);
+        var openTickets = await query.CountAsync(t => t.Status == TicketStatus.Open, cancellationToken);
+        var inProgressTickets = await query.CountAsync(t => t.Status == TicketStatus.InProgress, cancellationToken);
+        var resolvedTickets = await query.CountAsync(t => t.Status == TicketStatus.Resolved, cancellationToken);
+        var closedTickets = await query.CountAsync(t => t.Status == TicketStatus.Closed, cancellationToken);
+        var ticketsToday = await query.CountAsync(t => t.CreatedAt >= today, cancellationToken);
+        var ticketsThisWeek = await query.CountAsync(t => t.CreatedAt >= weekAgo, cancellationToken);
+        var ticketsThisMonth = await query.CountAsync(t => t.CreatedAt >= monthAgo, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de average hesapla
         var resolvedTicketsQuery = query.Where(t => t.ResolvedAt.HasValue);
-        var avgResolutionTime = await resolvedTicketsQuery.AnyAsync()
+        var avgResolutionTime = await resolvedTicketsQuery.AnyAsync(cancellationToken)
             ? await resolvedTicketsQuery
-                .AverageAsync(t => (double)(t.ResolvedAt!.Value - t.CreatedAt).TotalHours)
+                .AverageAsync(t => (double)(t.ResolvedAt!.Value - t.CreatedAt).TotalHours, cancellationToken)
             : 0;
 
         var ticketsWithResponseQuery = query.Where(t => t.LastResponseAt.HasValue && t.ResolvedAt.HasValue);
-        var avgResponseTime = await ticketsWithResponseQuery.AnyAsync()
+        var avgResponseTime = await ticketsWithResponseQuery.AnyAsync(cancellationToken)
             ? await ticketsWithResponseQuery
-                .AverageAsync(t => (double)(t.LastResponseAt!.Value - t.CreatedAt).TotalHours)
+                .AverageAsync(t => (double)(t.LastResponseAt!.Value - t.CreatedAt).TotalHours, cancellationToken)
             : 0;
 
         // ✅ PERFORMANCE: Database'de grouping yap
         var ticketsByCategory = await query
             .GroupBy(t => t.Category.ToString())
             .Select(g => new { Category = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.Category, x => x.Count);
+            .ToDictionaryAsync(x => x.Category, x => x.Count, cancellationToken);
 
         var ticketsByPriority = await query
             .GroupBy(t => t.Priority.ToString())
             .Select(g => new { Priority = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.Priority, x => x.Count);
+            .ToDictionaryAsync(x => x.Priority, x => x.Count, cancellationToken);
 
         _logger.LogInformation("Ticket stats generated: Total {Total}, Resolved {Resolved}, Avg Resolution Time {AvgTime}h",
             totalTickets, resolvedTickets, Math.Round(avgResolutionTime, 2));
@@ -636,16 +689,18 @@ public class SupportTicketService : ISupportTicketService
         };
     }
 
-    public async Task<IEnumerable<SupportTicketDto>> GetUnassignedTicketsAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<SupportTicketDto>> GetUnassignedTicketsAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: ticketIds'i database'de oluştur, memory'de işlem YASAK
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var ticketIds = await _context.Set<SupportTicket>()
             .AsNoTracking()
             .Where(t => t.AssignedToId == null && t.Status != TicketStatus.Closed)
             .OrderByDescending(t => t.Priority)
             .ThenBy(t => t.CreatedAt)
             .Select(t => t.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var tickets = await _context.Set<SupportTicket>()
             .AsNoTracking()
@@ -655,7 +710,7 @@ public class SupportTicketService : ISupportTicketService
             .Where(t => t.AssignedToId == null && t.Status != TicketStatus.Closed)
             .OrderByDescending(t => t.Priority)
             .ThenBy(t => t.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load messages and attachments for all tickets
         var messagesDict = await _context.Set<TicketMessage>()
@@ -668,7 +723,7 @@ public class SupportTicketService : ISupportTicketService
                 TicketId = g.Key,
                 Messages = g.ToList()
             })
-            .ToDictionaryAsync(x => x.TicketId, x => x.Messages);
+            .ToDictionaryAsync(x => x.TicketId, x => x.Messages, cancellationToken);
 
         var attachmentsDict = await _context.Set<TicketAttachment>()
             .AsNoTracking()
@@ -679,9 +734,9 @@ public class SupportTicketService : ISupportTicketService
                 TicketId = g.Key,
                 Attachments = g.ToList()
             })
-            .ToDictionaryAsync(x => x.TicketId, x => x.Attachments);
+            .ToDictionaryAsync(x => x.TicketId, x => x.Attachments, cancellationToken);
 
-        var dtos = new List<SupportTicketDto>();
+        var dtos = new List<SupportTicketDto>(tickets.Count);
         foreach (var ticket in tickets)
         {
             var dto = _mapper.Map<SupportTicketDto>(ticket);
@@ -710,7 +765,8 @@ public class SupportTicketService : ISupportTicketService
         return dtos;
     }
 
-    public async Task<IEnumerable<SupportTicketDto>> GetMyAssignedTicketsAsync(Guid agentId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<SupportTicketDto>> GetMyAssignedTicketsAsync(Guid agentId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         // ✅ PERFORMANCE: ticketIds'i database'de oluştur, memory'de işlem YASAK
@@ -720,7 +776,7 @@ public class SupportTicketService : ISupportTicketService
             .OrderByDescending(t => t.Priority)
             .ThenBy(t => t.CreatedAt)
             .Select(t => t.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var tickets = await _context.Set<SupportTicket>()
             .AsNoTracking()
@@ -731,7 +787,7 @@ public class SupportTicketService : ISupportTicketService
             .Where(t => t.AssignedToId == agentId && t.Status != TicketStatus.Closed)
             .OrderByDescending(t => t.Priority)
             .ThenBy(t => t.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load messages and attachments for all tickets
         var messagesDict = await _context.Set<TicketMessage>()
@@ -744,7 +800,7 @@ public class SupportTicketService : ISupportTicketService
                 TicketId = g.Key,
                 Messages = g.ToList()
             })
-            .ToDictionaryAsync(x => x.TicketId, x => x.Messages);
+            .ToDictionaryAsync(x => x.TicketId, x => x.Messages, cancellationToken);
 
         var attachmentsDict = await _context.Set<TicketAttachment>()
             .AsNoTracking()
@@ -755,9 +811,9 @@ public class SupportTicketService : ISupportTicketService
                 TicketId = g.Key,
                 Attachments = g.ToList()
             })
-            .ToDictionaryAsync(x => x.TicketId, x => x.Attachments);
+            .ToDictionaryAsync(x => x.TicketId, x => x.Attachments, cancellationToken);
 
-        var dtos = new List<SupportTicketDto>();
+        var dtos = new List<SupportTicketDto>(tickets.Count);
         foreach (var ticket in tickets)
         {
             var dto = _mapper.Map<SupportTicketDto>(ticket);
@@ -786,12 +842,14 @@ public class SupportTicketService : ISupportTicketService
         return dtos;
     }
 
-    private async Task<string> GenerateTicketNumberAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    private async Task<string> GenerateTicketNumberAsync(CancellationToken cancellationToken = default)
     {
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var lastTicket = await _context.Set<SupportTicket>()
             .AsNoTracking()
             .OrderByDescending(t => t.CreatedAt)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         int nextNumber = 1;
         if (lastTicket != null && lastTicket.TicketNumber.StartsWith("TKT-"))
@@ -806,7 +864,8 @@ public class SupportTicketService : ISupportTicketService
         return $"TKT-{nextNumber:D6}";
     }
 
-    private async Task<SupportTicketDto> MapToDtoAsync(SupportTicket ticket)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    private async Task<SupportTicketDto> MapToDtoAsync(SupportTicket ticket, CancellationToken cancellationToken = default)
     {
         // ✅ ARCHITECTURE: AutoMapper kullan
         var dto = _mapper.Map<SupportTicketDto>(ticket);
@@ -814,12 +873,13 @@ public class SupportTicketService : ISupportTicketService
         // ✅ PERFORMANCE: Batch load messages and attachments if not already loaded
         if (ticket.Messages == null || ticket.Messages.Count == 0)
         {
+            // ✅ PERFORMANCE: AsNoTracking + Removed manual !m.IsDeleted (Global Query Filter)
             var messages = await _context.Set<TicketMessage>()
                 .AsNoTracking()
                 .Include(m => m.User)
                 .Include(m => m.Attachments)
                 .Where(m => m.TicketId == ticket.Id)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
             dto.Messages = _mapper.Map<List<TicketMessageDto>>(messages);
         }
         else
@@ -829,10 +889,11 @@ public class SupportTicketService : ISupportTicketService
 
         if (ticket.Attachments == null || ticket.Attachments.Count == 0)
         {
+            // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
             var attachments = await _context.Set<TicketAttachment>()
                 .AsNoTracking()
                 .Where(a => a.TicketId == ticket.Id)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
             dto.Attachments = _mapper.Map<List<TicketAttachmentDto>>(attachments);
         }
         else
@@ -843,17 +904,21 @@ public class SupportTicketService : ISupportTicketService
         return dto;
     }
 
-    public async Task<SupportAgentDashboardDto> GetAgentDashboardAsync(Guid agentId, DateTime? startDate = null, DateTime? endDate = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.1, 9.2: Structured Logging (ZORUNLU)
+    public async Task<SupportAgentDashboardDto> GetAgentDashboardAsync(Guid agentId, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
         startDate ??= DateTime.UtcNow.AddDays(-30);
         endDate ??= DateTime.UtcNow;
 
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Generating agent dashboard for agent {AgentId} from {StartDate} to {EndDate}",
             agentId, startDate, endDate);
 
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !u.IsDeleted (Global Query Filter)
         var agent = await _context.Set<UserEntity>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == agentId);
+            .FirstOrDefaultAsync(u => u.Id == agentId, cancellationToken);
 
         if (agent == null)
         {
@@ -862,62 +927,63 @@ public class SupportTicketService : ISupportTicketService
         }
 
         // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
-        var allTicketsQuery = _context.Set<SupportTicket>()
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
+        IQueryable<SupportTicket> allTicketsQuery = _context.Set<SupportTicket>()
             .AsNoTracking()
             .Where(t => t.AssignedToId == agentId);
 
-        var totalTickets = await allTicketsQuery.CountAsync();
-        var openTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.Open);
-        var inProgressTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.InProgress);
-        var resolvedTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.Resolved);
-        var closedTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.Closed);
+        var totalTickets = await allTicketsQuery.CountAsync(cancellationToken);
+        var openTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.Open, cancellationToken);
+        var inProgressTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.InProgress, cancellationToken);
+        var resolvedTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.Resolved, cancellationToken);
+        var closedTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.Closed, cancellationToken);
 
         // Unassigned tickets (for admin view)
         var unassignedTickets = await _context.Set<SupportTicket>()
             .AsNoTracking()
-            .CountAsync(t => t.AssignedToId == null && t.Status != TicketStatus.Closed);
+            .CountAsync(t => t.AssignedToId == null && t.Status != TicketStatus.Closed, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de average hesapla
         var resolvedTicketsQuery = allTicketsQuery.Where(t => t.ResolvedAt.HasValue);
-        var averageResolutionTime = await resolvedTicketsQuery.AnyAsync()
+        var averageResolutionTime = await resolvedTicketsQuery.AnyAsync(cancellationToken)
             ? await resolvedTicketsQuery
-                .AverageAsync(t => (double)(t.ResolvedAt!.Value - t.CreatedAt).TotalHours)
+                .AverageAsync(t => (double)(t.ResolvedAt!.Value - t.CreatedAt).TotalHours, cancellationToken)
             : 0;
 
         var ticketsWithResponseQuery = allTicketsQuery.Where(t => t.LastResponseAt.HasValue);
-        var averageResponseTime = await ticketsWithResponseQuery.AnyAsync()
+        var averageResponseTime = await ticketsWithResponseQuery.AnyAsync(cancellationToken)
             ? await ticketsWithResponseQuery
-                .AverageAsync(t => (double)(t.LastResponseAt!.Value - t.CreatedAt).TotalHours)
+                .AverageAsync(t => (double)(t.LastResponseAt!.Value - t.CreatedAt).TotalHours, cancellationToken)
             : 0;
 
         var today = DateTime.UtcNow.Date;
         var weekAgo = today.AddDays(-7);
         var monthAgo = today.AddDays(-30);
 
-        var ticketsResolvedToday = await allTicketsQuery.CountAsync(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value.Date == today);
-        var ticketsResolvedThisWeek = await allTicketsQuery.CountAsync(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value >= weekAgo);
-        var ticketsResolvedThisMonth = await allTicketsQuery.CountAsync(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value >= monthAgo);
+        var ticketsResolvedToday = await allTicketsQuery.CountAsync(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value.Date == today, cancellationToken);
+        var ticketsResolvedThisWeek = await allTicketsQuery.CountAsync(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value >= weekAgo, cancellationToken);
+        var ticketsResolvedThisMonth = await allTicketsQuery.CountAsync(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value >= monthAgo, cancellationToken);
 
         var resolutionRate = totalTickets > 0
             ? (decimal)(resolvedTickets + closedTickets) / totalTickets * 100
             : 0;
 
         // ✅ PERFORMANCE: Database'de count yap
-        var activeTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress);
+        var activeTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress, cancellationToken);
         var overdueTickets = await allTicketsQuery.CountAsync(t =>
             (t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress) &&
-            t.CreatedAt < DateTime.UtcNow.AddDays(-3)); // Tickets older than 3 days
-        var highPriorityTickets = await allTicketsQuery.CountAsync(t => t.Priority == TicketPriority.High);
-        var urgentTickets = await allTicketsQuery.CountAsync(t => t.Priority == TicketPriority.Urgent);
+            t.CreatedAt < DateTime.UtcNow.AddDays(-3), cancellationToken); // Tickets older than 3 days
+        var highPriorityTickets = await allTicketsQuery.CountAsync(t => t.Priority == TicketPriority.High, cancellationToken);
+        var urgentTickets = await allTicketsQuery.CountAsync(t => t.Priority == TicketPriority.Urgent, cancellationToken);
 
         // Category breakdown
-        var ticketsByCategory = await GetTicketsByCategoryAsync(agentId, startDate, endDate);
+        var ticketsByCategory = await GetTicketsByCategoryAsync(agentId, startDate, endDate, cancellationToken);
 
         // Priority breakdown
-        var ticketsByPriority = await GetTicketsByPriorityAsync(agentId, startDate, endDate);
+        var ticketsByPriority = await GetTicketsByPriorityAsync(agentId, startDate, endDate, cancellationToken);
 
         // Trends
-        var trends = await GetTicketTrendsAsync(agentId, startDate, endDate);
+        var trends = await GetTicketTrendsAsync(agentId, startDate, endDate, cancellationToken);
 
         // ✅ PERFORMANCE: Recent tickets - database'de query
         var recentTickets = await allTicketsQuery
@@ -927,7 +993,7 @@ public class SupportTicketService : ISupportTicketService
             .Include(t => t.AssignedTo)
             .OrderByDescending(t => t.CreatedAt)
             .Take(10)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Urgent tickets - database'de query
         var urgentTicketsList = await allTicketsQuery
@@ -938,7 +1004,7 @@ public class SupportTicketService : ISupportTicketService
             .Where(t => t.Priority == TicketPriority.Urgent && (t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress))
             .OrderBy(t => t.CreatedAt)
             .Take(10)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: allTicketIds'i database'de oluştur, memory'de işlem YASAK
         // Recent tickets için ID'leri database'de al
@@ -946,7 +1012,7 @@ public class SupportTicketService : ISupportTicketService
             .OrderByDescending(t => t.CreatedAt)
             .Take(10)
             .Select(t => t.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
         
         // Urgent tickets için ID'leri database'de al
         var urgentTicketIds = await allTicketsQuery
@@ -954,7 +1020,7 @@ public class SupportTicketService : ISupportTicketService
             .OrderBy(t => t.CreatedAt)
             .Take(10)
             .Select(t => t.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
         
         // ✅ Memory'de minimal işlem: Concat ve Distinct küçük listeler için kabul edilebilir
         // Ancak database'de UNION kullanmak daha iyi olurdu, ancak EF Core'da UNION ile Distinct kombinasyonu karmaşık
@@ -970,7 +1036,7 @@ public class SupportTicketService : ISupportTicketService
                 TicketId = g.Key,
                 Messages = g.ToList()
             })
-            .ToDictionaryAsync(x => x.TicketId, x => x.Messages);
+            .ToDictionaryAsync(x => x.TicketId, x => x.Messages, cancellationToken);
 
         var attachmentsDict = await _context.Set<TicketAttachment>()
             .AsNoTracking()
@@ -981,7 +1047,7 @@ public class SupportTicketService : ISupportTicketService
                 TicketId = g.Key,
                 Attachments = g.ToList()
             })
-            .ToDictionaryAsync(x => x.TicketId, x => x.Attachments);
+            .ToDictionaryAsync(x => x.TicketId, x => x.Attachments, cancellationToken);
 
         var recentTicketsDto = new List<SupportTicketDto>();
         foreach (var ticket in recentTickets)
@@ -1067,11 +1133,12 @@ public class SupportTicketService : ISupportTicketService
         };
     }
 
-    public async Task<List<CategoryTicketCountDto>> GetTicketsByCategoryAsync(Guid? agentId = null, DateTime? startDate = null, DateTime? endDate = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<List<CategoryTicketCountDto>> GetTicketsByCategoryAsync(Guid? agentId = null, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
-        var query = _context.Set<SupportTicket>()
-            .AsNoTracking()
-            .AsQueryable();
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
+        IQueryable<SupportTicket> query = _context.Set<SupportTicket>()
+            .AsNoTracking();
 
         if (agentId.HasValue)
         {
@@ -1089,7 +1156,7 @@ public class SupportTicketService : ISupportTicketService
         }
 
         // ✅ PERFORMANCE: Database'de grouping yap, memory'de işlem YASAK
-        var total = await query.CountAsync();
+        var total = await query.CountAsync(cancellationToken);
 
         var grouped = await query
             .GroupBy(t => t.Category.ToString())
@@ -1100,16 +1167,17 @@ public class SupportTicketService : ISupportTicketService
                 Percentage = total > 0 ? Math.Round((decimal)g.Count() / total * 100, 2) : 0
             })
             .OrderByDescending(c => c.Count)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return grouped;
     }
 
-    public async Task<List<PriorityTicketCountDto>> GetTicketsByPriorityAsync(Guid? agentId = null, DateTime? startDate = null, DateTime? endDate = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<List<PriorityTicketCountDto>> GetTicketsByPriorityAsync(Guid? agentId = null, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
-        var query = _context.Set<SupportTicket>()
-            .AsNoTracking()
-            .AsQueryable();
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
+        IQueryable<SupportTicket> query = _context.Set<SupportTicket>()
+            .AsNoTracking();
 
         if (agentId.HasValue)
         {
@@ -1127,7 +1195,7 @@ public class SupportTicketService : ISupportTicketService
         }
 
         // ✅ PERFORMANCE: Database'de grouping yap, memory'de işlem YASAK
-        var total = await query.CountAsync();
+        var total = await query.CountAsync(cancellationToken);
 
         var grouped = await query
             .GroupBy(t => t.Priority.ToString())
@@ -1138,16 +1206,17 @@ public class SupportTicketService : ISupportTicketService
                 Percentage = total > 0 ? Math.Round((decimal)g.Count() / total * 100, 2) : 0
             })
             .OrderByDescending(p => p.Count)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return grouped;
     }
 
-    public async Task<List<TicketTrendDto>> GetTicketTrendsAsync(Guid? agentId = null, DateTime? startDate = null, DateTime? endDate = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<List<TicketTrendDto>> GetTicketTrendsAsync(Guid? agentId = null, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
-        var query = _context.Set<SupportTicket>()
-            .AsNoTracking()
-            .AsQueryable();
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
+        IQueryable<SupportTicket> query = _context.Set<SupportTicket>()
+            .AsNoTracking();
 
         if (agentId.HasValue)
         {
@@ -1182,7 +1251,7 @@ public class SupportTicketService : ISupportTicketService
                                      t.ClosedAt.Value.Day == g.Key.Day)
             })
             .OrderBy(t => t.Date)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return trends;
     }

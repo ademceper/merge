@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.DTOs.Marketing;
+using Merge.Application.Common;
 using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Marketing;
@@ -17,36 +18,46 @@ public class FlashSalesController : BaseController
             }
 
     /// <summary>
-    /// Aktif flash sale'leri getirir
+    /// Aktif flash sale'leri getirir (pagination ile)
     /// </summary>
     [HttpGet]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
-    [ProducesResponseType(typeof(IEnumerable<FlashSaleDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<FlashSaleDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<ActionResult<IEnumerable<FlashSaleDto>>> GetActiveSales(
+    public async Task<ActionResult<PagedResult<FlashSaleDto>>> GetActiveSales(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+        if (pageSize > 100) pageSize = 100; // Max limit
+
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var sales = await _flashSaleService.GetActiveSalesAsync(cancellationToken);
+        var sales = await _flashSaleService.GetActiveSalesAsync(page, pageSize, cancellationToken);
         return Ok(sales);
     }
 
     /// <summary>
-    /// Tüm flash sale'leri getirir (Admin only)
+    /// Tüm flash sale'leri getirir (pagination ile) (Admin only)
     /// </summary>
     [HttpGet("all")]
     [Authorize(Roles = "Admin")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
-    [ProducesResponseType(typeof(IEnumerable<FlashSaleDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<FlashSaleDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<ActionResult<IEnumerable<FlashSaleDto>>> GetAll(
+    public async Task<ActionResult<PagedResult<FlashSaleDto>>> GetAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+        if (pageSize > 100) pageSize = 100; // Max limit
+
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var sales = await _flashSaleService.GetAllAsync(cancellationToken);
+        var sales = await _flashSaleService.GetAllAsync(page, pageSize, cancellationToken);
         return Ok(sales);
     }
 

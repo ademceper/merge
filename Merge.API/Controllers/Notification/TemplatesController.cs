@@ -2,7 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.DTOs.Notification;
-
+using Merge.Application.Common;
+using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Notification;
 
@@ -18,20 +19,44 @@ public class NotificationTemplatesController : BaseController
         _templateService = templateService;
     }
 
+    /// <summary>
+    /// Yeni bildirim şablonu oluşturur (Admin, Manager)
+    /// </summary>
     [HttpPost]
-    public async Task<ActionResult<NotificationTemplateDto>> CreateTemplate([FromBody] CreateNotificationTemplateDto dto)
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
+    [ProducesResponseType(typeof(NotificationTemplateDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<NotificationTemplateDto>> CreateTemplate(
+        [FromBody] CreateNotificationTemplateDto dto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var template = await _templateService.CreateTemplateAsync(dto);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var template = await _templateService.CreateTemplateAsync(dto, cancellationToken);
         return CreatedAtAction(nameof(GetTemplate), new { id = template.Id }, template);
     }
 
+    /// <summary>
+    /// Bildirim şablonu detaylarını getirir (Admin, Manager)
+    /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<NotificationTemplateDto>> GetTemplate(Guid id)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(NotificationTemplateDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<NotificationTemplateDto>> GetTemplate(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
-        var template = await _templateService.GetTemplateAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var template = await _templateService.GetTemplateAsync(id, cancellationToken);
         if (template == null)
         {
             return NotFound();
@@ -39,10 +64,22 @@ public class NotificationTemplatesController : BaseController
         return Ok(template);
     }
 
+    /// <summary>
+    /// Tip'e göre bildirim şablonu getirir (Admin, Manager)
+    /// </summary>
     [HttpGet("type/{type}")]
-    public async Task<ActionResult<NotificationTemplateDto>> GetTemplateByType(string type)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(NotificationTemplateDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<NotificationTemplateDto>> GetTemplateByType(
+        string type,
+        CancellationToken cancellationToken = default)
     {
-        var template = await _templateService.GetTemplateByTypeAsync(type);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var template = await _templateService.GetTemplateByTypeAsync(type, cancellationToken);
         if (template == null)
         {
             return NotFound(new { message = $"Template not found for type: {type}" });
@@ -50,20 +87,68 @@ public class NotificationTemplatesController : BaseController
         return Ok(template);
     }
 
+    /// <summary>
+    /// Tüm bildirim şablonlarını getirir (pagination ile) (Admin, Manager)
+    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<NotificationTemplateDto>>> GetTemplates([FromQuery] string? type = null)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(PagedResult<NotificationTemplateDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PagedResult<NotificationTemplateDto>>> GetTemplates(
+        [FromQuery] string? type = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var templates = await _templateService.GetTemplatesAsync(type);
-        return Ok(templates);
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+        if (pageSize > 100) pageSize = 100; // Max limit
+        if (page < 1) page = 1;
+
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var allTemplates = await _templateService.GetTemplatesAsync(type, cancellationToken);
+        var templatesList = allTemplates.ToList();
+
+        // ✅ BOLUM 3.4: Pagination implementation
+        var totalCount = templatesList.Count;
+        var pagedTemplates = templatesList
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        var result = new PagedResult<NotificationTemplateDto>
+        {
+            Items = pagedTemplates,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+
+        return Ok(result);
     }
 
+    /// <summary>
+    /// Bildirim şablonu günceller (Admin, Manager)
+    /// </summary>
     [HttpPut("{id}")]
-    public async Task<ActionResult<NotificationTemplateDto>> UpdateTemplate(Guid id, [FromBody] UpdateNotificationTemplateDto dto)
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
+    [ProducesResponseType(typeof(NotificationTemplateDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<NotificationTemplateDto>> UpdateTemplate(
+        Guid id,
+        [FromBody] UpdateNotificationTemplateDto dto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var template = await _templateService.UpdateTemplateAsync(id, dto);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var template = await _templateService.UpdateTemplateAsync(id, dto, cancellationToken);
         if (template == null)
         {
             return NotFound();
@@ -71,10 +156,22 @@ public class NotificationTemplatesController : BaseController
         return Ok(template);
     }
 
+    /// <summary>
+    /// Bildirim şablonu siler (Admin, Manager)
+    /// </summary>
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteTemplate(Guid id)
+    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5/dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> DeleteTemplate(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
-        var success = await _templateService.DeleteTemplateAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var success = await _templateService.DeleteTemplateAsync(id, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -82,16 +179,26 @@ public class NotificationTemplatesController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Şablondan bildirim oluşturur (Admin, Manager)
+    /// </summary>
     [HttpPost("create-notification")]
     [Authorize]
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [ProducesResponseType(typeof(NotificationDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<NotificationDto>> CreateNotificationFromTemplate(
-        [FromBody] CreateNotificationFromTemplateDto dto)
+        [FromBody] CreateNotificationFromTemplateDto dto,
+        CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var notification = await _templateService.CreateNotificationFromTemplateAsync(dto.UserId, dto.TemplateType, dto.Variables);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var notification = await _templateService.CreateNotificationFromTemplateAsync(dto.UserId, dto.TemplateType, dto.Variables, cancellationToken);
         return Ok(notification);
     }
 }
-

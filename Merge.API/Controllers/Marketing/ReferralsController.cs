@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.DTOs.Marketing;
+using Merge.Application.Common;
 using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Marketing;
@@ -36,19 +37,24 @@ public class ReferralsController : BaseController
     }
 
     /// <summary>
-    /// Kullanıcının referanslarını getirir
+    /// Kullanıcının referanslarını getirir (pagination ile)
     /// </summary>
     [HttpGet("my-referrals")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
-    [ProducesResponseType(typeof(IEnumerable<ReferralDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<ReferralDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<ActionResult<IEnumerable<ReferralDto>>> GetMyReferrals(
+    public async Task<ActionResult<PagedResult<ReferralDto>>> GetMyReferrals(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+        if (pageSize > 100) pageSize = 100; // Max limit
+
         var userId = GetUserId();
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var referrals = await _referralService.GetMyReferralsAsync(userId, cancellationToken);
+        var referrals = await _referralService.GetMyReferralsAsync(userId, page, pageSize, cancellationToken);
         return Ok(referrals);
     }
 

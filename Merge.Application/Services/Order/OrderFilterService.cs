@@ -32,7 +32,8 @@ public class OrderFilterService : IOrderFilterService
         _logger = logger;
     }
 
-    public async Task<IEnumerable<OrderDto>> GetFilteredOrdersAsync(OrderFilterDto filter)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<OrderDto>> GetFilteredOrdersAsync(OrderFilterDto filter, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Global Query Filter automatically filters !o.IsDeleted
         var query = _context.Orders
@@ -104,12 +105,13 @@ public class OrderFilterService : IOrderFilterService
         var orders = await query
             .Skip((filter.Page - 1) * filter.PageSize)
             .Take(filter.PageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return _mapper.Map<IEnumerable<OrderDto>>(orders);
     }
 
-    public async Task<OrderStatisticsDto> GetOrderStatisticsAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<OrderStatisticsDto> GetOrderStatisticsAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
         startDate ??= DateTime.UtcNow.AddMonths(-12);
         endDate ??= DateTime.UtcNow;
@@ -122,13 +124,13 @@ public class OrderFilterService : IOrderFilterService
                   o.CreatedAt <= endDate.Value);
 
         // ✅ PERFORMANCE: Database'de aggregation yap (ToListAsync() sonrası işlem YASAK)
-        var totalOrders = await query.CountAsync();
+        var totalOrders = await query.CountAsync(cancellationToken);
         var totalRevenue = await query
             .Where(o => o.PaymentStatus == PaymentStatus.Completed)
-            .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
-        var pendingOrders = await query.CountAsync(o => o.Status == OrderStatus.Pending);
-        var completedOrders = await query.CountAsync(o => o.Status == OrderStatus.Delivered);
-        var cancelledOrders = await query.CountAsync(o => o.Status == OrderStatus.Cancelled);
+            .SumAsync(o => (decimal?)o.TotalAmount, cancellationToken) ?? 0;
+        var pendingOrders = await query.CountAsync(o => o.Status == OrderStatus.Pending, cancellationToken);
+        var completedOrders = await query.CountAsync(o => o.Status == OrderStatus.Delivered, cancellationToken);
+        var cancelledOrders = await query.CountAsync(o => o.Status == OrderStatus.Cancelled, cancellationToken);
 
         var stats = new OrderStatisticsDto
         {
@@ -147,7 +149,7 @@ public class OrderFilterService : IOrderFilterService
         stats.OrdersByStatus = await query
             .GroupBy(o => o.Status)
             .Select(g => new { Status = g.Key.ToString(), Count = g.Count() })
-            .ToDictionaryAsync(x => x.Status, x => x.Count);
+            .ToDictionaryAsync(x => x.Status, x => x.Count, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de grouping ve ToDictionaryAsync yap (ToListAsync() sonrası ToDictionary YASAK)
         stats.RevenueByMonth = await query
@@ -157,7 +159,7 @@ public class OrderFilterService : IOrderFilterService
                 Key = $"{g.Key.Year}-{g.Key.Month:D2}", 
                 Revenue = g.Sum(o => o.TotalAmount) 
             })
-            .ToDictionaryAsync(x => x.Key, x => x.Revenue);
+            .ToDictionaryAsync(x => x.Key, x => x.Revenue, cancellationToken);
 
         return stats;
     }

@@ -60,26 +60,45 @@ public class ReviewService : IReviewService
         return _mapper.Map<ReviewDto>(review);
     }
 
-    public async Task<IEnumerable<ReviewDto>> GetByProductIdAsync(Guid productId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<ReviewDto>> GetByProductIdAsync(Guid productId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted check
-        var reviews = await _context.Reviews
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted check (Global Query Filter)
+        var query = _context.Reviews
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Product)
-            .Where(r => r.ProductId == productId && r.IsApproved)
+            .Where(r => r.ProductId == productId && r.IsApproved);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var reviews = await query
             .OrderByDescending(r => r.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation(
-            "Retrieved {Count} reviews for product {ProductId}, page {Page}",
-            reviews.Count, productId, page);
+            "Retrieved {Count} reviews for product {ProductId}, page {Page}, pageSize {PageSize}, totalCount {TotalCount}",
+            reviews.Count, productId, page, pageSize, totalCount);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: UserName ve ProductName AutoMapper'da map edilmeli
-        return _mapper.Map<IEnumerable<ReviewDto>>(reviews);
+        var reviewDtos = _mapper.Map<IEnumerable<ReviewDto>>(reviews);
+
+        return new PagedResult<ReviewDto>
+        {
+            Items = reviewDtos.ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     // ✅ PERFORMANCE: Pagination ekle (BEST_PRACTICES_ANALIZI.md - BOLUM 3.1.4)
@@ -136,10 +155,11 @@ public class ReviewService : IReviewService
         }
 
         // ✅ PERFORMANCE: Removed manual !oi.Order.IsDeleted check (Global Query Filter)
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var hasOrder = await _context.OrderItems
             .AnyAsync(oi => oi.ProductId == dto.ProductId &&
                           oi.Order.UserId == dto.UserId &&
-                          oi.Order.PaymentStatus == PaymentStatus.Completed);
+                          oi.Order.PaymentStatus == PaymentStatus.Completed, cancellationToken);
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
         var rating = new Rating(dto.Rating);

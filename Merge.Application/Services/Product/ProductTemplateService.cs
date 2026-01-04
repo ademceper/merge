@@ -32,11 +32,18 @@ public class ProductTemplateService : IProductTemplateService
         _logger = logger;
     }
 
-    public async Task<ProductTemplateDto> CreateTemplateAsync(CreateProductTemplateDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<ProductTemplateDto> CreateTemplateAsync(CreateProductTemplateDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Product template oluşturuluyor. Name: {Name}, CategoryId: {CategoryId}",
+            dto.Name, dto.CategoryId);
+
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var category = await _context.Categories
-            .FirstOrDefaultAsync(c => c.Id == dto.CategoryId);
+            .FirstOrDefaultAsync(c => c.Id == dto.CategoryId, cancellationToken);
 
         if (category == null)
         {
@@ -58,32 +65,39 @@ public class ProductTemplateService : IProductTemplateService
             IsActive = dto.IsActive
         };
 
-        await _context.Set<ProductTemplate>().AddAsync(template);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<ProductTemplate>().AddAsync(template, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         template = await _context.Set<ProductTemplate>()
             .AsNoTracking()
             .Include(t => t.Category)
-            .FirstOrDefaultAsync(t => t.Id == template.Id);
+            .FirstOrDefaultAsync(t => t.Id == template.Id, cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Product template oluşturuldu. TemplateId: {TemplateId}, Name: {Name}",
+            template!.Id, template.Name);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<ProductTemplateDto>(template);
     }
 
-    public async Task<ProductTemplateDto?> GetTemplateByIdAsync(Guid templateId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ProductTemplateDto?> GetTemplateByIdAsync(Guid templateId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var template = await _context.Set<ProductTemplate>()
             .AsNoTracking()
             .Include(t => t.Category)
-            .FirstOrDefaultAsync(t => t.Id == templateId);
+            .FirstOrDefaultAsync(t => t.Id == templateId, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return template != null ? _mapper.Map<ProductTemplateDto>(template) : null;
     }
 
-    public async Task<IEnumerable<ProductTemplateDto>> GetAllTemplatesAsync(Guid? categoryId = null, bool? isActive = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<ProductTemplateDto>> GetAllTemplatesAsync(Guid? categoryId = null, bool? isActive = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         IQueryable<ProductTemplate> query = _context.Set<ProductTemplate>()
@@ -103,17 +117,18 @@ public class ProductTemplateService : IProductTemplateService
         var templates = await query
             .OrderByDescending(t => t.UsageCount)
             .ThenBy(t => t.Name)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<IEnumerable<ProductTemplateDto>>(templates);
     }
 
-    public async Task<bool> UpdateTemplateAsync(Guid templateId, UpdateProductTemplateDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> UpdateTemplateAsync(Guid templateId, UpdateProductTemplateDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var template = await _context.Set<ProductTemplate>()
-            .FirstOrDefaultAsync(t => t.Id == templateId);
+            .FirstOrDefaultAsync(t => t.Id == templateId, cancellationToken);
 
         if (template == null) return false;
 
@@ -173,33 +188,41 @@ public class ProductTemplateService : IProductTemplateService
         }
 
         template.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeleteTemplateAsync(Guid templateId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteTemplateAsync(Guid templateId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var template = await _context.Set<ProductTemplate>()
-            .FirstOrDefaultAsync(t => t.Id == templateId);
+            .FirstOrDefaultAsync(t => t.Id == templateId, cancellationToken);
 
         if (template == null) return false;
 
         template.IsDeleted = true;
         template.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<ProductDto> CreateProductFromTemplateAsync(CreateProductFromTemplateDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<ProductDto> CreateProductFromTemplateAsync(CreateProductFromTemplateDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Product template'den ürün oluşturuluyor. TemplateId: {TemplateId}, SellerId: {SellerId}",
+            dto.TemplateId, dto.SellerId);
+
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var template = await _context.Set<ProductTemplate>()
             .AsNoTracking()
             .Include(t => t.Category)
-            .FirstOrDefaultAsync(t => t.Id == dto.TemplateId && t.IsActive);
+            .FirstOrDefaultAsync(t => t.Id == dto.TemplateId && t.IsActive, cancellationToken);
 
         if (template == null)
         {
@@ -260,25 +283,31 @@ public class ProductTemplateService : IProductTemplateService
             product.UpdateImages(product.ImageUrl, dto.ImageUrls);
         }
 
-        await _context.Products.AddAsync(product);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Products.AddAsync(product, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Increment template usage count
         template.UsageCount++;
         template.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         product = await _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
-            .FirstOrDefaultAsync(p => p.Id == product.Id);
+            .FirstOrDefaultAsync(p => p.Id == product.Id, cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Product template'den ürün oluşturuldu. ProductId: {ProductId}, TemplateId: {TemplateId}",
+            product!.Id, dto.TemplateId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<ProductDto>(product);
     }
 
-    public async Task<IEnumerable<ProductTemplateDto>> GetPopularTemplatesAsync(int limit = 10)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<ProductTemplateDto>> GetPopularTemplatesAsync(int limit = 10, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var templates = await _context.Set<ProductTemplate>()
@@ -287,7 +316,7 @@ public class ProductTemplateService : IProductTemplateService
             .Where(t => t.IsActive)
             .OrderByDescending(t => t.UsageCount)
             .Take(limit)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<IEnumerable<ProductTemplateDto>>(templates);

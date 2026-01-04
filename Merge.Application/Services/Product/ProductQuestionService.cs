@@ -7,6 +7,7 @@ using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.Exceptions;
+using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Infrastructure.Data;
@@ -31,11 +32,18 @@ public class ProductQuestionService : IProductQuestionService
         _logger = logger;
     }
 
-    public async Task<ProductQuestionDto> AskQuestionAsync(Guid userId, CreateProductQuestionDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<ProductQuestionDto> AskQuestionAsync(Guid userId, CreateProductQuestionDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Product question soruluyor. UserId: {UserId}, ProductId: {ProductId}",
+            userId, dto.ProductId);
+
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var product = await _context.Set<ProductEntity>()
-            .FirstOrDefaultAsync(p => p.Id == dto.ProductId);
+            .FirstOrDefaultAsync(p => p.Id == dto.ProductId, cancellationToken);
 
         if (product == null)
         {
@@ -50,8 +58,8 @@ public class ProductQuestionService : IProductQuestionService
             IsApproved = false // Requires admin approval
         };
 
-        await _context.Set<ProductQuestion>().AddAsync(question);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<ProductQuestion>().AddAsync(question, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         question = await _context.Set<ProductQuestion>()
@@ -60,7 +68,12 @@ public class ProductQuestionService : IProductQuestionService
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))
                 .ThenInclude(a => a.User)
-            .FirstOrDefaultAsync(q => q.Id == question.Id);
+            .FirstOrDefaultAsync(q => q.Id == question.Id, cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Product question soruldu. QuestionId: {QuestionId}, UserId: {UserId}, ProductId: {ProductId}",
+            question!.Id, userId, dto.ProductId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var questionDto = _mapper.Map<ProductQuestionDto>(question);
@@ -68,7 +81,8 @@ public class ProductQuestionService : IProductQuestionService
         return questionDto;
     }
 
-    public async Task<ProductQuestionDto?> GetQuestionAsync(Guid questionId, Guid? userId = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ProductQuestionDto?> GetQuestionAsync(Guid questionId, Guid? userId = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
         var question = await _context.Set<ProductQuestion>()
@@ -77,7 +91,7 @@ public class ProductQuestionService : IProductQuestionService
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))
                 .ThenInclude(a => a.User)
-            .FirstOrDefaultAsync(q => q.Id == questionId);
+            .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         if (question == null) return null;
 
@@ -85,7 +99,7 @@ public class ProductQuestionService : IProductQuestionService
         var hasUserVoted = userId.HasValue
             ? await _context.Set<QuestionHelpfulness>()
                 .AsNoTracking()
-                .AnyAsync(qh => qh.QuestionId == question.Id && qh.UserId == userId.Value)
+                .AnyAsync(qh => qh.QuestionId == question.Id && qh.UserId == userId.Value, cancellationToken)
             : false;
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
@@ -94,34 +108,44 @@ public class ProductQuestionService : IProductQuestionService
         return questionDto;
     }
 
-    public async Task<IEnumerable<ProductQuestionDto>> GetProductQuestionsAsync(Guid productId, Guid? userId = null, int page = 1, int pageSize = 20)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<ProductQuestionDto>> GetProductQuestionsAsync(Guid productId, Guid? userId = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
-        var questions = await _context.Set<ProductQuestion>()
+        var query = _context.Set<ProductQuestion>()
             .AsNoTracking()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))
                 .ThenInclude(a => a.User)
-            .Where(q => q.ProductId == productId && q.IsApproved)
+            .Where(q => q.ProductId == productId && q.IsApproved);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var questions = await query
             .OrderByDescending(q => q.HasSellerAnswer)
             .ThenByDescending(q => q.HelpfulCount)
             .ThenByDescending(q => q.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load QuestionHelpfulness to avoid N+1 queries
         var questionIds = questions.Select(q => q.Id).ToList();
-        var userVotes = userId.HasValue
+        var userVotes = userId.HasValue && questionIds.Any()
             ? await _context.Set<QuestionHelpfulness>()
                 .AsNoTracking()
                 .Where(qh => questionIds.Contains(qh.QuestionId) && qh.UserId == userId.Value)
-                .ToDictionaryAsync(qh => qh.QuestionId)
+                .ToDictionaryAsync(qh => qh.QuestionId, cancellationToken)
             : new Dictionary<Guid, QuestionHelpfulness>();
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var dtos = new List<ProductQuestionDto>();
+        var dtos = new List<ProductQuestionDto>(questions.Count);
         foreach (var question in questions)
         {
             var dto = _mapper.Map<ProductQuestionDto>(question);
@@ -129,31 +153,51 @@ public class ProductQuestionService : IProductQuestionService
             dtos.Add(dto);
         }
 
-        return dtos;
+        return new PagedResult<ProductQuestionDto>
+        {
+            Items = dtos,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<IEnumerable<ProductQuestionDto>> GetUserQuestionsAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<ProductQuestionDto>> GetUserQuestionsAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
-        var questions = await _context.Set<ProductQuestion>()
+        var query = _context.Set<ProductQuestion>()
             .AsNoTracking()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers)
                 .ThenInclude(a => a.User)
-            .Where(q => q.UserId == userId)
+            .Where(q => q.UserId == userId);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var questions = await query
             .OrderByDescending(q => q.CreatedAt)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load QuestionHelpfulness to avoid N+1 queries
         var questionIds = questions.Select(q => q.Id).ToList();
-        var userVotes = await _context.Set<QuestionHelpfulness>()
-            .AsNoTracking()
-            .Where(qh => questionIds.Contains(qh.QuestionId) && qh.UserId == userId)
-            .ToDictionaryAsync(qh => qh.QuestionId);
+        var userVotes = questionIds.Any()
+            ? await _context.Set<QuestionHelpfulness>()
+                .AsNoTracking()
+                .Where(qh => questionIds.Contains(qh.QuestionId) && qh.UserId == userId)
+                .ToDictionaryAsync(qh => qh.QuestionId, cancellationToken)
+            : new Dictionary<Guid, QuestionHelpfulness>();
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var dtos = new List<ProductQuestionDto>();
+        var dtos = new List<ProductQuestionDto>(questions.Count);
         foreach (var question in questions)
         {
             var dto = _mapper.Map<ProductQuestionDto>(question);
@@ -161,43 +205,52 @@ public class ProductQuestionService : IProductQuestionService
             dtos.Add(dto);
         }
 
-        return dtos;
+        return new PagedResult<ProductQuestionDto>
+        {
+            Items = dtos,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<bool> ApproveQuestionAsync(Guid questionId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ApproveQuestionAsync(Guid questionId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !q.IsDeleted (Global Query Filter)
         var question = await _context.Set<ProductQuestion>()
-            .FirstOrDefaultAsync(q => q.Id == questionId);
+            .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         if (question == null) return false;
 
         question.IsApproved = true;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeleteQuestionAsync(Guid questionId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteQuestionAsync(Guid questionId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !q.IsDeleted (Global Query Filter)
         var question = await _context.Set<ProductQuestion>()
-            .FirstOrDefaultAsync(q => q.Id == questionId);
+            .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         if (question == null) return false;
 
         question.IsDeleted = true;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<ProductAnswerDto> AnswerQuestionAsync(Guid userId, CreateProductAnswerDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ProductAnswerDto> AnswerQuestionAsync(Guid userId, CreateProductAnswerDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !q.IsDeleted (Global Query Filter)
         var question = await _context.Set<ProductQuestion>()
             .Include(q => q.Product)
-            .FirstOrDefaultAsync(q => q.Id == dto.QuestionId);
+            .FirstOrDefaultAsync(q => q.Id == dto.QuestionId, cancellationToken);
 
         if (question == null)
         {
@@ -214,7 +267,7 @@ public class ProductQuestionService : IProductQuestionService
             .AsNoTracking()
             .AnyAsync(oi => oi.ProductId == question.ProductId &&
                           oi.Order.UserId == userId &&
-                          oi.Order.PaymentStatus == PaymentStatus.Completed);
+                          oi.Order.PaymentStatus == PaymentStatus.Completed, cancellationToken);
 
         var answer = new ProductAnswer
         {
@@ -226,7 +279,7 @@ public class ProductQuestionService : IProductQuestionService
             IsVerifiedPurchase = hasOrder
         };
 
-        await _context.Set<ProductAnswer>().AddAsync(answer);
+        await _context.Set<ProductAnswer>().AddAsync(answer, cancellationToken);
 
         // Update question stats
         question.AnswerCount++;
@@ -235,13 +288,13 @@ public class ProductQuestionService : IProductQuestionService
             question.HasSellerAnswer = true;
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         answer = await _context.ProductAnswers
             .AsNoTracking()
             .Include(a => a.User)
-            .FirstOrDefaultAsync(a => a.Id == answer.Id);
+            .FirstOrDefaultAsync(a => a.Id == answer.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var answerDto = _mapper.Map<ProductAnswerDto>(answer);
@@ -249,7 +302,8 @@ public class ProductQuestionService : IProductQuestionService
         return answerDto;
     }
 
-    public async Task<IEnumerable<ProductAnswerDto>> GetQuestionAnswersAsync(Guid questionId, Guid? userId = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<ProductAnswerDto>> GetQuestionAnswersAsync(Guid questionId, Guid? userId = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         var answers = await _context.Set<ProductAnswer>()
@@ -259,19 +313,19 @@ public class ProductQuestionService : IProductQuestionService
             .OrderByDescending(a => a.IsSellerAnswer)
             .ThenByDescending(a => a.HelpfulCount)
             .ThenByDescending(a => a.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load AnswerHelpfulness to avoid N+1 queries
         var answerIds = answers.Select(a => a.Id).ToList();
-        var userVotes = userId.HasValue
+        var userVotes = userId.HasValue && answerIds.Any()
             ? await _context.Set<AnswerHelpfulness>()
                 .AsNoTracking()
                 .Where(ah => answerIds.Contains(ah.AnswerId) && ah.UserId == userId.Value)
-                .ToDictionaryAsync(ah => ah.AnswerId)
+                .ToDictionaryAsync(ah => ah.AnswerId, cancellationToken)
             : new Dictionary<Guid, AnswerHelpfulness>();
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var dtos = new List<ProductAnswerDto>();
+        var dtos = new List<ProductAnswerDto>(answers.Count);
         foreach (var answer in answers)
         {
             var dto = _mapper.Map<ProductAnswerDto>(answer);
@@ -282,26 +336,28 @@ public class ProductQuestionService : IProductQuestionService
         return dtos;
     }
 
-    public async Task<bool> ApproveAnswerAsync(Guid answerId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ApproveAnswerAsync(Guid answerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         var answer = await _context.Set<ProductAnswer>()
-            .FirstOrDefaultAsync(a => a.Id == answerId);
+            .FirstOrDefaultAsync(a => a.Id == answerId, cancellationToken);
 
         if (answer == null) return false;
 
         answer.IsApproved = true;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeleteAnswerAsync(Guid answerId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteAnswerAsync(Guid answerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         var answer = await _context.Set<ProductAnswer>()
             .Include(a => a.Question)
-            .FirstOrDefaultAsync(a => a.Id == answerId);
+            .FirstOrDefaultAsync(a => a.Id == answerId, cancellationToken);
 
         if (answer == null) return false;
 
@@ -317,7 +373,7 @@ public class ProductQuestionService : IProductQuestionService
                 // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
                 // Check if there are other seller answers
                 var hasOtherSellerAnswer = await _context.Set<ProductAnswer>()
-                    .AnyAsync(a => a.QuestionId == answer.QuestionId && a.IsSellerAnswer && a.Id != answerId);
+                    .AnyAsync(a => a.QuestionId == answer.QuestionId && a.IsSellerAnswer && a.Id != answerId, cancellationToken);
 
                 if (!hasOtherSellerAnswer)
                 {
@@ -326,16 +382,17 @@ public class ProductQuestionService : IProductQuestionService
             }
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task MarkQuestionHelpfulAsync(Guid userId, Guid questionId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task MarkQuestionHelpfulAsync(Guid userId, Guid questionId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !qh.IsDeleted (Global Query Filter)
         var existing = await _context.Set<QuestionHelpfulness>()
-            .FirstOrDefaultAsync(qh => qh.QuestionId == questionId && qh.UserId == userId);
+            .FirstOrDefaultAsync(qh => qh.QuestionId == questionId && qh.UserId == userId, cancellationToken);
 
         if (existing != null) return; // Already marked
 
@@ -345,25 +402,26 @@ public class ProductQuestionService : IProductQuestionService
             UserId = userId
         };
 
-        await _context.Set<QuestionHelpfulness>().AddAsync(vote);
+        await _context.Set<QuestionHelpfulness>().AddAsync(vote, cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !q.IsDeleted (Global Query Filter)
         var question = await _context.Set<ProductQuestion>()
-            .FirstOrDefaultAsync(q => q.Id == questionId);
+            .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         if (question != null)
         {
             question.HelpfulCount++;
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task UnmarkQuestionHelpfulAsync(Guid userId, Guid questionId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task UnmarkQuestionHelpfulAsync(Guid userId, Guid questionId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !qh.IsDeleted (Global Query Filter)
         var vote = await _context.Set<QuestionHelpfulness>()
-            .FirstOrDefaultAsync(qh => qh.QuestionId == questionId && qh.UserId == userId);
+            .FirstOrDefaultAsync(qh => qh.QuestionId == questionId && qh.UserId == userId, cancellationToken);
 
         if (vote == null) return;
 
@@ -371,21 +429,22 @@ public class ProductQuestionService : IProductQuestionService
 
         // ✅ PERFORMANCE: Removed manual !q.IsDeleted (Global Query Filter)
         var question = await _context.Set<ProductQuestion>()
-            .FirstOrDefaultAsync(q => q.Id == questionId);
+            .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         if (question != null)
         {
             question.HelpfulCount = Math.Max(0, question.HelpfulCount - 1);
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task MarkAnswerHelpfulAsync(Guid userId, Guid answerId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task MarkAnswerHelpfulAsync(Guid userId, Guid answerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !ah.IsDeleted (Global Query Filter)
         var existing = await _context.Set<AnswerHelpfulness>()
-            .FirstOrDefaultAsync(ah => ah.AnswerId == answerId && ah.UserId == userId);
+            .FirstOrDefaultAsync(ah => ah.AnswerId == answerId && ah.UserId == userId, cancellationToken);
 
         if (existing != null) return; // Already marked
 
@@ -395,25 +454,26 @@ public class ProductQuestionService : IProductQuestionService
             UserId = userId
         };
 
-        await _context.Set<AnswerHelpfulness>().AddAsync(vote);
+        await _context.Set<AnswerHelpfulness>().AddAsync(vote, cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         var answer = await _context.Set<ProductAnswer>()
-            .FirstOrDefaultAsync(a => a.Id == answerId);
+            .FirstOrDefaultAsync(a => a.Id == answerId, cancellationToken);
 
         if (answer != null)
         {
             answer.HelpfulCount++;
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task UnmarkAnswerHelpfulAsync(Guid userId, Guid answerId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task UnmarkAnswerHelpfulAsync(Guid userId, Guid answerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !ah.IsDeleted (Global Query Filter)
         var vote = await _context.Set<AnswerHelpfulness>()
-            .FirstOrDefaultAsync(ah => ah.AnswerId == answerId && ah.UserId == userId);
+            .FirstOrDefaultAsync(ah => ah.AnswerId == answerId && ah.UserId == userId, cancellationToken);
 
         if (vote == null) return;
 
@@ -421,17 +481,18 @@ public class ProductQuestionService : IProductQuestionService
 
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         var answer = await _context.Set<ProductAnswer>()
-            .FirstOrDefaultAsync(a => a.Id == answerId);
+            .FirstOrDefaultAsync(a => a.Id == answerId, cancellationToken);
 
         if (answer != null)
         {
             answer.HelpfulCount = Math.Max(0, answer.HelpfulCount - 1);
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<QAStatsDto> GetQAStatsAsync(Guid? productId = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<QAStatsDto> GetQAStatsAsync(Guid? productId = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
@@ -444,9 +505,9 @@ public class ProductQuestionService : IProductQuestionService
             questionsQuery = questionsQuery.Where(q => q.ProductId == productId.Value);
         }
 
-        var totalQuestions = await questionsQuery.CountAsync();
-        var unansweredQuestions = await questionsQuery.CountAsync(q => q.AnswerCount == 0);
-        var questionsWithSellerAnswer = await questionsQuery.CountAsync(q => q.HasSellerAnswer);
+        var totalQuestions = await questionsQuery.CountAsync(cancellationToken);
+        var unansweredQuestions = await questionsQuery.CountAsync(q => q.AnswerCount == 0, cancellationToken);
+        var questionsWithSellerAnswer = await questionsQuery.CountAsync(q => q.HasSellerAnswer, cancellationToken);
 
         var answersQuery = _context.Set<ProductAnswer>()
             .AsNoTracking()
@@ -457,7 +518,7 @@ public class ProductQuestionService : IProductQuestionService
             answersQuery = answersQuery.Where(a => a.Question.ProductId == productId.Value);
         }
 
-        var totalAnswers = await answersQuery.CountAsync();
+        var totalAnswers = await answersQuery.CountAsync(cancellationToken);
         var averageAnswersPerQuestion = totalQuestions > 0 ? (decimal)totalAnswers / totalQuestions : 0;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
@@ -470,7 +531,7 @@ public class ProductQuestionService : IProductQuestionService
             .Where(q => q.IsApproved)
             .OrderByDescending(q => q.CreatedAt)
             .Take(10)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var mostHelpfulQuestions = await _context.Set<ProductQuestion>()
             .AsNoTracking()
@@ -481,7 +542,7 @@ public class ProductQuestionService : IProductQuestionService
             .Where(q => q.IsApproved)
             .OrderByDescending(q => q.HelpfulCount)
             .Take(10)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var recentDtos = _mapper.Map<IEnumerable<ProductQuestionDto>>(recentQuestions).ToList();
@@ -499,7 +560,8 @@ public class ProductQuestionService : IProductQuestionService
         };
     }
 
-    public async Task<IEnumerable<ProductQuestionDto>> GetUnansweredQuestionsAsync(Guid? productId = null, int limit = 20)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<ProductQuestionDto>> GetUnansweredQuestionsAsync(Guid? productId = null, int limit = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted (Global Query Filter)
         var query = _context.Set<ProductQuestion>()
@@ -518,7 +580,7 @@ public class ProductQuestionService : IProductQuestionService
         var questions = await query
             .OrderByDescending(q => q.CreatedAt)
             .Take(limit)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<IEnumerable<ProductQuestionDto>>(questions);

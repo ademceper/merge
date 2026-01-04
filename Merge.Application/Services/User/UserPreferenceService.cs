@@ -30,13 +30,15 @@ public class UserPreferenceService : IUserPreferenceService
         _logger = logger;
     }
 
-    public async Task<UserPreferenceDto> GetUserPreferencesAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<UserPreferenceDto> GetUserPreferencesAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Retrieving preferences for user: {UserId}", userId);
 
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !up.IsDeleted (Global Query Filter)
         var preferences = await _context.Set<UserPreference>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(up => up.UserId == userId);
+            .FirstOrDefaultAsync(up => up.UserId == userId, cancellationToken);
 
         if (preferences == null)
         {
@@ -48,8 +50,8 @@ public class UserPreferenceService : IUserPreferenceService
                 UserId = userId
             };
 
-            await _context.Set<UserPreference>().AddAsync(preferences);
-            await _unitOfWork.SaveChangesAsync();
+            await _context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Default preferences created for user: {UserId}", userId);
         }
@@ -58,11 +60,12 @@ public class UserPreferenceService : IUserPreferenceService
         return _mapper.Map<UserPreferenceDto>(preferences);
     }
 
-    public async Task<UserPreferenceDto> UpdateUserPreferencesAsync(Guid userId, UpdateUserPreferenceDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<UserPreferenceDto> UpdateUserPreferencesAsync(Guid userId, UpdateUserPreferenceDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var preferences = await _context.Set<UserPreference>()
-            .FirstOrDefaultAsync(up => up.UserId == userId);
+            .FirstOrDefaultAsync(up => up.UserId == userId, cancellationToken);
 
         if (preferences == null)
         {
@@ -70,7 +73,7 @@ public class UserPreferenceService : IUserPreferenceService
             {
                 UserId = userId
             };
-            await _context.Set<UserPreference>().AddAsync(preferences);
+            await _context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
         }
 
         // Display Preferences
@@ -106,17 +109,18 @@ public class UserPreferenceService : IUserPreferenceService
         if (dto.SaveCartOnLogout.HasValue) preferences.SaveCartOnLogout = dto.SaveCartOnLogout.Value;
         if (dto.ShowOutOfStockItems.HasValue) preferences.ShowOutOfStockItems = dto.ShowOutOfStockItems.Value;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
         return _mapper.Map<UserPreferenceDto>(preferences);
     }
 
-    public async Task<UserPreferenceDto> ResetToDefaultsAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<UserPreferenceDto> ResetToDefaultsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var preferences = await _context.Set<UserPreference>()
-            .FirstOrDefaultAsync(up => up.UserId == userId);
+            .FirstOrDefaultAsync(up => up.UserId == userId, cancellationToken);
 
         if (preferences == null)
         {
@@ -124,7 +128,7 @@ public class UserPreferenceService : IUserPreferenceService
             {
                 UserId = userId
             };
-            await _context.Set<UserPreference>().AddAsync(preferences);
+            await _context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
         }
         else
         {
@@ -159,7 +163,7 @@ public class UserPreferenceService : IUserPreferenceService
             preferences.ShowOutOfStockItems = false;
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
         return _mapper.Map<UserPreferenceDto>(preferences);

@@ -30,8 +30,14 @@ public class OrganizationService : IOrganizationService
         _logger = logger;
     }
 
-    public async Task<OrganizationDto> CreateOrganizationAsync(CreateOrganizationDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<OrganizationDto> CreateOrganizationAsync(CreateOrganizationDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Organization oluşturuluyor. Name: {Name}, LegalName: {LegalName}, TaxNumber: {TaxNumber}",
+            dto.Name, dto.LegalName, dto.TaxNumber);
+
         var organization = new OrganizationEntity
         {
             Name = dto.Name,
@@ -50,35 +56,41 @@ public class OrganizationService : IOrganizationService
             Settings = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null
         };
 
-        await _context.Set<OrganizationEntity>().AddAsync(organization);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<OrganizationEntity>().AddAsync(organization, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
         organization = await _context.Set<OrganizationEntity>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == organization.Id);
+            .FirstOrDefaultAsync(o => o.Id == organization.Id, cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Organization oluşturuldu. OrganizationId: {OrganizationId}, Name: {Name}",
+            organization!.Id, organization.Name);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<OrganizationDto>(organization!);
+        return _mapper.Map<OrganizationDto>(organization);
     }
 
-    public async Task<OrganizationDto?> GetOrganizationByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<OrganizationDto?> GetOrganizationByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
         var organization = await _context.Set<OrganizationEntity>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == id);
+            .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
         if (organization == null) return null;
 
         // ✅ PERFORMANCE: Batch loading - UserCount ve TeamCount'u toplu olarak yükle (N+1 fix)
         var userCount = await _context.Users
             .AsNoTracking()
-            .CountAsync(u => u.OrganizationId == organization.Id);
+            .CountAsync(u => u.OrganizationId == organization.Id, cancellationToken);
 
         var teamCount = await _context.Set<Team>()
             .AsNoTracking()
-            .CountAsync(t => t.OrganizationId == organization.Id);
+            .CountAsync(t => t.OrganizationId == organization.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var dto = _mapper.Map<OrganizationDto>(organization);
@@ -87,7 +99,9 @@ public class OrganizationService : IOrganizationService
         return dto;
     }
 
-    public async Task<IEnumerable<OrganizationDto>> GetAllOrganizationsAsync(string? status = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<OrganizationDto>> GetAllOrganizationsAsync(string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
         var query = _context.Set<OrganizationEntity>()
@@ -103,14 +117,24 @@ public class OrganizationService : IOrganizationService
             }
         }
 
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
         // ✅ PERFORMANCE: Batch loading - Önce organization ID'lerini database'de al (ToListAsync() sonrası Select() YASAK)
         var organizationIds = await query
             .Select(o => o.Id)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         var organizations = await query
             .OrderBy(o => o.Name)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
         
         // ✅ PERFORMANCE: Batch loading - Tüm organization'lar için UserCount ve TeamCount'u toplu olarak yükle (N+1 fix)
         var userCounts = await _context.Users
@@ -118,14 +142,14 @@ public class OrganizationService : IOrganizationService
             .Where(u => organizationIds.Contains(u.OrganizationId ?? Guid.Empty))
             .GroupBy(u => u.OrganizationId)
             .Select(g => new { OrganizationId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.OrganizationId ?? Guid.Empty, x => x.Count);
+            .ToDictionaryAsync(x => x.OrganizationId ?? Guid.Empty, x => x.Count, cancellationToken);
 
         var teamCounts = await _context.Set<Team>()
             .AsNoTracking()
             .Where(t => organizationIds.Contains(t.OrganizationId))
             .GroupBy(t => t.OrganizationId)
             .Select(g => new { OrganizationId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.OrganizationId, x => x.Count);
+            .ToDictionaryAsync(x => x.OrganizationId, x => x.Count, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var result = _mapper.Map<IEnumerable<OrganizationDto>>(organizations).ToList();
@@ -137,14 +161,21 @@ public class OrganizationService : IOrganizationService
             dto.TeamCount = teamCounts.TryGetValue(dto.Id, out var tc) ? tc : 0;
         }
 
-        return result;
+        return new PagedResult<OrganizationDto>
+        {
+            Items = result,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<bool> UpdateOrganizationAsync(Guid id, UpdateOrganizationDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> UpdateOrganizationAsync(Guid id, UpdateOrganizationDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
         var organization = await _context.Set<OrganizationEntity>()
-            .FirstOrDefaultAsync(o => o.Id == id);
+            .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
         if (organization == null) return false;
 
@@ -182,62 +213,71 @@ public class OrganizationService : IOrganizationService
             organization.Settings = JsonSerializer.Serialize(dto.Settings);
 
         organization.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeleteOrganizationAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteOrganizationAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
         var organization = await _context.Set<OrganizationEntity>()
-            .FirstOrDefaultAsync(o => o.Id == id);
+            .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
         if (organization == null) return false;
 
         organization.IsDeleted = true;
         organization.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> VerifyOrganizationAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> VerifyOrganizationAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
         var organization = await _context.Set<OrganizationEntity>()
-            .FirstOrDefaultAsync(o => o.Id == id);
+            .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
         if (organization == null) return false;
 
         organization.IsVerified = true;
         organization.VerifiedAt = DateTime.UtcNow;
         organization.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> SuspendOrganizationAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> SuspendOrganizationAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
         var organization = await _context.Set<OrganizationEntity>()
-            .FirstOrDefaultAsync(o => o.Id == id);
+            .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
         if (organization == null) return false;
 
         organization.Status = EntityStatus.Suspended;
         organization.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<TeamDto> CreateTeamAsync(CreateTeamDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<TeamDto> CreateTeamAsync(CreateTeamDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Team oluşturuluyor. OrganizationId: {OrganizationId}, Name: {Name}",
+            dto.OrganizationId, dto.Name);
+
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
         var organization = await _context.Set<OrganizationEntity>()
-            .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId);
+            .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId, cancellationToken);
 
         if (organization == null)
         {
@@ -254,15 +294,15 @@ public class OrganizationService : IOrganizationService
             Settings = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null
         };
 
-        await _context.Set<Team>().AddAsync(team);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<Team>().AddAsync(team, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
         team = await _context.Set<Team>()
             .AsNoTracking()
             .Include(t => t.Organization)
             .Include(t => t.TeamLead)
-            .FirstOrDefaultAsync(t => t.Id == team.Id);
+            .FirstOrDefaultAsync(t => t.Id == team.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var teamDto = _mapper.Map<TeamDto>(team!);
@@ -270,27 +310,34 @@ public class OrganizationService : IOrganizationService
         // ✅ PERFORMANCE: Batch loading - MemberCount'u yükle (N+1 fix)
         var memberCount = await _context.Set<TeamMember>()
             .AsNoTracking()
-            .CountAsync(tm => tm.TeamId == team!.Id && tm.IsActive);
+            .CountAsync(tm => tm.TeamId == team!.Id && tm.IsActive, cancellationToken);
         
         teamDto.MemberCount = memberCount;
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Team oluşturuldu. TeamId: {TeamId}, OrganizationId: {OrganizationId}, Name: {Name}",
+            team.Id, dto.OrganizationId, dto.Name);
+
         return teamDto;
     }
 
-    public async Task<TeamDto?> GetTeamByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<TeamDto?> GetTeamByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var team = await _context.Set<Team>()
             .AsNoTracking()
             .Include(t => t.Organization)
             .Include(t => t.TeamLead)
-            .FirstOrDefaultAsync(t => t.Id == id);
+            .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
         if (team == null) return null;
 
         // ✅ PERFORMANCE: Batch loading - MemberCount'u yükle (N+1 fix)
         var memberCount = await _context.Set<TeamMember>()
             .AsNoTracking()
-            .CountAsync(tm => tm.TeamId == team.Id && tm.IsActive);
+            .CountAsync(tm => tm.TeamId == team.Id && tm.IsActive, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var dto = _mapper.Map<TeamDto>(team);
@@ -298,7 +345,9 @@ public class OrganizationService : IOrganizationService
         return dto;
     }
 
-    public async Task<IEnumerable<TeamDto>> GetOrganizationTeamsAsync(Guid organizationId, bool? isActive = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<TeamDto>> GetOrganizationTeamsAsync(Guid organizationId, bool? isActive = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var query = _context.Set<Team>()
@@ -312,14 +361,24 @@ public class OrganizationService : IOrganizationService
             query = query.Where(t => t.IsActive == isActive.Value);
         }
 
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
         // ✅ PERFORMANCE: Batch loading - Önce team ID'lerini database'de al (ToListAsync() sonrası Select() YASAK)
         var teamIds = await query
             .Select(t => t.Id)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         var teams = await query
             .OrderBy(t => t.Name)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
         
         // ✅ PERFORMANCE: Batch loading - Tüm team'ler için MemberCount'u toplu olarak yükle (N+1 fix)
         var memberCounts = await _context.Set<TeamMember>()
@@ -327,7 +386,7 @@ public class OrganizationService : IOrganizationService
             .Where(tm => teamIds.Contains(tm.TeamId) && tm.IsActive)
             .GroupBy(tm => tm.TeamId)
             .Select(g => new { TeamId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.TeamId, x => x.Count);
+            .ToDictionaryAsync(x => x.TeamId, x => x.Count, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var result = _mapper.Map<IEnumerable<TeamDto>>(teams).ToList();
@@ -338,14 +397,21 @@ public class OrganizationService : IOrganizationService
             dto.MemberCount = memberCounts.TryGetValue(dto.Id, out var count) ? count : 0;
         }
 
-        return result;
+        return new PagedResult<TeamDto>
+        {
+            Items = result,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<bool> UpdateTeamAsync(Guid id, UpdateTeamDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> UpdateTeamAsync(Guid id, UpdateTeamDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var team = await _context.Set<Team>()
-            .FirstOrDefaultAsync(t => t.Id == id);
+            .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
         if (team == null) return false;
 
@@ -361,31 +427,38 @@ public class OrganizationService : IOrganizationService
             team.Settings = JsonSerializer.Serialize(dto.Settings);
 
         team.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeleteTeamAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteTeamAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var team = await _context.Set<Team>()
-            .FirstOrDefaultAsync(t => t.Id == id);
+            .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
         if (team == null) return false;
 
         team.IsDeleted = true;
         team.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<TeamMemberDto> AddTeamMemberAsync(Guid teamId, AddTeamMemberDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<TeamMemberDto> AddTeamMemberAsync(Guid teamId, AddTeamMemberDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Team member ekleniyor. TeamId: {TeamId}, UserId: {UserId}, Role: {Role}",
+            teamId, dto.UserId, dto.Role);
+
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
         var team = await _context.Set<Team>()
-            .FirstOrDefaultAsync(t => t.Id == teamId);
+            .FirstOrDefaultAsync(t => t.Id == teamId, cancellationToken);
 
         if (team == null)
         {
@@ -394,7 +467,7 @@ public class OrganizationService : IOrganizationService
 
         // ✅ PERFORMANCE: Removed manual !u.IsDeleted (Global Query Filter)
         var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Id == dto.UserId);
+            .FirstOrDefaultAsync(u => u.Id == dto.UserId, cancellationToken);
 
         if (user == null)
         {
@@ -404,7 +477,7 @@ public class OrganizationService : IOrganizationService
         // ✅ PERFORMANCE: Removed manual !tm.IsDeleted (Global Query Filter)
         // Check if user is already a member
         var existing = await _context.Set<TeamMember>()
-            .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == dto.UserId);
+            .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == dto.UserId, cancellationToken);
 
         if (existing != null)
         {
@@ -419,40 +492,47 @@ public class OrganizationService : IOrganizationService
             IsActive = true
         };
 
-        await _context.Set<TeamMember>().AddAsync(teamMember);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<TeamMember>().AddAsync(teamMember, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
         teamMember = await _context.Set<TeamMember>()
             .AsNoTracking()
             .Include(tm => tm.Team)
             .Include(tm => tm.User)
-            .FirstOrDefaultAsync(tm => tm.Id == teamMember.Id);
+            .FirstOrDefaultAsync(tm => tm.Id == teamMember.Id, cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Team member eklendi. TeamMemberId: {TeamMemberId}, TeamId: {TeamId}, UserId: {UserId}",
+            teamMember!.Id, teamId, dto.UserId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<TeamMemberDto>(teamMember!);
+        return _mapper.Map<TeamMemberDto>(teamMember);
     }
 
-    public async Task<bool> RemoveTeamMemberAsync(Guid teamId, Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> RemoveTeamMemberAsync(Guid teamId, Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !tm.IsDeleted (Global Query Filter)
         var teamMember = await _context.Set<TeamMember>()
-            .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId);
+            .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId, cancellationToken);
 
         if (teamMember == null) return false;
 
         teamMember.IsDeleted = true;
         teamMember.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> UpdateTeamMemberAsync(Guid teamId, Guid userId, UpdateTeamMemberDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> UpdateTeamMemberAsync(Guid teamId, Guid userId, UpdateTeamMemberDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !tm.IsDeleted (Global Query Filter)
         var teamMember = await _context.Set<TeamMember>()
-            .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId);
+            .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId, cancellationToken);
 
         if (teamMember == null) return false;
 
@@ -462,13 +542,19 @@ public class OrganizationService : IOrganizationService
             teamMember.IsActive = dto.IsActive.Value;
 
         teamMember.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<IEnumerable<TeamMemberDto>> GetTeamMembersAsync(Guid teamId, bool? isActive = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<TeamMemberDto>> GetTeamMembersAsync(Guid teamId, bool? isActive = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !tm.IsDeleted (Global Query Filter)
         var query = _context.Set<TeamMember>()
             .AsNoTracking()
@@ -481,26 +567,50 @@ public class OrganizationService : IOrganizationService
             query = query.Where(tm => tm.IsActive == isActive.Value);
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var members = await query
             .OrderBy(tm => tm.Role)
             .ThenBy(tm => tm.User.FirstName)
-            .ToListAsync();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası foreach içinde MapToTeamMemberDto YASAK - AutoMapper kullan
-        return _mapper.Map<IEnumerable<TeamMemberDto>>(members);
+        var dtos = _mapper.Map<IEnumerable<TeamMemberDto>>(members);
+
+        return new PagedResult<TeamMemberDto>
+        {
+            Items = dtos.ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<IEnumerable<TeamDto>> GetUserTeamsAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<TeamDto>> GetUserTeamsAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !tm.IsDeleted and !tm.Team.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Batch loading - Önce team ID'lerini database'de al (ToListAsync() sonrası Select() YASAK)
-        var teamIds = await _context.Set<TeamMember>()
+        var teamIdsQuery = _context.Set<TeamMember>()
             .AsNoTracking()
             .Where(tm => tm.UserId == userId && tm.IsActive)
             .Select(tm => tm.TeamId)
-            .Distinct()
-            .ToListAsync();
+            .Distinct();
+
+        var totalCount = await teamIdsQuery.CountAsync(cancellationToken);
+
+        var teamIds = await teamIdsQuery
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         var teamMembers = await _context.Set<TeamMember>()
             .AsNoTracking()
@@ -511,7 +621,7 @@ public class OrganizationService : IOrganizationService
             .Where(tm => tm.UserId == userId && tm.IsActive && teamIds.Contains(tm.TeamId))
             .Select(tm => tm.Team)
             .Distinct()
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
         
         // ✅ PERFORMANCE: Batch loading - Tüm team'ler için MemberCount'u toplu olarak yükle (N+1 fix)
         var memberCounts = await _context.Set<TeamMember>()
@@ -519,7 +629,7 @@ public class OrganizationService : IOrganizationService
             .Where(tm => teamIds.Contains(tm.TeamId) && tm.IsActive)
             .GroupBy(tm => tm.TeamId)
             .Select(g => new { TeamId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.TeamId, x => x.Count);
+            .ToDictionaryAsync(x => x.TeamId, x => x.Count, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var result = _mapper.Map<IEnumerable<TeamDto>>(teamMembers).ToList();
@@ -530,7 +640,13 @@ public class OrganizationService : IOrganizationService
             dto.MemberCount = memberCounts.TryGetValue(dto.Id, out var count) ? count : 0;
         }
 
-        return result;
+        return new PagedResult<TeamDto>
+        {
+            Items = result,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
 }

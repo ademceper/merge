@@ -14,7 +14,10 @@ using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Seller;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Common;
 
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+// ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 namespace Merge.Application.Services.Seller;
 
 public class SellerOnboardingService : ISellerOnboardingService
@@ -45,8 +48,11 @@ public class SellerOnboardingService : ISellerOnboardingService
         _logger = logger;
     }
 
-    public async Task<SellerApplicationDto> SubmitApplicationAsync(Guid userId, CreateSellerApplicationDto applicationDto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<SellerApplicationDto> SubmitApplicationAsync(Guid userId, CreateSellerApplicationDto applicationDto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Processing seller application submission for user {UserId}, Business: {BusinessName}",
             userId, applicationDto.BusinessName);
 
@@ -61,7 +67,7 @@ public class SellerOnboardingService : ISellerOnboardingService
         // Check if user already has an application
         var existingApplication = await _context.Set<SellerApplication>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.UserId == userId);
+            .FirstOrDefaultAsync(a => a.UserId == userId, cancellationToken);
 
         if (existingApplication != null && existingApplication.Status != SellerApplicationStatus.Rejected)
         {
@@ -74,7 +80,7 @@ public class SellerOnboardingService : ISellerOnboardingService
         application.Status = SellerApplicationStatus.Pending;
 
         application = await _applicationRepository.AddAsync(application);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Seller application created successfully for user {UserId}, ApplicationId: {ApplicationId}",
             userId, application.Id);
@@ -84,7 +90,8 @@ public class SellerOnboardingService : ISellerOnboardingService
             user.Email ?? string.Empty,
             "Seller Application Received",
             $"Dear {user.FirstName},\n\nWe have received your seller application for {applicationDto.BusinessName}. " +
-            "Our team will review it and get back to you within 2-3 business days.\n\nThank you!"
+            "Our team will review it and get back to you within 2-3 business days.\n\nThank you!",
+            cancellationToken
         );
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
@@ -92,23 +99,25 @@ public class SellerOnboardingService : ISellerOnboardingService
             .AsNoTracking()
             .Include(a => a.User)
             .Include(a => a.Reviewer)
-            .FirstOrDefaultAsync(a => a.Id == application.Id);
+            .FirstOrDefaultAsync(a => a.Id == application.Id, cancellationToken);
         
         return _mapper.Map<SellerApplicationDto>(application);
     }
 
-    public async Task<SellerApplicationDto?> GetApplicationByIdAsync(Guid applicationId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<SellerApplicationDto?> GetApplicationByIdAsync(Guid applicationId, CancellationToken cancellationToken = default)
     {
         var application = await _context.Set<SellerApplication>()
             .AsNoTracking()
             .Include(a => a.User)
             .Include(a => a.Reviewer)
-            .FirstOrDefaultAsync(a => a.Id == applicationId);
+            .FirstOrDefaultAsync(a => a.Id == applicationId, cancellationToken);
 
         return application == null ? null : _mapper.Map<SellerApplicationDto>(application);
     }
 
-    public async Task<SellerApplicationDto?> GetUserApplicationAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<SellerApplicationDto?> GetUserApplicationAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var application = await _context.Set<SellerApplication>()
             .AsNoTracking()
@@ -116,16 +125,23 @@ public class SellerOnboardingService : ISellerOnboardingService
             .Include(a => a.Reviewer)
             .Where(a => a.UserId == userId)
             .OrderByDescending(a => a.CreatedAt)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         return application == null ? null : _mapper.Map<SellerApplicationDto>(application);
     }
 
-    public async Task<IEnumerable<SellerApplicationDto>> GetAllApplicationsAsync(
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<SellerApplicationDto>> GetAllApplicationsAsync(
         SellerApplicationStatus? status = null,
         int page = 1,
-        int pageSize = 20)
+        int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ FIX: Explicitly type as IQueryable to avoid IIncludableQueryable type mismatch
         IQueryable<SellerApplication> query = _context.Set<SellerApplication>()
             .AsNoTracking()
@@ -136,26 +152,40 @@ public class SellerOnboardingService : ISellerOnboardingService
             query = query.Where(a => a.Status == status.Value);
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var applications = await query
             .OrderByDescending(a => a.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
-        return _mapper.Map<IEnumerable<SellerApplicationDto>>(applications);
+        var applicationDtos = _mapper.Map<IEnumerable<SellerApplicationDto>>(applications).ToList();
+
+        return new PagedResult<SellerApplicationDto>
+        {
+            Items = applicationDtos,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<SellerApplicationDto> ReviewApplicationAsync(
         Guid applicationId,
         ReviewSellerApplicationDto reviewDto,
-        Guid reviewerId)
+        Guid reviewerId,
+        CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Reviewing seller application {ApplicationId} by reviewer {ReviewerId}, Status: {Status}",
             applicationId, reviewerId, reviewDto.Status);
 
         try
         {
-            await _unitOfWork.BeginTransactionAsync();
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
             var application = await _applicationRepository.GetByIdAsync(applicationId);
             if (application == null)
@@ -173,19 +203,19 @@ public class SellerOnboardingService : ISellerOnboardingService
             if (reviewDto.Status == SellerApplicationStatus.Approved)
             {
                 application.ApprovedAt = DateTime.UtcNow;
-                await CreateSellerProfileAsync(application);
+                await CreateSellerProfileAsync(application, cancellationToken);
                 _logger.LogInformation("Seller profile created for approved application {ApplicationId}", applicationId);
             }
 
             await _applicationRepository.UpdateAsync(application);
-            await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitTransactionAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             _logger.LogInformation("Application {ApplicationId} reviewed successfully with status: {Status}",
                 applicationId, reviewDto.Status);
 
             // Send notification email
-            var user = await _context.Set<UserEntity>().AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId);
+            var user = await _context.Set<UserEntity>().AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
             if (user != null)
             {
                 var subject = reviewDto.Status == SellerApplicationStatus.Approved
@@ -197,7 +227,7 @@ public class SellerOnboardingService : ISellerOnboardingService
                     : $"Your seller application status has been updated to: {reviewDto.Status}.\n\n" +
                       (string.IsNullOrEmpty(reviewDto.RejectionReason) ? "" : $"Reason: {reviewDto.RejectionReason}");
 
-                await _emailService.SendEmailAsync(user.Email ?? string.Empty, subject, message);
+                await _emailService.SendEmailAsync(user.Email ?? string.Empty, subject, message, cancellationToken);
             }
 
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
@@ -205,26 +235,29 @@ public class SellerOnboardingService : ISellerOnboardingService
                 .AsNoTracking()
                 .Include(a => a.User)
                 .Include(a => a.Reviewer)
-                .FirstOrDefaultAsync(a => a.Id == application.Id);
+                .FirstOrDefaultAsync(a => a.Id == application.Id, cancellationToken);
             
             return _mapper.Map<SellerApplicationDto>(application);
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             _logger.LogError(ex, "Error reviewing application {ApplicationId}", applicationId);
             throw;
         }
     }
 
-    public async Task<bool> ApproveApplicationAsync(Guid applicationId, Guid reviewerId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<bool> ApproveApplicationAsync(Guid applicationId, Guid reviewerId, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Approving seller application {ApplicationId} by reviewer {ReviewerId}",
             applicationId, reviewerId);
 
         try
         {
-            await _unitOfWork.BeginTransactionAsync();
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
             var application = await _applicationRepository.GetByIdAsync(applicationId);
             if (application == null)
@@ -239,50 +272,54 @@ public class SellerOnboardingService : ISellerOnboardingService
             application.ApprovedAt = DateTime.UtcNow;
 
             await _applicationRepository.UpdateAsync(application);
-            await CreateSellerProfileAsync(application);
+            await CreateSellerProfileAsync(application, cancellationToken);
 
             // Send approval email
-            var user = await _context.Set<UserEntity>().AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId);
+            var user = await _context.Set<UserEntity>().AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
             if (user != null)
             {
                 await _emailService.SendEmailAsync(
                     user.Email ?? string.Empty,
                     "Seller Application Approved!",
                     $"Congratulations! Your seller application for {application.BusinessName} has been approved. " +
-                    "You can now start selling on our platform."
+                    "You can now start selling on our platform.",
+                    cancellationToken
                 );
 
                 // Update user role to Seller
-                var sellerRole = await _context.Roles.AsNoTracking().FirstOrDefaultAsync(r => r.Name == "Seller");
+                var sellerRole = await _context.Roles.AsNoTracking().FirstOrDefaultAsync(r => r.Name == "Seller", cancellationToken);
                 if (sellerRole != null)
                 {
-                    var existingRoles = await _context.UserRoles.Where(ur => ur.UserId == user.Id).ToListAsync();
+                    var existingRoles = await _context.UserRoles.Where(ur => ur.UserId == user.Id).ToListAsync(cancellationToken);
                     _context.UserRoles.RemoveRange(existingRoles);
 
                     await _context.UserRoles.AddAsync(new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>
                     {
                         UserId = user.Id,
                         RoleId = sellerRole.Id
-                    });
+                    }, cancellationToken);
                 }
             }
 
-            await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitTransactionAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             _logger.LogInformation("Application {ApplicationId} approved successfully", applicationId);
             return true;
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             _logger.LogError(ex, "Error approving application {ApplicationId}", applicationId);
             throw;
         }
     }
 
-    public async Task<bool> RejectApplicationAsync(Guid applicationId, string reason, Guid reviewerId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<bool> RejectApplicationAsync(Guid applicationId, string reason, Guid reviewerId, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Rejecting seller application {ApplicationId} by reviewer {ReviewerId}, Reason: {Reason}",
             applicationId, reviewerId, reason);
 
@@ -299,10 +336,10 @@ public class SellerOnboardingService : ISellerOnboardingService
         application.ReviewedAt = DateTime.UtcNow;
 
         await _applicationRepository.UpdateAsync(application);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Send rejection email
-        var user = await _context.Set<UserEntity>().AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId);
+        var user = await _context.Set<UserEntity>().AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
         if (user != null)
         {
             await _emailService.SendEmailAsync(
@@ -310,7 +347,8 @@ public class SellerOnboardingService : ISellerOnboardingService
                 "Seller Application Update",
                 $"We regret to inform you that your seller application for {application.BusinessName} " +
                 $"has been rejected.\n\nReason: {reason}\n\n" +
-                "You can submit a new application after addressing the concerns mentioned above."
+                "You can submit a new application after addressing the concerns mentioned above.",
+                cancellationToken
             );
         }
 
@@ -318,7 +356,8 @@ public class SellerOnboardingService : ISellerOnboardingService
         return true;
     }
 
-    public async Task<SellerOnboardingStatsDto> GetOnboardingStatsAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<SellerOnboardingStatsDto> GetOnboardingStatsAsync(CancellationToken cancellationToken = default)
     {
         var stats = await _context.Set<SellerApplication>()
             .AsNoTracking()
@@ -330,13 +369,13 @@ public class SellerOnboardingService : ISellerOnboardingService
                 Approved = g.Count(a => a.Status == SellerApplicationStatus.Approved),
                 Rejected = g.Count(a => a.Status == SellerApplicationStatus.Rejected)
             })
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         var thisMonth = DateTime.UtcNow.AddMonths(-1);
         var approvedThisMonth = await _context.Set<SellerApplication>()
             .AsNoTracking()
             .CountAsync(a => a.Status == SellerApplicationStatus.Approved &&
-                           a.ApprovedAt >= thisMonth);
+                           a.ApprovedAt >= thisMonth, cancellationToken);
 
         var total = stats?.Total ?? 0;
         var approved = stats?.Approved ?? 0;
@@ -353,12 +392,13 @@ public class SellerOnboardingService : ISellerOnboardingService
     }
 
     // Helper methods
-    private async Task CreateSellerProfileAsync(SellerApplication application)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    private async Task CreateSellerProfileAsync(SellerApplication application, CancellationToken cancellationToken = default)
     {
         // Check if seller profile already exists
         var existingProfile = await _context.SellerProfiles
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.UserId == application.UserId);
+            .FirstOrDefaultAsync(p => p.UserId == application.UserId, cancellationToken);
 
         if (existingProfile != null)
         {
@@ -375,7 +415,7 @@ public class SellerOnboardingService : ISellerOnboardingService
             VerifiedAt = DateTime.UtcNow
         };
 
-        await _context.SellerProfiles.AddAsync(profile);
+        await _context.SellerProfiles.AddAsync(profile, cancellationToken);
         _logger.LogInformation("Created seller profile for user {UserId} with store name: {StoreName}",
             application.UserId, application.BusinessName);
     }

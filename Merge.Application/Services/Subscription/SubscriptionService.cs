@@ -10,6 +10,7 @@ using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using System.Text.Json;
 using Merge.Application.DTOs.Subscription;
+using Merge.Application.Common;
 
 namespace Merge.Application.Services.Subscription;
 
@@ -252,7 +253,7 @@ public class SubscriptionService : ISubscriptionService
         // Create initial payment if not trial
         if (subscription.Status != SubscriptionStatus.Trial)
         {
-            await CreateSubscriptionPaymentAsync(subscription.Id, plan.Price);
+            await CreateSubscriptionPaymentAsync(subscription.Id, plan.Price, cancellationToken);
         }
 
         // ✅ PERFORMANCE: Reload with includes for mapping
@@ -292,11 +293,16 @@ public class SubscriptionService : ISubscriptionService
         return subscription != null ? await MapToUserSubscriptionDtoAsync(subscription, cancellationToken) : null;
     }
 
-    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
-    public async Task<IEnumerable<UserSubscriptionDto>> GetUserSubscriptionsAsync(Guid userId, string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+    public async Task<PagedResult<UserSubscriptionDto>> GetUserSubscriptionsAsync(Guid userId, string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
-        var query = _context.Set<UserSubscription>()
+        IQueryable<UserSubscription> query = _context.Set<UserSubscription>()
             .AsNoTracking()
             .Include(us => us.User)
             .Include(us => us.SubscriptionPlan)
@@ -308,6 +314,8 @@ public class SubscriptionService : ISubscriptionService
             query = query.Where(us => us.Status == statusEnum);
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         // ✅ PERFORMANCE: Pagination uygula
         var subscriptionIds = await query
             .OrderByDescending(us => us.CreatedAt)
@@ -316,10 +324,12 @@ public class SubscriptionService : ISubscriptionService
             .Select(us => us.Id)
             .ToListAsync(cancellationToken);
 
-        var subscriptions = await query
+        var subscriptions = await _context.Set<UserSubscription>()
+            .AsNoTracking()
+            .Include(us => us.User)
+            .Include(us => us.SubscriptionPlan)
+            .Where(us => subscriptionIds.Contains(us.Id))
             .OrderByDescending(us => us.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load recent payments for all subscriptions
@@ -333,7 +343,7 @@ public class SubscriptionService : ISubscriptionService
                 UserSubscriptionId = g.Key,
                 Payments = g.Take(5).ToList()
             })
-            .ToDictionaryAsync(x => x.UserSubscriptionId, x => x.Payments);
+            .ToDictionaryAsync(x => x.UserSubscriptionId, x => x.Payments, cancellationToken);
 
         var result = new List<UserSubscriptionDto>();
         foreach (var subscription in subscriptions)
@@ -354,7 +364,14 @@ public class SubscriptionService : ISubscriptionService
             
             result.Add(dto);
         }
-        return result;
+
+        return new PagedResult<UserSubscriptionDto>
+        {
+            Items = result,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<bool> UpdateUserSubscriptionAsync(Guid id, UpdateUserSubscriptionDto dto, CancellationToken cancellationToken = default)
@@ -414,7 +431,7 @@ public class SubscriptionService : ISubscriptionService
         subscription.UpdatedAt = DateTime.UtcNow;
 
         // Create payment for renewal
-        await CreateSubscriptionPaymentAsync(subscription.Id, plan.Price);
+        await CreateSubscriptionPaymentAsync(subscription.Id, plan.Price, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -618,27 +635,46 @@ public class SubscriptionService : ISubscriptionService
         return _mapper.Map<SubscriptionUsageDto>(usage);
     }
 
-    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
-    public async Task<IEnumerable<SubscriptionUsageDto>> GetAllUsageAsync(Guid userSubscriptionId, int page = 1, int pageSize = 50, CancellationToken cancellationToken = default)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+    public async Task<PagedResult<SubscriptionUsageDto>> GetAllUsageAsync(Guid userSubscriptionId, int page = 1, int pageSize = 50, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         var periodStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
 
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
-        var usages = await _context.Set<SubscriptionUsage>()
+        IQueryable<SubscriptionUsage> query = _context.Set<SubscriptionUsage>()
             .AsNoTracking()
             .Where(u => u.UserSubscriptionId == userSubscriptionId &&
-                       u.PeriodStart == periodStart)
+                       u.PeriodStart == periodStart);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var usages = await query
+            .OrderByDescending(u => u.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return _mapper.Map<IEnumerable<SubscriptionUsageDto>>(usages);
+        var usageDtos = _mapper.Map<IEnumerable<SubscriptionUsageDto>>(usages).ToList();
+
+        return new PagedResult<SubscriptionUsageDto>
+        {
+            Items = usageDtos,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<bool> CheckUsageLimitAsync(Guid userSubscriptionId, string feature, int requestedCount = 1, CancellationToken cancellationToken = default)
     {
-        var usage = await GetUsageAsync(userSubscriptionId, feature);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var usage = await GetUsageAsync(userSubscriptionId, feature, cancellationToken);
         
         if (usage == null) return true; // No limit set or no usage tracked
         

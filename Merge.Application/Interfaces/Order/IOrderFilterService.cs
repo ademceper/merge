@@ -1,10 +1,11 @@
 using Merge.Application.DTOs.Order;
 
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Order;
 
 public interface IOrderFilterService
 {
-    Task<IEnumerable<OrderDto>> GetFilteredOrdersAsync(OrderFilterDto filter);
-    Task<OrderStatisticsDto> GetOrderStatisticsAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null);
+    Task<IEnumerable<OrderDto>> GetFilteredOrdersAsync(OrderFilterDto filter, CancellationToken cancellationToken = default);
+    Task<OrderStatisticsDto> GetOrderStatisticsAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default);
 }
 

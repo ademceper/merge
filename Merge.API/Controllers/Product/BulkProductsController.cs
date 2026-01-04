@@ -4,7 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.DTOs.Product;
+using Merge.API.Middleware;
 
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+// ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+// ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
 namespace Merge.API.Controllers.Product;
 
 [ApiController]
@@ -19,12 +23,21 @@ public class BulkProductsController : BaseController
         _bulkProductService = bulkProductService;
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpPost("import/csv")]
+    [RateLimit(5, 3600)] // ✅ BOLUM 3.3: Rate Limiting - 5/saat (Bulk import is expensive)
     [ProducesResponseType(typeof(BulkProductImportResultDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<BulkProductImportResultDto>> ImportFromCsv(IFormFile file)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<BulkProductImportResultDto>> ImportFromCsv(
+        IFormFile file,
+        CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         if (file == null || file.Length == 0)
         {
             return BadRequest();
@@ -36,16 +49,25 @@ public class BulkProductsController : BaseController
         }
 
         using var stream = file.OpenReadStream();
-        var result = await _bulkProductService.ImportProductsFromCsvAsync(stream);
+        var result = await _bulkProductService.ImportProductsFromCsvAsync(stream, cancellationToken);
         return Ok(result);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpPost("import/json")]
+    [RateLimit(5, 3600)] // ✅ BOLUM 3.3: Rate Limiting - 5/saat (Bulk import is expensive)
     [ProducesResponseType(typeof(BulkProductImportResultDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<BulkProductImportResultDto>> ImportFromJson(IFormFile file)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<BulkProductImportResultDto>> ImportFromJson(
+        IFormFile file,
+        CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         if (file == null || file.Length == 0)
         {
             return BadRequest();
@@ -57,41 +79,76 @@ public class BulkProductsController : BaseController
         }
 
         using var stream = file.OpenReadStream();
-        var result = await _bulkProductService.ImportProductsFromJsonAsync(stream);
+        var result = await _bulkProductService.ImportProductsFromJsonAsync(stream, cancellationToken);
         return Ok(result);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpPost("export/csv")]
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> ExportToCsv([FromBody] BulkProductExportDto exportDto)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> ExportToCsv(
+        [FromBody] BulkProductExportDto exportDto,
+        CancellationToken cancellationToken = default)
     {
-        var csvData = await _bulkProductService.ExportProductsToCsvAsync(exportDto);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var csvData = await _bulkProductService.ExportProductsToCsvAsync(exportDto, cancellationToken);
         return File(csvData, "text/csv", $"products_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpPost("export/json")]
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> ExportToJson([FromBody] BulkProductExportDto exportDto)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> ExportToJson(
+        [FromBody] BulkProductExportDto exportDto,
+        CancellationToken cancellationToken = default)
     {
-        var jsonData = await _bulkProductService.ExportProductsToJsonAsync(exportDto);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var jsonData = await _bulkProductService.ExportProductsToJsonAsync(exportDto, cancellationToken);
         return File(jsonData, "application/json", $"products_{DateTime.UtcNow:yyyyMMdd_HHmmss}.json");
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpPost("export/excel")]
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> ExportToExcel([FromBody] BulkProductExportDto exportDto)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> ExportToExcel(
+        [FromBody] BulkProductExportDto exportDto,
+        CancellationToken cancellationToken = default)
     {
-        var excelData = await _bulkProductService.ExportProductsToExcelAsync(exportDto);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var excelData = await _bulkProductService.ExportProductsToExcelAsync(exportDto, cancellationToken);
         return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                    $"products_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx");
     }
 
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpGet("template/csv")]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public IActionResult DownloadCsvTemplate()
     {
         var template = "Name,Description,SKU,Price,DiscountPrice,StockQuantity,Brand,Category,ImageUrl\n" +
@@ -101,9 +158,14 @@ public class BulkProductsController : BaseController
         return File(bytes, "text/csv", "product_import_template.csv");
     }
 
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpGet("template/json")]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public IActionResult DownloadJsonTemplate()
     {
         var template = @"[

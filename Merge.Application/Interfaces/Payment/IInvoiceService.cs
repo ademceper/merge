@@ -1,14 +1,16 @@
 using Merge.Application.DTOs.Payment;
+using Merge.Application.Common;
 
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Payment;
 
 public interface IInvoiceService
 {
-    Task<InvoiceDto?> GetByIdAsync(Guid id);
-    Task<InvoiceDto?> GetByOrderIdAsync(Guid orderId);
-    Task<IEnumerable<InvoiceDto>> GetByUserIdAsync(Guid userId);
-    Task<InvoiceDto> GenerateInvoiceAsync(Guid orderId);
-    Task<bool> SendInvoiceAsync(Guid invoiceId);
-    Task<string> GenerateInvoicePdfAsync(Guid invoiceId);
+    Task<InvoiceDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<InvoiceDto?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default);
+    Task<PagedResult<InvoiceDto>> GetByUserIdAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
+    Task<InvoiceDto> GenerateInvoiceAsync(Guid orderId, CancellationToken cancellationToken = default);
+    Task<bool> SendInvoiceAsync(Guid invoiceId, CancellationToken cancellationToken = default);
+    Task<string> GenerateInvoicePdfAsync(Guid invoiceId, CancellationToken cancellationToken = default);
 }
 

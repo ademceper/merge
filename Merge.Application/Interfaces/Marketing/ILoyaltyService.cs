@@ -1,4 +1,5 @@
 using Merge.Application.DTOs.Marketing;
+using Merge.Application.Common;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Marketing;
@@ -8,6 +9,7 @@ public interface ILoyaltyService
     Task<LoyaltyAccountDto?> GetLoyaltyAccountAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<LoyaltyAccountDto> CreateLoyaltyAccountAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<IEnumerable<LoyaltyTransactionDto>> GetTransactionsAsync(Guid userId, int days = 30, CancellationToken cancellationToken = default);
+    Task<PagedResult<LoyaltyTransactionDto>> GetTransactionsAsync(Guid userId, int days, int page, int pageSize, CancellationToken cancellationToken = default);
     Task EarnPointsAsync(Guid userId, int points, string type, string description, Guid? orderId = null, CancellationToken cancellationToken = default);
     Task<bool> RedeemPointsAsync(Guid userId, int points, Guid? orderId = null, CancellationToken cancellationToken = default);
     Task<int> CalculatePointsFromPurchaseAsync(decimal amount, CancellationToken cancellationToken = default);

@@ -1,11 +1,13 @@
 using Merge.Application.DTOs.Product;
+
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Product;
 
 public interface IBulkProductService
 {
-    Task<BulkProductImportResultDto> ImportProductsFromCsvAsync(Stream fileStream);
-    Task<BulkProductImportResultDto> ImportProductsFromJsonAsync(Stream fileStream);
-    Task<byte[]> ExportProductsToCsvAsync(BulkProductExportDto exportDto);
-    Task<byte[]> ExportProductsToJsonAsync(BulkProductExportDto exportDto);
-    Task<byte[]> ExportProductsToExcelAsync(BulkProductExportDto exportDto);
+    Task<BulkProductImportResultDto> ImportProductsFromCsvAsync(Stream fileStream, CancellationToken cancellationToken = default);
+    Task<BulkProductImportResultDto> ImportProductsFromJsonAsync(Stream fileStream, CancellationToken cancellationToken = default);
+    Task<byte[]> ExportProductsToCsvAsync(BulkProductExportDto exportDto, CancellationToken cancellationToken = default);
+    Task<byte[]> ExportProductsToJsonAsync(BulkProductExportDto exportDto, CancellationToken cancellationToken = default);
+    Task<byte[]> ExportProductsToExcelAsync(BulkProductExportDto exportDto, CancellationToken cancellationToken = default);
 }

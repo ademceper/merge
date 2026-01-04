@@ -1,38 +1,40 @@
 using Merge.Application.DTOs.Seller;
+using Merge.Application.Common;
 
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Seller;
 
 public interface ISellerCommissionService
 {
     // Commissions
-    Task<SellerCommissionDto> CalculateAndRecordCommissionAsync(Guid orderId, Guid orderItemId);
-    Task<SellerCommissionDto?> GetCommissionAsync(Guid commissionId);
-    Task<IEnumerable<SellerCommissionDto>> GetSellerCommissionsAsync(Guid sellerId, string? status = null);
-    Task<IEnumerable<SellerCommissionDto>> GetAllCommissionsAsync(string? status = null, int page = 1, int pageSize = 20);
-    Task<bool> ApproveCommissionAsync(Guid commissionId);
-    Task<bool> CancelCommissionAsync(Guid commissionId);
+    Task<SellerCommissionDto> CalculateAndRecordCommissionAsync(Guid orderId, Guid orderItemId, CancellationToken cancellationToken = default);
+    Task<SellerCommissionDto?> GetCommissionAsync(Guid commissionId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<SellerCommissionDto>> GetSellerCommissionsAsync(Guid sellerId, string? status = null, CancellationToken cancellationToken = default);
+    Task<PagedResult<SellerCommissionDto>> GetAllCommissionsAsync(string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
+    Task<bool> ApproveCommissionAsync(Guid commissionId, CancellationToken cancellationToken = default);
+    Task<bool> CancelCommissionAsync(Guid commissionId, CancellationToken cancellationToken = default);
 
     // Commission Tiers
-    Task<CommissionTierDto> CreateTierAsync(CreateCommissionTierDto dto);
-    Task<IEnumerable<CommissionTierDto>> GetAllTiersAsync();
-    Task<CommissionTierDto?> GetTierForSalesAsync(decimal totalSales);
-    Task<bool> UpdateTierAsync(Guid tierId, CreateCommissionTierDto dto);
-    Task<bool> DeleteTierAsync(Guid tierId);
+    Task<CommissionTierDto> CreateTierAsync(CreateCommissionTierDto dto, CancellationToken cancellationToken = default);
+    Task<IEnumerable<CommissionTierDto>> GetAllTiersAsync(CancellationToken cancellationToken = default);
+    Task<CommissionTierDto?> GetTierForSalesAsync(decimal totalSales, CancellationToken cancellationToken = default);
+    Task<bool> UpdateTierAsync(Guid tierId, CreateCommissionTierDto dto, CancellationToken cancellationToken = default);
+    Task<bool> DeleteTierAsync(Guid tierId, CancellationToken cancellationToken = default);
 
     // Seller Settings
-    Task<SellerCommissionSettingsDto?> GetSellerSettingsAsync(Guid sellerId);
-    Task<SellerCommissionSettingsDto> UpdateSellerSettingsAsync(Guid sellerId, UpdateCommissionSettingsDto dto);
+    Task<SellerCommissionSettingsDto?> GetSellerSettingsAsync(Guid sellerId, CancellationToken cancellationToken = default);
+    Task<SellerCommissionSettingsDto> UpdateSellerSettingsAsync(Guid sellerId, UpdateCommissionSettingsDto dto, CancellationToken cancellationToken = default);
 
     // Payouts
-    Task<CommissionPayoutDto> RequestPayoutAsync(Guid sellerId, RequestPayoutDto dto);
-    Task<CommissionPayoutDto?> GetPayoutAsync(Guid payoutId);
-    Task<IEnumerable<CommissionPayoutDto>> GetSellerPayoutsAsync(Guid sellerId);
-    Task<IEnumerable<CommissionPayoutDto>> GetAllPayoutsAsync(string? status = null, int page = 1, int pageSize = 20);
-    Task<bool> ProcessPayoutAsync(Guid payoutId, string transactionReference);
-    Task<bool> CompletePayoutAsync(Guid payoutId);
-    Task<bool> FailPayoutAsync(Guid payoutId, string reason);
+    Task<CommissionPayoutDto> RequestPayoutAsync(Guid sellerId, RequestPayoutDto dto, CancellationToken cancellationToken = default);
+    Task<CommissionPayoutDto?> GetPayoutAsync(Guid payoutId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<CommissionPayoutDto>> GetSellerPayoutsAsync(Guid sellerId, CancellationToken cancellationToken = default);
+    Task<PagedResult<CommissionPayoutDto>> GetAllPayoutsAsync(string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
+    Task<bool> ProcessPayoutAsync(Guid payoutId, string transactionReference, CancellationToken cancellationToken = default);
+    Task<bool> CompletePayoutAsync(Guid payoutId, CancellationToken cancellationToken = default);
+    Task<bool> FailPayoutAsync(Guid payoutId, string reason, CancellationToken cancellationToken = default);
 
     // Stats
-    Task<CommissionStatsDto> GetCommissionStatsAsync(Guid? sellerId = null);
-    Task<decimal> GetAvailablePayoutAmountAsync(Guid sellerId);
+    Task<CommissionStatsDto> GetCommissionStatsAsync(Guid? sellerId = null, CancellationToken cancellationToken = default);
+    Task<decimal> GetAvailablePayoutAmountAsync(Guid sellerId, CancellationToken cancellationToken = default);
 }

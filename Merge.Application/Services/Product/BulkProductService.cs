@@ -41,15 +41,20 @@ public class BulkProductService : IBulkProductService
         _logger = logger;
     }
 
-    public async Task<BulkProductImportResultDto> ImportProductsFromCsvAsync(Stream fileStream)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<BulkProductImportResultDto> ImportProductsFromCsvAsync(Stream fileStream, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation("CSV bulk import başlatıldı");
+
         var result = new BulkProductImportResultDto();
         var reader = new StreamReader(fileStream);
 
         // Skip header line
         await reader.ReadLineAsync();
 
-        while (!reader.EndOfStream)
+        while (!reader.EndOfStream && !cancellationToken.IsCancellationRequested)
         {
             var line = await reader.ReadLineAsync();
             if (string.IsNullOrWhiteSpace(line)) continue;
@@ -79,7 +84,7 @@ public class BulkProductService : IBulkProductService
                     ImageUrl = values.Length > 8 ? values[8] : string.Empty
                 };
 
-                var product = await ImportSingleProductAsync(productDto);
+                var product = await ImportSingleProductAsync(productDto, cancellationToken);
                 if (product != null)
                 {
                     result.SuccessCount++;
@@ -97,19 +102,30 @@ public class BulkProductService : IBulkProductService
             {
                 result.FailureCount++;
                 result.Errors.Add($"Line {result.TotalProcessed}: {ex.Message}");
+                _logger.LogWarning(ex, "CSV import hatası. Line: {Line}", result.TotalProcessed);
             }
         }
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "CSV bulk import tamamlandı. TotalProcessed: {TotalProcessed}, SuccessCount: {SuccessCount}, FailureCount: {FailureCount}",
+            result.TotalProcessed, result.SuccessCount, result.FailureCount);
 
         return result;
     }
 
-    public async Task<BulkProductImportResultDto> ImportProductsFromJsonAsync(Stream fileStream)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<BulkProductImportResultDto> ImportProductsFromJsonAsync(Stream fileStream, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation("JSON bulk import başlatıldı");
+
         var result = new BulkProductImportResultDto();
 
         try
         {
-            var products = await JsonSerializer.DeserializeAsync<List<BulkProductImportDto>>(fileStream);
+            var products = await JsonSerializer.DeserializeAsync<List<BulkProductImportDto>>(fileStream, cancellationToken: cancellationToken);
 
             if (products == null || products.Count == 0)
             {
@@ -119,11 +135,13 @@ public class BulkProductService : IBulkProductService
 
             foreach (var productDto in products)
             {
+                if (cancellationToken.IsCancellationRequested) break;
+
                 result.TotalProcessed++;
 
                 try
                 {
-                    var product = await ImportSingleProductAsync(productDto);
+                    var product = await ImportSingleProductAsync(productDto, cancellationToken);
                     if (product != null)
                     {
                         result.SuccessCount++;
@@ -141,26 +159,36 @@ public class BulkProductService : IBulkProductService
                 {
                     result.FailureCount++;
                     result.Errors.Add($"Product '{productDto.Name}': {ex.Message}");
+                    _logger.LogWarning(ex, "JSON import hatası. Product: {ProductName}", productDto.Name);
                 }
             }
         }
         catch (Exception ex)
         {
             result.Errors.Add($"JSON parsing error: {ex.Message}");
+            _logger.LogError(ex, "JSON parsing hatası");
         }
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "JSON bulk import tamamlandı. TotalProcessed: {TotalProcessed}, SuccessCount: {SuccessCount}, FailureCount: {FailureCount}",
+            result.TotalProcessed, result.SuccessCount, result.FailureCount);
 
         return result;
     }
 
-    public async Task<byte[]> ExportProductsToCsvAsync(BulkProductExportDto exportDto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<byte[]> ExportProductsToCsvAsync(BulkProductExportDto exportDto, CancellationToken cancellationToken = default)
     {
-        var products = await GetProductsForExportAsync(exportDto);
+        var products = await GetProductsForExportAsync(exportDto, cancellationToken);
 
         var csv = new StringBuilder();
         csv.AppendLine("Name,Description,SKU,Price,DiscountPrice,StockQuantity,Brand,Category,ImageUrl,IsActive");
 
         foreach (var product in products)
         {
+            if (cancellationToken.IsCancellationRequested) break;
+
             csv.AppendLine($"\"{EscapeCsv(product.Name)}\"," +
                           $"\"{EscapeCsv(product.Description)}\"," +
                           $"\"{product.SKU}\"," +
@@ -176,9 +204,10 @@ public class BulkProductService : IBulkProductService
         return Encoding.UTF8.GetBytes(csv.ToString());
     }
 
-    public async Task<byte[]> ExportProductsToJsonAsync(BulkProductExportDto exportDto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<byte[]> ExportProductsToJsonAsync(BulkProductExportDto exportDto, CancellationToken cancellationToken = default)
     {
-        var products = await GetProductsForExportAsync(exportDto);
+        var products = await GetProductsForExportAsync(exportDto, cancellationToken);
 
         var exportData = products.Select(p => new
         {
@@ -205,22 +234,24 @@ public class BulkProductService : IBulkProductService
         return Encoding.UTF8.GetBytes(json);
     }
 
-    public async Task<byte[]> ExportProductsToExcelAsync(BulkProductExportDto exportDto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<byte[]> ExportProductsToExcelAsync(BulkProductExportDto exportDto, CancellationToken cancellationToken = default)
     {
         // For Excel export, we'll use CSV format as a simple alternative
         // In production, use EPPlus or ClosedXML library for real Excel files
-        return await ExportProductsToCsvAsync(exportDto);
+        return await ExportProductsToCsvAsync(exportDto, cancellationToken);
     }
 
     // Helper methods
 
-    private async Task<ProductEntity?> ImportSingleProductAsync(BulkProductImportDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    private async Task<ProductEntity?> ImportSingleProductAsync(BulkProductImportDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         // Check if SKU already exists
         var existingProduct = await _context.Products
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.SKU == dto.SKU);
+            .FirstOrDefaultAsync(p => p.SKU == dto.SKU, cancellationToken);
 
         if (existingProduct != null)
         {
@@ -231,7 +262,7 @@ public class BulkProductService : IBulkProductService
         // Find category by name
         var category = await _context.Categories
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Name == dto.CategoryName);
+            .FirstOrDefaultAsync(c => c.Name == dto.CategoryName, cancellationToken);
 
         if (category == null)
         {
@@ -272,11 +303,12 @@ public class BulkProductService : IBulkProductService
 
         product = await _productRepository.AddAsync(product);
         // ✅ ARCHITECTURE: UnitOfWork kullan (SaveChangesAsync YASAK - Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return product;
     }
 
-    private async Task<List<ProductEntity>> GetProductsForExportAsync(BulkProductExportDto exportDto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    private async Task<List<ProductEntity>> GetProductsForExportAsync(BulkProductExportDto exportDto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         IQueryable<ProductEntity> query = _context.Products
@@ -296,7 +328,7 @@ public class BulkProductService : IBulkProductService
         return await query
             .OrderBy(p => p.Category.Name)
             .ThenBy(p => p.Name)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 
     private string[] ParseCsvLine(string line)

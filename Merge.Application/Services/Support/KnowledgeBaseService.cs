@@ -28,7 +28,8 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         _logger = logger;
     }
 
-    public async Task<KnowledgeBaseArticleDto> CreateArticleAsync(CreateKnowledgeBaseArticleDto dto, Guid authorId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<KnowledgeBaseArticleDto> CreateArticleAsync(CreateKnowledgeBaseArticleDto dto, Guid authorId, CancellationToken cancellationToken = default)
     {
         var slug = GenerateSlug(dto.Title);
 
@@ -36,7 +37,7 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         // Ensure unique slug
         var existingSlug = await _context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
-            .AnyAsync(a => a.Slug == slug);
+            .AnyAsync(a => a.Slug == slug, cancellationToken);
         
         if (existingSlug)
         {
@@ -58,45 +59,48 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             PublishedAt = dto.Status == nameof(ContentStatus.Published) ? DateTime.UtcNow : null
         };
 
-        await _context.Set<KnowledgeBaseArticle>().AddAsync(article);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<KnowledgeBaseArticle>().AddAsync(article, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes for mapping
         article = await _context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
             .Include(a => a.Category)
             .Include(a => a.Author)
-            .FirstOrDefaultAsync(a => a.Id == article.Id);
+            .FirstOrDefaultAsync(a => a.Id == article.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
         return _mapper.Map<KnowledgeBaseArticleDto>(article!);
     }
 
-    public async Task<KnowledgeBaseArticleDto?> GetArticleAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<KnowledgeBaseArticleDto?> GetArticleAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var article = await _context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
             .Include(a => a.Category)
             .Include(a => a.Author)
-            .FirstOrDefaultAsync(a => a.Id == id);
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         return article != null ? _mapper.Map<KnowledgeBaseArticleDto>(article) : null;
     }
 
-    public async Task<KnowledgeBaseArticleDto?> GetArticleBySlugAsync(string slug)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<KnowledgeBaseArticleDto?> GetArticleBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var article = await _context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
             .Include(a => a.Category)
             .Include(a => a.Author)
-            .FirstOrDefaultAsync(a => a.Slug == slug && a.Status == ContentStatus.Published);
+            .FirstOrDefaultAsync(a => a.Slug == slug && a.Status == ContentStatus.Published, cancellationToken);
 
         return article != null ? _mapper.Map<KnowledgeBaseArticleDto>(article) : null;
     }
 
-    public async Task<IEnumerable<KnowledgeBaseArticleDto>> GetArticlesAsync(string? status = null, Guid? categoryId = null, bool featuredOnly = false, int page = 1, int pageSize = 20)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<KnowledgeBaseArticleDto>> GetArticlesAsync(string? status = null, Guid? categoryId = null, bool featuredOnly = false, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         IQueryable<KnowledgeBaseArticle> query = _context.Set<KnowledgeBaseArticle>()
@@ -129,16 +133,17 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             .ThenByDescending(a => a.PublishedAt ?? a.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
         return _mapper.Map<IEnumerable<KnowledgeBaseArticleDto>>(articles);
     }
 
-    public async Task<IEnumerable<KnowledgeBaseArticleDto>> SearchArticlesAsync(KnowledgeBaseSearchDto searchDto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<KnowledgeBaseArticleDto>> SearchArticlesAsync(KnowledgeBaseSearchDto searchDto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
-        var query = _context.Set<KnowledgeBaseArticle>()
+        IQueryable<KnowledgeBaseArticle> query = _context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
             .Include(a => a.Category)
             .Include(a => a.Author)
@@ -169,17 +174,18 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             .ThenByDescending(a => a.PublishedAt ?? a.CreatedAt)
             .Skip((searchDto.Page - 1) * searchDto.PageSize)
             .Take(searchDto.PageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
         return _mapper.Map<IEnumerable<KnowledgeBaseArticleDto>>(articles);
     }
 
-    public async Task<KnowledgeBaseArticleDto> UpdateArticleAsync(Guid id, UpdateKnowledgeBaseArticleDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<KnowledgeBaseArticleDto> UpdateArticleAsync(Guid id, UpdateKnowledgeBaseArticleDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var article = await _context.Set<KnowledgeBaseArticle>()
-            .FirstOrDefaultAsync(a => a.Id == id);
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (article == null)
         {
@@ -213,55 +219,58 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             article.Tags = string.Join(",", dto.Tags);
 
         article.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes for mapping
         article = await _context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
             .Include(a => a.Category)
             .Include(a => a.Author)
-            .FirstOrDefaultAsync(a => a.Id == article.Id);
+            .FirstOrDefaultAsync(a => a.Id == article.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
         return _mapper.Map<KnowledgeBaseArticleDto>(article!);
     }
 
-    public async Task<bool> DeleteArticleAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteArticleAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var article = await _context.Set<KnowledgeBaseArticle>()
-            .FirstOrDefaultAsync(a => a.Id == id);
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (article == null) return false;
 
         article.IsDeleted = true;
         article.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> PublishArticleAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> PublishArticleAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var article = await _context.Set<KnowledgeBaseArticle>()
-            .FirstOrDefaultAsync(a => a.Id == id);
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (article == null) return false;
 
         article.Status = ContentStatus.Published;
         article.PublishedAt = DateTime.UtcNow;
         article.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task RecordArticleViewAsync(Guid articleId, Guid? userId = null, string? ipAddress = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task RecordArticleViewAsync(Guid articleId, Guid? userId = null, string? ipAddress = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var article = await _context.Set<KnowledgeBaseArticle>()
-            .FirstOrDefaultAsync(a => a.Id == articleId);
+            .FirstOrDefaultAsync(a => a.Id == articleId, cancellationToken);
 
         if (article == null) return;
 
@@ -273,12 +282,13 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             UserAgent = string.Empty
         };
 
-        await _context.Set<KnowledgeBaseView>().AddAsync(view);
+        await _context.Set<KnowledgeBaseView>().AddAsync(view, cancellationToken);
         article.ViewCount++;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<KnowledgeBaseCategoryDto> CreateCategoryAsync(CreateKnowledgeBaseCategoryDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<KnowledgeBaseCategoryDto> CreateCategoryAsync(CreateKnowledgeBaseCategoryDto dto, CancellationToken cancellationToken = default)
     {
         var slug = GenerateSlug(dto.Name);
 
@@ -286,7 +296,7 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         // Ensure unique slug
         var existingSlug = await _context.Set<KnowledgeBaseCategory>()
             .AsNoTracking()
-            .AnyAsync(c => c.Slug == slug);
+            .AnyAsync(c => c.Slug == slug, cancellationToken);
         
         if (existingSlug)
         {
@@ -304,45 +314,48 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             IconUrl = dto.IconUrl
         };
 
-        await _context.Set<KnowledgeBaseCategory>().AddAsync(category);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<KnowledgeBaseCategory>().AddAsync(category, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes for mapping
         category = await _context.Set<KnowledgeBaseCategory>()
             .AsNoTracking()
             .Include(c => c.ParentCategory)
-            .FirstOrDefaultAsync(c => c.Id == category.Id);
+            .FirstOrDefaultAsync(c => c.Id == category.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return await MapToCategoryDtoAsync(category!);
+        return await MapToCategoryDtoAsync(category!, cancellationToken);
     }
 
-    public async Task<KnowledgeBaseCategoryDto?> GetCategoryAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<KnowledgeBaseCategoryDto?> GetCategoryAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var category = await _context.Set<KnowledgeBaseCategory>()
             .AsNoTracking()
             .Include(c => c.ParentCategory)
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
-        return category != null ? await MapToCategoryDtoAsync(category) : null;
+        return category != null ? await MapToCategoryDtoAsync(category, cancellationToken) : null;
     }
 
-    public async Task<KnowledgeBaseCategoryDto?> GetCategoryBySlugAsync(string slug)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<KnowledgeBaseCategoryDto?> GetCategoryBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         var category = await _context.Set<KnowledgeBaseCategory>()
             .AsNoTracking()
             .Include(c => c.ParentCategory)
-            .FirstOrDefaultAsync(c => c.Slug == slug && c.IsActive);
+            .FirstOrDefaultAsync(c => c.Slug == slug && c.IsActive, cancellationToken);
 
-        return category != null ? await MapToCategoryDtoAsync(category) : null;
+        return category != null ? await MapToCategoryDtoAsync(category, cancellationToken) : null;
     }
 
-    public async Task<IEnumerable<KnowledgeBaseCategoryDto>> GetCategoriesAsync(bool includeSubCategories = true)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<KnowledgeBaseCategoryDto>> GetCategoriesAsync(bool includeSubCategories = true, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
-        var query = _context.Set<KnowledgeBaseCategory>()
+        IQueryable<KnowledgeBaseCategory> query = _context.Set<KnowledgeBaseCategory>()
             .AsNoTracking()
             .Include(c => c.ParentCategory)
             .Where(c => c.IsActive);
@@ -357,12 +370,12 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             .OrderBy(c => c.DisplayOrder)
             .ThenBy(c => c.Name)
             .Select(c => c.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var categories = await query
             .OrderBy(c => c.DisplayOrder)
             .ThenBy(c => c.Name)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load article counts for all categories to avoid N+1 query
         var articleCountsDict = await _context.Set<KnowledgeBaseArticle>()
@@ -370,9 +383,9 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             .Where(a => categoryIds.Contains(a.CategoryId.Value) && a.Status == ContentStatus.Published)
             .GroupBy(a => a.CategoryId.Value)
             .Select(g => new { CategoryId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.CategoryId, x => x.Count);
+            .ToDictionaryAsync(x => x.CategoryId, x => x.Count, cancellationToken);
 
-        var result = new List<KnowledgeBaseCategoryDto>();
+        var result = new List<KnowledgeBaseCategoryDto>(categories.Count);
         foreach (var category in categories)
         {
             var dto = _mapper.Map<KnowledgeBaseCategoryDto>(category);
@@ -390,7 +403,7 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             // ✅ PERFORMANCE: Recursively map subcategories if needed
             if (includeSubCategories && category.SubCategories != null && category.SubCategories.Any())
             {
-                dto.SubCategories = await MapSubCategoriesAsync(category.SubCategories.ToList(), articleCountsDict);
+                dto.SubCategories = await MapSubCategoriesAsync(category.SubCategories.ToList(), articleCountsDict, cancellationToken);
             }
             else
             {
@@ -402,11 +415,12 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         return result;
     }
 
-    public async Task<KnowledgeBaseCategoryDto> UpdateCategoryAsync(Guid id, UpdateKnowledgeBaseCategoryDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<KnowledgeBaseCategoryDto> UpdateCategoryAsync(Guid id, UpdateKnowledgeBaseCategoryDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var category = await _context.Set<KnowledgeBaseCategory>()
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (category == null)
         {
@@ -430,37 +444,39 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             category.IconUrl = dto.IconUrl;
 
         category.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes for mapping
         category = await _context.Set<KnowledgeBaseCategory>()
             .AsNoTracking()
             .Include(c => c.ParentCategory)
-            .FirstOrDefaultAsync(c => c.Id == category.Id);
+            .FirstOrDefaultAsync(c => c.Id == category.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return await MapToCategoryDtoAsync(category!);
+        return await MapToCategoryDtoAsync(category!, cancellationToken);
     }
 
-    public async Task<bool> DeleteCategoryAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteCategoryAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var category = await _context.Set<KnowledgeBaseCategory>()
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (category == null) return false;
 
         category.IsDeleted = true;
         category.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<int> GetArticleCountAsync(Guid? categoryId = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<int> GetArticleCountAsync(Guid? categoryId = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
-        var query = _context.Set<KnowledgeBaseArticle>()
+        IQueryable<KnowledgeBaseArticle> query = _context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
             .Where(a => a.Status == ContentStatus.Published);
 
@@ -469,13 +485,14 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             query = query.Where(a => a.CategoryId == categoryId.Value);
         }
 
-        return await query.CountAsync();
+        return await query.CountAsync(cancellationToken);
     }
 
-    public async Task<int> GetTotalViewsAsync(Guid? articleId = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<int> GetTotalViewsAsync(Guid? articleId = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
-        var query = _context.Set<KnowledgeBaseView>()
+        IQueryable<KnowledgeBaseView> query = _context.Set<KnowledgeBaseView>()
             .AsNoTracking();
 
         if (articleId.HasValue)
@@ -483,7 +500,7 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             query = query.Where(v => v.ArticleId == articleId.Value);
         }
 
-        return await query.CountAsync();
+        return await query.CountAsync(cancellationToken);
     }
 
     private string GenerateSlug(string title)
@@ -512,7 +529,8 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         return slug.Trim('-');
     }
 
-    private async Task<KnowledgeBaseCategoryDto> MapToCategoryDtoAsync(KnowledgeBaseCategory category)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    private async Task<KnowledgeBaseCategoryDto> MapToCategoryDtoAsync(KnowledgeBaseCategory category, CancellationToken cancellationToken = default)
     {
         // ✅ ARCHITECTURE: AutoMapper kullan
         var dto = _mapper.Map<KnowledgeBaseCategoryDto>(category);
@@ -520,7 +538,7 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         // ✅ PERFORMANCE: Batch load article count to avoid N+1 query
         dto.ArticleCount = await _context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
-            .CountAsync(a => a.CategoryId == category.Id && a.Status == ContentStatus.Published);
+            .CountAsync(a => a.CategoryId == category.Id && a.Status == ContentStatus.Published, cancellationToken);
 
         // ✅ PERFORMANCE: Recursively map subcategories if needed
         if (category.SubCategories != null && category.SubCategories.Any())
@@ -532,9 +550,9 @@ public class KnowledgeBaseService : IKnowledgeBaseService
                 .Where(a => subCategoryIds.Contains(a.CategoryId.Value) && a.Status == ContentStatus.Published)
                 .GroupBy(a => a.CategoryId.Value)
                 .Select(g => new { CategoryId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.CategoryId, x => x.Count);
+                .ToDictionaryAsync(x => x.CategoryId, x => x.Count, cancellationToken);
 
-            dto.SubCategories = await MapSubCategoriesAsync(category.SubCategories.ToList(), subArticleCountsDict);
+            dto.SubCategories = await MapSubCategoriesAsync(category.SubCategories.ToList(), subArticleCountsDict, cancellationToken);
         }
         else
         {
@@ -544,9 +562,10 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         return dto;
     }
 
-    private async Task<List<KnowledgeBaseCategoryDto>> MapSubCategoriesAsync(List<KnowledgeBaseCategory> subCategories, Dictionary<Guid, int> articleCountsDict)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    private async Task<List<KnowledgeBaseCategoryDto>> MapSubCategoriesAsync(List<KnowledgeBaseCategory> subCategories, Dictionary<Guid, int> articleCountsDict, CancellationToken cancellationToken = default)
     {
-        var result = new List<KnowledgeBaseCategoryDto>();
+        var result = new List<KnowledgeBaseCategoryDto>(subCategories.Count);
         foreach (var sc in subCategories.Where(sc => sc.IsActive))
         {
             var subDto = _mapper.Map<KnowledgeBaseCategoryDto>(sc);
@@ -571,9 +590,9 @@ public class KnowledgeBaseService : IKnowledgeBaseService
                     .Where(a => nestedSubCategoryIds.Contains(a.CategoryId.Value) && a.Status == ContentStatus.Published)
                     .GroupBy(a => a.CategoryId.Value)
                     .Select(g => new { CategoryId = g.Key, Count = g.Count() })
-                    .ToDictionaryAsync(x => x.CategoryId, x => x.Count);
+                    .ToDictionaryAsync(x => x.CategoryId, x => x.Count, cancellationToken);
 
-                subDto.SubCategories = await MapSubCategoriesAsync(sc.SubCategories.ToList(), nestedSubArticleCountsDict);
+                subDto.SubCategories = await MapSubCategoriesAsync(sc.SubCategories.ToList(), nestedSubArticleCountsDict, cancellationToken);
             }
             else
             {

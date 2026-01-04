@@ -22,13 +22,14 @@ public class DemandForecastingService : IDemandForecastingService
         _logger = logger;
     }
 
-    public async Task<DemandForecastDto> ForecastDemandAsync(Guid productId, int forecastDays = 30)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<DemandForecastDto> ForecastDemandAsync(Guid productId, int forecastDays = 30, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var product = await _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
-            .FirstOrDefaultAsync(p => p.Id == productId);
+            .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
         if (product == null)
         {
@@ -47,7 +48,7 @@ public class DemandForecastingService : IDemandForecastingService
                 Quantity = g.Sum(oi => oi.Quantity)
             })
             .OrderBy(x => x.Date)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // Basit talep tahmin algoritması
         var forecast = CalculateDemandForecast(product, historicalSales.Cast<object>().ToList(), forecastDays);
@@ -67,14 +68,15 @@ public class DemandForecastingService : IDemandForecastingService
         };
     }
 
-    public async Task<IEnumerable<DemandForecastDto>> ForecastDemandForCategoryAsync(Guid categoryId, int forecastDays = 30)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<DemandForecastDto>> ForecastDemandForCategoryAsync(Guid categoryId, int forecastDays = 30, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var products = await _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.CategoryId == categoryId && p.IsActive)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load historical sales (N+1 fix)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - Database'de Select yap
@@ -82,7 +84,7 @@ public class DemandForecastingService : IDemandForecastingService
             .AsNoTracking()
             .Where(p => p.CategoryId == categoryId && p.IsActive)
             .Select(p => p.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
         
         var allHistoricalSales = await _context.OrderItems
             .AsNoTracking()
@@ -94,7 +96,7 @@ public class DemandForecastingService : IDemandForecastingService
                 Date = g.Key.Date,
                 Quantity = g.Sum(oi => oi.Quantity)
             })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: ToListAsync() sonrası GroupBy() ve ToDictionary() YASAK
         // Not: Bu durumda anonymous type kullanılıyor, database'de ToDictionaryAsync yapılamaz
@@ -134,14 +136,15 @@ public class DemandForecastingService : IDemandForecastingService
         return results.OrderByDescending(r => r.ForecastedQuantity);
     }
 
-    public async Task<DemandForecastStatsDto> GetForecastStatsAsync(DateTime? startDate = null, DateTime? endDate = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<DemandForecastStatsDto> GetForecastStatsAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
         var start = startDate ?? DateTime.UtcNow.AddDays(-30);
         var end = endDate ?? DateTime.UtcNow;
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var totalProducts = await _context.Products
-            .CountAsync(p => p.IsActive);
+            .CountAsync(p => p.IsActive, cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !oi.Order.IsDeleted (Global Query Filter)
         var productsWithSales = await _context.OrderItems
@@ -149,7 +152,7 @@ public class DemandForecastingService : IDemandForecastingService
             .Where(oi => oi.Order.CreatedAt >= start && oi.Order.CreatedAt <= end)
             .Select(oi => oi.ProductId)
             .Distinct()
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         return new DemandForecastStatsDto
         {

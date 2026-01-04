@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.Exceptions;
+using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Domain.ValueObjects;
 using Merge.Infrastructure.Data;
@@ -50,81 +51,134 @@ public class ProductService : IProductService
         return product == null ? null : _mapper.Map<ProductDto>(product);
     }
 
-    public async Task<IEnumerable<ProductDto>> GetAllAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<ProductDto>> GetAllAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking + removed manual !p.IsDeleted check
-        var products = await _context.Products
+        var query = _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
-            .Where(p => p.IsActive)
+            .Where(p => p.IsActive);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var products = await query
             .OrderByDescending(p => p.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        return _mapper.Map<IEnumerable<ProductDto>>(products);
+        var dtos = _mapper.Map<IEnumerable<ProductDto>>(products);
+
+        return new PagedResult<ProductDto>
+        {
+            Items = dtos.ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<IEnumerable<ProductDto>> GetByCategoryAsync(Guid categoryId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<ProductDto>> GetByCategoryAsync(Guid categoryId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking + removed manual !p.IsDeleted check
-        var products = await _context.Products
+        var query = _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
-            .Where(p => p.IsActive && p.CategoryId == categoryId)
+            .Where(p => p.IsActive && p.CategoryId == categoryId);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var products = await query
             .OrderByDescending(p => p.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation(
-            "Retrieved products by category. CategoryId: {CategoryId}, Count: {Count}",
-            categoryId, products.Count);
+            "Retrieved products by category. CategoryId: {CategoryId}, Count: {Count}, TotalCount: {TotalCount}",
+            categoryId, products.Count, totalCount);
 
-        return _mapper.Map<IEnumerable<ProductDto>>(products);
+        var dtos = _mapper.Map<IEnumerable<ProductDto>>(products);
+
+        return new PagedResult<ProductDto>
+        {
+            Items = dtos.ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<IEnumerable<ProductDto>> SearchAsync(string searchTerm, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<ProductDto>> SearchAsync(string searchTerm, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
         {
             throw new ValidationException("Arama terimi boş olamaz.");
         }
 
-        if (page < 1)
-        {
-            throw new ValidationException("Sayfa numarası 1'den küçük olamaz.");
-        }
-
-        if (pageSize < 1 || pageSize > 100)
-        {
-            throw new ValidationException("Sayfa boyutu 1 ile 100 arasında olmalıdır.");
-        }
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: EF.Functions.ILike for case-insensitive search with PostgreSQL
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed !p.IsDeleted (Global Query Filter)
-        var products = await _context.Products
+        var query = _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.IsActive &&
                 (EF.Functions.ILike(p.Name, $"%{searchTerm}%") ||
                  EF.Functions.ILike(p.Description, $"%{searchTerm}%") ||
-                 EF.Functions.ILike(p.Brand, $"%{searchTerm}%")))
+                 EF.Functions.ILike(p.Brand, $"%{searchTerm}%")));
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var products = await query
             .OrderByDescending(p => p.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation(
-            "Product search completed. Term: {SearchTerm}, Results: {Count}",
-            searchTerm, products.Count);
+            "Product search completed. Term: {SearchTerm}, Results: {Count}, TotalCount: {TotalCount}",
+            searchTerm, products.Count, totalCount);
 
-        return _mapper.Map<IEnumerable<ProductDto>>(products);
+        var dtos = _mapper.Map<IEnumerable<ProductDto>>(products);
+
+        return new PagedResult<ProductDto>
+        {
+            Items = dtos.ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<ProductDto> CreateAsync(ProductDto productDto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Product oluşturuluyor. Name: {Name}, SKU: {SKU}, SellerId: {SellerId}",
+            productDto.Name, productDto.SKU, productDto.SellerId);
+
         if (productDto == null)
         {
             throw new ArgumentNullException(nameof(productDto));
@@ -142,13 +196,18 @@ public class ProductService : IProductService
 
         var product = _mapper.Map<ProductEntity>(productDto);
         product = await _productRepository.AddAsync(product);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         product = await _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == product.Id, cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Product oluşturuldu. ProductId: {ProductId}, Name: {Name}, SKU: {SKU}",
+            product!.Id, productDto.Name, productDto.SKU);
 
         return _mapper.Map<ProductDto>(product);
     }
@@ -210,7 +269,7 @@ public class ProductService : IProductService
         product.SetCategory(productDto.CategoryId);
 
         await _productRepository.UpdateAsync(product);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         product = await _context.Products
@@ -221,6 +280,7 @@ public class ProductService : IProductService
         return _mapper.Map<ProductDto>(product);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var product = await _productRepository.GetByIdAsync(id);
@@ -231,7 +291,7 @@ public class ProductService : IProductService
 
         await _productRepository.DeleteAsync(product);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 }

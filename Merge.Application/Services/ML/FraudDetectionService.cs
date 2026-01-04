@@ -30,8 +30,14 @@ public class FraudDetectionService : IFraudDetectionService
         _logger = logger;
     }
 
-    public async Task<FraudDetectionRuleDto> CreateRuleAsync(CreateFraudDetectionRuleDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<FraudDetectionRuleDto> CreateRuleAsync(CreateFraudDetectionRuleDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Fraud detection rule oluşturuluyor. Name: {Name}, RuleType: {RuleType}, RiskScore: {RiskScore}",
+            dto.Name, dto.RuleType, dto.RiskScore);
+
         var rule = new FraudDetectionRule
         {
             Name = dto.Name,
@@ -44,31 +50,38 @@ public class FraudDetectionService : IFraudDetectionService
             Description = dto.Description
         };
 
-        await _context.Set<FraudDetectionRule>().AddAsync(rule);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<FraudDetectionRule>().AddAsync(rule, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var createdRule = await _context.Set<FraudDetectionRule>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.Id == rule.Id);
+            .FirstOrDefaultAsync(r => r.Id == rule.Id, cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Fraud detection rule oluşturuldu. RuleId: {RuleId}, Name: {Name}",
+            rule.Id, dto.Name);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<FraudDetectionRuleDto>(createdRule!);
     }
 
-    public async Task<FraudDetectionRuleDto?> GetRuleByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<FraudDetectionRuleDto?> GetRuleByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var rule = await _context.Set<FraudDetectionRule>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.Id == id);
+            .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return rule != null ? _mapper.Map<FraudDetectionRuleDto>(rule) : null;
     }
 
-    public async Task<IEnumerable<FraudDetectionRuleDto>> GetAllRulesAsync(string? ruleType = null, bool? isActive = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<FraudDetectionRuleDto>> GetAllRulesAsync(string? ruleType = null, bool? isActive = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         IQueryable<FraudDetectionRule> query = _context.Set<FraudDetectionRule>()
@@ -87,17 +100,18 @@ public class FraudDetectionService : IFraudDetectionService
         var rules = await query
             .OrderByDescending(r => r.Priority)
             .ThenBy(r => r.Name)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<IEnumerable<FraudDetectionRuleDto>>(rules);
     }
 
-    public async Task<bool> UpdateRuleAsync(Guid id, CreateFraudDetectionRuleDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> UpdateRuleAsync(Guid id, CreateFraudDetectionRuleDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted (Global Query Filter)
         var rule = await _context.Set<FraudDetectionRule>()
-            .FirstOrDefaultAsync(r => r.Id == id);
+            .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
         if (rule == null) return false;
 
@@ -116,41 +130,43 @@ public class FraudDetectionService : IFraudDetectionService
             rule.Description = dto.Description;
 
         rule.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<bool> DeleteRuleAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteRuleAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted (Global Query Filter)
         var rule = await _context.Set<FraudDetectionRule>()
-            .FirstOrDefaultAsync(r => r.Id == id);
+            .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
         if (rule == null) return false;
 
         rule.IsDeleted = true;
         rule.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<FraudAlertDto> EvaluateOrderAsync(Guid orderId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<FraudAlertDto> EvaluateOrderAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
         var order = await _context.Orders
             .Include(o => o.User)
             .Include(o => o.OrderItems)
-            .FirstOrDefaultAsync(o => o.Id == orderId);
+            .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
 
         if (order == null)
         {
             throw new NotFoundException("Sipariş", orderId);
         }
 
-        var riskScore = await CalculateRiskScoreAsync("Order", orderId, order.UserId);
-        var matchedRules = await GetMatchedRulesAsync("Order", orderId, order.UserId);
+        var riskScore = await CalculateRiskScoreAsync("Order", orderId, order.UserId, cancellationToken);
+        var matchedRules = await GetMatchedRulesAsync("Order", orderId, order.UserId, cancellationToken);
 
         var alert = new FraudAlert
         {
@@ -166,8 +182,8 @@ public class FraudDetectionService : IFraudDetectionService
             MatchedRules = matchedRules.Any() ? JsonSerializer.Serialize(matchedRules.Select(r => r.Id)) : null
         };
 
-        await _context.Set<FraudAlert>().AddAsync(alert);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<FraudAlert>().AddAsync(alert, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
@@ -177,27 +193,28 @@ public class FraudDetectionService : IFraudDetectionService
             .Include(a => a.Order)
             .Include(a => a.Payment)
             .Include(a => a.ReviewedBy)
-            .FirstOrDefaultAsync(a => a.Id == alert.Id);
+            .FirstOrDefaultAsync(a => a.Id == alert.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<FraudAlertDto>(createdAlert!);
     }
 
-    public async Task<FraudAlertDto> EvaluatePaymentAsync(Guid paymentId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<FraudAlertDto> EvaluatePaymentAsync(Guid paymentId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var payment = await _context.Payments
             .Include(p => p.Order)
                 .ThenInclude(o => o.User)
-            .FirstOrDefaultAsync(p => p.Id == paymentId);
+            .FirstOrDefaultAsync(p => p.Id == paymentId, cancellationToken);
 
         if (payment == null)
         {
             throw new NotFoundException("Ödeme", paymentId);
         }
 
-        var riskScore = await CalculateRiskScoreAsync("Payment", paymentId, payment.Order?.UserId);
-        var matchedRules = await GetMatchedRulesAsync("Payment", paymentId, payment.Order?.UserId);
+        var riskScore = await CalculateRiskScoreAsync("Payment", paymentId, payment.Order?.UserId, cancellationToken);
+        var matchedRules = await GetMatchedRulesAsync("Payment", paymentId, payment.Order?.UserId, cancellationToken);
 
         var alert = new FraudAlert
         {
@@ -213,8 +230,8 @@ public class FraudDetectionService : IFraudDetectionService
             MatchedRules = matchedRules.Any() ? JsonSerializer.Serialize(matchedRules.Select(r => r.Id)) : null
         };
 
-        await _context.Set<FraudAlert>().AddAsync(alert);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<FraudAlert>().AddAsync(alert, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
@@ -224,25 +241,26 @@ public class FraudDetectionService : IFraudDetectionService
             .Include(a => a.Order)
             .Include(a => a.Payment)
             .Include(a => a.ReviewedBy)
-            .FirstOrDefaultAsync(a => a.Id == alert.Id);
+            .FirstOrDefaultAsync(a => a.Id == alert.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<FraudAlertDto>(createdAlert!);
     }
 
-    public async Task<FraudAlertDto> EvaluateUserAsync(Guid userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<FraudAlertDto> EvaluateUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !u.IsDeleted (Global Query Filter)
         var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Id == userId);
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         if (user == null)
         {
             throw new NotFoundException("Kullanıcı", userId);
         }
 
-        var riskScore = await CalculateRiskScoreAsync("Account", null, userId);
-        var matchedRules = await GetMatchedRulesAsync("Account", null, userId);
+        var riskScore = await CalculateRiskScoreAsync("Account", null, userId, cancellationToken);
+        var matchedRules = await GetMatchedRulesAsync("Account", null, userId, cancellationToken);
 
         var alert = new FraudAlert
         {
@@ -257,8 +275,8 @@ public class FraudDetectionService : IFraudDetectionService
             MatchedRules = matchedRules.Any() ? JsonSerializer.Serialize(matchedRules.Select(r => r.Id)) : null
         };
 
-        await _context.Set<FraudAlert>().AddAsync(alert);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<FraudAlert>().AddAsync(alert, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
@@ -268,13 +286,14 @@ public class FraudDetectionService : IFraudDetectionService
             .Include(a => a.Order)
             .Include(a => a.Payment)
             .Include(a => a.ReviewedBy)
-            .FirstOrDefaultAsync(a => a.Id == alert.Id);
+            .FirstOrDefaultAsync(a => a.Id == alert.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<FraudAlertDto>(createdAlert!);
     }
 
-    public async Task<IEnumerable<FraudAlertDto>> GetAlertsAsync(string? status = null, string? alertType = null, int? minRiskScore = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<FraudAlertDto>> GetAlertsAsync(string? status = null, string? alertType = null, int? minRiskScore = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         IQueryable<FraudAlert> query = _context.Set<FraudAlert>()
@@ -306,17 +325,18 @@ public class FraudDetectionService : IFraudDetectionService
         var alerts = await query
             .OrderByDescending(a => a.RiskScore)
             .ThenByDescending(a => a.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<IEnumerable<FraudAlertDto>>(alerts);
     }
 
-    public async Task<bool> ReviewAlertAsync(Guid alertId, Guid reviewedByUserId, string status, string? notes = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> ReviewAlertAsync(Guid alertId, Guid reviewedByUserId, string status, string? notes = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         var alert = await _context.Set<FraudAlert>()
-            .FirstOrDefaultAsync(a => a.Id == alertId);
+            .FirstOrDefaultAsync(a => a.Id == alertId, cancellationToken);
 
         if (alert == null) return false;
 
@@ -326,12 +346,13 @@ public class FraudDetectionService : IFraudDetectionService
         alert.ReviewNotes = notes;
         alert.UpdatedAt = DateTime.UtcNow;
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<FraudAnalyticsDto> GetFraudAnalyticsAsync(DateTime? startDate = null, DateTime? endDate = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<FraudAnalyticsDto> GetFraudAnalyticsAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
         var start = startDate ?? DateTime.UtcNow.AddMonths(-1);
         var end = endDate ?? DateTime.UtcNow;
@@ -339,21 +360,21 @@ public class FraudDetectionService : IFraudDetectionService
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         var totalAlerts = await _context.Set<FraudAlert>()
-            .CountAsync(a => a.CreatedAt >= start && a.CreatedAt <= end);
+            .CountAsync(a => a.CreatedAt >= start && a.CreatedAt <= end, cancellationToken);
 
         var pendingAlerts = await _context.Set<FraudAlert>()
-            .CountAsync(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == FraudAlertStatus.Pending);
+            .CountAsync(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == FraudAlertStatus.Pending, cancellationToken);
 
         var resolvedAlerts = await _context.Set<FraudAlert>()
-            .CountAsync(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == FraudAlertStatus.Resolved);
+            .CountAsync(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == FraudAlertStatus.Resolved, cancellationToken);
 
         var falsePositiveAlerts = await _context.Set<FraudAlert>()
-            .CountAsync(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == FraudAlertStatus.FalsePositive);
+            .CountAsync(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == FraudAlertStatus.FalsePositive, cancellationToken);
 
         var avgRiskScore = totalAlerts > 0
             ? await _context.Set<FraudAlert>()
                 .Where(a => a.CreatedAt >= start && a.CreatedAt <= end)
-                .AverageAsync(a => (decimal?)a.RiskScore) ?? 0
+                .AverageAsync(a => (decimal?)a.RiskScore, cancellationToken) ?? 0
             : 0;
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
@@ -362,7 +383,7 @@ public class FraudDetectionService : IFraudDetectionService
             .Where(a => a.CreatedAt >= start && a.CreatedAt <= end)
             .GroupBy(a => a.AlertType)
             .Select(g => new { Type = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.Type, x => x.Count);
+            .ToDictionaryAsync(x => x.Type, x => x.Count, cancellationToken);
 
         // ✅ BOLUM 1.2: Enum kullanımı - Dictionary için string'e çevir (DTO uyumluluğu için)
         var alertsByStatus = await _context.Set<FraudAlert>()
@@ -370,7 +391,7 @@ public class FraudDetectionService : IFraudDetectionService
             .Where(a => a.CreatedAt >= start && a.CreatedAt <= end)
             .GroupBy(a => a.Status)
             .Select(g => new { Status = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.Status.ToString(), x => x.Count);
+            .ToDictionaryAsync(x => x.Status.ToString(), x => x.Count, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de filtreleme ve sıralama yap (memory'de işlem YASAK)
         var highRiskAlerts = await _context.Set<FraudAlert>()
@@ -386,7 +407,7 @@ public class FraudDetectionService : IFraudDetectionService
                 Status = a.Status.ToString(), // ✅ BOLUM 1.2: Enum -> string (DTO uyumluluğu)
                 CreatedAt = a.CreatedAt
             })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return new FraudAnalyticsDto
         {
@@ -401,19 +422,20 @@ public class FraudDetectionService : IFraudDetectionService
         };
     }
 
-    private async Task<int> CalculateRiskScoreAsync(string alertType, Guid? entityId, Guid? userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    private async Task<int> CalculateRiskScoreAsync(string alertType, Guid? entityId, Guid? userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted (Global Query Filter)
         var activeRules = await _context.Set<FraudDetectionRule>()
             .Where(r => r.IsActive && r.RuleType == alertType)
             .OrderByDescending(r => r.Priority)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         int totalRiskScore = 0;
 
         foreach (var rule in activeRules)
         {
-            if (await EvaluateRuleAsync(rule, entityId, userId))
+            if (await EvaluateRuleAsync(rule, entityId, userId, cancellationToken))
             {
                 totalRiskScore += rule.RiskScore;
             }
@@ -422,19 +444,20 @@ public class FraudDetectionService : IFraudDetectionService
         return Math.Min(totalRiskScore, 100); // Cap at 100
     }
 
-    private async Task<List<FraudDetectionRule>> GetMatchedRulesAsync(string alertType, Guid? entityId, Guid? userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    private async Task<List<FraudDetectionRule>> GetMatchedRulesAsync(string alertType, Guid? entityId, Guid? userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted (Global Query Filter)
         var activeRules = await _context.Set<FraudDetectionRule>()
             .Where(r => r.IsActive && r.RuleType == alertType)
             .OrderByDescending(r => r.Priority)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var matchedRules = new List<FraudDetectionRule>();
 
         foreach (var rule in activeRules)
         {
-            if (await EvaluateRuleAsync(rule, entityId, userId))
+            if (await EvaluateRuleAsync(rule, entityId, userId, cancellationToken))
             {
                 matchedRules.Add(rule);
             }
@@ -443,7 +466,8 @@ public class FraudDetectionService : IFraudDetectionService
         return matchedRules;
     }
 
-    private async Task<bool> EvaluateRuleAsync(FraudDetectionRule rule, Guid? entityId, Guid? userId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    private async Task<bool> EvaluateRuleAsync(FraudDetectionRule rule, Guid? entityId, Guid? userId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(rule.Conditions))
         {
@@ -467,7 +491,7 @@ public class FraudDetectionService : IFraudDetectionService
                 var order = await _context.Orders
                     .AsNoTracking()
                     .Include(o => o.OrderItems)
-                    .FirstOrDefaultAsync(o => o.Id == entityId.Value);
+                    .FirstOrDefaultAsync(o => o.Id == entityId.Value, cancellationToken);
 
                 if (order != null)
                 {
@@ -498,7 +522,7 @@ public class FraudDetectionService : IFraudDetectionService
                 // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
                 var payment = await _context.Payments
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.Id == entityId.Value);
+                    .FirstOrDefaultAsync(p => p.Id == entityId.Value, cancellationToken);
 
                 if (payment != null)
                 {
@@ -520,7 +544,7 @@ public class FraudDetectionService : IFraudDetectionService
                 var user = await _context.Users
                     .AsNoTracking()
                     .Include(u => u.Orders)
-                    .FirstOrDefaultAsync(u => u.Id == userId.Value);
+                    .FirstOrDefaultAsync(u => u.Id == userId.Value, cancellationToken);
 
                 if (user != null)
                 {

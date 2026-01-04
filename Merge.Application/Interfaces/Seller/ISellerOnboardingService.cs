@@ -1,17 +1,19 @@
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Application.DTOs.Seller;
+using Merge.Application.Common;
 
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Seller;
 
 public interface ISellerOnboardingService
 {
-    Task<SellerApplicationDto> SubmitApplicationAsync(Guid userId, CreateSellerApplicationDto applicationDto);
-    Task<SellerApplicationDto?> GetApplicationByIdAsync(Guid applicationId);
-    Task<SellerApplicationDto?> GetUserApplicationAsync(Guid userId);
-    Task<IEnumerable<SellerApplicationDto>> GetAllApplicationsAsync(SellerApplicationStatus? status = null, int page = 1, int pageSize = 20);
-    Task<SellerApplicationDto> ReviewApplicationAsync(Guid applicationId, ReviewSellerApplicationDto reviewDto, Guid reviewerId);
-    Task<bool> ApproveApplicationAsync(Guid applicationId, Guid reviewerId);
-    Task<bool> RejectApplicationAsync(Guid applicationId, string reason, Guid reviewerId);
-    Task<SellerOnboardingStatsDto> GetOnboardingStatsAsync();
+    Task<SellerApplicationDto> SubmitApplicationAsync(Guid userId, CreateSellerApplicationDto applicationDto, CancellationToken cancellationToken = default);
+    Task<SellerApplicationDto?> GetApplicationByIdAsync(Guid applicationId, CancellationToken cancellationToken = default);
+    Task<SellerApplicationDto?> GetUserApplicationAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<PagedResult<SellerApplicationDto>> GetAllApplicationsAsync(SellerApplicationStatus? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
+    Task<SellerApplicationDto> ReviewApplicationAsync(Guid applicationId, ReviewSellerApplicationDto reviewDto, Guid reviewerId, CancellationToken cancellationToken = default);
+    Task<bool> ApproveApplicationAsync(Guid applicationId, Guid reviewerId, CancellationToken cancellationToken = default);
+    Task<bool> RejectApplicationAsync(Guid applicationId, string reason, Guid reviewerId, CancellationToken cancellationToken = default);
+    Task<SellerOnboardingStatsDto> GetOnboardingStatsAsync(CancellationToken cancellationToken = default);
 }

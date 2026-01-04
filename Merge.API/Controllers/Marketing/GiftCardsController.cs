@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.DTOs.Marketing;
+using Merge.Application.Common;
 using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Marketing;
@@ -18,19 +19,24 @@ public class GiftCardsController : BaseController
             }
 
     /// <summary>
-    /// Kullanıcının hediye kartlarını getirir
+    /// Kullanıcının hediye kartlarını getirir (pagination ile)
     /// </summary>
     [HttpGet]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
-    [ProducesResponseType(typeof(IEnumerable<GiftCardDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<GiftCardDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<ActionResult<IEnumerable<GiftCardDto>>> GetMyGiftCards(
+    public async Task<ActionResult<PagedResult<GiftCardDto>>> GetMyGiftCards(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+        if (pageSize > 100) pageSize = 100; // Max limit
+
         var userId = GetUserId();
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var giftCards = await _giftCardService.GetUserGiftCardsAsync(userId, cancellationToken);
+        var giftCards = await _giftCardService.GetUserGiftCardsAsync(userId, page, pageSize, cancellationToken);
         return Ok(giftCards);
     }
 

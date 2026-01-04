@@ -14,8 +14,10 @@ using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Order;
 using Merge.Application.DTOs.Product;
 using Merge.Application.DTOs.Seller;
+using Merge.Application.Common;
 
-
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+// ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 namespace Merge.Application.Services.Seller;
 
 public class SellerDashboardService : ISellerDashboardService
@@ -43,12 +45,13 @@ public class SellerDashboardService : ISellerDashboardService
         _logger = logger;
     }
 
-    public async Task<SellerDashboardStatsDto> GetDashboardStatsAsync(Guid sellerId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<SellerDashboardStatsDto> GetDashboardStatsAsync(Guid sellerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
         var sellerProfile = await _context.SellerProfiles
             .AsNoTracking()
-            .FirstOrDefaultAsync(sp => sp.UserId == sellerId);
+            .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
 
         if (sellerProfile == null)
         {
@@ -62,82 +65,119 @@ public class SellerDashboardService : ISellerDashboardService
         {
             TotalProducts = await _context.Products
                 .AsNoTracking()
-                .CountAsync(p => p.SellerId == sellerId),
+                .CountAsync(p => p.SellerId == sellerId, cancellationToken),
             ActiveProducts = await _context.Products
                 .AsNoTracking()
-                .CountAsync(p => p.SellerId == sellerId && p.IsActive),
+                .CountAsync(p => p.SellerId == sellerId && p.IsActive, cancellationToken),
             TotalOrders = await _context.Orders
                 .AsNoTracking()
-                .CountAsync(o => o.OrderItems.Any(oi => oi.Product.SellerId == sellerId)),
+                .CountAsync(o => o.OrderItems.Any(oi => oi.Product.SellerId == sellerId), cancellationToken),
             PendingOrders = await _context.Orders
                 .AsNoTracking()
                 .CountAsync(o => o.Status == OrderStatus.Pending &&
-                           o.OrderItems.Any(oi => oi.Product.SellerId == sellerId)),
+                           o.OrderItems.Any(oi => oi.Product.SellerId == sellerId), cancellationToken),
             TotalRevenue = await _context.Orders
                 .AsNoTracking()
                 .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                       o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
                 .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId))
-                .SumAsync(oi => oi.TotalPrice),
+                .SumAsync(oi => oi.TotalPrice, cancellationToken),
             PendingBalance = sellerProfile.PendingBalance,
             AvailableBalance = sellerProfile.AvailableBalance,
             AverageRating = sellerProfile.AverageRating,
             TotalReviews = await _context.Reviews
                 .AsNoTracking()
                 .CountAsync(r => r.IsApproved &&
-                           r.Product.SellerId == sellerId),
+                           r.Product.SellerId == sellerId, cancellationToken),
             TodayOrders = await _context.Orders
                 .AsNoTracking()
                 .CountAsync(o => o.CreatedAt.Date == today &&
-                           o.OrderItems.Any(oi => oi.Product.SellerId == sellerId)),
+                           o.OrderItems.Any(oi => oi.Product.SellerId == sellerId), cancellationToken),
             TodayRevenue = await _context.Orders
                 .AsNoTracking()
                 .Where(o => o.PaymentStatus == PaymentStatus.Completed && o.CreatedAt.Date == today &&
                       o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
                 .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId))
-                .SumAsync(oi => oi.TotalPrice),
+                .SumAsync(oi => oi.TotalPrice, cancellationToken),
             LowStockProducts = await _context.Products
                 .AsNoTracking()
                 .CountAsync(p => p.SellerId == sellerId && 
-                           p.StockQuantity <= 10 && p.IsActive)
+                           p.StockQuantity <= 10 && p.IsActive, cancellationToken)
         };
 
         return stats;
     }
 
-    public async Task<IEnumerable<OrderDto>> GetSellerOrdersAsync(Guid sellerId, int page = 1, int pageSize = 20)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<OrderDto>> GetSellerOrdersAsync(Guid sellerId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
-        var orders = await _context.Orders
+        IQueryable<OrderEntity> query = _context.Orders
             .AsNoTracking()
             .Include(o => o.User)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
-            .Where(o => o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
+            .Where(o => o.OrderItems.Any(oi => oi.Product.SellerId == sellerId));
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var orders = await query
             .OrderByDescending(o => o.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
-        return _mapper.Map<IEnumerable<OrderDto>>(orders);
+        var orderDtos = _mapper.Map<IEnumerable<OrderDto>>(orders).ToList();
+
+        return new PagedResult<OrderDto>
+        {
+            Items = orderDtos,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<IEnumerable<ProductDto>> GetSellerProductsAsync(Guid sellerId, int page = 1, int pageSize = 20)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    public async Task<PagedResult<ProductDto>> GetSellerProductsAsync(Guid sellerId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var products = await _context.Products
+        IQueryable<ProductEntity> query = _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
-            .Where(p => p.SellerId == sellerId)
+            .Where(p => p.SellerId == sellerId);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var products = await query
             .OrderByDescending(p => p.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
-        return _mapper.Map<IEnumerable<ProductDto>>(products);
+        var productDtos = _mapper.Map<IEnumerable<ProductDto>>(products).ToList();
+
+        return new PagedResult<ProductDto>
+        {
+            Items = productDtos,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<SellerPerformanceDto> GetPerformanceMetricsAsync(Guid sellerId, DateTime? startDate = null, DateTime? endDate = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<SellerPerformanceDto> GetPerformanceMetricsAsync(Guid sellerId, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
         startDate ??= DateTime.UtcNow.AddDays(-30);
         endDate ??= DateTime.UtcNow;
@@ -149,14 +189,14 @@ public class SellerDashboardService : ISellerDashboardService
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
             .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId))
-            .SumAsync(oi => oi.TotalPrice);
+            .SumAsync(oi => oi.TotalPrice, cancellationToken);
 
         var totalOrders = await _context.Orders
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         var averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
 
@@ -176,7 +216,7 @@ public class SellerDashboardService : ISellerDashboardService
                 OrderCount = g.Count()
             })
             .OrderBy(s => s.Date)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // Top products
@@ -196,12 +236,12 @@ public class SellerDashboardService : ISellerDashboardService
             })
             .OrderByDescending(p => p.Revenue)
             .Take(10)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
         var sellerProfile = await _context.SellerProfiles
             .AsNoTracking()
-            .FirstOrDefaultAsync(sp => sp.UserId == sellerId);
+            .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de distinct count yap (memory'de işlem YASAK)
         var uniqueCustomers = await _context.Orders
@@ -211,7 +251,7 @@ public class SellerDashboardService : ISellerDashboardService
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
             .Select(o => o.UserId)
             .Distinct()
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         return new SellerPerformanceDto
         {
@@ -226,7 +266,8 @@ public class SellerDashboardService : ISellerDashboardService
         };
     }
 
-    public async Task<SellerPerformanceMetricsDto> GetDetailedPerformanceMetricsAsync(Guid sellerId, DateTime startDate, DateTime endDate)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<SellerPerformanceMetricsDto> GetDetailedPerformanceMetricsAsync(Guid sellerId, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
     {
         var periodDays = (endDate - startDate).Days;
         var previousStartDate = startDate.AddDays(-periodDays);
@@ -240,7 +281,7 @@ public class SellerDashboardService : ISellerDashboardService
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
             .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId))
-            .SumAsync(oi => oi.TotalPrice);
+            .SumAsync(oi => oi.TotalPrice, cancellationToken);
 
         var previousSales = await _context.Orders
             .AsNoTracking()
@@ -248,7 +289,7 @@ public class SellerDashboardService : ISellerDashboardService
                   o.CreatedAt >= previousStartDate && o.CreatedAt < previousEndDate &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
             .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == sellerId))
-            .SumAsync(oi => oi.TotalPrice);
+            .SumAsync(oi => oi.TotalPrice, cancellationToken);
 
         var salesGrowth = previousSales > 0 ? ((totalSales - previousSales) / previousSales) * 100 : 0;
 
@@ -257,14 +298,14 @@ public class SellerDashboardService : ISellerDashboardService
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         var previousOrdersCount = await _context.Orders
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= previousStartDate && o.CreatedAt < previousEndDate &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         var orderGrowth = previousOrdersCount > 0 ? ((decimal)(totalOrders - previousOrdersCount) / previousOrdersCount) * 100 : 0;
 
@@ -280,7 +321,7 @@ public class SellerDashboardService : ISellerDashboardService
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
             .Select(o => o.UserId)
             .Distinct()
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var previousCustomerIds = await _context.Orders
             .AsNoTracking()
@@ -289,7 +330,7 @@ public class SellerDashboardService : ISellerDashboardService
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId))
             .Select(o => o.UserId)
             .Distinct()
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de count yap (memory'de işlem YASAK)
         var totalCustomers = currentCustomerIds.Count;
@@ -305,32 +346,32 @@ public class SellerDashboardService : ISellerDashboardService
         // Product metrics
         var totalProducts = await _context.Products
             .AsNoTracking()
-            .CountAsync(p => p.SellerId == sellerId);
+            .CountAsync(p => p.SellerId == sellerId, cancellationToken);
 
         var activeProducts = await _context.Products
             .AsNoTracking()
-            .CountAsync(p => p.SellerId == sellerId && p.IsActive);
+            .CountAsync(p => p.SellerId == sellerId && p.IsActive, cancellationToken);
 
         var lowStockProducts = await _context.Products
             .AsNoTracking()
-            .CountAsync(p => p.SellerId == sellerId && p.IsActive && p.StockQuantity <= 10);
+            .CountAsync(p => p.SellerId == sellerId && p.IsActive && p.StockQuantity <= 10, cancellationToken);
 
         var outOfStockProducts = await _context.Products
             .AsNoTracking()
-            .CountAsync(p => p.SellerId == sellerId && p.IsActive && p.StockQuantity == 0);
+            .CountAsync(p => p.SellerId == sellerId && p.IsActive && p.StockQuantity == 0, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de count ve average yap (memory'de işlem YASAK)
         var totalReviews = await _context.Reviews
             .AsNoTracking()
             .Include(r => r.Product)
             .Where(r => r.IsApproved && r.Product.SellerId == sellerId)
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         var averageProductRating = await _context.Reviews
             .AsNoTracking()
             .Include(r => r.Product)
             .Where(r => r.IsApproved && r.Product.SellerId == sellerId)
-            .AverageAsync(r => (double?)r.Rating) ?? 0;
+            .AverageAsync(r => (double?)r.Rating, cancellationToken) ?? 0;
 
         // ✅ PERFORMANCE: Database'de average yap (memory'de işlem YASAK)
         // Fulfillment metrics - Note: Bu karmaşık hesaplamalar için bazı order'ları yüklemek gerekebilir
@@ -342,7 +383,7 @@ public class SellerDashboardService : ISellerDashboardService
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId) &&
                   o.Shipping != null && o.Shipping.Status == ShippingStatus.Shipped && o.ShippedDate.HasValue)
-            .AverageAsync(o => (double?)(o.Shipping!.CreatedAt - o.CreatedAt).TotalHours);
+            .AverageAsync(o => (double?)(o.Shipping!.CreatedAt - o.CreatedAt).TotalHours, cancellationToken);
         var averageFulfillmentTime = averageFulfillmentTimeResult ?? 0;
 
         var averageShippingTime = await _context.Orders
@@ -352,7 +393,7 @@ public class SellerDashboardService : ISellerDashboardService
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId) &&
                   o.Shipping != null && o.Shipping.Status == ShippingStatus.Shipped && o.DeliveredDate.HasValue)
-            .AverageAsync(o => (double?)(o.DeliveredDate!.Value - (o.ShippedDate ?? o.CreatedAt)).TotalHours) ?? 0;
+            .AverageAsync(o => (double?)(o.DeliveredDate!.Value - (o.ShippedDate ?? o.CreatedAt)).TotalHours, cancellationToken) ?? 0;
 
         // ✅ PERFORMANCE: Database'de count ve sum yap (memory'de işlem YASAK)
         // Return & Refund metrics
@@ -360,7 +401,7 @@ public class SellerDashboardService : ISellerDashboardService
             .AsNoTracking()
             .Where(r => r.Order.OrderItems.Any(oi => oi.Product.SellerId == sellerId) &&
                   r.CreatedAt >= startDate && r.CreatedAt <= endDate)
-            .CountAsync();
+            .CountAsync(cancellationToken);
 
         var returnRate = totalOrders > 0 ? (decimal)totalReturns / totalOrders * 100 : 0;
 
@@ -369,7 +410,7 @@ public class SellerDashboardService : ISellerDashboardService
             .Where(r => r.Order.OrderItems.Any(oi => oi.Product.SellerId == sellerId) &&
                   r.CreatedAt >= startDate && r.CreatedAt <= endDate &&
                   r.Status == ReturnRequestStatus.Approved)
-            .SumAsync(r => r.RefundAmount);
+            .SumAsync(r => r.RefundAmount, cancellationToken);
 
         var refundRate = totalSales > 0 ? (totalRefunds / totalSales) * 100 : 0;
 
@@ -384,13 +425,13 @@ public class SellerDashboardService : ISellerDashboardService
                   activity => activity.EntityId,
                   product => product.Id,
                   (activity, product) => activity)
-            .CountAsync();
+            .CountAsync(cancellationToken);
         var addToCarts = await _context.CartItems
             .AsNoTracking()
             .Include(ci => ci.Product)
             .Where(ci => ci.Product.SellerId == sellerId &&
                   ci.CreatedAt >= startDate && ci.CreatedAt <= endDate)
-            .CountAsync();
+            .CountAsync(cancellationToken);
         var conversionRate = productViews > 0 ? (decimal)totalOrders / productViews * 100 : 0;
         var cartAbandonmentRate = addToCarts > 0 ? ((decimal)(addToCarts - totalOrders) / addToCarts) * 100 : 0;
 
@@ -413,7 +454,7 @@ public class SellerDashboardService : ISellerDashboardService
                 AverageRating = 0 // Would need to calculate from reviews
             })
             .OrderByDescending(c => c.Revenue)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Sales trends
@@ -435,7 +476,7 @@ public class SellerDashboardService : ISellerDashboardService
                     : 0
             })
             .OrderBy(t => t.Date)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Order trends
@@ -453,7 +494,7 @@ public class SellerDashboardService : ISellerDashboardService
                 CancelledOrders = g.Count(o => o.Status == OrderStatus.Cancelled)
             })
             .OrderBy(t => t.Date)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // Top/Worst products
@@ -473,7 +514,7 @@ public class SellerDashboardService : ISellerDashboardService
             })
             .OrderByDescending(p => p.Revenue)
             .Take(10)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var worstProducts = await _context.OrderItems
             .AsNoTracking()
@@ -491,7 +532,7 @@ public class SellerDashboardService : ISellerDashboardService
             })
             .OrderBy(p => p.Revenue)
             .Take(10)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return new SellerPerformanceMetricsDto
         {
@@ -536,7 +577,8 @@ public class SellerDashboardService : ISellerDashboardService
         };
     }
 
-    public async Task<List<CategoryPerformanceDto>> GetCategoryPerformanceAsync(Guid sellerId, DateTime? startDate = null, DateTime? endDate = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<List<CategoryPerformanceDto>> GetCategoryPerformanceAsync(Guid sellerId, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
         startDate ??= DateTime.UtcNow.AddDays(-30);
         endDate ??= DateTime.UtcNow;
@@ -559,7 +601,7 @@ public class SellerDashboardService : ISellerDashboardService
                 AverageRating = 0
             })
             .OrderByDescending(c => c.Revenue)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 }
 

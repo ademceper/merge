@@ -43,22 +43,25 @@ public class ProductBundleService : IProductBundleService
         _logger = logger;
     }
 
-    public async Task<ProductBundleDto?> GetByIdAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ProductBundleDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries, removed !b.IsDeleted (Global Query Filter)
         var bundle = await _context.ProductBundles
             .AsNoTracking()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
-            .FirstOrDefaultAsync(b => b.Id == id);
+            .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
 
         if (bundle == null) return null;
 
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Retrieved product bundle. BundleId: {BundleId}", id);
         return MapToDto(bundle);
     }
 
-    public async Task<IEnumerable<ProductBundleDto>> GetAllAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<ProductBundleDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries, removed !b.IsDeleted (Global Query Filter)
         var bundles = await _context.ProductBundles
@@ -66,13 +69,15 @@ public class ProductBundleService : IProductBundleService
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
             .OrderByDescending(b => b.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Retrieved all product bundles. Count: {Count}", bundles.Count);
         return bundles.Select(b => MapToDto(b));
     }
 
-    public async Task<IEnumerable<ProductBundleDto>> GetActiveBundlesAsync()
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<ProductBundleDto>> GetActiveBundlesAsync(CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
         // ✅ PERFORMANCE: AsNoTracking for read-only queries, removed !b.IsDeleted (Global Query Filter)
@@ -84,25 +89,33 @@ public class ProductBundleService : IProductBundleService
                   (!b.StartDate.HasValue || b.StartDate.Value <= now) &&
                   (!b.EndDate.HasValue || b.EndDate.Value >= now))
             .OrderByDescending(b => b.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Retrieved active product bundles. Count: {Count}", bundles.Count);
         return bundles.Select(b => MapToDto(b));
     }
 
-    public async Task<ProductBundleDto> CreateAsync(CreateProductBundleDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    public async Task<ProductBundleDto> CreateAsync(CreateProductBundleDto dto, CancellationToken cancellationToken = default)
     {
         if (!dto.Products.Any())
         {
             throw new ValidationException("Paket en az bir ürün içermelidir.");
         }
 
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Product bundle oluşturuluyor. Name: {Name}, ProductCount: {ProductCount}",
+            dto.Name, dto.Products.Count);
+
         // ✅ PERFORMANCE: Fetch all products in a single query to avoid N+1
         var productIds = dto.Products.Select(p => p.ProductId).ToList();
         var products = await _context.Products
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id) && p.IsActive)
-            .ToDictionaryAsync(p => p.Id);
+            .ToDictionaryAsync(p => p.Id, cancellationToken);
 
         // Validate all products exist
         foreach (var productDto in dto.Products)
@@ -147,20 +160,24 @@ public class ProductBundleService : IProductBundleService
             await _bundleItemRepository.AddAsync(bundleItem);
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
         bundle = await _context.ProductBundles
             .AsNoTracking()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
-            .FirstOrDefaultAsync(b => b.Id == bundle.Id);
+            .FirstOrDefaultAsync(b => b.Id == bundle.Id, cancellationToken);
 
-        _logger.LogInformation("Created product bundle. BundleId: {BundleId}, Name: {Name}", bundle.Id, bundle.Name);
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Product bundle oluşturuldu. BundleId: {BundleId}, Name: {Name}, BundlePrice: {BundlePrice}",
+            bundle!.Id, bundle.Name, bundle.BundlePrice);
         return MapToDto(bundle);
     }
 
-    public async Task<ProductBundleDto> UpdateAsync(Guid id, UpdateProductBundleDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ProductBundleDto> UpdateAsync(Guid id, UpdateProductBundleDto dto, CancellationToken cancellationToken = default)
     {
         var bundle = await _bundleRepository.GetByIdAsync(id);
         if (bundle == null)
@@ -183,20 +200,22 @@ public class ProductBundleService : IProductBundleService
         }
 
         await _bundleRepository.UpdateAsync(bundle);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
         bundle = await _context.ProductBundles
             .AsNoTracking()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
-            .FirstOrDefaultAsync(b => b.Id == id);
+            .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
 
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Updated product bundle. BundleId: {BundleId}", id);
         return MapToDto(bundle);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var bundle = await _bundleRepository.GetByIdAsync(id);
         if (bundle == null)
@@ -205,13 +224,15 @@ public class ProductBundleService : IProductBundleService
         }
 
         await _bundleRepository.DeleteAsync(bundle);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Deleted product bundle. BundleId: {BundleId}", id);
         return true;
     }
 
-    public async Task<bool> AddProductToBundleAsync(Guid bundleId, AddProductToBundleDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> AddProductToBundleAsync(Guid bundleId, AddProductToBundleDto dto, CancellationToken cancellationToken = default)
     {
         var bundle = await _bundleRepository.GetByIdAsync(bundleId);
         if (bundle == null)
@@ -229,7 +250,7 @@ public class ProductBundleService : IProductBundleService
         var existing = await _context.BundleItems
             .AsNoTracking()
             .FirstOrDefaultAsync(bi => bi.BundleId == bundleId &&
-                                 bi.ProductId == dto.ProductId);
+                                 bi.ProductId == dto.ProductId, cancellationToken);
 
         if (existing != null)
         {
@@ -251,23 +272,25 @@ public class ProductBundleService : IProductBundleService
             .AsNoTracking()
             .Include(bi => bi.Product)
             .Where(bi => bi.BundleId == bundleId)
-            .SumAsync(item => (item.Product.DiscountPrice ?? item.Product.Price) * item.Quantity);
+            .SumAsync(item => (item.Product.DiscountPrice ?? item.Product.Price) * item.Quantity, cancellationToken);
 
         bundle.OriginalTotalPrice = newTotal;
         bundle.DiscountPercentage = ((newTotal - bundle.BundlePrice) / newTotal) * 100;
         await _bundleRepository.UpdateAsync(bundle);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Added product to bundle. BundleId: {BundleId}, ProductId: {ProductId}", bundleId, dto.ProductId);
         return true;
     }
 
-    public async Task<bool> RemoveProductFromBundleAsync(Guid bundleId, Guid productId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<bool> RemoveProductFromBundleAsync(Guid bundleId, Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed !bi.IsDeleted (Global Query Filter)
         var bundleItem = await _context.BundleItems
             .FirstOrDefaultAsync(bi => bi.BundleId == bundleId &&
-                                 bi.ProductId == productId);
+                                 bi.ProductId == productId, cancellationToken);
 
         if (bundleItem == null)
         {
@@ -285,7 +308,7 @@ public class ProductBundleService : IProductBundleService
                 .AsNoTracking()
                 .Include(bi => bi.Product)
                 .Where(bi => bi.BundleId == bundleId)
-                .SumAsync(item => (item.Product.DiscountPrice ?? item.Product.Price) * item.Quantity);
+                .SumAsync(item => (item.Product.DiscountPrice ?? item.Product.Price) * item.Quantity, cancellationToken);
 
             bundle.OriginalTotalPrice = newTotal;
             if (newTotal > 0)
@@ -295,8 +318,9 @@ public class ProductBundleService : IProductBundleService
             await _bundleRepository.UpdateAsync(bundle);
         }
 
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Removed product from bundle. BundleId: {BundleId}, ProductId: {ProductId}", bundleId, productId);
         return true;
     }

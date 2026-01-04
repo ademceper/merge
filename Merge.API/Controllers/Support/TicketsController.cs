@@ -6,6 +6,9 @@ using Merge.Application.DTOs.Support;
 using Merge.Application.Common;
 using Merge.API.Middleware;
 
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+// ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+// ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
 namespace Merge.API.Controllers.Support;
 
 [ApiController]
@@ -19,12 +22,21 @@ public class SupportTicketsController : BaseController
         _supportTicketService = supportTicketService;
     }
 
-    // ✅ SECURITY: Rate limiting - 10 destek talebi / saat (spam koruması) - .cursorrules BOLUM 3.3
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU) - 10 destek talebi / saat (spam koruması)
     [HttpPost]
     [Authorize]
     [RateLimit(10, 3600)]
-    public async Task<ActionResult<SupportTicketDto>> CreateTicket([FromBody] CreateSupportTicketDto dto)
+    [ProducesResponseType(typeof(SupportTicketDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<SupportTicketDto>> CreateTicket(
+        [FromBody] CreateSupportTicketDto dto,
+        CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
@@ -33,18 +45,31 @@ public class SupportTicketsController : BaseController
             return Unauthorized();
         }
 
-        var ticket = await _supportTicketService.CreateTicketAsync(userId, dto);
+        var ticket = await _supportTicketService.CreateTicketAsync(userId, dto, cancellationToken);
         return CreatedAtAction(nameof(GetTicket), new { id = ticket.Id }, ticket);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.2: IDOR koruması (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpGet("{id}")]
     [Authorize]
-    public async Task<ActionResult<SupportTicketDto>> GetTicket(Guid id)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
+    [ProducesResponseType(typeof(SupportTicketDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<SupportTicketDto>> GetTicket(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        // ✅ BOLUM 3.2: IDOR koruması
         var isAdmin = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
         var userId = !isAdmin ? GetUserIdOrNull() : null;
 
-        var ticket = await _supportTicketService.GetTicketAsync(id, userId);
+        var ticket = await _supportTicketService.GetTicketAsync(id, userId, cancellationToken);
         if (ticket == null)
         {
             return NotFound();
@@ -53,14 +78,27 @@ public class SupportTicketsController : BaseController
         return Ok(ticket);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.2: IDOR koruması (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpGet("number/{ticketNumber}")]
     [Authorize]
-    public async Task<ActionResult<SupportTicketDto>> GetTicketByNumber(string ticketNumber)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
+    [ProducesResponseType(typeof(SupportTicketDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<SupportTicketDto>> GetTicketByNumber(
+        string ticketNumber,
+        CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        // ✅ BOLUM 3.2: IDOR koruması
         var isAdmin = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
         var userId = !isAdmin ? GetUserIdOrNull() : null;
 
-        var ticket = await _supportTicketService.GetTicketByNumberAsync(ticketNumber, userId);
+        var ticket = await _supportTicketService.GetTicketByNumberAsync(ticketNumber, userId, cancellationToken);
         if (ticket == null)
         {
             return NotFound();
@@ -69,17 +107,25 @@ public class SupportTicketsController : BaseController
         return Ok(ticket);
     }
 
-    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     [HttpGet("my-tickets")]
     [Authorize]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
     [ProducesResponseType(typeof(PagedResult<SupportTicketDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PagedResult<SupportTicketDto>>> GetMyTickets(
         [FromQuery] string? status = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         if (pageSize > 100) pageSize = 100; // Max limit
         if (page < 1) page = 1;
         
@@ -92,27 +138,56 @@ public class SupportTicketsController : BaseController
         return Ok(tickets);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     [HttpGet]
     [Authorize(Roles = "Admin,Manager,Support")]
-    public async Task<ActionResult<IEnumerable<SupportTicketDto>>> GetAllTickets(
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
+    [ProducesResponseType(typeof(PagedResult<SupportTicketDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PagedResult<SupportTicketDto>>> GetAllTickets(
         [FromQuery] string? status = null,
         [FromQuery] string? category = null,
         [FromQuery] Guid? assignedToId = null,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var tickets = await _supportTicketService.GetAllTicketsAsync(status, category, assignedToId, page, pageSize);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
+        var tickets = await _supportTicketService.GetAllTicketsAsync(status, category, assignedToId, page, pageSize, cancellationToken);
         return Ok(tickets);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,Manager,Support")]
-    public async Task<IActionResult> UpdateTicket(Guid id, [FromBody] UpdateSupportTicketDto dto)
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> UpdateTicket(
+        Guid id,
+        [FromBody] UpdateSupportTicketDto dto,
+        CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var success = await _supportTicketService.UpdateTicketAsync(id, dto);
+        var success = await _supportTicketService.UpdateTicketAsync(id, dto, cancellationToken);
 
         if (!success)
         {
@@ -122,14 +197,28 @@ public class SupportTicketsController : BaseController
         return NoContent();
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpPost("{id}/assign")]
     [Authorize(Roles = "Admin,Manager,Support")]
-    public async Task<IActionResult> AssignTicket(Guid id, [FromBody] AssignTicketDto dto)
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> AssignTicket(
+        Guid id,
+        [FromBody] AssignTicketDto dto,
+        CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var success = await _supportTicketService.AssignTicketAsync(id, dto.AssignedToId);
+        var success = await _supportTicketService.AssignTicketAsync(id, dto.AssignedToId, cancellationToken);
 
         if (!success)
         {
@@ -139,11 +228,23 @@ public class SupportTicketsController : BaseController
         return NoContent();
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpPost("{id}/close")]
     [Authorize(Roles = "Admin,Manager,Support")]
-    public async Task<IActionResult> CloseTicket(Guid id)
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> CloseTicket(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
-        var success = await _supportTicketService.CloseTicketAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var success = await _supportTicketService.CloseTicketAsync(id, cancellationToken);
 
         if (!success)
         {
@@ -153,11 +254,22 @@ public class SupportTicketsController : BaseController
         return NoContent();
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpPost("{id}/reopen")]
     [Authorize]
-    public async Task<IActionResult> ReopenTicket(Guid id)
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> ReopenTicket(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
-        var success = await _supportTicketService.ReopenTicketAsync(id);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var success = await _supportTicketService.ReopenTicketAsync(id, cancellationToken);
 
         if (!success)
         {
@@ -167,10 +279,21 @@ public class SupportTicketsController : BaseController
         return NoContent();
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpPost("messages")]
     [Authorize]
-    public async Task<ActionResult<TicketMessageDto>> AddMessage([FromBody] CreateTicketMessageDto dto)
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika (spam koruması)
+    [ProducesResponseType(typeof(TicketMessageDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<TicketMessageDto>> AddMessage(
+        [FromBody] CreateTicketMessageDto dto,
+        CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
@@ -180,95 +303,176 @@ public class SupportTicketsController : BaseController
         }
 
         var isStaffResponse = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
-        var message = await _supportTicketService.AddMessageAsync(userId, dto, isStaffResponse);
+        var message = await _supportTicketService.AddMessageAsync(userId, dto, isStaffResponse, cancellationToken);
 
         return CreatedAtAction(nameof(GetTicketMessages), new { id = dto.TicketId }, message);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpGet("{id}/messages")]
     [Authorize]
-    public async Task<ActionResult<IEnumerable<TicketMessageDto>>> GetTicketMessages(Guid id)
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
+    [ProducesResponseType(typeof(IEnumerable<TicketMessageDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<IEnumerable<TicketMessageDto>>> GetTicketMessages(
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var isStaff = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
-        var messages = await _supportTicketService.GetTicketMessagesAsync(id, isStaff);
+        var messages = await _supportTicketService.GetTicketMessagesAsync(id, isStaff, cancellationToken);
 
         return Ok(messages);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpGet("stats")]
     [Authorize(Roles = "Admin,Manager,Support")]
-    public async Task<ActionResult<TicketStatsDto>> GetTicketStats()
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
+    [ProducesResponseType(typeof(TicketStatsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<TicketStatsDto>> GetTicketStats(
+        CancellationToken cancellationToken = default)
     {
-        var stats = await _supportTicketService.GetTicketStatsAsync();
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var stats = await _supportTicketService.GetTicketStatsAsync(cancellationToken);
         return Ok(stats);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpGet("unassigned")]
     [Authorize(Roles = "Admin,Manager,Support")]
-    public async Task<ActionResult<IEnumerable<SupportTicketDto>>> GetUnassignedTickets()
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
+    [ProducesResponseType(typeof(IEnumerable<SupportTicketDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<IEnumerable<SupportTicketDto>>> GetUnassignedTickets(
+        CancellationToken cancellationToken = default)
     {
-        var tickets = await _supportTicketService.GetUnassignedTicketsAsync();
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var tickets = await _supportTicketService.GetUnassignedTicketsAsync(cancellationToken);
         return Ok(tickets);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpGet("my-assigned")]
     [Authorize(Roles = "Admin,Manager,Support")]
-    public async Task<ActionResult<IEnumerable<SupportTicketDto>>> GetMyAssignedTickets()
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
+    [ProducesResponseType(typeof(IEnumerable<SupportTicketDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<IEnumerable<SupportTicketDto>>> GetMyAssignedTickets(
+        CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        var tickets = await _supportTicketService.GetMyAssignedTicketsAsync(userId);
+        var tickets = await _supportTicketService.GetMyAssignedTicketsAsync(userId, cancellationToken);
         return Ok(tickets);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpGet("agent/dashboard")]
     [Authorize(Roles = "Admin,Manager,Support")]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
+    [ProducesResponseType(typeof(SupportAgentDashboardDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<SupportAgentDashboardDto>> GetAgentDashboard(
         [FromQuery] DateTime? startDate = null,
-        [FromQuery] DateTime? endDate = null)
+        [FromQuery] DateTime? endDate = null,
+        CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         if (!TryGetUserId(out var agentId))
         {
             return Unauthorized();
         }
 
-        var dashboard = await _supportTicketService.GetAgentDashboardAsync(agentId, startDate, endDate);
+        var dashboard = await _supportTicketService.GetAgentDashboardAsync(agentId, startDate, endDate, cancellationToken);
         return Ok(dashboard);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpGet("agent/categories")]
     [Authorize(Roles = "Admin,Manager,Support")]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
+    [ProducesResponseType(typeof(List<CategoryTicketCountDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<List<CategoryTicketCountDto>>> GetTicketsByCategory(
         [FromQuery] Guid? agentId = null,
         [FromQuery] DateTime? startDate = null,
-        [FromQuery] DateTime? endDate = null)
+        [FromQuery] DateTime? endDate = null,
+        CancellationToken cancellationToken = default)
     {
-        var categories = await _supportTicketService.GetTicketsByCategoryAsync(agentId, startDate, endDate);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var categories = await _supportTicketService.GetTicketsByCategoryAsync(agentId, startDate, endDate, cancellationToken);
         return Ok(categories);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpGet("agent/priorities")]
     [Authorize(Roles = "Admin,Manager,Support")]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
+    [ProducesResponseType(typeof(List<PriorityTicketCountDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<List<PriorityTicketCountDto>>> GetTicketsByPriority(
         [FromQuery] Guid? agentId = null,
         [FromQuery] DateTime? startDate = null,
-        [FromQuery] DateTime? endDate = null)
+        [FromQuery] DateTime? endDate = null,
+        CancellationToken cancellationToken = default)
     {
-        var priorities = await _supportTicketService.GetTicketsByPriorityAsync(agentId, startDate, endDate);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var priorities = await _supportTicketService.GetTicketsByPriorityAsync(agentId, startDate, endDate, cancellationToken);
         return Ok(priorities);
     }
 
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+    // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpGet("agent/trends")]
     [Authorize(Roles = "Admin,Manager,Support")]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
+    [ProducesResponseType(typeof(List<TicketTrendDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<List<TicketTrendDto>>> GetTicketTrends(
         [FromQuery] Guid? agentId = null,
         [FromQuery] DateTime? startDate = null,
-        [FromQuery] DateTime? endDate = null)
+        [FromQuery] DateTime? endDate = null,
+        CancellationToken cancellationToken = default)
     {
-        var trends = await _supportTicketService.GetTicketTrendsAsync(agentId, startDate, endDate);
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var trends = await _supportTicketService.GetTicketTrendsAsync(agentId, startDate, endDate, cancellationToken);
         return Ok(trends);
     }
 }

@@ -1,4 +1,8 @@
 using Merge.Application.DTOs.Subscription;
+using Merge.Application.Common;
+
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+// ✅ BOLUM 3.4: Pagination (ZORUNLU)
 namespace Merge.Application.Interfaces.Subscription;
 
 public interface ISubscriptionService
@@ -15,8 +19,8 @@ public interface ISubscriptionService
     Task<UserSubscriptionDto> CreateUserSubscriptionAsync(Guid userId, CreateUserSubscriptionDto dto, CancellationToken cancellationToken = default);
     Task<UserSubscriptionDto?> GetUserSubscriptionByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<UserSubscriptionDto?> GetUserActiveSubscriptionAsync(Guid userId, CancellationToken cancellationToken = default);
-    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
-    Task<IEnumerable<UserSubscriptionDto>> GetUserSubscriptionsAsync(Guid userId, string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+    Task<PagedResult<UserSubscriptionDto>> GetUserSubscriptionsAsync(Guid userId, string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
     Task<bool> UpdateUserSubscriptionAsync(Guid id, UpdateUserSubscriptionDto dto, CancellationToken cancellationToken = default);
     Task<bool> CancelUserSubscriptionAsync(Guid id, string? reason = null, CancellationToken cancellationToken = default);
     Task<bool> RenewSubscriptionAsync(Guid id, CancellationToken cancellationToken = default);
@@ -33,8 +37,8 @@ public interface ISubscriptionService
     // Subscription Usage
     Task<SubscriptionUsageDto> TrackUsageAsync(Guid userSubscriptionId, string feature, int count = 1, CancellationToken cancellationToken = default);
     Task<SubscriptionUsageDto?> GetUsageAsync(Guid userSubscriptionId, string feature, CancellationToken cancellationToken = default);
-    // ✅ PERFORMANCE: Pagination eklendi - unbounded query önleme
-    Task<IEnumerable<SubscriptionUsageDto>> GetAllUsageAsync(Guid userSubscriptionId, int page = 1, int pageSize = 50, CancellationToken cancellationToken = default);
+    // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+    Task<PagedResult<SubscriptionUsageDto>> GetAllUsageAsync(Guid userSubscriptionId, int page = 1, int pageSize = 50, CancellationToken cancellationToken = default);
     Task<bool> CheckUsageLimitAsync(Guid userSubscriptionId, string feature, int requestedCount = 1, CancellationToken cancellationToken = default);
     
     // Analytics

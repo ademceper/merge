@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.DTOs.Marketing;
+using Merge.Application.Common;
 using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Marketing;
@@ -47,15 +48,17 @@ public class LoyaltyController : BaseController
     }
 
     /// <summary>
-    /// Kullanıcının sadakat işlemlerini getirir
+    /// Kullanıcının sadakat işlemlerini getirir (pagination ile)
     /// </summary>
     [HttpGet("transactions")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
-    [ProducesResponseType(typeof(IEnumerable<LoyaltyTransactionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<LoyaltyTransactionDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<ActionResult<IEnumerable<LoyaltyTransactionDto>>> GetTransactions(
+    public async Task<ActionResult<PagedResult<LoyaltyTransactionDto>>> GetTransactions(
         [FromQuery] int days = 30,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
         if (!TryGetUserId(out var userId))
@@ -66,8 +69,11 @@ public class LoyaltyController : BaseController
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         if (days > 365) days = 365; // Max 1 yıl
 
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+        if (pageSize > 100) pageSize = 100; // Max limit
+
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var transactions = await _loyaltyService.GetTransactionsAsync(userId, days, cancellationToken);
+        var transactions = await _loyaltyService.GetTransactionsAsync(userId, days, page, pageSize, cancellationToken);
         return Ok(transactions);
     }
 

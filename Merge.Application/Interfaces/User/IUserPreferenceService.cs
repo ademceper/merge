@@ -1,10 +1,12 @@
 using Merge.Application.DTOs.User;
 
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.User;
 
 public interface IUserPreferenceService
 {
-    Task<UserPreferenceDto> GetUserPreferencesAsync(Guid userId);
-    Task<UserPreferenceDto> UpdateUserPreferencesAsync(Guid userId, UpdateUserPreferenceDto dto);
-    Task<UserPreferenceDto> ResetToDefaultsAsync(Guid userId);
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    Task<UserPreferenceDto> GetUserPreferencesAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<UserPreferenceDto> UpdateUserPreferencesAsync(Guid userId, UpdateUserPreferenceDto dto, CancellationToken cancellationToken = default);
+    Task<UserPreferenceDto> ResetToDefaultsAsync(Guid userId, CancellationToken cancellationToken = default);
 }

@@ -92,6 +92,7 @@ public class AddressService : IAddressService
         // Eğer default olarak işaretleniyorsa, diğer adreslerin default'unu kaldır
         if (dto.IsDefault)
         {
+            // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
             var existingDefaults = await _context.Addresses
                 .Where(a => a.UserId == dto.UserId && a.IsDefault)
                 .ToListAsync(cancellationToken);
@@ -108,7 +109,7 @@ public class AddressService : IAddressService
         }
 
         var address = _mapper.Map<Address>(dto);
-        address = await _addressRepository.AddAsync(address);
+        address = await _addressRepository.AddAsync(address, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Address created successfully with ID: {AddressId}", address.Id);
@@ -136,7 +137,7 @@ public class AddressService : IAddressService
 
         _logger.LogInformation("Updating address with ID: {AddressId}", id);
 
-        var address = await _addressRepository.GetByIdAsync(id);
+        var address = await _addressRepository.GetByIdAsync(id, cancellationToken);
         if (address == null)
         {
             _logger.LogWarning("Address not found for update with ID: {AddressId}", id);
@@ -146,6 +147,7 @@ public class AddressService : IAddressService
         // Eğer default olarak işaretleniyorsa, diğer adreslerin default'unu kaldır
         if (dto.IsDefault && !address.IsDefault)
         {
+            // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
             var existingDefaults = await _context.Addresses
                 .Where(a => a.UserId == address.UserId && a.Id != id && a.IsDefault)
                 .ToListAsync(cancellationToken);
@@ -173,7 +175,7 @@ public class AddressService : IAddressService
         address.Country = dto.Country;
         address.IsDefault = dto.IsDefault;
 
-        await _addressRepository.UpdateAsync(address);
+        await _addressRepository.UpdateAsync(address, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Address updated successfully with ID: {AddressId}", id);
@@ -186,14 +188,14 @@ public class AddressService : IAddressService
     {
         _logger.LogInformation("Deleting address with ID: {AddressId}", id);
 
-        var address = await _addressRepository.GetByIdAsync(id);
+        var address = await _addressRepository.GetByIdAsync(id, cancellationToken);
         if (address == null)
         {
             _logger.LogWarning("Address not found for deletion with ID: {AddressId}", id);
             return false;
         }
 
-        await _addressRepository.DeleteAsync(address);
+        await _addressRepository.DeleteAsync(address, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Address deleted successfully with ID: {AddressId}", id);
@@ -216,6 +218,7 @@ public class AddressService : IAddressService
         }
 
         // Diğer adreslerin default'unu kaldır
+        // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         var existingDefaults = await _context.Addresses
             .Where(a => a.UserId == userId && a.Id != id && a.IsDefault)
             .ToListAsync(cancellationToken);
@@ -227,7 +230,7 @@ public class AddressService : IAddressService
 
         address.IsDefault = true;
 
-        await _addressRepository.UpdateAsync(address);
+        await _addressRepository.UpdateAsync(address, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Address {AddressId} set as default successfully. Cleared {Count} previous defaults", id, existingDefaults.Count);
