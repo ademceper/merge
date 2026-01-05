@@ -7,13 +7,12 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.ValueObjects;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Product;
 
 
@@ -22,14 +21,14 @@ namespace Merge.Application.Services.Product;
 public class BulkProductService : IBulkProductService
 {
     private readonly IRepository<ProductEntity> _productRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<BulkProductService> _logger;
 
     public BulkProductService(
         IRepository<ProductEntity> productRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<BulkProductService> logger)
@@ -249,7 +248,7 @@ public class BulkProductService : IBulkProductService
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         // Check if SKU already exists
-        var existingProduct = await _context.Products
+        var existingProduct = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.SKU == dto.SKU, cancellationToken);
 
@@ -260,7 +259,7 @@ public class BulkProductService : IBulkProductService
 
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         // Find category by name
-        var category = await _context.Categories
+        var category = await _context.Set<Category>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Name == dto.CategoryName, cancellationToken);
 
@@ -311,7 +310,7 @@ public class BulkProductService : IBulkProductService
     private async Task<List<ProductEntity>> GetProductsForExportAsync(BulkProductExportDto exportDto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        IQueryable<ProductEntity> query = _context.Products
+        IQueryable<ProductEntity> query = _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category);
 

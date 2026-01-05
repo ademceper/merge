@@ -4,12 +4,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Content;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Content;
@@ -20,7 +19,7 @@ namespace Merge.Application.Services.Content;
 
 public class BlogService : IBlogService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<BlogService> _logger;
@@ -28,7 +27,7 @@ public class BlogService : IBlogService
 
     // ✅ BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
     public BlogService(
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<BlogService> logger,

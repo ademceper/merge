@@ -5,8 +5,8 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.International;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
+using ProductEntity = Merge.Domain.Entities.Product;
+using Merge.Application.Interfaces;
 using Merge.Application.DTOs.International;
 
 
@@ -14,12 +14,12 @@ namespace Merge.Application.Services.International;
 
 public class LanguageService : ILanguageService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<LanguageService> _logger;
 
-    public LanguageService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<LanguageService> logger)
+    public LanguageService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<LanguageService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -671,7 +671,7 @@ public class LanguageService : ILanguageService
             .FirstOrDefaultAsync(cancellationToken) ?? "en";
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var totalProducts = await _context.Products
+        var totalProducts = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(cancellationToken);
 

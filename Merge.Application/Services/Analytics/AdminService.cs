@@ -8,8 +8,11 @@ using Merge.Application.Interfaces.Logistics;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
+using UserEntity = Merge.Domain.Entities.User;
+using ProductEntity = Merge.Domain.Entities.Product;
+using OrderEntity = Merge.Domain.Entities.Order;
+using ReviewEntity = Merge.Domain.Entities.Review;
+using Merge.Application.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Order;
@@ -23,7 +26,7 @@ namespace Merge.Application.Services.Analytics;
 
 public class AdminService : IAdminService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly IInventoryService _inventoryService;
@@ -31,7 +34,7 @@ public class AdminService : IAdminService
     private readonly AnalyticsSettings _settings;
 
     public AdminService(
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         IInventoryService inventoryService,
@@ -54,26 +57,26 @@ public class AdminService : IAdminService
         {
             TotalUsers = await _context.Users.AsNoTracking().CountAsync(cancellationToken),
             ActiveUsers = await _context.Users.AsNoTracking().CountAsync(u => u.EmailConfirmed, cancellationToken),
-            TotalProducts = await _context.Products.AsNoTracking().CountAsync(cancellationToken),
-            ActiveProducts = await _context.Products.AsNoTracking().CountAsync(p => p.IsActive, cancellationToken),
-            TotalOrders = await _context.Orders.AsNoTracking().CountAsync(cancellationToken),
-            TotalRevenue = await _context.Orders
+            TotalProducts = await _context.Set<ProductEntity>().AsNoTracking().CountAsync(cancellationToken),
+            ActiveProducts = await _context.Set<ProductEntity>().AsNoTracking().CountAsync(p => p.IsActive, cancellationToken),
+            TotalOrders = await _context.Set<OrderEntity>().AsNoTracking().CountAsync(cancellationToken),
+            TotalRevenue = await _context.Set<OrderEntity>()
                 .AsNoTracking()
                 .Where(o => o.PaymentStatus == PaymentStatus.Completed)
                 .SumAsync(o => o.TotalAmount, cancellationToken),
-            PendingOrders = await _context.Orders.AsNoTracking().CountAsync(o => o.Status == OrderStatus.Pending, cancellationToken),
-            TodayOrders = await _context.Orders.AsNoTracking().CountAsync(o => o.CreatedAt.Date == DateTime.UtcNow.Date, cancellationToken),
-            TodayRevenue = await _context.Orders
+            PendingOrders = await _context.Set<OrderEntity>().AsNoTracking().CountAsync(o => o.Status == OrderStatus.Pending, cancellationToken),
+            TodayOrders = await _context.Set<OrderEntity>().AsNoTracking().CountAsync(o => o.CreatedAt.Date == DateTime.UtcNow.Date, cancellationToken),
+            TodayRevenue = await _context.Set<OrderEntity>()
                 .AsNoTracking()
                 .Where(o => o.PaymentStatus == PaymentStatus.Completed && o.CreatedAt.Date == DateTime.UtcNow.Date)
                 .SumAsync(o => o.TotalAmount, cancellationToken),
-            TotalWarehouses = await _context.Warehouses.AsNoTracking().CountAsync(cancellationToken),
-            ActiveWarehouses = await _context.Warehouses.AsNoTracking().CountAsync(w => w.IsActive, cancellationToken),
+            TotalWarehouses = await _context.Set<Warehouse>().AsNoTracking().CountAsync(cancellationToken),
+            ActiveWarehouses = await _context.Set<Warehouse>().AsNoTracking().CountAsync(w => w.IsActive, cancellationToken),
             // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-            LowStockProducts = await _context.Products.AsNoTracking().CountAsync(p => p.StockQuantity <= _settings.LowStockThreshold, cancellationToken),
-            TotalCategories = await _context.Categories.AsNoTracking().CountAsync(cancellationToken),
-            PendingReviews = await _context.Reviews.AsNoTracking().CountAsync(r => !r.IsApproved, cancellationToken),
-            PendingReturns = await _context.ReturnRequests.AsNoTracking().CountAsync(r => r.Status == ReturnRequestStatus.Pending, cancellationToken),
+            LowStockProducts = await _context.Set<ProductEntity>().AsNoTracking().CountAsync(p => p.StockQuantity <= _settings.LowStockThreshold, cancellationToken),
+            TotalCategories = await _context.Set<Category>().AsNoTracking().CountAsync(cancellationToken),
+            PendingReviews = await _context.Set<ReviewEntity>().AsNoTracking().CountAsync(r => !r.IsApproved, cancellationToken),
+            PendingReturns = await _context.Set<ReturnRequest>().AsNoTracking().CountAsync(r => r.Status == ReturnRequestStatus.Pending, cancellationToken),
             Users2FAEnabled = await _context.Set<TwoFactorAuth>().AsNoTracking().CountAsync(t => t.IsEnabled, cancellationToken)
         };
 
@@ -88,7 +91,7 @@ public class AdminService : IAdminService
         // ✅ PERFORMANCE: Database'de toplam hesapla (memory'de Sum YASAK)
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
-        var ordersQuery = _context.Orders
+        var ordersQuery = _context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed && o.CreatedAt >= startDate);
 
@@ -123,7 +126,7 @@ public class AdminService : IAdminService
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !oi.IsDeleted check (Global Query Filter handles it)
-        var topProducts = await _context.OrderItems
+        var topProducts = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Include(oi => oi.Product)
             .GroupBy(oi => new { oi.ProductId, oi.Product.Name, oi.Product.ImageUrl })
@@ -150,19 +153,19 @@ public class AdminService : IAdminService
         
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !i.IsDeleted checks (Global Query Filter handles it)
-        var totalInventoryValue = await _context.Inventories
+        var totalInventoryValue = await _context.Set<Inventory>()
             .AsNoTracking()
             .SumAsync(i => i.Quantity * i.UnitCost, cancellationToken);
 
         var overview = new InventoryOverviewDto
         {
-            TotalWarehouses = await _context.Warehouses.AsNoTracking().CountAsync(w => w.IsActive, cancellationToken),
-            TotalInventoryItems = await _context.Inventories.AsNoTracking().CountAsync(cancellationToken),
+            TotalWarehouses = await _context.Set<Warehouse>().AsNoTracking().CountAsync(w => w.IsActive, cancellationToken),
+            TotalInventoryItems = await _context.Set<Inventory>().AsNoTracking().CountAsync(cancellationToken),
             TotalInventoryValue = totalInventoryValue,
             LowStockCount = lowStockAlerts.Count,  // ✅ List.Count (re-enumeration yok)
             LowStockAlerts = lowStockAlerts.Take(5).ToList(),  // ✅ List üzerinde işlem (re-enumeration yok)
-            TotalStockQuantity = await _context.Inventories.AsNoTracking().SumAsync(i => i.Quantity, cancellationToken),
-            ReservedStockQuantity = await _context.Inventories.AsNoTracking().SumAsync(i => i.ReservedQuantity, cancellationToken)
+            TotalStockQuantity = await _context.Set<Inventory>().AsNoTracking().SumAsync(i => i.Quantity, cancellationToken),
+            ReservedStockQuantity = await _context.Set<Inventory>().AsNoTracking().SumAsync(i => i.ReservedQuantity, cancellationToken)
         };
 
         return overview;
@@ -173,7 +176,7 @@ public class AdminService : IAdminService
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
-        var orders = await _context.Orders
+        var orders = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.User)
             .Include(o => o.OrderItems)
@@ -190,7 +193,7 @@ public class AdminService : IAdminService
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted check (Global Query Filter handles it)
-        var products = await _context.Products
+        var products = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.StockQuantity <= threshold && p.IsActive)
@@ -210,7 +213,7 @@ public class AdminService : IAdminService
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
-        var query = _context.Reviews
+        var query = _context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Product)
@@ -244,7 +247,7 @@ public class AdminService : IAdminService
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
-        var query = _context.ReturnRequests
+        var query = _context.Set<ReturnRequest>()
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Order)
@@ -282,7 +285,8 @@ public class AdminService : IAdminService
 
         if (!string.IsNullOrEmpty(role))
         {
-            query = query.Where(u => _context.UserRoles.Any(ur => ur.UserId == u.Id && 
+            // ✅ Identity framework'ün Role ve UserRole entity'leri IDbContext üzerinden erişiliyor
+            query = query.Where(u => _context.UserRoles.Any(ur => ur.UserId == u.Id &&
                 _context.Roles.Any(r => r.Id == ur.RoleId && r.Name == role)));
         }
 
@@ -345,12 +349,12 @@ public class AdminService : IAdminService
         }
 
         // Remove existing roles
-        // ⚠️ NOTE: AsNoTracking removed - we need to track entities for RemoveRange
+        // ✅ Identity framework'ün Role ve UserRole entity'leri IDbContext üzerinden erişiliyor
         var existingRoles = await _context.UserRoles
             .Where(ur => ur.UserId == userId)
             .ToListAsync(cancellationToken);
         _context.UserRoles.RemoveRange(existingRoles);
-        
+
         // Add new role
         // ✅ PERFORMANCE: AsNoTracking for read-only queries (we don't modify this entity)
         var roleEntity = await _context.Roles
@@ -358,13 +362,13 @@ public class AdminService : IAdminService
             .FirstOrDefaultAsync(r => r.Name == role, cancellationToken);
         if (roleEntity != null)
         {
-            await _context.UserRoles.AddAsync(new IdentityUserRole<Guid>
+            await _context.UserRoles.AddAsync(new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>
             {
                 UserId = userId,
                 RoleId = roleEntity.Id
             }, cancellationToken);
         }
-        
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -393,18 +397,18 @@ public class AdminService : IAdminService
         {
             Period = $"Last {days} days",
             NewUsers = await _context.Users.AsNoTracking().CountAsync(u => u.CreatedAt >= startDate, cancellationToken),
-            NewOrders = await _context.Orders.AsNoTracking().CountAsync(o => o.CreatedAt >= startDate, cancellationToken),
-            Revenue = await _context.Orders
+            NewOrders = await _context.Set<OrderEntity>().AsNoTracking().CountAsync(o => o.CreatedAt >= startDate, cancellationToken),
+            Revenue = await _context.Set<OrderEntity>()
                 .AsNoTracking()
                 .Where(o => o.PaymentStatus == PaymentStatus.Completed && o.CreatedAt >= startDate)
                 .SumAsync(o => o.TotalAmount, cancellationToken),
-            AverageOrderValue = await _context.Orders
+            AverageOrderValue = await _context.Set<OrderEntity>()
                 .AsNoTracking()
                 .Where(o => o.CreatedAt >= startDate)
                 .AverageAsync(o => (decimal?)o.TotalAmount, cancellationToken) ?? 0,
-            NewProducts = await _context.Products.AsNoTracking().CountAsync(p => p.CreatedAt >= startDate, cancellationToken),
-            TotalReviews = await _context.Reviews.AsNoTracking().CountAsync(r => r.CreatedAt >= startDate, cancellationToken),
-            AverageRating = await _context.Reviews
+            NewProducts = await _context.Set<ProductEntity>().AsNoTracking().CountAsync(p => p.CreatedAt >= startDate, cancellationToken),
+            TotalReviews = await _context.Set<ReviewEntity>().AsNoTracking().CountAsync(r => r.CreatedAt >= startDate, cancellationToken),
+            AverageRating = await _context.Set<ReviewEntity>()
                 .AsNoTracking()
                 .Where(r => r.CreatedAt >= startDate)
                 .AverageAsync(r => (decimal?)r.Rating, cancellationToken) ?? 0
@@ -453,8 +457,8 @@ public class AdminService : IAdminService
         {
             DatabaseStatus = "Connected",
             TotalRecords = await _context.Users.AsNoTracking().CountAsync(cancellationToken) +
-                          await _context.Products.AsNoTracking().CountAsync(cancellationToken) +
-                          await _context.Orders.AsNoTracking().CountAsync(cancellationToken),
+                          await _context.Set<ProductEntity>().AsNoTracking().CountAsync(cancellationToken) +
+                          await _context.Set<OrderEntity>().AsNoTracking().CountAsync(cancellationToken),
             LastBackup = DateTime.UtcNow.AddDays(-1), // Mock data
             DiskUsage = "45%", // Mock data
             MemoryUsage = "62%", // Mock data

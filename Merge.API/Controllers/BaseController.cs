@@ -3,6 +3,9 @@ using System.Security.Claims;
 
 namespace Merge.API.Controllers;
 
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public abstract class BaseController : ControllerBase
 {
     protected Guid GetUserId()

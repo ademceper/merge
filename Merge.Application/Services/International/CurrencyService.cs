@@ -5,8 +5,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.International;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
+using Merge.Application.Interfaces;
 using Merge.Application.DTOs.International;
 
 
@@ -14,12 +13,12 @@ namespace Merge.Application.Services.International;
 
 public class CurrencyService : ICurrencyService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<CurrencyService> _logger;
 
-    public CurrencyService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CurrencyService> logger)
+    public CurrencyService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CurrencyService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;

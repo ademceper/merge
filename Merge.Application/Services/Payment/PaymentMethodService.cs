@@ -4,11 +4,10 @@ using Microsoft.Extensions.Logging;
 using PaymentEntity = Merge.Domain.Entities.Payment;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Merge.Application.Interfaces.User;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Payment;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text.Json;
 using Merge.Application.DTOs.Payment;
 
@@ -17,12 +16,12 @@ namespace Merge.Application.Services.Payment;
 
 public class PaymentMethodService : IPaymentMethodService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<PaymentMethodService> _logger;
 
-    public PaymentMethodService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<PaymentMethodService> logger)
+    public PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<PaymentMethodService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -263,7 +262,7 @@ public class PaymentMethodService : IPaymentMethodService
 
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
         // Check if method is used in any orders
-        var hasOrders = await _context.Orders
+        var hasOrders = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .AnyAsync(o => o.PaymentMethod == paymentMethod.Code, cancellationToken);
 

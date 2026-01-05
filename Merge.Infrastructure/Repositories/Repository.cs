@@ -2,10 +2,12 @@ using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Merge.Domain.Entities;
 using Merge.Domain.Specifications;
+using Merge.Domain.Interfaces;
 using Merge.Infrastructure.Data;
 
 namespace Merge.Infrastructure.Repositories;
 
+// ✅ BOLUM 1.1: Repository Application katmanındaki IRepository interface'ini implement ediyor
 public class Repository<T> : IRepository<T> where T : BaseEntity
 {
     protected readonly ApplicationDbContext _context;

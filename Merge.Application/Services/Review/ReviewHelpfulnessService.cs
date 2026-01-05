@@ -1,27 +1,26 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Merge.Infrastructure.Repositories;
 using UserEntity = Merge.Domain.Entities.User;
 using ReviewEntity = Merge.Domain.Entities.Review;
 using ProductEntity = Merge.Domain.Entities.Product;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Review;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
 using Merge.Application.DTOs.Review;
 
 namespace Merge.Application.Services.Review;
 
 public class ReviewHelpfulnessService : IReviewHelpfulnessService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<ReviewHelpfulnessService> _logger;
 
-    public ReviewHelpfulnessService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ReviewHelpfulnessService> logger)
+    public ReviewHelpfulnessService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ReviewHelpfulnessService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;

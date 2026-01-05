@@ -1,12 +1,11 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Governance;
 using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Governance;
 
 
@@ -14,12 +13,12 @@ namespace Merge.Application.Services.Governance;
 
 public class PolicyService : IPolicyService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<PolicyService> _logger;
 
-    public PolicyService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<PolicyService> logger)
+    public PolicyService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<PolicyService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;

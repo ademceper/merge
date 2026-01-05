@@ -4,13 +4,13 @@ using Microsoft.Extensions.Logging;
 using UserEntity = Merge.Domain.Entities.User;
 using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Seller;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using ReviewEntity = Merge.Domain.Entities.Review;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Merge.Application.DTOs.Seller;
@@ -22,13 +22,13 @@ namespace Merge.Application.Services.Seller;
 
 public class StoreService : IStoreService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<StoreService> _logger;
 
     public StoreService(
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<StoreService> logger)
@@ -125,7 +125,7 @@ public class StoreService : IStoreService
         var storeDto = _mapper.Map<StoreDto>(reloadedStore);
         
         // ✅ PERFORMANCE: ProductCount için database'de count (N+1 fix)
-        storeDto.ProductCount = await _context.Products
+        storeDto.ProductCount = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == reloadedStore.Id, cancellationToken);
         
@@ -147,7 +147,7 @@ public class StoreService : IStoreService
         var dto = _mapper.Map<StoreDto>(store);
         
         // ✅ PERFORMANCE: ProductCount için database'de count (N+1 fix)
-        dto.ProductCount = await _context.Products
+        dto.ProductCount = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == store.Id, cancellationToken);
         
@@ -169,7 +169,7 @@ public class StoreService : IStoreService
         var dto = _mapper.Map<StoreDto>(store);
         
         // ✅ PERFORMANCE: ProductCount için database'de count (N+1 fix)
-        dto.ProductCount = await _context.Products
+        dto.ProductCount = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == store.Id, cancellationToken);
         
@@ -216,7 +216,7 @@ public class StoreService : IStoreService
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load ProductCount (N+1 fix)
-        var productCounts = await _context.Products
+        var productCounts = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.StoreId.HasValue && storeIds.Contains(p.StoreId.Value))
             .GroupBy(p => p.StoreId)
@@ -259,7 +259,7 @@ public class StoreService : IStoreService
         var dto = _mapper.Map<StoreDto>(store);
         
         // ✅ PERFORMANCE: ProductCount için database'de count (N+1 fix)
-        dto.ProductCount = await _context.Products
+        dto.ProductCount = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == store.Id, cancellationToken);
         
@@ -372,7 +372,7 @@ public class StoreService : IStoreService
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         // Check if store has products
-        var hasProducts = await _context.Products
+        var hasProducts = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .AnyAsync(p => p.StoreId == storeId, cancellationToken);
 
@@ -465,30 +465,30 @@ public class StoreService : IStoreService
         endDate ??= DateTime.UtcNow;
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var totalProducts = await _context.Products
+        var totalProducts = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == storeId, cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var activeProducts = await _context.Products
+        var activeProducts = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == storeId && p.IsActive, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        var totalOrders = await _context.Orders
+        var totalOrders = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.OrderItems.Any(oi => oi.Product != null && oi.Product.StoreId == storeId))
             .CountAsync(cancellationToken);
 
-        var totalRevenue = await _context.Orders
+        var totalRevenue = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.OrderItems.Any(oi => oi.Product != null && oi.Product.StoreId == storeId))
             .SelectMany(o => o.OrderItems.Where(oi => oi.Product != null && oi.Product.StoreId == storeId))
             .SumAsync(oi => oi.TotalPrice, cancellationToken);
 
-        var monthlyRevenue = await _context.Orders
+        var monthlyRevenue = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
@@ -497,7 +497,7 @@ public class StoreService : IStoreService
             .SumAsync(oi => oi.TotalPrice, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de distinct count yap (memory'de işlem YASAK)
-        var totalCustomers = await _context.Orders
+        var totalCustomers = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.OrderItems.Any(oi => oi.Product != null && oi.Product.StoreId == storeId))
@@ -506,7 +506,7 @@ public class StoreService : IStoreService
             .CountAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de average yap (memory'de işlem YASAK)
-        var averageRating = await _context.Reviews
+        var averageRating = await _context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.Product)
             .Where(r => r.IsApproved &&

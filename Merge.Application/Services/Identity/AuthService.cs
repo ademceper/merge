@@ -13,7 +13,8 @@ using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using UserEntity = Merge.Domain.Entities.User;
 using Merge.Application.DTOs.User;
-using Merge.Infrastructure.Data;
+using Merge.Application.Common;
+using Merge.Application.Interfaces;
 using Microsoft.Extensions.Logging;
 
 
@@ -24,7 +25,7 @@ public class AuthService : IAuthService
     private readonly UserManager<UserEntity> _userManager;
     private readonly SignInManager<UserEntity> _signInManager;
     private readonly RoleManager<Role> _roleManager;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthService> _logger;
     private readonly IMapper _mapper;
@@ -38,7 +39,7 @@ public class AuthService : IAuthService
         UserManager<UserEntity> userManager,
         SignInManager<UserEntity> signInManager,
         RoleManager<Role> roleManager,
-        ApplicationDbContext context,
+        IDbContext context,
         IConfiguration configuration,
         ILogger<AuthService> logger,
         IMapper mapper)
@@ -151,9 +152,11 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponseDto> RefreshTokenAsync(string refreshToken, string? ipAddress = null, CancellationToken cancellationToken = default)
     {
-        var refreshTokenEntity = await _context.RefreshTokens
+        // ✅ BOLUM 9.1: Refresh token hash'lenmiş olarak saklanıyor
+        var tokenHash = TokenHasher.HashToken(refreshToken);
+        var refreshTokenEntity = await _context.Set<RefreshToken>()
             .Include(rt => rt.User)
-            .FirstOrDefaultAsync(rt => rt.Token == refreshToken, cancellationToken);
+            .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash, cancellationToken);
 
         if (refreshTokenEntity == null)
         {
@@ -174,10 +177,10 @@ public class AuthService : IAuthService
         refreshTokenEntity.RevokedByIp = ipAddress;
 
         // ✅ SECURITY: Yeni refresh token oluştur (rotation)
-        var newRefreshToken = GenerateRefreshToken(user.Id, ipAddress);
-        refreshTokenEntity.ReplacedByToken = newRefreshToken.Token;
+        var (newRefreshToken, plainToken) = GenerateRefreshToken(user.Id, ipAddress);
+        refreshTokenEntity.ReplacedByTokenHash = newRefreshToken.TokenHash;
 
-        _context.RefreshTokens.Add(newRefreshToken);
+        _context.Set<RefreshToken>().Add(newRefreshToken);
         await _context.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
@@ -194,7 +197,7 @@ public class AuthService : IAuthService
         {
             Token = accessToken,
             ExpiresAt = expiresAt,
-            RefreshToken = newRefreshToken.Token,
+            RefreshToken = plainToken,
             RefreshTokenExpiresAt = newRefreshToken.ExpiresAt,
             User = userDto
         };
@@ -202,8 +205,10 @@ public class AuthService : IAuthService
 
     public async Task RevokeTokenAsync(string refreshToken, string? ipAddress = null, CancellationToken cancellationToken = default)
     {
-        var refreshTokenEntity = await _context.RefreshTokens
-            .FirstOrDefaultAsync(rt => rt.Token == refreshToken, cancellationToken);
+        // ✅ BOLUM 9.1: Refresh token hash'lenmiş olarak saklanıyor
+        var tokenHash = TokenHasher.HashToken(refreshToken);
+        var refreshTokenEntity = await _context.Set<RefreshToken>()
+            .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash, cancellationToken);
 
         if (refreshTokenEntity == null)
         {
@@ -247,8 +252,9 @@ public class AuthService : IAuthService
 
             return Task.FromResult(true);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Token validation failed");
             return Task.FromResult(false);
         }
     }
@@ -258,8 +264,8 @@ public class AuthService : IAuthService
         var accessToken = await GenerateJwtToken(user);
         var expiresAt = DateTime.UtcNow.AddMinutes(AccessTokenExpirationMinutes);
 
-        var refreshToken = GenerateRefreshToken(user.Id, ipAddress);
-        _context.RefreshTokens.Add(refreshToken);
+        var (refreshToken, plainToken) = GenerateRefreshToken(user.Id, ipAddress);
+        _context.Set<RefreshToken>().Add(refreshToken);
         await _context.SaveChangesAsync(cancellationToken);
 
         var userDto = _mapper.Map<UserDto>(user);
@@ -269,25 +275,32 @@ public class AuthService : IAuthService
         {
             Token = accessToken,
             ExpiresAt = expiresAt,
-            RefreshToken = refreshToken.Token,
+            RefreshToken = plainToken,
             RefreshTokenExpiresAt = refreshToken.ExpiresAt,
             User = userDto
         };
     }
 
-    private RefreshToken GenerateRefreshToken(Guid userId, string? ipAddress = null)
+    // ✅ BOLUM 9.1: Refresh token hash'lenmiş olarak saklanıyor
+    // Tuple döndürüyor: (RefreshToken entity, plain token string)
+    private (RefreshToken, string) GenerateRefreshToken(Guid userId, string? ipAddress = null)
     {
         var randomBytes = new byte[64];
         using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(randomBytes);
+        
+        var plainToken = Convert.ToBase64String(randomBytes);
+        var tokenHash = TokenHasher.HashToken(plainToken);
 
-        return new RefreshToken
+        var refreshToken = new RefreshToken
         {
             UserId = userId,
-            Token = Convert.ToBase64String(randomBytes),
+            TokenHash = tokenHash,
             ExpiresAt = DateTime.UtcNow.AddDays(RefreshTokenExpirationDays),
             CreatedByIp = ipAddress
         };
+        
+        return (refreshToken, plainToken);
     }
 
     private async Task<string> GenerateJwtToken(UserEntity user)

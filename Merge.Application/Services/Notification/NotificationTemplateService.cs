@@ -2,11 +2,10 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NotificationEntity = Merge.Domain.Entities.Notification;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text.Json;
 using Merge.Application.DTOs.Notification;
 
@@ -15,14 +14,14 @@ namespace Merge.Application.Services.Notification;
 
 public class NotificationTemplateService : INotificationTemplateService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
     private readonly IMapper _mapper;
     private readonly ILogger<NotificationTemplateService> _logger;
 
     public NotificationTemplateService(
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         INotificationService notificationService,
         IMapper mapper,

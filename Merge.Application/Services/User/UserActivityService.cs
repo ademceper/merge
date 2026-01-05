@@ -1,24 +1,24 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using UserEntity = Merge.Domain.Entities.User;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
+using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.DTOs.User;
-using Merge.Infrastructure.Repositories;
 using Microsoft.Extensions.Logging;
 
 namespace Merge.Application.Services.User;
 
 public class UserActivityService : IUserActivityService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<UserActivityService> _logger;
 
     public UserActivityService(
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<UserActivityService> logger)
@@ -348,12 +348,12 @@ public class UserActivityService : IUserActivityService
             .Take(topN)
             .ToListAsync(cancellationToken);
 
-        var products = await _context.Products
+        var products = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.Name, cancellationToken);
 
-        var purchases = await _context.OrderItems
+        var purchases = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => productIds.Contains(oi.ProductId) &&
                         oi.Order.CreatedAt >= startDate)

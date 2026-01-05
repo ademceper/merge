@@ -1,12 +1,11 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Organization;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text.Json;
 using OrganizationEntity = Merge.Domain.Entities.Organization;
 using UserEntity = Merge.Domain.Entities.User;
@@ -18,12 +17,12 @@ namespace Merge.Application.Services.Organization;
 
 public class OrganizationService : IOrganizationService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<OrganizationService> _logger;
 
-    public OrganizationService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<OrganizationService> logger)
+    public OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<OrganizationService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;

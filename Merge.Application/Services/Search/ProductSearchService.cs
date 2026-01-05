@@ -3,8 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Search;
+using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
+using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.DTOs.Product;
 using Merge.Application.DTOs.Search;
 
@@ -13,11 +14,11 @@ namespace Merge.Application.Services.Search;
 
 public class ProductSearchService : IProductSearchService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<ProductSearchService> _logger;
 
-    public ProductSearchService(ApplicationDbContext context, IMapper mapper, ILogger<ProductSearchService> logger)
+    public ProductSearchService(IDbContext context, IMapper mapper, ILogger<ProductSearchService> logger)
     {
         _context = context;
         _mapper = mapper;
@@ -34,7 +35,7 @@ public class ProductSearchService : IProductSearchService
             request.SearchTerm, request.CategoryId, request.Page, request.PageSize);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var query = _context.Products
+        var query = _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.IsActive)
@@ -112,7 +113,7 @@ public class ProductSearchService : IProductSearchService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var brands = await _context.Products
+        var brands = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive && !string.IsNullOrEmpty(p.Brand))
             .Select(p => p.Brand)
@@ -122,12 +123,12 @@ public class ProductSearchService : IProductSearchService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var minPrice = await _context.Products
+        var minPrice = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive)
             .MinAsync(p => (decimal?)p.Price, cancellationToken) ?? 0;
-        
-        var maxPrice = await _context.Products
+
+        var maxPrice = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive)
             .MaxAsync(p => (decimal?)p.Price, cancellationToken) ?? 0;

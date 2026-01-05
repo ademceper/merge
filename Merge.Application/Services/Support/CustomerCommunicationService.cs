@@ -3,11 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using UserEntity = Merge.Domain.Entities.User;
 using System.Text.Json;
 using Merge.Application.DTOs.Support;
@@ -18,12 +17,12 @@ namespace Merge.Application.Services.Support;
 
 public class CustomerCommunicationService : ICustomerCommunicationService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<CustomerCommunicationService> _logger;
 
-    public CustomerCommunicationService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CustomerCommunicationService> logger)
+    public CustomerCommunicationService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CustomerCommunicationService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -126,7 +125,7 @@ public class CustomerCommunicationService : ICustomerCommunicationService
     public async Task<CommunicationHistoryDto> GetUserCommunicationHistoryAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
-        var user = await _context.Set<UserEntity>()
+        var user = await _context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 

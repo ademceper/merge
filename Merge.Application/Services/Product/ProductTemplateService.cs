@@ -4,13 +4,12 @@ using Microsoft.Extensions.Logging;
 using UserEntity = Merge.Domain.Entities.User;
 using ReviewEntity = Merge.Domain.Entities.Review;
 using ProductEntity = Merge.Domain.Entities.Product;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.ValueObjects;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text.Json;
 using Merge.Application.DTOs.Product;
 
@@ -19,12 +18,12 @@ namespace Merge.Application.Services.Product;
 
 public class ProductTemplateService : IProductTemplateService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<ProductTemplateService> _logger;
 
-    public ProductTemplateService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProductTemplateService> logger)
+    public ProductTemplateService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProductTemplateService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -42,7 +41,7 @@ public class ProductTemplateService : IProductTemplateService
             dto.Name, dto.CategoryId);
 
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
-        var category = await _context.Categories
+        var category = await _context.Set<Category>()
             .FirstOrDefaultAsync(c => c.Id == dto.CategoryId, cancellationToken);
 
         if (category == null)
@@ -283,7 +282,7 @@ public class ProductTemplateService : IProductTemplateService
             product.UpdateImages(product.ImageUrl, dto.ImageUrls);
         }
 
-        await _context.Products.AddAsync(product, cancellationToken);
+        await _context.Set<ProductEntity>().AddAsync(product, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Increment template usage count
@@ -292,7 +291,7 @@ public class ProductTemplateService : IProductTemplateService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        product = await _context.Products
+        product = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == product.Id, cancellationToken);

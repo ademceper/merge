@@ -1,11 +1,10 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using UserEntity = Merge.Domain.Entities.User;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
 using Merge.Application.DTOs.User;
-using Merge.Infrastructure.Repositories;
 using Microsoft.Extensions.Logging;
 
 
@@ -13,13 +12,13 @@ namespace Merge.Application.Services.User;
 
 public class UserPreferenceService : IUserPreferenceService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<UserPreferenceService> _logger;
 
     public UserPreferenceService(
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<UserPreferenceService> logger)

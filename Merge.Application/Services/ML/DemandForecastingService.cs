@@ -3,9 +3,9 @@ using ProductEntity = Merge.Domain.Entities.Product;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.ML;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
 using Merge.Application.DTOs.Analytics;
 
 
@@ -13,10 +13,10 @@ namespace Merge.Application.Services.ML;
 
 public class DemandForecastingService : IDemandForecastingService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly ILogger<DemandForecastingService> _logger;
 
-    public DemandForecastingService(ApplicationDbContext context, ILogger<DemandForecastingService> logger)
+    public DemandForecastingService(IDbContext context, ILogger<DemandForecastingService> logger)
     {
         _context = context;
         _logger = logger;
@@ -26,7 +26,7 @@ public class DemandForecastingService : IDemandForecastingService
     public async Task<DemandForecastDto> ForecastDemandAsync(Guid productId, int forecastDays = 30, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var product = await _context.Products
+        var product = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
@@ -38,7 +38,7 @@ public class DemandForecastingService : IDemandForecastingService
 
         // ✅ PERFORMANCE: Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        var historicalSales = await _context.OrderItems
+        var historicalSales = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.ProductId == productId)
             .GroupBy(oi => oi.Order.CreatedAt.Date)
@@ -72,7 +72,7 @@ public class DemandForecastingService : IDemandForecastingService
     public async Task<IEnumerable<DemandForecastDto>> ForecastDemandForCategoryAsync(Guid categoryId, int forecastDays = 30, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var products = await _context.Products
+        var products = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.CategoryId == categoryId && p.IsActive)
@@ -80,13 +80,13 @@ public class DemandForecastingService : IDemandForecastingService
 
         // ✅ PERFORMANCE: Batch load historical sales (N+1 fix)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - Database'de Select yap
-        var productIds = await _context.Products
+        var productIds = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.CategoryId == categoryId && p.IsActive)
             .Select(p => p.Id)
             .ToListAsync(cancellationToken);
-        
-        var allHistoricalSales = await _context.OrderItems
+
+        var allHistoricalSales = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => productIds.Contains(oi.ProductId))
             .GroupBy(oi => new { oi.ProductId, Date = oi.Order.CreatedAt.Date })
@@ -143,11 +143,11 @@ public class DemandForecastingService : IDemandForecastingService
         var end = endDate ?? DateTime.UtcNow;
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var totalProducts = await _context.Products
+        var totalProducts = await _context.Set<ProductEntity>()
             .CountAsync(p => p.IsActive, cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !oi.Order.IsDeleted (Global Query Filter)
-        var productsWithSales = await _context.OrderItems
+        var productsWithSales = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.Order.CreatedAt >= start && oi.Order.CreatedAt <= end)
             .Select(oi => oi.ProductId)

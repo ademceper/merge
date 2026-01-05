@@ -1,10 +1,12 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
+using OrderEntity = Merge.Domain.Entities.Order;
+using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.DTOs.Product;
 
 
@@ -19,11 +21,11 @@ public interface IPersonalizationService
 
 public class PersonalizationService : IPersonalizationService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<PersonalizationService> _logger;
 
-    public PersonalizationService(ApplicationDbContext context, IMapper mapper, ILogger<PersonalizationService> logger)
+    public PersonalizationService(IDbContext context, IMapper mapper, ILogger<PersonalizationService> logger)
     {
         _context = context;
         _mapper = mapper;
@@ -44,7 +46,7 @@ public class PersonalizationService : IPersonalizationService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !rv.IsDeleted, !w.IsDeleted, !oi.Order.IsDeleted (Global Query Filter)
         // Kullanıcının geçmiş aktivitelerini analiz et
-        var viewedProducts = await _context.RecentlyViewedProducts
+        var viewedProducts = await _context.Set<RecentlyViewedProduct>()
             .AsNoTracking()
             .Where(rv => rv.UserId == userId)
             .OrderByDescending(rv => rv.ViewedAt)
@@ -52,13 +54,13 @@ public class PersonalizationService : IPersonalizationService
             .Select(rv => rv.ProductId)
             .ToListAsync();
 
-        var wishlistProducts = await _context.Wishlists
+        var wishlistProducts = await _context.Set<Wishlist>()
             .AsNoTracking()
             .Where(w => w.UserId == userId)
             .Select(w => w.ProductId)
             .ToListAsync();
 
-        var orderProducts = await _context.OrderItems
+        var orderProducts = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.Order.UserId == userId)
             .Select(oi => oi.ProductId)
@@ -68,7 +70,7 @@ public class PersonalizationService : IPersonalizationService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Kategorileri analiz et
-        var favoriteCategories = await _context.OrderItems
+        var favoriteCategories = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.Order.UserId == userId)
             .Include(oi => oi.Product)
@@ -79,7 +81,7 @@ public class PersonalizationService : IPersonalizationService
             .ToListAsync();
 
         // Markaları analiz et
-        var favoriteBrands = await _context.OrderItems
+        var favoriteBrands = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.Order.UserId == userId)
             .Include(oi => oi.Product)
@@ -92,7 +94,7 @@ public class PersonalizationService : IPersonalizationService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // Kişiselleştirilmiş ürünleri getir
-        var query = _context.Products
+        var query = _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.IsActive && p.StockQuantity > 0)
@@ -146,7 +148,7 @@ public class PersonalizationService : IPersonalizationService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Bu ürünle birlikte satın alınan ürünleri bul
-        var frequentlyBoughtTogether = await _context.OrderItems
+        var frequentlyBoughtTogether = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.ProductId == productId)
             .SelectMany(oi => oi.Order.OrderItems)
@@ -161,13 +163,13 @@ public class PersonalizationService : IPersonalizationService
         {
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
             // Eğer birlikte satın alınan ürün yoksa, aynı kategoriden öner
-            var product = await _context.Products
+            var product = await _context.Set<ProductEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == productId);
 
             if (product != null)
             {
-                frequentlyBoughtTogether = await _context.Products
+                frequentlyBoughtTogether = await _context.Set<ProductEntity>()
                     .AsNoTracking()
                     .Where(p => p.CategoryId == product.CategoryId && p.Id != productId && p.IsActive)
                     .OrderByDescending(p => p.Rating)
@@ -179,7 +181,7 @@ public class PersonalizationService : IPersonalizationService
         }
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var products = await _context.Products
+        var products = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => frequentlyBoughtTogether.Contains(p.Id) && p.IsActive)
@@ -202,21 +204,21 @@ public class PersonalizationService : IPersonalizationService
         }
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !rv.IsDeleted, !w.IsDeleted, !o.IsDeleted (Global Query Filter)
-        var viewedCount = await _context.RecentlyViewedProducts
+        var viewedCount = await _context.Set<RecentlyViewedProduct>()
             .AsNoTracking()
             .CountAsync(rv => rv.UserId == userId);
 
-        var wishlistCount = await _context.Wishlists
+        var wishlistCount = await _context.Set<Wishlist>()
             .AsNoTracking()
             .CountAsync(w => w.UserId == userId);
 
-        var orderCount = await _context.Orders
+        var orderCount = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .CountAsync(o => o.UserId == userId);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        var favoriteCategories = await _context.OrderItems
+        var favoriteCategories = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.Order.UserId == userId)
             .Include(oi => oi.Product)
@@ -232,7 +234,7 @@ public class PersonalizationService : IPersonalizationService
             })
             .ToListAsync();
 
-        var favoriteBrands = await _context.OrderItems
+        var favoriteBrands = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.Order.UserId == userId)
             .Include(oi => oi.Product)

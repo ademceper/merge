@@ -2,8 +2,9 @@ using System.Linq.Expressions;
 using Merge.Domain.Entities;
 using Merge.Domain.Specifications;
 
-namespace Merge.Infrastructure.Repositories;
+namespace Merge.Domain.Interfaces;
 
+// ✅ BOLUM 1.1: Interface'ler Application katmanında olmalı (Clean Architecture)
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 7.2: Specification Pattern (ZORUNLU)
 public interface IRepository<T> where T : BaseEntity

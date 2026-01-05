@@ -2,10 +2,9 @@ using AutoMapper;
 using NotificationEntity = Merge.Domain.Entities.Notification;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Notification;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Notification;
 using Merge.Application.Common;
 using System.Linq;
@@ -16,14 +15,14 @@ namespace Merge.Application.Services.Notification;
 public class NotificationService : INotificationService
 {
     private readonly IRepository<NotificationEntity> _notificationRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<NotificationService> _logger;
 
     public NotificationService(
         IRepository<NotificationEntity> notificationRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
         ILogger<NotificationService> logger)
@@ -42,7 +41,7 @@ public class NotificationService : INotificationService
         if (pageSize > 100) pageSize = 100; // Max limit
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !n.IsDeleted (Global Query Filter)
-        IQueryable<NotificationEntity> query = _context.Notifications
+        IQueryable<NotificationEntity> query = _context.Set<NotificationEntity>()
             .AsNoTracking()
             .Where(n => n.UserId == userId);
 
@@ -74,7 +73,7 @@ public class NotificationService : INotificationService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<NotificationDto?> GetByIdAsync(Guid notificationId, CancellationToken cancellationToken = default)
     {
-        var notification = await _context.Notifications
+        var notification = await _context.Set<NotificationEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(n => n.Id == notificationId, cancellationToken);
 
@@ -119,7 +118,7 @@ public class NotificationService : INotificationService
     public async Task<bool> MarkAsReadAsync(Guid notificationId, Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !n.IsDeleted (Global Query Filter)
-        var notification = await _context.Notifications
+        var notification = await _context.Set<NotificationEntity>()
             .FirstOrDefaultAsync(n => n.Id == notificationId && n.UserId == userId, cancellationToken);
 
         if (notification == null)
@@ -138,7 +137,7 @@ public class NotificationService : INotificationService
     public async Task<bool> MarkAllAsReadAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !n.IsDeleted (Global Query Filter)
-        var notifications = await _context.Notifications
+        var notifications = await _context.Set<NotificationEntity>()
             .Where(n => n.UserId == userId && !n.IsRead)
             .ToListAsync(cancellationToken);
 
@@ -161,7 +160,7 @@ public class NotificationService : INotificationService
     public async Task<bool> DeleteNotificationAsync(Guid notificationId, Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !n.IsDeleted (Global Query Filter)
-        var notification = await _context.Notifications
+        var notification = await _context.Set<NotificationEntity>()
             .FirstOrDefaultAsync(n => n.Id == notificationId && n.UserId == userId, cancellationToken);
 
         if (notification == null)
@@ -178,7 +177,7 @@ public class NotificationService : INotificationService
     public async Task<int> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !n.IsDeleted (Global Query Filter)
-        return await _context.Notifications
+        return await _context.Set<NotificationEntity>()
             .CountAsync(n => n.UserId == userId && !n.IsRead, cancellationToken);
     }
 }

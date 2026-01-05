@@ -9,10 +9,11 @@ using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Domain.ValueObjects;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
+using Merge.Application.Interfaces;
 using Merge.Application.DTOs.Product;
+using Merge.Application.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 
 namespace Merge.Application.Services.Product;
@@ -20,30 +21,34 @@ namespace Merge.Application.Services.Product;
 public class ProductService : IProductService
 {
     private readonly IRepository<ProductEntity> _productRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context; // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<ProductService> _logger;
+    private readonly PaginationSettings _paginationSettings;
 
     public ProductService(
         IRepository<ProductEntity> productRepository,
-        ApplicationDbContext context,
+        IDbContext context, // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)
         IUnitOfWork unitOfWork,
         IMapper mapper,
-        ILogger<ProductService> logger)
+        ILogger<ProductService> logger,
+        IOptions<PaginationSettings> paginationSettings)
     {
         _productRepository = productRepository;
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _paginationSettings = paginationSettings.Value;
     }
 
     public async Task<ProductDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed !p.IsDeleted (Global Query Filter handles it)
-        var product = await _context.Products
+        // ✅ BOLUM 1.0: IDbContext.Set<T>() kullan (Clean Architecture)
+        var product = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
@@ -55,12 +60,12 @@ public class ProductService : IProductService
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     public async Task<PagedResult<ProductDto>> GetAllAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic number YASAK - Config kullan (ZORUNLU)
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + removed manual !p.IsDeleted check
-        var query = _context.Products
+        var query = _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.IsActive);
@@ -88,12 +93,12 @@ public class ProductService : IProductService
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     public async Task<PagedResult<ProductDto>> GetByCategoryAsync(Guid categoryId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic number YASAK - Config kullan (ZORUNLU)
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + removed manual !p.IsDeleted check
-        var query = _context.Products
+        var query = _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.IsActive && p.CategoryId == categoryId);
@@ -131,14 +136,14 @@ public class ProductService : IProductService
             throw new ValidationException("Arama terimi boş olamaz.");
         }
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic number YASAK - Config kullan (ZORUNLU)
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: EF.Functions.ILike for case-insensitive search with PostgreSQL
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed !p.IsDeleted (Global Query Filter)
-        var query = _context.Products
+        var query = _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.IsActive &&
@@ -199,7 +204,8 @@ public class ProductService : IProductService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        product = await _context.Products
+        // ✅ BOLUM 1.0: IDbContext.Set<T>() kullan (Clean Architecture)
+        product = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == product.Id, cancellationToken);
@@ -272,7 +278,8 @@ public class ProductService : IProductService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        product = await _context.Products
+        // ✅ BOLUM 1.0: IDbContext.Set<T>() kullan (Clean Architecture)
+        product = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);

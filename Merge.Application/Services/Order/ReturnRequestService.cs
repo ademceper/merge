@@ -2,12 +2,11 @@ using AutoMapper;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Order;
 using Merge.Application.Common;
 
@@ -18,7 +17,7 @@ public class ReturnRequestService : IReturnRequestService
 {
     private readonly IRepository<ReturnRequest> _returnRequestRepository;
     private readonly IRepository<OrderEntity> _orderRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<ReturnRequestService> _logger;
@@ -26,7 +25,7 @@ public class ReturnRequestService : IReturnRequestService
     public ReturnRequestService(
         IRepository<ReturnRequest> returnRequestRepository,
         IRepository<OrderEntity> orderRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
         ILogger<ReturnRequestService> logger)
@@ -43,7 +42,7 @@ public class ReturnRequestService : IReturnRequestService
     public async Task<ReturnRequestDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
-        var returnRequest = await _context.ReturnRequests
+        var returnRequest = await _context.Set<ReturnRequest>()
             .AsNoTracking()
             .Include(r => r.Order)
             .Include(r => r.User)
@@ -64,7 +63,7 @@ public class ReturnRequestService : IReturnRequestService
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
-        var query = _context.ReturnRequests
+        var query = _context.Set<ReturnRequest>()
             .AsNoTracking()
             .Include(r => r.Order)
             .Include(r => r.User)
@@ -99,7 +98,7 @@ public class ReturnRequestService : IReturnRequestService
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
-        IQueryable<ReturnRequest> query = _context.ReturnRequests
+        IQueryable<ReturnRequest> query = _context.Set<ReturnRequest>()
             .AsNoTracking()
             .Include(r => r.Order)
             .Include(r => r.User);
@@ -156,7 +155,7 @@ public class ReturnRequestService : IReturnRequestService
         }
 
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
-        var order = await _context.Orders
+        var order = await _context.Set<OrderEntity>()
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.Id == dto.OrderId && o.UserId == dto.UserId, cancellationToken);
 
@@ -178,7 +177,7 @@ public class ReturnRequestService : IReturnRequestService
 
         // ✅ PERFORMANCE: Database'de Sum yap (ToListAsync() sonrası Sum YASAK)
         // İade edilecek kalemlerin toplam tutarını hesapla
-        var refundAmount = await _context.OrderItems
+        var refundAmount = await _context.Set<OrderItem>()
             .Where(oi => oi.OrderId == dto.OrderId && dto.OrderItemIds.Contains(oi.Id))
             .SumAsync(oi => (decimal?)oi.TotalPrice, cancellationToken) ?? 0;
 
@@ -201,7 +200,7 @@ public class ReturnRequestService : IReturnRequestService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
-        var reloadedReturnRequest = await _context.ReturnRequests
+        var reloadedReturnRequest = await _context.Set<ReturnRequest>()
             .AsNoTracking()
             .Include(r => r.Order)
             .Include(r => r.User)
@@ -255,7 +254,7 @@ public class ReturnRequestService : IReturnRequestService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
-        returnRequest = await _context.ReturnRequests
+        returnRequest = await _context.Set<ReturnRequest>()
             .AsNoTracking()
             .Include(r => r.Order)
             .Include(r => r.User)

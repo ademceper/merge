@@ -3,13 +3,12 @@ using PaymentEntity = Merge.Domain.Entities.Payment;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Payment;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Payment;
 
 
@@ -19,7 +18,7 @@ public class PaymentService : IPaymentService
 {
     private readonly IRepository<PaymentEntity> _paymentRepository;
     private readonly IRepository<OrderEntity> _orderRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<PaymentService> _logger;
@@ -27,7 +26,7 @@ public class PaymentService : IPaymentService
     public PaymentService(
         IRepository<PaymentEntity> paymentRepository,
         IRepository<OrderEntity> orderRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
         ILogger<PaymentService> logger)
@@ -46,7 +45,7 @@ public class PaymentService : IPaymentService
         {
             _logger.LogInformation("Retrieving payment with ID: {PaymentId}", id);
 
-            var payment = await _context.Payments
+            var payment = await _context.Set<PaymentEntity>()
                 .AsNoTracking()
                 .Include(p => p.Order)
                 .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
@@ -74,7 +73,7 @@ public class PaymentService : IPaymentService
         {
             _logger.LogInformation("Retrieving payment for order ID: {OrderId}", orderId);
 
-            var payment = await _context.Payments
+            var payment = await _context.Set<PaymentEntity>()
                 .AsNoTracking()
                 .Include(p => p.Order)
                 .FirstOrDefaultAsync(p => p.OrderId == orderId, cancellationToken);
@@ -128,7 +127,7 @@ public class PaymentService : IPaymentService
                 throw new BusinessException("Bu sipariş zaten ödenmiş.");
             }
 
-            var existingPayment = await _context.Payments
+            var existingPayment = await _context.Set<PaymentEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.OrderId == dto.OrderId, cancellationToken);
 
@@ -151,7 +150,7 @@ public class PaymentService : IPaymentService
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-            payment = await _context.Payments
+            payment = await _context.Set<PaymentEntity>()
                 .AsNoTracking()
                 .Include(p => p.Order)
                 .FirstOrDefaultAsync(p => p.Id == payment.Id, cancellationToken);
@@ -222,7 +221,7 @@ public class PaymentService : IPaymentService
             }
 
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-            payment = await _context.Payments
+            payment = await _context.Set<PaymentEntity>()
                 .AsNoTracking()
                 .Include(p => p.Order)
                 .FirstOrDefaultAsync(p => p.Id == payment.Id, cancellationToken);
@@ -309,7 +308,7 @@ public class PaymentService : IPaymentService
             }
 
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-            payment = await _context.Payments
+            payment = await _context.Set<PaymentEntity>()
                 .AsNoTracking()
                 .Include(p => p.Order)
                 .FirstOrDefaultAsync(p => p.Id == payment.Id, cancellationToken);
@@ -335,7 +334,7 @@ public class PaymentService : IPaymentService
         {
             _logger.LogInformation("Verifying payment with transaction ID: {TransactionId}", transactionId);
 
-            var payment = await _context.Payments
+            var payment = await _context.Set<PaymentEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.TransactionId == transactionId, cancellationToken);
 

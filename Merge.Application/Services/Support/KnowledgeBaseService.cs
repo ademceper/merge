@@ -3,11 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text;
 using Merge.Application.DTOs.Support;
 
@@ -15,12 +14,12 @@ namespace Merge.Application.Services.Support;
 
 public class KnowledgeBaseService : IKnowledgeBaseService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<KnowledgeBaseService> _logger;
 
-    public KnowledgeBaseService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<KnowledgeBaseService> logger)
+    public KnowledgeBaseService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<KnowledgeBaseService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;

@@ -2,7 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Merge.Domain\Merge.Domain.csproj" />
-    <ProjectReference Include="..\Merge.Infrastructure\Merge.Infrastructure.csproj" />
+    <!-- ✅ Clean Architecture: Application katmanı Infrastructure'a bağımlı DEĞİL -->
+    <!-- Infrastructure, Application'ı referans ederek IDbContext'i implement ediyor -->
   </ItemGroup>
 
   <ItemGroup>
@@ -12,9 +13,15 @@
     <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.2.0" />
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="9.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Abstractions" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.2.1" />
+    <PackageReference Include="MediatR" Version="12.4.1" />
+    <PackageReference Include="FluentValidation" Version="11.9.2" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.9.2" />
+    <!-- ✅ Npgsql package for ILike extension method (case-insensitive search) -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.2" />
   </ItemGroup>
 
   <PropertyGroup>

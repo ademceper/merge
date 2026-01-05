@@ -4,8 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
+using Merge.Application.Interfaces;
 using Merge.Application.DTOs.User;
 using Microsoft.Extensions.Logging;
 
@@ -15,14 +14,14 @@ namespace Merge.Application.Services.User;
 public class AddressService : IAddressService
 {
     private readonly IRepository<Address> _addressRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context; // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<AddressService> _logger;
 
     public AddressService(
         IRepository<Address> addressRepository,
-        ApplicationDbContext context,
+        IDbContext context, // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)
         IMapper mapper,
         IUnitOfWork unitOfWork,
         ILogger<AddressService> logger)
@@ -39,7 +38,7 @@ public class AddressService : IAddressService
     {
         _logger.LogInformation("Retrieving address with ID: {AddressId}", id);
 
-        var address = await _context.Addresses
+        var address = await _context.Set<Address>()
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
@@ -57,7 +56,7 @@ public class AddressService : IAddressService
     {
         _logger.LogInformation("Retrieving addresses for user ID: {UserId}", userId);
 
-        var addresses = await _context.Addresses
+        var addresses = await _context.Set<Address>()
             .AsNoTracking()
             .Where(a => a.UserId == userId)
             .OrderByDescending(a => a.IsDefault)
@@ -93,13 +92,13 @@ public class AddressService : IAddressService
         if (dto.IsDefault)
         {
             // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-            var existingDefaults = await _context.Addresses
+            var existingDefaults = await _context.Set<Address>()
                 .Where(a => a.UserId == dto.UserId && a.IsDefault)
                 .ToListAsync(cancellationToken);
 
             foreach (var addr in existingDefaults)
             {
-                addr.IsDefault = false;
+                addr.RemoveDefault(); // ✅ BOLUM 11.0: Rich Domain Model - Domain method kullan
             }
 
             if (existingDefaults.Any())
@@ -108,7 +107,21 @@ public class AddressService : IAddressService
             }
         }
 
-        var address = _mapper.Map<Address>(dto);
+        // ✅ BOLUM 11.0: Rich Domain Model - Factory method kullan
+        var address = Address.Create(
+            userId: dto.UserId,
+            title: dto.Title ?? string.Empty,
+            firstName: dto.FirstName,
+            lastName: dto.LastName,
+            phoneNumber: dto.PhoneNumber,
+            addressLine1: dto.AddressLine1,
+            city: dto.City,
+            district: dto.District,
+            postalCode: dto.PostalCode,
+            country: dto.Country ?? "Türkiye",
+            addressLine2: dto.AddressLine2,
+            isDefault: dto.IsDefault);
+        
         address = await _addressRepository.AddAsync(address, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -148,13 +161,13 @@ public class AddressService : IAddressService
         if (dto.IsDefault && !address.IsDefault)
         {
             // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-            var existingDefaults = await _context.Addresses
+            var existingDefaults = await _context.Set<Address>()
                 .Where(a => a.UserId == address.UserId && a.Id != id && a.IsDefault)
                 .ToListAsync(cancellationToken);
 
             foreach (var addr in existingDefaults)
             {
-                addr.IsDefault = false;
+                addr.RemoveDefault(); // ✅ BOLUM 11.0: Rich Domain Model - Domain method kullan
             }
 
             if (existingDefaults.Any())
@@ -163,17 +176,28 @@ public class AddressService : IAddressService
             }
         }
 
-        address.Title = dto.Title;
-        address.FirstName = dto.FirstName;
-        address.LastName = dto.LastName;
-        address.PhoneNumber = dto.PhoneNumber;
-        address.AddressLine1 = dto.AddressLine1;
-        address.AddressLine2 = dto.AddressLine2;
-        address.City = dto.City;
-        address.District = dto.District;
-        address.PostalCode = dto.PostalCode;
-        address.Country = dto.Country;
-        address.IsDefault = dto.IsDefault;
+        // ✅ BOLUM 11.0: Rich Domain Model - Domain method kullan
+        // ✅ BOLUM 11.0: Rich Domain Model - Domain method kullan
+        address.UpdateAddress(
+            title: dto.Title ?? string.Empty,
+            firstName: dto.FirstName,
+            lastName: dto.LastName,
+            phoneNumber: dto.PhoneNumber,
+            addressLine1: dto.AddressLine1,
+            city: dto.City,
+            district: dto.District,
+            postalCode: dto.PostalCode,
+            addressLine2: dto.AddressLine2);
+        
+        // IsDefault değişikliği ayrı kontrol edilmeli
+        if (dto.IsDefault && !address.IsDefault)
+        {
+            address.SetAsDefault(); // ✅ BOLUM 11.0: Rich Domain Model - Domain method kullan
+        }
+        else if (!dto.IsDefault && address.IsDefault)
+        {
+            address.RemoveDefault(); // ✅ BOLUM 11.0: Rich Domain Model - Domain method kullan
+        }
 
         await _addressRepository.UpdateAsync(address, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -208,7 +232,7 @@ public class AddressService : IAddressService
     {
         _logger.LogInformation("Setting address {AddressId} as default for user {UserId}", id, userId);
 
-        var address = await _context.Addresses
+        var address = await _context.Set<Address>()
             .FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId, cancellationToken);
 
         if (address == null)
@@ -219,16 +243,16 @@ public class AddressService : IAddressService
 
         // Diğer adreslerin default'unu kaldır
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-        var existingDefaults = await _context.Addresses
+        var existingDefaults = await _context.Set<Address>()
             .Where(a => a.UserId == userId && a.Id != id && a.IsDefault)
             .ToListAsync(cancellationToken);
 
         foreach (var addr in existingDefaults)
         {
-            addr.IsDefault = false;
+            addr.RemoveDefault(); // ✅ BOLUM 11.0: Rich Domain Model - Domain method kullan
         }
 
-        address.IsDefault = true;
+        address.SetAsDefault(); // ✅ BOLUM 11.0: Rich Domain Model - Domain method kullan
 
         await _addressRepository.UpdateAsync(address, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

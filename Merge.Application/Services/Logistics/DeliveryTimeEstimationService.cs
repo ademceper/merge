@@ -4,8 +4,7 @@ using Microsoft.Extensions.Logging;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Merge.Application.Interfaces.Logistics;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
+using Merge.Application.Interfaces;
 using System.Text.Json;
 using Merge.Application.DTOs.Logistics;
 
@@ -14,12 +13,12 @@ namespace Merge.Application.Services.Logistics;
 
 public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<DeliveryTimeEstimationService> _logger;
 
-    public DeliveryTimeEstimationService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<DeliveryTimeEstimationService> logger)
+    public DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<DeliveryTimeEstimationService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;

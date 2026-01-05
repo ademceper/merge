@@ -3,10 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Content;
+using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Content;
 using Merge.Application.Common;
 
@@ -15,12 +14,12 @@ namespace Merge.Application.Services.Content;
 
 public class PageBuilderService : IPageBuilderService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<PageBuilderService> _logger;
     private readonly IMapper _mapper;
 
-    public PageBuilderService(ApplicationDbContext context, IUnitOfWork unitOfWork, ILogger<PageBuilderService> logger, IMapper mapper)
+    public PageBuilderService(IDbContext context, IUnitOfWork unitOfWork, ILogger<PageBuilderService> logger, IMapper mapper)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -53,7 +52,7 @@ public class PageBuilderService : IPageBuilderService
                 OgImageUrl = dto.OgImageUrl
             };
 
-            await _context.PageBuilders.AddAsync(page, cancellationToken);
+            await _context.Set<PageBuilder>().AddAsync(page, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Page builder sayfasi olusturuldu. PageId: {PageId}, Name: {Name}", page.Id, page.Name);
@@ -70,7 +69,7 @@ public class PageBuilderService : IPageBuilderService
     public async Task<PageBuilderDto?> GetPageAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var page = await _context.PageBuilders
+        var page = await _context.Set<PageBuilder>()
             .AsNoTracking()
             .Include(p => p.Author)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
@@ -81,7 +80,7 @@ public class PageBuilderService : IPageBuilderService
     public async Task<PageBuilderDto?> GetPageBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var page = await _context.PageBuilders
+        var page = await _context.Set<PageBuilder>()
             .AsNoTracking()
             .Include(p => p.Author)
                 .FirstOrDefaultAsync(p => p.Slug == slug && p.Status == ContentStatus.Published, cancellationToken);
@@ -93,7 +92,7 @@ public class PageBuilderService : IPageBuilderService
     public async Task<PagedResult<PageBuilderDto>> GetAllPagesAsync(string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var query = _context.PageBuilders
+        var query = _context.Set<PageBuilder>()
             .AsNoTracking()
             .Include(p => p.Author)
             .AsQueryable();
@@ -135,7 +134,7 @@ public class PageBuilderService : IPageBuilderService
         try
         {
             // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-            var page = await _context.PageBuilders
+            var page = await _context.Set<PageBuilder>()
                 .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
             if (page == null)
@@ -170,7 +169,7 @@ public class PageBuilderService : IPageBuilderService
     public async Task<bool> DeletePageAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var page = await _context.PageBuilders
+        var page = await _context.Set<PageBuilder>()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (page == null) return false;
@@ -185,7 +184,7 @@ public class PageBuilderService : IPageBuilderService
     public async Task<bool> PublishPageAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var page = await _context.PageBuilders
+        var page = await _context.Set<PageBuilder>()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (page == null) return false;
@@ -202,7 +201,7 @@ public class PageBuilderService : IPageBuilderService
     public async Task<bool> UnpublishPageAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var page = await _context.PageBuilders
+        var page = await _context.Set<PageBuilder>()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (page == null) return false;

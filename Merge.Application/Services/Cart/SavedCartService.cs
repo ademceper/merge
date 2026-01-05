@@ -2,12 +2,11 @@ using AutoMapper;
 using CartEntity = Merge.Domain.Entities.Cart;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Cart;
 using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.DTOs.Cart;
 
@@ -18,7 +17,7 @@ public class SavedCartService : ISavedCartService
     private readonly IRepository<SavedCartItem> _savedCartItemRepository;
     private readonly IRepository<ProductEntity> _productRepository;
     private readonly ICartService _cartService;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<SavedCartService> _logger;
@@ -27,7 +26,7 @@ public class SavedCartService : ISavedCartService
         IRepository<SavedCartItem> savedCartItemRepository,
         IRepository<ProductEntity> productRepository,
         ICartService cartService,
-        ApplicationDbContext context,
+        IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
         ILogger<SavedCartService> logger)
@@ -51,7 +50,7 @@ public class SavedCartService : ISavedCartService
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !sci.IsDeleted check (Global Query Filter handles it)
-        var query = _context.SavedCartItems
+        var query = _context.Set<SavedCartItem>()
             .AsNoTracking()
             .Include(sci => sci.Product)
             .Where(sci => sci.UserId == userId);
@@ -82,7 +81,7 @@ public class SavedCartService : ISavedCartService
     public async Task<SavedCartItemDto> SaveItemAsync(Guid userId, SaveItemDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only product query
-        var product = await _context.Products
+        var product = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == dto.ProductId, cancellationToken);
         if (product == null || !product.IsActive)
@@ -91,8 +90,8 @@ public class SavedCartService : ISavedCartService
         }
 
         // ✅ PERFORMANCE: Removed manual !sci.IsDeleted check (Global Query Filter handles it)
-        var existing = await _context.SavedCartItems
-            .FirstOrDefaultAsync(sci => sci.UserId == userId && 
+        var existing = await _context.Set<SavedCartItem>()
+            .FirstOrDefaultAsync(sci => sci.UserId == userId &&
                                   sci.ProductId == dto.ProductId, cancellationToken);
 
         var currentPrice = product.DiscountPrice ?? product.Price;
@@ -106,7 +105,7 @@ public class SavedCartService : ISavedCartService
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // ✅ ARCHITECTURE: Reload with Include for AutoMapper
-            existing = await _context.SavedCartItems
+            existing = await _context.Set<SavedCartItem>()
                 .AsNoTracking()
                 .Include(sci => sci.Product)
                 .FirstOrDefaultAsync(sci => sci.Id == existing.Id, cancellationToken);
@@ -122,7 +121,7 @@ public class SavedCartService : ISavedCartService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: Reload with Include for AutoMapper
-        savedItem = await _context.SavedCartItems
+        savedItem = await _context.Set<SavedCartItem>()
             .AsNoTracking()
             .Include(sci => sci.Product)
             .FirstOrDefaultAsync(sci => sci.Id == savedItem.Id, cancellationToken);
@@ -135,8 +134,8 @@ public class SavedCartService : ISavedCartService
     public async Task<bool> RemoveSavedItemAsync(Guid userId, Guid itemId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sci.IsDeleted check (Global Query Filter handles it)
-        var item = await _context.SavedCartItems
-            .FirstOrDefaultAsync(sci => sci.Id == itemId && 
+        var item = await _context.Set<SavedCartItem>()
+            .FirstOrDefaultAsync(sci => sci.Id == itemId &&
                                   sci.UserId == userId, cancellationToken);
 
         if (item == null)
@@ -153,9 +152,9 @@ public class SavedCartService : ISavedCartService
     public async Task<bool> MoveToCartAsync(Guid userId, Guid itemId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sci.IsDeleted check (Global Query Filter handles it)
-        var item = await _context.SavedCartItems
+        var item = await _context.Set<SavedCartItem>()
             .Include(sci => sci.Product)
-            .FirstOrDefaultAsync(sci => sci.Id == itemId && 
+            .FirstOrDefaultAsync(sci => sci.Id == itemId &&
                                   sci.UserId == userId, cancellationToken);
 
         if (item == null)
@@ -196,7 +195,7 @@ public class SavedCartService : ISavedCartService
         // BEFORE: 50 items = 50 UPDATE queries + 50 SaveChanges = ~500ms
         // AFTER: 50 items = 1 UPDATE WHERE IN query + 1 SaveChanges = ~10ms (50x faster!)
         // ✅ PERFORMANCE: Removed manual !sci.IsDeleted check (Global Query Filter handles it)
-        var items = await _context.SavedCartItems
+        var items = await _context.Set<SavedCartItem>()
             .Where(sci => sci.UserId == userId)
             .ToListAsync(cancellationToken);
 

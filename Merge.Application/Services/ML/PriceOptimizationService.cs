@@ -1,12 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.ML;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.ValueObjects;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.DTOs.Analytics;
 
@@ -15,11 +14,11 @@ namespace Merge.Application.Services.ML;
 
 public class PriceOptimizationService : IPriceOptimizationService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<PriceOptimizationService> _logger;
 
-    public PriceOptimizationService(ApplicationDbContext context, IUnitOfWork unitOfWork, ILogger<PriceOptimizationService> logger)
+    public PriceOptimizationService(IDbContext context, IUnitOfWork unitOfWork, ILogger<PriceOptimizationService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -30,7 +29,7 @@ public class PriceOptimizationService : IPriceOptimizationService
     public async Task<PriceOptimizationDto> OptimizePriceAsync(Guid productId, PriceOptimizationRequestDto? request = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var product = await _context.Products
+        var product = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
@@ -41,7 +40,7 @@ public class PriceOptimizationService : IPriceOptimizationService
         }
 
         // ✅ PERFORMANCE: Batch load similar products (N+1 fix)
-        var similarProducts = await _context.Products
+        var similarProducts = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.CategoryId == product.CategoryId && 
                        p.Id != product.Id && 
@@ -86,7 +85,7 @@ public class PriceOptimizationService : IPriceOptimizationService
     public async Task<IEnumerable<PriceOptimizationDto>> OptimizePricesForCategoryAsync(Guid categoryId, PriceOptimizationRequestDto? request = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var products = await _context.Products
+        var products = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.CategoryId == categoryId && p.IsActive)
@@ -94,14 +93,14 @@ public class PriceOptimizationService : IPriceOptimizationService
 
         // ✅ PERFORMANCE: Batch load competitor prices (N+1 fix)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() ve Distinct() YASAK - Database'de Select ve Distinct yap
-        var categoryIds = await _context.Products
+        var categoryIds = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.CategoryId == categoryId && p.IsActive)
             .Select(p => p.CategoryId)
             .Distinct()
             .ToListAsync(cancellationToken);
         
-        var allSimilarProducts = await _context.Products
+        var allSimilarProducts = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => categoryIds.Contains(p.CategoryId) && p.IsActive)
             .ToListAsync(cancellationToken);
@@ -152,7 +151,7 @@ public class PriceOptimizationService : IPriceOptimizationService
     public async Task<PriceRecommendationDto> GetPriceRecommendationAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var product = await _context.Products
+        var product = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
@@ -163,7 +162,7 @@ public class PriceOptimizationService : IPriceOptimizationService
         }
 
         // ✅ PERFORMANCE: Batch load similar products (N+1 fix)
-        var similarProducts = await _context.Products
+        var similarProducts = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.CategoryId == product.CategoryId && 
                        p.Id != product.Id && 
@@ -177,7 +176,7 @@ public class PriceOptimizationService : IPriceOptimizationService
     public async Task<IEnumerable<PriceRecommendationDto>> GetPriceRecommendationsAsync(Guid productId, int count = 5, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var product = await _context.Products
+        var product = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
@@ -188,7 +187,7 @@ public class PriceOptimizationService : IPriceOptimizationService
         }
 
         // ✅ PERFORMANCE: Batch load similar products (N+1 fix)
-        var similarProducts = await _context.Products
+        var similarProducts = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.CategoryId == product.CategoryId && 
                        p.Id != product.Id && 
@@ -209,10 +208,10 @@ public class PriceOptimizationService : IPriceOptimizationService
         // Gerçek implementasyonda bir PriceOptimizationHistory tablosu olmalı
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var totalProducts = await _context.Products
+        var totalProducts = await _context.Set<ProductEntity>()
             .CountAsync(p => p.IsActive, cancellationToken);
 
-        var productsWithDiscount = await _context.Products
+        var productsWithDiscount = await _context.Set<ProductEntity>()
             .CountAsync(p => p.IsActive && p.DiscountPrice.HasValue, cancellationToken);
 
         return new PriceOptimizationStatsDto
@@ -238,7 +237,7 @@ public class PriceOptimizationService : IPriceOptimizationService
         if (similarProducts == null)
         {
             // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-            similarProducts = await _context.Products
+            similarProducts = await _context.Set<ProductEntity>()
                 .AsNoTracking()
                 .Where(p => p.CategoryId == product.CategoryId && 
                            p.Id != product.Id && 

@@ -5,11 +5,10 @@ using Microsoft.Extensions.Options;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Marketing;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Marketing;
 using Merge.Application.Configuration;
 using Merge.Application.Common;
@@ -18,7 +17,7 @@ namespace Merge.Application.Services.Marketing;
 
 public class LoyaltyService : ILoyaltyService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<LoyaltyService> _logger;
@@ -27,9 +26,9 @@ public class LoyaltyService : ILoyaltyService
     private const decimal CURRENCY_TO_POINTS_RATE = 1.0m; // $1 = 1 point
 
     public LoyaltyService(
-        ApplicationDbContext context, 
-        IUnitOfWork unitOfWork, 
-        IMapper mapper, 
+        IDbContext context,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
         ILogger<LoyaltyService> logger,
         IOptions<LoyaltySettings> loyaltySettings)
     {

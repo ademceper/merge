@@ -8,8 +8,7 @@ using Merge.Application.Configuration;
 using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
+using Merge.Application.Interfaces;
 using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
 using UserEntity = Merge.Domain.Entities.User;
@@ -24,7 +23,7 @@ namespace Merge.Application.Services.Analytics;
 
 public class AnalyticsService : IAnalyticsService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<AnalyticsService> _logger;
@@ -39,7 +38,7 @@ public class AnalyticsService : IAnalyticsService
 
     // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
     public AnalyticsService(
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<AnalyticsService> logger,
@@ -82,11 +81,11 @@ public class AnalyticsService : IAnalyticsService
         var ordersChange = previousOrderCount > 0 ? ((decimal)(totalOrders - previousOrderCount) / previousOrderCount) * 100 : 0;
 
         // ✅ PERFORMANCE: Removed manual !u.IsDeleted check (Global Query Filter handles it)
-        var totalCustomers = await _context.Set<UserEntity>()
+        var totalCustomers = await _context.Users
             .AsNoTracking()
             .CountAsync(u => u.CreatedAt >= start && u.CreatedAt <= end, cancellationToken);
 
-        var previousCustomers = await _context.Set<UserEntity>()
+        var previousCustomers = await _context.Users
             .AsNoTracking()
             .CountAsync(u => u.CreatedAt >= previousStart && u.CreatedAt < previousEnd, cancellationToken);
 
@@ -409,11 +408,12 @@ public class AnalyticsService : IAnalyticsService
     public async Task<CustomerAnalyticsDto> GetCustomerAnalyticsAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // ✅ Identity framework'ün Role ve UserRole entity'leri IDbContext üzerinden erişiliyor
         var customerRole = await _context.Roles
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Name == "Customer", cancellationToken);
         // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
-        var customerUserIds = customerRole != null 
+        var customerUserIds = customerRole != null
             ? await _context.UserRoles
                 .AsNoTracking()
                 .Where(ur => ur.RoleId == customerRole.Id)
@@ -426,14 +426,14 @@ public class AnalyticsService : IAnalyticsService
         // ✅ PERFORMANCE: Removed manual !u.IsDeleted and !o.IsDeleted checks (Global Query Filter handles it)
         // ✅ PERFORMANCE: List.Count > 0 kullan (Any() YASAK - .cursorrules)
         var totalCustomers = customerUserIds.Count > 0
-            ? await _context.Set<UserEntity>()
+            ? await _context.Users
                 .AsNoTracking()
                 .Where(u => customerUserIds.Contains(u.Id))
                 .CountAsync(cancellationToken)
             : 0;
 
         var newCustomers = customerUserIds.Count > 0
-            ? await _context.Set<UserEntity>()
+            ? await _context.Users
                 .AsNoTracking()
                 .Where(u => customerUserIds.Contains(u.Id) && u.CreatedAt >= startDate && u.CreatedAt <= endDate)
                 .CountAsync(cancellationToken)
@@ -1217,10 +1217,10 @@ public class AnalyticsService : IAnalyticsService
         // ✅ PERFORMANCE: Database'de aggregate query kullan (basit aggregateler için)
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
-        var ordersQuery = _context.Orders
+        var ordersQuery = _context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
-                  o.CreatedAt >= startDate && 
+                  o.CreatedAt >= startDate &&
                   o.CreatedAt <= endDate);
 
         // Calculate revenue - Database'de aggregate
@@ -1237,7 +1237,7 @@ public class AnalyticsService : IAnalyticsService
         // ✅ PERFORMANCE: orderIds boşsa Contains() hiçbir şey döndürmez, direkt SumAsync çağırabiliriz
         // List.Count kontrolü gerekmez çünkü boş liste Contains() ile hiçbir şey match etmez
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var productCosts = await _context.OrderItems
+        var productCosts = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => orderIds.Contains(oi.OrderId))
             .SumAsync(oi => oi.UnitPrice * oi.Quantity * _settings.ProductCostPercentage, cancellationToken);
@@ -1247,12 +1247,12 @@ public class AnalyticsService : IAnalyticsService
         var shippingCosts = await ordersQuery.SumAsync(o => o.ShippingCost * _settings.ShippingCostPercentage, cancellationToken);
         var platformFees = await ordersQuery.SumAsync(o => o.TotalAmount * _settings.PlatformFeePercentage, cancellationToken);
         var discountGiven = await ordersQuery.SumAsync(o => (o.CouponDiscount ?? 0) + (o.GiftCardDiscount ?? 0), cancellationToken);
-        
+
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !sc.IsDeleted and !r.IsDeleted checks (Global Query Filter handles it)
         var commissionPaid = await _context.Set<SellerCommission>()
             .AsNoTracking()
-            .Where(sc => sc.CreatedAt >= startDate && 
+            .Where(sc => sc.CreatedAt >= startDate &&
                   sc.CreatedAt <= endDate)
             .SumAsync(sc => sc.CommissionAmount, cancellationToken);
         var refundAmount = await _context.Set<ReturnRequest>()
@@ -1275,10 +1275,10 @@ public class AnalyticsService : IAnalyticsService
         // ✅ PERFORMANCE: Database'de toplam hesapla (memory'de Sum YASAK)
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
-        var previousOrdersQuery = _context.Orders
+        var previousOrdersQuery = _context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
-                  o.CreatedAt >= previousStartDate && 
+                  o.CreatedAt >= previousStartDate &&
                   o.CreatedAt < previousEndDate);
 
         var previousRevenue = await previousOrdersQuery.SumAsync(o => o.TotalAmount, cancellationToken);
@@ -1310,10 +1310,10 @@ public class AnalyticsService : IAnalyticsService
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Revenue by date - Database'de grouping yap (memory'de değil)
-        var revenueByDate = await _context.Orders
+        var revenueByDate = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
-                  o.CreatedAt >= startDate && 
+                  o.CreatedAt >= startDate &&
                   o.CreatedAt <= endDate)
             .GroupBy(o => o.CreatedAt.Date)
             .Select(g => new RevenueByDateDto
@@ -1386,10 +1386,10 @@ public class AnalyticsService : IAnalyticsService
 
         if (period == "daily")
         {
-            summaries = await _context.Orders
+            summaries = await _context.Set<OrderEntity>()
                 .AsNoTracking()
                 .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
-                      o.CreatedAt >= startDate && 
+                      o.CreatedAt >= startDate &&
                       o.CreatedAt <= endDate)
                 .GroupBy(o => o.CreatedAt.Date)
                 .Select(g => new FinancialSummaryDto
@@ -1434,10 +1434,10 @@ public class AnalyticsService : IAnalyticsService
         }
         else if (period == "monthly")
         {
-            summaries = await _context.Orders
+            summaries = await _context.Set<OrderEntity>()
                 .AsNoTracking()
                 .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
-                      o.CreatedAt >= startDate && 
+                      o.CreatedAt >= startDate &&
                       o.CreatedAt <= endDate)
                 .GroupBy(o => new { o.CreatedAt.Year, o.CreatedAt.Month })
                 .Select(g => new FinancialSummaryDto
@@ -1470,10 +1470,10 @@ public class AnalyticsService : IAnalyticsService
         startDate ??= DateTime.UtcNow.AddDays(-_settings.DefaultPeriodDays);
         endDate ??= DateTime.UtcNow;
 
-        var ordersQuery = _context.Orders
+        var ordersQuery = _context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
-                  o.CreatedAt >= startDate && 
+                  o.CreatedAt >= startDate &&
                   o.CreatedAt <= endDate);
 
         var totalRevenue = await ordersQuery.SumAsync(o => o.TotalAmount, cancellationToken);

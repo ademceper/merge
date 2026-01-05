@@ -1,5 +1,6 @@
 using AutoMapper;
 using Merge.Application.Services.Notification;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using UserEntity = Merge.Domain.Entities.User;
 using OrderEntity = Merge.Domain.Entities.Order;
@@ -12,8 +13,6 @@ using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Seller;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Common;
@@ -26,7 +25,7 @@ public class SellerOnboardingService : ISellerOnboardingService
 {
     private readonly IRepository<SellerApplication> _applicationRepository;
     private readonly UserManager<UserEntity> _userManager;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IEmailService _emailService;
     private readonly IUnitOfWork _unitOfWork;
@@ -36,7 +35,7 @@ public class SellerOnboardingService : ISellerOnboardingService
     public SellerOnboardingService(
         IRepository<SellerApplication> applicationRepository,
         UserManager<UserEntity> userManager,
-        ApplicationDbContext context,
+        IDbContext context,
         IMapper mapper,
         IEmailService emailService,
         IUnitOfWork unitOfWork,
@@ -221,7 +220,7 @@ public class SellerOnboardingService : ISellerOnboardingService
                 applicationId, reviewDto.Status);
 
             // Send notification email
-            var user = await _context.Set<UserEntity>().AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
+            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
             if (user != null)
             {
                 var subject = reviewDto.Status == SellerApplicationStatus.Approved
@@ -281,7 +280,7 @@ public class SellerOnboardingService : ISellerOnboardingService
             await CreateSellerProfileAsync(application, cancellationToken);
 
             // Send approval email
-            var user = await _context.Set<UserEntity>().AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
+            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
             if (user != null)
             {
                 await _emailService.SendEmailAsync(
@@ -294,18 +293,12 @@ public class SellerOnboardingService : ISellerOnboardingService
                 );
 
                 // Update user role to Seller
-                var sellerRole = await _context.Roles.AsNoTracking().FirstOrDefaultAsync(r => r.Name == "Seller", cancellationToken);
-                if (sellerRole != null)
+                var currentRoles = await _userManager.GetRolesAsync(user);
+                if (currentRoles.Any())
                 {
-                    var existingRoles = await _context.UserRoles.Where(ur => ur.UserId == user.Id).ToListAsync(cancellationToken);
-                    _context.UserRoles.RemoveRange(existingRoles);
-
-                    await _context.UserRoles.AddAsync(new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>
-                    {
-                        UserId = user.Id,
-                        RoleId = sellerRole.Id
-                    }, cancellationToken);
+                    await _userManager.RemoveFromRolesAsync(user, currentRoles);
                 }
+                await _userManager.AddToRoleAsync(user, "Seller");
             }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -346,7 +339,7 @@ public class SellerOnboardingService : ISellerOnboardingService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Send rejection email
-        var user = await _context.Set<UserEntity>().AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
+        var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
         if (user != null)
         {
             await _emailService.SendEmailAsync(
@@ -404,7 +397,7 @@ public class SellerOnboardingService : ISellerOnboardingService
     private async Task CreateSellerProfileAsync(SellerApplication application, CancellationToken cancellationToken = default)
     {
         // Check if seller profile already exists
-        var existingProfile = await _context.SellerProfiles
+        var existingProfile = await _context.Set<SellerProfile>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == application.UserId, cancellationToken);
 
@@ -423,7 +416,7 @@ public class SellerOnboardingService : ISellerOnboardingService
             VerifiedAt = DateTime.UtcNow
         };
 
-        await _context.SellerProfiles.AddAsync(profile, cancellationToken);
+        await _context.Set<SellerProfile>().AddAsync(profile, cancellationToken);
         _logger.LogInformation("Created seller profile for user {UserId} with store name: {StoreName}",
             application.UserId, application.BusinessName);
     }

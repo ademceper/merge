@@ -7,9 +7,9 @@ using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
+using Merge.Application.Interfaces;
 using Merge.Application.Services;
+using CartEntity = Merge.Domain.Entities.Cart;
 using Merge.Application.Interfaces.Cart;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.Interfaces.Notification;
@@ -32,7 +32,7 @@ public class OrderService : IOrderService
     private readonly IEmailService? _emailService;
     private readonly ISmsService? _smsService;
     private readonly INotificationService? _notificationService;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context; // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<OrderService> _logger;
@@ -43,7 +43,7 @@ public class OrderService : IOrderService
         IRepository<OrderItem> orderItemRepository,
         ICartService cartService,
         ICouponService couponService,
-        ApplicationDbContext context,
+        IDbContext context, // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<OrderService> logger,
@@ -69,7 +69,7 @@ public class OrderService : IOrderService
     public async Task<OrderDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
-        var order = await _context.Orders
+        var order = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
@@ -83,7 +83,7 @@ public class OrderService : IOrderService
     public async Task<IEnumerable<OrderDto>> GetOrdersByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted check
-        var orders = await _context.Orders
+        var orders = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
@@ -103,7 +103,7 @@ public class OrderService : IOrderService
     public async Task<PagedResult<OrderDto>> GetOrdersByUserIdAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Pagination
-        var query = _context.Orders
+        var query = _context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
@@ -140,7 +140,7 @@ public class OrderService : IOrderService
         {
             // ✅ PERFORMANCE: AsNoTracking for read-only query (check için)
             // ✅ PERFORMANCE: Removed manual !ci.IsDeleted and !c.IsDeleted checks
-            var cart = await _context.Carts
+            var cart = await _context.Set<CartEntity>()
                 .AsNoTracking()
                 .Include(c => c.CartItems)
                     .ThenInclude(ci => ci.Product)
@@ -154,7 +154,7 @@ public class OrderService : IOrderService
 
             // ✅ PERFORMANCE: AsNoTracking for read-only query (check için)
             // ✅ PERFORMANCE: Address entity'sini çek (Create factory method için gerekli)
-            var address = await _context.Addresses
+            var address = await _context.Set<Address>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(a => a.Id == addressId && a.UserId == userId, cancellationToken);
             if (address == null)
@@ -200,7 +200,7 @@ public class OrderService : IOrderService
                         {
                             // ✅ PERFORMANCE: AsNoTracking for read-only query (check için)
                             // Coupon entity'sini context'ten çek
-                            var coupon = await _context.Coupons
+                            var coupon = await _context.Set<Coupon>()
                                 .AsNoTracking()
                                 .FirstOrDefaultAsync(c => c.Id == couponDto.Id, cancellationToken);
                             
@@ -234,12 +234,12 @@ public class OrderService : IOrderService
                         OrderId = order.Id,
                         DiscountAmount = order.CouponDiscount.Value
                     };
-                    await _context.CouponUsages.AddAsync(couponUsage, cancellationToken);
+                    await _context.Set<CouponUsage>().AddAsync(couponUsage, cancellationToken);
 
                     // ✅ NOT: AsNoTracking() YOK - Entity track edilmeli (update için - IncrementUsage)
                     // ✅ PERFORMANCE: FindAsync Global Query Filter'ı bypass eder - FirstOrDefaultAsync kullan
                     // Kupon kullanım sayısını artır
-                    var couponEntity = await _context.Coupons.FirstOrDefaultAsync(c => c.Id == couponDto.Id, cancellationToken);
+                    var couponEntity = await _context.Set<Coupon>().FirstOrDefaultAsync(c => c.Id == couponDto.Id, cancellationToken);
                     if (couponEntity != null)
                     {
                         // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
@@ -255,7 +255,7 @@ public class OrderService : IOrderService
             await _unitOfWork.CommitTransactionAsync();
 
             // Performance: Reload with all includes in one query instead of multiple LoadAsync calls
-            order = await _context.Orders
+            order = await _context.Set<OrderEntity>()
                 .AsNoTracking()
                 .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.Product)
@@ -298,7 +298,7 @@ public class OrderService : IOrderService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Single query with all includes instead of multiple LoadAsync calls
-        order = await _context.Orders
+        order = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
@@ -316,7 +316,7 @@ public class OrderService : IOrderService
     public async Task<bool> CancelOrderAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter)
-        var order = await _context.Orders
+        var order = await _context.Set<OrderEntity>()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
@@ -383,7 +383,7 @@ public class OrderService : IOrderService
     public async Task<OrderDto> ReorderAsync(Guid orderId, Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted check
-        var originalOrder = await _context.Orders
+        var originalOrder = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
@@ -409,9 +409,9 @@ public class OrderService : IOrderService
                     await _cartService.AddItemToCartAsync(userId, orderItem.ProductId, orderItem.Quantity, cancellationToken);
                     addedItems++;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ürün sepete eklenemezse devam et
+                    _logger.LogWarning(ex, "Failed to add product to cart during reorder. ProductId: {ProductId}", orderItem.ProductId);
                     skippedItems++;
                 }
             }
@@ -504,7 +504,7 @@ public class OrderService : IOrderService
     private async Task<List<OrderDto>> GetOrdersForExportAsync(OrderExportDto exportDto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted check (Global Query Filter)
-        var query = _context.Orders
+        var query = _context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)

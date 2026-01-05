@@ -3,14 +3,13 @@ using UserEntity = Merge.Domain.Entities.User;
 using ReviewEntity = Merge.Domain.Entities.Review;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Microsoft.EntityFrameworkCore;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Review;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Review;
 using Merge.Application.Common;
 using Microsoft.Extensions.Logging;
@@ -22,7 +21,7 @@ public class ReviewService : IReviewService
 {
     private readonly IRepository<ReviewEntity> _reviewRepository;
     private readonly IRepository<ProductEntity> _productRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<ReviewService> _logger;
@@ -30,7 +29,7 @@ public class ReviewService : IReviewService
     public ReviewService(
         IRepository<ReviewEntity> reviewRepository,
         IRepository<ProductEntity> productRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<ReviewService> logger)
@@ -47,7 +46,7 @@ public class ReviewService : IReviewService
     public async Task<ReviewDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
-        var review = await _context.Reviews
+        var review = await _context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Product)
@@ -69,7 +68,7 @@ public class ReviewService : IReviewService
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted check (Global Query Filter)
-        var query = _context.Reviews
+        var query = _context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Product)
@@ -107,7 +106,7 @@ public class ReviewService : IReviewService
         if (pageSize > 100) pageSize = 100; // Max limit
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted check
-        var query = _context.Reviews
+        var query = _context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Product)
@@ -156,7 +155,7 @@ public class ReviewService : IReviewService
 
         // ✅ PERFORMANCE: Removed manual !oi.Order.IsDeleted check (Global Query Filter)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var hasOrder = await _context.OrderItems
+        var hasOrder = await _context.Set<OrderItem>()
             .AnyAsync(oi => oi.ProductId == dto.ProductId &&
                           oi.Order.UserId == dto.UserId &&
                           oi.Order.PaymentStatus == PaymentStatus.Completed, cancellationToken);
@@ -181,7 +180,7 @@ public class ReviewService : IReviewService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Single query instead of multiple LoadAsync calls
-        review = await _context.Reviews
+        review = await _context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Product)
@@ -235,7 +234,7 @@ public class ReviewService : IReviewService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Single query instead of multiple LoadAsync calls
-        review = await _context.Reviews
+        review = await _context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Product)
@@ -315,7 +314,7 @@ public class ReviewService : IReviewService
     {
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter)
         // ✅ PERFORMANCE: Use server-side aggregation instead of loading all reviews
-        var reviewStats = await _context.Reviews
+        var reviewStats = await _context.Set<ReviewEntity>()
             .Where(r => r.ProductId == productId && r.IsApproved)
             .GroupBy(r => r.ProductId)
             .Select(g => new

@@ -5,11 +5,10 @@ using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces.User;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.Interfaces.Marketing;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text.Json;
 using Merge.Application.DTOs.Marketing;
 using Merge.Application.Common;
@@ -19,13 +18,13 @@ namespace Merge.Application.Services.Marketing;
 
 public class EmailCampaignService : IEmailCampaignService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
     private readonly IMapper _mapper;
     private readonly ILogger<EmailCampaignService> _logger;
 
-    public EmailCampaignService(ApplicationDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, IMapper mapper, ILogger<EmailCampaignService> logger)
+    public EmailCampaignService(IDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, IMapper mapper, ILogger<EmailCampaignService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;

@@ -2,6 +2,7 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Services.Notification;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using UserEntity = Merge.Domain.Entities.User;
 using OrderEntity = Merge.Domain.Entities.Order;
@@ -10,8 +11,6 @@ using Merge.Application.Interfaces.Seller;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Seller;
 using Merge.Application.Common;
 
@@ -21,13 +20,13 @@ namespace Merge.Application.Services.Seller;
 
 public class SellerCommissionService : ISellerCommissionService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
     private readonly IMapper _mapper;
     private readonly ILogger<SellerCommissionService> _logger;
 
-    public SellerCommissionService(ApplicationDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, IMapper mapper, ILogger<SellerCommissionService> logger)
+    public SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, IMapper mapper, ILogger<SellerCommissionService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;

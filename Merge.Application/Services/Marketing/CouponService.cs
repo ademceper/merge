@@ -4,11 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Marketing;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using OrderEntity = Merge.Domain.Entities.Order;
 using Merge.Domain.ValueObjects;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Marketing;
 using Merge.Application.Common;
 
@@ -19,7 +19,7 @@ public class CouponService : ICouponService
 {
     private readonly IRepository<Coupon> _couponRepository;
     private readonly IRepository<CouponUsage> _couponUsageRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<CouponService> _logger;
@@ -27,7 +27,7 @@ public class CouponService : ICouponService
     public CouponService(
         IRepository<Coupon> couponRepository,
         IRepository<CouponUsage> couponUsageRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<CouponService> logger)
@@ -43,7 +43,7 @@ public class CouponService : ICouponService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<CouponDto?> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
-        var coupon = await _context.Coupons
+        var coupon = await _context.Set<Coupon>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Code.ToUpper() == code.ToUpper(), cancellationToken);
 
@@ -60,7 +60,7 @@ public class CouponService : ICouponService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<CouponDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var coupons = await _context.Coupons
+        var coupons = await _context.Set<Coupon>()
             .AsNoTracking()
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -71,7 +71,7 @@ public class CouponService : ICouponService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PagedResult<CouponDto>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        var query = _context.Coupons
+        var query = _context.Set<Coupon>()
             .AsNoTracking()
             .OrderByDescending(c => c.CreatedAt);
 
@@ -135,7 +135,7 @@ public class CouponService : ICouponService
         // Yeni kullanıcı kontrolü
         if (coupon.IsForNewUsersOnly && userId.HasValue)
         {
-            var hasOrder = await _context.Orders.AsNoTracking().AnyAsync(o => o.UserId == userId.Value, cancellationToken);
+            var hasOrder = await _context.Set<OrderEntity>().AsNoTracking().AnyAsync(o => o.UserId == userId.Value, cancellationToken);
             if (hasOrder)
             {
                 throw new BusinessException("Bu kupon sadece yeni kullanıcılar için geçerlidir.");
@@ -190,7 +190,7 @@ public class CouponService : ICouponService
             throw new ValidationException("Kupon kodu boş olamaz.");
         }
 
-        var existing = await _context.Coupons
+        var existing = await _context.Set<Coupon>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Code.ToUpper() == couponDto.Code.ToUpper(), cancellationToken);
 

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces.Cart;
@@ -8,8 +9,6 @@ using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using CartEntity = Merge.Domain.Entities.Cart;
 using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
@@ -21,13 +20,13 @@ namespace Merge.Application.Services.Cart;
 
 public class PreOrderService : IPreOrderService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
     private readonly IMapper _mapper;
     private readonly ILogger<PreOrderService> _logger;
 
-    public PreOrderService(ApplicationDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, IMapper mapper, ILogger<PreOrderService> logger)
+    public PreOrderService(IDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, IMapper mapper, ILogger<PreOrderService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -272,13 +271,13 @@ public class PreOrderService : IPreOrderService
 
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
             // Kullanıcının default address'ini çek
-            var address = await _context.Addresses
+            var address = await _context.Set<Address>()
                 .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId && a.IsDefault, cancellationToken);
-            
+
             if (address == null)
             {
                 // Default address yoksa ilk address'i al
-                address = await _context.Addresses
+                address = await _context.Set<Address>()
                     .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId, cancellationToken);
             }
             
@@ -291,7 +290,7 @@ public class PreOrderService : IPreOrderService
             var order = OrderEntity.Create(preOrder.UserId, address.Id, address);
             
             // Product'ı çek (AddItem için gerekli)
-            var product = await _context.Products
+            var product = await _context.Set<ProductEntity>()
                 .FirstOrDefaultAsync(p => p.Id == preOrder.ProductId, cancellationToken);
             
             if (product == null)

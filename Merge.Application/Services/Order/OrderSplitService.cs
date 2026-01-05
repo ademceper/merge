@@ -3,14 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Order;
 using Merge.Application.DTOs.User;
 
@@ -19,14 +18,14 @@ namespace Merge.Application.Services.Order;
 
 public class OrderSplitService : IOrderSplitService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IOrderService _orderService;
     private readonly IMapper _mapper;
     private readonly ILogger<OrderSplitService> _logger;
 
     public OrderSplitService(
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IOrderService orderService,
         IMapper mapper,
@@ -53,7 +52,7 @@ public class OrderSplitService : IOrderSplitService
             orderId, dto.Items?.Count ?? 0);
 
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
-        var originalOrder = await _context.Orders
+        var originalOrder = await _context.Set<OrderEntity>()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .Include(o => o.Address)
@@ -103,7 +102,7 @@ public class OrderSplitService : IOrderSplitService
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
             // Address entity'sini çek
             var addressId = dto.NewAddressId ?? originalOrder.AddressId;
-            var address = await _context.Addresses
+            var address = await _context.Set<Address>()
                 .FirstOrDefaultAsync(a => a.Id == addressId, cancellationToken);
             
             if (address == null)
@@ -127,7 +126,7 @@ public class OrderSplitService : IOrderSplitService
                 var originalItem = originalOrder.OrderItems.First(oi => oi.Id == item.OrderItemId);
                 
                 // Product'ı çek (AddItem için gerekli)
-                var product = await _context.Products
+                var product = await _context.Set<ProductEntity>()
                     .FirstOrDefaultAsync(p => p.Id == originalItem.ProductId, cancellationToken);
                 
                 if (product == null)
@@ -169,7 +168,7 @@ public class OrderSplitService : IOrderSplitService
                 }
             }
             
-            await _context.Orders.AddAsync(splitOrder, cancellationToken);
+            await _context.Set<OrderEntity>().AddAsync(splitOrder, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Create OrderSplit record

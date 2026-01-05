@@ -2,10 +2,10 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Search;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
+using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.DTOs.Search;
 
 
@@ -13,12 +13,12 @@ namespace Merge.Application.Services.Search;
 
 public class SearchSuggestionService : ISearchSuggestionService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<SearchSuggestionService> _logger;
 
-    public SearchSuggestionService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<SearchSuggestionService> logger)
+    public SearchSuggestionService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<SearchSuggestionService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -38,7 +38,7 @@ public class SearchSuggestionService : ISearchSuggestionService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // Product suggestions
-        var productSuggestions = await _context.Products
+        var productSuggestions = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.IsActive &&
@@ -54,7 +54,7 @@ public class SearchSuggestionService : ISearchSuggestionService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         // Category suggestions
-        var categorySuggestions = await _context.Categories
+        var categorySuggestions = await _context.Set<Category>()
             .AsNoTracking()
             .Where(c => c.Name.ToLower().Contains(normalizedQuery))
             .OrderBy(c => c.Name)
@@ -64,7 +64,7 @@ public class SearchSuggestionService : ISearchSuggestionService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // Brand suggestions
-        var brandSuggestions = await _context.Products
+        var brandSuggestions = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive &&
                        p.Brand.ToLower().Contains(normalizedQuery))

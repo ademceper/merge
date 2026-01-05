@@ -4,12 +4,11 @@ using Microsoft.Extensions.Logging;
 using UserEntity = Merge.Domain.Entities.User;
 using ReviewEntity = Merge.Domain.Entities.Review;
 using ProductEntity = Merge.Domain.Entities.Product;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text.Json;
 using Merge.Application.DTOs.Product;
 
@@ -18,12 +17,12 @@ namespace Merge.Application.Services.Product;
 
 public class SizeGuideService : ISizeGuideService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<SizeGuideService> _logger;
 
-    public SizeGuideService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<SizeGuideService> logger)
+    public SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<SizeGuideService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;

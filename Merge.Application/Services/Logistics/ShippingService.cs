@@ -9,8 +9,7 @@ using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
+using Merge.Application.Interfaces;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.DTOs.Notification;
 using Microsoft.Extensions.Logging;
@@ -24,7 +23,7 @@ public class ShippingService : IShippingService
     private readonly IRepository<OrderEntity> _orderRepository;
     private readonly IEmailService? _emailService;
     private readonly INotificationService? _notificationService;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<ShippingService> _logger;
@@ -32,7 +31,7 @@ public class ShippingService : IShippingService
     public ShippingService(
         IRepository<Shipping> shippingRepository,
         IRepository<OrderEntity> orderRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
         ILogger<ShippingService> logger,
@@ -51,7 +50,7 @@ public class ShippingService : IShippingService
 
     public async Task<ShippingDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var shipping = await _context.Shippings
+        var shipping = await _context.Set<Shipping>()
             .AsNoTracking()
             .Include(s => s.Order)
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
@@ -65,7 +64,7 @@ public class ShippingService : IShippingService
     public async Task<ShippingDto?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-        var shipping = await _context.Shippings
+        var shipping = await _context.Set<Shipping>()
             .AsNoTracking()
             .Include(s => s.Order)
             .FirstOrDefaultAsync(s => s.OrderId == orderId, cancellationToken);
@@ -94,7 +93,7 @@ public class ShippingService : IShippingService
             throw new NotFoundException("Sipariş", dto.OrderId);
         }
 
-        var existingShipping = await _context.Shippings
+        var existingShipping = await _context.Set<Shipping>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.OrderId == dto.OrderId);
 
@@ -122,7 +121,7 @@ public class ShippingService : IShippingService
 
         // ✅ PERFORMANCE: Reload with order information in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-        var createdShipping = await _context.Shippings
+        var createdShipping = await _context.Set<Shipping>()
             .AsNoTracking()
             .Include(s => s.Order)
             .FirstOrDefaultAsync(s => s.Id == shipping.Id);
@@ -200,7 +199,7 @@ public class ShippingService : IShippingService
 
             // ✅ PERFORMANCE: Reload with order information in one query (N+1 fix)
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-            var updatedShipping = await _context.Shippings
+            var updatedShipping = await _context.Set<Shipping>()
                 .AsNoTracking()
                 .Include(s => s.Order)
                 .FirstOrDefaultAsync(s => s.Id == shippingId);
@@ -251,7 +250,7 @@ public class ShippingService : IShippingService
 
             // ✅ PERFORMANCE: Reload with order information in one query (N+1 fix)
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-            var updatedShipping = await _context.Shippings
+            var updatedShipping = await _context.Set<Shipping>()
                 .AsNoTracking()
                 .Include(s => s.Order)
                 .FirstOrDefaultAsync(s => s.Id == shippingId);
@@ -275,7 +274,7 @@ public class ShippingService : IShippingService
         }
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
-        var order = await _context.Orders
+        var order = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);

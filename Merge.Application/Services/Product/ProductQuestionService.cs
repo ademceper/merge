@@ -4,14 +4,13 @@ using Microsoft.Extensions.Logging;
 using UserEntity = Merge.Domain.Entities.User;
 using ReviewEntity = Merge.Domain.Entities.Review;
 using ProductEntity = Merge.Domain.Entities.Product;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Product;
 
 
@@ -19,12 +18,12 @@ namespace Merge.Application.Services.Product;
 
 public class ProductQuestionService : IProductQuestionService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<ProductQuestionService> _logger;
 
-    public ProductQuestionService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProductQuestionService> logger)
+    public ProductQuestionService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProductQuestionService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -291,7 +290,7 @@ public class ProductQuestionService : IProductQuestionService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        answer = await _context.ProductAnswers
+        answer = await _context.Set<ProductAnswer>()
             .AsNoTracking()
             .Include(a => a.User)
             .FirstOrDefaultAsync(a => a.Id == answer.Id, cancellationToken);

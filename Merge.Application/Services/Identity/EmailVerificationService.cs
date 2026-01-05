@@ -4,13 +4,12 @@ using Microsoft.Extensions.Options;
 using Merge.Application.Services.Notification;
 using UserEntity = Merge.Domain.Entities.User;
 using Microsoft.EntityFrameworkCore;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Identity;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 
 namespace Merge.Application.Services.Identity;
 
@@ -19,7 +18,7 @@ public class EmailVerificationService : IEmailVerificationService
     private readonly IRepository<EmailVerification> _emailVerificationRepository;
     private readonly UserManager<UserEntity> _userManager;
     private readonly IEmailService? _emailService;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<EmailVerificationService> _logger;
     private readonly EmailSettings _emailSettings;
@@ -27,7 +26,7 @@ public class EmailVerificationService : IEmailVerificationService
     public EmailVerificationService(
         IRepository<EmailVerification> emailVerificationRepository,
         UserManager<UserEntity> userManager,
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         ILogger<EmailVerificationService> logger,
         IOptions<EmailSettings> emailSettings,
@@ -60,10 +59,10 @@ public class EmailVerificationService : IEmailVerificationService
 
             // ✅ PERFORMANCE: Bulk delete ile N+1 query önlenir
             // ✅ PERFORMANCE: !ev.IsVerified kontrolü IsDeleted değil, farklı property (kabul edilebilir)
-            var oldVerifications = _context.EmailVerifications
+            var oldVerifications = _context.Set<EmailVerification>()
                 .Where(ev => ev.UserId == userId && !ev.IsVerified);
 
-            _context.EmailVerifications.RemoveRange(oldVerifications);
+            _context.Set<EmailVerification>().RemoveRange(oldVerifications);
 
             // Yeni token oluştur
             var token = Guid.NewGuid().ToString("N");
@@ -113,7 +112,7 @@ public class EmailVerificationService : IEmailVerificationService
         try
         {
             // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-            var verification = await _context.EmailVerifications
+            var verification = await _context.Set<EmailVerification>()
                 .Include(ev => ev.User)
                 .FirstOrDefaultAsync(ev => ev.Token == token, cancellationToken);
 

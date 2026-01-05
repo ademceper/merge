@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using CartEntity = Merge.Domain.Entities.Cart;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Cart;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.Services.Notification;
@@ -9,9 +10,8 @@ using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
+using OrderEntity = Merge.Domain.Entities.Order;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.DTOs.Cart;
 using Merge.Application.DTOs.Marketing;
@@ -22,7 +22,7 @@ namespace Merge.Application.Services.Cart;
 
 public class AbandonedCartService : IAbandonedCartService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
     private readonly ICouponService _couponService;
@@ -31,7 +31,7 @@ public class AbandonedCartService : IAbandonedCartService
     private readonly CartSettings _cartSettings;
 
     public AbandonedCartService(
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IEmailService emailService,
         ICouponService couponService,
@@ -63,7 +63,7 @@ public class AbandonedCartService : IAbandonedCartService
         // ✅ PERFORMANCE: Database'de tüm hesaplamaları yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         // Step 1: Get abandoned cart IDs (carts with items, updated in date range)
-        var abandonedCartIds = await _context.Carts
+        var abandonedCartIds = await _context.Set<CartEntity>()
             .AsNoTracking()
             .Where(c => c.CartItems.Any() &&
                        c.UpdatedAt >= minDate &&
@@ -83,7 +83,7 @@ public class AbandonedCartService : IAbandonedCartService
         }
 
         // Step 2: Get user IDs for these carts
-        var userIds = await _context.Carts
+        var userIds = await _context.Set<CartEntity>()
             .AsNoTracking()
             .Where(c => abandonedCartIds.Contains(c.Id))
             .Select(c => c.UserId)
@@ -91,7 +91,7 @@ public class AbandonedCartService : IAbandonedCartService
             .ToListAsync(cancellationToken);
 
         // Step 3: Filter out carts that have been converted to orders
-        var userIdsWithOrders = await _context.Orders
+        var userIdsWithOrders = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => userIds.Contains(o.UserId))
             .Select(o => o.UserId)
@@ -99,7 +99,7 @@ public class AbandonedCartService : IAbandonedCartService
             .ToListAsync(cancellationToken);
 
         // Step 4: Get final abandoned cart IDs (excluding those converted to orders)
-        var finalAbandonedCartIds = await _context.Carts
+        var finalAbandonedCartIds = await _context.Set<CartEntity>()
             .AsNoTracking()
             .Where(c => abandonedCartIds.Contains(c.Id) && 
                        !userIdsWithOrders.Contains(c.UserId))
@@ -121,7 +121,7 @@ public class AbandonedCartService : IAbandonedCartService
         var totalCount = finalAbandonedCartIds.Count;
 
         // Step 5: Get cart data with computed properties from database
-        var cartsData = await _context.Carts
+        var cartsData = await _context.Set<CartEntity>()
             .AsNoTracking()
             .Where(c => finalAbandonedCartIds.Contains(c.Id))
             .Select(c => new
@@ -166,7 +166,7 @@ public class AbandonedCartService : IAbandonedCartService
         }
 
         // Step 7: Get cart items for all carts in one query
-        var cartItems = await _context.CartItems
+        var cartItems = await _context.Set<CartItem>()
             .AsNoTracking()
             .Include(ci => ci.Product)
             .Where(ci => finalAbandonedCartIds.Contains(ci.CartId))
@@ -225,7 +225,7 @@ public class AbandonedCartService : IAbandonedCartService
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
-        var cart = await _context.Carts
+        var cart = await _context.Set<CartEntity>()
             .AsNoTracking()
             .Include(c => c.User)
             .Include(c => c.CartItems)
@@ -254,17 +254,17 @@ public class AbandonedCartService : IAbandonedCartService
             .FirstOrDefaultAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de Sum ve Count yap (memory'de işlem YASAK)
-        var itemCount = await _context.CartItems
+        var itemCount = await _context.Set<CartItem>()
             .AsNoTracking()
             .CountAsync(ci => ci.CartId == cartId, cancellationToken);
 
-        var totalValue = await _context.CartItems
+        var totalValue = await _context.Set<CartItem>()
             .AsNoTracking()
             .Where(ci => ci.CartId == cartId)
             .SumAsync(ci => ci.Price * ci.Quantity, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        var items = await _context.CartItems
+        var items = await _context.Set<CartItem>()
             .AsNoTracking()
             .Include(ci => ci.Product)
             .Where(ci => ci.CartId == cartId)
@@ -300,7 +300,7 @@ public class AbandonedCartService : IAbandonedCartService
         // ✅ PERFORMANCE: Database'de Count ve Sum yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
         // Get abandoned cart IDs (carts with items, updated in date range, not converted to orders)
-        var abandonedCartIds = await _context.Carts
+        var abandonedCartIds = await _context.Set<CartEntity>()
             .AsNoTracking()
             .Where(c => c.CartItems.Any() &&
                        c.UpdatedAt >= minDate &&
@@ -309,21 +309,21 @@ public class AbandonedCartService : IAbandonedCartService
             .ToListAsync(cancellationToken);
 
         // Filter out carts that have been converted to orders
-        var abandonedCartUserIds = await _context.Carts
+        var abandonedCartUserIds = await _context.Set<CartEntity>()
             .AsNoTracking()
             .Where(c => abandonedCartIds.Contains(c.Id))
             .Select(c => c.UserId)
             .Distinct()
             .ToListAsync(cancellationToken);
 
-        var userIdsWithOrders = await _context.Orders
+        var userIdsWithOrders = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => abandonedCartUserIds.Contains(o.UserId))
             .Select(o => o.UserId)
             .Distinct()
             .ToListAsync(cancellationToken);
 
-        var finalAbandonedCartIds = await _context.Carts
+        var finalAbandonedCartIds = await _context.Set<CartEntity>()
             .AsNoTracking()
             .Where(c => abandonedCartIds.Contains(c.Id) && 
                        !userIdsWithOrders.Contains(c.UserId))
@@ -334,7 +334,7 @@ public class AbandonedCartService : IAbandonedCartService
         var totalAbandonedCarts = finalAbandonedCartIds.Count;
 
         // ✅ PERFORMANCE: Database'de Sum yap (memory'de işlem YASAK)
-        var totalAbandonedValue = await _context.CartItems
+        var totalAbandonedValue = await _context.Set<CartItem>()
             .AsNoTracking()
             .Where(ci => finalAbandonedCartIds.Contains(ci.CartId))
             .SumAsync(ci => ci.Price * ci.Quantity, cancellationToken);
@@ -362,7 +362,7 @@ public class AbandonedCartService : IAbandonedCartService
             .CountAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de Sum yap (memory'de işlem YASAK)
-        var recoveredRevenue = await _context.Orders
+        var recoveredRevenue = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.CreatedAt >= startDate)
             .Join(
@@ -392,7 +392,7 @@ public class AbandonedCartService : IAbandonedCartService
     public async Task SendRecoveryEmailAsync(Guid cartId, AbandonedCartEmailType emailType = AbandonedCartEmailType.First, bool includeCoupon = false, decimal? couponDiscountPercentage = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
-        var cart = await _context.Carts
+        var cart = await _context.Set<CartEntity>()
             .Include(c => c.User)
             .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.Product)
@@ -453,7 +453,7 @@ public class AbandonedCartService : IAbandonedCartService
         }
 
         // ✅ PERFORMANCE: Database'de Sum yap (memory'de işlem YASAK)
-        var totalValue = await _context.CartItems
+        var totalValue = await _context.Set<CartItem>()
             .AsNoTracking()
             .Where(ci => ci.CartId == cartId)
             .SumAsync(ci => ci.Price * ci.Quantity, cancellationToken);

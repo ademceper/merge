@@ -4,10 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Marketing;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Marketing;
 using Merge.Application.Common;
 
@@ -19,7 +18,7 @@ public class FlashSaleService : IFlashSaleService
     private readonly IRepository<FlashSale> _flashSaleRepository;
     private readonly IRepository<FlashSaleProduct> _flashSaleProductRepository;
     private readonly IRepository<ProductEntity> _productRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<FlashSaleService> _logger;
@@ -28,7 +27,7 @@ public class FlashSaleService : IFlashSaleService
         IRepository<FlashSale> flashSaleRepository,
         IRepository<FlashSaleProduct> flashSaleProductRepository,
         IRepository<ProductEntity> productRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<FlashSaleService> logger)
@@ -45,7 +44,7 @@ public class FlashSaleService : IFlashSaleService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<FlashSaleDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var flashSale = await _context.FlashSales
+        var flashSale = await _context.Set<FlashSale>()
             .AsNoTracking()
             .Include(fs => fs.FlashSaleProducts)
                 .ThenInclude(fsp => fsp.Product)
@@ -64,7 +63,7 @@ public class FlashSaleService : IFlashSaleService
         var now = DateTime.UtcNow;
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: Include ile N+1 önlenir
-        var flashSales = await _context.FlashSales
+        var flashSales = await _context.Set<FlashSale>()
             .AsNoTracking()
             .Include(fs => fs.FlashSaleProducts)
                 .ThenInclude(fsp => fsp.Product)
@@ -81,7 +80,7 @@ public class FlashSaleService : IFlashSaleService
     public async Task<PagedResult<FlashSaleDto>> GetActiveSalesAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
-        var query = _context.FlashSales
+        var query = _context.Set<FlashSale>()
             .AsNoTracking()
             .Include(fs => fs.FlashSaleProducts)
                 .ThenInclude(fsp => fsp.Product)
@@ -108,7 +107,7 @@ public class FlashSaleService : IFlashSaleService
     {
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: Include ile N+1 önlenir
-        var flashSales = await _context.FlashSales
+        var flashSales = await _context.Set<FlashSale>()
             .AsNoTracking()
             .Include(fs => fs.FlashSaleProducts)
                 .ThenInclude(fsp => fsp.Product)
@@ -123,7 +122,7 @@ public class FlashSaleService : IFlashSaleService
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     public async Task<PagedResult<FlashSaleDto>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        var query = _context.FlashSales
+        var query = _context.Set<FlashSale>()
             .AsNoTracking()
             .Include(fs => fs.FlashSaleProducts)
                 .ThenInclude(fsp => fsp.Product)
@@ -174,7 +173,7 @@ public class FlashSaleService : IFlashSaleService
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !fs.IsDeleted (Global Query Filter)
-        var createdFlashSale = await _context.FlashSales
+        var createdFlashSale = await _context.Set<FlashSale>()
             .AsNoTracking()
             .Include(fs => fs.FlashSaleProducts)
                 .ThenInclude(fsp => fsp.Product)
@@ -221,7 +220,7 @@ public class FlashSaleService : IFlashSaleService
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !fs.IsDeleted (Global Query Filter)
-        var updatedFlashSale = await _context.FlashSales
+        var updatedFlashSale = await _context.Set<FlashSale>()
             .AsNoTracking()
             .Include(fs => fs.FlashSaleProducts)
                 .ThenInclude(fsp => fsp.Product)
@@ -262,8 +261,8 @@ public class FlashSaleService : IFlashSaleService
         }
 
         // ✅ PERFORMANCE: Removed manual !fsp.IsDeleted (Global Query Filter)
-        var existing = await _context.FlashSaleProducts
-            .FirstOrDefaultAsync(fsp => fsp.FlashSaleId == flashSaleId && 
+        var existing = await _context.Set<FlashSaleProduct>()
+            .FirstOrDefaultAsync(fsp => fsp.FlashSaleId == flashSaleId &&
                                   fsp.ProductId == dto.ProductId, cancellationToken);
 
         if (existing != null)
@@ -290,8 +289,8 @@ public class FlashSaleService : IFlashSaleService
     public async Task<bool> RemoveProductFromSaleAsync(Guid flashSaleId, Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !fsp.IsDeleted (Global Query Filter)
-        var flashSaleProduct = await _context.FlashSaleProducts
-            .FirstOrDefaultAsync(fsp => fsp.FlashSaleId == flashSaleId && 
+        var flashSaleProduct = await _context.Set<FlashSaleProduct>()
+            .FirstOrDefaultAsync(fsp => fsp.FlashSaleId == flashSaleId &&
                                   fsp.ProductId == productId, cancellationToken);
 
         if (flashSaleProduct == null)

@@ -1,12 +1,13 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Security;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using PaymentEntity = Merge.Domain.Entities.Payment;
+using OrderEntity = Merge.Domain.Entities.Order;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text.Json;
 using Merge.Application.DTOs.Security;
 using Merge.Application.Common;
@@ -17,12 +18,12 @@ namespace Merge.Application.Services.Security;
 
 public class OrderVerificationService : IOrderVerificationService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<OrderVerificationService> _logger;
 
-    public OrderVerificationService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<OrderVerificationService> logger)
+    public OrderVerificationService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<OrderVerificationService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -39,7 +40,7 @@ public class OrderVerificationService : IOrderVerificationService
             dto.OrderId, dto.VerificationType);
 
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
-        var order = await _context.Orders
+        var order = await _context.Set<OrderEntity>()
             .FirstOrDefaultAsync(o => o.Id == dto.OrderId, cancellationToken);
 
         if (order == null)
@@ -217,7 +218,7 @@ public class OrderVerificationService : IOrderVerificationService
     private async Task<int> CalculateOrderRiskScoreAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
-        var order = await _context.Orders
+        var order = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
             .Include(o => o.User)
@@ -236,13 +237,13 @@ public class OrderVerificationService : IOrderVerificationService
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         // Multiple items
-        var itemCount = await _context.OrderItems
+        var itemCount = await _context.Set<OrderItem>()
             .AsNoTracking()
             .CountAsync(oi => oi.OrderId == orderId, cancellationToken);
         if (itemCount > 10) riskScore += 15;
 
         // High quantity
-        var totalQuantity = await _context.OrderItems
+        var totalQuantity = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.OrderId == orderId)
             .SumAsync(oi => oi.Quantity, cancellationToken);
@@ -255,12 +256,12 @@ public class OrderVerificationService : IOrderVerificationService
 
 public class PaymentFraudPreventionService : IPaymentFraudPreventionService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<PaymentFraudPreventionService> _logger;
 
-    public PaymentFraudPreventionService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<PaymentFraudPreventionService> logger)
+    public PaymentFraudPreventionService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<PaymentFraudPreventionService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -277,7 +278,7 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
             dto.PaymentId, dto.CheckType);
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var payment = await _context.Payments
+        var payment = await _context.Set<PaymentEntity>()
             .FirstOrDefaultAsync(p => p.Id == dto.PaymentId, cancellationToken);
 
         if (payment == null)
@@ -464,7 +465,7 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
     private async Task<int> PerformFraudChecksAsync(CreatePaymentFraudCheckDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var payment = await _context.Payments
+        var payment = await _context.Set<PaymentEntity>()
             .AsNoTracking()
             .Include(p => p.Order)
                 .ThenInclude(o => o.User)
@@ -500,12 +501,12 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
 
 public class AccountSecurityMonitoringService : IAccountSecurityMonitoringService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<AccountSecurityMonitoringService> _logger;
 
-    public AccountSecurityMonitoringService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<AccountSecurityMonitoringService> logger)
+    public AccountSecurityMonitoringService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<AccountSecurityMonitoringService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;

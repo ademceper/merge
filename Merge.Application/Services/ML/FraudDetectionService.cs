@@ -2,12 +2,13 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.ML;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using PaymentEntity = Merge.Domain.Entities.Payment;
+using OrderEntity = Merge.Domain.Entities.Order;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text.Json;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Content;
@@ -17,12 +18,12 @@ namespace Merge.Application.Services.ML;
 
 public class FraudDetectionService : IFraudDetectionService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<FraudDetectionService> _logger;
 
-    public FraudDetectionService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<FraudDetectionService> logger)
+    public FraudDetectionService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<FraudDetectionService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -155,7 +156,7 @@ public class FraudDetectionService : IFraudDetectionService
     public async Task<FraudAlertDto> EvaluateOrderAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
-        var order = await _context.Orders
+        var order = await _context.Set<OrderEntity>()
             .Include(o => o.User)
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
@@ -203,7 +204,7 @@ public class FraudDetectionService : IFraudDetectionService
     public async Task<FraudAlertDto> EvaluatePaymentAsync(Guid paymentId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var payment = await _context.Payments
+        var payment = await _context.Set<PaymentEntity>()
             .Include(p => p.Order)
                 .ThenInclude(o => o.User)
             .FirstOrDefaultAsync(p => p.Id == paymentId, cancellationToken);
@@ -488,7 +489,7 @@ public class FraudDetectionService : IFraudDetectionService
             if (rule.RuleType == "Order" && entityId.HasValue)
             {
                 // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
-                var order = await _context.Orders
+                var order = await _context.Set<OrderEntity>()
                     .AsNoTracking()
                     .Include(o => o.OrderItems)
                     .FirstOrDefaultAsync(o => o.Id == entityId.Value, cancellationToken);
@@ -520,7 +521,7 @@ public class FraudDetectionService : IFraudDetectionService
             if (rule.RuleType == "Payment" && entityId.HasValue)
             {
                 // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-                var payment = await _context.Payments
+                var payment = await _context.Set<PaymentEntity>()
                     .AsNoTracking()
                     .FirstOrDefaultAsync(p => p.Id == entityId.Value, cancellationToken);
 

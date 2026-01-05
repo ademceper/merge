@@ -2,12 +2,11 @@ using AutoMapper;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Order;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Order;
 
 
@@ -16,13 +15,13 @@ namespace Merge.Application.Services.Order;
 public class OrderFilterService : IOrderFilterService
 {
     private readonly IRepository<OrderEntity> _orderRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<OrderFilterService> _logger;
 
     public OrderFilterService(
         IRepository<OrderEntity> orderRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IMapper mapper,
         ILogger<OrderFilterService> logger)
     {
@@ -36,7 +35,7 @@ public class OrderFilterService : IOrderFilterService
     public async Task<IEnumerable<OrderDto>> GetFilteredOrdersAsync(OrderFilterDto filter, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Global Query Filter automatically filters !o.IsDeleted
-        var query = _context.Orders
+        var query = _context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.User)
             .Include(o => o.Address)
@@ -117,7 +116,7 @@ public class OrderFilterService : IOrderFilterService
         endDate ??= DateTime.UtcNow;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
-        var query = _context.Orders
+        var query = _context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.UserId == userId &&
                   o.CreatedAt >= startDate.Value &&

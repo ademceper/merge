@@ -3,12 +3,11 @@ using UserEntity = Merge.Domain.Entities.User;
 using ReviewEntity = Merge.Domain.Entities.Review;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Microsoft.EntityFrameworkCore;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Product;
 using Microsoft.Extensions.Logging;
 
@@ -20,7 +19,7 @@ public class ProductBundleService : IProductBundleService
     private readonly IRepository<ProductBundle> _bundleRepository;
     private readonly IRepository<BundleItem> _bundleItemRepository;
     private readonly IRepository<ProductEntity> _productRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<ProductBundleService> _logger;
@@ -29,7 +28,7 @@ public class ProductBundleService : IProductBundleService
         IRepository<ProductBundle> bundleRepository,
         IRepository<BundleItem> bundleItemRepository,
         IRepository<ProductEntity> productRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<ProductBundleService> logger)
@@ -47,7 +46,7 @@ public class ProductBundleService : IProductBundleService
     public async Task<ProductBundleDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries, removed !b.IsDeleted (Global Query Filter)
-        var bundle = await _context.ProductBundles
+        var bundle = await _context.Set<ProductBundle>()
             .AsNoTracking()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
@@ -64,7 +63,7 @@ public class ProductBundleService : IProductBundleService
     public async Task<IEnumerable<ProductBundleDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries, removed !b.IsDeleted (Global Query Filter)
-        var bundles = await _context.ProductBundles
+        var bundles = await _context.Set<ProductBundle>()
             .AsNoTracking()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
@@ -81,7 +80,7 @@ public class ProductBundleService : IProductBundleService
     {
         var now = DateTime.UtcNow;
         // ✅ PERFORMANCE: AsNoTracking for read-only queries, removed !b.IsDeleted (Global Query Filter)
-        var bundles = await _context.ProductBundles
+        var bundles = await _context.Set<ProductBundle>()
             .AsNoTracking()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
@@ -112,7 +111,7 @@ public class ProductBundleService : IProductBundleService
 
         // ✅ PERFORMANCE: Fetch all products in a single query to avoid N+1
         var productIds = dto.Products.Select(p => p.ProductId).ToList();
-        var products = await _context.Products
+        var products = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id) && p.IsActive)
             .ToDictionaryAsync(p => p.Id, cancellationToken);
@@ -163,7 +162,7 @@ public class ProductBundleService : IProductBundleService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
-        bundle = await _context.ProductBundles
+        bundle = await _context.Set<ProductBundle>()
             .AsNoTracking()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
@@ -203,7 +202,7 @@ public class ProductBundleService : IProductBundleService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
-        var reloadedBundle = await _context.ProductBundles
+        var reloadedBundle = await _context.Set<ProductBundle>()
             .AsNoTracking()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
@@ -253,7 +252,7 @@ public class ProductBundleService : IProductBundleService
         }
 
         // ✅ PERFORMANCE: Removed !bi.IsDeleted (Global Query Filter)
-        var existing = await _context.BundleItems
+        var existing = await _context.Set<BundleItem>()
             .AsNoTracking()
             .FirstOrDefaultAsync(bi => bi.BundleId == bundleId &&
                                  bi.ProductId == dto.ProductId, cancellationToken);
@@ -274,7 +273,7 @@ public class ProductBundleService : IProductBundleService
         await _bundleItemRepository.AddAsync(bundleItem);
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        var newTotal = await _context.BundleItems
+        var newTotal = await _context.Set<BundleItem>()
             .AsNoTracking()
             .Include(bi => bi.Product)
             .Where(bi => bi.BundleId == bundleId)
@@ -294,7 +293,7 @@ public class ProductBundleService : IProductBundleService
     public async Task<bool> RemoveProductFromBundleAsync(Guid bundleId, Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed !bi.IsDeleted (Global Query Filter)
-        var bundleItem = await _context.BundleItems
+        var bundleItem = await _context.Set<BundleItem>()
             .FirstOrDefaultAsync(bi => bi.BundleId == bundleId &&
                                  bi.ProductId == productId, cancellationToken);
 
@@ -310,7 +309,7 @@ public class ProductBundleService : IProductBundleService
         if (bundle != null)
         {
             // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-            var newTotal = await _context.BundleItems
+            var newTotal = await _context.Set<BundleItem>()
                 .AsNoTracking()
                 .Include(bi => bi.Product)
                 .Where(bi => bi.BundleId == bundleId)

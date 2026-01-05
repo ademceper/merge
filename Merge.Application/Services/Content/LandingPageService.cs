@@ -2,11 +2,10 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Content;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Content;
@@ -17,12 +16,12 @@ namespace Merge.Application.Services.Content;
 
 public class LandingPageService : ILandingPageService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<LandingPageService> _logger;
 
-    public LandingPageService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<LandingPageService> logger)
+    public LandingPageService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<LandingPageService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;

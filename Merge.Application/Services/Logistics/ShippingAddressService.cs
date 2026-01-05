@@ -5,8 +5,7 @@ using OrderEntity = Merge.Domain.Entities.Order;
 using Merge.Application.Interfaces.Logistics;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
+using Merge.Application.Interfaces;
 using Merge.Application.DTOs.Logistics;
 
 
@@ -14,12 +13,12 @@ namespace Merge.Application.Services.Logistics;
 
 public class ShippingAddressService : IShippingAddressService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<ShippingAddressService> _logger;
 
-    public ShippingAddressService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ShippingAddressService> logger)
+    public ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ShippingAddressService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -249,7 +248,7 @@ public class ShippingAddressService : IShippingAddressService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
         // Check if address is used in any orders
-        var hasOrders = await _context.Orders
+        var hasOrders = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .AnyAsync(o => o.AddressId == id, cancellationToken);
 

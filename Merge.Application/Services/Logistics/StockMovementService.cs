@@ -4,10 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Logistics;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Common;
 
@@ -17,14 +16,14 @@ namespace Merge.Application.Services.Logistics;
 public class StockMovementService : IStockMovementService
 {
     private readonly IRepository<StockMovement> _stockMovementRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<StockMovementService> _logger;
 
     public StockMovementService(
         IRepository<StockMovement> stockMovementRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
         ILogger<StockMovementService> logger)
@@ -40,7 +39,7 @@ public class StockMovementService : IStockMovementService
     public async Task<StockMovementDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
-        var movement = await _context.StockMovements
+        var movement = await _context.Set<StockMovement>()
             .AsNoTracking()
             .Include(sm => sm.Product)
             .Include(sm => sm.Warehouse)
@@ -59,7 +58,7 @@ public class StockMovementService : IStockMovementService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
-        var movements = await _context.StockMovements
+        var movements = await _context.Set<StockMovement>()
             .AsNoTracking()
             .Include(sm => sm.Product)
             .Include(sm => sm.Warehouse)
@@ -84,7 +83,7 @@ public class StockMovementService : IStockMovementService
         if (pageSize > 100) pageSize = 100; // Max limit
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
-        var query = _context.StockMovements
+        var query = _context.Set<StockMovement>()
             .AsNoTracking()
             .Include(sm => sm.Product)
             .Include(sm => sm.Warehouse)
@@ -122,7 +121,7 @@ public class StockMovementService : IStockMovementService
         if (pageSize > 100) pageSize = 100; // Max limit
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
-        var query = _context.StockMovements
+        var query = _context.Set<StockMovement>()
             .AsNoTracking()
             .Include(sm => sm.Product)
             .Include(sm => sm.Warehouse)
@@ -160,7 +159,7 @@ public class StockMovementService : IStockMovementService
         if (filter.Page < 1) filter.Page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
-        IQueryable<StockMovement> query = _context.StockMovements
+        IQueryable<StockMovement> query = _context.Set<StockMovement>()
             .AsNoTracking()
             .Include(sm => sm.Product)
             .Include(sm => sm.Warehouse)
@@ -219,7 +218,7 @@ public class StockMovementService : IStockMovementService
             // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
             // ✅ PERFORMANCE: Removed manual !i.IsDeleted (Global Query Filter)
             // Get inventory
-            var inventory = await _context.Inventories
+            var inventory = await _context.Set<Inventory>()
                 .FirstOrDefaultAsync(i => i.ProductId == createDto.ProductId &&
                                         i.WarehouseId == createDto.WarehouseId, cancellationToken);
 
@@ -267,7 +266,7 @@ public class StockMovementService : IStockMovementService
 
             // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
-            stockMovement = await _context.StockMovements
+            stockMovement = await _context.Set<StockMovement>()
                 .AsNoTracking()
                 .Include(sm => sm.Product)
                 .Include(sm => sm.Warehouse)

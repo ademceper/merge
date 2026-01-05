@@ -4,13 +4,12 @@ using Microsoft.Extensions.Logging;
 using UserEntity = Merge.Domain.Entities.User;
 using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Seller;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text.Json;
 using Merge.Application.DTOs.Seller;
 using Merge.Application.Common;
@@ -21,13 +20,13 @@ namespace Merge.Application.Services.Seller;
 
 public class SellerFinanceService : ISellerFinanceService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<SellerFinanceService> _logger;
 
     public SellerFinanceService(
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<SellerFinanceService> logger)
@@ -42,7 +41,7 @@ public class SellerFinanceService : ISellerFinanceService
     public async Task<SellerBalanceDto> GetSellerBalanceAsync(Guid sellerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var seller = await _context.SellerProfiles
+        var seller = await _context.Set<SellerProfile>()
             .AsNoTracking()
             .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
@@ -85,7 +84,7 @@ public class SellerFinanceService : ISellerFinanceService
     public async Task<decimal> GetAvailableBalanceAsync(Guid sellerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var seller = await _context.SellerProfiles
+        var seller = await _context.Set<SellerProfile>()
             .AsNoTracking()
             .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
 
@@ -96,7 +95,7 @@ public class SellerFinanceService : ISellerFinanceService
     public async Task<decimal> GetPendingBalanceAsync(Guid sellerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var seller = await _context.SellerProfiles
+        var seller = await _context.Set<SellerProfile>()
             .AsNoTracking()
             .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
 
@@ -107,7 +106,7 @@ public class SellerFinanceService : ISellerFinanceService
     public async Task<SellerTransactionDto> CreateTransactionAsync(Guid sellerId, string transactionType, decimal amount, string description, Guid? relatedEntityId = null, string? relatedEntityType = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var seller = await _context.SellerProfiles
+        var seller = await _context.Set<SellerProfile>()
             .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
 
         if (seller == null)
@@ -215,7 +214,7 @@ public class SellerFinanceService : ISellerFinanceService
     public async Task<SellerInvoiceDto> GenerateInvoiceAsync(CreateSellerInvoiceDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var seller = await _context.SellerProfiles
+        var seller = await _context.Set<SellerProfile>()
             .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.UserId == dto.SellerId, cancellationToken);
 
@@ -256,7 +255,7 @@ public class SellerFinanceService : ISellerFinanceService
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         // Get orders for the period (for total earnings calculation)
-        var totalEarnings = await _context.Orders
+        var totalEarnings = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= dto.PeriodStart &&

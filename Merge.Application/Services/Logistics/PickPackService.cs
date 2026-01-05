@@ -7,8 +7,7 @@ using Merge.Application.Interfaces.Logistics;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
+using Merge.Application.Interfaces;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Common;
 
@@ -17,12 +16,12 @@ namespace Merge.Application.Services.Logistics;
 
 public class PickPackService : IPickPackService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<PickPackService> _logger;
 
-    public PickPackService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<PickPackService> logger)
+    public PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<PickPackService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -41,7 +40,7 @@ public class PickPackService : IPickPackService
         {
             // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
             // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
-            var order = await _context.Orders
+            var order = await _context.Set<OrderEntity>()
                 .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.Product)
                 .FirstOrDefaultAsync(o => o.Id == dto.OrderId, cancellationToken);
@@ -52,7 +51,7 @@ public class PickPackService : IPickPackService
             }
 
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
-            var warehouse = await _context.Warehouses
+            var warehouse = await _context.Set<Warehouse>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(w => w.Id == dto.WarehouseId && w.IsActive, cancellationToken);
 

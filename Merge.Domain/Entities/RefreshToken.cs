@@ -6,11 +6,12 @@ namespace Merge.Domain.Entities;
 public class RefreshToken : BaseEntity
 {
     public Guid UserId { get; set; }
-    public string Token { get; set; } = string.Empty;
+    // ✅ BOLUM 9.1: Refresh token hash'lenmiş olarak saklanmalı (PLAIN TEXT YASAK)
+    public string TokenHash { get; set; } = string.Empty;
     public DateTime ExpiresAt { get; set; }
     public bool IsRevoked { get; set; } = false;
     public DateTime? RevokedAt { get; set; }
-    public string? ReplacedByToken { get; set; }
+    public string? ReplacedByTokenHash { get; set; }
     public string? CreatedByIp { get; set; }
     public string? RevokedByIp { get; set; }
 

@@ -3,11 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Catalog;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
+using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Common;
 
@@ -18,7 +18,7 @@ public class InventoryService : IInventoryService
 {
     private readonly IRepository<Inventory> _inventoryRepository;
     private readonly IRepository<StockMovement> _stockMovementRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<InventoryService> _logger;
@@ -26,7 +26,7 @@ public class InventoryService : IInventoryService
     public InventoryService(
         IRepository<Inventory> inventoryRepository,
         IRepository<StockMovement> stockMovementRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
         ILogger<InventoryService> logger)
@@ -42,7 +42,7 @@ public class InventoryService : IInventoryService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<InventoryDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var inventory = await _context.Inventories
+        var inventory = await _context.Set<Inventory>()
             .AsNoTracking()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
@@ -54,7 +54,7 @@ public class InventoryService : IInventoryService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<InventoryDto?> GetByProductAndWarehouseAsync(Guid productId, Guid warehouseId, CancellationToken cancellationToken = default)
     {
-        var inventory = await _context.Inventories
+        var inventory = await _context.Set<Inventory>()
             .AsNoTracking()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
@@ -70,7 +70,7 @@ public class InventoryService : IInventoryService
     public async Task<IEnumerable<InventoryDto>> GetByProductIdAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Maksimum limit (100 warehouse)
-        var inventories = await _context.Inventories
+        var inventories = await _context.Set<Inventory>()
             .AsNoTracking()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
@@ -91,7 +91,7 @@ public class InventoryService : IInventoryService
         if (pageSize > 100) pageSize = 100;
         if (page < 1) page = 1;
 
-        var query = _context.Inventories
+        var query = _context.Set<Inventory>()
             .AsNoTracking()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
@@ -122,7 +122,7 @@ public class InventoryService : IInventoryService
         if (pageSize > 100) pageSize = 100;
         if (page < 1) page = 1;
 
-        var query = _context.Inventories
+        var query = _context.Set<Inventory>()
             .AsNoTracking()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
@@ -158,7 +158,7 @@ public class InventoryService : IInventoryService
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Product bilgisini database'den al (ToListAsync sonrası First() YASAK)
-        var product = await _context.Products
+        var product = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
@@ -168,7 +168,7 @@ public class InventoryService : IInventoryService
         }
 
         // ✅ PERFORMANCE: Database'de Count yap (memory'de işlem YASAK)
-        var inventoryCount = await _context.Inventories
+        var inventoryCount = await _context.Set<Inventory>()
             .AsNoTracking()
             .CountAsync(i => i.ProductId == productId, cancellationToken);
 
@@ -178,28 +178,28 @@ public class InventoryService : IInventoryService
         }
 
         // ✅ PERFORMANCE: Database'de Sum yap (memory'de işlem YASAK)
-        var totalQuantity = await _context.Inventories
+        var totalQuantity = await _context.Set<Inventory>()
             .AsNoTracking()
             .Where(i => i.ProductId == productId)
             .SumAsync(i => i.Quantity, cancellationToken);
 
-        var totalReserved = await _context.Inventories
+        var totalReserved = await _context.Set<Inventory>()
             .AsNoTracking()
             .Where(i => i.ProductId == productId)
             .SumAsync(i => i.ReservedQuantity, cancellationToken);
 
-        var totalAvailable = await _context.Inventories
+        var totalAvailable = await _context.Set<Inventory>()
             .AsNoTracking()
             .Where(i => i.ProductId == productId)
             .SumAsync(i => i.AvailableQuantity, cancellationToken);
 
-        var totalValue = await _context.Inventories
+        var totalValue = await _context.Set<Inventory>()
             .AsNoTracking()
             .Where(i => i.ProductId == productId)
             .SumAsync(i => i.Quantity * i.UnitCost, cancellationToken);
 
         // ✅ PERFORMANCE: Warehouse breakdown için inventory'leri yükle (AutoMapper için gerekli)
-        var inventories = await _context.Inventories
+        var inventories = await _context.Set<Inventory>()
             .AsNoTracking()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
@@ -236,7 +236,7 @@ public class InventoryService : IInventoryService
             createDto.ProductId, createDto.WarehouseId, createDto.Quantity);
 
         // Check if inventory already exists for this product-warehouse combination
-        var existingInventory = await _context.Inventories
+        var existingInventory = await _context.Set<Inventory>()
             .AsNoTracking()
             .AnyAsync(i => i.ProductId == createDto.ProductId &&
                           i.WarehouseId == createDto.WarehouseId, cancellationToken);
@@ -281,7 +281,7 @@ public class InventoryService : IInventoryService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
-        var reloadedInventory = await _context.Inventories
+        var reloadedInventory = await _context.Set<Inventory>()
             .AsNoTracking()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
@@ -326,7 +326,7 @@ public class InventoryService : IInventoryService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
-        inventory = await _context.Inventories
+        inventory = await _context.Set<Inventory>()
             .AsNoTracking()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
@@ -379,7 +379,7 @@ public class InventoryService : IInventoryService
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var inventory = await _context.Inventories
+            var inventory = await _context.Set<Inventory>()
                 .Include(i => i.Product)
                 .Include(i => i.Warehouse)
                 .FirstOrDefaultAsync(i => i.Id == adjustDto.InventoryId, cancellationToken);
@@ -451,7 +451,7 @@ public class InventoryService : IInventoryService
             }
 
             // Get source inventory
-            var sourceInventory = await _context.Inventories
+            var sourceInventory = await _context.Set<Inventory>()
                 .FirstOrDefaultAsync(i => i.ProductId == transferDto.ProductId &&
                                         i.WarehouseId == transferDto.FromWarehouseId, cancellationToken);
 
@@ -470,7 +470,7 @@ public class InventoryService : IInventoryService
             }
 
             // Get or create destination inventory
-            var destInventory = await _context.Inventories
+            var destInventory = await _context.Set<Inventory>()
                 .FirstOrDefaultAsync(i => i.ProductId == transferDto.ProductId &&
                                         i.WarehouseId == transferDto.ToWarehouseId, cancellationToken);
 
@@ -569,7 +569,7 @@ public class InventoryService : IInventoryService
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var inventory = await _context.Inventories
+            var inventory = await _context.Set<Inventory>()
                 .FirstOrDefaultAsync(i => i.ProductId == productId &&
                                         i.WarehouseId == warehouseId, cancellationToken);
 
@@ -633,7 +633,7 @@ public class InventoryService : IInventoryService
         }
 
         // ✅ PERFORMANCE: Removed manual !i.IsDeleted check (Global Query Filter handles it)
-        var inventory = await _context.Inventories
+        var inventory = await _context.Set<Inventory>()
             .FirstOrDefaultAsync(i => i.ProductId == productId &&
                                     i.WarehouseId == warehouseId, cancellationToken);
 
@@ -673,7 +673,7 @@ public class InventoryService : IInventoryService
     {
         // ✅ PERFORMANCE: Database'de Sum yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: Removed manual !i.IsDeleted check (Global Query Filter handles it)
-        var query = _context.Inventories
+        var query = _context.Set<Inventory>()
             .AsNoTracking()
             .Where(i => i.ProductId == productId);
 

@@ -2,6 +2,7 @@ using AutoMapper;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Services.Notification;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
@@ -9,8 +10,6 @@ using Merge.Application.Interfaces.Identity;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Identity;
 
 namespace Merge.Application.Services.Identity;
@@ -19,7 +18,7 @@ public class TwoFactorAuthService : ITwoFactorAuthService
 {
     private readonly IRepository<TwoFactorAuth> _twoFactorRepository;
     private readonly IRepository<TwoFactorCode> _codeRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
     private readonly ISmsService _smsService;
@@ -29,7 +28,7 @@ public class TwoFactorAuthService : ITwoFactorAuthService
     public TwoFactorAuthService(
         IRepository<TwoFactorAuth> twoFactorRepository,
         IRepository<TwoFactorCode> codeRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IEmailService emailService,
         ISmsService smsService,
@@ -478,8 +477,9 @@ public class TwoFactorAuthService : ITwoFactorAuthService
 
             return false;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "TOTP verification failed");
             return false;
         }
     }

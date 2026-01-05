@@ -8,7 +8,7 @@ using Merge.API.Middleware;
 namespace Merge.API.Controllers.B2B;
 
 [ApiController]
-[Route("api/b2b")]
+// ✅ BOLUM 4.0: API Versioning - Route BaseController'dan geliyor
 [Authorize]
 public class B2BController : BaseController
 {

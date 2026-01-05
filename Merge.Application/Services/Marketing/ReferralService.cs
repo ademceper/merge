@@ -5,10 +5,9 @@ using Microsoft.Extensions.Options;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Marketing;
+using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Marketing;
 using Merge.Application.Configuration;
 using Merge.Application.Common;
@@ -18,7 +17,7 @@ namespace Merge.Application.Services.Marketing;
 
 public class ReferralService : IReferralService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILoyaltyService _loyaltyService;
     private readonly IMapper _mapper;
@@ -26,7 +25,7 @@ public class ReferralService : IReferralService
     private readonly ReferralSettings _referralSettings;
 
     public ReferralService(
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         ILoyaltyService loyaltyService,
         IMapper mapper,
@@ -237,11 +236,11 @@ public class ReferralService : IReferralService
 
 public class ReviewMediaService : IReviewMediaService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
 
-    public ReviewMediaService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public ReviewMediaService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -299,11 +298,11 @@ public class ReviewMediaService : IReviewMediaService
 
 public class SharedWishlistService : ISharedWishlistService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
 
-    public SharedWishlistService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
+    public SharedWishlistService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
     {
         _context = context;
         _unitOfWork = unitOfWork;

@@ -6,8 +6,7 @@ using Merge.Application.Interfaces.Logistics;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
+using Merge.Application.Interfaces;
 using Merge.Application.DTOs.Logistics;
 
 
@@ -16,14 +15,14 @@ namespace Merge.Application.Services.Logistics;
 public class WarehouseService : IWarehouseService
 {
     private readonly IRepository<Warehouse> _warehouseRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<WarehouseService> _logger;
 
     public WarehouseService(
         IRepository<Warehouse> warehouseRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
         ILogger<WarehouseService> logger)
@@ -39,7 +38,7 @@ public class WarehouseService : IWarehouseService
     public async Task<WarehouseDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
-        var warehouse = await _context.Warehouses
+        var warehouse = await _context.Set<Warehouse>()
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
 
@@ -51,7 +50,7 @@ public class WarehouseService : IWarehouseService
     public async Task<WarehouseDto?> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
-        var warehouse = await _context.Warehouses
+        var warehouse = await _context.Set<Warehouse>()
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Code == code, cancellationToken);
 
@@ -63,7 +62,7 @@ public class WarehouseService : IWarehouseService
     public async Task<IEnumerable<WarehouseDto>> GetAllAsync(bool includeInactive = false, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
-        var query = _context.Warehouses.AsNoTracking();
+        var query = _context.Set<Warehouse>().AsNoTracking();
 
         if (!includeInactive)
         {
@@ -82,7 +81,7 @@ public class WarehouseService : IWarehouseService
     public async Task<IEnumerable<WarehouseDto>> GetActiveWarehousesAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
-        var warehouses = await _context.Warehouses
+        var warehouses = await _context.Set<Warehouse>()
             .AsNoTracking()
             .Where(w => w.IsActive)
             .OrderBy(w => w.Name)
@@ -118,7 +117,7 @@ public class WarehouseService : IWarehouseService
 
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
             // Check if code already exists
-            var existingWarehouse = await _context.Warehouses
+            var existingWarehouse = await _context.Set<Warehouse>()
                 .AsNoTracking()
                 .AnyAsync(w => w.Code == createDto.Code, cancellationToken);
 
@@ -192,7 +191,7 @@ public class WarehouseService : IWarehouseService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
         // Check if warehouse has inventory
-        var hasInventory = await _context.Inventories
+        var hasInventory = await _context.Set<Inventory>()
             .AsNoTracking()
             .AnyAsync(i => i.WarehouseId == id, cancellationToken);
 

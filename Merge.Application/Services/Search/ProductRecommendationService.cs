@@ -3,7 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Search;
-using Merge.Infrastructure.Data;
+using Merge.Application.Interfaces;
+using Merge.Domain.Entities;
+using OrderEntity = Merge.Domain.Entities.Order;
+using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.DTOs.Product;
 
 
@@ -11,11 +14,11 @@ namespace Merge.Application.Services.Search;
 
 public class ProductRecommendationService : IProductRecommendationService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<ProductRecommendationService> _logger;
 
-    public ProductRecommendationService(ApplicationDbContext context, IMapper mapper, ILogger<ProductRecommendationService> logger)
+    public ProductRecommendationService(IDbContext context, IMapper mapper, ILogger<ProductRecommendationService> logger)
     {
         _context = context;
         _mapper = mapper;
@@ -26,7 +29,7 @@ public class ProductRecommendationService : IProductRecommendationService
     public async Task<IEnumerable<ProductRecommendationDto>> GetSimilarProductsAsync(Guid productId, int maxResults = 10, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var product = await _context.Products
+        var product = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
@@ -41,7 +44,7 @@ public class ProductRecommendationService : IProductRecommendationService
         var priceMax = product.Price * 1.3m;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var similarProducts = await _context.Products
+        var similarProducts = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive &&
                        p.Id != productId &&
@@ -69,9 +72,9 @@ public class ProductRecommendationService : IProductRecommendationService
         // ✅ PERFORMANCE: Removed manual !oi.IsDeleted, !oi2.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Find products that are frequently purchased together
-        var frequentlyBought = await _context.OrderItems
+        var frequentlyBought = await _context.Set<OrderItem>()
             .AsNoTracking()
-            .Where(oi => _context.OrderItems.Any(oi2 =>
+            .Where(oi => _context.Set<OrderItem>().Any(oi2 =>
                             oi2.OrderId == oi.OrderId &&
                             oi2.ProductId == productId))
             .Where(oi => oi.ProductId != productId)
@@ -87,7 +90,7 @@ public class ProductRecommendationService : IProductRecommendationService
 
         // ✅ PERFORMANCE: Batch load products to avoid N+1 queries
         var productIds = frequentlyBought.Select(fb => fb.ProductId).ToList();
-        var products = await _context.Products
+        var products = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, cancellationToken);
@@ -113,7 +116,7 @@ public class ProductRecommendationService : IProductRecommendationService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
         // Get user's purchase history and preferences
-        var userOrders = await _context.Orders
+        var userOrders = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
@@ -125,7 +128,7 @@ public class ProductRecommendationService : IProductRecommendationService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
         // Get user's wishlist categories
-        var wishlistCategories = await _context.Wishlists
+        var wishlistCategories = await _context.Set<Wishlist>()
             .AsNoTracking()
             .Include(w => w.Product)
             .Where(w => w.UserId == userId)
@@ -144,7 +147,7 @@ public class ProductRecommendationService : IProductRecommendationService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // Get highly rated products from preferred categories
-        var recommendations = await _context.Products
+        var recommendations = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive &&
                        preferredCategories.Contains(p.CategoryId) &&
@@ -189,7 +192,7 @@ public class ProductRecommendationService : IProductRecommendationService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // Get products from same categories, excluding already viewed
-        var recommendations = await _context.Products
+        var recommendations = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive &&
                        viewedCategories.Contains(p.CategoryId) &&
@@ -216,7 +219,7 @@ public class ProductRecommendationService : IProductRecommendationService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        var trendingProducts = await _context.OrderItems
+        var trendingProducts = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Include(oi => oi.Product)
             .Where(oi => oi.CreatedAt >= startDate)
@@ -232,7 +235,7 @@ public class ProductRecommendationService : IProductRecommendationService
 
         // ✅ PERFORMANCE: Batch load products to avoid N+1 queries
         var productIds = trendingProducts.Select(tp => tp.ProductId).ToList();
-        var products = await _context.Products
+        var products = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, cancellationToken);
@@ -257,7 +260,7 @@ public class ProductRecommendationService : IProductRecommendationService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        var bestSellers = await _context.OrderItems
+        var bestSellers = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Include(oi => oi.Product)
             .GroupBy(oi => oi.ProductId)
@@ -272,7 +275,7 @@ public class ProductRecommendationService : IProductRecommendationService
 
         // ✅ PERFORMANCE: Batch load products to avoid N+1 queries
         var productIds = bestSellers.Select(bs => bs.ProductId).ToList();
-        var products = await _context.Products
+        var products = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, cancellationToken);
@@ -298,7 +301,7 @@ public class ProductRecommendationService : IProductRecommendationService
         var startDate = DateTime.UtcNow.AddDays(-days);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var newArrivals = await _context.Products
+        var newArrivals = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive && p.CreatedAt >= startDate)
             .OrderByDescending(p => p.CreatedAt)

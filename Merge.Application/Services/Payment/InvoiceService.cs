@@ -3,14 +3,13 @@ using PaymentEntity = Merge.Domain.Entities.Payment;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Payment;
 using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Order;
 using Merge.Application.DTOs.Payment;
 using Merge.Application.DTOs.User;
@@ -22,7 +21,7 @@ public class InvoiceService : IInvoiceService
 {
     private readonly IRepository<Invoice> _invoiceRepository;
     private readonly IRepository<OrderEntity> _orderRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<InvoiceService> _logger;
@@ -30,7 +29,7 @@ public class InvoiceService : IInvoiceService
     public InvoiceService(
         IRepository<Invoice> invoiceRepository,
         IRepository<OrderEntity> orderRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
         ILogger<InvoiceService> logger)
@@ -47,7 +46,7 @@ public class InvoiceService : IInvoiceService
     public async Task<InvoiceDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
-        var invoice = await _context.Invoices
+        var invoice = await _context.Set<Invoice>()
             .AsNoTracking()
             .Include(i => i.Order)
                 .ThenInclude(o => o.Address)
@@ -69,7 +68,7 @@ public class InvoiceService : IInvoiceService
     public async Task<InvoiceDto?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
-        var invoice = await _context.Invoices
+        var invoice = await _context.Set<Invoice>()
             .AsNoTracking()
             .Include(i => i.Order)
                 .ThenInclude(o => o.Address)
@@ -96,7 +95,7 @@ public class InvoiceService : IInvoiceService
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
-        var query = _context.Invoices
+        var query = _context.Set<Invoice>()
             .AsNoTracking()
             .Include(i => i.Order)
                 .ThenInclude(o => o.Address)
@@ -137,7 +136,7 @@ public class InvoiceService : IInvoiceService
             "Invoice oluşturuluyor. OrderId: {OrderId}",
             orderId);
 
-        var order = await _context.Orders
+        var order = await _context.Set<OrderEntity>()
             .Include(o => o.Address)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
@@ -155,7 +154,7 @@ public class InvoiceService : IInvoiceService
 
         // Mevcut fatura var mı kontrol et
         // ✅ PERFORMANCE: Global Query Filter automatically filters !i.IsDeleted
-        var existingInvoice = await _context.Invoices
+        var existingInvoice = await _context.Set<Invoice>()
             .FirstOrDefaultAsync(i => i.OrderId == orderId, cancellationToken);
 
         if (existingInvoice != null)
@@ -183,7 +182,7 @@ public class InvoiceService : IInvoiceService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
-        invoice = await _context.Invoices
+        invoice = await _context.Set<Invoice>()
             .AsNoTracking()
             .Include(i => i.Order)
                 .ThenInclude(o => o.Address)

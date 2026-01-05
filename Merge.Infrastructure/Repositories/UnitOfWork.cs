@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore.Storage;
 using Merge.Domain.Common;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
 using Merge.Infrastructure.Data;
 
 namespace Merge.Infrastructure.Repositories;
 
+// ✅ BOLUM 1.1: UnitOfWork Application katmanındaki IUnitOfWork interface'ini implement ediyor
 public class UnitOfWork : IUnitOfWork
 {
     private readonly ApplicationDbContext _context;
@@ -17,64 +19,37 @@ public class UnitOfWork : IUnitOfWork
         _domainEventDispatcher = domainEventDispatcher;
     }
 
+    // ✅ BOLUM 3.0: Outbox pattern (dual-write sorunu çözümü)
     // ✅ BOLUM 1.5: Domain Events publish mekanizması (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        // 1. Domain Event'leri topla (SaveChanges öncesi)
-        var domainEvents = GetDomainEvents();
-
-        // 2. Database'e kaydet
-        var result = await _context.SaveChangesAsync(cancellationToken);
-
-        // 3. Domain Event'leri publish et (SaveChanges sonrası - transaction commit edildikten sonra)
-        if (domainEvents.Any() && _domainEventDispatcher != null)
-        {
-            await _domainEventDispatcher.DispatchDomainEventsAsync(domainEvents, cancellationToken);
-            
-            // 4. Event'leri temizle
-            ClearDomainEvents();
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Get all domain events from tracked entities - BOLUM 1.5: Domain Events
-    /// </summary>
-    private List<IDomainEvent> GetDomainEvents()
-    {
-        var domainEvents = new List<IDomainEvent>();
-
-        var entities = _context.ChangeTracker
-            .Entries<BaseEntity>()
-            .Where(e => e.Entity.DomainEvents.Any())
-            .Select(e => e.Entity)
+        // Get all domain events from tracked entities
+        var domainEvents = _context.ChangeTracker
+            .Entries<IAggregateRoot>()
+            .SelectMany(x => x.Entity.DomainEvents)
             .ToList();
 
-        foreach (var entity in entities)
+        // Convert domain events to outbox messages (same transaction)
+        foreach (var domainEvent in domainEvents)
         {
-            domainEvents.AddRange(entity.DomainEvents);
+            _context.Set<OutboxMessage>().Add(new OutboxMessage
+            {
+                Id = Guid.NewGuid(),
+                Type = domainEvent.GetType().FullName ?? domainEvent.GetType().Name,
+                Content = System.Text.Json.JsonSerializer.Serialize(domainEvent, domainEvent.GetType()),
+                OccurredOnUtc = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow
+            });
         }
 
-        return domainEvents;
-    }
-
-    /// <summary>
-    /// Clear domain events from tracked entities - BOLUM 1.5: Domain Events
-    /// </summary>
-    private void ClearDomainEvents()
-    {
-        var entities = _context.ChangeTracker
-            .Entries<BaseEntity>()
-            .Where(e => e.Entity.DomainEvents.Any())
-            .Select(e => e.Entity)
-            .ToList();
-
-        foreach (var entity in entities)
+        // Clear domain events
+        foreach (var entry in _context.ChangeTracker.Entries<IAggregateRoot>())
         {
-            entity.ClearDomainEvents();
+            entry.Entity.ClearDomainEvents();
         }
+
+        return await _context.SaveChangesAsync(cancellationToken);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)

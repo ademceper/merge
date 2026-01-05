@@ -2,10 +2,9 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Content;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Marketing;
 using Merge.Application.Common;
 
@@ -15,14 +14,14 @@ namespace Merge.Application.Services.Content;
 public class BannerService : IBannerService
 {
     private readonly IRepository<Banner> _bannerRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<BannerService> _logger;
 
     public BannerService(
         IRepository<Banner> bannerRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<BannerService> logger)
@@ -38,7 +37,7 @@ public class BannerService : IBannerService
     public async Task<BannerDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Direct DbContext query for better control
-        var banner = await _context.Banners
+        var banner = await _context.Set<Banner>()
             .AsNoTracking()
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
         return banner == null ? null : _mapper.Map<BannerDto>(banner);
@@ -48,7 +47,7 @@ public class BannerService : IBannerService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
-        var banners = await _context.Banners
+        var banners = await _context.Set<Banner>()
             .AsNoTracking()
             .OrderBy(b => b.Position)
             .ThenBy(b => b.SortOrder)
@@ -66,7 +65,7 @@ public class BannerService : IBannerService
 
     public async Task<PagedResult<BannerDto>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        var query = _context.Banners
+        var query = _context.Set<Banner>()
             .AsNoTracking()
             .OrderBy(b => b.Position)
             .ThenBy(b => b.SortOrder);
@@ -91,7 +90,7 @@ public class BannerService : IBannerService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         var now = DateTime.UtcNow;
-        var query = _context.Banners
+        var query = _context.Set<Banner>()
             .AsNoTracking()
             .Where(b => b.IsActive &&
                   (!b.StartDate.HasValue || b.StartDate.Value <= now) &&
@@ -119,7 +118,7 @@ public class BannerService : IBannerService
     public async Task<PagedResult<BannerDto>> GetActiveBannersAsync(string? position, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
-        var query = _context.Banners
+        var query = _context.Set<Banner>()
             .AsNoTracking()
             .Where(b => b.IsActive &&
                   (!b.StartDate.HasValue || b.StartDate.Value <= now) &&

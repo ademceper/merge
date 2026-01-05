@@ -1,13 +1,12 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Governance;
 using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text.Json;
 using Merge.Application.DTOs.Security;
 
@@ -16,12 +15,12 @@ namespace Merge.Application.Services.Governance;
 
 public class AuditLogService : IAuditLogService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<AuditLogService> _logger;
 
-    public AuditLogService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<AuditLogService> logger)
+    public AuditLogService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<AuditLogService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;

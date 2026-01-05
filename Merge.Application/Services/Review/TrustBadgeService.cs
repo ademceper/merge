@@ -3,12 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ReviewEntity = Merge.Domain.Entities.Review;
 using ProductEntity = Merge.Domain.Entities.Product;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Review;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using OrderEntity = Merge.Domain.Entities.Order;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text.Json;
 using Merge.Application.DTOs.Review;
 
@@ -17,12 +17,12 @@ namespace Merge.Application.Services.Review;
 
 public class TrustBadgeService : ITrustBadgeService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<TrustBadgeService> _logger;
 
-    public TrustBadgeService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<TrustBadgeService> logger)
+    public TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<TrustBadgeService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -291,7 +291,7 @@ public class TrustBadgeService : ITrustBadgeService
         else
         {
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !sp.IsDeleted (Global Query Filter)
-            var sellers = await _context.SellerProfiles
+            var sellers = await _context.Set<SellerProfile>()
                 .AsNoTracking()
                 .Where(sp => sp.Status == SellerStatus.Approved)
                 .Select(sp => sp.UserId)
@@ -314,7 +314,7 @@ public class TrustBadgeService : ITrustBadgeService
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var seller = await _context.SellerProfiles
+        var seller = await _context.Set<SellerProfile>()
             .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
 
@@ -322,20 +322,20 @@ public class TrustBadgeService : ITrustBadgeService
 
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted, !r.IsDeleted (Global Query Filter)
         // Get seller metrics
-        var totalOrders = await _context.Orders
+        var totalOrders = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .CountAsync(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId), cancellationToken);
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        var totalRevenue = await _context.OrderItems
+        var totalRevenue = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.Product.SellerId == sellerId &&
                   oi.Order.PaymentStatus == PaymentStatus.Completed)
             .SumAsync(oi => oi.TotalPrice, cancellationToken);
 
         var averageRating = seller.AverageRating;
-        var totalReviews = await _context.Reviews
+        var totalReviews = await _context.Set<ReviewEntity>()
             .AsNoTracking()
             .CountAsync(r => r.IsApproved &&
                   r.Product.SellerId == sellerId, cancellationToken);
@@ -391,7 +391,7 @@ public class TrustBadgeService : ITrustBadgeService
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var product = await _context.Products
+        var product = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
@@ -399,13 +399,13 @@ public class TrustBadgeService : ITrustBadgeService
 
         // ✅ PERFORMANCE: Removed manual !oi.Order.IsDeleted, !r.IsDeleted (Global Query Filter)
         // Get product metrics
-        var totalSales = await _context.OrderItems
+        var totalSales = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.ProductId == productId && oi.Order.PaymentStatus == PaymentStatus.Completed)
             .SumAsync(oi => oi.Quantity, cancellationToken);
 
         var averageRating = product.Rating;
-        var totalReviews = await _context.Reviews
+        var totalReviews = await _context.Set<ReviewEntity>()
             .AsNoTracking()
             .CountAsync(r => r.ProductId == productId && r.IsApproved, cancellationToken);
 

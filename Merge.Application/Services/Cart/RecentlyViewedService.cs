@@ -6,11 +6,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Cart;
+using Merge.Application.Interfaces;
 using Merge.Application.Common;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Product;
 
 
@@ -19,7 +18,7 @@ namespace Merge.Application.Services.Cart;
 public class RecentlyViewedService : IRecentlyViewedService
 {
     private readonly IRepository<RecentlyViewedProduct> _recentlyViewedRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<RecentlyViewedService> _logger;
@@ -27,7 +26,7 @@ public class RecentlyViewedService : IRecentlyViewedService
 
     public RecentlyViewedService(
         IRepository<RecentlyViewedProduct> recentlyViewedRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
         ILogger<RecentlyViewedService> logger,
@@ -51,7 +50,7 @@ public class RecentlyViewedService : IRecentlyViewedService
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !rvp.IsDeleted and !rvp.Product.IsDeleted checks (Global Query Filter handles it)
-        var query = _context.RecentlyViewedProducts
+        var query = _context.Set<RecentlyViewedProduct>()
             .AsNoTracking()
             .Include(rvp => rvp.Product)
                 .ThenInclude(p => p.Category)
@@ -84,8 +83,8 @@ public class RecentlyViewedService : IRecentlyViewedService
     public async Task AddToRecentlyViewedAsync(Guid userId, Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !rvp.IsDeleted check (Global Query Filter handles it)
-        var existing = await _context.RecentlyViewedProducts
-            .FirstOrDefaultAsync(rvp => rvp.UserId == userId && 
+        var existing = await _context.Set<RecentlyViewedProduct>()
+            .FirstOrDefaultAsync(rvp => rvp.UserId == userId &&
                                   rvp.ProductId == productId, cancellationToken);
 
         if (existing != null)
@@ -106,7 +105,7 @@ public class RecentlyViewedService : IRecentlyViewedService
 
             // ✅ PERFORMANCE: Database'de Count yap (memory'de işlem YASAK)
             // ✅ PERFORMANCE: Removed manual !rvp.IsDeleted check (Global Query Filter handles it)
-            var count = await _context.RecentlyViewedProducts
+            var count = await _context.Set<RecentlyViewedProduct>()
                 .CountAsync(rvp => rvp.UserId == userId, cancellationToken);
 
             // ✅ BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
@@ -114,7 +113,7 @@ public class RecentlyViewedService : IRecentlyViewedService
             {
                 // ✅ PERFORMANCE: Bulk delete instead of foreach DeleteAsync (N+1 fix)
                 // ✅ PERFORMANCE: Removed manual !rvp.IsDeleted check (Global Query Filter handles it)
-                var oldest = await _context.RecentlyViewedProducts
+                var oldest = await _context.Set<RecentlyViewedProduct>()
                     .Where(rvp => rvp.UserId == userId)
                     .OrderBy(rvp => rvp.ViewedAt)
                     .Take(count - _cartSettings.MaxRecentlyViewedItems)
@@ -136,7 +135,7 @@ public class RecentlyViewedService : IRecentlyViewedService
     {
         // ✅ PERFORMANCE: Bulk delete instead of foreach DeleteAsync (N+1 fix)
         // ✅ PERFORMANCE: Removed manual !rvp.IsDeleted check (Global Query Filter handles it)
-        var recentlyViewed = await _context.RecentlyViewedProducts
+        var recentlyViewed = await _context.Set<RecentlyViewedProduct>()
             .Where(rvp => rvp.UserId == userId)
             .ToListAsync(cancellationToken);
 

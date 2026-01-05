@@ -2,10 +2,9 @@ using AutoMapper;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.Cart;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using CartEntity = Merge.Domain.Entities.Cart;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.DTOs.Cart;
@@ -19,7 +18,7 @@ public class CartService : ICartService
     private readonly IRepository<CartEntity> _cartRepository;
     private readonly IRepository<CartItem> _cartItemRepository;
     private readonly IRepository<ProductEntity> _productRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<CartService> _logger;
@@ -28,7 +27,7 @@ public class CartService : ICartService
         IRepository<CartEntity> cartRepository,
         IRepository<CartItem> cartItemRepository,
         IRepository<ProductEntity> productRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<CartService> logger)
@@ -49,7 +48,7 @@ public class CartService : ICartService
 
         // ✅ PERFORMANCE FIX: AsNoTracking for read-only queries
         // ✅ PERFORMANCE FIX: Removed manual !ci.IsDeleted check (Global Query Filter handles it)
-        var cart = await _context.Carts
+        var cart = await _context.Set<CartEntity>()
             .AsNoTracking()
             .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.Product)
@@ -78,7 +77,7 @@ public class CartService : ICartService
     public async Task<CartDto?> GetCartByCartItemIdAsync(Guid cartItemId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        var cartItem = await _context.CartItems
+        var cartItem = await _context.Set<CartItem>()
             .AsNoTracking()
             .Include(ci => ci.Cart)
             .FirstOrDefaultAsync(ci => ci.Id == cartItemId, cancellationToken);
@@ -89,7 +88,7 @@ public class CartService : ICartService
         }
 
         // Load cart with items for mapping
-        var cart = await _context.Carts
+        var cart = await _context.Set<CartEntity>()
             .AsNoTracking()
             .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.Product)
@@ -102,7 +101,7 @@ public class CartService : ICartService
     public async Task<CartItemDto?> GetCartItemByIdAsync(Guid cartItemId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        var cartItem = await _context.CartItems
+        var cartItem = await _context.Set<CartItem>()
             .AsNoTracking()
             .Include(ci => ci.Cart)
             .Include(ci => ci.Product)
@@ -132,7 +131,7 @@ public class CartService : ICartService
         try
         {
             // ✅ PERFORMANCE FIX: Removed manual !ci.IsDeleted check (Global Query Filter)
-            var cart = await _context.Carts
+            var cart = await _context.Set<CartEntity>()
                 .Include(c => c.CartItems)
                 .FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
 
@@ -154,7 +153,7 @@ public class CartService : ICartService
             }
 
             // ✅ PERFORMANCE: AsNoTracking for read-only product query
-            var product = await _context.Products
+            var product = await _context.Set<ProductEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
             if (product == null)
@@ -196,7 +195,7 @@ public class CartService : ICartService
                     userId, productId, existingItem.Quantity);
 
                 // ✅ PERFORMANCE FIX: Use single query with Include instead of LoadAsync
-                var updatedItem = await _context.CartItems
+                var updatedItem = await _context.Set<CartItem>()
                     .AsNoTracking()
                     .Include(ci => ci.Product)
                     .FirstOrDefaultAsync(ci => ci.Id == existingItem.Id, cancellationToken);
@@ -221,7 +220,7 @@ public class CartService : ICartService
                 userId, productId, quantity, cartItem.Id);
 
             // ✅ PERFORMANCE FIX: Use single query with Include instead of LoadAsync
-            var newItem = await _context.CartItems
+            var newItem = await _context.Set<CartItem>()
                 .AsNoTracking()
                 .Include(ci => ci.Product)
                 .FirstOrDefaultAsync(ci => ci.Id == cartItem.Id, cancellationToken);
@@ -262,7 +261,7 @@ public class CartService : ICartService
         }
 
         // ✅ PERFORMANCE: AsNoTracking for read-only product query
-        var product = await _context.Products
+        var product = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == cartItem.ProductId, cancellationToken);
         if (product == null)
@@ -320,7 +319,7 @@ public class CartService : ICartService
     public async Task<bool> ClearCartAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE FIX: Removed manual !ci.IsDeleted check
-        var cart = await _context.Carts
+        var cart = await _context.Set<CartEntity>()
             .Include(c => c.CartItems)
             .FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
 

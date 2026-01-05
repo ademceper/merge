@@ -1,13 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using AutoMapper;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.LiveCommerce;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using OrderEntity = Merge.Domain.Entities.Order;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.LiveCommerce;
 using Merge.Application.Common;
 
@@ -15,13 +15,13 @@ namespace Merge.Application.Services.LiveCommerce;
 
 public class LiveCommerceService : ILiveCommerceService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<LiveCommerceService> _logger;
     private readonly IMapper _mapper;
 
     public LiveCommerceService(
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         ILogger<LiveCommerceService> logger,
         IMapper mapper)
@@ -55,12 +55,12 @@ public class LiveCommerceService : ILiveCommerceService
                 Tags = dto.Tags
             };
 
-            await _context.LiveStreams.AddAsync(stream, cancellationToken);
+            await _context.Set<LiveStream>().AddAsync(stream, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // ✅ ARCHITECTURE: AutoMapper kullan, manuel mapping YASAK
             // ✅ PERFORMANCE: AsNoTracking + Include ile tek query'de getir
-            var createdStream = await _context.LiveStreams
+            var createdStream = await _context.Set<LiveStream>()
                 .AsNoTracking()
                 .Include(s => s.Seller)
                 .Include(s => s.Products)
@@ -83,7 +83,7 @@ public class LiveCommerceService : ILiveCommerceService
     {
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: Include ile N+1 önlenir
-        var stream = await _context.LiveStreams
+        var stream = await _context.Set<LiveStream>()
             .AsNoTracking()
             .Include(s => s.Seller)
             .Include(s => s.Products)
@@ -101,7 +101,7 @@ public class LiveCommerceService : ILiveCommerceService
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: Include ile N+1 önlenir
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
-        var query = _context.LiveStreams
+        var query = _context.Set<LiveStream>()
             .AsNoTracking()
             .Include(s => s.Seller)
             .Include(s => s.Products)
@@ -126,7 +126,7 @@ public class LiveCommerceService : ILiveCommerceService
     public async Task<LiveStreamDto> UpdateStreamAsync(Guid streamId, CreateLiveStreamDto dto, CancellationToken cancellationToken = default)
     {
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
-        var stream = await _context.LiveStreams
+        var stream = await _context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream == null)
@@ -153,7 +153,7 @@ public class LiveCommerceService : ILiveCommerceService
     public async Task<bool> DeleteStreamAsync(Guid streamId, CancellationToken cancellationToken = default)
     {
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
-        var stream = await _context.LiveStreams
+        var stream = await _context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream == null) return false;
@@ -175,7 +175,7 @@ public class LiveCommerceService : ILiveCommerceService
 
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: Include ile N+1 önlenir
-        var query = _context.LiveStreams
+        var query = _context.Set<LiveStream>()
             .AsNoTracking()
             .Include(s => s.Seller)
             .Include(s => s.Products)
@@ -212,7 +212,7 @@ public class LiveCommerceService : ILiveCommerceService
 
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: Include ile N+1 önlenir
-        var query = _context.LiveStreams
+        var query = _context.Set<LiveStream>()
             .AsNoTracking()
             .Include(s => s.Seller)
             .Include(s => s.Products)
@@ -243,7 +243,7 @@ public class LiveCommerceService : ILiveCommerceService
     public async Task<bool> StartStreamAsync(Guid streamId, CancellationToken cancellationToken = default)
     {
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
-        var stream = await _context.LiveStreams
+        var stream = await _context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream == null) return false;
@@ -260,7 +260,7 @@ public class LiveCommerceService : ILiveCommerceService
     public async Task<bool> EndStreamAsync(Guid streamId, CancellationToken cancellationToken = default)
     {
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
-        var stream = await _context.LiveStreams
+        var stream = await _context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream == null) return false;
@@ -278,7 +278,7 @@ public class LiveCommerceService : ILiveCommerceService
     public async Task<LiveStreamDto?> AddProductToStreamAsync(Guid streamId, Guid productId, AddProductToStreamDto? dto = null, CancellationToken cancellationToken = default)
     {
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
-        var stream = await _context.LiveStreams
+        var stream = await _context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream == null)
@@ -286,7 +286,7 @@ public class LiveCommerceService : ILiveCommerceService
             throw new NotFoundException("Yayın", streamId);
         }
 
-        var existing = await _context.LiveStreamProducts
+        var existing = await _context.Set<LiveStreamProduct>()
             .FirstOrDefaultAsync(p => p.LiveStreamId == streamId && p.ProductId == productId, cancellationToken);
 
         if (existing != null)
@@ -303,7 +303,7 @@ public class LiveCommerceService : ILiveCommerceService
             ShowcaseNotes = dto?.ShowcaseNotes
         };
 
-        await _context.LiveStreamProducts.AddAsync(streamProduct, cancellationToken);
+        await _context.Set<LiveStreamProduct>().AddAsync(streamProduct, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return await GetStreamAsync(streamId, cancellationToken);
@@ -313,14 +313,14 @@ public class LiveCommerceService : ILiveCommerceService
     public async Task<bool> ShowcaseProductAsync(Guid streamId, Guid productId, CancellationToken cancellationToken = default)
     {
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
-        var streamProduct = await _context.LiveStreamProducts
+        var streamProduct = await _context.Set<LiveStreamProduct>()
             .FirstOrDefaultAsync(p => p.LiveStreamId == streamId && p.ProductId == productId, cancellationToken);
 
         if (streamProduct == null) return false;
 
         // Unhighlight all products in this stream
         // ⚠️ Batch update için ToListAsync gerekli (tracking ile)
-        var allProducts = await _context.LiveStreamProducts
+        var allProducts = await _context.Set<LiveStreamProduct>()
             .Where(p => p.LiveStreamId == streamId)
             .ToListAsync(cancellationToken);
 
@@ -350,17 +350,17 @@ public class LiveCommerceService : ILiveCommerceService
             IsActive = true
         };
 
-        await _context.LiveStreamViewers.AddAsync(viewer, cancellationToken);
+        await _context.Set<LiveStreamViewer>().AddAsync(viewer, cancellationToken);
 
         // Update viewer count
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
-        var stream = await _context.LiveStreams
+        var stream = await _context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream != null)
         {
             // ✅ PERFORMANCE: Database'de count (memory'de YASAK)
-            stream.ViewerCount = await _context.LiveStreamViewers
+            stream.ViewerCount = await _context.Set<LiveStreamViewer>()
                 .CountAsync(v => v.LiveStreamId == streamId && v.IsActive, cancellationToken);
             stream.TotalViewerCount++;
             if (stream.ViewerCount > stream.PeakViewerCount)
@@ -377,7 +377,7 @@ public class LiveCommerceService : ILiveCommerceService
     public async Task<bool> LeaveStreamAsync(Guid streamId, Guid? userId, string? guestId = null, CancellationToken cancellationToken = default)
     {
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
-        var viewer = await _context.LiveStreamViewers
+        var viewer = await _context.Set<LiveStreamViewer>()
             .FirstOrDefaultAsync(v => v.LiveStreamId == streamId &&
                 (userId.HasValue ? v.UserId == userId : v.GuestId == guestId) &&
                 v.IsActive, cancellationToken);
@@ -391,13 +391,13 @@ public class LiveCommerceService : ILiveCommerceService
 
         // Update viewer count
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
-        var stream = await _context.LiveStreams
+        var stream = await _context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream != null)
         {
             // ✅ PERFORMANCE: Database'de count (memory'de YASAK)
-            stream.ViewerCount = await _context.LiveStreamViewers
+            stream.ViewerCount = await _context.Set<LiveStreamViewer>()
                 .CountAsync(v => v.LiveStreamId == streamId && v.IsActive, cancellationToken);
         }
 
@@ -409,7 +409,7 @@ public class LiveCommerceService : ILiveCommerceService
     public async Task<LiveStreamOrderDto> CreateOrderFromStreamAsync(Guid streamId, Guid orderId, Guid? productId = null, CancellationToken cancellationToken = default)
     {
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
-        var order = await _context.Orders
+        var order = await _context.Set<OrderEntity>()
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
 
         if (order == null)
@@ -426,11 +426,11 @@ public class LiveCommerceService : ILiveCommerceService
             OrderAmount = order.TotalAmount
         };
 
-        await _context.LiveStreamOrders.AddAsync(streamOrder, cancellationToken);
+        await _context.Set<LiveStreamOrder>().AddAsync(streamOrder, cancellationToken);
 
         // Update stream stats
         // ⚠️ Update için tracking gerekli, AsNoTracking KULLANILMAMALI
-        var stream = await _context.LiveStreams
+        var stream = await _context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
         if (stream != null)
@@ -442,7 +442,7 @@ public class LiveCommerceService : ILiveCommerceService
         // Update product stats if productId provided
         if (productId.HasValue)
         {
-            var streamProduct = await _context.LiveStreamProducts
+            var streamProduct = await _context.Set<LiveStreamProduct>()
                 .FirstOrDefaultAsync(p => p.LiveStreamId == streamId && p.ProductId == productId.Value, cancellationToken);
 
             if (streamProduct != null)
@@ -461,7 +461,7 @@ public class LiveCommerceService : ILiveCommerceService
     public async Task<LiveStreamStatsDto> GetStreamStatsAsync(Guid streamId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
-        var stream = await _context.LiveStreams
+        var stream = await _context.Set<LiveStream>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == streamId, cancellationToken);
 
@@ -471,13 +471,13 @@ public class LiveCommerceService : ILiveCommerceService
         }
 
         // ✅ PERFORMANCE: Database'de aggregation (memory'de YASAK)
-        var totalViewers = await _context.LiveStreamViewers
+        var totalViewers = await _context.Set<LiveStreamViewer>()
             .CountAsync(v => v.LiveStreamId == streamId, cancellationToken);
 
-        var totalOrders = await _context.LiveStreamOrders
+        var totalOrders = await _context.Set<LiveStreamOrder>()
             .CountAsync(o => o.LiveStreamId == streamId, cancellationToken);
 
-        var totalRevenue = await _context.LiveStreamOrders
+        var totalRevenue = await _context.Set<LiveStreamOrder>()
             .Where(o => o.LiveStreamId == streamId)
             .SumAsync(o => (decimal?)o.OrderAmount, cancellationToken) ?? 0;
 

@@ -3,16 +3,16 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.B2B;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
 using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using OrganizationEntity = Merge.Domain.Entities.Organization;
 using ProductEntity = Merge.Domain.Entities.Product;
 using CategoryEntity = Merge.Domain.Entities.Category;
+using UserEntity = Merge.Domain.Entities.User;
 using System.Text.Json;
 using Merge.Application.DTOs.B2B;
 using AutoMapper;
@@ -21,14 +21,14 @@ namespace Merge.Application.Services.B2B;
 
 public class B2BService : IB2BService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<B2BService> _logger;
     private readonly B2BSettings _b2bSettings;
 
     public B2BService(
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<B2BService> logger,
@@ -273,7 +273,7 @@ public class B2BService : IB2BService
         }
 
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
-        var product = await _context.Products
+        var product = await _context.Set<ProductEntity>()
             .FirstOrDefaultAsync(p => p.Id == dto.ProductId, cancellationToken);
 
         if (product == null)
@@ -630,7 +630,7 @@ public class B2BService : IB2BService
             // BEFORE: 10 items = 10 product queries + 10 wholesale queries + 10 discount queries = ~30 queries
             // AFTER: 10 items = 1 product query + 1 wholesale query + 1 discount query = 3 queries (10x faster!)
             var productIds = dto.Items.Select(i => i.ProductId).Distinct().ToList();
-            var products = await _context.Products
+            var products = await _context.Set<ProductEntity>()
                 .AsNoTracking()
                 .Where(p => productIds.Contains(p.Id))
                 .ToDictionaryAsync(p => p.Id, cancellationToken);
@@ -1066,14 +1066,14 @@ public class B2BService : IB2BService
         ProductEntity? product = null;
         if (dto.ProductId.HasValue)
         {
-            product = await _context.Products
+            product = await _context.Set<ProductEntity>()
                 .FirstOrDefaultAsync(p => p.Id == dto.ProductId.Value, cancellationToken);
         }
 
         CategoryEntity? category = null;
         if (dto.CategoryId.HasValue)
         {
-            category = await _context.Categories
+            category = await _context.Set<CategoryEntity>()
                 .FirstOrDefaultAsync(c => c.Id == dto.CategoryId.Value, cancellationToken);
         }
 

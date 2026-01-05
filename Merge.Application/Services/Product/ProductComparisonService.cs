@@ -2,13 +2,12 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using UserEntity = Merge.Domain.Entities.User;
+using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
 using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text.Json;
 using ProductEntity = Merge.Domain.Entities.Product;
 using ReviewEntity = Merge.Domain.Entities.Review;
@@ -19,12 +18,12 @@ namespace Merge.Application.Services.Product;
 
 public class ProductComparisonService : IProductComparisonService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<ProductComparisonService> _logger;
 
-    public ProductComparisonService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProductComparisonService> logger)
+    public ProductComparisonService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProductComparisonService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;

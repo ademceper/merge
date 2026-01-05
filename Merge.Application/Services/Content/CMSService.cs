@@ -2,11 +2,10 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Content;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text;
 using Merge.Application.DTOs.Content;
 using Merge.Application.Common;
@@ -15,12 +14,12 @@ namespace Merge.Application.Services.Content;
 
 public class CMSService : ICMSService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<CMSService> _logger;
 
-    public CMSService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CMSService> logger)
+    public CMSService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CMSService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;

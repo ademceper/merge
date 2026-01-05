@@ -2,10 +2,9 @@ using AutoMapper;
 using CartEntity = Merge.Domain.Entities.Cart;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.Cart;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Common;
@@ -18,7 +17,7 @@ public class WishlistService : IWishlistService
 {
     private readonly IRepository<Wishlist> _wishlistRepository;
     private readonly IRepository<ProductEntity> _productRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<WishlistService> _logger;
@@ -26,7 +25,7 @@ public class WishlistService : IWishlistService
     public WishlistService(
         IRepository<Wishlist> wishlistRepository,
         IRepository<ProductEntity> productRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<WishlistService> logger)
@@ -47,7 +46,7 @@ public class WishlistService : IWishlistService
         // ✅ PERFORMANCE FIX: AsNoTracking for read-only queries
         // ✅ PERFORMANCE FIX: Removed manual !w.IsDeleted check (Global Query Filter handles it)
         // ✅ PERFORMANCE FIX: Removed manual !p.IsDeleted check (Global Query Filter handles it)
-        var wishlistItems = await _context.Wishlists
+        var wishlistItems = await _context.Set<Wishlist>()
             .AsNoTracking()
             .Include(w => w.Product)
                 .ThenInclude(p => p.Category)
@@ -67,7 +66,7 @@ public class WishlistService : IWishlistService
     {
         _logger.LogInformation("Retrieving wishlist (page {Page}) for user {UserId}", page, userId);
 
-        var query = _context.Wishlists
+        var query = _context.Set<Wishlist>()
             .AsNoTracking()
             .Include(w => w.Product)
                 .ThenInclude(p => p.Category)
@@ -101,7 +100,7 @@ public class WishlistService : IWishlistService
 
         // ✅ PERFORMANCE FIX: AsNoTracking for read-only check
         // ✅ PERFORMANCE FIX: Removed manual !w.IsDeleted check (Global Query Filter handles it)
-        var existing = await _context.Wishlists
+        var existing = await _context.Set<Wishlist>()
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.UserId == userId && w.ProductId == productId, cancellationToken);
 
@@ -114,7 +113,7 @@ public class WishlistService : IWishlistService
         }
 
         // ✅ PERFORMANCE: AsNoTracking for read-only product query
-        var product = await _context.Products
+        var product = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
         if (product == null || !product.IsActive)
@@ -144,7 +143,7 @@ public class WishlistService : IWishlistService
             productId, userId);
 
         // ✅ PERFORMANCE FIX: Removed manual !w.IsDeleted check (Global Query Filter handles it)
-        var wishlist = await _context.Wishlists
+        var wishlist = await _context.Set<Wishlist>()
             .FirstOrDefaultAsync(w => w.UserId == userId && w.ProductId == productId, cancellationToken);
 
         if (wishlist == null)
@@ -172,7 +171,7 @@ public class WishlistService : IWishlistService
 
         // ✅ PERFORMANCE FIX: AsNoTracking for read-only queries
         // ✅ PERFORMANCE FIX: Removed manual !w.IsDeleted check (Global Query Filter handles it)
-        var exists = await _context.Wishlists
+        var exists = await _context.Set<Wishlist>()
             .AsNoTracking()
             .AnyAsync(w => w.UserId == userId && w.ProductId == productId, cancellationToken);
 

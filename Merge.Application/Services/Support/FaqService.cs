@@ -2,10 +2,9 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Support;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Support;
 using Merge.Application.Common;
 
@@ -15,14 +14,14 @@ namespace Merge.Application.Services.Support;
 public class FaqService : IFaqService
 {
     private readonly IRepository<FAQ> _faqRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<FaqService> _logger;
 
     public FaqService(
         IRepository<FAQ> faqRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
         ILogger<FaqService> logger)
@@ -39,7 +38,7 @@ public class FaqService : IFaqService
     {
         // ✅ PERFORMANCE: AsNoTracking + Direct DbContext query for better control
         // ✅ PERFORMANCE: Removed manual !f.IsDeleted (Global Query Filter)
-        var faq = await _context.FAQs
+        var faq = await _context.Set<FAQ>()
             .AsNoTracking()
             .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
         return faq == null ? null : _mapper.Map<FaqDto>(faq);
@@ -49,7 +48,7 @@ public class FaqService : IFaqService
     public async Task<IEnumerable<FaqDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !f.IsDeleted (Global Query Filter)
-        var faqs = await _context.FAQs
+        var faqs = await _context.Set<FAQ>()
             .AsNoTracking()
             .OrderBy(f => f.SortOrder)
             .ThenBy(f => f.Question)
@@ -61,7 +60,7 @@ public class FaqService : IFaqService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PagedResult<FaqDto>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        var query = _context.FAQs
+        var query = _context.Set<FAQ>()
             .AsNoTracking()
             .OrderBy(f => f.SortOrder)
             .ThenBy(f => f.Question);
@@ -85,7 +84,7 @@ public class FaqService : IFaqService
     public async Task<IEnumerable<FaqDto>> GetByCategoryAsync(string category, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !f.IsDeleted (Global Query Filter)
-        var faqs = await _context.FAQs
+        var faqs = await _context.Set<FAQ>()
             .AsNoTracking()
             .Where(f => f.Category == category && f.IsPublished)
             .OrderBy(f => f.SortOrder)
@@ -98,7 +97,7 @@ public class FaqService : IFaqService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PagedResult<FaqDto>> GetByCategoryAsync(string category, int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        var query = _context.FAQs
+        var query = _context.Set<FAQ>()
             .AsNoTracking()
             .Where(f => f.Category == category && f.IsPublished)
             .OrderBy(f => f.SortOrder)
@@ -123,7 +122,7 @@ public class FaqService : IFaqService
     public async Task<IEnumerable<FaqDto>> GetPublishedAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !f.IsDeleted (Global Query Filter)
-        var faqs = await _context.FAQs
+        var faqs = await _context.Set<FAQ>()
             .AsNoTracking()
             .Where(f => f.IsPublished)
             .OrderBy(f => f.SortOrder)
@@ -136,7 +135,7 @@ public class FaqService : IFaqService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PagedResult<FaqDto>> GetPublishedAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        var query = _context.FAQs
+        var query = _context.Set<FAQ>()
             .AsNoTracking()
             .Where(f => f.IsPublished)
             .OrderBy(f => f.SortOrder)

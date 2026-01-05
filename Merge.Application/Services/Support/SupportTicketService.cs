@@ -4,11 +4,10 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using UserEntity = Merge.Domain.Entities.User;
 using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
@@ -20,14 +19,14 @@ namespace Merge.Application.Services.Support;
 
 public class SupportTicketService : ISupportTicketService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly IEmailService _emailService;
     private readonly ILogger<SupportTicketService> _logger;
 
     public SupportTicketService(
-        ApplicationDbContext context,
+        IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         IEmailService emailService,
@@ -48,7 +47,7 @@ public class SupportTicketService : ISupportTicketService
         _logger.LogInformation("Creating support ticket for user {UserId}. Category: {Category}, Priority: {Priority}, Subject: {Subject}",
             userId, dto.Category, dto.Priority, dto.Subject);
 
-        var user = await _context.Set<UserEntity>()
+        var user = await _context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
@@ -919,7 +918,7 @@ public class SupportTicketService : ISupportTicketService
             agentId, startDate, endDate);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !u.IsDeleted (Global Query Filter)
-        var agent = await _context.Set<UserEntity>()
+        var agent = await _context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == agentId, cancellationToken);
 

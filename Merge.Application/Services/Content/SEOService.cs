@@ -3,11 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Content;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using System.Text;
 using System.Text.Json;
 using System.Xml.Linq;
@@ -18,12 +18,12 @@ namespace Merge.Application.Services.Content;
 
 public class SEOService : ISEOService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<SEOService> _logger;
 
-    public SEOService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<SEOService> logger)
+    public SEOService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<SEOService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -281,7 +281,7 @@ public class SEOService : ISEOService
     public async Task<SEOSettingsDto> GenerateSEOForProductAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var product = await _context.Products
+        var product = await _context.Set<ProductEntity>()
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
@@ -320,7 +320,7 @@ public class SEOService : ISEOService
     public async Task<SEOSettingsDto> GenerateSEOForCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
-        var category = await _context.Categories
+        var category = await _context.Set<Category>()
             .FirstOrDefaultAsync(c => c.Id == categoryId, cancellationToken);
 
         if (category == null)

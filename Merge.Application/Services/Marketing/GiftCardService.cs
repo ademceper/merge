@@ -4,11 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Marketing;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using OrderEntity = Merge.Domain.Entities.Order;
 using Merge.Domain.ValueObjects;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Marketing;
 using Merge.Application.Common;
 
@@ -19,7 +19,7 @@ public class GiftCardService : IGiftCardService
 {
     private readonly IRepository<GiftCard> _giftCardRepository;
     private readonly IRepository<GiftCardTransaction> _transactionRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<GiftCardService> _logger;
@@ -27,7 +27,7 @@ public class GiftCardService : IGiftCardService
     public GiftCardService(
         IRepository<GiftCard> giftCardRepository,
         IRepository<GiftCardTransaction> transactionRepository,
-        ApplicationDbContext context,
+        IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
         ILogger<GiftCardService> logger)
@@ -44,7 +44,7 @@ public class GiftCardService : IGiftCardService
     public async Task<GiftCardDto?> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !gc.IsDeleted (Global Query Filter)
-        var giftCard = await _context.GiftCards
+        var giftCard = await _context.Set<GiftCard>()
             .AsNoTracking()
             .FirstOrDefaultAsync(gc => gc.Code == code, cancellationToken);
 
@@ -57,7 +57,7 @@ public class GiftCardService : IGiftCardService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !gc.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Repository yerine direct context kullan (FindAsync yerine FirstOrDefaultAsync)
-        var giftCard = await _context.GiftCards
+        var giftCard = await _context.Set<GiftCard>()
             .AsNoTracking()
             .FirstOrDefaultAsync(gc => gc.Id == id, cancellationToken);
         
@@ -69,7 +69,7 @@ public class GiftCardService : IGiftCardService
     public async Task<IEnumerable<GiftCardDto>> GetUserGiftCardsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !gc.IsDeleted (Global Query Filter)
-        var giftCards = await _context.GiftCards
+        var giftCards = await _context.Set<GiftCard>()
             .AsNoTracking()
             .Where(gc => gc.PurchasedByUserId == userId || gc.AssignedToUserId == userId)
             .OrderByDescending(gc => gc.CreatedAt)
@@ -83,7 +83,7 @@ public class GiftCardService : IGiftCardService
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     public async Task<PagedResult<GiftCardDto>> GetUserGiftCardsAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        var query = _context.GiftCards
+        var query = _context.Set<GiftCard>()
             .AsNoTracking()
             .Where(gc => gc.PurchasedByUserId == userId || gc.AssignedToUserId == userId)
             .OrderByDescending(gc => gc.CreatedAt);
@@ -146,7 +146,7 @@ public class GiftCardService : IGiftCardService
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !gc.IsDeleted (Global Query Filter)
-        var createdGiftCard = await _context.GiftCards
+        var createdGiftCard = await _context.Set<GiftCard>()
             .AsNoTracking()
             .FirstOrDefaultAsync(gc => gc.Id == giftCard.Id, cancellationToken);
 
@@ -163,7 +163,7 @@ public class GiftCardService : IGiftCardService
     public async Task<GiftCardDto> RedeemGiftCardAsync(string code, Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !gc.IsDeleted (Global Query Filter)
-        var giftCard = await _context.GiftCards
+        var giftCard = await _context.Set<GiftCard>()
             .FirstOrDefaultAsync(gc => gc.Code == code, cancellationToken);
 
         if (giftCard == null)
@@ -205,7 +205,7 @@ public class GiftCardService : IGiftCardService
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !gc.IsDeleted (Global Query Filter)
-        var updatedGiftCard = await _context.GiftCards
+        var updatedGiftCard = await _context.Set<GiftCard>()
             .AsNoTracking()
             .FirstOrDefaultAsync(gc => gc.Code == code, cancellationToken);
 
@@ -230,7 +230,7 @@ public class GiftCardService : IGiftCardService
     public async Task<bool> ApplyGiftCardToOrderAsync(string code, Guid orderId, Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !gc.IsDeleted (Global Query Filter)
-        var giftCard = await _context.GiftCards
+        var giftCard = await _context.Set<GiftCard>()
             .FirstOrDefaultAsync(gc => gc.Code == code, cancellationToken);
 
         if (giftCard == null || !giftCard.IsActive || giftCard.RemainingAmount <= 0)
@@ -239,7 +239,7 @@ public class GiftCardService : IGiftCardService
         }
 
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
-        var order = await _context.Orders
+        var order = await _context.Set<OrderEntity>()
             .FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId, cancellationToken);
 
         if (order == null)
@@ -285,7 +285,7 @@ public class GiftCardService : IGiftCardService
 
         // ✅ PERFORMANCE: Removed manual !gc.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AnyAsync kullan (async)
-        while (await _context.GiftCards.AnyAsync(gc => gc.Code == code, cancellationToken))
+        while (await _context.Set<GiftCard>().AnyAsync(gc => gc.Code == code, cancellationToken))
         {
             part1 = random.Next(1000, 9999).ToString();
             part2 = random.Next(1000, 9999).ToString();

@@ -1,16 +1,29 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Application.Interfaces;
+using UserEntity = Merge.Domain.Entities.User;
 using System.Linq.Expressions;
 using System.Reflection;
 
 namespace Merge.Infrastructure.Data;
 
-public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
+// ✅ BOLUM 1.1: ApplicationDbContext IDbContext interface'ini implement ediyor
+public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.Application.Interfaces.IDbContext
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {
     }
+
+    // ✅ Explicit implementation of IDbContext interface members to match interface signature
+    DbSet<UserEntity> Merge.Application.Interfaces.IDbContext.Users => base.Users;
+    DbSet<Role> Merge.Application.Interfaces.IDbContext.Roles => base.Roles;
+    DbSet<Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>> Merge.Application.Interfaces.IDbContext.UserRoles => base.UserRoles;
+    
+    // ✅ Explicit implementation of Set<TEntity>() to match interface constraint
+    // Note: Constraint is inherited from interface, cannot be specified here
+    DbSet<TEntity> Merge.Application.Interfaces.IDbContext.Set<TEntity>() => base.Set<TEntity>();
     public DbSet<Category> Categories { get; set; }
     public DbSet<Product> Products { get; set; }
     public DbSet<ProductVariant> ProductVariants { get; set; }
@@ -153,6 +166,8 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
     public DbSet<AccountSecurityEvent> AccountSecurityEvents { get; set; }
     public DbSet<SecurityAlert> SecurityAlerts { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+    // ✅ BOLUM 3.0: Outbox pattern (dual-write sorunu çözümü)
+    public DbSet<OutboxMessage> OutboxMessages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -1867,19 +1882,30 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>
         });
 
         // ✅ SECURITY: RefreshToken configuration
+        // ✅ BOLUM 9.1: Refresh token hash'lenmiş olarak saklanıyor
         modelBuilder.Entity<RefreshToken>(entity =>
         {
-            entity.HasIndex(e => e.Token).IsUnique();
+            entity.HasIndex(e => e.TokenHash).IsUnique();
             entity.HasIndex(e => e.UserId);
             entity.HasIndex(e => new { e.UserId, e.IsRevoked, e.ExpiresAt });
-            entity.Property(e => e.Token).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.TokenHash).IsRequired().HasMaxLength(256);
             entity.Property(e => e.CreatedByIp).HasMaxLength(50);
             entity.Property(e => e.RevokedByIp).HasMaxLength(50);
-            entity.Property(e => e.ReplacedByToken).HasMaxLength(256);
+            entity.Property(e => e.ReplacedByTokenHash).HasMaxLength(256);
             entity.HasOne(e => e.User)
                   .WithMany(e => e.RefreshTokens)
                   .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ✅ BOLUM 3.0: Outbox pattern configuration
+        modelBuilder.Entity<OutboxMessage>(entity =>
+        {
+            entity.HasIndex(e => e.ProcessedOnUtc);
+            entity.HasIndex(e => new { e.ProcessedOnUtc, e.RetryCount });
+            entity.Property(e => e.Type).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Content).IsRequired();
+            entity.Property(e => e.Error).HasMaxLength(2000);
         });
 
         // B2BUser configuration

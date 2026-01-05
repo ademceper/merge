@@ -1,26 +1,27 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Support;
+using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Content;
+using UserRole = Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>;
 
 
 namespace Merge.Application.Services.Support;
 
 public class LiveChatService : ILiveChatService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<LiveChatService> _logger;
 
-    public LiveChatService(ApplicationDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<LiveChatService> logger)
+    public LiveChatService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<LiveChatService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -198,16 +199,17 @@ public class LiveChatService : ILiveChatService
             var user = await _context.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == senderId.Value, cancellationToken);
-            
+
             if (user != null)
             {
                 // ✅ PERFORMANCE: Database'de role check yap, memory'de işlem YASAK
+                // ✅ Identity framework'ün Role ve UserRole entity'leri IDbContext üzerinden erişiliyor
                 var isAgent = await _context.UserRoles
                     .AsNoTracking()
                     .Where(ur => ur.UserId == user.Id)
                     .Join(_context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
                     .AnyAsync(r => r == "Admin" || r == "Manager" || r == "Support", cancellationToken);
-                
+
                 if (isAgent)
                 {
                     senderType = "Agent";
