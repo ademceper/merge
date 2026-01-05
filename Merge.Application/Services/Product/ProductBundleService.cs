@@ -203,15 +203,21 @@ public class ProductBundleService : IProductBundleService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
-        bundle = await _context.ProductBundles
+        var reloadedBundle = await _context.ProductBundles
             .AsNoTracking()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
 
+        if (reloadedBundle == null)
+        {
+            _logger.LogWarning("Product bundle {BundleId} not found after update", id);
+            throw new NotFoundException("Product bundle", id);
+        }
+
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Updated product bundle. BundleId: {BundleId}", id);
-        return MapToDto(bundle);
+        return MapToDto(reloadedBundle);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)

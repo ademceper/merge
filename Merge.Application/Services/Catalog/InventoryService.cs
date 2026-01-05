@@ -281,16 +281,22 @@ public class InventoryService : IInventoryService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
-        inventory = await _context.Inventories
+        var reloadedInventory = await _context.Inventories
             .AsNoTracking()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
             .FirstOrDefaultAsync(i => i.Id == inventory.Id, cancellationToken);
 
-        _logger.LogInformation("Successfully created inventory with Id: {InventoryId} for ProductId: {ProductId}",
-            inventory.Id, createDto.ProductId);
+        if (reloadedInventory == null)
+        {
+            _logger.LogWarning("Inventory {InventoryId} not found after creation", inventory.Id);
+            return _mapper.Map<InventoryDto>(inventory);
+        }
 
-        return _mapper.Map<InventoryDto>(inventory);
+        _logger.LogInformation("Successfully created inventory with Id: {InventoryId} for ProductId: {ProductId}",
+            reloadedInventory.Id, createDto.ProductId);
+
+        return _mapper.Map<InventoryDto>(reloadedInventory);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)

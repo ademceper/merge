@@ -70,6 +70,11 @@ public class OrderSplitService : IOrderSplitService
         }
 
         // Validate split items
+        if (dto.Items == null || !dto.Items.Any())
+        {
+            throw new ValidationException("En az bir sipariş kalemi belirtilmelidir.");
+        }
+
         var totalSplitQuantity = 0;
         foreach (var item in dto.Items)
         {

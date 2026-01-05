@@ -110,18 +110,24 @@ public class StoreService : IStoreService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        store = await _context.Set<Store>()
+        var reloadedStore = await _context.Set<Store>()
             .AsNoTracking()
             .Include(s => s.Seller)
             .FirstOrDefaultAsync(s => s.Id == store.Id, cancellationToken);
 
+        if (reloadedStore == null)
+        {
+            _logger.LogWarning("Store {StoreId} not found after creation", store.Id);
+            return _mapper.Map<StoreDto>(store);
+        }
+
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var storeDto = _mapper.Map<StoreDto>(store!);
+        var storeDto = _mapper.Map<StoreDto>(reloadedStore);
         
         // ✅ PERFORMANCE: ProductCount için database'de count (N+1 fix)
         storeDto.ProductCount = await _context.Products
             .AsNoTracking()
-            .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == store.Id, cancellationToken);
+            .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == reloadedStore.Id, cancellationToken);
         
         return storeDto;
     }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Payment;
 using Merge.Application.DTOs.Payment;
+using Merge.API.Middleware;
 
 
 namespace Merge.API.Controllers.Payment;

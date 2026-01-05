@@ -5,6 +5,7 @@ using Merge.Application.Interfaces.Payment;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.DTOs.Payment;
 using Merge.Application.Common;
+using Merge.API.Middleware;
 
 
 namespace Merge.API.Controllers.Payment;

@@ -380,8 +380,8 @@ public class KnowledgeBaseService : IKnowledgeBaseService
         // ✅ PERFORMANCE: Batch load article counts for all categories to avoid N+1 query
         var articleCountsDict = await _context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
-            .Where(a => categoryIds.Contains(a.CategoryId.Value) && a.Status == ContentStatus.Published)
-            .GroupBy(a => a.CategoryId.Value)
+            .Where(a => a.CategoryId.HasValue && categoryIds.Contains(a.CategoryId.Value) && a.Status == ContentStatus.Published)
+            .GroupBy(a => a.CategoryId!.Value)
             .Select(g => new { CategoryId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.CategoryId, x => x.Count, cancellationToken);
 
@@ -547,8 +547,8 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             var subCategoryIds = category.SubCategories.Select(sc => sc.Id).ToList();
             var subArticleCountsDict = await _context.Set<KnowledgeBaseArticle>()
                 .AsNoTracking()
-                .Where(a => subCategoryIds.Contains(a.CategoryId.Value) && a.Status == ContentStatus.Published)
-                .GroupBy(a => a.CategoryId.Value)
+                .Where(a => a.CategoryId.HasValue && subCategoryIds.Contains(a.CategoryId.Value) && a.Status == ContentStatus.Published)
+                .GroupBy(a => a.CategoryId!.Value)
                 .Select(g => new { CategoryId = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.CategoryId, x => x.Count, cancellationToken);
 
@@ -587,8 +587,8 @@ public class KnowledgeBaseService : IKnowledgeBaseService
                 var nestedSubCategoryIds = sc.SubCategories.Select(nsc => nsc.Id).ToList();
                 var nestedSubArticleCountsDict = await _context.Set<KnowledgeBaseArticle>()
                     .AsNoTracking()
-                    .Where(a => nestedSubCategoryIds.Contains(a.CategoryId.Value) && a.Status == ContentStatus.Published)
-                    .GroupBy(a => a.CategoryId.Value)
+                    .Where(a => a.CategoryId.HasValue && nestedSubCategoryIds.Contains(a.CategoryId.Value) && a.Status == ContentStatus.Published)
+                    .GroupBy(a => a.CategoryId!.Value)
                     .Select(g => new { CategoryId = g.Key, Count = g.Count() })
                     .ToDictionaryAsync(x => x.CategoryId, x => x.Count, cancellationToken);
 

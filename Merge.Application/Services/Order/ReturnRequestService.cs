@@ -201,20 +201,26 @@ public class ReturnRequestService : IReturnRequestService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
-        returnRequest = await _context.ReturnRequests
+        var reloadedReturnRequest = await _context.ReturnRequests
             .AsNoTracking()
             .Include(r => r.Order)
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.Id == returnRequest.Id, cancellationToken);
 
+        if (reloadedReturnRequest == null)
+        {
+            _logger.LogWarning("Return request {ReturnRequestId} not found after creation", returnRequest.Id);
+            return _mapper.Map<ReturnRequestDto>(returnRequest);
+        }
+
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation(
             "Return request oluşturuldu. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, RefundAmount: {RefundAmount}",
-            returnRequest.Id, dto.OrderId, refundAmount);
+            reloadedReturnRequest.Id, dto.OrderId, refundAmount);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: OrderNumber ve UserName AutoMapper'da zaten map ediliyor
-        return _mapper.Map<ReturnRequestDto>(returnRequest);
+        return _mapper.Map<ReturnRequestDto>(reloadedReturnRequest);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)

@@ -26,7 +26,7 @@ public class AbandonedCartsController : BaseController
     /// </summary>
     [HttpGet]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(MaxRequests = 30, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
     [ProducesResponseType(typeof(PagedResult<AbandonedCartDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -52,7 +52,7 @@ public class AbandonedCartsController : BaseController
     /// </summary>
     [HttpGet("{cartId}")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(MaxRequests = 30, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
     [ProducesResponseType(typeof(AbandonedCartDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -77,7 +77,7 @@ public class AbandonedCartsController : BaseController
     /// </summary>
     [HttpGet("stats")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(MaxRequests = 30, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
     [ProducesResponseType(typeof(AbandonedCartRecoveryStatsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -144,7 +144,7 @@ public class AbandonedCartsController : BaseController
     /// </summary>
     [HttpGet("track/open/{emailId}")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 100, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 100/dakika (spam koruması, AllowAnonymous)
+    [RateLimit(100, 60)] // ✅ BOLUM 3.3: Rate Limiting - 100/dakika (spam koruması, AllowAnonymous)
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> TrackEmailOpen(
@@ -163,7 +163,7 @@ public class AbandonedCartsController : BaseController
     /// </summary>
     [HttpGet("track/click/{emailId}")]
     [AllowAnonymous]
-    [RateLimit(MaxRequests = 100, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 100/dakika (spam koruması, AllowAnonymous)
+    [RateLimit(100, 60)] // ✅ BOLUM 3.3: Rate Limiting - 100/dakika (spam koruması, AllowAnonymous)
     [ProducesResponseType(StatusCodes.Status302Found)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> TrackEmailClick(
@@ -215,7 +215,7 @@ public class AbandonedCartsController : BaseController
     /// </summary>
     [HttpGet("{cartId}/email-history")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(MaxRequests = 30, WindowSeconds = 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
     [ProducesResponseType(typeof(PagedResult<AbandonedCartEmailDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]

@@ -198,7 +198,22 @@ public class NotificationTemplatesController : BaseController
         if (validationResult != null) return validationResult;
 
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var notification = await _templateService.CreateNotificationFromTemplateAsync(dto.UserId, dto.TemplateType, dto.Variables, cancellationToken);
+        // Convert NotificationVariablesDto to Dictionary
+        Dictionary<string, object>? variablesDict = null;
+        if (dto.Variables != null)
+        {
+            variablesDict = new Dictionary<string, object>();
+            var props = typeof(NotificationVariablesDto).GetProperties();
+            foreach (var prop in props)
+            {
+                var value = prop.GetValue(dto.Variables);
+                if (value != null)
+                {
+                    variablesDict[prop.Name] = value;
+                }
+            }
+        }
+        var notification = await _templateService.CreateNotificationFromTemplateAsync(dto.UserId, dto.TemplateType, variablesDict, cancellationToken);
         return Ok(notification);
     }
 }

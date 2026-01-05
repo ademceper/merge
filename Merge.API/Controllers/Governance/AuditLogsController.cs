@@ -4,6 +4,7 @@ using System.Security.Claims;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Governance;
 using Merge.Application.DTOs.Security;
+using Merge.Application.Common;
 using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Governance;

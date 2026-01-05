@@ -163,17 +163,22 @@ public class StoresController : BaseController
     [HttpGet("my-stores")]
     [Authorize(Roles = "Seller,Admin")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
-    [ProducesResponseType(typeof(IEnumerable<StoreDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<StoreDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<ActionResult<IEnumerable<StoreDto>>> GetMyStores(
+    public async Task<ActionResult<PagedResult<StoreDto>>> GetMyStores(
         [FromQuery] string? status = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
         var sellerId = GetUserId();
-        var stores = await _storeService.GetSellerStoresAsync(sellerId, status, cancellationToken);
+        var stores = await _storeService.GetSellerStoresAsync(sellerId, status, page, pageSize, cancellationToken);
         return Ok(stores);
     }
 

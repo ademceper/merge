@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.DTOs.Support;
+using Merge.Application.Common;
 using Merge.API.Middleware;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)

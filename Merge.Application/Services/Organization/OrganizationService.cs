@@ -305,13 +305,19 @@ public class OrganizationService : IOrganizationService
             .Include(t => t.TeamLead)
             .FirstOrDefaultAsync(t => t.Id == team.Id, cancellationToken);
 
+        if (team == null)
+        {
+            _logger.LogWarning("Team not found after creation");
+            throw new NotFoundException("Team", Guid.Empty);
+        }
+
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var teamDto = _mapper.Map<TeamDto>(team!);
+        var teamDto = _mapper.Map<TeamDto>(team);
         
         // ✅ PERFORMANCE: Batch loading - MemberCount'u yükle (N+1 fix)
         var memberCount = await _context.Set<TeamMember>()
             .AsNoTracking()
-            .CountAsync(tm => tm.TeamId == team!.Id && tm.IsActive, cancellationToken);
+            .CountAsync(tm => tm.TeamId == team.Id && tm.IsActive, cancellationToken);
         
         teamDto.MemberCount = memberCount;
 

@@ -228,9 +228,9 @@ public class UserActivityService : IUserActivityService
         // ✅ PERFORMANCE: UserEmail'i batch loaded dictionary'den set et (minimal memory işlemi)
         foreach (var user in topUsersData)
         {
-            if (userEmails.ContainsKey(user.UserId))
+            if (userEmails.TryGetValue(user.UserId, out var email) && !string.IsNullOrEmpty(email))
             {
-                user.UserEmail = userEmails[user.UserId];
+                user.UserEmail = email;
             }
         }
         
