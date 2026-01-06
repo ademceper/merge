@@ -5,7 +5,6 @@ using Merge.Application.Interfaces.Catalog;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Application.Interfaces;
 using Merge.Application.DTOs.Catalog;
 using Merge.Application.Common;
 

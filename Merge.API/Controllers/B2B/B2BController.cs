@@ -1,22 +1,61 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.B2B;
+using Microsoft.Extensions.Options;
+using MediatR;
 using Merge.Application.DTOs.B2B;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
+using Merge.Application.B2B.Commands.CreateB2BUser;
+using Merge.Application.B2B.Commands.ApproveB2BUser;
+using Merge.Application.B2B.Commands.UpdateB2BUser;
+using Merge.Application.B2B.Commands.DeleteB2BUser;
+using Merge.Application.B2B.Commands.CreatePurchaseOrder;
+using Merge.Application.B2B.Commands.SubmitPurchaseOrder;
+using Merge.Application.B2B.Commands.ApprovePurchaseOrder;
+using Merge.Application.B2B.Commands.RejectPurchaseOrder;
+using Merge.Application.B2B.Commands.CancelPurchaseOrder;
+using Merge.Application.B2B.Commands.CreateWholesalePrice;
+using Merge.Application.B2B.Commands.UpdateWholesalePrice;
+using Merge.Application.B2B.Commands.DeleteWholesalePrice;
+using Merge.Application.B2B.Commands.CreateCreditTerm;
+using Merge.Application.B2B.Commands.UpdateCreditTerm;
+using Merge.Application.B2B.Commands.DeleteCreditTerm;
+using Merge.Application.B2B.Commands.CreateVolumeDiscount;
+using Merge.Application.B2B.Commands.UpdateVolumeDiscount;
+using Merge.Application.B2B.Commands.DeleteVolumeDiscount;
+using Merge.Application.B2B.Queries.GetB2BUserById;
+using Merge.Application.B2B.Queries.GetB2BUserByUserId;
+using Merge.Application.B2B.Queries.GetOrganizationB2BUsers;
+using Merge.Application.B2B.Queries.GetPurchaseOrderById;
+using Merge.Application.B2B.Queries.GetPurchaseOrderByPONumber;
+using Merge.Application.B2B.Queries.GetOrganizationPurchaseOrders;
+using Merge.Application.B2B.Queries.GetB2BUserPurchaseOrders;
+using Merge.Application.B2B.Queries.GetProductWholesalePrices;
+using Merge.Application.B2B.Queries.GetWholesalePrice;
+using Merge.Application.B2B.Queries.GetCreditTermById;
+using Merge.Application.B2B.Queries.GetOrganizationCreditTerms;
+using Merge.Application.B2B.Queries.GetVolumeDiscounts;
+using Merge.Application.B2B.Queries.CalculateVolumeDiscount;
 using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.B2B;
 
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+[ApiVersion("1.0")]
 [ApiController]
-// ✅ BOLUM 4.0: API Versioning - Route BaseController'dan geliyor
+[Route("api/v{version:apiVersion}/b2b")]
 [Authorize]
 public class B2BController : BaseController
 {
-    private readonly IB2BService _b2bService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
 
-    public B2BController(IB2BService b2bService)
+    public B2BController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _b2bService = b2bService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
     // B2B Users
@@ -35,10 +74,18 @@ public class B2BController : BaseController
         [FromBody] CreateB2BUserDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        var b2bUser = await _b2bService.CreateB2BUserAsync(dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
+        var command = new CreateB2BUserCommand(
+            dto.UserId,
+            dto.OrganizationId,
+            dto.EmployeeId,
+            dto.Department,
+            dto.JobTitle,
+            dto.CreditLimit,
+            dto.Settings);
+        
+        var b2bUser = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetB2BUser), new { id = b2bUser.Id }, b2bUser);
     }
 
@@ -56,13 +103,16 @@ public class B2BController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        var userId = GetUserId();
-        var b2bUser = await _b2bService.GetB2BUserByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetB2BUserByIdQuery(id);
+        var b2bUser = await _mediator.Send(query, cancellationToken);
+        
         if (b2bUser == null)
         {
             return NotFound();
         }
 
+        var userId = GetUserId();
         // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         if (b2bUser.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -83,8 +133,11 @@ public class B2BController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<B2BUserDto>> GetMyB2BProfile(CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var b2bUser = await _b2bService.GetB2BUserByUserIdAsync(userId, cancellationToken);
+        var query = new GetB2BUserByUserIdQuery(userId);
+        var b2bUser = await _mediator.Send(query, cancellationToken);
+        
         if (b2bUser == null)
         {
             return NotFound();
@@ -109,11 +162,13 @@ public class B2BController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
-        var users = await _b2bService.GetOrganizationB2BUsersAsync(organizationId, status, page, pageSize, cancellationToken);
+        var query = new GetOrganizationB2BUsersQuery(organizationId, status, page, pageSize);
+        var users = await _mediator.Send(query, cancellationToken);
         return Ok(users);
     }
 
@@ -131,11 +186,13 @@ public class B2BController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> UpdateB2BUser(Guid id, [FromBody] UpdateB2BUserDto dto, CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
 
         var userId = GetUserId();
-        var b2bUser = await _b2bService.GetB2BUserByIdAsync(id, cancellationToken);
+        var b2bUserQuery = new GetB2BUserByIdQuery(id);
+        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        
         if (b2bUser == null)
         {
             return NotFound();
@@ -149,7 +206,9 @@ public class B2BController : BaseController
             return Forbid();
         }
 
-        var success = await _b2bService.UpdateB2BUserAsync(id, dto, cancellationToken);
+        var command = new UpdateB2BUserCommand(id, dto);
+        var success = await _mediator.Send(command, cancellationToken);
+        
         if (!success)
         {
             return NotFound();
@@ -170,8 +229,11 @@ public class B2BController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ApproveB2BUser(Guid id, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var approvedBy = GetUserId();
-        var success = await _b2bService.ApproveB2BUserAsync(id, approvedBy, cancellationToken);
+        var command = new ApproveB2BUserCommand(id, approvedBy);
+        var success = await _mediator.Send(command, cancellationToken);
+        
         if (!success)
         {
             return NotFound();
@@ -193,10 +255,11 @@ public class B2BController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<WholesalePriceDto>> CreateWholesalePrice([FromBody] CreateWholesalePriceDto dto, CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
 
-        var price = await _b2bService.CreateWholesalePriceAsync(dto, cancellationToken);
+        var command = new CreateWholesalePriceCommand(dto);
+        var price = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetProductWholesalePrices), new { productId = price.ProductId }, price);
     }
 
@@ -216,11 +279,13 @@ public class B2BController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
-        var prices = await _b2bService.GetProductWholesalePricesAsync(productId, organizationId, page, pageSize, cancellationToken);
+        var query = new GetProductWholesalePricesQuery(productId, organizationId, page, pageSize);
+        var prices = await _mediator.Send(query, cancellationToken);
         return Ok(prices);
     }
 
@@ -239,13 +304,11 @@ public class B2BController : BaseController
         [FromQuery] Guid? organizationId = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Validation - Quantity kontrolü
-        if (quantity <= 0)
-        {
-            return BadRequest("Miktar pozitif olmalıdır.");
-        }
-
-        var price = await _b2bService.GetWholesalePriceAsync(productId, quantity, organizationId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel validation gereksiz
+        var query = new GetWholesalePriceQuery(productId, quantity, organizationId);
+        var price = await _mediator.Send(query, cancellationToken);
+        
         return Ok(new WholesalePriceResponseDto
         {
             ProductId = productId,
@@ -269,10 +332,11 @@ public class B2BController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<CreditTermDto>> CreateCreditTerm([FromBody] CreateCreditTermDto dto, CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
 
-        var creditTerm = await _b2bService.CreateCreditTermAsync(dto, cancellationToken);
+        var command = new CreateCreditTermCommand(dto);
+        var creditTerm = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetOrganizationCreditTerms), new { organizationId = creditTerm.OrganizationId }, creditTerm);
     }
 
@@ -293,12 +357,14 @@ public class B2BController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         var userId = GetUserId();
-        var b2bUser = await _b2bService.GetB2BUserByUserIdAsync(userId, cancellationToken);
+        var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
+        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
         
         // ✅ SECURITY: Authorization check - Users can only view credit terms for their own organization or must be Admin/Manager
         if (b2bUser == null || (b2bUser.OrganizationId != organizationId && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
@@ -306,7 +372,8 @@ public class B2BController : BaseController
             return Forbid();
         }
 
-        var creditTerms = await _b2bService.GetOrganizationCreditTermsAsync(organizationId, isActive, page, pageSize, cancellationToken);
+        var query = new GetOrganizationCreditTermsQuery(organizationId, isActive, page, pageSize);
+        var creditTerms = await _mediator.Send(query, cancellationToken);
         return Ok(creditTerms);
     }
 
@@ -322,17 +389,20 @@ public class B2BController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PurchaseOrderDto>> CreatePurchaseOrder([FromBody] CreatePurchaseOrderDto dto, CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
 
         var userId = GetUserId();
-        var b2bUser = await _b2bService.GetB2BUserByUserIdAsync(userId, cancellationToken);
+        var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
+        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        
         if (b2bUser == null)
         {
             return BadRequest("B2B kullanıcı profili bulunamadı.");
         }
 
-        var po = await _b2bService.CreatePurchaseOrderAsync(b2bUser.Id, dto, cancellationToken);
+        var command = new CreatePurchaseOrderCommand(b2bUser.Id, dto);
+        var po = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetPurchaseOrder), new { id = po.Id }, po);
     }
 
@@ -348,15 +418,20 @@ public class B2BController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PurchaseOrderDto>> GetPurchaseOrder(Guid id, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var po = await _b2bService.GetPurchaseOrderByIdAsync(id, cancellationToken);
+        var poQuery = new GetPurchaseOrderByIdQuery(id);
+        var po = await _mediator.Send(poQuery, cancellationToken);
+        
         if (po == null)
         {
             return NotFound();
         }
 
         // ✅ SECURITY: Authorization check - Users can only view their own purchase orders or must be Admin/Manager
-        var b2bUser = await _b2bService.GetB2BUserByUserIdAsync(userId, cancellationToken);
+        var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
+        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        
         if (b2bUser == null || (po.B2BUserId != b2bUser.Id && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
         {
             return Forbid();
@@ -377,15 +452,20 @@ public class B2BController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PurchaseOrderDto>> GetPurchaseOrderByPONumber(string poNumber, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var po = await _b2bService.GetPurchaseOrderByPONumberAsync(poNumber, cancellationToken);
+        var poQuery = new GetPurchaseOrderByPONumberQuery(poNumber);
+        var po = await _mediator.Send(poQuery, cancellationToken);
+        
         if (po == null)
         {
             return NotFound();
         }
 
         // ✅ SECURITY: Authorization check - Users can only view their own purchase orders or must be Admin/Manager
-        var b2bUser = await _b2bService.GetB2BUserByUserIdAsync(userId, cancellationToken);
+        var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
+        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        
         if (b2bUser == null || (po.B2BUserId != b2bUser.Id && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
         {
             return Forbid();
@@ -412,11 +492,13 @@ public class B2BController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
-        var pos = await _b2bService.GetOrganizationPurchaseOrdersAsync(organizationId, status, page, pageSize, cancellationToken);
+        var query = new GetOrganizationPurchaseOrdersQuery(organizationId, status, page, pageSize);
+        var pos = await _mediator.Send(query, cancellationToken);
         return Ok(pos);
     }
 
@@ -436,18 +518,22 @@ public class B2BController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         var userId = GetUserId();
-        var b2bUser = await _b2bService.GetB2BUserByUserIdAsync(userId, cancellationToken);
+        var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
+        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        
         if (b2bUser == null)
         {
             return BadRequest();
         }
 
-        var pos = await _b2bService.GetB2BUserPurchaseOrdersAsync(b2bUser.Id, status, page, pageSize, cancellationToken);
+        var query = new GetB2BUserPurchaseOrdersQuery(b2bUser.Id, status, page, pageSize);
+        var pos = await _mediator.Send(query, cancellationToken);
         return Ok(pos);
     }
 
@@ -464,21 +550,28 @@ public class B2BController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> SubmitPurchaseOrder(Guid id, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var po = await _b2bService.GetPurchaseOrderByIdAsync(id, cancellationToken);
+        var poQuery = new GetPurchaseOrderByIdQuery(id);
+        var po = await _mediator.Send(poQuery, cancellationToken);
+        
         if (po == null)
         {
             return NotFound();
         }
 
         // ✅ SECURITY: Authorization check - Users can only submit their own purchase orders
-        var b2bUser = await _b2bService.GetB2BUserByUserIdAsync(userId, cancellationToken);
+        var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
+        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        
         if (b2bUser == null || po.B2BUserId != b2bUser.Id)
         {
             return Forbid();
         }
 
-        var success = await _b2bService.SubmitPurchaseOrderAsync(id, cancellationToken);
+        var command = new SubmitPurchaseOrderCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
+        
         if (!success)
         {
             return BadRequest("Sipariş gönderilemedi.");
@@ -499,8 +592,11 @@ public class B2BController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ApprovePurchaseOrder(Guid id, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var approvedBy = GetUserId();
-        var success = await _b2bService.ApprovePurchaseOrderAsync(id, approvedBy, cancellationToken);
+        var command = new ApprovePurchaseOrderCommand(id, approvedBy);
+        var success = await _mediator.Send(command, cancellationToken);
+        
         if (!success)
         {
             return BadRequest("Sipariş onaylanamadı.");
@@ -521,10 +617,12 @@ public class B2BController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> RejectPurchaseOrder(Guid id, [FromBody] RejectPODto dto, CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
 
-        var success = await _b2bService.RejectPurchaseOrderAsync(id, dto.Reason, cancellationToken);
+        var command = new RejectPurchaseOrderCommand(id, dto.Reason);
+        var success = await _mediator.Send(command, cancellationToken);
+        
         if (!success)
         {
             return BadRequest("Sipariş reddedilemedi.");
@@ -545,21 +643,28 @@ public class B2BController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> CancelPurchaseOrder(Guid id, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var po = await _b2bService.GetPurchaseOrderByIdAsync(id, cancellationToken);
+        var poQuery = new GetPurchaseOrderByIdQuery(id);
+        var po = await _mediator.Send(poQuery, cancellationToken);
+        
         if (po == null)
         {
             return NotFound();
         }
 
         // ✅ SECURITY: Authorization check - Users can only cancel their own purchase orders
-        var b2bUser = await _b2bService.GetB2BUserByUserIdAsync(userId, cancellationToken);
+        var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
+        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        
         if (b2bUser == null || po.B2BUserId != b2bUser.Id)
         {
             return Forbid();
         }
 
-        var success = await _b2bService.CancelPurchaseOrderAsync(id, cancellationToken);
+        var command = new CancelPurchaseOrderCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
+        
         if (!success)
         {
             return BadRequest("Sipariş iptal edilemedi.");
@@ -581,10 +686,11 @@ public class B2BController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<VolumeDiscountDto>> CreateVolumeDiscount([FromBody] CreateVolumeDiscountDto dto, CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
 
-        var discount = await _b2bService.CreateVolumeDiscountAsync(dto, cancellationToken);
+        var command = new CreateVolumeDiscountCommand(dto);
+        var discount = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetVolumeDiscounts), new { productId = discount.ProductId }, discount);
     }
 
@@ -605,11 +711,13 @@ public class B2BController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
-        var discounts = await _b2bService.GetVolumeDiscountsAsync(productId, categoryId, organizationId, page, pageSize, cancellationToken);
+        var query = new GetVolumeDiscountsQuery(productId, categoryId, organizationId, page, pageSize);
+        var discounts = await _mediator.Send(query, cancellationToken);
         return Ok(discounts);
     }
 }

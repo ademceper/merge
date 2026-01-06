@@ -1,23 +1,34 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Cart;
+using Microsoft.Extensions.Options;
+using MediatR;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
+using Merge.Application.Cart.Queries.GetWishlist;
+using Merge.Application.Cart.Queries.IsInWishlist;
+using Merge.Application.Cart.Commands.AddToWishlist;
+using Merge.Application.Cart.Commands.RemoveFromWishlist;
 using Merge.API.Middleware;
-
 
 namespace Merge.API.Controllers.Cart;
 
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/cart/wishlist")]
+[Route("api/v{version:apiVersion}/cart/wishlist")]
 [Authorize]
 public class WishlistController : BaseController
 {
-    private readonly IWishlistService _wishlistService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
 
-    public WishlistController(IWishlistService wishlistService)
+    public WishlistController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _wishlistService = wishlistService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
     /// <summary>
@@ -34,12 +45,14 @@ public class WishlistController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         var userId = GetUserId();
-        var products = await _wishlistService.GetWishlistAsync(userId, page, pageSize, cancellationToken);
+        var query = new GetWishlistQuery(userId, page, pageSize);
+        var products = await _mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
@@ -54,8 +67,11 @@ public class WishlistController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> AddToWishlist(Guid productId, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var result = await _wishlistService.AddToWishlistAsync(userId, productId, cancellationToken);
+        var command = new AddToWishlistCommand(userId, productId);
+        var result = await _mediator.Send(command, cancellationToken);
+        
         if (!result)
         {
             return BadRequest();
@@ -74,8 +90,11 @@ public class WishlistController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> RemoveFromWishlist(Guid productId, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var result = await _wishlistService.RemoveFromWishlistAsync(userId, productId, cancellationToken);
+        var command = new RemoveFromWishlistCommand(userId, productId);
+        var result = await _mediator.Send(command, cancellationToken);
+        
         if (!result)
         {
             return NotFound();
@@ -93,8 +112,10 @@ public class WishlistController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<bool>> IsInWishlist(Guid productId, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var result = await _wishlistService.IsInWishlistAsync(userId, productId, cancellationToken);
+        var query = new IsInWishlistQuery(userId, productId);
+        var result = await _mediator.Send(query, cancellationToken);
         return Ok(new { isInWishlist = result });
     }
 }

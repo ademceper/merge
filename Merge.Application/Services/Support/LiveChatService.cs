@@ -340,17 +340,16 @@ public class LiveChatService : ILiveChatService
             .Select(g => new { AgentName = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.AgentName, x => x.Count, cancellationToken);
 
-        return new LiveChatStatsDto
-        {
-            TotalSessions = totalSessions,
-            ActiveSessions = activeSessions,
-            WaitingSessions = waitingSessions,
-            ResolvedSessions = resolvedSessions,
-            AverageResolutionTime = (decimal)Math.Round(avgResolutionTime, 2),
-            AverageResponseTime = 0, // Can be calculated from first agent message time
-            SessionsByDepartment = sessionsByDepartment,
-            SessionsByAgent = sessionsByAgent
-        };
+        return new LiveChatStatsDto(
+            totalSessions,
+            activeSessions,
+            waitingSessions,
+            resolvedSessions,
+            (decimal)Math.Round(avgResolutionTime, 2),
+            0, // AverageResponseTime - Can be calculated from first agent message time
+            sessionsByDepartment,
+            sessionsByAgent
+        );
     }
 
     private string GenerateSessionId()

@@ -53,19 +53,18 @@ public class DemandForecastingService : IDemandForecastingService
         // Basit talep tahmin algoritması
         var forecast = CalculateDemandForecast(product, historicalSales.Cast<object>().ToList(), forecastDays);
 
-        return new DemandForecastDto
-        {
-            ProductId = productId,
-            ProductName = product.Name,
-            ForecastDays = forecastDays,
-            ForecastedQuantity = forecast.ForecastedQuantity,
-            MinQuantity = forecast.MinQuantity,
-            MaxQuantity = forecast.MaxQuantity,
-            Confidence = forecast.Confidence,
-            DailyForecast = forecast.DailyForecast,
-            Reasoning = forecast.Reasoning,
-            ForecastedAt = DateTime.UtcNow
-        };
+        return new DemandForecastDto(
+            productId,
+            product.Name,
+            forecastDays,
+            forecast.ForecastedQuantity,
+            forecast.MinQuantity,
+            forecast.MaxQuantity,
+            forecast.Confidence,
+            forecast.DailyForecast,
+            forecast.Reasoning,
+            DateTime.UtcNow
+        );
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -115,19 +114,18 @@ public class DemandForecastingService : IDemandForecastingService
 
             var forecast = CalculateDemandForecast(product, historicalSales.Cast<object>().ToList(), forecastDays);
 
-            results.Add(new DemandForecastDto
-            {
-                ProductId = product.Id,
-                ProductName = product.Name,
-                ForecastDays = forecastDays,
-                ForecastedQuantity = forecast.ForecastedQuantity,
-                MinQuantity = forecast.MinQuantity,
-                MaxQuantity = forecast.MaxQuantity,
-                Confidence = forecast.Confidence,
-                DailyForecast = forecast.DailyForecast,
-                Reasoning = forecast.Reasoning,
-                ForecastedAt = DateTime.UtcNow
-            });
+            results.Add(new DemandForecastDto(
+                product.Id,
+                product.Name,
+                forecastDays,
+                forecast.ForecastedQuantity,
+                forecast.MinQuantity,
+                forecast.MaxQuantity,
+                forecast.Confidence,
+                forecast.DailyForecast,
+                forecast.Reasoning,
+                DateTime.UtcNow
+            ));
         }
 
         // ✅ PERFORMANCE: ToListAsync() sonrası OrderByDescending() YASAK
@@ -154,14 +152,13 @@ public class DemandForecastingService : IDemandForecastingService
             .Distinct()
             .CountAsync(cancellationToken);
 
-        return new DemandForecastStatsDto
-        {
-            TotalProducts = totalProducts,
-            ProductsWithSales = productsWithSales,
-            ForecastCoverage = totalProducts > 0 ? (decimal)productsWithSales / totalProducts * 100 : 0,
-            PeriodStart = start,
-            PeriodEnd = end
-        };
+        return new DemandForecastStatsDto(
+            totalProducts,
+            productsWithSales,
+            totalProducts > 0 ? (decimal)productsWithSales / totalProducts * 100 : 0,
+            start,
+            end
+        );
     }
 
     private DemandForecastCalculation CalculateDemandForecast(ProductEntity product, List<object> historicalSales, int forecastDays)
@@ -180,11 +177,10 @@ public class DemandForecastingService : IDemandForecastingService
                 Confidence = 30,
                 // ✅ PERFORMANCE: Enumerable.Range - Business logic için gerekli (DTO oluşturma)
                 DailyForecast = Enumerable.Range(0, forecastDays)
-                    .Select(i => new DailyForecastItem
-                    {
-                        Date = DateTime.UtcNow.AddDays(i).Date,
-                        Quantity = 1
-                    })
+                    .Select(i => new DailyForecastItem(
+                        DateTime.UtcNow.AddDays(i).Date,
+                        1
+                    ))
                     .ToList(),
                 Reasoning = "No historical sales data available. Using default forecast."
             };
@@ -252,11 +248,10 @@ public class DemandForecastingService : IDemandForecastingService
                     DayOfWeek.Saturday or DayOfWeek.Sunday => 1.2m,
                     _ => 1.0m
                 };
-                return new DailyForecastItem
-                {
-                    Date = date.Date,
-                    Quantity = (int)Math.Ceiling(baseForecast * dayFactor)
-                };
+                return new DailyForecastItem(
+                    date.Date,
+                    (int)Math.Ceiling(baseForecast * dayFactor)
+                );
             })
             .ToList();
 

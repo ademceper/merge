@@ -1,28 +1,66 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Merge.Application.Interfaces.Analytics;
+using Merge.Application.Interfaces;
 
 namespace Merge.Application.Analytics.Commands.ChangeUserRole;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class ChangeUserRoleCommandHandler : IRequestHandler<ChangeUserRoleCommand, bool>
 {
-    private readonly IAdminService _adminService;
+    private readonly IDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<ChangeUserRoleCommandHandler> _logger;
 
     public ChangeUserRoleCommandHandler(
-        IAdminService adminService,
+        IDbContext context,
+        IUnitOfWork unitOfWork,
         ILogger<ChangeUserRoleCommandHandler> logger)
     {
-        _adminService = adminService;
+        _context = context;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
     public async Task<bool> Handle(ChangeUserRoleCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Changing user role. UserId: {UserId}, Role: {Role}", request.UserId, request.Role);
+        _logger.LogInformation("Changing user role. UserId: {UserId}, NewRole: {Role}", request.UserId, request.Role);
+        
+        // ✅ FIX: Use FirstOrDefaultAsync instead of FindAsync to respect Global Query Filter
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
+        if (user == null)
+        {
+            _logger.LogWarning("User not found for role change. UserId: {UserId}", request.UserId);
+            return false;
+        }
 
-        return await _adminService.ChangeUserRoleAsync(request.UserId, request.Role, cancellationToken);
+        // Remove existing roles
+        // ✅ Identity framework'ün Role ve UserRole entity'leri IDbContext üzerinden erişiliyor
+        var existingRoles = await _context.UserRoles
+            .Where(ur => ur.UserId == request.UserId)
+            .ToListAsync(cancellationToken);
+        _context.UserRoles.RemoveRange(existingRoles);
+
+        // Add new role
+        // ✅ PERFORMANCE: AsNoTracking for read-only queries (we don't modify this entity)
+        var roleEntity = await _context.Roles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Name == request.Role, cancellationToken);
+        if (roleEntity != null)
+        {
+            await _context.UserRoles.AddAsync(new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>
+            {
+                UserId = request.UserId,
+                RoleId = roleEntity.Id
+            }, cancellationToken);
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        
+        _logger.LogInformation("User role changed successfully. UserId: {UserId}, NewRole: {Role}", request.UserId, request.Role);
+        return true;
     }
 }
 

@@ -1,0 +1,7 @@
+using MediatR;
+
+namespace Merge.Application.Cart.Commands.ConvertPreOrderToOrder;
+
+public record ConvertPreOrderToOrderCommand(
+    Guid PreOrderId) : IRequest<bool>;
+

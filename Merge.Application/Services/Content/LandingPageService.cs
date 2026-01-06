@@ -330,15 +330,16 @@ public class LandingPageService : ILandingPageService
             ? landingPage.Variants.Select(v => _mapper.Map<LandingPageVariantDto>(v)).ToList()
             : new List<LandingPageVariantDto>();
 
-        return new LandingPageAnalyticsDto
-        {
-            LandingPageId = landingPage.Id,
-            LandingPageName = landingPage.Name,
-            TotalViews = landingPage.ViewCount,
-            TotalConversions = landingPage.ConversionCount,
-            ConversionRate = landingPage.ConversionRate,
-            Variants = variants
-        };
+        return new LandingPageAnalyticsDto(
+            landingPage.Id,
+            landingPage.Name,
+            landingPage.ViewCount,
+            landingPage.ConversionCount,
+            landingPage.ConversionRate,
+            new Dictionary<string, int>(), // ViewsByDate - Gerçek implementasyonda hesaplanmalı
+            new Dictionary<string, int>(), // ConversionsByDate - Gerçek implementasyonda hesaplanmalı
+            variants
+        );
     }
 
     private string GenerateSlug(string name)

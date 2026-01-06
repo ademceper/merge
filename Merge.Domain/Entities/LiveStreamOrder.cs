@@ -12,7 +12,7 @@ public class LiveStreamOrder : BaseEntity
     public Order Order { get; set; } = null!;
     public Guid? ProductId { get; set; } // Product that triggered the order
     public Product? Product { get; set; }
-    public DateTime CreatedAt { get; set; }
+    // CreatedAt is inherited from BaseEntity
     public decimal OrderAmount { get; set; }
 }
 

@@ -1,0 +1,84 @@
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Merge.Application.Common;
+using Merge.Application.DTOs.B2B;
+using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
+using Merge.Domain.Entities;
+using Merge.Domain.Enums;
+using AutoMapper;
+
+namespace Merge.Application.B2B.Queries.GetOrganizationB2BUsers;
+
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
+public class GetOrganizationB2BUsersQueryHandler : IRequestHandler<GetOrganizationB2BUsersQuery, PagedResult<B2BUserDto>>
+{
+    private readonly IDbContext _context;
+    private readonly IMapper _mapper;
+    private readonly ILogger<GetOrganizationB2BUsersQueryHandler> _logger;
+    private readonly PaginationSettings _paginationSettings;
+
+    public GetOrganizationB2BUsersQueryHandler(
+        IDbContext context,
+        IMapper mapper,
+        ILogger<GetOrganizationB2BUsersQueryHandler> logger,
+        IOptions<PaginationSettings> paginationSettings)
+    {
+        _context = context;
+        _mapper = mapper;
+        _logger = logger;
+        _paginationSettings = paginationSettings.Value;
+    }
+
+    public async Task<PagedResult<B2BUserDto>> Handle(GetOrganizationB2BUsersQuery request, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Retrieving B2B users for OrganizationId: {OrganizationId}, Status: {Status}, Page: {Page}, PageSize: {PageSize}",
+            request.OrganizationId, request.Status, request.Page, request.PageSize);
+
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        var pageSize = request.PageSize > _paginationSettings.MaxPageSize ? _paginationSettings.MaxPageSize : request.PageSize;
+        var page = request.Page < 1 ? 1 : request.Page;
+
+        // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE: Removed manual !b.IsDeleted check (Global Query Filter handles it)
+        var query = _context.Set<B2BUser>()
+            .AsNoTracking()
+            .Include(b => b.User)
+            .Include(b => b.Organization)
+            .Where(b => b.OrganizationId == request.OrganizationId);
+
+        if (!string.IsNullOrEmpty(request.Status))
+        {
+            // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+            if (Enum.TryParse<EntityStatus>(request.Status, true, out var statusEnum))
+            {
+                query = query.Where(b => b.Status == statusEnum);
+            }
+        }
+
+        // ✅ PERFORMANCE: TotalCount için ayrı query (CountAsync)
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var b2bUsers = await query
+            .OrderBy(b => b.User.FirstName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
+        var items = _mapper.Map<List<B2BUserDto>>(b2bUsers);
+
+        // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
+        return new PagedResult<B2BUserDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+}
+

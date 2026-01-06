@@ -1,22 +1,42 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Cart;
+using Microsoft.Extensions.Options;
+using MediatR;
 using Merge.Application.DTOs.Cart;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
+using Merge.Application.Cart.Commands.CreatePreOrder;
+using Merge.Application.Cart.Queries.GetPreOrder;
+using Merge.Application.Cart.Queries.GetUserPreOrders;
+using Merge.Application.Cart.Commands.CancelPreOrder;
+using Merge.Application.Cart.Commands.PayPreOrderDeposit;
+using Merge.Application.Cart.Commands.ConvertPreOrderToOrder;
+using Merge.Application.Cart.Commands.NotifyPreOrderAvailable;
+using Merge.Application.Cart.Commands.CreatePreOrderCampaign;
+using Merge.Application.Cart.Queries.GetPreOrderCampaign;
+using Merge.Application.Cart.Queries.GetActivePreOrderCampaigns;
+using Merge.Application.Cart.Queries.GetPreOrderCampaignsByProduct;
+using Merge.Application.Cart.Commands.UpdatePreOrderCampaign;
+using Merge.Application.Cart.Commands.DeactivatePreOrderCampaign;
+using Merge.Application.Cart.Queries.GetPreOrderStats;
 using Merge.API.Middleware;
-
 
 namespace Merge.API.Controllers.Cart;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/cart/pre-orders")]
+[Route("api/v{version:apiVersion}/cart/pre-orders")]
 public class PreOrdersController : BaseController
 {
-    private readonly IPreOrderService _preOrderService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
 
-    public PreOrdersController(IPreOrderService preOrderService)
+    public PreOrdersController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _preOrderService = preOrderService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
     /// <summary>
@@ -24,7 +44,7 @@ public class PreOrdersController : BaseController
     /// </summary>
     [HttpPost]
     [Authorize]
-    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika
+    [RateLimit(5, 60)]
     [ProducesResponseType(typeof(PreOrderDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -33,15 +53,14 @@ public class PreOrdersController : BaseController
         [FromBody] CreatePreOrderDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized();
-        }
-
-        var preOrder = await _preOrderService.CreatePreOrderAsync(userId, dto, cancellationToken);
+        var userId = GetUserId();
+        var command = new CreatePreOrderCommand(
+            userId,
+            dto.ProductId,
+            dto.Quantity,
+            dto.VariantOptions,
+            dto.Notes);
+        var preOrder = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetPreOrder), new { id = preOrder.Id }, preOrder);
     }
 
@@ -50,7 +69,7 @@ public class PreOrdersController : BaseController
     /// </summary>
     [HttpGet("{id}")]
     [Authorize]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(PreOrderDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -60,19 +79,15 @@ public class PreOrdersController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized();
-        }
-
-        var preOrder = await _preOrderService.GetPreOrderAsync(id, cancellationToken);
+        var userId = GetUserId();
+        var query = new GetPreOrderQuery(id);
+        var preOrder = await _mediator.Send(query, cancellationToken);
 
         if (preOrder == null)
         {
             return NotFound();
         }
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         if (preOrder.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             return Forbid();
@@ -86,7 +101,7 @@ public class PreOrdersController : BaseController
     /// </summary>
     [HttpGet("my-preorders")]
     [Authorize]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(PagedResult<PreOrderDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -96,16 +111,12 @@ public class PreOrdersController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        pageSize = Math.Min(pageSize, _paginationSettings.MaxPageSize);
         if (page < 1) page = 1;
 
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized();
-        }
-
-        var preOrders = await _preOrderService.GetUserPreOrdersAsync(userId, page, pageSize, cancellationToken);
+        var userId = GetUserId();
+        var query = new GetUserPreOrdersQuery(userId, page, pageSize);
+        var preOrders = await _mediator.Send(query, cancellationToken);
         return Ok(preOrders);
     }
 
@@ -114,7 +125,7 @@ public class PreOrdersController : BaseController
     /// </summary>
     [HttpDelete("{id}")]
     [Authorize]
-    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika
+    [RateLimit(5, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -124,13 +135,9 @@ public class PreOrdersController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized();
-        }
-
-        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
-        var preOrder = await _preOrderService.GetPreOrderAsync(id, cancellationToken);
+        var userId = GetUserId();
+        var preOrderQuery = new GetPreOrderQuery(id);
+        var preOrder = await _mediator.Send(preOrderQuery, cancellationToken);
         if (preOrder == null)
         {
             return NotFound();
@@ -141,7 +148,8 @@ public class PreOrdersController : BaseController
             return Forbid();
         }
 
-        var success = await _preOrderService.CancelPreOrderAsync(id, userId, cancellationToken);
+        var command = new CancelPreOrderCommand(id, userId);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -155,7 +163,7 @@ public class PreOrdersController : BaseController
     /// </summary>
     [HttpPost("pay-deposit")]
     [Authorize]
-    [RateLimit(3, 60)] // ✅ BOLUM 3.3: Rate Limiting - 3 istek / dakika (ödeme için düşük limit)
+    [RateLimit(3, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -166,16 +174,9 @@ public class PreOrdersController : BaseController
         [FromBody] PayPreOrderDepositDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized();
-        }
-
-        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
-        var preOrder = await _preOrderService.GetPreOrderAsync(dto.PreOrderId, cancellationToken);
+        var userId = GetUserId();
+        var preOrderQuery = new GetPreOrderQuery(dto.PreOrderId);
+        var preOrder = await _mediator.Send(preOrderQuery, cancellationToken);
         if (preOrder == null)
         {
             return NotFound();
@@ -186,7 +187,8 @@ public class PreOrdersController : BaseController
             return Forbid();
         }
 
-        var success = await _preOrderService.PayDepositAsync(userId, dto, cancellationToken);
+        var command = new PayPreOrderDepositCommand(userId, dto.PreOrderId, dto.Amount);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -200,7 +202,7 @@ public class PreOrdersController : BaseController
     /// </summary>
     [HttpPost("{id}/convert")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
+    [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -210,7 +212,8 @@ public class PreOrdersController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        var success = await _preOrderService.ConvertToOrderAsync(id, cancellationToken);
+        var command = new ConvertPreOrderToOrderCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -224,7 +227,7 @@ public class PreOrdersController : BaseController
     /// </summary>
     [HttpPost("{id}/notify")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -233,7 +236,8 @@ public class PreOrdersController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        await _preOrderService.NotifyPreOrderAvailableAsync(id, cancellationToken);
+        var command = new NotifyPreOrderAvailableCommand(id);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -243,7 +247,7 @@ public class PreOrdersController : BaseController
     /// </summary>
     [HttpPost("campaigns")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika
+    [RateLimit(5, 60)]
     [ProducesResponseType(typeof(PreOrderCampaignDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -253,10 +257,18 @@ public class PreOrdersController : BaseController
         [FromBody] CreatePreOrderCampaignDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        var campaign = await _preOrderService.CreateCampaignAsync(dto, cancellationToken);
+        var command = new CreatePreOrderCampaignCommand(
+            dto.Name,
+            dto.Description,
+            dto.ProductId,
+            dto.StartDate,
+            dto.EndDate,
+            dto.ExpectedDeliveryDate,
+            dto.MaxQuantity,
+            dto.DepositPercentage,
+            dto.SpecialPrice,
+            dto.NotifyOnAvailable);
+        var campaign = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetCampaign), new { id = campaign.Id }, campaign);
     }
 
@@ -264,7 +276,7 @@ public class PreOrdersController : BaseController
     /// Ön sipariş kampanyası detaylarını getirir
     /// </summary>
     [HttpGet("campaigns/{id}")]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(PreOrderCampaignDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -272,7 +284,8 @@ public class PreOrdersController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        var campaign = await _preOrderService.GetCampaignAsync(id, cancellationToken);
+        var query = new GetPreOrderCampaignQuery(id);
+        var campaign = await _mediator.Send(query, cancellationToken);
 
         if (campaign == null)
         {
@@ -286,7 +299,7 @@ public class PreOrdersController : BaseController
     /// Aktif ön sipariş kampanyalarını listeler
     /// </summary>
     [HttpGet("campaigns")]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(PagedResult<PreOrderCampaignDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -295,11 +308,11 @@ public class PreOrdersController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        pageSize = Math.Min(pageSize, _paginationSettings.MaxPageSize);
         if (page < 1) page = 1;
 
-        var campaigns = await _preOrderService.GetActiveCampaignsAsync(page, pageSize, cancellationToken);
+        var query = new GetActivePreOrderCampaignsQuery(page, pageSize);
+        var campaigns = await _mediator.Send(query, cancellationToken);
         return Ok(campaigns);
     }
 
@@ -307,7 +320,7 @@ public class PreOrdersController : BaseController
     /// Ürüne göre ön sipariş kampanyalarını listeler
     /// </summary>
     [HttpGet("campaigns/product/{productId}")]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(PagedResult<PreOrderCampaignDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -317,11 +330,11 @@ public class PreOrdersController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        pageSize = Math.Min(pageSize, _paginationSettings.MaxPageSize);
         if (page < 1) page = 1;
 
-        var campaigns = await _preOrderService.GetCampaignsByProductAsync(productId, page, pageSize, cancellationToken);
+        var query = new GetPreOrderCampaignsByProductQuery(productId, page, pageSize);
+        var campaigns = await _mediator.Send(query, cancellationToken);
         return Ok(campaigns);
     }
 
@@ -330,7 +343,7 @@ public class PreOrdersController : BaseController
     /// </summary>
     [HttpPut("campaigns/{id}")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika
+    [RateLimit(5, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -342,10 +355,17 @@ public class PreOrdersController : BaseController
         [FromBody] CreatePreOrderCampaignDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        var success = await _preOrderService.UpdateCampaignAsync(id, dto, cancellationToken);
+        var command = new UpdatePreOrderCampaignCommand(
+            id,
+            dto.Name,
+            dto.Description,
+            dto.StartDate,
+            dto.EndDate,
+            dto.ExpectedDeliveryDate,
+            dto.MaxQuantity,
+            dto.DepositPercentage,
+            dto.SpecialPrice);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -360,7 +380,7 @@ public class PreOrdersController : BaseController
     /// </summary>
     [HttpDelete("campaigns/{id}")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika
+    [RateLimit(5, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -370,7 +390,8 @@ public class PreOrdersController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        var success = await _preOrderService.DeactivateCampaignAsync(id, cancellationToken);
+        var command = new DeactivatePreOrderCampaignCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -385,14 +406,15 @@ public class PreOrdersController : BaseController
     /// </summary>
     [HttpGet("stats")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(PreOrderStatsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PreOrderStatsDto>> GetStats(CancellationToken cancellationToken = default)
     {
-        var stats = await _preOrderService.GetPreOrderStatsAsync(cancellationToken);
+        var query = new GetPreOrderStatsQuery();
+        var stats = await _mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 }

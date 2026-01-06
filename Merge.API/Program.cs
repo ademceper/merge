@@ -313,10 +313,8 @@ builder.Services.AddScoped<Merge.Application.Interfaces.IUnitOfWork, UnitOfWork>
 builder.Services.AddScoped<IAuthService, Merge.Application.Services.Identity.AuthService>();
 builder.Services.AddScoped<IProductService, Merge.Application.Services.Product.ProductService>();
 builder.Services.AddScoped<ICategoryService, Merge.Application.Services.Catalog.CategoryService>();
-builder.Services.AddScoped<ICartService, Merge.Application.Services.Cart.CartService>();
 builder.Services.AddScoped<IOrderService, Merge.Application.Services.Order.OrderService>();
 builder.Services.AddScoped<IOrderSplitService, Merge.Application.Services.Order.OrderSplitService>();
-builder.Services.AddScoped<IWishlistService, Merge.Application.Services.Cart.WishlistService>();
 builder.Services.AddScoped<ICouponService, Merge.Application.Services.Marketing.CouponService>();
 builder.Services.AddScoped<INotificationService, Merge.Application.Services.Notification.NotificationService>();
 builder.Services.AddScoped<INotificationTemplateService, Merge.Application.Services.Notification.NotificationTemplateService>();
@@ -333,7 +331,6 @@ builder.Services.AddScoped<Merge.Application.Services.Notification.IEmailService
 builder.Services.AddScoped<Merge.Application.Services.Notification.ISmsService, Merge.Application.Services.Notification.SmsService>();
 builder.Services.AddScoped<IFlashSaleService, Merge.Application.Services.Marketing.FlashSaleService>();
 builder.Services.AddScoped<IProductBundleService, Merge.Application.Services.Product.ProductBundleService>();
-builder.Services.AddScoped<IRecentlyViewedService, Merge.Application.Services.Cart.RecentlyViewedService>();
 builder.Services.AddScoped<IInvoiceService, Merge.Application.Services.Payment.InvoiceService>();
 builder.Services.AddScoped<ISellerDashboardService, Merge.Application.Services.Seller.SellerDashboardService>();
 builder.Services.AddScoped<IEmailVerificationService, Merge.Application.Services.Identity.EmailVerificationService>();
@@ -367,7 +364,6 @@ builder.Services.Configure<Merge.Application.Configuration.AnalyticsSettings>(
 builder.Services.AddScoped<IAnalyticsService, Merge.Application.Services.Analytics.AnalyticsService>();
 builder.Services.AddScoped<Merge.Application.Interfaces.Analytics.IAdminService, Merge.Application.Services.Analytics.AdminService>();
 builder.Services.AddScoped<IProductComparisonService, Merge.Application.Services.Product.ProductComparisonService>();
-builder.Services.AddScoped<IPreOrderService, Merge.Application.Services.Cart.PreOrderService>();
 builder.Services.AddScoped<ISizeGuideService, Merge.Application.Services.Product.SizeGuideService>();
 builder.Services.AddScoped<IReviewHelpfulnessService, Merge.Application.Services.Review.ReviewHelpfulnessService>();
 builder.Services.AddScoped<ISupportTicketService, Merge.Application.Services.Support.SupportTicketService>();
@@ -384,7 +380,8 @@ builder.Services.AddScoped<IPaymentMethodService, Merge.Application.Services.Pay
 builder.Services.AddScoped<IPickPackService, Merge.Application.Services.Logistics.PickPackService>();
 builder.Services.AddScoped<IDeliveryTimeEstimationService, Merge.Application.Services.Logistics.DeliveryTimeEstimationService>();
 builder.Services.AddScoped<IOrganizationService, Merge.Application.Services.Organization.OrganizationService>();
-builder.Services.AddScoped<IB2BService, B2BService>();
+// ✅ ARCHITECTURE: B2BService kaldırıldı - Handler'lar direkt IDbContext kullanıyor (Clean Architecture)
+// builder.Services.AddScoped<IB2BService, B2BService>(); // DEPRECATED - MediatR + CQRS pattern kullanılıyor
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IBlogService, BlogService>();
 builder.Services.AddScoped<ISEOService, Merge.Application.Services.Content.SEOService>();

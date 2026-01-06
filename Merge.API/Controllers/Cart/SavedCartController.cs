@@ -1,23 +1,35 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Cart;
+using Microsoft.Extensions.Options;
+using MediatR;
 using Merge.Application.DTOs.Cart;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
+using Merge.Application.Cart.Queries.GetSavedItems;
+using Merge.Application.Cart.Commands.SaveItem;
+using Merge.Application.Cart.Commands.RemoveSavedItem;
+using Merge.Application.Cart.Commands.MoveToCart;
+using Merge.Application.Cart.Commands.ClearSavedItems;
 using Merge.API.Middleware;
-
 
 namespace Merge.API.Controllers.Cart;
 
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/cart/saved")]
+[Route("api/v{version:apiVersion}/cart/saved")]
 [Authorize]
 public class SavedCartController : BaseController
 {
-    private readonly ISavedCartService _savedCartService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
 
-    public SavedCartController(ISavedCartService savedCartService)
+    public SavedCartController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _savedCartService = savedCartService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
     /// <summary>
@@ -34,12 +46,14 @@ public class SavedCartController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         var userId = GetUserId();
-        var items = await _savedCartService.GetSavedItemsAsync(userId, page, pageSize, cancellationToken);
+        var query = new GetSavedItemsQuery(userId, page, pageSize);
+        var items = await _mediator.Send(query, cancellationToken);
         return Ok(items);
     }
 
@@ -56,11 +70,11 @@ public class SavedCartController : BaseController
         [FromBody] SaveItemDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         var userId = GetUserId();
-        var item = await _savedCartService.SaveItemAsync(userId, dto, cancellationToken);
+        var command = new SaveItemCommand(userId, dto.ProductId, dto.Quantity, dto.Notes);
+        var item = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetSavedItems), new { id = item.Id }, item);
     }
 
@@ -78,11 +92,13 @@ public class SavedCartController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         
-        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
-        // Service layer'da zaten userId kontrolü var, ama controller'da da kontrol ediyoruz
-        var result = await _savedCartService.RemoveSavedItemAsync(userId, id, cancellationToken);
+        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU) - Handler içinde userId kontrolü var
+        var command = new RemoveSavedItemCommand(userId, id);
+        var result = await _mediator.Send(command, cancellationToken);
+        
         if (!result)
         {
             return NotFound();
@@ -104,11 +120,13 @@ public class SavedCartController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         
-        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
-        // Service layer'da zaten userId kontrolü var, ama controller'da da kontrol ediyoruz
-        var result = await _savedCartService.MoveToCartAsync(userId, id, cancellationToken);
+        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU) - Handler içinde userId kontrolü var
+        var command = new MoveToCartCommand(userId, id);
+        var result = await _mediator.Send(command, cancellationToken);
+        
         if (!result)
         {
             return BadRequest("Ürün sepete eklenemedi.");
@@ -126,8 +144,10 @@ public class SavedCartController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ClearSavedItems(CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        await _savedCartService.ClearSavedItemsAsync(userId, cancellationToken);
+        var command = new ClearSavedItemsCommand(userId);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 }

@@ -1,0 +1,66 @@
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
+using Merge.Application.Exceptions;
+using Merge.Domain.Enums;
+
+namespace Merge.Application.Cart.Commands.CancelPreOrder;
+
+public class CancelPreOrderCommandHandler : IRequestHandler<CancelPreOrderCommand, bool>
+{
+    private readonly IDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<CancelPreOrderCommandHandler> _logger;
+
+    public CancelPreOrderCommandHandler(
+        IDbContext context,
+        IUnitOfWork unitOfWork,
+        ILogger<CancelPreOrderCommandHandler> logger)
+    {
+        _context = context;
+        _unitOfWork = unitOfWork;
+        _logger = logger;
+    }
+
+    public async Task<bool> Handle(CancelPreOrderCommand request, CancellationToken cancellationToken)
+    {
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            var preOrder = await _context.Set<Domain.Entities.PreOrder>()
+                .FirstOrDefaultAsync(po => po.Id == request.PreOrderId && po.UserId == request.UserId, cancellationToken);
+
+            if (preOrder == null) return false;
+
+            if (preOrder.Status == PreOrderStatus.Converted)
+            {
+                throw new BusinessException("Siparişe dönüştürülmüş bir ön sipariş iptal edilemez.");
+            }
+
+            preOrder.Cancel();
+
+            var campaign = await _context.Set<Domain.Entities.PreOrderCampaign>()
+                .FirstOrDefaultAsync(c => c.ProductId == preOrder.ProductId, cancellationToken);
+
+            if (campaign != null)
+            {
+                campaign.DecrementQuantity(preOrder.Quantity);
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "PreOrder iptal hatasi. PreOrderId: {PreOrderId}, UserId: {UserId}",
+                request.PreOrderId, request.UserId);
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            throw;
+        }
+    }
+}
+

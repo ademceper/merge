@@ -31,26 +31,26 @@ public class AuditLogService : IAuditLogService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task LogAsync(CreateAuditLogDto auditDto, string ipAddress, string userAgent, CancellationToken cancellationToken = default)
     {
-        var audit = new AuditLog
-        {
-            UserId = auditDto.UserId,
-            UserEmail = auditDto.UserEmail,
-            Action = auditDto.Action,
-            EntityType = auditDto.EntityType,
-            EntityId = auditDto.EntityId,
-            TableName = auditDto.TableName,
-            PrimaryKey = auditDto.PrimaryKey,
-            OldValues = auditDto.OldValues,
-            NewValues = auditDto.NewValues,
-            Changes = auditDto.Changes,
-            IpAddress = ipAddress,
-            UserAgent = userAgent,
-            Severity = ParseSeverity(auditDto.Severity),
-            Module = auditDto.Module,
-            IsSuccessful = auditDto.IsSuccessful,
-            ErrorMessage = auditDto.ErrorMessage,
-            AdditionalData = auditDto.AdditionalData ?? string.Empty
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var audit = AuditLog.Create(
+            action: auditDto.Action,
+            entityType: auditDto.EntityType,
+            tableName: auditDto.TableName,
+            ipAddress: ipAddress,
+            userAgent: userAgent,
+            module: auditDto.Module,
+            severity: ParseSeverity(auditDto.Severity),
+            userId: auditDto.UserId,
+            userEmail: auditDto.UserEmail,
+            entityId: auditDto.EntityId,
+            primaryKey: auditDto.PrimaryKey,
+            oldValues: auditDto.OldValues,
+            newValues: auditDto.NewValues,
+            changes: auditDto.Changes,
+            additionalData: auditDto.AdditionalData,
+            isSuccessful: auditDto.IsSuccessful,
+            errorMessage: auditDto.ErrorMessage
+        );
 
         await _context.Set<AuditLog>().AddAsync(audit, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

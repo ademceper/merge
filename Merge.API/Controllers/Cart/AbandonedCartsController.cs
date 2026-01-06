@@ -1,24 +1,39 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.User;
-using Merge.Application.Interfaces.Cart;
+using Microsoft.Extensions.Options;
+using MediatR;
 using Merge.Application.DTOs.Cart;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
+using Merge.Application.Cart.Queries.GetAbandonedCarts;
+using Merge.Application.Cart.Queries.GetAbandonedCartById;
+using Merge.Application.Cart.Queries.GetRecoveryStats;
+using Merge.Application.Cart.Queries.GetCartEmailHistory;
+using Merge.Application.Cart.Commands.SendRecoveryEmail;
+using Merge.Application.Cart.Commands.SendBulkRecoveryEmails;
+using Merge.Application.Cart.Commands.TrackEmailOpen;
+using Merge.Application.Cart.Commands.TrackEmailClick;
+using Merge.Application.Cart.Commands.MarkCartAsRecovered;
 using Merge.Domain.Enums;
 using Merge.API.Middleware;
 
-
 namespace Merge.API.Controllers.Cart;
 
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/cart/abandoned")]
+[Route("api/v{version:apiVersion}/cart/abandoned")]
 public class AbandonedCartsController : BaseController
 {
-    private readonly IAbandonedCartService _abandonedCartService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
 
-    public AbandonedCartsController(IAbandonedCartService abandonedCartService)
+    public AbandonedCartsController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _abandonedCartService = abandonedCartService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
     /// <summary>
@@ -39,11 +54,13 @@ public class AbandonedCartsController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
-        var carts = await _abandonedCartService.GetAbandonedCartsAsync(minHours, maxDays, page, pageSize, cancellationToken);
+        var query = new GetAbandonedCartsQuery(minHours, maxDays, page, pageSize);
+        var carts = await _mediator.Send(query, cancellationToken);
         return Ok(carts);
     }
 
@@ -62,7 +79,9 @@ public class AbandonedCartsController : BaseController
         Guid cartId,
         CancellationToken cancellationToken = default)
     {
-        var cart = await _abandonedCartService.GetAbandonedCartByIdAsync(cartId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetAbandonedCartByIdQuery(cartId);
+        var cart = await _mediator.Send(query, cancellationToken);
 
         if (cart == null)
         {
@@ -86,7 +105,9 @@ public class AbandonedCartsController : BaseController
         [FromQuery] int days = 30,
         CancellationToken cancellationToken = default)
     {
-        var stats = await _abandonedCartService.GetRecoveryStatsAsync(days, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetRecoveryStatsQuery(days);
+        var stats = await _mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 
@@ -106,16 +127,15 @@ public class AbandonedCartsController : BaseController
         [FromBody] SendRecoveryEmailDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        await _abandonedCartService.SendRecoveryEmailAsync(
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
+        var command = new SendRecoveryEmailCommand(
             cartId,
             dto.EmailType,
             dto.IncludeCoupon,
-            dto.CouponDiscountPercentage,
-            cancellationToken);
-
+            dto.CouponDiscountPercentage);
+        
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -134,8 +154,10 @@ public class AbandonedCartsController : BaseController
         [FromQuery] AbandonedCartEmailType emailType = AbandonedCartEmailType.First,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
-        await _abandonedCartService.SendBulkRecoveryEmailsAsync(minHours, emailType, cancellationToken);
+        var command = new SendBulkRecoveryEmailsCommand(minHours, emailType);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -151,7 +173,9 @@ public class AbandonedCartsController : BaseController
         Guid emailId,
         CancellationToken cancellationToken = default)
     {
-        await _abandonedCartService.TrackEmailOpenAsync(emailId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new TrackEmailOpenCommand(emailId);
+        await _mediator.Send(command, cancellationToken);
 
         // Return a 1x1 transparent pixel
         var pixel = Convert.FromBase64String("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
@@ -170,7 +194,9 @@ public class AbandonedCartsController : BaseController
         Guid emailId,
         CancellationToken cancellationToken = default)
     {
-        await _abandonedCartService.TrackEmailClickAsync(emailId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new TrackEmailClickCommand(emailId);
+        await _mediator.Send(command, cancellationToken);
         return Redirect("/cart"); // Redirect to cart page
     }
 
@@ -195,7 +221,9 @@ public class AbandonedCartsController : BaseController
         }
 
         // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
-        var cart = await _abandonedCartService.GetAbandonedCartByIdAsync(cartId, cancellationToken);
+        var cartQuery = new GetAbandonedCartByIdQuery(cartId);
+        var cart = await _mediator.Send(cartQuery, cancellationToken);
+        
         if (cart == null)
         {
             return NotFound();
@@ -206,7 +234,9 @@ public class AbandonedCartsController : BaseController
             return Forbid();
         }
 
-        await _abandonedCartService.MarkCartAsRecoveredAsync(cartId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new MarkCartAsRecoveredCommand(cartId);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -227,8 +257,9 @@ public class AbandonedCartsController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
@@ -241,14 +272,17 @@ public class AbandonedCartsController : BaseController
                 return Unauthorized();
             }
 
-            var cart = await _abandonedCartService.GetAbandonedCartByIdAsync(cartId, cancellationToken);
+            var cartQuery = new GetAbandonedCartByIdQuery(cartId);
+            var cart = await _mediator.Send(cartQuery, cancellationToken);
+            
             if (cart == null || cart.UserId != userId)
             {
                 return Forbid();
             }
         }
 
-        var history = await _abandonedCartService.GetCartEmailHistoryAsync(cartId, page, pageSize, cancellationToken);
+        var query = new GetCartEmailHistoryQuery(cartId, page, pageSize);
+        var history = await _mediator.Send(query, cancellationToken);
         return Ok(history);
     }
 }

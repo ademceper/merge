@@ -32,10 +32,10 @@ public class MappingProfile : Profile
 {
     public MappingProfile()
     {
-        CreateMap<Product, ProductDto>()
+        CreateMap<Merge.Domain.Entities.Product, ProductDto>()
             .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name));
 
-        CreateMap<ProductDto, Product>()
+        CreateMap<ProductDto, Merge.Domain.Entities.Product>()
             .ForMember(dest => dest.Category, opt => opt.Ignore())
             .ForMember(dest => dest.OrderItems, opt => opt.Ignore())
             .ForMember(dest => dest.CartItems, opt => opt.Ignore())
@@ -50,7 +50,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.SubCategories, opt => opt.Ignore())
             .ForMember(dest => dest.Products, opt => opt.Ignore());
 
-        CreateMap<User, UserDto>();
+        CreateMap<Merge.Domain.Entities.User, UserDto>();
 
         CreateMap<Address, AddressDto>();
         CreateMap<AddressDto, Address>()
@@ -70,7 +70,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src => src.Product.ImageUrl))
             .ForMember(dest => dest.TotalPrice, opt => opt.MapFrom(src => src.Quantity * src.Price));
 
-        CreateMap<Cart, CartDto>()
+        CreateMap<Merge.Domain.Entities.Cart, CartDto>()
             .ForMember(dest => dest.TotalAmount, opt => opt.MapFrom(src => src.CalculateTotalAmount()));
 
         CreateMap<SavedCartItem, SavedCartItemDto>()
@@ -86,7 +86,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.UnitPrice))
             .ForMember(dest => dest.TotalPrice, opt => opt.MapFrom(src => src.TotalPrice));
 
-        CreateMap<Order, OrderDto>()
+        CreateMap<Merge.Domain.Entities.Order, OrderDto>()
             .ForMember(dest => dest.OrderItems, opt => opt.MapFrom(src => src.OrderItems));
 
         CreateMap<Wishlist, ProductDto>()
@@ -149,9 +149,9 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => src.Order != null ? src.Order.OrderNumber : string.Empty));
         CreateMap<CreateReturnRequestDto, ReturnRequest>();
 
-        CreateMap<Payment, PaymentDto>()
+        CreateMap<Merge.Domain.Entities.Payment, PaymentDto>()
             .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => src.Order != null ? src.Order.OrderNumber : string.Empty));
-        CreateMap<CreatePaymentDto, Payment>();
+        CreateMap<CreatePaymentDto, Merge.Domain.Entities.Payment>();
 
         CreateMap<Shipping, ShippingDto>()
             .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => src.Order != null ? src.Order.OrderNumber : string.Empty));
@@ -247,7 +247,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Products, opt => opt.Ignore()); // Set manually in service
 
         // Product → ComparisonProductDto mapping
-        CreateMap<Product, ComparisonProductDto>()
+        CreateMap<Merge.Domain.Entities.Product, ComparisonProductDto>()
             .ForMember(dest => dest.ProductId, opt => opt.MapFrom(src => src.Id))
             .ForMember(dest => dest.MainImage, opt => opt.MapFrom(src => src.ImageUrl))
             .ForMember(dest => dest.Category, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : "N/A"))
@@ -259,12 +259,12 @@ public class MappingProfile : Profile
 
         // Search domain mappings
         // Product → ProductSuggestionDto mapping
-        CreateMap<Product, ProductSuggestionDto>()
+        CreateMap<Merge.Domain.Entities.Product, ProductSuggestionDto>()
             .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : string.Empty))
             .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.DiscountPrice ?? src.Price));
 
         // Product → ProductRecommendationDto mapping
-        CreateMap<Product, ProductRecommendationDto>()
+        CreateMap<Merge.Domain.Entities.Product, ProductRecommendationDto>()
             .ForMember(dest => dest.ProductId, opt => opt.MapFrom(src => src.Id))
             .ForMember(dest => dest.RecommendationReason, opt => opt.Ignore()) // Set manually in service
             .ForMember(dest => dest.RecommendationScore, opt => opt.Ignore()); // Set manually in service
@@ -462,7 +462,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.CouponCode, opt => opt.MapFrom(src => src.Coupon != null ? src.Coupon.Code : null));
 
         // Cart -> AbandonedCartDto mapping (complex mapping with computed properties)
-        CreateMap<Cart, AbandonedCartDto>()
+        CreateMap<Merge.Domain.Entities.Cart, AbandonedCartDto>()
             .ForMember(dest => dest.CartId, opt => opt.MapFrom(src => src.Id))
             .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User != null ? src.User.Email : string.Empty))
             .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => 

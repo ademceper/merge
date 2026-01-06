@@ -1,4 +1,5 @@
 using FluentValidation;
+using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
 
 namespace Merge.Application.Analytics.Queries.GetReportSchedules;

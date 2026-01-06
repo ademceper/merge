@@ -1,5 +1,6 @@
 using Merge.Domain.Enums;
 using Merge.Domain.Common;
+using Merge.Domain.Common.DomainEvents;
 using Merge.Domain.Exceptions;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;

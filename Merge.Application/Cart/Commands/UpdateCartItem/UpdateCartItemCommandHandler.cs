@@ -1,0 +1,75 @@
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
+using Merge.Application.Exceptions;
+using Merge.Domain.Entities;
+
+namespace Merge.Application.Cart.Commands.UpdateCartItem;
+
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
+public class UpdateCartItemCommandHandler : IRequestHandler<UpdateCartItemCommand, bool>
+{
+    private readonly IDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<UpdateCartItemCommandHandler> _logger;
+
+    public UpdateCartItemCommandHandler(
+        IDbContext context,
+        IUnitOfWork unitOfWork,
+        ILogger<UpdateCartItemCommandHandler> logger)
+    {
+        _context = context;
+        _unitOfWork = unitOfWork;
+        _logger = logger;
+    }
+
+    public async Task<bool> Handle(UpdateCartItemCommand request, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation(
+            "Updating cart item quantity. CartItemId: {CartItemId}, NewQuantity: {Quantity}",
+            request.CartItemId, request.Quantity);
+
+        var cartItem = await _context.Set<CartItem>()
+            .FirstOrDefaultAsync(ci => ci.Id == request.CartItemId, cancellationToken);
+        
+        if (cartItem == null)
+        {
+            _logger.LogWarning("Cart item {CartItemId} not found", request.CartItemId);
+            return false;
+        }
+
+        // ✅ PERFORMANCE: AsNoTracking for read-only product query
+        var product = await _context.Set<Merge.Domain.Entities.Product>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == cartItem.ProductId, cancellationToken);
+        
+        if (product == null)
+        {
+            _logger.LogWarning(
+                "Product {ProductId} not found for cart item {CartItemId}",
+                cartItem.ProductId, request.CartItemId);
+            throw new NotFoundException("Ürün", cartItem.ProductId);
+        }
+
+        if (product.StockQuantity < request.Quantity)
+        {
+            _logger.LogWarning(
+                "Insufficient stock for product {ProductId}. Available: {Available}, Requested: {Requested}",
+                cartItem.ProductId, product.StockQuantity, request.Quantity);
+            throw new BusinessException("Yeterli stok yok.");
+        }
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+        cartItem.UpdateQuantity(request.Quantity);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Successfully updated cart item quantity. CartItemId: {CartItemId}, NewQuantity: {Quantity}, ProductId: {ProductId}",
+            request.CartItemId, request.Quantity, cartItem.ProductId);
+
+        return true;
+    }
+}
+

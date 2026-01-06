@@ -634,25 +634,23 @@ public class BlogService : IBlogService
             .Where(p => p.Status == ContentStatus.Published)
             .OrderByDescending(p => p.ViewCount)
             .Take(10)
-            .Select(p => new PopularPostDto
-            {
-                PostId = p.Id,
-                Title = p.Title,
-                ViewCount = p.ViewCount,
-                CommentCount = p.CommentCount
-            })
+            .Select(p => new PopularPostDto(
+                p.Id,
+                p.Title,
+                p.ViewCount,
+                p.CommentCount
+            ))
             .ToListAsync(cancellationToken);
 
-        return new BlogAnalyticsDto
-        {
-            TotalPosts = totalPosts,
-            PublishedPosts = publishedPosts,
-            DraftPosts = draftPosts,
-            TotalViews = (int)totalViews,
-            TotalComments = (int)totalComments,
-            PostsByCategory = postsByCategory,
-            PopularPosts = popularPosts
-        };
+        return new BlogAnalyticsDto(
+            totalPosts,
+            publishedPosts,
+            draftPosts,
+            (int)totalViews,
+            (int)totalComments,
+            postsByCategory,
+            popularPosts
+        );
     }
 
     // Helper methods

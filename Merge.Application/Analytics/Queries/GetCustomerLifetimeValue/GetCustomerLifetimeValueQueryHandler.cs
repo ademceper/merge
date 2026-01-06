@@ -1,29 +1,40 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.DTOs.Analytics;
-using Merge.Application.Interfaces.Analytics;
+using Merge.Application.Interfaces;
+using Merge.Domain.Entities;
+using OrderEntity = Merge.Domain.Entities.Order;
 
 namespace Merge.Application.Analytics.Queries.GetCustomerLifetimeValue;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetCustomerLifetimeValueQueryHandler : IRequestHandler<GetCustomerLifetimeValueQuery, CustomerLifetimeValueDto>
 {
-    private readonly IAnalyticsService _analyticsService;
+    private readonly IDbContext _context;
     private readonly ILogger<GetCustomerLifetimeValueQueryHandler> _logger;
 
     public GetCustomerLifetimeValueQueryHandler(
-        IAnalyticsService analyticsService,
+        IDbContext context,
         ILogger<GetCustomerLifetimeValueQueryHandler> logger)
     {
-        _analyticsService = analyticsService;
+        _context = context;
         _logger = logger;
     }
 
     public async Task<CustomerLifetimeValueDto> Handle(GetCustomerLifetimeValueQuery request, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Fetching customer lifetime value. CustomerId: {CustomerId}", request.CustomerId);
-
-        var ltv = await _analyticsService.GetCustomerLifetimeValueAsync(request.CustomerId, cancellationToken);
+        
+        // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
+        var ltv = await _context.Set<OrderEntity>()
+            .AsNoTracking()
+            .Where(o => o.UserId == request.CustomerId)
+            .SumAsync(o => o.TotalAmount, cancellationToken);
+        
+        _logger.LogInformation("Customer lifetime value calculated. CustomerId: {CustomerId}, LTV: {LifetimeValue}", request.CustomerId, ltv);
 
         // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         return new CustomerLifetimeValueDto(request.CustomerId, ltv);

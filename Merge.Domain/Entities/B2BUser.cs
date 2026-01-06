@@ -9,8 +9,9 @@ namespace Merge.Domain.Entities;
 /// <summary>
 /// B2BUser Entity - Rich Domain Model implementation
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
 /// </summary>
-public class B2BUser : BaseEntity
+public class B2BUser : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }

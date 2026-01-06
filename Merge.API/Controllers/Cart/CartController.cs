@@ -1,22 +1,36 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Cart;
+using Microsoft.Extensions.Options;
+using MediatR;
 using Merge.Application.DTOs.Cart;
+using Merge.Application.Common;
+using Merge.Application.Configuration;
+using Merge.Application.Cart.Queries.GetCartByUserId;
+using Merge.Application.Cart.Queries.GetCartByCartItemId;
+using Merge.Application.Cart.Commands.AddItemToCart;
+using Merge.Application.Cart.Commands.UpdateCartItem;
+using Merge.Application.Cart.Commands.RemoveCartItem;
+using Merge.Application.Cart.Commands.ClearCart;
 using Merge.API.Middleware;
-
 
 namespace Merge.API.Controllers.Cart;
 
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/cart")]
+[Route("api/v{version:apiVersion}/cart")]
 [Authorize]
 public class CartController : BaseController
 {
-    private readonly ICartService _cartService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
 
-    public CartController(ICartService cartService)
+    public CartController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _cartService = cartService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
     /// <summary>
@@ -29,8 +43,10 @@ public class CartController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<CartDto>> GetCart(CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var cart = await _cartService.GetCartByUserIdAsync(userId, cancellationToken);
+        var query = new GetCartByUserIdQuery(userId);
+        var cart = await _mediator.Send(query, cancellationToken);
         return Ok(cart);
     }
 
@@ -45,11 +61,11 @@ public class CartController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<CartItemDto>> AddItem([FromBody] AddCartItemDto dto, CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         var userId = GetUserId();
-        var cartItem = await _cartService.AddItemToCartAsync(userId, dto.ProductId, dto.Quantity, cancellationToken);
+        var command = new AddItemToCartCommand(userId, dto.ProductId, dto.Quantity);
+        var cartItem = await _mediator.Send(command, cancellationToken);
         return Ok(cartItem);
     }
 
@@ -66,14 +82,14 @@ public class CartController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> UpdateItem(Guid cartItemId, [FromBody] UpdateCartItemDto dto, CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         var userId = GetUserId();
         
         // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
-        // Get cart to check UserId (CartDto contains UserId)
-        var cart = await _cartService.GetCartByCartItemIdAsync(cartItemId, cancellationToken);
+        var cartQuery = new GetCartByCartItemIdQuery(cartItemId);
+        var cart = await _mediator.Send(cartQuery, cancellationToken);
+        
         if (cart == null)
         {
             return NotFound();
@@ -84,7 +100,9 @@ public class CartController : BaseController
             return Forbid();
         }
 
-        var result = await _cartService.UpdateCartItemQuantityAsync(cartItemId, dto.Quantity, cancellationToken);
+        var command = new UpdateCartItemCommand(cartItemId, dto.Quantity);
+        var result = await _mediator.Send(command, cancellationToken);
+        
         if (!result)
         {
             return NotFound();
@@ -104,11 +122,13 @@ public class CartController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> RemoveItem(Guid cartItemId, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         
         // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
-        // Get cart to check UserId (CartDto contains UserId)
-        var cart = await _cartService.GetCartByCartItemIdAsync(cartItemId, cancellationToken);
+        var cartQuery = new GetCartByCartItemIdQuery(cartItemId);
+        var cart = await _mediator.Send(cartQuery, cancellationToken);
+        
         if (cart == null)
         {
             return NotFound();
@@ -119,7 +139,9 @@ public class CartController : BaseController
             return Forbid();
         }
 
-        var result = await _cartService.RemoveItemFromCartAsync(cartItemId, cancellationToken);
+        var command = new RemoveCartItemCommand(cartItemId);
+        var result = await _mediator.Send(command, cancellationToken);
+        
         if (!result)
         {
             return NotFound();
@@ -138,8 +160,11 @@ public class CartController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ClearCart(CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var result = await _cartService.ClearCartAsync(userId, cancellationToken);
+        var command = new ClearCartCommand(userId);
+        var result = await _mediator.Send(command, cancellationToken);
+        
         if (!result)
         {
             return NotFound();

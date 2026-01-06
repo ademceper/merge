@@ -556,16 +556,19 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         // If suspicious, create alert
         if (dto.IsSuspicious || dto.RequiresAction)
         {
-            var alert = new SecurityAlert
-            {
-                UserId = dto.UserId,
-                AlertType = "Account",
-                Severity = dto.Severity == "Critical" ? "Critical" : "High",
-                Title = $"Suspicious activity detected: {dto.EventType}",
-                Description = $"Security event: {dto.EventType} for user {user.Email}",
-                Status = AlertStatus.New,
-                Metadata = dto.Details != null ? JsonSerializer.Serialize(dto.Details) : null
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var severity = Enum.TryParse<AlertSeverity>(dto.Severity, true, out var parsedSeverity) 
+                ? parsedSeverity 
+                : (dto.Severity == "Critical" ? AlertSeverity.Critical : AlertSeverity.High);
+            
+            var alert = SecurityAlert.Create(
+                alertType: "Account",
+                title: $"Suspicious activity detected: {dto.EventType}",
+                description: $"Security event: {dto.EventType} for user {user.Email}",
+                severity: severity,
+                userId: dto.UserId,
+                metadata: dto.Details != null ? JsonSerializer.Serialize(dto.Details) : null
+            );
             await _context.Set<SecurityAlert>().AddAsync(alert, cancellationToken);
         }
 
@@ -695,16 +698,19 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         _logger.LogInformation("Security alert oluşturuluyor. UserId: {UserId}, AlertType: {AlertType}, Severity: {Severity}",
             dto.UserId, dto.AlertType, dto.Severity);
 
-        var alert = new SecurityAlert
-        {
-            UserId = dto.UserId,
-            AlertType = dto.AlertType,
-            Severity = dto.Severity,
-            Title = dto.Title,
-            Description = dto.Description,
-            Status = AlertStatus.New,
-            Metadata = dto.Metadata != null ? JsonSerializer.Serialize(dto.Metadata) : null
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var severity = Enum.TryParse<AlertSeverity>(dto.Severity, true, out var parsedSeverity) 
+            ? parsedSeverity 
+            : AlertSeverity.Medium;
+        
+        var alert = SecurityAlert.Create(
+            alertType: dto.AlertType,
+            title: dto.Title,
+            description: dto.Description,
+            severity: severity,
+            userId: dto.UserId,
+            metadata: dto.Metadata != null ? JsonSerializer.Serialize(dto.Metadata) : null
+        );
 
         await _context.Set<SecurityAlert>().AddAsync(alert, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -747,7 +753,10 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
 
         if (!string.IsNullOrEmpty(severity))
         {
-            query = query.Where(a => a.Severity == severity);
+            if (Enum.TryParse<AlertSeverity>(severity, true, out var severityEnum))
+            {
+                query = query.Where(a => a.Severity == severityEnum);
+            }
         }
 
         if (!string.IsNullOrEmpty(status))
@@ -759,7 +768,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         var totalCount = await query.CountAsync(cancellationToken);
 
         var alerts = await query
-            .OrderByDescending(a => a.Severity == "Critical")
+            .OrderByDescending(a => a.Severity == AlertSeverity.Critical)
             .ThenByDescending(a => a.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -787,11 +796,8 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
 
         if (alert == null) return false;
 
-        alert.Status = AlertStatus.Acknowledged;
-        alert.AcknowledgedByUserId = acknowledgedByUserId;
-        alert.AcknowledgedAt = DateTime.UtcNow;
-        alert.UpdatedAt = DateTime.UtcNow;
-
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        alert.Acknowledge(acknowledgedByUserId);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
@@ -811,11 +817,8 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
 
         if (alert == null) return false;
 
-        alert.Status = AlertStatus.Resolved;
-        alert.ResolvedByUserId = resolvedByUserId;
-        alert.ResolvedAt = DateTime.UtcNow;
-        alert.ResolutionNotes = resolutionNotes;
-        alert.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        alert.Resolve(resolvedByUserId, resolutionNotes);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -872,7 +875,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
             .Where(a => a.CreatedAt >= start && a.CreatedAt <= end)
             .GroupBy(a => a.Severity)
             .Select(g => new { Severity = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.Severity, x => x.Count, cancellationToken);
+            .ToDictionaryAsync(x => x.Severity.ToString(), x => x.Count, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de filtreleme/sıralama yap (memory'de işlem YASAK)
         var recentCriticalAlerts = await _context.Set<SecurityAlert>()
@@ -881,7 +884,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
             .Include(a => a.AcknowledgedBy)
             .Include(a => a.ResolvedBy)
             .Where(a => a.CreatedAt >= start && a.CreatedAt <= end && 
-                       a.Severity == "Critical" && a.Status != AlertStatus.Resolved)
+                       a.Severity == AlertSeverity.Critical && a.Status != AlertStatus.Resolved)
             .OrderByDescending(a => a.CreatedAt)
             .Take(10)
             .ToListAsync(cancellationToken);

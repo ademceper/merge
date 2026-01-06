@@ -114,7 +114,7 @@ public class OrderSplitService : IOrderSplitService
             var splitOrder = OrderEntity.Create(originalOrder.UserId, addressId, address);
             
             // Split order için özel ayarlar
-            // Not: Order.Create factory method OrderNumber'ı otomatik oluşturuyor
+            // Not: Merge.Domain.Entities.Order.Create factory method OrderNumber'ı otomatik oluşturuyor
             // Split order için özel order number gerekiyorsa, Order entity'sine SetOrderNumber method'u eklenebilir
             // Şimdilik factory method'un oluşturduğu order number kullanılıyor
 

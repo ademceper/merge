@@ -65,20 +65,19 @@ public class PriceOptimizationService : IPriceOptimizationService
                 productId, oldPrice, recommendation.OptimalPrice);
         }
 
-        return new PriceOptimizationDto
-        {
-            ProductId = productId,
-            ProductName = product.Name,
-            CurrentPrice = product.Price,
-            RecommendedPrice = recommendation.OptimalPrice,
-            MinPrice = recommendation.MinPrice,
-            MaxPrice = recommendation.MaxPrice,
-            Confidence = recommendation.Confidence,
-            ExpectedRevenueChange = recommendation.ExpectedRevenueChange,
-            ExpectedSalesChange = recommendation.ExpectedSalesChange,
-            Reasoning = recommendation.Reasoning,
-            OptimizedAt = DateTime.UtcNow
-        };
+        return new PriceOptimizationDto(
+            productId,
+            product.Name,
+            product.Price,
+            recommendation.OptimalPrice,
+            recommendation.MinPrice,
+            recommendation.MaxPrice,
+            recommendation.ExpectedRevenueChange,
+            recommendation.ExpectedSalesChange,
+            recommendation.Confidence,
+            recommendation.Reasoning,
+            DateTime.UtcNow
+        );
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -125,20 +124,19 @@ public class PriceOptimizationService : IPriceOptimizationService
                 : new List<ProductEntity>();
             
             var recommendation = await CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
-            results.Add(new PriceOptimizationDto
-            {
-                ProductId = product.Id,
-                ProductName = product.Name,
-                CurrentPrice = product.Price,
-                RecommendedPrice = recommendation.OptimalPrice,
-                MinPrice = recommendation.MinPrice,
-                MaxPrice = recommendation.MaxPrice,
-                Confidence = recommendation.Confidence,
-                ExpectedRevenueChange = recommendation.ExpectedRevenueChange,
-                ExpectedSalesChange = recommendation.ExpectedSalesChange,
-                Reasoning = recommendation.Reasoning,
-                OptimizedAt = DateTime.UtcNow
-            });
+            results.Add(new PriceOptimizationDto(
+                product.Id,
+                product.Name,
+                product.Price,
+                recommendation.OptimalPrice,
+                recommendation.MinPrice,
+                recommendation.MaxPrice,
+                recommendation.ExpectedRevenueChange,
+                recommendation.ExpectedSalesChange,
+                recommendation.Confidence,
+                recommendation.Reasoning,
+                DateTime.UtcNow
+            ));
         }
 
         // ✅ PERFORMANCE: ToListAsync() sonrası OrderByDescending() YASAK
@@ -214,14 +212,13 @@ public class PriceOptimizationService : IPriceOptimizationService
         var productsWithDiscount = await _context.Set<ProductEntity>()
             .CountAsync(p => p.IsActive && p.DiscountPrice.HasValue, cancellationToken);
 
-        return new PriceOptimizationStatsDto
-        {
-            TotalOptimizations = productsWithDiscount,
-            AverageRevenueIncrease = 0, // Gerçek implementasyonda hesaplanmalı
-            ProductsOptimized = productsWithDiscount,
-            PeriodStart = start,
-            PeriodEnd = end
-        };
+        return new PriceOptimizationStatsDto(
+            productsWithDiscount,
+            0, // AverageRevenueIncrease - Gerçek implementasyonda hesaplanmalı
+            productsWithDiscount,
+            start,
+            end
+        );
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -312,16 +309,15 @@ public class PriceOptimizationService : IPriceOptimizationService
                        $"rating ({product.Rating:F1}), and sales volume ({product.ReviewCount} reviews). " +
                        $"Optimal price calculated: {optimalPrice:C} (current: {currentPrice:C}).";
 
-        return new PriceRecommendationDto
-        {
-            OptimalPrice = Math.Round(optimalPrice, 2),
-            MinPrice = Math.Round(minPrice, 2),
-            MaxPrice = Math.Round(maxPrice, 2),
-            Confidence = confidence,
-            ExpectedRevenueChange = Math.Round(expectedRevenueChange, 2),
-            ExpectedSalesChange = expectedSalesChange,
-            Reasoning = reasoning
-        };
+        return new PriceRecommendationDto(
+            Math.Round(optimalPrice, 2),
+            Math.Round(minPrice, 2),
+            Math.Round(maxPrice, 2),
+            confidence,
+            Math.Round(expectedRevenueChange, 2),
+            expectedSalesChange,
+            reasoning
+        );
     }
 
     private decimal CalculateConfidence(ProductEntity product, int competitorCount)

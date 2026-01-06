@@ -36,23 +36,23 @@ public class UserActivityService : IUserActivityService
 
         var deviceInfo = ParseUserAgent(userAgent);
 
-        var activity = new UserActivityLog
-        {
-            UserId = activityDto.UserId,
-            ActivityType = activityDto.ActivityType,
-            EntityType = activityDto.EntityType,
-            EntityId = activityDto.EntityId,
-            Description = activityDto.Description,
-            IpAddress = ipAddress,
-            UserAgent = userAgent,
-            DeviceType = deviceInfo.DeviceType,
-            Browser = deviceInfo.Browser,
-            OS = deviceInfo.OS,
-            Metadata = activityDto.Metadata ?? string.Empty,
-            DurationMs = activityDto.DurationMs,
-            WasSuccessful = activityDto.WasSuccessful,
-            ErrorMessage = activityDto.ErrorMessage
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var activity = UserActivityLog.Create(
+            activityType: activityDto.ActivityType,
+            entityType: activityDto.EntityType,
+            description: activityDto.Description,
+            ipAddress: ipAddress,
+            userAgent: userAgent,
+            userId: activityDto.UserId,
+            entityId: activityDto.EntityId,
+            deviceType: deviceInfo.DeviceType,
+            browser: deviceInfo.Browser,
+            os: deviceInfo.OS,
+            metadata: activityDto.Metadata,
+            durationMs: activityDto.DurationMs,
+            wasSuccessful: activityDto.WasSuccessful,
+            errorMessage: activityDto.ErrorMessage
+        );
 
         await _context.Set<UserActivityLog>().AddAsync(activity, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

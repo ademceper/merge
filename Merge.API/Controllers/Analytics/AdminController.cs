@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using MediatR;
-using Merge.Application.Interfaces.Analytics;
 using Merge.Application.Configuration;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Order;
@@ -321,9 +320,7 @@ public class AdminController : BaseController
         [FromBody] ChangeRoleDto roleDto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new ChangeUserRoleCommand(userId, roleDto.Role);

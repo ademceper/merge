@@ -400,27 +400,25 @@ public class FraudDetectionService : IFraudDetectionService
             .Where(a => a.CreatedAt >= start && a.CreatedAt <= end && a.RiskScore >= 70)
             .OrderByDescending(a => a.RiskScore)
             .Take(10)
-            .Select(a => new HighRiskAlertDto
-            {
-                AlertId = a.Id,
-                AlertType = a.AlertType,
-                RiskScore = a.RiskScore,
-                Status = a.Status.ToString(), // ✅ BOLUM 1.2: Enum -> string (DTO uyumluluğu)
-                CreatedAt = a.CreatedAt
-            })
+            .Select(a => new HighRiskAlertDto(
+                a.Id,
+                a.AlertType,
+                a.RiskScore,
+                a.Status.ToString(), // ✅ BOLUM 1.2: Enum -> string (DTO uyumluluğu)
+                a.CreatedAt
+            ))
             .ToListAsync(cancellationToken);
 
-        return new FraudAnalyticsDto
-        {
-            TotalAlerts = totalAlerts,
-            PendingAlerts = pendingAlerts,
-            ResolvedAlerts = resolvedAlerts,
-            FalsePositiveAlerts = falsePositiveAlerts,
-            AverageRiskScore = (decimal)Math.Round(avgRiskScore, 2),
-            AlertsByType = alertsByType,
-            AlertsByStatus = alertsByStatus,
-            HighRiskAlerts = highRiskAlerts
-        };
+        return new FraudAnalyticsDto(
+            totalAlerts,
+            pendingAlerts,
+            resolvedAlerts,
+            falsePositiveAlerts,
+            (decimal)Math.Round(avgRiskScore, 2),
+            alertsByType,
+            alertsByStatus,
+            highRiskAlerts
+        );
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)

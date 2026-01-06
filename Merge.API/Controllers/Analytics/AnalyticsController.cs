@@ -670,9 +670,7 @@ public class AnalyticsController : BaseController
         [FromBody] CreateReportDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
@@ -875,9 +873,7 @@ public class AnalyticsController : BaseController
         [FromBody] CreateReportScheduleDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
@@ -952,18 +948,9 @@ public class AnalyticsController : BaseController
             return Unauthorized();
         }
 
-        // ✅ SECURITY: Authorization check - Users can only toggle their own schedules unless Admin
-        var scheduleQuery = new GetReportSchedulesQuery(userId, Page: 1, PageSize: 100);
-        var scheduleResult = await _mediator.Send(scheduleQuery, cancellationToken);
-        var schedule = scheduleResult.Items.FirstOrDefault(s => s.Id == id);
-        
-        if (schedule == null && !User.IsInRole("Admin"))
-        {
-            return Forbid();
-        }
-
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        // ✅ SECURITY: Authorization check handler'da yapılıyor
         var command = new ToggleReportScheduleCommand(id, isActive, userId);
         var success = await _mediator.Send(command, cancellationToken);
 
@@ -994,18 +981,9 @@ public class AnalyticsController : BaseController
             return Unauthorized();
         }
 
-        // ✅ SECURITY: Authorization check - Users can only delete their own schedules unless Admin
-        var scheduleQuery = new GetReportSchedulesQuery(userId, Page: 1, PageSize: 100);
-        var scheduleResult = await _mediator.Send(scheduleQuery, cancellationToken);
-        var schedule = scheduleResult.Items.FirstOrDefault(s => s.Id == id);
-        
-        if (schedule == null && !User.IsInRole("Admin"))
-        {
-            return Forbid();
-        }
-
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        // ✅ SECURITY: Authorization check handler'da yapılıyor
         var command = new DeleteReportScheduleCommand(id, userId);
         var success = await _mediator.Send(command, cancellationToken);
 
