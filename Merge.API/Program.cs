@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Merge.Application.Interfaces.Analytics;
 using Merge.Application.Interfaces.B2B;
 using Merge.Application.Interfaces.Cart;
@@ -47,6 +48,7 @@ using Merge.Infrastructure.Repositories;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Entities;
 using Merge.API.Middleware;
+using Merge.Application.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -100,6 +102,8 @@ builder.Services.Configure<Merge.Application.Configuration.SupportSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.SupportSettings.SectionName));
 builder.Services.Configure<Merge.Application.Configuration.MLSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.MLSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.ServiceSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.ServiceSettings.SectionName));
 
 // Add services to the container
 // ✅ BOLUM 4.0: API Versioning (ZORUNLU)
@@ -112,16 +116,22 @@ builder.Services.AddApiVersioning(options =>
 });
 builder.Services.AddVersionedApiExplorer(options =>
 {
-    options.GroupNameFormat = "'v'VVV";
+    // ✅ GroupNameFormat "'v'V" - sadece major version (v1, v2, vb.)
+    // Bu, Swagger endpoint'lerinin /swagger/v1/swagger.json formatında olmasını sağlar
+    options.GroupNameFormat = "'v'V";
     options.SubstituteApiVersionInUrl = true;
 });
 builder.Services.AddEndpointsApiExplorer();
 
 // Swagger configuration
 // ✅ BOLUM 4.0: API Versioning (ZORUNLU)
-builder.Services.AddSwaggerGen(c =>
+builder.Services.AddSwaggerGen(options =>
 {
-    c.SwaggerDoc("v1.0", new OpenApiInfo
+    // ✅ API Versioning ile uyumlu Swagger yapılandırması
+    // IApiVersionDescriptionProvider kullanarak her versiyon için dinamik SwaggerDoc oluştur
+    // Bu, "No operations defined in spec!" hatasını çözer
+    // GroupNameFormat "'v'V" olduğu için "v1" formatı kullanılır
+    options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Merge E-Commerce API",
         Version = "v1.0",
@@ -129,10 +139,18 @@ builder.Services.AddSwaggerGen(c =>
     });
     
     // API versioning için Swagger yapılandırması
-    c.AddServer(new OpenApiServer { Url = "https://api.mergecommerce.com" });
+    options.AddServer(new OpenApiServer { Url = "https://api.mergecommerce.com" });
+
+    // ✅ XML documentation için (BOLUM 4.1)
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath);
+    }
 
     // JWT Authentication için Swagger yapılandırması
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token",
         Name = "Authorization",
@@ -141,7 +159,7 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "Bearer"
     });
 
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
             new OpenApiSecurityScheme
@@ -154,6 +172,20 @@ builder.Services.AddSwaggerGen(c =>
             },
             Array.Empty<string>()
         }
+    });
+    
+    // ✅ API Versioning için: ResolveConflictingActions kullanarak çakışmaları çöz
+    options.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
+    
+    // ✅ API Versioning için: VersionedApiExplorer ile entegrasyon
+    // Bu, Swagger'ın versioned API'leri bulmasını sağlar
+    // GroupNameFormat "'v'V" olduğu için "v1" formatı kullanılır
+    options.DocInclusionPredicate((docName, apiDesc) =>
+    {
+        // VersionedApiExplorer kullanıldığında, docName GroupNameFormat'e göre oluşturulur
+        // GroupNameFormat "'v'V" olduğu için "v1" formatı kullanılır
+        // apiDesc.GroupName ile docName'i karşılaştır
+        return apiDesc.GroupName == docName;
     });
 });
 
@@ -273,8 +305,9 @@ builder.Services.AddIdentity<User, Role>(options =>
 // ✅ BOLUM 1.5: Domain Events publish mekanizması (ZORUNLU)
 builder.Services.AddScoped<Merge.Domain.Common.IDomainEventDispatcher, Merge.Infrastructure.Common.DomainEventDispatcher>();
 
-builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
-builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+// ✅ BOLUM 1.1: Clean Architecture - Application.Interfaces'den IRepository ve IUnitOfWork kullan
+builder.Services.AddScoped(typeof(Merge.Application.Interfaces.IRepository<>), typeof(Repository<>));
+builder.Services.AddScoped<Merge.Application.Interfaces.IUnitOfWork, UnitOfWork>();
 
 // Application services
 builder.Services.AddScoped<IAuthService, Merge.Application.Services.Identity.AuthService>();
@@ -502,9 +535,22 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
+    
+    // ✅ API Versioning ile uyumlu Swagger UI yapılandırması
+    // IApiVersionDescriptionProvider kullanarak her versiyon için dinamik endpoint oluştur
+    var apiVersionDescriptionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
+    
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Merge E-Commerce API v1");
+        // Her versiyon için dinamik olarak Swagger endpoint oluştur
+        foreach (var description in apiVersionDescriptionProvider.ApiVersionDescriptions)
+        {
+            c.SwaggerEndpoint(
+                $"/swagger/{description.GroupName}/swagger.json",
+                $"Merge E-Commerce API {description.GroupName.ToUpperInvariant()}");
+        }
+        
+        c.RoutePrefix = "swagger"; // Swagger UI: /swagger
     });
 }
 
@@ -584,9 +630,11 @@ if (app.Environment.IsDevelopment())
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Database migration failed. Error: {ErrorMessage}", ex.Message);
-            // Re-throw in development to catch migration issues early
-            throw;
+            logger.LogWarning(ex, "Database migration failed. This is expected if PostgreSQL is not running. Error: {ErrorMessage}", ex.Message);
+            logger.LogWarning("To start PostgreSQL, run: docker-compose up -d");
+            logger.LogWarning("Or start PostgreSQL manually and ensure connection string is correct in appsettings.json");
+            // ✅ Development'ta migration hatası uygulamayı crash etmesin
+            // Production'da migration'lar CI/CD pipeline'da çalıştırılmalı (BOLUM 6.0)
         }
     }
 }

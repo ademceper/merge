@@ -1,27 +1,51 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using MediatR;
 using Merge.Application.Interfaces.Analytics;
+using Merge.Application.Configuration;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Order;
 using Merge.Application.DTOs.Product;
 using Merge.Application.DTOs.Review;
 using Merge.Application.DTOs.User;
 using Merge.Application.Common;
+using Merge.Application.Analytics.Queries.GetDashboardStats;
+using Merge.Application.Analytics.Queries.GetRevenueChart;
+using Merge.Application.Analytics.Queries.GetAdminTopProducts;
+using Merge.Application.Analytics.Queries.GetInventoryOverview;
+using Merge.Application.Analytics.Queries.GetRecentOrders;
+using Merge.Application.Analytics.Queries.GetAdminLowStockProducts;
+using Merge.Application.Analytics.Queries.GetPendingReviews;
+using Merge.Application.Analytics.Queries.GetPendingReturns;
+using Merge.Application.Analytics.Queries.GetUsers;
+using Merge.Application.Analytics.Queries.GetAnalyticsSummary;
+using Merge.Application.Analytics.Queries.Get2FAStats;
+using Merge.Application.Analytics.Queries.GetSystemHealth;
+using Merge.Application.Analytics.Commands.ActivateUser;
+using Merge.Application.Analytics.Commands.DeactivateUser;
+using Merge.Application.Analytics.Commands.ChangeUserRole;
+using Merge.Application.Analytics.Commands.DeleteUser;
 using Merge.API.Middleware;
 
 
 namespace Merge.API.Controllers.Analytics;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/admin")]
+[Route("api/v{version:apiVersion}/admin")]
 [Authorize(Roles = "Admin")]
 public class AdminController : BaseController
 {
-    private readonly IAdminService _adminService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
 
-    public AdminController(IAdminService adminService)
+    public AdminController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _adminService = adminService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
     /// <summary>
@@ -36,7 +60,9 @@ public class AdminController : BaseController
     public async Task<ActionResult<DashboardStatsDto>> GetDashboardStats(
         CancellationToken cancellationToken = default)
     {
-        var stats = await _adminService.GetDashboardStatsAsync(cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetDashboardStatsQuery();
+        var stats = await _mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 
@@ -54,14 +80,10 @@ public class AdminController : BaseController
         [FromQuery] int days = 30,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - days 1-365 arasında olmalı
-        if (days < 1 || days > 365)
-        {
-            ModelState.AddModelError(nameof(days), "Gün sayısı 1 ile 365 arasında olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var chart = await _adminService.GetRevenueChartAsync(days, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetRevenueChartQuery(days);
+        var chart = await _mediator.Send(query, cancellationToken);
         return Ok(chart);
     }
 
@@ -79,10 +101,14 @@ public class AdminController : BaseController
         [FromQuery] int count = 10,
         CancellationToken cancellationToken = default)
     {
-        if (count > 100) count = 100; // ✅ BOLUM 3.4: Max limit kontrolü
-        if (count < 1) count = 1; // ✅ BOLUM 4.1: Min limit kontrolü
+        // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
+        if (count > _paginationSettings.MaxPageSize) count = _paginationSettings.MaxPageSize;
+        if (count < 1) count = 1;
 
-        var topProducts = await _adminService.GetTopProductsAsync(count, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetAdminTopProductsQuery(count);
+        var topProducts = await _mediator.Send(query, cancellationToken);
         return Ok(topProducts);
     }
 
@@ -98,7 +124,9 @@ public class AdminController : BaseController
     public async Task<ActionResult<InventoryOverviewDto>> GetInventoryOverview(
         CancellationToken cancellationToken = default)
     {
-        var overview = await _adminService.GetInventoryOverviewAsync(cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetInventoryOverviewQuery();
+        var overview = await _mediator.Send(query, cancellationToken);
         return Ok(overview);
     }
 
@@ -116,10 +144,14 @@ public class AdminController : BaseController
         [FromQuery] int count = 10,
         CancellationToken cancellationToken = default)
     {
-        if (count > 100) count = 100; // ✅ BOLUM 3.4: Max limit kontrolü
-        if (count < 1) count = 1; // ✅ BOLUM 4.1: Min limit kontrolü
+        // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
+        if (count > _paginationSettings.MaxPageSize) count = _paginationSettings.MaxPageSize;
+        if (count < 1) count = 1;
 
-        var orders = await _adminService.GetRecentOrdersAsync(count, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetRecentOrdersQuery(count);
+        var orders = await _mediator.Send(query, cancellationToken);
         return Ok(orders);
     }
 
@@ -137,14 +169,10 @@ public class AdminController : BaseController
         [FromQuery] int threshold = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - threshold pozitif olmalı
-        if (threshold < 0)
-        {
-            ModelState.AddModelError(nameof(threshold), "Eşik değeri 0 veya daha büyük olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var products = await _adminService.GetLowStockProductsAsync(threshold, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetAdminLowStockProductsQuery(threshold);
+        var products = await _mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
@@ -163,11 +191,14 @@ public class AdminController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
-        var reviews = await _adminService.GetPendingReviewsAsync(page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetPendingReviewsQuery(page, pageSize);
+        var reviews = await _mediator.Send(query, cancellationToken);
         return Ok(reviews);
     }
 
@@ -186,11 +217,14 @@ public class AdminController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
-        var returns = await _adminService.GetPendingReturnsAsync(page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetPendingReturnsQuery(page, pageSize);
+        var returns = await _mediator.Send(query, cancellationToken);
         return Ok(returns);
     }
 
@@ -210,11 +244,14 @@ public class AdminController : BaseController
         [FromQuery] string? role = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
-        var users = await _adminService.GetUsersAsync(page, pageSize, role, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetUsersQuery(page, pageSize, role);
+        var users = await _mediator.Send(query, cancellationToken);
         return Ok(users);
     }
 
@@ -232,7 +269,10 @@ public class AdminController : BaseController
         Guid userId,
         CancellationToken cancellationToken = default)
     {
-        var result = await _adminService.ActivateUserAsync(userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var command = new ActivateUserCommand(userId);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -254,7 +294,10 @@ public class AdminController : BaseController
         Guid userId,
         CancellationToken cancellationToken = default)
     {
-        var result = await _adminService.DeactivateUserAsync(userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var command = new DeactivateUserCommand(userId);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -281,7 +324,10 @@ public class AdminController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var result = await _adminService.ChangeUserRoleAsync(userId, roleDto.Role, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var command = new ChangeUserRoleCommand(userId, roleDto.Role);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -303,7 +349,10 @@ public class AdminController : BaseController
         Guid userId,
         CancellationToken cancellationToken = default)
     {
-        var result = await _adminService.DeleteUserAsync(userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var command = new DeleteUserCommand(userId);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -325,14 +374,10 @@ public class AdminController : BaseController
         [FromQuery] int days = 30,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - days 1-365 arasında olmalı
-        if (days < 1 || days > 365)
-        {
-            ModelState.AddModelError(nameof(days), "Gün sayısı 1 ile 365 arasında olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var summary = await _adminService.GetAnalyticsSummaryAsync(days, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetAnalyticsSummaryQuery(days);
+        var summary = await _mediator.Send(query, cancellationToken);
         return Ok(summary);
     }
 
@@ -348,7 +393,9 @@ public class AdminController : BaseController
     public async Task<ActionResult<TwoFactorStatsDto>> Get2FAStats(
         CancellationToken cancellationToken = default)
     {
-        var stats = await _adminService.Get2FAStatsAsync(cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new Get2FAStatsQuery();
+        var stats = await _mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 
@@ -364,7 +411,9 @@ public class AdminController : BaseController
     public async Task<ActionResult<SystemHealthDto>> GetSystemHealth(
         CancellationToken cancellationToken = default)
     {
-        var health = await _adminService.GetSystemHealthAsync(cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSystemHealthQuery();
+        var health = await _mediator.Send(query, cancellationToken);
         return Ok(health);
     }
 }

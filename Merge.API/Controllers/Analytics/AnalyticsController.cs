@@ -1,25 +1,70 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.User;
-using Merge.Application.Interfaces.Analytics;
+using Microsoft.Extensions.Options;
+using MediatR;
+using Merge.Application.Configuration;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Review;
 using Merge.Application.Common;
+using Merge.Application.Analytics.Queries.GetDashboardSummary;
+using Merge.Application.Analytics.Queries.GetCustomerLifetimeValue;
+using Merge.Application.Analytics.Queries.GetSalesAnalytics;
+using Merge.Application.Analytics.Queries.GetProductAnalytics;
+using Merge.Application.Analytics.Queries.GetCustomerAnalytics;
+using Merge.Application.Analytics.Queries.GetFinancialAnalytics;
+using Merge.Application.Analytics.Queries.GetReviewAnalytics;
+using Merge.Application.Analytics.Queries.GetMarketingAnalytics;
+using Merge.Application.Analytics.Queries.GetInventoryAnalytics;
+using Merge.Application.Analytics.Queries.GetTopProducts;
+using Merge.Application.Analytics.Queries.GetTopCustomers;
+using Merge.Application.Analytics.Queries.GetBestSellers;
+using Merge.Application.Analytics.Queries.GetWorstPerformers;
+using Merge.Application.Analytics.Queries.GetRevenueOverTime;
+using Merge.Application.Analytics.Queries.GetSalesByCategory;
+using Merge.Application.Analytics.Queries.GetCustomerSegments;
+using Merge.Application.Analytics.Queries.GetLowStockProducts;
+using Merge.Application.Analytics.Queries.GetStockByWarehouse;
+using Merge.Application.Analytics.Queries.GetCouponPerformance;
+using Merge.Application.Analytics.Queries.GetReferralPerformance;
+using Merge.Application.Analytics.Queries.GetRatingDistribution;
+using Merge.Application.Analytics.Queries.GetReviewTrends;
+using Merge.Application.Analytics.Queries.GetTopReviewedProducts;
+using Merge.Application.Analytics.Queries.GetTopReviewers;
+using Merge.Application.Analytics.Queries.GetDashboardMetrics;
+using Merge.Application.Analytics.Queries.GetFinancialReport;
+using Merge.Application.Analytics.Queries.GetFinancialSummaries;
+using Merge.Application.Analytics.Queries.GetFinancialMetrics;
+using Merge.Application.Analytics.Commands.RefreshDashboardMetrics;
+using Merge.Application.Analytics.Queries.GetReport;
+using Merge.Application.Analytics.Queries.GetReports;
+using Merge.Application.Analytics.Queries.ExportReport;
+using Merge.Application.Analytics.Queries.GetReportSchedules;
+using Merge.Application.Analytics.Commands.DeleteReport;
+using Merge.Application.Analytics.Commands.ToggleReportSchedule;
+using Merge.Application.Analytics.Commands.DeleteReportSchedule;
+using Merge.Application.Analytics.Commands.GenerateReport;
+using Merge.Application.Analytics.Commands.CreateReportSchedule;
 using Merge.API.Middleware;
 
 
 namespace Merge.API.Controllers.Analytics;
 
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/analytics")]
+[Route("api/v{version:apiVersion}/analytics")]
 [Authorize(Roles = "Admin,Manager")]
 public class AnalyticsController : BaseController
 {
-    private readonly IAnalyticsService _analyticsService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
 
-    public AnalyticsController(IAnalyticsService analyticsService)
+    public AnalyticsController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _analyticsService = analyticsService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
     // Dashboard
@@ -38,14 +83,10 @@ public class AnalyticsController : BaseController
         [FromQuery] DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate (her ikisi de varsa)
-        if (startDate.HasValue && endDate.HasValue && startDate.Value >= endDate.Value)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var summary = await _analyticsService.GetDashboardSummaryAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetDashboardSummaryQuery(startDate, endDate);
+        var summary = await _mediator.Send(query, cancellationToken);
         return Ok(summary);
     }
 
@@ -63,7 +104,9 @@ public class AnalyticsController : BaseController
         [FromQuery] string? category = null,
         CancellationToken cancellationToken = default)
     {
-        var metrics = await _analyticsService.GetDashboardMetricsAsync(category, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetDashboardMetricsQuery(category);
+        var metrics = await _mediator.Send(query, cancellationToken);
         return Ok(metrics);
     }
 
@@ -78,7 +121,9 @@ public class AnalyticsController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> RefreshDashboardMetrics(CancellationToken cancellationToken = default)
     {
-        await _analyticsService.RefreshDashboardMetricsAsync(cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new RefreshDashboardMetricsCommand();
+        await _mediator.Send(command, cancellationToken);
         return Ok();
     }
 
@@ -98,14 +143,9 @@ public class AnalyticsController : BaseController
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate
-        if (startDate >= endDate)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var analytics = await _analyticsService.GetSalesAnalyticsAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSalesAnalyticsQuery(startDate, endDate);
+        var analytics = await _mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 
@@ -125,14 +165,10 @@ public class AnalyticsController : BaseController
         [FromQuery] string interval = "day",
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate
-        if (startDate >= endDate)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var data = await _analyticsService.GetRevenueOverTimeAsync(startDate, endDate, interval, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetRevenueOverTimeQuery(startDate, endDate, interval);
+        var data = await _mediator.Send(query, cancellationToken);
         return Ok(data);
     }
 
@@ -152,17 +188,14 @@ public class AnalyticsController : BaseController
         [FromQuery] int limit = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate
-        if (startDate >= endDate)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
+        // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
+        if (limit > _paginationSettings.MaxPageSize) limit = _paginationSettings.MaxPageSize;
+        if (limit < 1) limit = 1;
 
-        if (limit > 100) limit = 100; // ✅ BOLUM 3.4: Max limit kontrolü
-        if (limit < 1) limit = 1; // ✅ BOLUM 4.1: Min limit kontrolü
-
-        var products = await _analyticsService.GetTopProductsAsync(startDate, endDate, limit, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetTopProductsQuery(startDate, endDate, limit);
+        var products = await _mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
@@ -181,14 +214,10 @@ public class AnalyticsController : BaseController
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate
-        if (startDate >= endDate)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var sales = await _analyticsService.GetSalesByCategoryAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetSalesByCategoryQuery(startDate, endDate);
+        var sales = await _mediator.Send(query, cancellationToken);
         return Ok(sales);
     }
 
@@ -208,14 +237,10 @@ public class AnalyticsController : BaseController
         [FromQuery] DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate (her ikisi de varsa)
-        if (startDate.HasValue && endDate.HasValue && startDate.Value >= endDate.Value)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var analytics = await _analyticsService.GetProductAnalyticsAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetProductAnalyticsQuery(startDate, endDate);
+        var analytics = await _mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 
@@ -233,10 +258,14 @@ public class AnalyticsController : BaseController
         [FromQuery] int limit = 10,
         CancellationToken cancellationToken = default)
     {
-        if (limit > 100) limit = 100; // ✅ BOLUM 3.4: Max limit kontrolü
-        if (limit < 1) limit = 1; // ✅ BOLUM 4.1: Min limit kontrolü
+        // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
+        if (limit > _paginationSettings.MaxPageSize) limit = _paginationSettings.MaxPageSize;
+        if (limit < 1) limit = 1;
 
-        var products = await _analyticsService.GetBestSellersAsync(limit, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetBestSellersQuery(limit);
+        var products = await _mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
@@ -254,10 +283,14 @@ public class AnalyticsController : BaseController
         [FromQuery] int limit = 10,
         CancellationToken cancellationToken = default)
     {
-        if (limit > 100) limit = 100; // ✅ BOLUM 3.4: Max limit kontrolü
-        if (limit < 1) limit = 1; // ✅ BOLUM 4.1: Min limit kontrolü
+        // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
+        if (limit > _paginationSettings.MaxPageSize) limit = _paginationSettings.MaxPageSize;
+        if (limit < 1) limit = 1;
 
-        var products = await _analyticsService.GetWorstPerformersAsync(limit, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetWorstPerformersQuery(limit);
+        var products = await _mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
@@ -277,14 +310,10 @@ public class AnalyticsController : BaseController
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate
-        if (startDate >= endDate)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var analytics = await _analyticsService.GetCustomerAnalyticsAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetCustomerAnalyticsQuery(startDate, endDate);
+        var analytics = await _mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 
@@ -302,10 +331,14 @@ public class AnalyticsController : BaseController
         [FromQuery] int limit = 10,
         CancellationToken cancellationToken = default)
     {
-        if (limit > 100) limit = 100; // ✅ BOLUM 3.4: Max limit kontrolü
-        if (limit < 1) limit = 1; // ✅ BOLUM 4.1: Min limit kontrolü
+        // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
+        if (limit > _paginationSettings.MaxPageSize) limit = _paginationSettings.MaxPageSize;
+        if (limit < 1) limit = 1;
 
-        var customers = await _analyticsService.GetTopCustomersAsync(limit, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetTopCustomersQuery(limit);
+        var customers = await _mediator.Send(query, cancellationToken);
         return Ok(customers);
     }
 
@@ -321,7 +354,9 @@ public class AnalyticsController : BaseController
     public async Task<ActionResult<List<CustomerSegmentDto>>> GetCustomerSegments(
         CancellationToken cancellationToken = default)
     {
-        var segments = await _analyticsService.GetCustomerSegmentsAsync(cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetCustomerSegmentsQuery();
+        var segments = await _mediator.Send(query, cancellationToken);
         return Ok(segments);
     }
 
@@ -339,8 +374,20 @@ public class AnalyticsController : BaseController
         Guid customerId,
         CancellationToken cancellationToken = default)
     {
-        var ltv = await _analyticsService.GetCustomerLifetimeValueAsync(customerId, cancellationToken);
-        return Ok(new CustomerLifetimeValueDto { CustomerId = customerId, LifetimeValue = ltv });
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ SECURITY: IDOR Protection - Kullanıcı sadece kendi verilerine erişebilir (Manager/Admin hariç)
+        if (!User.IsInRole("Admin") && !User.IsInRole("Manager"))
+        {
+            var currentUserId = GetUserId();
+            if (customerId != currentUserId)
+            {
+                return Forbid();
+            }
+        }
+
+        var query = new GetCustomerLifetimeValueQuery(customerId);
+        var result = await _mediator.Send(query, cancellationToken);
+        return Ok(result);
     }
 
     // Inventory Analytics
@@ -356,7 +403,9 @@ public class AnalyticsController : BaseController
     public async Task<ActionResult<InventoryAnalyticsDto>> GetInventoryAnalytics(
         CancellationToken cancellationToken = default)
     {
-        var analytics = await _analyticsService.GetInventoryAnalyticsAsync(cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetInventoryAnalyticsQuery();
+        var analytics = await _mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 
@@ -374,14 +423,10 @@ public class AnalyticsController : BaseController
         [FromQuery] int threshold = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - threshold pozitif olmalı
-        if (threshold < 0)
-        {
-            ModelState.AddModelError(nameof(threshold), "Eşik değeri 0 veya daha büyük olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var products = await _analyticsService.GetLowStockProductsAsync(threshold, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetLowStockProductsQuery(threshold);
+        var products = await _mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
@@ -397,7 +442,9 @@ public class AnalyticsController : BaseController
     public async Task<ActionResult<List<WarehouseStockDto>>> GetStockByWarehouse(
         CancellationToken cancellationToken = default)
     {
-        var stock = await _analyticsService.GetStockByWarehouseAsync(cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetStockByWarehouseQuery();
+        var stock = await _mediator.Send(query, cancellationToken);
         return Ok(stock);
     }
 
@@ -417,14 +464,10 @@ public class AnalyticsController : BaseController
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate
-        if (startDate >= endDate)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var analytics = await _analyticsService.GetMarketingAnalyticsAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetMarketingAnalyticsQuery(startDate, endDate);
+        var analytics = await _mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 
@@ -443,14 +486,10 @@ public class AnalyticsController : BaseController
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate
-        if (startDate >= endDate)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var performance = await _analyticsService.GetCouponPerformanceAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetCouponPerformanceQuery(startDate, endDate);
+        var performance = await _mediator.Send(query, cancellationToken);
         return Ok(performance);
     }
 
@@ -469,14 +508,10 @@ public class AnalyticsController : BaseController
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate
-        if (startDate >= endDate)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var performance = await _analyticsService.GetReferralPerformanceAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetReferralPerformanceQuery(startDate, endDate);
+        var performance = await _mediator.Send(query, cancellationToken);
         return Ok(performance);
     }
 
@@ -496,14 +531,10 @@ public class AnalyticsController : BaseController
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate
-        if (startDate >= endDate)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var analytics = await _analyticsService.GetFinancialAnalyticsAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetFinancialAnalyticsQuery(startDate, endDate);
+        var analytics = await _mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 
@@ -523,14 +554,10 @@ public class AnalyticsController : BaseController
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate
-        if (startDate >= endDate)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var analytics = await _analyticsService.GetReviewAnalyticsAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetReviewAnalyticsQuery(startDate, endDate);
+        var analytics = await _mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 
@@ -549,14 +576,10 @@ public class AnalyticsController : BaseController
         [FromQuery] DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate (her ikisi de varsa)
-        if (startDate.HasValue && endDate.HasValue && startDate.Value >= endDate.Value)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var distribution = await _analyticsService.GetRatingDistributionAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetRatingDistributionQuery(startDate, endDate);
+        var distribution = await _mediator.Send(query, cancellationToken);
         return Ok(distribution);
     }
 
@@ -575,14 +598,10 @@ public class AnalyticsController : BaseController
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate
-        if (startDate >= endDate)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var trends = await _analyticsService.GetReviewTrendsAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetReviewTrendsQuery(startDate, endDate);
+        var trends = await _mediator.Send(query, cancellationToken);
         return Ok(trends);
     }
 
@@ -600,10 +619,14 @@ public class AnalyticsController : BaseController
         [FromQuery] int limit = 10,
         CancellationToken cancellationToken = default)
     {
-        if (limit > 100) limit = 100; // ✅ BOLUM 3.4: Max limit kontrolü
-        if (limit < 1) limit = 1; // ✅ BOLUM 4.1: Min limit kontrolü
+        // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
+        if (limit > _paginationSettings.MaxPageSize) limit = _paginationSettings.MaxPageSize;
+        if (limit < 1) limit = 1;
 
-        var products = await _analyticsService.GetTopReviewedProductsAsync(limit, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetTopReviewedProductsQuery(limit);
+        var products = await _mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
@@ -621,10 +644,14 @@ public class AnalyticsController : BaseController
         [FromQuery] int limit = 10,
         CancellationToken cancellationToken = default)
     {
-        if (limit > 100) limit = 100; // ✅ BOLUM 3.4: Max limit kontrolü
-        if (limit < 1) limit = 1; // ✅ BOLUM 4.1: Min limit kontrolü
+        // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
+        if (limit > _paginationSettings.MaxPageSize) limit = _paginationSettings.MaxPageSize;
+        if (limit < 1) limit = 1;
 
-        var reviewers = await _analyticsService.GetTopReviewersAsync(limit, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetTopReviewersQuery(limit);
+        var reviewers = await _mediator.Send(query, cancellationToken);
         return Ok(reviewers);
     }
 
@@ -651,7 +678,18 @@ public class AnalyticsController : BaseController
             return Unauthorized();
         }
 
-        var report = await _analyticsService.GenerateReportAsync(dto, userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new GenerateReportCommand(
+            userId,
+            dto.Name,
+            dto.Description,
+            dto.Type,
+            dto.StartDate,
+            dto.EndDate,
+            dto.Filters,
+            dto.Format);
+
+        var report = await _mediator.Send(command, cancellationToken);
         return Ok(report);
     }
 
@@ -674,7 +712,10 @@ public class AnalyticsController : BaseController
             return Unauthorized();
         }
 
-        var report = await _analyticsService.GetReportAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetReportQuery(id, userId);
+        var report = await _mediator.Send(query, cancellationToken);
 
         if (report == null)
         {
@@ -707,11 +748,25 @@ public class AnalyticsController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü
-        if (pageSize > 100) pageSize = 100;
+        if (!TryGetUserId(out var currentUserId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ SECURITY: IDOR Protection - Users can only view their own reports unless Admin/Manager
+        if (!User.IsInRole("Admin") && !User.IsInRole("Manager"))
+        {
+            userId = currentUserId; // Force current user's ID
+        }
+
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
-        var reports = await _analyticsService.GetReportsAsync(userId, type, page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetReportsQuery(userId, type, page, pageSize);
+        var reports = await _mediator.Send(query, cancellationToken);
         return Ok(reports);
     }
 
@@ -735,7 +790,8 @@ public class AnalyticsController : BaseController
         }
 
         // ✅ SECURITY: Authorization check - Users can only export their own reports unless Admin
-        var report = await _analyticsService.GetReportAsync(id, cancellationToken);
+        var reportQuery = new GetReportQuery(id, userId);
+        var report = await _mediator.Send(reportQuery, cancellationToken);
         if (report == null)
         {
             return NotFound();
@@ -746,7 +802,16 @@ public class AnalyticsController : BaseController
             return Forbid();
         }
 
-        var data = await _analyticsService.ExportReportAsync(id, userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new ExportReportQuery(id, userId);
+        var data = await _mediator.Send(query, cancellationToken);
+        
+        if (data == null)
+        {
+            return NotFound();
+        }
+        
         return File(data, "application/json", $"report_{id}.json");
     }
 
@@ -770,7 +835,8 @@ public class AnalyticsController : BaseController
         }
 
         // ✅ SECURITY: Authorization check - Users can only delete their own reports unless Admin
-        var report = await _analyticsService.GetReportAsync(id, cancellationToken);
+        var reportQuery = new GetReportQuery(id, userId);
+        var report = await _mediator.Send(reportQuery, cancellationToken);
         if (report == null)
         {
             return NotFound();
@@ -781,7 +847,10 @@ public class AnalyticsController : BaseController
             return Forbid();
         }
 
-        var success = await _analyticsService.DeleteReportAsync(id, userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var command = new DeleteReportCommand(id, userId);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -814,7 +883,21 @@ public class AnalyticsController : BaseController
             return Unauthorized();
         }
 
-        var schedule = await _analyticsService.CreateReportScheduleAsync(dto, userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new CreateReportScheduleCommand(
+            userId,
+            dto.Name,
+            dto.Description,
+            dto.Type,
+            dto.Frequency,
+            dto.DayOfWeek,
+            dto.DayOfMonth,
+            dto.TimeOfDay,
+            dto.Filters,
+            dto.Format,
+            dto.EmailRecipients);
+
+        var schedule = await _mediator.Send(command, cancellationToken);
         return Ok(schedule);
     }
 
@@ -838,11 +921,14 @@ public class AnalyticsController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
-        var schedules = await _analyticsService.GetReportSchedulesAsync(userId, page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetReportSchedulesQuery(userId, page, pageSize);
+        var schedules = await _mediator.Send(query, cancellationToken);
         return Ok(schedules);
     }
 
@@ -867,7 +953,8 @@ public class AnalyticsController : BaseController
         }
 
         // ✅ SECURITY: Authorization check - Users can only toggle their own schedules unless Admin
-        var scheduleResult = await _analyticsService.GetReportSchedulesAsync(userId, page: 1, pageSize: 100, cancellationToken);
+        var scheduleQuery = new GetReportSchedulesQuery(userId, Page: 1, PageSize: 100);
+        var scheduleResult = await _mediator.Send(scheduleQuery, cancellationToken);
         var schedule = scheduleResult.Items.FirstOrDefault(s => s.Id == id);
         
         if (schedule == null && !User.IsInRole("Admin"))
@@ -875,7 +962,10 @@ public class AnalyticsController : BaseController
             return Forbid();
         }
 
-        var success = await _analyticsService.ToggleReportScheduleAsync(id, isActive, userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var command = new ToggleReportScheduleCommand(id, isActive, userId);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -905,7 +995,8 @@ public class AnalyticsController : BaseController
         }
 
         // ✅ SECURITY: Authorization check - Users can only delete their own schedules unless Admin
-        var scheduleResult = await _analyticsService.GetReportSchedulesAsync(userId, page: 1, pageSize: 100, cancellationToken);
+        var scheduleQuery = new GetReportSchedulesQuery(userId, Page: 1, PageSize: 100);
+        var scheduleResult = await _mediator.Send(scheduleQuery, cancellationToken);
         var schedule = scheduleResult.Items.FirstOrDefault(s => s.Id == id);
         
         if (schedule == null && !User.IsInRole("Admin"))
@@ -913,7 +1004,10 @@ public class AnalyticsController : BaseController
             return Forbid();
         }
 
-        var success = await _analyticsService.DeleteReportScheduleAsync(id, userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var command = new DeleteReportScheduleCommand(id, userId);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -939,14 +1033,10 @@ public class AnalyticsController : BaseController
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate
-        if (startDate >= endDate)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var report = await _analyticsService.GetFinancialReportAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetFinancialReportQuery(startDate, endDate);
+        var report = await _mediator.Send(query, cancellationToken);
         return Ok(report);
     }
 
@@ -966,14 +1056,10 @@ public class AnalyticsController : BaseController
         [FromQuery] string period = "daily",
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate
-        if (startDate >= endDate)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var summaries = await _analyticsService.GetFinancialSummariesAsync(startDate, endDate, period, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetFinancialSummariesQuery(startDate, endDate, period);
+        var summaries = await _mediator.Send(query, cancellationToken);
         return Ok(summaries);
     }
 
@@ -992,14 +1078,10 @@ public class AnalyticsController : BaseController
         [FromQuery] DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 4.1: Input Validation - StartDate < EndDate (her ikisi de varsa)
-        if (startDate.HasValue && endDate.HasValue && startDate.Value >= endDate.Value)
-        {
-            ModelState.AddModelError(nameof(startDate), "Başlangıç tarihi bitiş tarihinden önce olmalıdır");
-            return ValidationProblem(ModelState);
-        }
-
-        var metrics = await _analyticsService.GetFinancialMetricsAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new GetFinancialMetricsQuery(startDate, endDate);
+        var metrics = await _mediator.Send(query, cancellationToken);
         return Ok(metrics);
     }
 }

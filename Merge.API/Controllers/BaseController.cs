@@ -54,13 +54,13 @@ public abstract class BaseController : ControllerBase
     /// <summary>
     /// ModelState validation kontrolü yapar. Geçersizse BadRequest döner.
     /// </summary>
-    protected ActionResult ValidateModelState()
+    protected ActionResult? ValidateModelState()
     {
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);
         }
-        return null;
+        return null; // ModelState geçerli, null döner (çağıran kod devam edebilir)
     }
 }
 
