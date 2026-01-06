@@ -2,14 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Analytics;
 
-public class AnalyticsDateRangeDto
-{
-    [Required]
-    public DateTime StartDate { get; set; }
-    
-    [Required]
-    public DateTime EndDate { get; set; }
-    
-    [StringLength(50)]
-    public string? ComparisonPeriod { get; set; } // PreviousPeriod, PreviousYear, Custom
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record AnalyticsDateRangeDto(
+    [Required] DateTime StartDate,
+    [Required] DateTime EndDate,
+    [StringLength(50)] string? ComparisonPeriod = null // PreviousPeriod, PreviousYear, Custom
+);

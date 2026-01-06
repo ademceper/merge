@@ -28,6 +28,8 @@ public class AnalyticsService : IAnalyticsService
     private readonly IMapper _mapper;
     private readonly ILogger<AnalyticsService> _logger;
     private readonly AnalyticsSettings _settings;
+    private readonly ServiceSettings _serviceSettings;
+    private readonly PaginationSettings _paginationSettings;
     
     // ✅ BOLUM 4.3: JsonSerializerOptions - Reusable instance for performance
     private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
@@ -42,19 +44,25 @@ public class AnalyticsService : IAnalyticsService
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<AnalyticsService> logger,
-        IOptions<AnalyticsSettings> settings)
+        IOptions<AnalyticsSettings> settings,
+        IOptions<ServiceSettings> serviceSettings,
+        IOptions<PaginationSettings> paginationSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
         _settings = settings.Value;
+        _serviceSettings = serviceSettings.Value;
+        _paginationSettings = paginationSettings.Value;
     }
 
     // Dashboard
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<DashboardSummaryDto> GetDashboardSummaryAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Fetching dashboard summary. StartDate: {StartDate}, EndDate: {EndDate}", startDate, endDate);
+        
         var end = endDate ?? DateTime.UtcNow;
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var start = startDate ?? end.AddDays(-_settings.DefaultDashboardPeriodDays);
@@ -105,19 +113,22 @@ public class AnalyticsService : IAnalyticsService
             .AsNoTracking()
             .CountAsync(p => p.StockQuantity < _settings.LowStockThreshold, cancellationToken);
 
-        return new DashboardSummaryDto
-        {
-            TotalRevenue = totalRevenue,
-            RevenueChange = revenueChange,
-            TotalOrders = totalOrders,
-            OrdersChange = ordersChange,
-            TotalCustomers = totalCustomers,
-            CustomersChange = customersChange,
-            AverageOrderValue = aov,
-            AOVChange = aovChange,
-            PendingOrders = pendingOrders,
-            LowStockProducts = lowStockProducts
-        };
+        _logger.LogInformation("Dashboard summary calculated. TotalRevenue: {TotalRevenue}, TotalOrders: {TotalOrders}, TotalCustomers: {TotalCustomers}",
+            totalRevenue, totalOrders, totalCustomers);
+
+        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+        return new DashboardSummaryDto(
+            totalRevenue,
+            revenueChange,
+            totalOrders,
+            ordersChange,
+            totalCustomers,
+            customersChange,
+            aov,
+            aovChange,
+            pendingOrders,
+            lowStockProducts,
+            new List<DashboardMetricDto>()); // Metrics listesi şimdilik boş
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -146,6 +157,8 @@ public class AnalyticsService : IAnalyticsService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task RefreshDashboardMetricsAsync(CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Refreshing dashboard metrics");
+        
         var now = DateTime.UtcNow;
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var last30Days = now.AddDays(-_settings.DefaultPeriodDays);
@@ -167,6 +180,8 @@ public class AnalyticsService : IAnalyticsService
 
         // Add more metrics as needed
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        
+        _logger.LogInformation("Dashboard metrics refreshed successfully");
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -181,6 +196,8 @@ public class AnalyticsService : IAnalyticsService
     // Sales Analytics
     public async Task<SalesAnalyticsDto> GetSalesAnalyticsAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Fetching sales analytics. StartDate: {StartDate}, EndDate: {EndDate}", startDate, endDate);
+        
         // ✅ PERFORMANCE: Database'de aggregate query kullan (basit aggregateler için)
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
@@ -209,21 +226,30 @@ public class AnalyticsService : IAnalyticsService
             .Where(o => o.CreatedAt >= startDate && o.CreatedAt <= endDate)
             .SumAsync(o => (o.CouponDiscount ?? 0) + (o.GiftCardDiscount ?? 0), cancellationToken);
 
-        return new SalesAnalyticsDto
-        {
-            StartDate = startDate,
-            EndDate = endDate,
-            TotalRevenue = totalRevenue,
-            TotalOrders = totalOrders,
-            AverageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0,
-            TotalTax = totalTax,
-            TotalShipping = totalShipping,
-            TotalDiscounts = totalDiscounts,
-            NetRevenue = totalRevenue - totalDiscounts,
-            RevenueOverTime = await GetRevenueOverTimeAsync(startDate, endDate, cancellationToken: cancellationToken),
-            TopProducts = await GetTopProductsAsync(startDate, endDate, 10, cancellationToken),
-            SalesByCategory = await GetSalesByCategoryAsync(startDate, endDate, cancellationToken)
-        };
+        _logger.LogInformation("Sales analytics calculated. TotalRevenue: {TotalRevenue}, TotalOrders: {TotalOrders}",
+            totalRevenue, totalOrders);
+
+        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+        var revenueOverTime = await GetRevenueOverTimeAsync(startDate, endDate, cancellationToken: cancellationToken);
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
+        var topProducts = await GetTopProductsAsync(startDate, endDate, _settings.DefaultLimit, cancellationToken);
+        var salesByCategory = await GetSalesByCategoryAsync(startDate, endDate, cancellationToken);
+        
+        return new SalesAnalyticsDto(
+            startDate,
+            endDate,
+            totalRevenue,
+            totalOrders,
+            totalOrders > 0 ? totalRevenue / totalOrders : 0,
+            totalTax,
+            totalShipping,
+            totalDiscounts,
+            totalRevenue - totalDiscounts,
+            revenueOverTime,
+            new List<TimeSeriesDataPoint>(), // OrdersOverTime - şimdilik boş
+            salesByCategory,
+            topProducts
+        );
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -236,12 +262,13 @@ public class AnalyticsService : IAnalyticsService
             .AsNoTracking()
             .Where(o => o.CreatedAt >= startDate && o.CreatedAt <= endDate)
             .GroupBy(o => o.CreatedAt.Date)
-            .Select(g => new TimeSeriesDataPoint
-            {
-                Date = g.Key,
-                Value = g.Sum(o => o.TotalAmount),
-                Count = g.Count()
-            })
+            // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+            .Select(g => new TimeSeriesDataPoint(
+                g.Key,
+                g.Sum(o => o.TotalAmount),
+                null, // Label
+                g.Count()
+            ))
             .OrderBy(d => d.Date)
             .ToListAsync(cancellationToken);
     }
@@ -249,6 +276,9 @@ public class AnalyticsService : IAnalyticsService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<List<TopProductDto>> GetTopProductsAsync(DateTime startDate, DateTime endDate, int limit = 10, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 12.0: Magic number config'den - eğer default değer kullanılıyorsa config'den al
+        if (limit == 10) limit = _settings.TopProductsLimit;
+        
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !oi.IsDeleted and !oi.Order.IsDeleted checks (Global Query Filter handles it)
@@ -258,15 +288,15 @@ public class AnalyticsService : IAnalyticsService
             .Include(oi => oi.Order)
             .Where(oi => oi.Order.CreatedAt >= startDate && oi.Order.CreatedAt <= endDate)
             .GroupBy(oi => new { oi.ProductId, oi.Product.Name, oi.Product.SKU })
-            .Select(g => new TopProductDto
-            {
-                ProductId = g.Key.ProductId,
-                ProductName = g.Key.Name,
-                SKU = g.Key.SKU,
-                UnitsSold = g.Sum(oi => oi.Quantity),
-                Revenue = g.Sum(oi => oi.TotalPrice),
-                AveragePrice = g.Average(oi => oi.UnitPrice)
-            })
+            // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+            .Select(g => new TopProductDto(
+                g.Key.ProductId,
+                g.Key.Name,
+                g.Key.SKU,
+                g.Sum(oi => oi.Quantity),
+                g.Sum(oi => oi.TotalPrice),
+                g.Average(oi => oi.UnitPrice)
+            ))
             .OrderByDescending(p => p.Revenue)
             .Take(limit)
             .ToListAsync(cancellationToken);
@@ -285,14 +315,14 @@ public class AnalyticsService : IAnalyticsService
             .Include(oi => oi.Order)
             .Where(oi => oi.Order.CreatedAt >= startDate && oi.Order.CreatedAt <= endDate && oi.Product.Category != null)
             .GroupBy(oi => new { oi.Product.CategoryId, CategoryName = oi.Product.Category!.Name })
-            .Select(g => new CategorySalesDto
-            {
-                CategoryId = g.Key.CategoryId,
-                CategoryName = g.Key.CategoryName,
-                Revenue = g.Sum(oi => oi.TotalPrice),
-                OrderCount = g.Select(oi => oi.OrderId).Distinct().Count(),
-                ProductsSold = g.Sum(oi => oi.Quantity)
-            })
+            // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+            .Select(g => new CategorySalesDto(
+                g.Key.CategoryId,
+                g.Key.CategoryName,
+                g.Sum(oi => oi.TotalPrice),
+                g.Select(oi => oi.OrderId).Distinct().Count(),
+                g.Sum(oi => oi.Quantity)
+            ))
             .OrderByDescending(c => c.Revenue)
             .ToListAsync(cancellationToken);
     }
@@ -328,25 +358,32 @@ public class AnalyticsService : IAnalyticsService
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var start = startDate ?? end.AddDays(-_settings.DefaultPeriodDays);
 
-        return new ProductAnalyticsDto
-        {
-            StartDate = start,
-            EndDate = end,
-            TotalProducts = totalProducts,
-            ActiveProducts = activeProducts,
-            OutOfStockProducts = outOfStock,
-            LowStockProducts = lowStock,
-            TotalInventoryValue = totalValue,
-            // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-            BestSellers = await GetBestSellersAsync(_settings.MaxQueryLimit, cancellationToken),
-            WorstPerformers = await GetWorstPerformersAsync(_settings.MaxQueryLimit, cancellationToken),
-            CategoryPerformance = await GetCategoryPerformanceAsync(cancellationToken)
-        };
+        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
+        var bestSellers = await GetBestSellersAsync(_settings.MaxQueryLimit, cancellationToken);
+        var worstPerformers = await GetWorstPerformersAsync(_settings.MaxQueryLimit, cancellationToken);
+        var categoryPerformance = await GetCategoryPerformanceAsync(cancellationToken);
+        
+        return new ProductAnalyticsDto(
+            start,
+            end,
+            totalProducts,
+            activeProducts,
+            outOfStock,
+            lowStock,
+            totalValue,
+            bestSellers,
+            worstPerformers,
+            categoryPerformance
+        );
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<List<TopProductDto>> GetBestSellersAsync(int limit = 10, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 12.0: Magic number config'den - eğer default değer kullanılıyorsa config'den al
+        if (limit == 10) limit = _settings.TopProductsLimit;
+        
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var last30Days = DateTime.UtcNow.AddDays(-_settings.DefaultPeriodDays);
         return await GetTopProductsAsync(last30Days, DateTime.UtcNow, limit, cancellationToken);
@@ -355,6 +392,9 @@ public class AnalyticsService : IAnalyticsService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<List<TopProductDto>> GetWorstPerformersAsync(int limit = 10, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 12.0: Magic number config'den - eğer default değer kullanılıyorsa config'den al
+        if (limit == 10) limit = _settings.TopProductsLimit;
+        
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
         var last30Days = DateTime.UtcNow.AddDays(-_settings.DefaultPeriodDays);
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
@@ -366,15 +406,15 @@ public class AnalyticsService : IAnalyticsService
             .Include(oi => oi.Order)
             .Where(oi => oi.Order.CreatedAt >= last30Days)
             .GroupBy(oi => new { oi.ProductId, oi.Product.Name, oi.Product.SKU })
-            .Select(g => new TopProductDto
-            {
-                ProductId = g.Key.ProductId,
-                ProductName = g.Key.Name,
-                SKU = g.Key.SKU,
-                UnitsSold = g.Sum(oi => oi.Quantity),
-                Revenue = g.Sum(oi => oi.TotalPrice),
-                AveragePrice = g.Average(oi => oi.UnitPrice)
-            })
+            // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+            .Select(g => new TopProductDto(
+                g.Key.ProductId,
+                g.Key.Name,
+                g.Key.SKU,
+                g.Sum(oi => oi.Quantity),
+                g.Sum(oi => oi.TotalPrice),
+                g.Average(oi => oi.UnitPrice)
+            ))
             .OrderBy(p => p.Revenue)
             .Take(limit)
             .ToListAsync(cancellationToken);
@@ -391,15 +431,14 @@ public class AnalyticsService : IAnalyticsService
             .Include(p => p.Category)
             .Where(p => p.Category != null)
             .GroupBy(p => new { p.CategoryId, CategoryName = p.Category!.Name })
-            .Select(g => new ProductCategoryPerformanceDto
-            {
-                CategoryId = g.Key.CategoryId,
-                CategoryName = g.Key.CategoryName,
-                ProductCount = g.Count(),
-                TotalStock = g.Sum(p => p.StockQuantity),
-                AveragePrice = g.Average(p => p.Price),
-                TotalValue = g.Sum(p => p.Price * p.StockQuantity)
-            })
+            .Select(g => new ProductCategoryPerformanceDto(
+                g.Key.CategoryId,
+                g.Key.CategoryName,
+                g.Count(),
+                g.Sum(p => p.StockQuantity),
+                g.Average(p => p.Price),
+                g.Sum(p => p.Price * p.StockQuantity)
+            ))
             .OrderByDescending(c => c.TotalValue)
             .ToListAsync(cancellationToken);
     }
@@ -446,22 +485,32 @@ public class AnalyticsService : IAnalyticsService
             .Distinct()
             .CountAsync(cancellationToken);
 
-        return new CustomerAnalyticsDto
-        {
-            StartDate = startDate,
-            EndDate = endDate,
-            TotalCustomers = totalCustomers,
-            NewCustomers = newCustomers,
-            ActiveCustomers = activeCustomers,
-            // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-            TopCustomers = await GetTopCustomersAsync(_settings.MaxQueryLimit, cancellationToken),
-            CustomerSegments = await GetCustomerSegmentsAsync(cancellationToken)
-        };
+        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
+        var topCustomers = await GetTopCustomersAsync(_settings.MaxQueryLimit, cancellationToken);
+        var customerSegments = await GetCustomerSegmentsAsync(cancellationToken);
+        
+        return new CustomerAnalyticsDto(
+            startDate,
+            endDate,
+            totalCustomers,
+            newCustomers,
+            activeCustomers,
+            0, // ReturningCustomers - şimdilik 0
+            0, // AverageLifetimeValue - şimdilik 0
+            0, // AveragePurchaseFrequency - şimdilik 0
+            customerSegments,
+            topCustomers,
+            new List<TimeSeriesDataPoint>() // CustomerAcquisition - şimdilik boş
+        );
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<List<TopCustomerDto>> GetTopCustomersAsync(int limit = 10, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 12.0: Magic number config'den - eğer default değer kullanılıyorsa config'den al
+        if (limit == 10) limit = _settings.TopProductsLimit;
+        
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
@@ -469,15 +518,15 @@ public class AnalyticsService : IAnalyticsService
             .AsNoTracking()
             .Include(o => o.User)
             .GroupBy(o => new { o.UserId, o.User.FirstName, o.User.LastName, o.User.Email })
-            .Select(g => new TopCustomerDto
-            {
-                CustomerId = g.Key.UserId,
-                CustomerName = $"{g.Key.FirstName} {g.Key.LastName}",
-                Email = g.Key.Email ?? string.Empty,
-                OrderCount = g.Count(),
-                TotalSpent = g.Sum(o => o.TotalAmount),
-                LastOrderDate = g.Max(o => o.CreatedAt)
-            })
+            // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+            .Select(g => new TopCustomerDto(
+                g.Key.UserId,
+                $"{g.Key.FirstName} {g.Key.LastName}",
+                g.Key.Email ?? string.Empty,
+                g.Count(),
+                g.Sum(o => o.TotalAmount),
+                g.Max(o => o.CreatedAt)
+            ))
             .OrderByDescending(c => c.TotalSpent)
             .Take(limit)
             .ToListAsync(cancellationToken);
@@ -502,12 +551,18 @@ public class AnalyticsService : IAnalyticsService
 
     public async Task<decimal> GetCustomerLifetimeValueAsync(Guid customerId, CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Fetching customer lifetime value for CustomerId: {CustomerId}", customerId);
+        
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
-        return await _context.Set<OrderEntity>()
+        var ltv = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.UserId == customerId)
             .SumAsync(o => o.TotalAmount, cancellationToken);
+        
+        _logger.LogInformation("Customer lifetime value calculated. CustomerId: {CustomerId}, LTV: {LifetimeValue}", customerId, ltv);
+        
+        return ltv;
     }
 
     // Inventory Analytics
@@ -535,37 +590,45 @@ public class AnalyticsService : IAnalyticsService
             .AsNoTracking()
             .SumAsync(p => p.Price * p.StockQuantity, cancellationToken);
 
-        return new InventoryAnalyticsDto
-        {
-            TotalProducts = totalProducts,
-            TotalStock = totalStock,
-            LowStockCount = lowStock,
-            OutOfStockCount = outOfStock,
-            TotalInventoryValue = totalValue,
-            // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-            LowStockProducts = await GetLowStockProductsAsync(_settings.MaxQueryLimit, cancellationToken),
-            StockByWarehouse = await GetStockByWarehouseAsync(cancellationToken)
-        };
+        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
+        var lowStockProducts = await GetLowStockProductsAsync(_settings.MaxQueryLimit, cancellationToken);
+        var stockByWarehouse = await GetStockByWarehouseAsync(cancellationToken);
+        
+        return new InventoryAnalyticsDto(
+            totalProducts,
+            totalStock,
+            lowStock,
+            outOfStock,
+            totalValue,
+            stockByWarehouse,
+            lowStockProducts,
+            new List<StockMovementSummaryDto>() // RecentMovements - şimdilik boş
+        );
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    public async Task<List<LowStockProductDto>> GetLowStockProductsAsync(int threshold = 10, CancellationToken cancellationToken = default)
+    // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
+    public async Task<List<LowStockProductDto>> GetLowStockProductsAsync(int threshold = 0, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
+        if (threshold <= 0) threshold = _settings.DefaultLowStockThreshold;
+        
         // ✅ PERFORMANCE: Database'de DTO oluştur (memory'de Select/ToList YASAK)
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted check (Global Query Filter handles it)
         return await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.StockQuantity < threshold && p.StockQuantity > 0)
-            .Select(p => new LowStockProductDto
-            {
-                ProductId = p.Id,
-                ProductName = p.Name,
-                SKU = p.SKU,
-                CurrentStock = p.StockQuantity,
-                MinimumStock = threshold,
-                ReorderLevel = threshold * 2
-            })
+            // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+            .Select(p => new LowStockProductDto(
+                p.Id,
+                p.Name,
+                p.SKU,
+                p.StockQuantity,
+                threshold,
+                threshold * 2
+            ))
             .OrderBy(p => p.CurrentStock)
             // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
             .Take(_settings.MaxQueryLimit)
@@ -583,14 +646,14 @@ public class AnalyticsService : IAnalyticsService
             .Include(i => i.Warehouse)
             .Include(i => i.Product)
             .GroupBy(i => new { i.WarehouseId, i.Warehouse.Name })
-            .Select(g => new WarehouseStockDto
-            {
-                WarehouseId = g.Key.WarehouseId,
-                WarehouseName = g.Key.Name,
-                TotalProducts = g.Count(),
-                TotalQuantity = g.Sum(i => i.Quantity),
-                TotalValue = g.Sum(i => i.Product.Price * i.Quantity)
-            })
+            // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+            .Select(g => new WarehouseStockDto(
+                g.Key.WarehouseId,
+                g.Key.Name,
+                g.Count(),
+                g.Sum(i => i.Quantity),
+                g.Sum(i => i.Product.Price * i.Quantity)
+            ))
             .ToListAsync(cancellationToken);
     }
 
@@ -615,17 +678,22 @@ public class AnalyticsService : IAnalyticsService
             .Where(o => o.CreatedAt >= startDate && o.CreatedAt <= endDate)
             .SumAsync(o => (o.CouponDiscount ?? 0) + (o.GiftCardDiscount ?? 0), cancellationToken);
 
-        return new MarketingAnalyticsDto
-        {
-            StartDate = startDate,
-            EndDate = endDate,
-            ActiveCoupons = coupons,
-            CouponUsageCount = couponUsageCount,  // ✅ Database'de count
-            TotalDiscountsGiven = totalDiscounts,
-            TopCoupons = await GetCouponPerformanceAsync(startDate, endDate, cancellationToken),
-            // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU) - 1 eleman biliniyor
-            ReferralStats = new List<ReferralPerformanceDto>(1) { await GetReferralPerformanceAsync(startDate, endDate, cancellationToken) }
-        };
+        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+        var topCoupons = await GetCouponPerformanceAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU) - 1 eleman biliniyor
+        var referralStats = new List<ReferralPerformanceDto>(1) { await GetReferralPerformanceAsync(startDate, endDate, cancellationToken) };
+        
+        return new MarketingAnalyticsDto(
+            startDate,
+            endDate,
+            0, // TotalCampaigns - şimdilik 0
+            coupons,
+            couponUsageCount,  // ✅ Database'de count
+            totalDiscounts,
+            0, // EmailMarketingROI - şimdilik 0
+            topCoupons,
+            referralStats
+        );
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -640,14 +708,14 @@ public class AnalyticsService : IAnalyticsService
             .Include(cu => cu.Order)
             .Where(cu => cu.CreatedAt >= startDate && cu.CreatedAt <= endDate)
             .GroupBy(cu => new { cu.CouponId, cu.Coupon.Code })
-            .Select(g => new CouponPerformanceDto
-            {
-                CouponId = g.Key.CouponId,
-                Code = g.Key.Code,
-                UsageCount = g.Count(),
-                TotalDiscount = g.Sum(cu => (cu.Order != null ? (cu.Order.CouponDiscount ?? 0) + (cu.Order.GiftCardDiscount ?? 0) : 0)),
-                RevenueGenerated = g.Sum(cu => cu.Order != null ? cu.Order.TotalAmount : 0)
-            })
+            // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+            .Select(g => new CouponPerformanceDto(
+                g.Key.CouponId,
+                g.Key.Code,
+                g.Count(),
+                g.Sum(cu => (cu.Order != null ? (cu.Order.CouponDiscount ?? 0) + (cu.Order.GiftCardDiscount ?? 0) : 0)),
+                g.Sum(cu => cu.Order != null ? cu.Order.TotalAmount : 0)
+            ))
             .OrderByDescending(c => c.UsageCount)
             .ToListAsync(cancellationToken);
     }
@@ -665,13 +733,13 @@ public class AnalyticsService : IAnalyticsService
         var successfulReferrals = await referralsQuery.CountAsync(r => r.CompletedAt != null, cancellationToken);
         var totalRewardsGiven = await referralsQuery.SumAsync(r => r.PointsAwarded, cancellationToken);
 
-        return new ReferralPerformanceDto
-        {
-            TotalReferrals = totalReferrals,
-            SuccessfulReferrals = successfulReferrals,
-            ConversionRate = totalReferrals > 0 ? (decimal)successfulReferrals / totalReferrals * 100 : 0,
-            TotalRewardsGiven = totalRewardsGiven
-        };
+        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+        return new ReferralPerformanceDto(
+            totalReferrals,
+            successfulReferrals,
+            totalReferrals > 0 ? (decimal)successfulReferrals / totalReferrals * 100 : 0,
+            totalRewardsGiven
+        );
     }
 
     // Financial Analytics
@@ -696,24 +764,30 @@ public class AnalyticsService : IAnalyticsService
 
         var netProfit = grossRevenue - totalRefunds - totalShipping;
 
-        return new FinancialAnalyticsDto
-        {
-            StartDate = startDate,
-            EndDate = endDate,
-            GrossRevenue = grossRevenue,
-            TotalCosts = totalShipping + totalRefunds,
-            NetProfit = netProfit,
-            ProfitMargin = grossRevenue > 0 ? (netProfit / grossRevenue) * 100 : 0,
-            TotalTax = totalTax,
-            TotalRefunds = totalRefunds,
-            TotalShippingCosts = totalShipping,
-            RevenueTimeSeries = await GetRevenueOverTimeAsync(startDate, endDate)
-        };
+        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+        var revenueTimeSeries = await GetRevenueOverTimeAsync(startDate, endDate, cancellationToken: cancellationToken);
+        
+        return new FinancialAnalyticsDto(
+            startDate,
+            endDate,
+            grossRevenue,
+            totalShipping + totalRefunds,
+            netProfit,
+            grossRevenue > 0 ? (netProfit / grossRevenue) * 100 : 0,
+            totalTax,
+            totalRefunds,
+            totalShipping,
+            revenueTimeSeries,
+            new List<TimeSeriesDataPoint>() // ProfitTimeSeries - şimdilik boş
+        );
     }
 
     // Reports
     public async Task<ReportDto> GenerateReportAsync(CreateReportDto dto, Guid userId, CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Generating report. UserId: {UserId}, ReportType: {ReportType}, StartDate: {StartDate}, EndDate: {EndDate}",
+            userId, dto.Type, dto.StartDate, dto.EndDate);
+        
         // ✅ ARCHITECTURE: Transaction support for atomic report generation
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
@@ -758,8 +832,10 @@ public class AnalyticsService : IAnalyticsService
                 .Include(r => r.GeneratedByUser)
                 .FirstOrDefaultAsync(r => r.Id == report.Id, cancellationToken);
 
+            _logger.LogInformation("Report generated successfully. ReportId: {ReportId}, UserId: {UserId}", report!.Id, userId);
+
             // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-            return _mapper.Map<ReportDto>(report!);
+            return _mapper.Map<ReportDto>(report);
         }
         catch (Exception ex)
         {
@@ -774,6 +850,8 @@ public class AnalyticsService : IAnalyticsService
 
     public async Task<ReportDto?> GetReportAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Fetching report. ReportId: {ReportId}", id);
+        
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
         var report = await _context.Set<Report>()
@@ -781,16 +859,24 @@ public class AnalyticsService : IAnalyticsService
             .Include(r => r.GeneratedByUser)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
+        if (report == null)
+        {
+            _logger.LogWarning("Report not found. ReportId: {ReportId}", id);
+        }
+
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return report != null ? _mapper.Map<ReportDto>(report) : null;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndür
-    public async Task<PagedResult<ReportDto>> GetReportsAsync(Guid? userId = null, string? type = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
+    public async Task<PagedResult<ReportDto>> GetReportsAsync(Guid? userId = null, string? type = null, int page = 1, int pageSize = 0, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
+        if (pageSize <= 0) pageSize = _settings.DefaultPageSize;
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
@@ -832,6 +918,8 @@ public class AnalyticsService : IAnalyticsService
 
     public async Task<byte[]> ExportReportAsync(Guid reportId, Guid? userId = null, CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Exporting report. ReportId: {ReportId}, UserId: {UserId}", reportId, userId);
+        
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var report = await _context.Set<Report>()
             .AsNoTracking()
@@ -840,33 +928,45 @@ public class AnalyticsService : IAnalyticsService
 
         if (report == null)
         {
+            _logger.LogWarning("Report not found for export. ReportId: {ReportId}", reportId);
             throw new NotFoundException("Rapor", reportId);
         }
 
         // ✅ SECURITY: Authorization check - Users can only export their own reports unless Admin
         if (userId.HasValue && report.GeneratedBy != userId.Value)
         {
+            _logger.LogWarning("Unauthorized report export attempt. ReportId: {ReportId}, UserId: {UserId}, ReportOwner: {ReportOwner}",
+                reportId, userId, report.GeneratedBy);
             throw new UnauthorizedAccessException("Bu raporu export etme yetkiniz yok.");
         }
 
         // Simple CSV export example
         var data = report.Data ?? "{}";
+        _logger.LogInformation("Report exported successfully. ReportId: {ReportId}, DataSize: {DataSize} bytes", reportId, data.Length);
         return System.Text.Encoding.UTF8.GetBytes(data);
     }
 
     public async Task<bool> DeleteReportAsync(Guid id, Guid? userId = null, CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Deleting report. ReportId: {ReportId}, UserId: {UserId}", id, userId);
+        
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted (Global Query Filter)
         var report = await _context.Set<Report>()
             .AsNoTracking()
             .Include(r => r.GeneratedByUser)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
-        if (report == null) return false;
+        if (report == null)
+        {
+            _logger.LogWarning("Report not found for deletion. ReportId: {ReportId}", id);
+            return false;
+        }
 
         // ✅ SECURITY: Authorization check - Users can only delete their own reports unless Admin
         if (userId.HasValue && report.GeneratedBy != userId.Value)
         {
+            _logger.LogWarning("Unauthorized report deletion attempt. ReportId: {ReportId}, UserId: {UserId}, ReportOwner: {ReportOwner}",
+                id, userId, report.GeneratedBy);
             throw new UnauthorizedAccessException("Bu raporu silme yetkiniz yok.");
         }
 
@@ -880,12 +980,16 @@ public class AnalyticsService : IAnalyticsService
         report.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        _logger.LogInformation("Report deleted successfully. ReportId: {ReportId}", id);
         return true;
     }
 
     // Report Scheduling
     public async Task<ReportScheduleDto> CreateReportScheduleAsync(CreateReportScheduleDto dto, Guid userId, CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Creating report schedule. UserId: {UserId}, ReportType: {ReportType}, Frequency: {Frequency}",
+            userId, dto.Type, dto.Frequency);
+        
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var schedule = ReportSchedule.Create(
             dto.Name,
@@ -903,16 +1007,21 @@ public class AnalyticsService : IAnalyticsService
         await _context.Set<ReportSchedule>().AddAsync(schedule, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        _logger.LogInformation("Report schedule created successfully. ScheduleId: {ScheduleId}, UserId: {UserId}", schedule.Id, userId);
+
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return _mapper.Map<ReportScheduleDto>(schedule);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndür
-    public async Task<PagedResult<ReportScheduleDto>> GetReportSchedulesAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
+    public async Task<PagedResult<ReportScheduleDto>> GetReportSchedulesAsync(Guid userId, int page = 1, int pageSize = 0, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
+        if (pageSize <= 0) pageSize = _settings.DefaultPageSize;
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
@@ -1053,24 +1162,24 @@ public class AnalyticsService : IAnalyticsService
             .Distinct()
             .CountAsync(cancellationToken);
 
-        return new ReviewAnalyticsDto
-        {
-            StartDate = startDate,
-            EndDate = endDate,
-            TotalReviews = totalReviews,
-            ApprovedReviews = approvedReviews,
-            PendingReviews = pendingReviews,
-            RejectedReviews = rejectedReviews,
-            AverageRating = Math.Round(averageRating, 2),
-            ReviewsWithMedia = reviewsWithMedia,
-            VerifiedPurchaseReviews = verifiedPurchaseReviews,
-            HelpfulPercentage = Math.Round(helpfulPercentage, 2),
-            RatingDistribution = await GetRatingDistributionAsync(startDate, endDate, cancellationToken),
-            ReviewTrends = await GetReviewTrendsAsync(startDate, endDate, cancellationToken),
+        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+        return new ReviewAnalyticsDto(
+            startDate,
+            endDate,
+            totalReviews,
+            approvedReviews,
+            pendingReviews,
+            rejectedReviews,
+            Math.Round(averageRating, 2),
+            reviewsWithMedia,
+            verifiedPurchaseReviews,
+            Math.Round(helpfulPercentage, 2),
+            await GetRatingDistributionAsync(startDate, endDate, cancellationToken),
+            await GetReviewTrendsAsync(startDate, endDate, cancellationToken),
             // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-            TopReviewedProducts = await GetTopReviewedProductsAsync(_settings.MaxQueryLimit, cancellationToken),
-            TopReviewers = await GetTopReviewersAsync(_settings.MaxQueryLimit, cancellationToken)
-        };
+            await GetTopReviewedProductsAsync(_settings.MaxQueryLimit, cancellationToken),
+            await GetTopReviewersAsync(_settings.MaxQueryLimit, cancellationToken)
+        );
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -1105,40 +1214,15 @@ public class AnalyticsService : IAnalyticsService
         var rating4Count = await query.CountAsync(r => r.Rating == 4, cancellationToken);
         var rating5Count = await query.CountAsync(r => r.Rating == 5, cancellationToken);
 
-        // ✅ PERFORMANCE: DTO'ları oluştur (sadece property assignment, memory'de işlem YOK)
+        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU) - 5 eleman biliniyor (rating 1-5)
         return new List<RatingDistributionDto>(5)
         {
-            new RatingDistributionDto
-            {
-                Rating = 1,
-                Count = rating1Count,
-                Percentage = total > 0 ? Math.Round((decimal)rating1Count / total * 100, 2) : 0
-            },
-            new RatingDistributionDto
-            {
-                Rating = 2,
-                Count = rating2Count,
-                Percentage = total > 0 ? Math.Round((decimal)rating2Count / total * 100, 2) : 0
-            },
-            new RatingDistributionDto
-            {
-                Rating = 3,
-                Count = rating3Count,
-                Percentage = total > 0 ? Math.Round((decimal)rating3Count / total * 100, 2) : 0
-            },
-            new RatingDistributionDto
-            {
-                Rating = 4,
-                Count = rating4Count,
-                Percentage = total > 0 ? Math.Round((decimal)rating4Count / total * 100, 2) : 0
-            },
-            new RatingDistributionDto
-            {
-                Rating = 5,
-                Count = rating5Count,
-                Percentage = total > 0 ? Math.Round((decimal)rating5Count / total * 100, 2) : 0
-            }
+            new RatingDistributionDto(1, rating1Count, total > 0 ? Math.Round((decimal)rating1Count / total * 100, 2) : 0),
+            new RatingDistributionDto(2, rating2Count, total > 0 ? Math.Round((decimal)rating2Count / total * 100, 2) : 0),
+            new RatingDistributionDto(3, rating3Count, total > 0 ? Math.Round((decimal)rating3Count / total * 100, 2) : 0),
+            new RatingDistributionDto(4, rating4Count, total > 0 ? Math.Round((decimal)rating4Count / total * 100, 2) : 0),
+            new RatingDistributionDto(5, rating5Count, total > 0 ? Math.Round((decimal)rating5Count / total * 100, 2) : 0)
         };
     }
 
@@ -1148,16 +1232,16 @@ public class AnalyticsService : IAnalyticsService
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
+        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         return await _context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.IsApproved && r.CreatedAt >= startDate && r.CreatedAt <= endDate)
             .GroupBy(r => r.CreatedAt.Date)
-            .Select(g => new ReviewTrendDto
-            {
-                Date = g.Key,
-                ReviewCount = g.Count(),
-                AverageRating = Math.Round((decimal)g.Average(r => r.Rating), 2)
-            })
+            .Select(g => new ReviewTrendDto(
+                g.Key,
+                g.Count(),
+                Math.Round((decimal)g.Average(r => r.Rating), 2)
+            ))
             .OrderBy(t => t.Date)
             .ToListAsync(cancellationToken);
     }
@@ -1165,22 +1249,25 @@ public class AnalyticsService : IAnalyticsService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<List<TopReviewedProductDto>> GetTopReviewedProductsAsync(int limit = 10, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 12.0: Magic number config'den - eğer default değer kullanılıyorsa config'den al
+        if (limit == 10) limit = _settings.TopProductsLimit;
+        
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
+        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         return await _context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.Product)
             .Where(r => r.IsApproved)
             .GroupBy(r => new { r.ProductId, ProductName = r.Product.Name })
-            .Select(g => new TopReviewedProductDto
-            {
-                ProductId = g.Key.ProductId,
-                ProductName = g.Key.ProductName,
-                ReviewCount = g.Count(),
-                AverageRating = Math.Round((decimal)g.Average(r => r.Rating), 2),
-                HelpfulCount = g.Sum(r => r.HelpfulCount)
-            })
+            .Select(g => new TopReviewedProductDto(
+                g.Key.ProductId,
+                g.Key.ProductName ?? string.Empty,
+                g.Count(),
+                Math.Round((decimal)g.Average(r => r.Rating), 2),
+                g.Sum(r => r.HelpfulCount)
+            ))
             .OrderByDescending(p => p.ReviewCount)
             .ThenByDescending(p => p.AverageRating)
             .Take(limit)
@@ -1190,22 +1277,25 @@ public class AnalyticsService : IAnalyticsService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<List<ReviewerStatsDto>> GetTopReviewersAsync(int limit = 10, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 12.0: Magic number config'den - eğer default değer kullanılıyorsa config'den al
+        if (limit == 10) limit = _settings.TopProductsLimit;
+        
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
+        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         return await _context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.User)
             .Where(r => r.IsApproved)
             .GroupBy(r => new { r.UserId, r.User.FirstName, r.User.LastName })
-            .Select(g => new ReviewerStatsDto
-            {
-                UserId = g.Key.UserId,
-                UserName = $"{g.Key.FirstName} {g.Key.LastName}",
-                ReviewCount = g.Count(),
-                AverageRating = Math.Round((decimal)g.Average(r => r.Rating), 2),
-                HelpfulVotes = g.Sum(r => r.HelpfulCount)
-            })
+            .Select(g => new ReviewerStatsDto(
+                g.Key.UserId,
+                $"{g.Key.FirstName} {g.Key.LastName}",
+                g.Count(),
+                Math.Round((decimal)g.Average(r => r.Rating), 2),
+                g.Sum(r => r.HelpfulCount)
+            ))
             .OrderByDescending(r => r.ReviewCount)
             .ThenByDescending(r => r.HelpfulVotes)
             .Take(limit)
@@ -1298,14 +1388,13 @@ public class AnalyticsService : IAnalyticsService
                   oi.Order.CreatedAt >= startDate && 
                   oi.Order.CreatedAt <= endDate)
             .GroupBy(oi => new { oi.Product.CategoryId, CategoryName = oi.Product.Category.Name })
-            .Select(g => new RevenueByCategoryDto
-            {
-                CategoryId = g.Key.CategoryId,
-                CategoryName = g.Key.CategoryName,
-                Revenue = g.Sum(oi => oi.TotalPrice),
-                OrderCount = g.Select(oi => oi.OrderId).Distinct().Count(),
-                Percentage = totalRevenue > 0 ? (g.Sum(oi => oi.TotalPrice) / totalRevenue) * 100 : 0
-            })
+            .Select(g => new RevenueByCategoryDto(
+                g.Key.CategoryId,
+                g.Key.CategoryName,
+                g.Sum(oi => oi.TotalPrice),
+                g.Select(oi => oi.OrderId).Distinct().Count(),
+                totalRevenue > 0 ? (g.Sum(oi => oi.TotalPrice) / totalRevenue) * 100 : 0
+            ))
             .OrderByDescending(c => c.Revenue)
             .ToListAsync(cancellationToken);
 
@@ -1316,15 +1405,13 @@ public class AnalyticsService : IAnalyticsService
                   o.CreatedAt >= startDate &&
                   o.CreatedAt <= endDate)
             .GroupBy(o => o.CreatedAt.Date)
-            .Select(g => new RevenueByDateDto
-            {
-                Date = g.Key,
-                Revenue = g.Sum(o => o.TotalAmount),
-                // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-                Costs = g.Sum(o => o.TotalAmount * _settings.DefaultCostPercentage),
-                Profit = g.Sum(o => o.TotalAmount * _settings.DefaultProfitPercentage),
-                OrderCount = g.Count()
-            })
+            .Select(g => new RevenueByDateDto(
+                g.Key,
+                g.Sum(o => o.TotalAmount),
+                g.Sum(o => o.TotalAmount * _settings.DefaultCostPercentage),
+                g.Sum(o => o.TotalAmount * _settings.DefaultProfitPercentage),
+                g.Count()
+            ))
             .OrderBy(r => r.Date)
             .ToListAsync(cancellationToken);
 
@@ -1392,16 +1479,14 @@ public class AnalyticsService : IAnalyticsService
                       o.CreatedAt >= startDate &&
                       o.CreatedAt <= endDate)
                 .GroupBy(o => o.CreatedAt.Date)
-                .Select(g => new FinancialSummaryDto
-                {
-                    Period = g.Key,
-                    TotalRevenue = g.Sum(o => o.TotalAmount),
-                    // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-                    TotalCosts = g.Sum(o => o.TotalAmount * _settings.DefaultCostPercentage),
-                    NetProfit = g.Sum(o => o.TotalAmount * _settings.DefaultProfitPercentage),
-                    ProfitMargin = (int)(_settings.DefaultProfitPercentage * 100),
-                    TotalOrders = g.Count()
-                })
+                .Select(g => new FinancialSummaryDto(
+                    g.Key,
+                    g.Sum(o => o.TotalAmount),
+                    g.Sum(o => o.TotalAmount * _settings.DefaultCostPercentage),
+                    g.Sum(o => o.TotalAmount * _settings.DefaultProfitPercentage),
+                    (int)(_settings.DefaultProfitPercentage * 100),
+                    g.Count()
+                ))
                 .OrderBy(s => s.Period)
                 .ToListAsync(cancellationToken);
         }
@@ -1440,16 +1525,14 @@ public class AnalyticsService : IAnalyticsService
                       o.CreatedAt >= startDate &&
                       o.CreatedAt <= endDate)
                 .GroupBy(o => new { o.CreatedAt.Year, o.CreatedAt.Month })
-                .Select(g => new FinancialSummaryDto
-                {
-                    Period = new DateTime(g.Key.Year, g.Key.Month, 1),
-                    TotalRevenue = g.Sum(o => o.TotalAmount),
-                    // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-                    TotalCosts = g.Sum(o => o.TotalAmount * _settings.DefaultCostPercentage),
-                    NetProfit = g.Sum(o => o.TotalAmount * _settings.DefaultProfitPercentage),
-                    ProfitMargin = (int)(_settings.DefaultProfitPercentage * 100),
-                    TotalOrders = g.Count()
-                })
+                .Select(g => new FinancialSummaryDto(
+                    new DateTime(g.Key.Year, g.Key.Month, 1),
+                    g.Sum(o => o.TotalAmount),
+                    g.Sum(o => o.TotalAmount * _settings.DefaultCostPercentage),
+                    g.Sum(o => o.TotalAmount * _settings.DefaultProfitPercentage),
+                    (int)(_settings.DefaultProfitPercentage * 100),
+                    g.Count()
+                ))
                 .OrderBy(s => s.Period)
                 .ToListAsync(cancellationToken);
         }
@@ -1482,14 +1565,13 @@ public class AnalyticsService : IAnalyticsService
         var totalCosts = totalRevenue * _settings.DefaultCostPercentage;
         var netProfit = totalRevenue - totalCosts;
 
-        return new FinancialMetricsDto
-        {
-            TotalRevenue = Math.Round(totalRevenue, 2),
-            TotalCosts = Math.Round(totalCosts, 2),
-            NetProfit = Math.Round(netProfit, 2),
-            ProfitMargin = totalRevenue > 0 ? Math.Round((netProfit / totalRevenue) * 100, 2) : 0,
-            AverageOrderValue = totalOrders > 0 ? Math.Round(totalRevenue / totalOrders, 2) : 0,
-            TotalOrders = totalOrders
-        };
+        return new FinancialMetricsDto(
+            TotalRevenue: Math.Round(totalRevenue, 2),
+            TotalCosts: Math.Round(totalCosts, 2),
+            NetProfit: Math.Round(netProfit, 2),
+            ProfitMargin: totalRevenue > 0 ? Math.Round((netProfit / totalRevenue) * 100, 2) : 0,
+            AverageOrderValue: totalOrders > 0 ? Math.Round(totalRevenue / totalOrders, 2) : 0,
+            TotalOrders: totalOrders
+        );
     }
 }

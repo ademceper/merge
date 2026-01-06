@@ -1,18 +1,18 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class ReportDto
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public string Type { get; set; } = string.Empty;
-    public string GeneratedBy { get; set; } = string.Empty; // User name for display
-    public Guid GeneratedByUserId { get; set; } // User ID for authorization
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
-    public string Format { get; set; } = string.Empty;
-    public string Status { get; set; } = string.Empty;
-    public DateTime CreatedAt { get; set; }
-    public DateTime? CompletedAt { get; set; }
-    public string? FilePath { get; set; }
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record ReportDto(
+    Guid Id,
+    string Name,
+    string Description,
+    string Type,
+    string GeneratedBy, // User name for display
+    Guid GeneratedByUserId, // User ID for authorization
+    DateTime StartDate,
+    DateTime EndDate,
+    string Format,
+    string Status,
+    DateTime CreatedAt,
+    DateTime? CompletedAt,
+    string? FilePath
+);

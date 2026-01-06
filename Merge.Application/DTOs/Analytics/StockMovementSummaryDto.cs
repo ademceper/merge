@@ -1,9 +1,9 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class StockMovementSummaryDto
-{
-    public string MovementType { get; set; } = string.Empty;
-    public int Count { get; set; }
-    public int TotalQuantity { get; set; }
-    public DateTime Date { get; set; }
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record StockMovementSummaryDto(
+    string MovementType,
+    int Count,
+    int TotalQuantity,
+    DateTime Date
+);

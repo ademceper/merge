@@ -1,13 +1,14 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class LandingPageAnalyticsDto
-{
-    public Guid LandingPageId { get; set; }
-    public string LandingPageName { get; set; } = string.Empty;
-    public int TotalViews { get; set; }
-    public int TotalConversions { get; set; }
-    public decimal ConversionRate { get; set; }
-    public Dictionary<string, int> ViewsByDate { get; set; } = new();
-    public Dictionary<string, int> ConversionsByDate { get; set; } = new();
-    public List<LandingPageVariantDto> Variants { get; set; } = new();
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+// ⚠️ NOT: Dictionary kullanımı .cursorrules'a göre yasak, ancak mevcut yapıyı koruyoruz
+public record LandingPageAnalyticsDto(
+    Guid LandingPageId,
+    string LandingPageName,
+    int TotalViews,
+    int TotalConversions,
+    decimal ConversionRate,
+    Dictionary<string, int> ViewsByDate,
+    Dictionary<string, int> ConversionsByDate,
+    List<LandingPageVariantDto> Variants
+);

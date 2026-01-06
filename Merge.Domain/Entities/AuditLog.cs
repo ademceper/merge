@@ -1,32 +1,116 @@
 using Merge.Domain.Enums;
+using Merge.Domain.Common;
+using Merge.Domain.Exceptions;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Merge.Domain.Entities;
 
 /// <summary>
 /// AuditLog Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class AuditLog : BaseEntity
 {
-    public Guid? UserId { get; set; } // User who performed the action
-    public string UserEmail { get; set; } = string.Empty;
-    public string Action { get; set; } = string.Empty; // Create, Update, Delete, Login, etc.
-    public string EntityType { get; set; } = string.Empty; // Product, Order, User, etc.
-    public Guid? EntityId { get; set; } // ID of the affected entity
-    public string TableName { get; set; } = string.Empty; // Database table name
-    public string PrimaryKey { get; set; } = string.Empty; // Primary key value
-    public string OldValues { get; set; } = string.Empty; // JSON of old values
-    public string NewValues { get; set; } = string.Empty; // JSON of new values
-    public string Changes { get; set; } = string.Empty; // Summary of changes
-    public string IpAddress { get; set; } = string.Empty;
-    public string UserAgent { get; set; } = string.Empty;
-    public AuditSeverity Severity { get; set; } = AuditSeverity.Info;
-    public string Module { get; set; } = string.Empty; // Auth, Products, Orders, etc.
-    public bool IsSuccessful { get; set; } = true;
-    public string? ErrorMessage { get; set; }
-    public string AdditionalData { get; set; } = string.Empty; // JSON for extra context
+    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
+    public Guid? UserId { get; private set; } // User who performed the action
+    public string UserEmail { get; private set; } = string.Empty;
+    public string Action { get; private set; } = string.Empty; // Create, Update, Delete, Login, etc.
+    public string EntityType { get; private set; } = string.Empty; // Product, Order, User, etc.
+    public Guid? EntityId { get; private set; } // ID of the affected entity
+    public string TableName { get; private set; } = string.Empty; // Database table name
+    public string PrimaryKey { get; private set; } = string.Empty; // Primary key value
+    public string OldValues { get; private set; } = string.Empty; // JSON of old values
+    public string NewValues { get; private set; } = string.Empty; // JSON of new values
+    public string Changes { get; private set; } = string.Empty; // Summary of changes
+    public string IpAddress { get; private set; } = string.Empty;
+    public string UserAgent { get; private set; } = string.Empty;
+    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+    public AuditSeverity Severity { get; private set; } = AuditSeverity.Info;
+    public string Module { get; private set; } = string.Empty; // Auth, Products, Orders, etc.
+    public bool IsSuccessful { get; private set; } = true;
+    public string? ErrorMessage { get; private set; }
+    public string AdditionalData { get; private set; } = string.Empty; // JSON for extra context
+
+    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public User? User { get; set; }
+
+    // ✅ BOLUM 1.1: Factory Method - Private constructor
+    private AuditLog() { }
+
+    // ✅ BOLUM 1.1: Factory Method with validation
+    public static AuditLog Create(
+        string action,
+        string entityType,
+        string tableName,
+        string ipAddress,
+        string userAgent,
+        string module,
+        AuditSeverity severity = AuditSeverity.Info,
+        Guid? userId = null,
+        string? userEmail = null,
+        Guid? entityId = null,
+        string? primaryKey = null,
+        string? oldValues = null,
+        string? newValues = null,
+        string? changes = null,
+        string? additionalData = null,
+        bool isSuccessful = true,
+        string? errorMessage = null)
+    {
+        Guard.AgainstNullOrEmpty(action, nameof(action));
+        Guard.AgainstNullOrEmpty(entityType, nameof(entityType));
+        Guard.AgainstNullOrEmpty(tableName, nameof(tableName));
+        Guard.AgainstNullOrEmpty(ipAddress, nameof(ipAddress));
+        Guard.AgainstNullOrEmpty(userAgent, nameof(userAgent));
+        Guard.AgainstNullOrEmpty(module, nameof(module));
+
+        var log = new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            UserEmail = userEmail ?? string.Empty,
+            Action = action,
+            EntityType = entityType,
+            EntityId = entityId,
+            TableName = tableName,
+            PrimaryKey = primaryKey ?? string.Empty,
+            OldValues = oldValues ?? string.Empty,
+            NewValues = newValues ?? string.Empty,
+            Changes = changes ?? string.Empty,
+            IpAddress = ipAddress,
+            UserAgent = userAgent,
+            Severity = severity,
+            Module = module,
+            AdditionalData = additionalData ?? string.Empty,
+            IsSuccessful = isSuccessful,
+            ErrorMessage = errorMessage,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        return log;
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Mark as failed
+    public void MarkAsFailed(string errorMessage)
+    {
+        Guard.AgainstNullOrEmpty(errorMessage, nameof(errorMessage));
+        IsSuccessful = false;
+        ErrorMessage = errorMessage;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Update severity
+    public void UpdateSeverity(AuditSeverity severity)
+    {
+        Severity = severity;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }
 

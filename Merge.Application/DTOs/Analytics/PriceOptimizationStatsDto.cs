@@ -1,10 +1,10 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class PriceOptimizationStatsDto
-{
-    public int TotalOptimizations { get; set; }
-    public decimal AverageRevenueIncrease { get; set; }
-    public int ProductsOptimized { get; set; }
-    public DateTime? PeriodStart { get; set; }
-    public DateTime? PeriodEnd { get; set; }
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record PriceOptimizationStatsDto(
+    int TotalOptimizations,
+    decimal AverageRevenueIncrease,
+    int ProductsOptimized,
+    DateTime? PeriodStart,
+    DateTime? PeriodEnd
+);

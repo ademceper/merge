@@ -1,10 +1,10 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class CategorySalesDto
-{
-    public Guid CategoryId { get; set; }
-    public string CategoryName { get; set; } = string.Empty;
-    public decimal Revenue { get; set; }
-    public int OrderCount { get; set; }
-    public int ProductsSold { get; set; }
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record CategorySalesDto(
+    Guid CategoryId,
+    string CategoryName,
+    decimal Revenue,
+    int OrderCount,
+    int ProductsSold
+);

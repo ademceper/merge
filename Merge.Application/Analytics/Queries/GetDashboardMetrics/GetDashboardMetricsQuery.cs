@@ -1,0 +1,10 @@
+using MediatR;
+using Merge.Application.DTOs.Analytics;
+
+namespace Merge.Application.Analytics.Queries.GetDashboardMetrics;
+
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+public record GetDashboardMetricsQuery(
+    string? Category = null
+) : IRequest<List<DashboardMetricDto>>;
+

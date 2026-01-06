@@ -2,15 +2,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Analytics;
 
-public class CreateFinancialReportDto
-{
-    [Required]
-    public DateTime StartDate { get; set; }
-    
-    [Required]
-    public DateTime EndDate { get; set; }
-    
-    public bool IncludeBreakdowns { get; set; } = true;
-    
-    public bool IncludeTrends { get; set; } = true;
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record CreateFinancialReportDto(
+    [Required] DateTime StartDate,
+    [Required] DateTime EndDate,
+    bool IncludeBreakdowns = true,
+    bool IncludeTrends = true
+);

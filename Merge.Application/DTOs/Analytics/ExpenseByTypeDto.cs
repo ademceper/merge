@@ -1,8 +1,8 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class ExpenseByTypeDto
-{
-    public string ExpenseType { get; set; } = string.Empty; // Shipping, Commission, Refund, Discount, etc.
-    public decimal Amount { get; set; }
-    public decimal Percentage { get; set; }
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record ExpenseByTypeDto(
+    string ExpenseType, // Shipping, Commission, Refund, Discount, etc.
+    decimal Amount,
+    decimal Percentage
+);

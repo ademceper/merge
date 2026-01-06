@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore.Storage;
 using Merge.Domain.Common;
 using Merge.Domain.Entities;
-using Merge.Domain.Interfaces;
+using Merge.Application.Interfaces;
 using Merge.Infrastructure.Data;
 
 namespace Merge.Infrastructure.Repositories;

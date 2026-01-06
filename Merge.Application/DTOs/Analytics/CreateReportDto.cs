@@ -4,33 +4,34 @@ namespace Merge.Application.DTOs.Analytics;
 
 /// <summary>
 /// Create Report DTO - BOLUM 4.1: Validation Attributes (ZORUNLU)
+/// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
 /// </summary>
-public class CreateReportDto : IValidatableObject
-{
+public record CreateReportDto(
     [Required(ErrorMessage = "Rapor adı zorunludur")]
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Rapor adı en az 2, en fazla 200 karakter olmalıdır.")]
-    public string Name { get; set; } = string.Empty;
+    string Name,
     
     [StringLength(1000, ErrorMessage = "Açıklama en fazla 1000 karakter olabilir")]
-    public string Description { get; set; } = string.Empty;
+    string Description,
     
     [Required(ErrorMessage = "Rapor tipi zorunludur")]
     [StringLength(100)]
-    public string Type { get; set; } = string.Empty;
+    string Type,
     
     [Required(ErrorMessage = "Başlangıç tarihi zorunludur")]
-    public DateTime StartDate { get; set; }
+    DateTime StartDate,
     
     [Required(ErrorMessage = "Bitiş tarihi zorunludur")]
-    public DateTime EndDate { get; set; }
+    DateTime EndDate,
     
     // ✅ BOLUM 4.3: Over-Posting Korumasi - Dictionary<string, object> YASAK
     // Typed DTO kullanılıyor
-    public ReportFiltersDto? Filters { get; set; }
+    ReportFiltersDto? Filters,
     
     [StringLength(50, ErrorMessage = "Format en fazla 50 karakter olabilir")]
-    public string Format { get; set; } = "JSON";
-
+    string Format = "JSON"
+) : IValidatableObject
+{
     // ✅ BOLUM 4.1: Custom Validation - StartDate < EndDate
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {

@@ -2,7 +2,7 @@ using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Merge.Domain.Entities;
 using Merge.Domain.Specifications;
-using Merge.Domain.Interfaces;
+using Merge.Application.Interfaces;
 using Merge.Infrastructure.Data;
 
 namespace Merge.Infrastructure.Repositories;

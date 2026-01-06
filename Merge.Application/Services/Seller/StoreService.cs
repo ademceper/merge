@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using UserEntity = Merge.Domain.Entities.User;
 using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
@@ -8,6 +9,7 @@ using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Seller;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using ReviewEntity = Merge.Domain.Entities.Review;
 using Merge.Domain.Enums;
@@ -26,17 +28,20 @@ public class StoreService : IStoreService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<StoreService> _logger;
+    private readonly ServiceSettings _serviceSettings;
 
     public StoreService(
         IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
-        ILogger<StoreService> logger)
+        ILogger<StoreService> logger,
+        IOptions<ServiceSettings> serviceSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _serviceSettings = serviceSettings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -461,7 +466,7 @@ public class StoreService : IStoreService
             throw new NotFoundException("Mağaza", storeId);
         }
 
-        startDate ??= DateTime.UtcNow.AddDays(-30);
+        startDate ??= DateTime.UtcNow.AddDays(-_serviceSettings.DefaultDateRangeDays); // ✅ BOLUM 12.0: Magic number config'den
         endDate ??= DateTime.UtcNow;
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)

@@ -1,9 +1,11 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Security;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using PaymentEntity = Merge.Domain.Entities.Payment;
 using OrderEntity = Merge.Domain.Entities.Order;
@@ -22,13 +24,15 @@ public class OrderVerificationService : IOrderVerificationService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<OrderVerificationService> _logger;
+    private readonly ServiceSettings _serviceSettings;
 
-    public OrderVerificationService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<OrderVerificationService> logger)
+    public OrderVerificationService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<OrderVerificationService> logger, IOptions<ServiceSettings> serviceSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _serviceSettings = serviceSettings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -486,7 +490,7 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
         // Multiple payments from same IP in short time
         var recentPayments = await _context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
-            .Where(c => c.IpAddress == dto.IpAddress && c.CreatedAt >= DateTime.UtcNow.AddHours(-1))
+            .Where(c => c.IpAddress == dto.IpAddress && c.CreatedAt >= DateTime.UtcNow.AddHours(-1)) // ✅ BOLUM 12.0: ShortDateRangeDays kullanılabilir ama bu özel durum (1 saat)
             .CountAsync(cancellationToken);
 
         if (recentPayments > 3) riskScore += 30;
@@ -505,13 +509,15 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<AccountSecurityMonitoringService> _logger;
+    private readonly ServiceSettings _serviceSettings;
 
-    public AccountSecurityMonitoringService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<AccountSecurityMonitoringService> logger)
+    public AccountSecurityMonitoringService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<AccountSecurityMonitoringService> logger, IOptions<ServiceSettings> serviceSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _serviceSettings = serviceSettings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -823,7 +829,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SecurityMonitoringSummaryDto> GetSecuritySummaryAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
-        var start = startDate ?? DateTime.UtcNow.AddDays(-30);
+        var start = startDate ?? DateTime.UtcNow.AddDays(-_serviceSettings.DefaultDateRangeDays); // ✅ BOLUM 12.0: Magic number config'den
         var end = endDate ?? DateTime.UtcNow;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted and !a.IsDeleted (Global Query Filter)

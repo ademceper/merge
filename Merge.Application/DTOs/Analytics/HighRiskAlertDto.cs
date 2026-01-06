@@ -1,10 +1,10 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class HighRiskAlertDto
-{
-    public Guid AlertId { get; set; }
-    public string AlertType { get; set; } = string.Empty;
-    public int RiskScore { get; set; }
-    public string Status { get; set; } = string.Empty;
-    public DateTime CreatedAt { get; set; }
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record HighRiskAlertDto(
+    Guid AlertId,
+    string AlertType,
+    int RiskScore,
+    string Status,
+    DateTime CreatedAt
+);

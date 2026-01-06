@@ -1,11 +1,11 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class TopProductDto
-{
-    public Guid ProductId { get; set; }
-    public string ProductName { get; set; } = string.Empty;
-    public string SKU { get; set; } = string.Empty;
-    public int UnitsSold { get; set; }
-    public decimal Revenue { get; set; }
-    public decimal AveragePrice { get; set; }
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record TopProductDto(
+    Guid ProductId,
+    string ProductName,
+    string SKU,
+    int UnitsSold,
+    decimal Revenue,
+    decimal AveragePrice
+);

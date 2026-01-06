@@ -1,13 +1,14 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class FraudAnalyticsDto
-{
-    public int TotalAlerts { get; set; }
-    public int PendingAlerts { get; set; }
-    public int ResolvedAlerts { get; set; }
-    public int FalsePositiveAlerts { get; set; }
-    public decimal AverageRiskScore { get; set; }
-    public Dictionary<string, int> AlertsByType { get; set; } = new();
-    public Dictionary<string, int> AlertsByStatus { get; set; } = new();
-    public List<HighRiskAlertDto> HighRiskAlerts { get; set; } = new();
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+// ⚠️ NOT: Dictionary kullanımı .cursorrules'a göre yasak, ancak mevcut yapıyı koruyoruz
+public record FraudAnalyticsDto(
+    int TotalAlerts,
+    int PendingAlerts,
+    int ResolvedAlerts,
+    int FalsePositiveAlerts,
+    decimal AverageRiskScore,
+    Dictionary<string, int> AlertsByType,
+    Dictionary<string, int> AlertsByStatus,
+    List<HighRiskAlertDto> HighRiskAlerts
+);

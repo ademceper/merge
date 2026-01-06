@@ -1,9 +1,9 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class PopularPostDto
-{
-    public Guid PostId { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public int ViewCount { get; set; }
-    public int CommentCount { get; set; }
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record PopularPostDto(
+    Guid PostId,
+    string Title,
+    int ViewCount,
+    int CommentCount
+);

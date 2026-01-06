@@ -1,10 +1,10 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class TimeSeriesDataPoint
-{
-    public DateTime Date { get; set; }
-    public decimal Value { get; set; }
-    public string? Label { get; set; }
-    public int? Count { get; set; }
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record TimeSeriesDataPoint(
+    DateTime Date,
+    decimal Value,
+    string? Label = null,
+    int? Count = null
+);
 

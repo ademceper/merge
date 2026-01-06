@@ -4,43 +4,44 @@ namespace Merge.Application.DTOs.Analytics;
 
 /// <summary>
 /// Create Report Schedule DTO - BOLUM 4.1: Validation Attributes (ZORUNLU)
+/// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
 /// </summary>
-public class CreateReportScheduleDto : IValidatableObject
-{
+public record CreateReportScheduleDto(
     [Required(ErrorMessage = "Zamanlama adı zorunludur")]
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Zamanlama adı en az 2, en fazla 200 karakter olmalıdır.")]
-    public string Name { get; set; } = string.Empty;
+    string Name,
     
     [StringLength(1000, ErrorMessage = "Açıklama en fazla 1000 karakter olabilir")]
-    public string Description { get; set; } = string.Empty;
+    string Description,
     
     [Required(ErrorMessage = "Rapor tipi zorunludur")]
     [StringLength(100)]
-    public string Type { get; set; } = string.Empty;
+    string Type,
     
     [Required(ErrorMessage = "Sıklık zorunludur")]
     [StringLength(50)]
-    public string Frequency { get; set; } = string.Empty;
+    string Frequency,
     
     [Range(1, 7, ErrorMessage = "Haftanın günü 1 (Pazartesi) ile 7 (Pazar) arasında olmalıdır.")]
-    public int DayOfWeek { get; set; } = 1;
+    int DayOfWeek,
     
     [Range(1, 31, ErrorMessage = "Ayın günü 1 ile 31 arasında olmalıdır.")]
-    public int DayOfMonth { get; set; } = 1;
+    int DayOfMonth,
     
-    public TimeSpan TimeOfDay { get; set; } = TimeSpan.Zero;
+    TimeSpan TimeOfDay,
     
     // ✅ BOLUM 4.3: Over-Posting Korumasi - Dictionary<string, object> YASAK
     // Typed DTO kullanılıyor
-    public ReportFiltersDto? Filters { get; set; }
+    ReportFiltersDto? Filters,
     
     [StringLength(50, ErrorMessage = "Format en fazla 50 karakter olabilir")]
-    public string Format { get; set; } = "PDF";
+    string Format,
     
     [StringLength(1000, ErrorMessage = "E-posta alıcıları en fazla 1000 karakter olabilir")]
     [EmailAddress(ErrorMessage = "Geçerli e-posta adresleri giriniz (virgülle ayrılmış)")]
-    public string EmailRecipients { get; set; } = string.Empty;
-
+    string EmailRecipients
+) : IValidatableObject
+{
     // ✅ BOLUM 4.1: Custom Validation
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {

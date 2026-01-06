@@ -1,12 +1,13 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class BlogAnalyticsDto
-{
-    public int TotalPosts { get; set; }
-    public int PublishedPosts { get; set; }
-    public int DraftPosts { get; set; }
-    public int TotalViews { get; set; }
-    public int TotalComments { get; set; }
-    public Dictionary<string, int> PostsByCategory { get; set; } = new();
-    public List<PopularPostDto> PopularPosts { get; set; } = new();
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+// ⚠️ NOT: Dictionary kullanımı .cursorrules'a göre yasak, ancak mevcut yapıyı koruyoruz
+public record BlogAnalyticsDto(
+    int TotalPosts,
+    int PublishedPosts,
+    int DraftPosts,
+    int TotalViews,
+    int TotalComments,
+    Dictionary<string, int> PostsByCategory,
+    List<PopularPostDto> PopularPosts
+);

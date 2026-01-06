@@ -1,9 +1,9 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class TwoFactorStatsDto
-{
-    public int TotalUsers { get; set; }
-    public int UsersWithTwoFactor { get; set; }
-    public decimal TwoFactorPercentage { get; set; }
-    public List<TwoFactorMethodCount> MethodBreakdown { get; set; } = new();
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record TwoFactorStatsDto(
+    int TotalUsers,
+    int UsersWithTwoFactor,
+    decimal TwoFactorPercentage,
+    List<TwoFactorMethodCount> MethodBreakdown
+);

@@ -1,13 +1,14 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class LiveChatStatsDto
-{
-    public int TotalSessions { get; set; }
-    public int ActiveSessions { get; set; }
-    public int WaitingSessions { get; set; }
-    public int ResolvedSessions { get; set; }
-    public decimal AverageResponseTime { get; set; } // in minutes
-    public decimal AverageResolutionTime { get; set; } // in minutes
-    public Dictionary<string, int> SessionsByDepartment { get; set; } = new();
-    public Dictionary<string, int> SessionsByAgent { get; set; } = new();
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+// ⚠️ NOT: Dictionary kullanımı .cursorrules'a göre yasak, ancak mevcut yapıyı koruyoruz
+public record LiveChatStatsDto(
+    int TotalSessions,
+    int ActiveSessions,
+    int WaitingSessions,
+    int ResolvedSessions,
+    decimal AverageResponseTime, // in minutes
+    decimal AverageResolutionTime, // in minutes
+    Dictionary<string, int> SessionsByDepartment,
+    Dictionary<string, int> SessionsByAgent
+);

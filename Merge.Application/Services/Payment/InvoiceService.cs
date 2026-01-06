@@ -3,11 +3,13 @@ using PaymentEntity = Merge.Domain.Entities.Payment;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Payment;
 using Merge.Application.Exceptions;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Application.DTOs.Order;
@@ -25,6 +27,7 @@ public class InvoiceService : IInvoiceService
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<InvoiceService> _logger;
+    private readonly PaymentSettings _paymentSettings;
 
     public InvoiceService(
         IRepository<Invoice> invoiceRepository,
@@ -32,7 +35,8 @@ public class InvoiceService : IInvoiceService
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
-        ILogger<InvoiceService> logger)
+        ILogger<InvoiceService> logger,
+        IOptions<PaymentSettings> paymentSettings)
     {
         _invoiceRepository = invoiceRepository;
         _orderRepository = orderRepository;
@@ -40,6 +44,7 @@ public class InvoiceService : IInvoiceService
         _mapper = mapper;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _paymentSettings = paymentSettings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -169,7 +174,7 @@ public class InvoiceService : IInvoiceService
             OrderId = orderId,
             InvoiceNumber = invoiceNumber,
             InvoiceDate = DateTime.UtcNow,
-            DueDate = DateTime.UtcNow.AddDays(30), // 30 gün vade
+            DueDate = DateTime.UtcNow.AddDays(_paymentSettings.InvoiceDueDays), // ✅ BOLUM 12.0: Magic number config'den
             SubTotal = order.SubTotal,
             Tax = order.Tax,
             ShippingCost = order.ShippingCost,

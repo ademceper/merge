@@ -1,16 +1,16 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class CustomerAnalyticsDto
-{
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
-    public int TotalCustomers { get; set; }
-    public int NewCustomers { get; set; }
-    public int ActiveCustomers { get; set; }
-    public int ReturningCustomers { get; set; }
-    public decimal AverageLifetimeValue { get; set; }
-    public decimal AveragePurchaseFrequency { get; set; }
-    public List<CustomerSegmentDto> CustomerSegments { get; set; } = new();
-    public List<TopCustomerDto> TopCustomers { get; set; } = new();
-    public List<TimeSeriesDataPoint> CustomerAcquisition { get; set; } = new();
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record CustomerAnalyticsDto(
+    DateTime StartDate,
+    DateTime EndDate,
+    int TotalCustomers,
+    int NewCustomers,
+    int ActiveCustomers,
+    int ReturningCustomers,
+    decimal AverageLifetimeValue,
+    decimal AveragePurchaseFrequency,
+    List<CustomerSegmentDto> CustomerSegments,
+    List<TopCustomerDto> TopCustomers,
+    List<TimeSeriesDataPoint> CustomerAcquisition
+);

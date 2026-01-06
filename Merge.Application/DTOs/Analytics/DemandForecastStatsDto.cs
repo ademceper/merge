@@ -1,10 +1,10 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class DemandForecastStatsDto
-{
-    public int TotalProducts { get; set; }
-    public int ProductsWithSales { get; set; }
-    public decimal ForecastCoverage { get; set; }
-    public DateTime PeriodStart { get; set; }
-    public DateTime PeriodEnd { get; set; }
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record DemandForecastStatsDto(
+    int TotalProducts,
+    int ProductsWithSales,
+    decimal ForecastCoverage,
+    DateTime PeriodStart,
+    DateTime PeriodEnd
+);

@@ -1,8 +1,8 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class DailyRevenueDto
-{
-    public DateTime Date { get; set; }
-    public decimal Revenue { get; set; }
-    public int OrderCount { get; set; }
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record DailyRevenueDto(
+    DateTime Date,
+    decimal Revenue,
+    int OrderCount
+);

@@ -41,6 +41,9 @@ public class DomainEventDispatcher : IDomainEventDispatcher
                 
                 // Örnek: await _mediator.Publish(domainEvent, cancellationToken);
                 
+                // ✅ Gelecekte async işlemler için await hazırlığı
+                await Task.CompletedTask.ConfigureAwait(false);
+                
                 _logger.LogInformation(
                     "Domain event published successfully: {EventType}",
                     domainEvent.GetType().Name);

@@ -1,8 +1,8 @@
 namespace Merge.Application.DTOs.Review;
 
-public class ReviewTrendDto
-{
-    public DateTime Date { get; set; }
-    public int ReviewCount { get; set; }
-    public decimal AverageRating { get; set; }
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record ReviewTrendDto(
+    DateTime Date,
+    int ReviewCount,
+    decimal AverageRating
+);

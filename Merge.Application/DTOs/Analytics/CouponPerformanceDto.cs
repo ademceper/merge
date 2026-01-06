@@ -1,10 +1,10 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class CouponPerformanceDto
-{
-    public Guid CouponId { get; set; }
-    public string Code { get; set; } = string.Empty;
-    public int UsageCount { get; set; }
-    public decimal TotalDiscount { get; set; }
-    public decimal RevenueGenerated { get; set; }
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record CouponPerformanceDto(
+    Guid CouponId,
+    string Code,
+    int UsageCount,
+    decimal TotalDiscount,
+    decimal RevenueGenerated
+);

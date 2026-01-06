@@ -1,21 +1,21 @@
 namespace Merge.Application.DTOs.Analytics;
 
-public class DashboardStatsDto
-{
-    public int TotalUsers { get; set; }
-    public int ActiveUsers { get; set; }
-    public int TotalProducts { get; set; }
-    public int ActiveProducts { get; set; }
-    public int TotalOrders { get; set; }
-    public decimal TotalRevenue { get; set; }
-    public int PendingOrders { get; set; }
-    public int TodayOrders { get; set; }
-    public decimal TodayRevenue { get; set; }
-    public int TotalWarehouses { get; set; }
-    public int ActiveWarehouses { get; set; }
-    public int LowStockProducts { get; set; }
-    public int TotalCategories { get; set; }
-    public int PendingReviews { get; set; }
-    public int PendingReturns { get; set; }
-    public int Users2FAEnabled { get; set; }
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record DashboardStatsDto(
+    int TotalUsers,
+    int ActiveUsers,
+    int TotalProducts,
+    int ActiveProducts,
+    int TotalOrders,
+    decimal TotalRevenue,
+    int PendingOrders,
+    int TodayOrders,
+    decimal TodayRevenue,
+    int TotalWarehouses,
+    int ActiveWarehouses,
+    int LowStockProducts,
+    int TotalCategories,
+    int PendingReviews,
+    int PendingReturns,
+    int Users2FAEnabled
+);
