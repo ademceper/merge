@@ -103,18 +103,17 @@ public class GetRecoveryStatsQueryHandler : IRequestHandler<GetRecoveryStatsQuer
             )
             .SumAsync(cancellationToken);
 
-        return new AbandonedCartRecoveryStatsDto
-        {
-            TotalAbandonedCarts = totalAbandonedCarts,
-            TotalAbandonedValue = totalAbandonedValue,
-            EmailsSent = emailsSent,
-            EmailsOpened = emailsOpened,
-            EmailsClicked = emailsClicked,
-            RecoveredCarts = recoveredCarts,
-            RecoveredRevenue = recoveredRevenue,
-            RecoveryRate = totalAbandonedCarts > 0 ? (decimal)recoveredCarts / totalAbandonedCarts * 100 : 0,
-            AverageCartValue = totalAbandonedCarts > 0 ? totalAbandonedValue / totalAbandonedCarts : 0
-        };
+        return new AbandonedCartRecoveryStatsDto(
+            totalAbandonedCarts,
+            totalAbandonedValue,
+            emailsSent,
+            emailsOpened,
+            emailsClicked,
+            recoveredCarts,
+            recoveredRevenue,
+            totalAbandonedCarts > 0 ? (decimal)recoveredCarts / totalAbandonedCarts * 100 : 0,
+            totalAbandonedCarts > 0 ? totalAbandonedValue / totalAbandonedCarts : 0
+        );
     }
 }
 

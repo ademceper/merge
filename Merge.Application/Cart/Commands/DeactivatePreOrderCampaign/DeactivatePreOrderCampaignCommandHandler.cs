@@ -4,6 +4,8 @@ using Merge.Application.Interfaces;
 
 namespace Merge.Application.Cart.Commands.DeactivatePreOrderCampaign;
 
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeactivatePreOrderCampaignCommandHandler : IRequestHandler<DeactivatePreOrderCampaignCommand, bool>
 {
     private readonly IDbContext _context;

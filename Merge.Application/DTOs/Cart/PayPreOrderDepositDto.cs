@@ -3,14 +3,14 @@ using System.ComponentModel.DataAnnotations;
 namespace Merge.Application.DTOs.Cart;
 
 /// <summary>
-/// Pay Pre Order Deposit DTO - BOLUM 4.1: Validation Attributes (ZORUNLU)
+/// Pay Pre Order Deposit DTO - BOLUM 7.1.5: Records (ZORUNLU)
+/// BOLUM 4.1: Validation Attributes (ZORUNLU)
 /// </summary>
-public class PayPreOrderDepositDto
-{
+public record PayPreOrderDepositDto(
     [Required(ErrorMessage = "Ön sipariş ID zorunludur")]
-    public Guid PreOrderId { get; set; }
+    Guid PreOrderId,
 
     [Required(ErrorMessage = "Tutar zorunludur")]
     [Range(0.01, double.MaxValue, ErrorMessage = "Tutar 0.01'den büyük olmalıdır.")]
-    public decimal Amount { get; set; }
-}
+    decimal Amount
+);

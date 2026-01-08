@@ -10,6 +10,8 @@ using AutoMapper;
 
 namespace Merge.Application.Cart.Commands.CreatePreOrder;
 
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreatePreOrderCommandHandler : IRequestHandler<CreatePreOrderCommand, PreOrderDto>
 {
     private readonly IDbContext _context;

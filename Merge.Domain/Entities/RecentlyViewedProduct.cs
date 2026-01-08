@@ -49,5 +49,12 @@ public class RecentlyViewedProduct : BaseEntity
         ViewedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
+    public void MarkAsDeleted()
+    {
+        IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }
 

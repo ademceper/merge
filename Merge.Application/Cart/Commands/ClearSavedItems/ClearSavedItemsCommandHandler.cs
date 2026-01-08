@@ -36,9 +36,8 @@ public class ClearSavedItemsCommandHandler : IRequestHandler<ClearSavedItemsComm
         {
             foreach (var item in items)
             {
-                // Soft delete
-                item.IsDeleted = true;
-                item.UpdatedAt = DateTime.UtcNow;
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+                item.MarkAsDeleted();
             }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Single SaveChanges

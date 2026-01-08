@@ -187,26 +187,28 @@ public class AbandonedCartService : IAbandonedCartService
         // Step 8: Build DTOs (minimal memory operations - only property assignment)
         // ✅ PERFORMANCE: Select sadece DTO oluşturma için kullanılıyor (property assignment)
         // Bu işlem database'de yapılamaz çünkü DTO oluşturma gerekiyor
+        // ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı) - Positional constructor kullanımı
         var result = new List<AbandonedCartDto>();
         foreach (var c in cartsData)
         {
-            var dto = new AbandonedCartDto
-            {
-                CartId = c.CartId,
-                UserId = c.UserId,
-                UserEmail = c.UserEmail,
-                UserName = c.UserName,
-                ItemCount = c.ItemCount,
-                TotalValue = c.TotalValue,
-                LastModified = c.LastModified,
-                HoursSinceAbandonment = c.HoursSinceAbandonment,
-                Items = cartItemsDict.ContainsKey(c.CartId)
-                    ? _mapper.Map<IEnumerable<CartItemDto>>(cartItemsDict[c.CartId]).ToList()
-                    : new List<CartItemDto>(),
-                HasReceivedEmail = emailStatsDict.ContainsKey(c.CartId) && emailStatsDict[c.CartId].HasReceivedEmail,
-                EmailsSentCount = emailStatsDict.ContainsKey(c.CartId) ? emailStatsDict[c.CartId].EmailsSentCount : 0,
-                LastEmailSent = emailStatsDict.ContainsKey(c.CartId) ? emailStatsDict[c.CartId].LastEmailSent : null
-            };
+            var items = cartItemsDict.ContainsKey(c.CartId)
+                ? _mapper.Map<IEnumerable<CartItemDto>>(cartItemsDict[c.CartId]).ToList().AsReadOnly()
+                : new List<CartItemDto>().AsReadOnly();
+            
+            var dto = new AbandonedCartDto(
+                c.CartId,
+                c.UserId,
+                c.UserEmail ?? string.Empty,
+                c.UserName ?? string.Empty,
+                c.ItemCount,
+                c.TotalValue,
+                c.LastModified,
+                c.HoursSinceAbandonment,
+                items,
+                emailStatsDict.ContainsKey(c.CartId) && emailStatsDict[c.CartId].HasReceivedEmail,
+                emailStatsDict.ContainsKey(c.CartId) ? emailStatsDict[c.CartId].EmailsSentCount : 0,
+                emailStatsDict.ContainsKey(c.CartId) ? emailStatsDict[c.CartId].LastEmailSent : null
+            );
             result.Add(dto);
         }
 
@@ -270,22 +272,30 @@ public class AbandonedCartService : IAbandonedCartService
             .Where(ci => ci.CartId == cartId)
             .ToListAsync(cancellationToken);
 
-        var itemsDto = _mapper.Map<IEnumerable<CartItemDto>>(items).ToList();
+        var itemsDto = _mapper.Map<IEnumerable<CartItemDto>>(items).ToList().AsReadOnly();
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        // Note: AbandonedCartDto complex mapping gerektiriyor (computed properties), AfterMap kullanıyoruz
-        var dto = _mapper.Map<AbandonedCartDto>(cart);
-        dto.CartId = cart.Id;
-        dto.ItemCount = itemCount;
-        dto.TotalValue = totalValue;
-        dto.LastModified = cart.UpdatedAt ?? cart.CreatedAt;
-        dto.HoursSinceAbandonment = cart.UpdatedAt.HasValue 
+        // ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı) - Positional constructor kullanımı
+        var userEmail = cart.User != null ? cart.User.Email : string.Empty;
+        var userName = cart.User != null ? $"{cart.User.FirstName} {cart.User.LastName}" : string.Empty;
+        var lastModified = cart.UpdatedAt ?? cart.CreatedAt;
+        var hoursSinceAbandonment = cart.UpdatedAt.HasValue 
             ? (int)(DateTime.UtcNow - cart.UpdatedAt.Value).TotalHours 
             : (int)(DateTime.UtcNow - cart.CreatedAt).TotalHours;
-        dto.Items = itemsDto;
-        dto.HasReceivedEmail = hasReceivedEmail;
-        dto.EmailsSentCount = emailsSentCount;
-        dto.LastEmailSent = lastEmailSent;
+
+        var dto = new AbandonedCartDto(
+            cart.Id,
+            cart.UserId,
+            userEmail,
+            userName,
+            itemCount,
+            totalValue,
+            lastModified,
+            hoursSinceAbandonment,
+            itemsDto,
+            hasReceivedEmail,
+            emailsSentCount,
+            lastEmailSent
+        );
 
         return dto;
     }
@@ -373,18 +383,17 @@ public class AbandonedCartService : IAbandonedCartService
             )
             .SumAsync(cancellationToken);
 
-        return new AbandonedCartRecoveryStatsDto
-        {
-            TotalAbandonedCarts = totalAbandonedCarts,
-            TotalAbandonedValue = totalAbandonedValue,
-            EmailsSent = emailsSent,
-            EmailsOpened = emailsOpened,
-            EmailsClicked = emailsClicked,
-            RecoveredCarts = recoveredCarts,
-            RecoveredRevenue = recoveredRevenue,
-            RecoveryRate = totalAbandonedCarts > 0 ? (decimal)recoveredCarts / totalAbandonedCarts * 100 : 0,
-            AverageCartValue = totalAbandonedCarts > 0 ? totalAbandonedValue / totalAbandonedCarts : 0
-        };
+        return new AbandonedCartRecoveryStatsDto(
+            totalAbandonedCarts,
+            totalAbandonedValue,
+            emailsSent,
+            emailsOpened,
+            emailsClicked,
+            recoveredCarts,
+            recoveredRevenue,
+            totalAbandonedCarts > 0 ? (decimal)recoveredCarts / totalAbandonedCarts * 100 : 0,
+            totalAbandonedCarts > 0 ? totalAbandonedValue / totalAbandonedCarts : 0
+        );
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)

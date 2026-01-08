@@ -1,20 +1,25 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Application.DTOs.Cart;
 
-public class PreOrderDto
-{
-    public Guid Id { get; set; }
-    public Guid UserId { get; set; }
-    public Guid ProductId { get; set; }
-    public string ProductName { get; set; } = string.Empty;
-    public string ProductImage { get; set; } = string.Empty;
-    public int Quantity { get; set; }
-    public decimal Price { get; set; }
-    public decimal DepositAmount { get; set; }
-    public decimal DepositPaid { get; set; }
-    public string Status { get; set; } = string.Empty;
-    public DateTime ExpectedAvailabilityDate { get; set; }
-    public DateTime? ActualAvailabilityDate { get; set; }
-    public DateTime ExpiresAt { get; set; }
-    public string? Notes { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
+/// <summary>
+/// PreOrder DTO - BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
+/// BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
+/// </summary>
+public record PreOrderDto(
+    Guid Id,
+    Guid UserId,
+    Guid ProductId,
+    string ProductName,
+    string ProductImage,
+    int Quantity,
+    decimal Price,
+    decimal DepositAmount,
+    decimal DepositPaid,
+    PreOrderStatus Status, // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
+    DateTime ExpectedAvailabilityDate,
+    DateTime? ActualAvailabilityDate,
+    DateTime ExpiresAt,
+    string? Notes,
+    DateTime CreatedAt
+);

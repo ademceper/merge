@@ -51,9 +51,8 @@ public class MoveToCartCommandHandler : IRequestHandler<MoveToCartCommand, bool>
             var addItemCommand = new AddItemToCartCommand(request.UserId, item.ProductId, item.Quantity);
             await _mediator.Send(addItemCommand, cancellationToken);
             
-            // Kayıtlı listeden kaldır
-            item.IsDeleted = true;
-            item.UpdatedAt = DateTime.UtcNow;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+            item.MarkAsDeleted();
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             
             await _unitOfWork.CommitTransactionAsync(cancellationToken);

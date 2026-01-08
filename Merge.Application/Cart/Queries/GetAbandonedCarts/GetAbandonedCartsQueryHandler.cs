@@ -165,26 +165,28 @@ public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQu
         }
 
         // Step 8: Build DTOs (minimal memory operations - only property assignment)
+        // ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı) - Positional constructor kullanımı
         var result = new List<AbandonedCartDto>();
         foreach (var c in cartsData)
         {
-            var dto = new AbandonedCartDto
-            {
-                CartId = c.CartId,
-                UserId = c.UserId,
-                UserEmail = c.UserEmail,
-                UserName = c.UserName,
-                ItemCount = c.ItemCount,
-                TotalValue = c.TotalValue,
-                LastModified = c.LastModified,
-                HoursSinceAbandonment = c.HoursSinceAbandonment,
-                Items = cartItemsDict.ContainsKey(c.CartId)
-                    ? _mapper.Map<IEnumerable<CartItemDto>>(cartItemsDict[c.CartId]).ToList()
-                    : new List<CartItemDto>(),
-                HasReceivedEmail = emailStatsDict.ContainsKey(c.CartId) && emailStatsDict[c.CartId].HasReceivedEmail,
-                EmailsSentCount = emailStatsDict.ContainsKey(c.CartId) ? emailStatsDict[c.CartId].EmailsSentCount : 0,
-                LastEmailSent = emailStatsDict.ContainsKey(c.CartId) ? emailStatsDict[c.CartId].LastEmailSent : null
-            };
+            var items = cartItemsDict.ContainsKey(c.CartId)
+                ? _mapper.Map<IEnumerable<CartItemDto>>(cartItemsDict[c.CartId]).ToList().AsReadOnly()
+                : new List<CartItemDto>().AsReadOnly();
+            
+            var dto = new AbandonedCartDto(
+                c.CartId,
+                c.UserId,
+                c.UserEmail,
+                c.UserName,
+                c.ItemCount,
+                c.TotalValue,
+                c.LastModified,
+                c.HoursSinceAbandonment,
+                items,
+                emailStatsDict.ContainsKey(c.CartId) && emailStatsDict[c.CartId].HasReceivedEmail,
+                emailStatsDict.ContainsKey(c.CartId) ? emailStatsDict[c.CartId].EmailsSentCount : 0,
+                emailStatsDict.ContainsKey(c.CartId) ? emailStatsDict[c.CartId].LastEmailSent : null
+            );
             result.Add(dto);
         }
 

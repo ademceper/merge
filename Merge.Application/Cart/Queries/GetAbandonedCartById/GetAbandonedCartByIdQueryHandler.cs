@@ -75,21 +75,30 @@ public class GetAbandonedCartByIdQueryHandler : IRequestHandler<GetAbandonedCart
             .Where(ci => ci.CartId == request.CartId)
             .ToListAsync(cancellationToken);
 
-        var itemsDto = _mapper.Map<IEnumerable<CartItemDto>>(items).ToList();
+        var itemsDto = _mapper.Map<IEnumerable<CartItemDto>>(items).ToList().AsReadOnly();
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        var dto = _mapper.Map<AbandonedCartDto>(cart);
-        dto.CartId = cart.Id;
-        dto.ItemCount = itemCount;
-        dto.TotalValue = totalValue;
-        dto.LastModified = cart.UpdatedAt ?? cart.CreatedAt;
-        dto.HoursSinceAbandonment = cart.UpdatedAt.HasValue 
+        // ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı) - Positional constructor kullanımı
+        var userEmail = cart.User != null ? cart.User.Email : string.Empty;
+        var userName = cart.User != null ? $"{cart.User.FirstName} {cart.User.LastName}" : string.Empty;
+        var lastModified = cart.UpdatedAt ?? cart.CreatedAt;
+        var hoursSinceAbandonment = cart.UpdatedAt.HasValue 
             ? (int)(DateTime.UtcNow - cart.UpdatedAt.Value).TotalHours 
             : (int)(DateTime.UtcNow - cart.CreatedAt).TotalHours;
-        dto.Items = itemsDto;
-        dto.HasReceivedEmail = hasReceivedEmail;
-        dto.EmailsSentCount = emailsSentCount;
-        dto.LastEmailSent = lastEmailSent;
+
+        var dto = new AbandonedCartDto(
+            cart.Id,
+            cart.UserId,
+            userEmail,
+            userName,
+            itemCount,
+            totalValue,
+            lastModified,
+            hoursSinceAbandonment,
+            itemsDto,
+            hasReceivedEmail,
+            emailsSentCount,
+            lastEmailSent
+        );
 
         return dto;
     }

@@ -5,6 +5,8 @@ using Merge.Application.Services.Notification;
 
 namespace Merge.Application.Cart.Commands.NotifyPreOrderAvailable;
 
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class NotifyPreOrderAvailableCommandHandler : IRequestHandler<NotifyPreOrderAvailableCommand>
 {
     private readonly IDbContext _context;

@@ -8,6 +8,8 @@ using AutoMapper;
 
 namespace Merge.Application.Cart.Queries.GetPreOrderStats;
 
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetPreOrderStatsQueryHandler : IRequestHandler<GetPreOrderStatsQuery, PreOrderStatsDto>
 {
     private readonly IDbContext _context;
@@ -47,15 +49,14 @@ public class GetPreOrderStatsQueryHandler : IRequestHandler<GetPreOrderStatsQuer
 
         var recentDtos = _mapper.Map<IEnumerable<PreOrderDto>>(recentPreOrders).ToList();
 
-        return new PreOrderStatsDto
-        {
-            TotalPreOrders = totalPreOrders,
-            PendingPreOrders = pendingPreOrders,
-            ConfirmedPreOrders = confirmedPreOrders,
-            TotalRevenue = totalRevenue,
-            TotalDeposits = totalDeposits,
-            RecentPreOrders = recentDtos
-        };
+        return new PreOrderStatsDto(
+            totalPreOrders,
+            pendingPreOrders,
+            confirmedPreOrders,
+            totalRevenue,
+            totalDeposits,
+            recentDtos
+        );
     }
 }
 

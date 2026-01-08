@@ -4,19 +4,19 @@ using Merge.Domain.Enums;
 namespace Merge.Application.DTOs.Cart;
 
 /// <summary>
-/// Send Recovery Email DTO - BOLUM 4.1: Validation Attributes (ZORUNLU)
+/// Send Recovery Email DTO - BOLUM 7.1.5: Records (ZORUNLU)
+/// BOLUM 4.1: Validation Attributes (ZORUNLU)
 /// BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
 /// </summary>
-public class SendRecoveryEmailDto
-{
+public record SendRecoveryEmailDto(
     [Required(ErrorMessage = "Sepet ID zorunludur")]
-    public Guid CartId { get; set; }
+    Guid CartId,
     
     // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
-    public AbandonedCartEmailType EmailType { get; set; } = AbandonedCartEmailType.First;
+    AbandonedCartEmailType EmailType,
     
-    public bool IncludeCoupon { get; set; } = false;
+    bool IncludeCoupon,
     
     [Range(0, 100, ErrorMessage = "Kupon indirim yüzdesi 0 ile 100 arasında olmalıdır.")]
-    public decimal? CouponDiscountPercentage { get; set; }
-}
+    decimal? CouponDiscountPercentage
+);

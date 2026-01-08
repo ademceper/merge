@@ -41,9 +41,8 @@ public class RemoveFromWishlistCommandHandler : IRequestHandler<RemoveFromWishli
             return false;
         }
 
-        // Soft delete
-        wishlist.IsDeleted = true;
-        wishlist.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+        wishlist.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Successfully removed product {ProductId} from wishlist for user {UserId}",

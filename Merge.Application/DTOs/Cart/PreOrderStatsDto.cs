@@ -1,11 +1,13 @@
 namespace Merge.Application.DTOs.Cart;
 
-public class PreOrderStatsDto
-{
-    public int TotalPreOrders { get; set; }
-    public int PendingPreOrders { get; set; }
-    public int ConfirmedPreOrders { get; set; }
-    public decimal TotalRevenue { get; set; }
-    public decimal TotalDeposits { get; set; }
-    public List<PreOrderDto> RecentPreOrders { get; set; } = new();
-}
+/// <summary>
+/// Pre Order Stats DTO - BOLUM 7.1.5: Records (ZORUNLU)
+/// </summary>
+public record PreOrderStatsDto(
+    int TotalPreOrders,
+    int PendingPreOrders,
+    int ConfirmedPreOrders,
+    decimal TotalRevenue,
+    decimal TotalDeposits,
+    IReadOnlyList<PreOrderDto> RecentPreOrders
+);

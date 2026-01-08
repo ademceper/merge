@@ -7,6 +7,8 @@ using AutoMapper;
 
 namespace Merge.Application.Cart.Queries.GetPreOrderCampaign;
 
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetPreOrderCampaignQueryHandler : IRequestHandler<GetPreOrderCampaignQuery, PreOrderCampaignDto?>
 {
     private readonly IDbContext _context;

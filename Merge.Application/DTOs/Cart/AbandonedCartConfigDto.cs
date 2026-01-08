@@ -1,11 +1,13 @@
 namespace Merge.Application.DTOs.Cart;
 
-public class AbandonedCartConfigDto
-{
-    public int AbandonmentThresholdHours { get; set; } = 1;
-    public int FirstEmailDelayHours { get; set; } = 2;
-    public int SecondEmailDelayHours { get; set; } = 24;
-    public int FinalEmailDelayHours { get; set; } = 72;
-    public bool AutoSendEmails { get; set; } = true;
-    public decimal DefaultCouponDiscount { get; set; } = 10;
-}
+/// <summary>
+/// Abandoned Cart Config DTO - BOLUM 7.1.5: Records (ZORUNLU)
+/// </summary>
+public record AbandonedCartConfigDto(
+    int AbandonmentThresholdHours,
+    int FirstEmailDelayHours,
+    int SecondEmailDelayHours,
+    int FinalEmailDelayHours,
+    bool AutoSendEmails,
+    decimal DefaultCouponDiscount
+);

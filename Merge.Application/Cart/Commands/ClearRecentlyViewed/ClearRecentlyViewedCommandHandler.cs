@@ -34,8 +34,8 @@ public class ClearRecentlyViewedCommandHandler : IRequestHandler<ClearRecentlyVi
 
         foreach (var item in recentlyViewed)
         {
-            item.IsDeleted = true;
-            item.UpdatedAt = DateTime.UtcNow;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+            item.MarkAsDeleted();
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Single SaveChanges

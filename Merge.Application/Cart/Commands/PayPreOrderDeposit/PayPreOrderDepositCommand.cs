@@ -2,6 +2,7 @@ using MediatR;
 
 namespace Merge.Application.Cart.Commands.PayPreOrderDeposit;
 
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record PayPreOrderDepositCommand(
     Guid UserId,
     Guid PreOrderId,

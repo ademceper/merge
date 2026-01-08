@@ -65,20 +65,47 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => 
                 src.User != null ? src.User.Email : "Anonymous"));
 
+        // ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı) - Positional constructor kullanımı
         CreateMap<CartItem, CartItemDto>()
-            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product.Name))
-            .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src => src.Product.ImageUrl))
-            .ForMember(dest => dest.TotalPrice, opt => opt.MapFrom(src => src.Quantity * src.Price));
+            .ConstructUsing(src => new CartItemDto(
+                src.Id,
+                src.ProductId,
+                src.Product != null ? src.Product.Name : string.Empty,
+                src.Product != null ? src.Product.ImageUrl : string.Empty,
+                src.Quantity,
+                src.Price,
+                src.Quantity * src.Price
+            ));
 
         CreateMap<Merge.Domain.Entities.Cart, CartDto>()
-            .ForMember(dest => dest.TotalAmount, opt => opt.MapFrom(src => src.CalculateTotalAmount()));
+            .ConstructUsing(src => new CartDto(
+                src.Id,
+                src.UserId,
+                src.CartItems.Select(ci => new CartItemDto(
+                    ci.Id,
+                    ci.ProductId,
+                    ci.Product != null ? ci.Product.Name : string.Empty,
+                    ci.Product != null ? ci.Product.ImageUrl : string.Empty,
+                    ci.Quantity,
+                    ci.Price,
+                    ci.Quantity * ci.Price
+                )).ToList().AsReadOnly(),
+                src.CalculateTotalAmount()
+            ));
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<SavedCartItem, SavedCartItemDto>()
-            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : string.Empty))
-            .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src => src.Product != null ? src.Product.ImageUrl : string.Empty))
-            .ForMember(dest => dest.CurrentPrice, opt => opt.MapFrom(src => src.Product != null ? (src.Product.DiscountPrice ?? src.Product.Price) : 0))
-            .ForMember(dest => dest.IsPriceChanged, opt => opt.MapFrom(src => 
-                src.Product != null && src.Price != (src.Product.DiscountPrice ?? src.Product.Price)));
+            .ConstructUsing(src => new SavedCartItemDto(
+                src.Id,
+                src.ProductId,
+                src.Product != null ? src.Product.Name : string.Empty,
+                src.Product != null ? src.Product.ImageUrl : string.Empty,
+                src.Price,
+                src.Product != null ? (src.Product.DiscountPrice ?? src.Product.Price) : 0,
+                src.Quantity,
+                src.Notes,
+                src.Product != null && src.Price != (src.Product.DiscountPrice ?? src.Product.Price)
+            ));
 
         CreateMap<OrderItem, OrderItemDto>()
             .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : string.Empty))
@@ -445,21 +472,60 @@ public class MappingProfile : Profile
 
         // PreOrder mappings
         CreateMap<PreOrder, PreOrderDto>()
-            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : "Unknown"))
-            .ForMember(dest => dest.ProductImage, opt => opt.MapFrom(src => src.Product != null ? src.Product.ImageUrl : string.Empty))
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
+            .ConstructUsing(src => new PreOrderDto(
+                src.Id,
+                src.UserId,
+                src.ProductId,
+                src.Product != null ? src.Product.Name : "Unknown",
+                src.Product != null ? src.Product.ImageUrl : string.Empty,
+                src.Quantity,
+                src.Price,
+                src.DepositAmount,
+                src.DepositPaid,
+                src.Status, // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
+                src.ExpectedAvailabilityDate,
+                src.ActualAvailabilityDate,
+                src.ExpiresAt,
+                src.Notes,
+                src.CreatedAt
+            ));
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<PreOrderCampaign, PreOrderCampaignDto>()
-            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : "Unknown"))
-            .ForMember(dest => dest.ProductImage, opt => opt.MapFrom(src => src.Product != null ? src.Product.ImageUrl : string.Empty))
-            .ForMember(dest => dest.AvailableQuantity, opt => opt.MapFrom(src => 
-                src.MaxQuantity > 0 ? src.MaxQuantity - src.CurrentQuantity : int.MaxValue))
-            .ForMember(dest => dest.IsFull, opt => opt.MapFrom(src => 
-                src.MaxQuantity > 0 && src.CurrentQuantity >= src.MaxQuantity));
+            .ConstructUsing(src => new PreOrderCampaignDto(
+                src.Id,
+                src.Name,
+                src.Description,
+                src.ProductId,
+                src.Product != null ? src.Product.Name : "Unknown",
+                src.Product != null ? src.Product.ImageUrl : string.Empty,
+                src.StartDate,
+                src.EndDate,
+                src.ExpectedDeliveryDate,
+                src.MaxQuantity,
+                src.CurrentQuantity,
+                src.MaxQuantity > 0 ? src.MaxQuantity - src.CurrentQuantity : int.MaxValue,
+                src.DepositPercentage,
+                src.SpecialPrice,
+                src.IsActive,
+                src.MaxQuantity > 0 && src.CurrentQuantity >= src.MaxQuantity
+            ));
 
         // AbandonedCartEmail mappings
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<AbandonedCartEmail, AbandonedCartEmailDto>()
-            .ForMember(dest => dest.CouponCode, opt => opt.MapFrom(src => src.Coupon != null ? src.Coupon.Code : null));
+            .ConstructUsing(src => new AbandonedCartEmailDto(
+                src.Id,
+                src.CartId,
+                src.UserId,
+                src.EmailType,
+                src.SentAt,
+                src.WasOpened,
+                src.WasClicked,
+                src.ResultedInPurchase,
+                src.CouponId,
+                src.Coupon != null ? src.Coupon.Code : null
+            ));
 
         // Cart -> AbandonedCartDto mapping (complex mapping with computed properties)
         CreateMap<Merge.Domain.Entities.Cart, AbandonedCartDto>()

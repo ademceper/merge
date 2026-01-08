@@ -9,6 +9,8 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Cart.Commands.ConvertPreOrderToOrder;
 
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class ConvertPreOrderToOrderCommandHandler : IRequestHandler<ConvertPreOrderToOrderCommand, bool>
 {
     private readonly IDbContext _context;

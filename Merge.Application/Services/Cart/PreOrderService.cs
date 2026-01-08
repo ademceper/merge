@@ -543,15 +543,14 @@ public class PreOrderService : IPreOrderService
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         var recentDtos = _mapper.Map<IEnumerable<PreOrderDto>>(recentPreOrders).ToList();
 
-        return new PreOrderStatsDto
-        {
-            TotalPreOrders = totalPreOrders,
-            PendingPreOrders = pendingPreOrders,
-            ConfirmedPreOrders = confirmedPreOrders,
-            TotalRevenue = totalRevenue,
-            TotalDeposits = totalDeposits,
-            RecentPreOrders = recentDtos
-        };
+        return new PreOrderStatsDto(
+            totalPreOrders,
+            pendingPreOrders,
+            confirmedPreOrders,
+            totalRevenue,
+            totalDeposits,
+            recentDtos
+        );
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)

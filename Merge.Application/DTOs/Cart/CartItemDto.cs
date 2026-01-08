@@ -1,13 +1,15 @@
 namespace Merge.Application.DTOs.Cart;
 
-public class CartItemDto
-{
-    public Guid Id { get; set; }
-    public Guid ProductId { get; set; }
-    public string ProductName { get; set; } = string.Empty;
-    public string ProductImageUrl { get; set; } = string.Empty;
-    public int Quantity { get; set; }
-    public decimal Price { get; set; }
-    public decimal TotalPrice { get; set; }
-}
+/// <summary>
+/// CartItem DTO - BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
+/// </summary>
+public record CartItemDto(
+    Guid Id,
+    Guid ProductId,
+    string ProductName,
+    string ProductImageUrl,
+    int Quantity,
+    decimal Price,
+    decimal TotalPrice
+);
 
