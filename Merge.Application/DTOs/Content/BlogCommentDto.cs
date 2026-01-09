@@ -1,17 +1,17 @@
 namespace Merge.Application.DTOs.Content;
 
-public class BlogCommentDto
-{
-    public Guid Id { get; set; }
-    public Guid BlogPostId { get; set; }
-    public Guid? UserId { get; set; }
-    public string? UserName { get; set; }
-    public Guid? ParentCommentId { get; set; }
-    public string AuthorName { get; set; } = string.Empty;
-    public string Content { get; set; } = string.Empty;
-    public bool IsApproved { get; set; }
-    public int LikeCount { get; set; }
-    public int ReplyCount { get; set; }
-    public List<BlogCommentDto> Replies { get; set; } = new();
-    public DateTime CreatedAt { get; set; }
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+public record BlogCommentDto(
+    Guid Id,
+    Guid BlogPostId,
+    Guid? UserId,
+    string? UserName,
+    Guid? ParentCommentId,
+    string AuthorName,
+    string Content,
+    bool IsApproved,
+    int LikeCount,
+    int ReplyCount,
+    IReadOnlyList<BlogCommentDto>? Replies,
+    DateTime CreatedAt
+);

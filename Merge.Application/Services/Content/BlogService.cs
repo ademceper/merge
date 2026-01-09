@@ -42,25 +42,29 @@ public class BlogService : IBlogService
 
     // Categories
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    public async Task<BlogCategoryDto> CreateCategoryAsync(CreateBlogCategoryDto dto, CancellationToken cancellationToken = default)
+    [Obsolete("Use CreateBlogCategoryCommand via MediatR instead")]
+    public async Task<BlogCategoryDto> CreateCategoryAsync(object dtoObj, CancellationToken cancellationToken = default)
     {
-        var slug = GenerateSlug(dto.Name);
+        if (dtoObj is not CreateBlogCategoryDto dto)
+        {
+            throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
+        }
+        var slug = BlogCategory.GenerateSlug(dto.Name);
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         if (await _context.Set<BlogCategory>().AnyAsync(c => c.Slug == slug, cancellationToken))
         {
             slug = $"{slug}-{DateTime.UtcNow.Ticks}";
         }
 
-        var category = new BlogCategory
-        {
-            Name = dto.Name,
-            Slug = slug,
-            Description = dto.Description,
-            ParentCategoryId = dto.ParentCategoryId,
-            ImageUrl = dto.ImageUrl,
-            DisplayOrder = dto.DisplayOrder,
-            IsActive = dto.IsActive
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var category = BlogCategory.Create(
+            dto.Name,
+            dto.Description,
+            dto.ParentCategoryId,
+            dto.ImageUrl,
+            dto.DisplayOrder,
+            dto.IsActive,
+            slug);
 
         await _context.Set<BlogCategory>().AddAsync(category, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -128,30 +132,36 @@ public class BlogService : IBlogService
         return result;
     }
 
-    public async Task<bool> UpdateCategoryAsync(Guid id, CreateBlogCategoryDto dto, CancellationToken cancellationToken = default)
+    [Obsolete("Use UpdateBlogCategoryCommand via MediatR instead")]
+    public async Task<bool> UpdateCategoryAsync(Guid id, object dtoObj, CancellationToken cancellationToken = default)
     {
+        if (dtoObj is not CreateBlogCategoryDto dto)
+        {
+            throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
+        }
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var category = await _context.Set<BlogCategory>()
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (category == null) return false;
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (!string.IsNullOrEmpty(dto.Name))
         {
-            category.Name = dto.Name;
-            category.Slug = GenerateSlug(dto.Name);
+            category.UpdateName(dto.Name);
         }
         if (dto.Description != null)
-            category.Description = dto.Description;
+            category.UpdateDescription(dto.Description);
         if (dto.ParentCategoryId.HasValue)
-            category.ParentCategoryId = dto.ParentCategoryId;
+            category.UpdateParentCategory(dto.ParentCategoryId);
         if (dto.ImageUrl != null)
-            category.ImageUrl = dto.ImageUrl;
+            category.UpdateImageUrl(dto.ImageUrl);
         if (dto.DisplayOrder != 0)
-            category.DisplayOrder = dto.DisplayOrder;
-        category.IsActive = dto.IsActive;
-
-        category.UpdatedAt = DateTime.UtcNow;
+            category.UpdateDisplayOrder(dto.DisplayOrder);
+        if (dto.IsActive)
+            category.Activate();
+        else
+            category.Deactivate();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -165,8 +175,8 @@ public class BlogService : IBlogService
 
         if (category == null) return false;
 
-        category.IsDeleted = true;
-        category.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
+        category.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -176,8 +186,13 @@ public class BlogService : IBlogService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-    public async Task<BlogPostDto> CreatePostAsync(Guid authorId, CreateBlogPostDto dto, CancellationToken cancellationToken = default)
+    [Obsolete("Use CreateBlogPostCommand via MediatR instead")]
+    public async Task<BlogPostDto> CreatePostAsync(Guid authorId, object dtoObj, CancellationToken cancellationToken = default)
     {
+        if (dtoObj is not CreateBlogPostDto dto)
+        {
+            throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
+        }
         _logger.LogInformation("Blog post olusturuluyor. AuthorId: {AuthorId}, CategoryId: {CategoryId}, Title: {Title}", 
             authorId, dto.CategoryId, dto.Title);
 
@@ -193,7 +208,7 @@ public class BlogService : IBlogService
                 throw new NotFoundException("Kategori", dto.CategoryId);
             }
 
-            var slug = GenerateSlug(dto.Title);
+            var slug = BlogPost.GenerateSlug(dto.Title);
             // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
             if (await _context.Set<BlogPost>().AnyAsync(p => p.Slug == slug, cancellationToken))
             {
@@ -201,27 +216,27 @@ public class BlogService : IBlogService
             }
 
             var readingTime = CalculateReadingTime(dto.Content);
+            var statusEnum = Enum.TryParse<ContentStatus>(dto.Status, true, out var status) ? status : ContentStatus.Draft;
+            var tags = dto.Tags != null ? string.Join(",", dto.Tags) : null;
 
-            var post = new BlogPost
-            {
-                CategoryId = dto.CategoryId,
-                AuthorId = authorId,
-                Title = dto.Title,
-                Slug = slug,
-                Excerpt = dto.Excerpt,
-                Content = dto.Content,
-                FeaturedImageUrl = dto.FeaturedImageUrl,
-                Status = Enum.TryParse<ContentStatus>(dto.Status, true, out var statusEnum) ? statusEnum : ContentStatus.Draft,
-                Tags = dto.Tags != null ? string.Join(",", dto.Tags) : null,
-                IsFeatured = dto.IsFeatured,
-                AllowComments = dto.AllowComments,
-                MetaTitle = dto.MetaTitle,
-                MetaDescription = dto.MetaDescription,
-                MetaKeywords = dto.MetaKeywords,
-                OgImageUrl = dto.OgImageUrl,
-                ReadingTimeMinutes = readingTime,
-                PublishedAt = (Enum.TryParse<ContentStatus>(dto.Status, true, out var status) && status == ContentStatus.Published) ? DateTime.UtcNow : null
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var post = BlogPost.Create(
+                dto.CategoryId,
+                authorId,
+                dto.Title,
+                dto.Excerpt,
+                dto.Content,
+                dto.FeaturedImageUrl,
+                statusEnum,
+                tags,
+                dto.IsFeatured,
+                dto.AllowComments,
+                dto.MetaTitle,
+                dto.MetaDescription,
+                dto.MetaKeywords,
+                dto.OgImageUrl,
+                readingTime,
+                slug); // Pass unique slug
 
             await _context.Set<BlogPost>().AddAsync(post, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -397,56 +412,52 @@ public class BlogService : IBlogService
         };
     }
 
-    public async Task<bool> UpdatePostAsync(Guid id, CreateBlogPostDto dto, CancellationToken cancellationToken = default)
+    [Obsolete("Use UpdateBlogPostCommand via MediatR instead")]
+    public async Task<bool> UpdatePostAsync(Guid id, object dtoObj, CancellationToken cancellationToken = default)
     {
+        if (dtoObj is not CreateBlogPostDto dto)
+        {
+            throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
+        }
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var post = await _context.Set<BlogPost>()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (post == null) return false;
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (!string.IsNullOrEmpty(dto.Title))
         {
-            post.Title = dto.Title;
-            post.Slug = GenerateSlug(dto.Title);
+            post.UpdateTitle(dto.Title);
         }
         if (dto.CategoryId != Guid.Empty)
-            post.CategoryId = dto.CategoryId;
+            post.UpdateCategory(dto.CategoryId);
         if (!string.IsNullOrEmpty(dto.Excerpt))
-            post.Excerpt = dto.Excerpt;
+            post.UpdateExcerpt(dto.Excerpt);
         if (!string.IsNullOrEmpty(dto.Content))
         {
-            post.Content = dto.Content;
-            post.ReadingTimeMinutes = CalculateReadingTime(dto.Content);
+            post.UpdateContent(dto.Content);
+            post.UpdateReadingTime(CalculateReadingTime(dto.Content));
         }
         if (dto.FeaturedImageUrl != null)
-            post.FeaturedImageUrl = dto.FeaturedImageUrl;
+            post.UpdateFeaturedImage(dto.FeaturedImageUrl);
         // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
         if (!string.IsNullOrEmpty(dto.Status))
         {
             if (Enum.TryParse<ContentStatus>(dto.Status, true, out var newStatus))
             {
-                post.Status = newStatus;
-                if (newStatus == ContentStatus.Published && !post.PublishedAt.HasValue)
-                {
-                    post.PublishedAt = DateTime.UtcNow;
-                }
+                post.UpdateStatus(newStatus);
             }
         }
         if (dto.Tags != null)
-            post.Tags = string.Join(",", dto.Tags);
-        post.IsFeatured = dto.IsFeatured;
-        post.AllowComments = dto.AllowComments;
-        if (dto.MetaTitle != null)
-            post.MetaTitle = dto.MetaTitle;
-        if (dto.MetaDescription != null)
-            post.MetaDescription = dto.MetaDescription;
-        if (dto.MetaKeywords != null)
-            post.MetaKeywords = dto.MetaKeywords;
-        if (dto.OgImageUrl != null)
-            post.OgImageUrl = dto.OgImageUrl;
-
-        post.UpdatedAt = DateTime.UtcNow;
+            post.UpdateTags(string.Join(",", dto.Tags));
+        if (dto.IsFeatured)
+            post.SetAsFeatured();
+        else
+            post.UnsetAsFeatured();
+        post.UpdateAllowComments(dto.AllowComments);
+        if (dto.MetaTitle != null || dto.MetaDescription != null || dto.MetaKeywords != null || dto.OgImageUrl != null)
+            post.UpdateMetaInformation(dto.MetaTitle, dto.MetaDescription, dto.MetaKeywords, dto.OgImageUrl);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -460,8 +471,8 @@ public class BlogService : IBlogService
 
         if (post == null) return false;
 
-        post.IsDeleted = true;
-        post.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
+        post.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -475,9 +486,8 @@ public class BlogService : IBlogService
 
         if (post == null) return false;
 
-        post.Status = ContentStatus.Published;
-        post.PublishedAt = DateTime.UtcNow;
-        post.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        post.Publish();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -491,8 +501,8 @@ public class BlogService : IBlogService
 
         if (post == null) return false;
 
-        post.ViewCount++;
-        post.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        post.IncrementViewCount();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -500,8 +510,13 @@ public class BlogService : IBlogService
 
     // Comments
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    public async Task<BlogCommentDto> CreateCommentAsync(Guid? userId, CreateBlogCommentDto dto, CancellationToken cancellationToken = default)
+    [Obsolete("Use CreateBlogCommentCommand via MediatR instead")]
+    public async Task<BlogCommentDto> CreateCommentAsync(Guid? userId, object dtoObj, CancellationToken cancellationToken = default)
     {
+        if (dtoObj is not CreateBlogCommentDto dto)
+        {
+            throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
+        }
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var post = await _context.Set<BlogPost>()
             .FirstOrDefaultAsync(p => p.Id == dto.BlogPostId && p.AllowComments, cancellationToken);
@@ -511,19 +526,20 @@ public class BlogService : IBlogService
             throw new NotFoundException("Blog yazısı", dto.BlogPostId);
         }
 
-        var comment = new BlogComment
-        {
-            BlogPostId = dto.BlogPostId,
-            UserId = userId,
-            ParentCommentId = dto.ParentCommentId,
-            AuthorName = dto.AuthorName ?? string.Empty,
-            AuthorEmail = dto.AuthorEmail ?? string.Empty,
-            Content = dto.Content,
-            IsApproved = userId.HasValue // Auto-approve for logged-in users
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var autoApprove = userId.HasValue; // Auto-approve for logged-in users
+        var comment = BlogComment.Create(
+            dto.BlogPostId,
+            dto.Content,
+            userId,
+            dto.ParentCommentId,
+            dto.AuthorName,
+            dto.AuthorEmail,
+            autoApprove);
 
         await _context.Set<BlogComment>().AddAsync(comment, cancellationToken);
-        post.CommentCount++;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        post.IncrementCommentCount();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return MapToCommentDtoWithAutoMapper(comment);
@@ -572,8 +588,8 @@ public class BlogService : IBlogService
 
         if (comment == null) return false;
 
-        comment.IsApproved = true;
-        comment.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        comment.Approve();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -587,15 +603,18 @@ public class BlogService : IBlogService
 
         if (comment == null) return false;
 
-        comment.IsDeleted = true;
-        comment.UpdatedAt = DateTime.UtcNow;
+        var blogPostId = comment.BlogPostId;
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
+        comment.MarkAsDeleted();
         
         // Decrement post comment count
         var post = await _context.Set<BlogPost>()
-            .FirstOrDefaultAsync(p => p.Id == comment.BlogPostId, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == blogPostId, cancellationToken);
         if (post != null)
         {
-            post.CommentCount = Math.Max(0, post.CommentCount - 1);
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            post.DecrementCommentCount();
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -693,7 +712,8 @@ public class BlogService : IBlogService
         var dto = _mapper.Map<BlogCategoryDto>(category);
         
         // ✅ PERFORMANCE: postCount batch loading ile sağlanıyor (GetAllCategoriesAsync'de)
-        dto.PostCount = postCounts?.GetValueOrDefault(category.Id, 0) ?? 0;
+        // ✅ BOLUM 7.1: Records - with expression kullanımı (immutable DTOs)
+        dto = dto with { PostCount = postCounts?.GetValueOrDefault(category.Id, 0) ?? 0 };
 
         // ✅ PERFORMANCE: Recursive mapping için SubCategories'leri manuel set et (AutoMapper recursive mapping'i desteklemiyor)
         if (category.SubCategories != null && category.SubCategories.Any())
@@ -703,7 +723,8 @@ public class BlogService : IBlogService
             {
                 subCategories.Add(MapToCategoryDtoWithAutoMapper(subCat, postCounts));
             }
-            dto.SubCategories = subCategories;
+            // ✅ BOLUM 7.1: Records - with expression kullanımı (immutable DTOs)
+            dto = dto with { SubCategories = subCategories };
         }
 
         return dto;
@@ -716,9 +737,11 @@ public class BlogService : IBlogService
         var dto = _mapper.Map<BlogCommentDto>(comment);
         
         // ✅ PERFORMANCE: Computed properties için manuel set et
-        dto.ReplyCount = comment.Replies?.Count(r => r.IsApproved) ?? 0;
+        // ✅ BOLUM 7.1: Records - with expression kullanımı (immutable DTOs)
+        dto = dto with { ReplyCount = comment.Replies?.Count(r => r.IsApproved) ?? 0 };
         
         // ✅ PERFORMANCE: Recursive mapping için Replies'leri manuel set et (AutoMapper recursive mapping'i desteklemiyor)
+        // ✅ BOLUM 7.1: Records - with expression kullanımı (immutable DTOs)
         if (comment.Replies != null)
         {
             var replies = new List<BlogCommentDto>();
@@ -726,7 +749,7 @@ public class BlogService : IBlogService
             {
                 replies.Add(MapToCommentDtoWithAutoMapper(reply));
             }
-            dto.Replies = replies;
+            dto = dto with { Replies = replies.AsReadOnly() };
         }
 
         return dto;

@@ -1,50 +1,83 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.User;
-using Merge.Application.Interfaces.Content;
+using Microsoft.Extensions.Options;
+using MediatR;
 using Merge.Application.DTOs.Content;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
 using Merge.API.Middleware;
+using Merge.Application.Content.Commands.CreateOrUpdateSEOSettings;
+using Merge.Application.Content.Commands.DeleteSEOSettings;
+using Merge.Application.Content.Queries.GetSEOSettings;
+using Merge.Application.Content.Commands.GenerateProductSEO;
+using Merge.Application.Content.Commands.GenerateCategorySEO;
+using Merge.Application.Content.Commands.GenerateBlogPostSEO;
+using Merge.Application.Content.Commands.CreateSitemapEntry;
+using Merge.Application.Content.Commands.UpdateSitemapEntry;
+using Merge.Application.Content.Commands.DeleteSitemapEntry;
+using Merge.Application.Content.Queries.GetSitemapEntries;
+using Merge.Application.Content.Queries.GetSitemapXml;
+using Merge.Application.Content.Queries.GetRobotsTxt;
 
 namespace Merge.API.Controllers.Content;
 
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/content/seo")]
+[Route("api/v{version:apiVersion}/content/seo")]
 [Authorize(Roles = "Admin,Manager")]
 public class SEOController : BaseController
 {
-    private readonly ISEOService _seoService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
 
-    public SEOController(ISEOService seoService)
+    public SEOController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _seoService = seoService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
     /// <summary>
     /// SEO ayarlarını oluşturur veya günceller
     /// </summary>
+    /// <param name="command">SEO ayarları oluşturma/güncelleme komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Oluşturulan/güncellenen SEO ayarları</returns>
+    /// <response code="200">SEO ayarları başarıyla oluşturuldu/güncellendi</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("settings")]
     [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
     [ProducesResponseType(typeof(SEOSettingsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<SEOSettingsDto>> CreateOrUpdateSettings(
-        [FromBody] CreateSEOSettingsDto dto,
+        [FromBody] CreateOrUpdateSEOSettingsCommand command,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var settings = await _seoService.CreateOrUpdateSEOSettingsAsync(dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var settings = await _mediator.Send(command, cancellationToken);
         return Ok(settings);
     }
 
     /// <summary>
     /// SEO ayarlarını getirir
     /// </summary>
+    /// <param name="pageType">Sayfa tipi</param>
+    /// <param name="entityId">Entity ID (opsiyonel)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>SEO ayarları</returns>
+    /// <response code="200">SEO ayarları başarıyla getirildi</response>
+    /// <response code="404">SEO ayarları bulunamadı</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("settings")]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
@@ -56,8 +89,9 @@ public class SEOController : BaseController
         [FromQuery] Guid? entityId = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var settings = await _seoService.GetSEOSettingsAsync(pageType, entityId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSEOSettingsQuery(pageType, entityId);
+        var settings = await _mediator.Send(query, cancellationToken);
         if (settings == null)
         {
             return NotFound();
@@ -68,21 +102,33 @@ public class SEOController : BaseController
     /// <summary>
     /// SEO ayarlarını siler
     /// </summary>
+    /// <param name="pageType">Sayfa tipi</param>
+    /// <param name="entityId">Entity ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">SEO ayarları başarıyla silindi</response>
+    /// <response code="404">SEO ayarları bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpDelete("settings")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> DeleteSettings(
         [FromQuery] string pageType,
         [FromQuery] Guid entityId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _seoService.DeleteSEOSettingsAsync(pageType, entityId, cancellationToken);
-        if (!success)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeleteSEOSettingsCommand(pageType, entityId);
+        var result = await _mediator.Send(command, cancellationToken);
+        if (!result)
         {
             return NotFound();
         }
@@ -92,91 +138,133 @@ public class SEOController : BaseController
     /// <summary>
     /// Ürün için SEO ayarlarını otomatik oluşturur
     /// </summary>
+    /// <param name="productId">Ürün ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Oluşturulan SEO ayarları</returns>
+    /// <response code="200">SEO ayarları başarıyla oluşturuldu</response>
+    /// <response code="404">Ürün bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("generate/product/{productId}")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [ProducesResponseType(typeof(SEOSettingsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<SEOSettingsDto>> GenerateProductSEO(
         Guid productId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var settings = await _seoService.GenerateSEOForProductAsync(productId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new GenerateProductSEOCommand(productId);
+        var settings = await _mediator.Send(command, cancellationToken);
         return Ok(settings);
     }
 
     /// <summary>
     /// Kategori için SEO ayarlarını otomatik oluşturur
     /// </summary>
+    /// <param name="categoryId">Kategori ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Oluşturulan SEO ayarları</returns>
+    /// <response code="200">SEO ayarları başarıyla oluşturuldu</response>
+    /// <response code="404">Kategori bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("generate/category/{categoryId}")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [ProducesResponseType(typeof(SEOSettingsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<SEOSettingsDto>> GenerateCategorySEO(
         Guid categoryId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var settings = await _seoService.GenerateSEOForCategoryAsync(categoryId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new GenerateCategorySEOCommand(categoryId);
+        var settings = await _mediator.Send(command, cancellationToken);
         return Ok(settings);
     }
 
     /// <summary>
     /// Blog post için SEO ayarlarını otomatik oluşturur
     /// </summary>
+    /// <param name="postId">Blog post ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Oluşturulan SEO ayarları</returns>
+    /// <response code="200">SEO ayarları başarıyla oluşturuldu</response>
+    /// <response code="404">Blog post bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("generate/blog/{postId}")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [ProducesResponseType(typeof(SEOSettingsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<SEOSettingsDto>> GenerateBlogPostSEO(
         Guid postId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var settings = await _seoService.GenerateSEOForBlogPostAsync(postId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new GenerateBlogPostSEOCommand(postId);
+        var settings = await _mediator.Send(command, cancellationToken);
         return Ok(settings);
     }
 
     /// <summary>
     /// Sitemap entry ekler
     /// </summary>
+    /// <param name="command">Sitemap entry oluşturma komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Oluşturulan sitemap entry</returns>
+    /// <response code="201">Sitemap entry başarıyla oluşturuldu</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("sitemap/entries")]
     [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
     [ProducesResponseType(typeof(SitemapEntryDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<SitemapEntryDto>> AddSitemapEntry(
-        [FromBody] AddSitemapEntryDto dto,
+        [FromBody] CreateSitemapEntryCommand command,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var entry = await _seoService.AddSitemapEntryAsync(
-            dto.Url, 
-            dto.PageType, 
-            dto.EntityId, 
-            dto.ChangeFrequency ?? "weekly", 
-            dto.Priority ?? 0.5m,
-            cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var entry = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetSitemapEntries), new { id = entry.Id }, entry);
     }
 
     /// <summary>
     /// Tüm sitemap entry'lerini getirir (sayfalanmış)
     /// </summary>
+    /// <param name="isActive">Sadece aktif entry'leri getir (opsiyonel)</param>
+    /// <param name="page">Sayfa numarası (varsayılan: 1)</param>
+    /// <param name="pageSize">Sayfa boyutu (varsayılan: 20)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Sayfalanmış sitemap entry listesi</returns>
+    /// <response code="200">Sitemap entry'leri başarıyla getirildi</response>
+    /// <response code="400">Geçersiz sayfalama parametreleri</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("sitemap/entries")]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
@@ -189,18 +277,26 @@ public class SEOController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ⚠️ NOT: GetAllSitemapEntriesAsync pagination desteklemiyor - Interface'i güncellemek gerekiyor
-        var entries = await _seoService.GetAllSitemapEntriesAsync(isActive, page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSitemapEntriesQuery(isActive, page, pageSize);
+        var entries = await _mediator.Send(query, cancellationToken);
         return Ok(entries);
     }
 
     /// <summary>
     /// Sitemap entry'yi günceller
     /// </summary>
+    /// <param name="id">Güncellenecek sitemap entry ID</param>
+    /// <param name="command">Sitemap entry güncelleme komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">Sitemap entry başarıyla güncellendi</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="404">Sitemap entry bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPut("sitemap/entries/{id}")]
     [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -208,18 +304,17 @@ public class SEOController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> UpdateSitemapEntry(
         Guid id,
-        [FromBody] UpdateSitemapEntryDto dto,
+        [FromBody] UpdateSitemapEntryCommand command,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _seoService.UpdateSitemapEntryAsync(id, dto.Url, dto.ChangeFrequency, dto.Priority, cancellationToken);
-        if (!success)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var updateCommand = command with { Id = id };
+        var result = await _mediator.Send(updateCommand, cancellationToken);
+        if (!result)
         {
             return NotFound();
         }
@@ -229,20 +324,31 @@ public class SEOController : BaseController
     /// <summary>
     /// Sitemap entry'yi siler
     /// </summary>
+    /// <param name="id">Silinecek sitemap entry ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">Sitemap entry başarıyla silindi</response>
+    /// <response code="404">Sitemap entry bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpDelete("sitemap/entries/{id}")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> RemoveSitemapEntry(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _seoService.RemoveSitemapEntryAsync(id, cancellationToken);
-        if (!success)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeleteSitemapEntryCommand(id);
+        var result = await _mediator.Send(command, cancellationToken);
+        if (!result)
         {
             return NotFound();
         }
@@ -252,6 +358,10 @@ public class SEOController : BaseController
     /// <summary>
     /// Sitemap XML'ini getirir
     /// </summary>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Sitemap XML içeriği</returns>
+    /// <response code="200">Sitemap XML başarıyla getirildi</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("sitemap.xml")]
     [AllowAnonymous]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika (sitemap için düşük limit)
@@ -260,14 +370,19 @@ public class SEOController : BaseController
     public async Task<IActionResult> GetSitemapXml(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var xml = await _seoService.GenerateSitemapXmlAsync(cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSitemapXmlQuery();
+        var xml = await _mediator.Send(query, cancellationToken);
         return Content(xml, "application/xml");
     }
 
     /// <summary>
     /// Robots.txt içeriğini getirir
     /// </summary>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Robots.txt içeriği</returns>
+    /// <response code="200">Robots.txt başarıyla getirildi</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("robots.txt")]
     [AllowAnonymous]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika (robots.txt için düşük limit)
@@ -276,8 +391,9 @@ public class SEOController : BaseController
     public async Task<IActionResult> GetRobotsTxt(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var content = await _seoService.GenerateRobotsTxtAsync(cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetRobotsTxtQuery();
+        var content = await _mediator.Send(query, cancellationToken);
         return Content(content, "text/plain");
     }
 }

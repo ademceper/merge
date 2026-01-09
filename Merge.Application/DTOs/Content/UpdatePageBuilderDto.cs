@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Content;
 
+[Obsolete("Use UpdatePageBuilderCommand via MediatR instead")]
 public class UpdatePageBuilderDto
 {
     [StringLength(200, MinimumLength = 2, ErrorMessage = "İsim en az 2, en fazla 200 karakter olmalıdır.")]
@@ -29,3 +30,4 @@ public class UpdatePageBuilderDto
     [Url(ErrorMessage = "Geçerli bir URL giriniz.")]
     public string? OgImageUrl { get; set; }
 }
+

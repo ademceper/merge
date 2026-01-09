@@ -1,29 +1,62 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.User;
-using Merge.Application.Interfaces.Content;
+using Microsoft.Extensions.Options;
+using MediatR;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Content;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
 using Merge.API.Middleware;
+using Merge.Application.Content.Commands.CreateBlogCategory;
+using Merge.Application.Content.Commands.UpdateBlogCategory;
+using Merge.Application.Content.Commands.DeleteBlogCategory;
+using Merge.Application.Content.Queries.GetAllBlogCategories;
+using Merge.Application.Content.Queries.GetBlogCategoryById;
+using Merge.Application.Content.Queries.GetBlogCategoryBySlug;
+using Merge.Application.Content.Commands.CreateBlogPost;
+using Merge.Application.Content.Commands.UpdateBlogPost;
+using Merge.Application.Content.Commands.DeleteBlogPost;
+using Merge.Application.Content.Commands.PublishBlogPost;
+using Merge.Application.Content.Queries.GetBlogPosts;
+using Merge.Application.Content.Queries.GetFeaturedBlogPosts;
+using Merge.Application.Content.Queries.GetRecentBlogPosts;
+using Merge.Application.Content.Queries.SearchBlogPosts;
+using Merge.Application.Content.Queries.GetBlogPostById;
+using Merge.Application.Content.Queries.GetBlogPostBySlug;
+using Merge.Application.Content.Commands.CreateBlogComment;
+using Merge.Application.Content.Commands.ApproveBlogComment;
+using Merge.Application.Content.Commands.DeleteBlogComment;
+using Merge.Application.Content.Queries.GetBlogPostComments;
+using Merge.Application.Content.Queries.GetBlogAnalytics;
 
 namespace Merge.API.Controllers.Content;
 
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/content/blog")]
+[Route("api/v{version:apiVersion}/content/blog")]
 public class BlogController : BaseController
 {
-    private readonly IBlogService _blogService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
 
-    public BlogController(IBlogService blogService)
+    public BlogController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _blogService = blogService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
     // Categories
     /// <summary>
     /// Tüm blog kategorilerini getirir
     /// </summary>
+    /// <param name="isActive">Sadece aktif kategorileri getir (opsiyonel)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Blog kategori listesi</returns>
+    /// <response code="200">Blog kategorileri başarıyla getirildi</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("categories")]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
@@ -33,15 +66,21 @@ public class BlogController : BaseController
         [FromQuery] bool? isActive = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ⚠️ NOT: GetAllCategoriesAsync unbounded query - Kategori sayısı genelde sınırlı olduğu için (10-50) risk düşük
-        var categories = await _blogService.GetAllCategoriesAsync(isActive, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetAllBlogCategoriesQuery(isActive);
+        var categories = await _mediator.Send(query, cancellationToken);
         return Ok(categories);
     }
 
     /// <summary>
     /// Blog kategori detaylarını getirir
     /// </summary>
+    /// <param name="id">Kategori ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Blog kategori detayları</returns>
+    /// <response code="200">Blog kategori başarıyla getirildi</response>
+    /// <response code="404">Blog kategori bulunamadı</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("categories/{id}")]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
@@ -52,8 +91,9 @@ public class BlogController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var category = await _blogService.GetCategoryByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetBlogCategoryByIdQuery(id);
+        var category = await _mediator.Send(query, cancellationToken);
         if (category == null)
         {
             return NotFound();
@@ -64,6 +104,12 @@ public class BlogController : BaseController
     /// <summary>
     /// Slug'a göre blog kategori getirir
     /// </summary>
+    /// <param name="slug">Kategori slug'ı</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Blog kategori detayları</returns>
+    /// <response code="200">Blog kategori başarıyla getirildi</response>
+    /// <response code="404">Blog kategori bulunamadı</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("categories/slug/{slug}")]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
@@ -74,8 +120,9 @@ public class BlogController : BaseController
         string slug,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var category = await _blogService.GetCategoryBySlugAsync(slug, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetBlogCategoryBySlugQuery(slug);
+        var category = await _mediator.Send(query, cancellationToken);
         if (category == null)
         {
             return NotFound();
@@ -86,6 +133,15 @@ public class BlogController : BaseController
     /// <summary>
     /// Yeni blog kategori oluşturur
     /// </summary>
+    /// <param name="command">Blog kategori oluşturma komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Oluşturulan blog kategori</returns>
+    /// <response code="201">Blog kategori başarıyla oluşturuldu</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("categories")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
@@ -93,22 +149,31 @@ public class BlogController : BaseController
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<BlogCategoryDto>> CreateCategory(
-        [FromBody] CreateBlogCategoryDto dto,
+        [FromBody] CreateBlogCategoryCommand command,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var category = await _blogService.CreateCategoryAsync(dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var category = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
     }
 
     /// <summary>
     /// Blog kategoriyi günceller
     /// </summary>
+    /// <param name="id">Güncellenecek kategori ID</param>
+    /// <param name="command">Blog kategori güncelleme komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">Blog kategori başarıyla güncellendi</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="404">Blog kategori bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPut("categories/{id}")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
@@ -117,18 +182,17 @@ public class BlogController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> UpdateCategory(
         Guid id,
-        [FromBody] CreateBlogCategoryDto dto,
+        [FromBody] UpdateBlogCategoryCommand command,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _blogService.UpdateCategoryAsync(id, dto, cancellationToken);
-        if (!success)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var updateCommand = command with { Id = id };
+        var result = await _mediator.Send(updateCommand, cancellationToken);
+        if (!result)
         {
             return NotFound();
         }
@@ -138,6 +202,15 @@ public class BlogController : BaseController
     /// <summary>
     /// Blog kategoriyi siler
     /// </summary>
+    /// <param name="id">Silinecek kategori ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">Blog kategori başarıyla silindi</response>
+    /// <response code="404">Blog kategori bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpDelete("categories/{id}")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
@@ -145,14 +218,16 @@ public class BlogController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> DeleteCategory(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _blogService.DeleteCategoryAsync(id, cancellationToken);
-        if (!success)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeleteBlogCategoryCommand(id);
+        var result = await _mediator.Send(command, cancellationToken);
+        if (!result)
         {
             return NotFound();
         }
@@ -163,6 +238,15 @@ public class BlogController : BaseController
     /// <summary>
     /// Blog post'ları getirir (sayfalanmış)
     /// </summary>
+    /// <param name="categoryId">Kategori ID (opsiyonel)</param>
+    /// <param name="status">Post durumu (varsayılan: Published)</param>
+    /// <param name="page">Sayfa numarası (varsayılan: 1)</param>
+    /// <param name="pageSize">Sayfa boyutu (varsayılan: 10)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Sayfalanmış blog post listesi</returns>
+    /// <response code="200">Blog post'ları başarıyla getirildi</response>
+    /// <response code="400">Geçersiz sayfalama parametreleri</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("posts")]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
@@ -176,24 +260,22 @@ public class BlogController : BaseController
         [FromQuery] int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
-        
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        if (categoryId.HasValue)
-        {
-            var posts = await _blogService.GetPostsByCategoryAsync(categoryId.Value, status, page, pageSize, cancellationToken);
-            return Ok(posts);
-        }
-
-        var recentPosts = await _blogService.GetRecentPostsAsync(pageSize, cancellationToken);
-        return Ok(recentPosts);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetBlogPostsQuery(categoryId, status, page, pageSize);
+        var posts = await _mediator.Send(query, cancellationToken);
+        return Ok(posts);
     }
 
     /// <summary>
     /// Blog post detaylarını getirir
     /// </summary>
+    /// <param name="id">Blog post ID</param>
+    /// <param name="trackView">Görüntülenme sayısını artır (varsayılan: true)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Blog post detayları</returns>
+    /// <response code="200">Blog post başarıyla getirildi</response>
+    /// <response code="404">Blog post bulunamadı</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("posts/{id}")]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
@@ -205,8 +287,9 @@ public class BlogController : BaseController
         [FromQuery] bool trackView = true,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var post = await _blogService.GetPostByIdAsync(id, trackView, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetBlogPostByIdQuery(id, trackView);
+        var post = await _mediator.Send(query, cancellationToken);
         if (post == null)
         {
             return NotFound();
@@ -217,6 +300,13 @@ public class BlogController : BaseController
     /// <summary>
     /// Slug'a göre blog post getirir
     /// </summary>
+    /// <param name="slug">Blog post slug'ı</param>
+    /// <param name="trackView">Görüntülenme sayısını artır (varsayılan: true)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Blog post detayları</returns>
+    /// <response code="200">Blog post başarıyla getirildi</response>
+    /// <response code="404">Blog post bulunamadı</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("posts/slug/{slug}")]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
@@ -228,8 +318,9 @@ public class BlogController : BaseController
         [FromQuery] bool trackView = true,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var post = await _blogService.GetPostBySlugAsync(slug, trackView, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetBlogPostBySlugQuery(slug, trackView);
+        var post = await _mediator.Send(query, cancellationToken);
         if (post == null)
         {
             return NotFound();
@@ -240,6 +331,11 @@ public class BlogController : BaseController
     /// <summary>
     /// Öne çıkan blog post'ları getirir
     /// </summary>
+    /// <param name="count">Getirilecek post sayısı (varsayılan: 5)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Öne çıkan blog post listesi</returns>
+    /// <response code="200">Öne çıkan blog post'ları başarıyla getirildi</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("posts/featured")]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
@@ -249,16 +345,20 @@ public class BlogController : BaseController
         [FromQuery] int count = 5,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 6.3: Unbounded Query Koruması - Maksimum limit
-        if (count > 50) count = 50;
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var posts = await _blogService.GetFeaturedPostsAsync(count, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetFeaturedBlogPostsQuery(count);
+        var posts = await _mediator.Send(query, cancellationToken);
         return Ok(posts);
     }
 
     /// <summary>
     /// Son blog post'ları getirir
     /// </summary>
+    /// <param name="count">Getirilecek post sayısı (varsayılan: 10)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Son blog post listesi</returns>
+    /// <response code="200">Son blog post'ları başarıyla getirildi</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("posts/recent")]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
@@ -268,16 +368,23 @@ public class BlogController : BaseController
         [FromQuery] int count = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 6.3: Unbounded Query Koruması - Maksimum limit
-        if (count > 50) count = 50;
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var posts = await _blogService.GetRecentPostsAsync(count, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetRecentBlogPostsQuery(count);
+        var posts = await _mediator.Send(query, cancellationToken);
         return Ok(posts);
     }
 
     /// <summary>
     /// Blog post'larında arama yapar (sayfalanmış)
     /// </summary>
+    /// <param name="query">Arama sorgusu</param>
+    /// <param name="page">Sayfa numarası (varsayılan: 1)</param>
+    /// <param name="pageSize">Sayfa boyutu (varsayılan: 10)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Sayfalanmış arama sonuçları</returns>
+    /// <response code="200">Arama sonuçları başarıyla getirildi</response>
+    /// <response code="400">Geçersiz arama parametreleri</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("posts/search")]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
@@ -290,18 +397,24 @@ public class BlogController : BaseController
         [FromQuery] int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ⚠️ NOT: SearchPostsAsync PagedResult dönmüyor - Interface'i güncellemek gerekiyor
-        var posts = await _blogService.SearchPostsAsync(query, page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var searchQuery = new SearchBlogPostsQuery(query, page, pageSize);
+        var posts = await _mediator.Send(searchQuery, cancellationToken);
         return Ok(posts);
     }
 
     /// <summary>
     /// Yeni blog post oluşturur
     /// </summary>
+    /// <param name="command">Blog post oluşturma komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Oluşturulan blog post</returns>
+    /// <response code="201">Blog post başarıyla oluşturuldu</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("posts")]
     [Authorize(Roles = "Admin,Manager,Writer")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
@@ -309,23 +422,33 @@ public class BlogController : BaseController
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<BlogPostDto>> CreatePost(
-        [FromBody] CreateBlogPostDto dto,
+        [FromBody] CreateBlogPostCommand command,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var authorId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var post = await _blogService.CreatePostAsync(authorId, dto, cancellationToken);
+        var createCommand = command with { AuthorId = authorId };
+        var post = await _mediator.Send(createCommand, cancellationToken);
         return CreatedAtAction(nameof(GetPost), new { id = post.Id }, post);
     }
 
     /// <summary>
     /// Blog post'u günceller
     /// </summary>
+    /// <param name="id">Güncellenecek blog post ID</param>
+    /// <param name="command">Blog post güncelleme komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">Blog post başarıyla güncellendi</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="404">Blog post bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPut("posts/{id}")]
     [Authorize(Roles = "Admin,Manager,Writer")]
     [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
@@ -334,39 +457,22 @@ public class BlogController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> UpdatePost(
         Guid id,
-        [FromBody] CreateBlogPostDto dto,
+        [FromBody] UpdateBlogPostCommand command,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized();
-        }
-
-        // ✅ BOLUM 3.2: IDOR Koruması - Writer sadece kendi post'larını güncelleyebilmeli
-        var post = await _blogService.GetPostByIdAsync(id, false, cancellationToken);
-        if (post == null)
-        {
-            return NotFound();
-        }
-
-        // Writer rolü sadece kendi post'larını güncelleyebilir (Admin ve Manager hariç)
-        if (User.IsInRole("Writer") && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
-        {
-            if (post.AuthorId != userId)
-            {
-                return Forbid();
-            }
-        }
-
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _blogService.UpdatePostAsync(id, dto, cancellationToken);
-        if (!success)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (UpdateBlogPostCommandHandler)
+        // Admin/Manager ise PerformedBy = null (tüm post'ları güncelleyebilir), Writer ise PerformedBy = userId
+        var userId = GetUserId();
+        var performedBy = User.IsInRole("Admin") || User.IsInRole("Manager") ? (Guid?)null : userId;
+        var updateCommand = command with { Id = id, PerformedBy = performedBy };
+        var result = await _mediator.Send(updateCommand, cancellationToken);
+        
+        if (!result)
         {
             return NotFound();
         }
@@ -376,6 +482,15 @@ public class BlogController : BaseController
     /// <summary>
     /// Blog post'u siler
     /// </summary>
+    /// <param name="id">Silinecek blog post ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">Blog post başarıyla silindi</response>
+    /// <response code="404">Blog post bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpDelete("posts/{id}")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
@@ -383,35 +498,21 @@ public class BlogController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> DeletePost(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized();
-        }
-
-        // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi post'larını silebilmeli (Admin hariç)
-        var post = await _blogService.GetPostByIdAsync(id, false, cancellationToken);
-        if (post == null)
-        {
-            return NotFound();
-        }
-
-        // Manager rolü sadece kendi post'larını silebilir (Admin hariç)
-        if (User.IsInRole("Manager") && !User.IsInRole("Admin"))
-        {
-            if (post.AuthorId != userId)
-            {
-                return Forbid();
-            }
-        }
-
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _blogService.DeletePostAsync(id, cancellationToken);
-        if (!success)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (DeleteBlogPostCommandHandler)
+        // Admin ise PerformedBy = null (tüm post'ları silebilir), Manager ise PerformedBy = userId
+        var userId = GetUserId();
+        var performedBy = User.IsInRole("Admin") ? (Guid?)null : userId;
+        var command = new DeleteBlogPostCommand(id, performedBy);
+        var result = await _mediator.Send(command, cancellationToken);
+        
+        if (!result)
         {
             return NotFound();
         }
@@ -421,6 +522,15 @@ public class BlogController : BaseController
     /// <summary>
     /// Blog post'u yayınlar
     /// </summary>
+    /// <param name="id">Yayınlanacak blog post ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">Blog post başarıyla yayınlandı</response>
+    /// <response code="404">Blog post bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("posts/{id}/publish")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
@@ -428,35 +538,21 @@ public class BlogController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> PublishPost(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized();
-        }
-
-        // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi post'larını yayınlayabilmeli (Admin hariç)
-        var post = await _blogService.GetPostByIdAsync(id, false, cancellationToken);
-        if (post == null)
-        {
-            return NotFound();
-        }
-
-        // Manager rolü sadece kendi post'larını yayınlayabilir (Admin hariç)
-        if (User.IsInRole("Manager") && !User.IsInRole("Admin"))
-        {
-            if (post.AuthorId != userId)
-            {
-                return Forbid();
-            }
-        }
-
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _blogService.PublishPostAsync(id, cancellationToken);
-        if (!success)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (PublishBlogPostCommandHandler)
+        // Admin ise PerformedBy = null (tüm post'ları yayınlayabilir), Manager ise PerformedBy = userId
+        var userId = GetUserId();
+        var performedBy = User.IsInRole("Admin") ? (Guid?)null : userId;
+        var command = new PublishBlogPostCommand(id, performedBy);
+        var result = await _mediator.Send(command, cancellationToken);
+        
+        if (!result)
         {
             return NotFound();
         }
@@ -467,6 +563,15 @@ public class BlogController : BaseController
     /// <summary>
     /// Blog post yorumlarını getirir (sayfalanmış)
     /// </summary>
+    /// <param name="postId">Blog post ID</param>
+    /// <param name="isApproved">Sadece onaylanmış yorumları getir (varsayılan: true)</param>
+    /// <param name="page">Sayfa numarası (varsayılan: 1)</param>
+    /// <param name="pageSize">Sayfa boyutu (varsayılan: 20)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Sayfalanmış yorum listesi</returns>
+    /// <response code="200">Yorumlar başarıyla getirildi</response>
+    /// <response code="400">Geçersiz sayfalama parametreleri</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("posts/{postId}/comments")]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
@@ -480,45 +585,58 @@ public class BlogController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ⚠️ NOT: GetPostCommentsAsync pagination desteklemiyor - Interface'i güncellemek gerekiyor
-        var comments = await _blogService.GetPostCommentsAsync(postId, isApproved, page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetBlogPostCommentsQuery(postId, isApproved, page, pageSize);
+        var comments = await _mediator.Send(query, cancellationToken);
         return Ok(comments);
     }
 
     /// <summary>
     /// Blog post yorumu oluşturur
     /// </summary>
+    /// <param name="command">Blog yorumu oluşturma komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Oluşturulan yorum</returns>
+    /// <response code="201">Yorum başarıyla oluşturuldu</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="404">Blog post bulunamadı veya yorumlar kapalı</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("comments")]
     [AllowAnonymous]
     [RateLimit(5, 3600)] // ✅ BOLUM 3.3: Rate Limiting - 5 yorum / saat (spam koruması)
     [ProducesResponseType(typeof(BlogCommentDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<BlogCommentDto>> CreateComment(
-        [FromBody] CreateBlogCommentDto dto,
+        [FromBody] CreateBlogCommentCommand command,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         Guid? userId = null;
         if (User.Identity?.IsAuthenticated == true)
         {
             userId = GetUserId();
         }
-
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var comment = await _blogService.CreateCommentAsync(userId, dto, cancellationToken);
+        var createCommand = command with { UserId = userId };
+        var comment = await _mediator.Send(createCommand, cancellationToken);
         return CreatedAtAction(nameof(GetPostComments), new { postId = comment.BlogPostId }, comment);
     }
 
     /// <summary>
     /// Blog yorumunu onaylar
     /// </summary>
+    /// <param name="id">Onaylanacak yorum ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">Yorum başarıyla onaylandı</response>
+    /// <response code="404">Yorum bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("comments/{id}/approve")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika
@@ -526,14 +644,16 @@ public class BlogController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ApproveComment(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _blogService.ApproveCommentAsync(id, cancellationToken);
-        if (!success)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new ApproveBlogCommentCommand(id);
+        var result = await _mediator.Send(command, cancellationToken);
+        if (!result)
         {
             return NotFound();
         }
@@ -543,6 +663,15 @@ public class BlogController : BaseController
     /// <summary>
     /// Blog yorumunu siler
     /// </summary>
+    /// <param name="id">Silinecek yorum ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">Yorum başarıyla silindi</response>
+    /// <response code="404">Yorum bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpDelete("comments/{id}")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
@@ -550,14 +679,16 @@ public class BlogController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> DeleteComment(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _blogService.DeleteCommentAsync(id, cancellationToken);
-        if (!success)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeleteBlogCommentCommand(id);
+        var result = await _mediator.Send(command, cancellationToken);
+        if (!result)
         {
             return NotFound();
         }
@@ -568,9 +699,17 @@ public class BlogController : BaseController
     /// <summary>
     /// Blog analytics'ini getirir
     /// </summary>
+    /// <param name="startDate">Başlangıç tarihi (opsiyonel)</param>
+    /// <param name="endDate">Bitiş tarihi (opsiyonel)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Blog analytics verileri</returns>
+    /// <response code="200">Analytics başarıyla getirildi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("analytics")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika (analytics için yüksek limit)
     [ProducesResponseType(typeof(BlogAnalyticsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -580,8 +719,9 @@ public class BlogController : BaseController
         [FromQuery] DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var analytics = await _blogService.GetBlogAnalyticsAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetBlogAnalyticsQuery(startDate, endDate);
+        var analytics = await _mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 }

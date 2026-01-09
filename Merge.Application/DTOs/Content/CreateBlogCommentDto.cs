@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Content;
 
+[Obsolete("Use CreateBlogCommentCommand via MediatR instead")]
 public class CreateBlogCommentDto
 {
     [Required]
@@ -20,3 +21,4 @@ public class CreateBlogCommentDto
     [StringLength(2000, MinimumLength = 1, ErrorMessage = "Yorum içeriği en az 1, en fazla 2000 karakter olmalıdır.")]
     public string Content { get; set; } = string.Empty;
 }
+

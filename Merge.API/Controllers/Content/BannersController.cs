@@ -1,25 +1,48 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Content;
+using Microsoft.Extensions.Options;
+using MediatR;
 using Merge.Application.DTOs.Marketing;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
+using Merge.Application.Content.Queries.GetBannerById;
+using Merge.Application.Content.Queries.GetAllBanners;
+using Merge.Application.Content.Queries.GetActiveBanners;
+using Merge.Application.Content.Commands.CreateBanner;
+using Merge.Application.Content.Commands.UpdateBanner;
+using Merge.Application.Content.Commands.DeleteBanner;
 using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Content;
 
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/content/banners")]
+[Route("api/v{version:apiVersion}/content/banners")]
 public class BannersController : BaseController
 {
-    private readonly IBannerService _bannerService;
-        public BannersController(IBannerService bannerService)
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
+
+    public BannersController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _bannerService = bannerService;
-            }
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
+    }
 
     /// <summary>
     /// Aktif banner'ları getirir
     /// </summary>
+    /// <param name="position">Banner pozisyonu (opsiyonel)</param>
+    /// <param name="page">Sayfa numarası (varsayılan: 1)</param>
+    /// <param name="pageSize">Sayfa boyutu (varsayılan: 20)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Sayfalanmış aktif banner listesi</returns>
+    /// <response code="200">Aktif banner'lar başarıyla getirildi</response>
+    /// <response code="400">Geçersiz sayfalama parametreleri</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(PagedResult<BannerDto>), StatusCodes.Status200OK)]
@@ -31,17 +54,28 @@ public class BannersController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var banners = await _bannerService.GetActiveBannersAsync(position, page, pageSize, cancellationToken);
+
+        var query = new GetActiveBannersQuery(position, page, pageSize);
+        var banners = await _mediator.Send(query, cancellationToken);
         return Ok(banners);
     }
 
     /// <summary>
     /// Tüm banner'ları getirir (Admin only)
     /// </summary>
+    /// <param name="page">Sayfa numarası (varsayılan: 1)</param>
+    /// <param name="pageSize">Sayfa boyutu (varsayılan: 20)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Sayfalanmış banner listesi</returns>
+    /// <response code="200">Banner'lar başarıyla getirildi</response>
+    /// <response code="400">Geçersiz sayfalama parametreleri</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("all")]
     [Authorize(Roles = "Admin")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
@@ -55,17 +89,25 @@ public class BannersController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var banners = await _bannerService.GetAllAsync(page, pageSize, cancellationToken);
+
+        var query = new GetAllBannersQuery(page, pageSize);
+        var banners = await _mediator.Send(query, cancellationToken);
         return Ok(banners);
     }
 
     /// <summary>
     /// Banner detaylarını getirir
     /// </summary>
+    /// <param name="id">Banner ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Banner detayları</returns>
+    /// <response code="200">Banner başarıyla getirildi</response>
+    /// <response code="404">Banner bulunamadı</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("{id}")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(BannerDto), StatusCodes.Status200OK)]
@@ -75,8 +117,10 @@ public class BannersController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var banner = await _bannerService.GetByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetBannerByIdQuery(id);
+        var banner = await _mediator.Send(query, cancellationToken);
+        
         if (banner == null)
         {
             return NotFound();
@@ -87,6 +131,15 @@ public class BannersController : BaseController
     /// <summary>
     /// Yeni banner oluşturur
     /// </summary>
+    /// <param name="command">Banner oluşturma komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Oluşturulan banner</returns>
+    /// <response code="201">Banner başarıyla oluşturuldu</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost]
     [Authorize(Roles = "Admin")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
@@ -94,22 +147,34 @@ public class BannersController : BaseController
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<BannerDto>> Create(
-        [FromBody] CreateBannerDto dto,
+        [FromBody] CreateBannerCommand command,
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var banner = await _bannerService.CreateAsync(dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var banner = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = banner.Id }, banner);
     }
 
     /// <summary>
     /// Banner'ı günceller
     /// </summary>
+    /// <param name="id">Banner ID</param>
+    /// <param name="command">Banner güncelleme komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Güncellenen banner</returns>
+    /// <response code="200">Banner başarıyla güncellendi</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="404">Banner bulunamadı</response>
+    /// <response code="422">İş kuralı ihlali veya concurrency conflict</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
     [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
@@ -118,27 +183,34 @@ public class BannersController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<BannerDto>> Update(
         Guid id,
-        [FromBody] UpdateBannerDto dto,
+        [FromBody] UpdateBannerCommand command,
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var banner = await _bannerService.UpdateAsync(id, dto, cancellationToken);
-        if (banner == null)
-        {
-            return NotFound();
-        }
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var updateCommand = command with { Id = id };
+        var banner = await _mediator.Send(updateCommand, cancellationToken);
         return Ok(banner);
     }
 
     /// <summary>
     /// Banner'ı siler
     /// </summary>
+    /// <param name="id">Banner ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Silme işlemi sonucu</returns>
+    /// <response code="204">Banner başarıyla silindi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="404">Banner bulunamadı</response>
+    /// <response code="422">İş kuralı ihlali veya concurrency conflict</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
@@ -146,13 +218,16 @@ public class BannersController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Delete(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _bannerService.DeleteAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeleteBannerCommand(id);
+        var result = await _mediator.Send(command, cancellationToken);
+        
         if (!result)
         {
             return NotFound();

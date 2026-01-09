@@ -32,8 +32,13 @@ public class LandingPageService : ILandingPageService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-    public async Task<LandingPageDto> CreateLandingPageAsync(Guid? authorId, CreateLandingPageDto dto, CancellationToken cancellationToken = default)
+    [Obsolete("Use CreateLandingPageCommand via MediatR instead")]
+    public async Task<LandingPageDto> CreateLandingPageAsync(Guid? authorId, object dtoObj, CancellationToken cancellationToken = default)
     {
+        if (dtoObj is not CreateLandingPageDto dto)
+        {
+            throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
+        }
         _logger.LogInformation("Landing page olusturuluyor. Name: {Name}, AuthorId: {AuthorId}", dto.Name, authorId);
 
         try
@@ -45,26 +50,24 @@ public class LandingPageService : ILandingPageService
                 slug = $"{slug}-{DateTime.UtcNow.Ticks}";
             }
 
-            var landingPage = new LandingPage
-            {
-                Name = dto.Name,
-                Slug = slug,
-                Title = dto.Title,
-                Content = dto.Content,
-                Template = dto.Template,
-                Status = Enum.TryParse<ContentStatus>(dto.Status, true, out var statusEnum) ? statusEnum : ContentStatus.Draft,
-                AuthorId = authorId,
-                StartDate = dto.StartDate,
-                EndDate = dto.EndDate,
-                IsActive = true,
-                MetaTitle = dto.MetaTitle,
-                MetaDescription = dto.MetaDescription,
-                OgImageUrl = dto.OgImageUrl,
-                EnableABTesting = dto.EnableABTesting,
-                VariantOfId = dto.VariantOfId,
-                TrafficSplit = dto.TrafficSplit,
-                PublishedAt = (Enum.TryParse<ContentStatus>(dto.Status, true, out var status) && status == ContentStatus.Published) ? DateTime.UtcNow : null
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var status = Enum.TryParse<ContentStatus>(dto.Status, true, out var statusEnum) ? statusEnum : ContentStatus.Draft;
+            var landingPage = LandingPage.Create(
+                name: dto.Name,
+                title: dto.Title,
+                content: dto.Content,
+                authorId: authorId,
+                template: dto.Template,
+                status: status,
+                startDate: dto.StartDate,
+                endDate: dto.EndDate,
+                metaTitle: dto.MetaTitle,
+                metaDescription: dto.MetaDescription,
+                ogImageUrl: dto.OgImageUrl,
+                enableABTesting: dto.EnableABTesting,
+                variantOfId: dto.VariantOfId,
+                trafficSplit: dto.TrafficSplit,
+                slug: slug);
 
             await _context.Set<LandingPage>().AddAsync(landingPage, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -122,8 +125,8 @@ public class LandingPageService : ILandingPageService
                 }
             }
 
-            // Increment view count
-            landingPage.ViewCount++;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            landingPage.IncrementViewCount();
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
@@ -172,51 +175,43 @@ public class LandingPageService : ILandingPageService
         };
     }
 
-    public async Task<bool> UpdateLandingPageAsync(Guid id, CreateLandingPageDto dto, CancellationToken cancellationToken = default)
+    [Obsolete("Use UpdateLandingPageCommand via MediatR instead")]
+    public async Task<bool> UpdateLandingPageAsync(Guid id, object dtoObj, CancellationToken cancellationToken = default)
     {
+        if (dtoObj is not CreateLandingPageDto dto)
+        {
+            throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
+        }
         // ✅ PERFORMANCE: Removed manual !lp.IsDeleted (Global Query Filter)
         var landingPage = await _context.Set<LandingPage>()
             .FirstOrDefaultAsync(lp => lp.Id == id, cancellationToken);
 
         if (landingPage == null) return false;
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (!string.IsNullOrEmpty(dto.Name))
         {
-            landingPage.Name = dto.Name;
-            landingPage.Slug = GenerateSlug(dto.Name);
+            landingPage.UpdateName(dto.Name);
         }
         if (!string.IsNullOrEmpty(dto.Title))
-            landingPage.Title = dto.Title;
+            landingPage.UpdateTitle(dto.Title);
         if (!string.IsNullOrEmpty(dto.Content))
-            landingPage.Content = dto.Content;
+            landingPage.UpdateContent(dto.Content);
         if (dto.Template != null)
-            landingPage.Template = dto.Template;
+            landingPage.UpdateTemplate(dto.Template);
         if (!string.IsNullOrEmpty(dto.Status))
         {
             // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
             if (Enum.TryParse<ContentStatus>(dto.Status, true, out var newStatus))
             {
-                landingPage.Status = newStatus;
-                if (newStatus == ContentStatus.Published && !landingPage.PublishedAt.HasValue)
-                {
-                    landingPage.PublishedAt = DateTime.UtcNow;
-                }
+                landingPage.UpdateStatus(newStatus);
             }
         }
-        if (dto.StartDate.HasValue)
-            landingPage.StartDate = dto.StartDate;
-        if (dto.EndDate.HasValue)
-            landingPage.EndDate = dto.EndDate;
-        if (dto.MetaTitle != null)
-            landingPage.MetaTitle = dto.MetaTitle;
-        if (dto.MetaDescription != null)
-            landingPage.MetaDescription = dto.MetaDescription;
-        if (dto.OgImageUrl != null)
-            landingPage.OgImageUrl = dto.OgImageUrl;
-        landingPage.EnableABTesting = dto.EnableABTesting;
-        landingPage.TrafficSplit = dto.TrafficSplit;
-
-        landingPage.UpdatedAt = DateTime.UtcNow;
+        if (dto.StartDate.HasValue || dto.EndDate.HasValue)
+            landingPage.UpdateSchedule(dto.StartDate, dto.EndDate);
+        if (dto.MetaTitle != null || dto.MetaDescription != null || dto.OgImageUrl != null)
+            landingPage.UpdateMetaInformation(dto.MetaTitle, dto.MetaDescription, dto.OgImageUrl);
+        landingPage.UpdateABTestingSettings(dto.EnableABTesting, dto.TrafficSplit);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -230,8 +225,8 @@ public class LandingPageService : ILandingPageService
 
         if (landingPage == null) return false;
 
-        landingPage.IsDeleted = true;
-        landingPage.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        landingPage.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -245,10 +240,8 @@ public class LandingPageService : ILandingPageService
 
         if (landingPage == null) return false;
 
-        landingPage.Status = ContentStatus.Published;
-        landingPage.PublishedAt = DateTime.UtcNow;
-        landingPage.IsActive = true;
-        landingPage.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        landingPage.Publish();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -262,19 +255,20 @@ public class LandingPageService : ILandingPageService
 
         if (landingPage == null) return false;
 
-        landingPage.ConversionCount++;
-        if (landingPage.ViewCount > 0)
-        {
-            landingPage.ConversionRate = (decimal)landingPage.ConversionCount / landingPage.ViewCount * 100;
-        }
-        landingPage.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        landingPage.TrackConversion();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
-    public async Task<LandingPageDto> CreateVariantAsync(Guid originalId, CreateLandingPageDto dto, CancellationToken cancellationToken = default)
+    [Obsolete("Use CreateLandingPageCommand via MediatR instead")]
+    public async Task<LandingPageDto> CreateVariantAsync(Guid originalId, object dtoObj, CancellationToken cancellationToken = default)
     {
+        if (dtoObj is not CreateLandingPageDto dto)
+        {
+            throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
+        }
         // ✅ PERFORMANCE: Removed manual !lp.IsDeleted (Global Query Filter)
         var original = await _context.Set<LandingPage>()
             .FirstOrDefaultAsync(lp => lp.Id == originalId, cancellationToken);
@@ -284,25 +278,20 @@ public class LandingPageService : ILandingPageService
             throw new NotFoundException("Orijinal landing page", dto.VariantOfId ?? Guid.Empty);
         }
 
-        var variant = new LandingPage
-        {
-            Name = $"{original.Name} - Variant",
-            Slug = $"{original.Slug}-variant-{DateTime.UtcNow.Ticks}",
-            Title = dto.Title ?? original.Title,
-            Content = dto.Content ?? original.Content,
-            Template = dto.Template ?? original.Template,
-            Status = Enum.TryParse<ContentStatus>(dto.Status, true, out var variantStatus) ? variantStatus : ContentStatus.Draft,
-            AuthorId = dto.VariantOfId.HasValue ? original.AuthorId : null,
-            StartDate = dto.StartDate ?? original.StartDate,
-            EndDate = dto.EndDate ?? original.EndDate,
-            IsActive = true,
-            MetaTitle = dto.MetaTitle ?? original.MetaTitle,
-            MetaDescription = dto.MetaDescription ?? original.MetaDescription,
-            OgImageUrl = dto.OgImageUrl ?? original.OgImageUrl,
-            EnableABTesting = true,
-            VariantOfId = originalId,
-            TrafficSplit = dto.TrafficSplit
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        var variantStatus = Enum.TryParse<ContentStatus>(dto.Status, true, out var status) ? status : ContentStatus.Draft;
+        var variant = original.CreateVariant(
+            name: $"{original.Name} - Variant",
+            title: dto.Title ?? original.Title,
+            content: dto.Content ?? original.Content,
+            template: dto.Template ?? original.Template,
+            status: variantStatus,
+            startDate: dto.StartDate ?? original.StartDate,
+            endDate: dto.EndDate ?? original.EndDate,
+            metaTitle: dto.MetaTitle ?? original.MetaTitle,
+            metaDescription: dto.MetaDescription ?? original.MetaDescription,
+            ogImageUrl: dto.OgImageUrl ?? original.OgImageUrl,
+            trafficSplit: dto.TrafficSplit);
 
         await _context.Set<LandingPage>().AddAsync(variant, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -342,8 +331,12 @@ public class LandingPageService : ILandingPageService
         );
     }
 
+    // ✅ BOLUM 1.1: Helper method - Slug generation artık entity içinde (GenerateSlug private method)
+    // Bu method sadece uniqueness kontrolü için kullanılıyor
     private string GenerateSlug(string name)
     {
+        // Slug generation artık LandingPage entity içinde yapılıyor
+        // Bu method sadece service layer'da uniqueness kontrolü için kullanılıyor
         var slug = name.ToLowerInvariant()
             .Replace("ğ", "g")
             .Replace("ü", "u")

@@ -1,0 +1,14 @@
+using FluentValidation;
+
+namespace Merge.Application.Content.Commands.PublishPageBuilder;
+
+// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
+public class PublishPageBuilderCommandValidator : AbstractValidator<PublishPageBuilderCommand>
+{
+    public PublishPageBuilderCommandValidator()
+    {
+        RuleFor(x => x.Id)
+            .NotEmpty().WithMessage("ID gereklidir");
+    }
+}
+

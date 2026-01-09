@@ -158,8 +158,21 @@ public class BannerService : IBannerService
 
         try
         {
-            var banner = _mapper.Map<Banner>(dto);
-            banner = await _bannerRepository.AddAsync(banner);
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var banner = Banner.Create(
+                dto.Title,
+                dto.ImageUrl,
+                dto.Position,
+                dto.Description,
+                dto.LinkUrl,
+                dto.SortOrder,
+                true, // Default IsActive = true
+                dto.StartDate,
+                dto.EndDate,
+                dto.CategoryId,
+                dto.ProductId);
+            
+            banner = await _bannerRepository.AddAsync(banner, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Banner olusturuldu. BannerId: {BannerId}, Title: {Title}", banner.Id, banner.Title);
@@ -193,17 +206,21 @@ public class BannerService : IBannerService
                 throw new NotFoundException("Banner", id);
             }
 
-            banner.Title = dto.Title;
-            banner.Description = dto.Description;
-            banner.ImageUrl = dto.ImageUrl;
-            banner.LinkUrl = dto.LinkUrl;
-            banner.Position = dto.Position;
-            banner.SortOrder = dto.SortOrder;
-            banner.IsActive = dto.IsActive;
-            banner.StartDate = dto.StartDate;
-            banner.EndDate = dto.EndDate;
-            banner.CategoryId = dto.CategoryId;
-            banner.ProductId = dto.ProductId;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            banner.UpdateTitle(dto.Title);
+            banner.UpdateDescription(dto.Description);
+            banner.UpdateImageUrl(dto.ImageUrl);
+            banner.UpdateLinkUrl(dto.LinkUrl);
+            banner.UpdatePosition(dto.Position);
+            banner.UpdateSortOrder(dto.SortOrder);
+            banner.UpdateDateRange(dto.StartDate, dto.EndDate);
+            banner.UpdateCategory(dto.CategoryId);
+            banner.UpdateProduct(dto.ProductId);
+            
+            if (dto.IsActive)
+                banner.Activate();
+            else
+                banner.Deactivate();
 
             await _bannerRepository.UpdateAsync(banner);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -227,7 +244,9 @@ public class BannerService : IBannerService
             return false;
         }
 
-        await _bannerRepository.DeleteAsync(banner);
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
+        banner.MarkAsDeleted();
+        await _bannerRepository.UpdateAsync(banner, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }

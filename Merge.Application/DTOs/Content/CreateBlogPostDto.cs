@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Content;
 
+[Obsolete("Use CreateBlogPostCommand via MediatR instead")]
 public class CreateBlogPostDto
 {
     [Required]
@@ -44,3 +45,4 @@ public class CreateBlogPostDto
     [Url(ErrorMessage = "Geçerli bir URL giriniz.")]
     public string? OgImageUrl { get; set; }
 }
+

@@ -605,55 +605,195 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.LastEmailSent, opt => opt.Ignore()); // Set manually
 
         // Content Domain Mappings
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // Blog mappings
         CreateMap<BlogCategory, BlogCategoryDto>()
-            .ForMember(dest => dest.ParentCategoryName, opt => opt.MapFrom(src => src.ParentCategory != null ? src.ParentCategory.Name : null))
-            .ForMember(dest => dest.PostCount, opt => opt.Ignore()) // Set manually (batch loading)
-            .ForMember(dest => dest.SubCategories, opt => opt.Ignore()); // Set manually (recursive)
+            .ConstructUsing(src => new BlogCategoryDto(
+                src.Id,
+                src.Name,
+                src.Slug,
+                src.Description,
+                src.ParentCategoryId,
+                src.ParentCategory != null ? src.ParentCategory.Name : null,
+                null, // SubCategories - Set manually (recursive)
+                0, // PostCount - Set manually (batch loading)
+                src.ImageUrl,
+                src.DisplayOrder,
+                src.IsActive,
+                src.CreatedAt
+            ));
 
         CreateMap<BlogPost, BlogPostDto>()
-            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : string.Empty))
-            .ForMember(dest => dest.AuthorName, opt => opt.MapFrom(src => 
-                src.Author != null ? $"{src.Author.FirstName} {src.Author.LastName}" : string.Empty))
-            .AfterMap((src, dest) => 
-            {
-                // ✅ FIX: Split().ToList() expression tree içinde kullanılamaz, AfterMap kullanıyoruz
-                dest.Tags = !string.IsNullOrEmpty(src.Tags) ? src.Tags.Split(',').ToList() : new List<string>();
-            });
+            .ConstructUsing(src => new BlogPostDto(
+                src.Id,
+                src.CategoryId,
+                src.Category != null ? src.Category.Name : string.Empty,
+                src.AuthorId,
+                src.Author != null ? $"{src.Author.FirstName} {src.Author.LastName}" : string.Empty,
+                src.Title,
+                src.Slug,
+                src.Excerpt,
+                src.Content,
+                src.FeaturedImageUrl,
+                src.Status.ToString(),
+                src.PublishedAt,
+                src.ViewCount,
+                src.LikeCount,
+                src.CommentCount,
+                !string.IsNullOrEmpty(src.Tags) ? src.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList().AsReadOnly() : new List<string>().AsReadOnly(),
+                src.IsFeatured,
+                src.AllowComments,
+                src.MetaTitle,
+                src.MetaDescription,
+                src.MetaKeywords,
+                src.OgImageUrl,
+                src.ReadingTimeMinutes,
+                src.CreatedAt
+            ));
 
         CreateMap<BlogComment, BlogCommentDto>()
-            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => 
-                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : src.AuthorName))
-            .ForMember(dest => dest.ReplyCount, opt => opt.Ignore()) // Set manually (computed from Replies)
-            .ForMember(dest => dest.Replies, opt => opt.Ignore()); // Set manually (recursive)
+            .ConstructUsing(src => new BlogCommentDto(
+                src.Id,
+                src.BlogPostId,
+                src.UserId,
+                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : src.AuthorName,
+                src.ParentCommentId,
+                src.AuthorName,
+                src.Content,
+                src.IsApproved,
+                src.LikeCount,
+                0, // ReplyCount - Set manually (computed from Replies)
+                null, // Replies - Set manually (recursive)
+                src.CreatedAt
+            ));
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // CMS mappings
         CreateMap<CMSPage, CMSPageDto>()
-            .ForMember(dest => dest.AuthorName, opt => opt.MapFrom(src => 
-                src.Author != null ? $"{src.Author.FirstName} {src.Author.LastName}" : null))
-            .ForMember(dest => dest.ParentPageTitle, opt => opt.MapFrom(src => src.ParentPage != null ? src.ParentPage.Title : null));
+            .ConstructUsing(src => new CMSPageDto(
+                src.Id,
+                src.Title,
+                src.Slug,
+                src.Content,
+                src.Excerpt,
+                src.PageType,
+                src.Status.ToString(),
+                src.AuthorId,
+                src.Author != null ? $"{src.Author.FirstName} {src.Author.LastName}" : null,
+                src.PublishedAt,
+                src.Template,
+                src.MetaTitle,
+                src.MetaDescription,
+                src.MetaKeywords,
+                src.IsHomePage,
+                src.DisplayOrder,
+                src.ShowInMenu,
+                src.MenuTitle,
+                src.ParentPageId,
+                src.ParentPage != null ? src.ParentPage.Title : null,
+                src.ViewCount,
+                src.CreatedAt
+            ));
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // LandingPage mappings
         CreateMap<LandingPage, LandingPageDto>()
-            .ForMember(dest => dest.AuthorName, opt => opt.MapFrom(src => 
-                src.Author != null ? $"{src.Author.FirstName} {src.Author.LastName}" : null));
+            .ConstructUsing(src => new LandingPageDto(
+                src.Id,
+                src.Name,
+                src.Slug,
+                src.Title,
+                src.Content,
+                src.Template,
+                src.Status.ToString(),
+                src.AuthorId,
+                src.Author != null ? $"{src.Author.FirstName} {src.Author.LastName}" : null,
+                src.PublishedAt,
+                src.StartDate,
+                src.EndDate,
+                src.IsActive,
+                src.MetaTitle,
+                src.MetaDescription,
+                src.OgImageUrl,
+                src.ViewCount,
+                src.ConversionCount,
+                src.ConversionRate,
+                src.EnableABTesting,
+                src.VariantOfId,
+                src.TrafficSplit,
+                src.CreatedAt
+            ));
 
         CreateMap<LandingPage, LandingPageVariantDto>()
-            .ForMember(dest => dest.Views, opt => opt.MapFrom(src => src.ViewCount))
-            .ForMember(dest => dest.Conversions, opt => opt.MapFrom(src => src.ConversionCount));
+            .ConstructUsing(src => new LandingPageVariantDto(
+                src.Id,
+                src.Name,
+                src.ViewCount,
+                src.ConversionCount,
+                src.ConversionRate,
+                src.TrafficSplit
+            ));
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // PageBuilder mappings
         CreateMap<PageBuilder, PageBuilderDto>()
-            .ForMember(dest => dest.AuthorName, opt => opt.MapFrom(src => 
-                src.Author != null ? $"{src.Author.FirstName} {src.Author.LastName}" : null));
+            .ConstructUsing(src => new PageBuilderDto(
+                src.Id,
+                src.Name,
+                src.Slug,
+                src.Title,
+                src.Content,
+                src.Template,
+                src.Status.ToString(),
+                src.AuthorId,
+                src.Author != null ? $"{src.Author.FirstName} {src.Author.LastName}" : null,
+                src.PublishedAt,
+                src.IsActive,
+                src.MetaTitle,
+                src.MetaDescription,
+                src.OgImageUrl,
+                src.ViewCount,
+                src.PageType,
+                src.RelatedEntityId,
+                src.CreatedAt
+            ));
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // SEO mappings
-        // ✅ BOLUM 4.3: Over-Posting Koruması - Dictionary&lt;string, object&gt; YASAK
+        // ✅ BOLUM 4.3: Over-Posting Koruması - Dictionary<string, object> YASAK
         // StructuredData artık string olarak map ediliyor (StructuredDataJson)
         CreateMap<SEOSettings, SEOSettingsDto>()
-            .ForMember(dest => dest.StructuredDataJson, opt => opt.MapFrom(src => src.StructuredData));
+            .ConstructUsing(src => new SEOSettingsDto(
+                src.Id,
+                src.PageType,
+                src.EntityId,
+                src.MetaTitle,
+                src.MetaDescription,
+                src.MetaKeywords,
+                src.CanonicalUrl,
+                src.OgTitle,
+                src.OgDescription,
+                src.OgImageUrl,
+                src.TwitterCard,
+                src.StructuredData, // JSON string
+                src.IsIndexed,
+                src.FollowLinks,
+                src.Priority,
+                src.ChangeFrequency,
+                src.CreatedAt
+            ));
 
-        CreateMap<SitemapEntry, SitemapEntryDto>();
+        CreateMap<SitemapEntry, SitemapEntryDto>()
+            .ConstructUsing(src => new SitemapEntryDto(
+                src.Id,
+                src.Url,
+                src.PageType,
+                src.EntityId,
+                src.LastModified,
+                src.ChangeFrequency,
+                src.Priority,
+                src.IsActive
+            ));
 
         // Governance mappings
         CreateMap<Policy, PolicyDto>()

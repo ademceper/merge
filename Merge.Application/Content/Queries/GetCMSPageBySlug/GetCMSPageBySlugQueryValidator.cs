@@ -1,0 +1,17 @@
+using FluentValidation;
+
+namespace Merge.Application.Content.Queries.GetCMSPageBySlug;
+
+// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
+public class GetCMSPageBySlugQueryValidator : AbstractValidator<GetCMSPageBySlugQuery>
+{
+    public GetCMSPageBySlugQueryValidator()
+    {
+        RuleFor(x => x.Slug)
+            .NotEmpty()
+            .WithMessage("Slug zorunludur.")
+            .MaximumLength(200)
+            .WithMessage("Slug en fazla 200 karakter olabilir.");
+    }
+}
+

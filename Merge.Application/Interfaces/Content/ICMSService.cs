@@ -7,14 +7,16 @@ namespace Merge.Application.Interfaces.Content;
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 public interface ICMSService
 {
-    Task<CMSPageDto> CreatePageAsync(Guid? authorId, CreateCMSPageDto dto, CancellationToken cancellationToken = default);
+    [Obsolete("Use CreateCMSPageCommand via MediatR instead")]
+    Task<CMSPageDto> CreatePageAsync(Guid? authorId, object dto, CancellationToken cancellationToken = default);
     Task<CMSPageDto?> GetPageByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<CMSPageDto?> GetPageBySlugAsync(string slug, CancellationToken cancellationToken = default);
     Task<CMSPageDto?> GetHomePageAsync(CancellationToken cancellationToken = default);
     // ✅ BOLUM 3.4: Pagination eklendi (ZORUNLU)
     Task<PagedResult<CMSPageDto>> GetAllPagesAsync(string? status = null, bool? showInMenu = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
     Task<IEnumerable<CMSPageDto>> GetMenuPagesAsync(CancellationToken cancellationToken = default);
-    Task<bool> UpdatePageAsync(Guid id, CreateCMSPageDto dto, CancellationToken cancellationToken = default);
+    [Obsolete("Use UpdateCMSPageCommand via MediatR instead")]
+    Task<bool> UpdatePageAsync(Guid id, object dto, CancellationToken cancellationToken = default);
     Task<bool> DeletePageAsync(Guid id, CancellationToken cancellationToken = default);
     Task<bool> PublishPageAsync(Guid id, CancellationToken cancellationToken = default);
     Task<bool> SetHomePageAsync(Guid id, CancellationToken cancellationToken = default);

@@ -7,7 +7,8 @@ namespace Merge.Application.Interfaces.Content;
 // ✅ BOLUM 3.4: Pagination - PagedResult dönmeli (ZORUNLU)
 public interface ISEOService
 {
-    Task<SEOSettingsDto> CreateOrUpdateSEOSettingsAsync(CreateSEOSettingsDto dto, CancellationToken cancellationToken = default);
+    [Obsolete("Use CreateOrUpdateSEOSettingsCommand via MediatR instead")]
+    Task<SEOSettingsDto> CreateOrUpdateSEOSettingsAsync(object dto, CancellationToken cancellationToken = default);
     Task<SEOSettingsDto?> GetSEOSettingsAsync(string pageType, Guid? entityId = null, CancellationToken cancellationToken = default);
     Task<bool> DeleteSEOSettingsAsync(string pageType, Guid entityId, CancellationToken cancellationToken = default);
     

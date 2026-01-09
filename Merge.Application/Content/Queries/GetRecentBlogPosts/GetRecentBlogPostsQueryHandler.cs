@@ -1,0 +1,76 @@
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using AutoMapper;
+using Merge.Application.DTOs.Content;
+using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
+using Merge.Domain.Entities;
+using Merge.Domain.Enums;
+
+namespace Merge.Application.Content.Queries.GetRecentBlogPosts;
+
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
+public class GetRecentBlogPostsQueryHandler : IRequestHandler<GetRecentBlogPostsQuery, IEnumerable<BlogPostDto>>
+{
+    private readonly IDbContext _context;
+    private readonly IMapper _mapper;
+    private readonly ILogger<GetRecentBlogPostsQueryHandler> _logger;
+    private readonly ICacheService _cache;
+    private readonly ContentSettings _contentSettings;
+    private const string CACHE_KEY_RECENT_POSTS = "blog_posts_recent_";
+    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(5); // Recent posts change frequently
+
+    public GetRecentBlogPostsQueryHandler(
+        IDbContext context,
+        IMapper mapper,
+        ILogger<GetRecentBlogPostsQueryHandler> logger,
+        ICacheService cache,
+        IOptions<ContentSettings> contentSettings)
+    {
+        _context = context;
+        _mapper = mapper;
+        _logger = logger;
+        _cache = cache;
+        _contentSettings = contentSettings.Value;
+    }
+
+    public async Task<IEnumerable<BlogPostDto>> Handle(GetRecentBlogPostsQuery request, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Retrieving recent blog posts. Count: {Count}", request.Count);
+
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Configuration'dan max limit
+        var count = request.Count > _contentSettings.MaxRecentPostsCount ? _contentSettings.MaxRecentPostsCount : request.Count;
+
+        var cacheKey = $"{CACHE_KEY_RECENT_POSTS}{count}";
+
+        // ✅ BOLUM 10.2: Redis distributed cache for recent blog posts
+        var cachedPosts = await _cache.GetOrCreateAsync(
+            cacheKey,
+            async () =>
+            {
+                _logger.LogInformation("Cache miss for recent blog posts. Count: {Count}", count);
+
+                // ✅ PERFORMANCE: AsNoTracking for read-only queries
+                var posts = await _context.Set<BlogPost>()
+                    .AsNoTracking()
+                    .Include(p => p.Category)
+                    .Include(p => p.Author)
+                    .Where(p => p.Status == ContentStatus.Published)
+                    .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
+                    .Take(count)
+                    .ToListAsync(cancellationToken);
+
+                _logger.LogInformation("Retrieved {Count} recent blog posts", posts.Count);
+
+                return _mapper.Map<List<BlogPostDto>>(posts);
+            },
+            CACHE_EXPIRATION,
+            cancellationToken);
+
+        return cachedPosts!;
+    }
+}
+

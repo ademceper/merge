@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Content;
 
+[Obsolete("Use CreateLandingPageCommand via MediatR instead")]
 public class CreateLandingPageDto
 {
     [Required]
@@ -43,3 +44,4 @@ public class CreateLandingPageDto
     [Range(0, 100, ErrorMessage = "Trafik bölünmesi 0 ile 100 arasında olmalıdır.")]
     public int TrafficSplit { get; set; } = 50;
 }
+

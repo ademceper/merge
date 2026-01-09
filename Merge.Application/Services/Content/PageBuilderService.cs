@@ -30,27 +30,31 @@ public class PageBuilderService : IPageBuilderService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-    public async Task<PageBuilderDto> CreatePageAsync(CreatePageBuilderDto dto, CancellationToken cancellationToken = default)
+    [Obsolete("Use CreatePageBuilderCommand via MediatR instead")]
+    public async Task<PageBuilderDto> CreatePageAsync(object dtoObj, CancellationToken cancellationToken = default)
     {
+        if (dtoObj is not CreatePageBuilderDto dto)
+        {
+            throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
+        }
         _logger.LogInformation("Page builder sayfasi olusturuluyor. Name: {Name}, AuthorId: {AuthorId}", dto.Name, dto.AuthorId);
 
         try
         {
-            var page = new PageBuilder
-            {
-                Name = dto.Name,
-                Slug = dto.Slug,
-                Title = dto.Title,
-                Content = dto.Content,
-                Template = dto.Template,
-                Status = ContentStatus.Draft,
-                AuthorId = dto.AuthorId,
-                PageType = dto.PageType,
-                RelatedEntityId = dto.RelatedEntityId,
-                MetaTitle = dto.MetaTitle,
-                MetaDescription = dto.MetaDescription,
-                OgImageUrl = dto.OgImageUrl
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var page = PageBuilder.Create(
+                name: dto.Name,
+                title: dto.Title,
+                content: dto.Content,
+                authorId: dto.AuthorId,
+                slug: dto.Slug,
+                template: dto.Template,
+                status: ContentStatus.Draft,
+                pageType: dto.PageType,
+                relatedEntityId: dto.RelatedEntityId,
+                metaTitle: dto.MetaTitle,
+                metaDescription: dto.MetaDescription,
+                ogImageUrl: dto.OgImageUrl);
 
             await _context.Set<PageBuilder>().AddAsync(page, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -127,8 +131,13 @@ public class PageBuilderService : IPageBuilderService
 
     // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-    public async Task<bool> UpdatePageAsync(Guid id, UpdatePageBuilderDto dto, CancellationToken cancellationToken = default)
+    [Obsolete("Use UpdatePageBuilderCommand via MediatR instead")]
+    public async Task<bool> UpdatePageAsync(Guid id, object dtoObj, CancellationToken cancellationToken = default)
     {
+        if (dtoObj is not UpdatePageBuilderDto dto)
+        {
+            throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
+        }
         _logger.LogInformation("Page builder sayfasi guncelleniyor. PageId: {PageId}, Name: {Name}", id, dto.Name);
 
         try
@@ -143,15 +152,14 @@ public class PageBuilderService : IPageBuilderService
                 return false;
             }
 
-            if (!string.IsNullOrEmpty(dto.Name)) page.Name = dto.Name;
-            if (!string.IsNullOrEmpty(dto.Slug)) page.Slug = dto.Slug;
-            if (!string.IsNullOrEmpty(dto.Title)) page.Title = dto.Title;
-            if (!string.IsNullOrEmpty(dto.Content)) page.Content = dto.Content;
-            if (dto.Template != null) page.Template = dto.Template;
-            if (dto.MetaTitle != null) page.MetaTitle = dto.MetaTitle;
-            if (dto.MetaDescription != null) page.MetaDescription = dto.MetaDescription;
-            if (dto.OgImageUrl != null) page.OgImageUrl = dto.OgImageUrl;
-            page.UpdatedAt = DateTime.UtcNow;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            if (!string.IsNullOrEmpty(dto.Name)) page.UpdateName(dto.Name);
+            if (!string.IsNullOrEmpty(dto.Slug)) page.UpdateSlug(dto.Slug);
+            if (!string.IsNullOrEmpty(dto.Title)) page.UpdateTitle(dto.Title);
+            if (!string.IsNullOrEmpty(dto.Content)) page.UpdateContent(dto.Content);
+            if (dto.Template != null) page.UpdateTemplate(dto.Template);
+            if (dto.MetaTitle != null || dto.MetaDescription != null || dto.OgImageUrl != null)
+                page.UpdateMetaInformation(dto.MetaTitle, dto.MetaDescription, dto.OgImageUrl);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -174,8 +182,8 @@ public class PageBuilderService : IPageBuilderService
 
         if (page == null) return false;
 
-        page.IsDeleted = true;
-        page.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        page.MarkAsDeleted();
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
@@ -189,10 +197,8 @@ public class PageBuilderService : IPageBuilderService
 
         if (page == null) return false;
 
-        page.Status = ContentStatus.Published;
-        page.PublishedAt = DateTime.UtcNow;
-        page.IsActive = true;
-        page.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        page.Publish();
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
@@ -206,9 +212,8 @@ public class PageBuilderService : IPageBuilderService
 
         if (page == null) return false;
 
-        page.Status = ContentStatus.Draft;
-        page.IsActive = false;
-        page.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        page.Unpublish();
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;

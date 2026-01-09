@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Content;
 
+[Obsolete("Use CreatePageBuilderCommand via MediatR instead")]
 public class CreatePageBuilderDto
 {
     [Required]
@@ -40,3 +41,4 @@ public class CreatePageBuilderDto
     [Url(ErrorMessage = "Geçerli bir URL giriniz.")]
     public string? OgImageUrl { get; set; }
 }
+

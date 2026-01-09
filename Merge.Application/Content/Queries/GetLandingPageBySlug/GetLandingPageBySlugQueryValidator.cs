@@ -1,0 +1,15 @@
+using FluentValidation;
+
+namespace Merge.Application.Content.Queries.GetLandingPageBySlug;
+
+// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
+public class GetLandingPageBySlugQueryValidator : AbstractValidator<GetLandingPageBySlugQuery>
+{
+    public GetLandingPageBySlugQueryValidator()
+    {
+        RuleFor(x => x.Slug)
+            .NotEmpty().WithMessage("Slug gereklidir")
+            .MaximumLength(200).WithMessage("Slug en fazla 200 karakter olabilir");
+    }
+}
+

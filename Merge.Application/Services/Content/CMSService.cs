@@ -30,8 +30,13 @@ public class CMSService : ICMSService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-    public async Task<CMSPageDto> CreatePageAsync(Guid? authorId, CreateCMSPageDto dto, CancellationToken cancellationToken = default)
+    [Obsolete("Use CreateCMSPageCommand via MediatR instead")]
+    public async Task<CMSPageDto> CreatePageAsync(Guid? authorId, object dtoObj, CancellationToken cancellationToken = default)
     {
+        if (dtoObj is not CreateCMSPageDto dto)
+        {
+            throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
+        }
         _logger.LogInformation("CMS sayfasi olusturuluyor. AuthorId: {AuthorId}, Title: {Title}", authorId, dto.Title);
 
         try
@@ -53,30 +58,28 @@ public class CMSService : ICMSService
 
                 foreach (var existingPage in existingHomePages)
                 {
-                    existingPage.IsHomePage = false;
+                    existingPage.UnsetAsHomePage();
                 }
             }
 
-            var page = new CMSPage
-            {
-                Title = dto.Title,
-                Slug = slug,
-                Content = dto.Content,
-                Excerpt = dto.Excerpt,
-                PageType = dto.PageType,
-                Status = Enum.TryParse<ContentStatus>(dto.Status, true, out var statusEnum) ? statusEnum : ContentStatus.Draft,
-                AuthorId = authorId,
-                Template = dto.Template,
-                MetaTitle = dto.MetaTitle,
-                MetaDescription = dto.MetaDescription,
-                MetaKeywords = dto.MetaKeywords,
-                IsHomePage = dto.IsHomePage,
-                DisplayOrder = dto.DisplayOrder,
-                ShowInMenu = dto.ShowInMenu,
-                MenuTitle = dto.MenuTitle,
-                ParentPageId = dto.ParentPageId,
-                PublishedAt = (Enum.TryParse<ContentStatus>(dto.Status, true, out var status) && status == ContentStatus.Published) ? DateTime.UtcNow : null
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var statusEnum = Enum.TryParse<ContentStatus>(dto.Status, true, out var status) ? status : ContentStatus.Draft;
+            var page = CMSPage.Create(
+                dto.Title,
+                dto.Content,
+                authorId,
+                dto.Excerpt,
+                dto.PageType,
+                statusEnum,
+                dto.Template,
+                dto.MetaTitle,
+                dto.MetaDescription,
+                dto.MetaKeywords,
+                dto.IsHomePage,
+                dto.DisplayOrder,
+                dto.ShowInMenu,
+                dto.MenuTitle,
+                dto.ParentPageId);
 
             await _context.Set<CMSPage>().AddAsync(page, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -193,45 +196,43 @@ public class CMSService : ICMSService
         return result;
     }
 
-    public async Task<bool> UpdatePageAsync(Guid id, CreateCMSPageDto dto, CancellationToken cancellationToken = default)
+    [Obsolete("Use UpdateCMSPageCommand via MediatR instead")]
+    public async Task<bool> UpdatePageAsync(Guid id, object dtoObj, CancellationToken cancellationToken = default)
     {
+        if (dtoObj is not CreateCMSPageDto dto)
+        {
+            throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
+        }
+        
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var page = await _context.Set<CMSPage>()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (page == null) return false;
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (!string.IsNullOrEmpty(dto.Title))
         {
-            page.Title = dto.Title;
-            page.Slug = GenerateSlug(dto.Title);
+            page.UpdateTitle(dto.Title);
         }
         if (!string.IsNullOrEmpty(dto.Content))
-            page.Content = dto.Content;
+            page.UpdateContent(dto.Content);
         if (dto.Excerpt != null)
-            page.Excerpt = dto.Excerpt;
+            page.UpdateExcerpt(dto.Excerpt);
         if (!string.IsNullOrEmpty(dto.PageType))
-            page.PageType = dto.PageType;
+            page.UpdatePageType(dto.PageType);
         if (!string.IsNullOrEmpty(dto.Status))
         {
             // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
             if (Enum.TryParse<ContentStatus>(dto.Status, true, out var newStatus))
             {
-                page.Status = newStatus;
-                if (newStatus == ContentStatus.Published && !page.PublishedAt.HasValue)
-                {
-                    page.PublishedAt = DateTime.UtcNow;
-                }
+                page.UpdateStatus(newStatus);
             }
         }
         if (dto.Template != null)
-            page.Template = dto.Template;
-        if (dto.MetaTitle != null)
-            page.MetaTitle = dto.MetaTitle;
-        if (dto.MetaDescription != null)
-            page.MetaDescription = dto.MetaDescription;
-        if (dto.MetaKeywords != null)
-            page.MetaKeywords = dto.MetaKeywords;
+            page.UpdateTemplate(dto.Template);
+        if (dto.MetaTitle != null || dto.MetaDescription != null || dto.MetaKeywords != null)
+            page.UpdateMetaInformation(dto.MetaTitle, dto.MetaDescription, dto.MetaKeywords);
         if (dto.IsHomePage)
         {
             // Unset other home pages
@@ -242,18 +243,16 @@ public class CMSService : ICMSService
 
             foreach (var p in existingHomePages)
             {
-                p.IsHomePage = false;
+                p.UnsetAsHomePage();
             }
-            page.IsHomePage = true;
+            page.SetAsHomePage();
         }
-        page.DisplayOrder = dto.DisplayOrder;
-        page.ShowInMenu = dto.ShowInMenu;
+        page.UpdateDisplayOrder(dto.DisplayOrder);
+        page.UpdateShowInMenu(dto.ShowInMenu);
         if (dto.MenuTitle != null)
-            page.MenuTitle = dto.MenuTitle;
+            page.UpdateMenuTitle(dto.MenuTitle);
         if (dto.ParentPageId.HasValue)
-            page.ParentPageId = dto.ParentPageId;
-
-        page.UpdatedAt = DateTime.UtcNow;
+            page.UpdateParentPage(dto.ParentPageId);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -267,8 +266,8 @@ public class CMSService : ICMSService
 
         if (page == null) return false;
 
-        page.IsDeleted = true;
-        page.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
+        page.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -282,9 +281,8 @@ public class CMSService : ICMSService
 
         if (page == null) return false;
 
-        page.Status = ContentStatus.Published;
-        page.PublishedAt = DateTime.UtcNow;
-        page.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        page.Publish();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -306,11 +304,11 @@ public class CMSService : ICMSService
 
         foreach (var existingPage in existingHomePages)
         {
-            existingPage.IsHomePage = false;
+            existingPage.UnsetAsHomePage();
         }
 
-        page.IsHomePage = true;
-        page.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        page.SetAsHomePage();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

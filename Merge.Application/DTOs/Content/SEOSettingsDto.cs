@@ -1,24 +1,24 @@
 namespace Merge.Application.DTOs.Content;
 
-public class SEOSettingsDto
-{
-    public Guid Id { get; set; }
-    public string PageType { get; set; } = string.Empty;
-    public Guid? EntityId { get; set; }
-    public string? MetaTitle { get; set; }
-    public string? MetaDescription { get; set; }
-    public string? MetaKeywords { get; set; }
-    public string? CanonicalUrl { get; set; }
-    public string? OgTitle { get; set; }
-    public string? OgDescription { get; set; }
-    public string? OgImageUrl { get; set; }
-    public string? TwitterCard { get; set; }
-    // ✅ BOLUM 4.3: Over-Posting Koruması - Dictionary&lt;string, object&gt; YASAK
-    // StructuredData JSON string olarak döndürülür (güvenlik için)
-    public string? StructuredDataJson { get; set; }
-    public bool IsIndexed { get; set; }
-    public bool FollowLinks { get; set; }
-    public decimal Priority { get; set; }
-    public string? ChangeFrequency { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+// ✅ BOLUM 4.3: Over-Posting Koruması - Dictionary<string, object> YASAK
+// StructuredData JSON string olarak döndürülür (güvenlik için)
+public record SEOSettingsDto(
+    Guid Id,
+    string PageType,
+    Guid? EntityId,
+    string? MetaTitle,
+    string? MetaDescription,
+    string? MetaKeywords,
+    string? CanonicalUrl,
+    string? OgTitle,
+    string? OgDescription,
+    string? OgImageUrl,
+    string? TwitterCard,
+    string? StructuredDataJson, // JSON string (Dictionary yerine)
+    bool IsIndexed,
+    bool FollowLinks,
+    decimal Priority,
+    string? ChangeFrequency,
+    DateTime CreatedAt
+);

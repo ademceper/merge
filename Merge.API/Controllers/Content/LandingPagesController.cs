@@ -1,27 +1,53 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Content;
+using MediatR;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Content;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
+using Merge.Application.Content.Commands.CreateLandingPage;
+using Merge.Application.Content.Commands.UpdateLandingPage;
+using Merge.Application.Content.Commands.DeleteLandingPage;
+using Merge.Application.Content.Commands.PublishLandingPage;
+using Merge.Application.Content.Commands.TrackLandingPageConversion;
+using Merge.Application.Content.Commands.CreateLandingPageVariant;
+using Merge.Application.Content.Queries.GetLandingPageById;
+using Merge.Application.Content.Queries.GetLandingPageBySlug;
+using Merge.Application.Content.Queries.GetAllLandingPages;
+using Merge.Application.Content.Queries.GetLandingPageAnalytics;
 using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Content;
 
 [ApiController]
-[Route("api/content/landing-pages")]
+[ApiVersion("1.0")] // ✅ BOLUM 4.1: API Versioning (ZORUNLU)
+[Route("api/v{version:apiVersion}/content/landing-pages")]
 public class LandingPagesController : BaseController
 {
-    private readonly ILandingPageService _landingPageService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
 
-    public LandingPagesController(ILandingPageService landingPageService)
+    public LandingPagesController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _landingPageService = landingPageService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
     /// <summary>
     /// Yeni landing page oluşturur
     /// </summary>
+    /// <param name="command">Landing page oluşturma komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Oluşturulan landing page</returns>
+    /// <response code="201">Landing page başarıyla oluşturuldu</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
@@ -29,23 +55,29 @@ public class LandingPagesController : BaseController
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<LandingPageDto>> CreateLandingPage(
-        [FromBody] CreateLandingPageDto dto,
+        [FromBody] CreateLandingPageCommand command,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
         var authorId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var landingPage = await _landingPageService.CreateLandingPageAsync(authorId, dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var createCommand = command with { AuthorId = authorId };
+        var landingPage = await _mediator.Send(createCommand, cancellationToken);
         return CreatedAtAction(nameof(GetLandingPageById), new { id = landingPage.Id }, landingPage);
     }
 
     /// <summary>
     /// Landing page detaylarını getirir
     /// </summary>
+    /// <param name="id">Landing page ID</param>
+    /// <param name="trackView">View sayısını artır (varsayılan: false)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Landing page detayları</returns>
+    /// <response code="200">Landing page başarıyla getirildi</response>
+    /// <response code="404">Landing page bulunamadı</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("{id}")]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
@@ -54,10 +86,12 @@ public class LandingPagesController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<LandingPageDto>> GetLandingPageById(
         Guid id,
+        [FromQuery] bool trackView = false,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var landingPage = await _landingPageService.GetLandingPageByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetLandingPageByIdQuery(id, trackView);
+        var landingPage = await _mediator.Send(query, cancellationToken);
         if (landingPage == null)
         {
             return NotFound();
@@ -68,6 +102,13 @@ public class LandingPagesController : BaseController
     /// <summary>
     /// Slug'a göre landing page getirir
     /// </summary>
+    /// <param name="slug">Landing page slug</param>
+    /// <param name="trackView">View sayısını artır (varsayılan: true)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Landing page detayları</returns>
+    /// <response code="200">Landing page başarıyla getirildi</response>
+    /// <response code="404">Landing page bulunamadı</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("slug/{slug}")]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
@@ -76,10 +117,12 @@ public class LandingPagesController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<LandingPageDto>> GetLandingPageBySlug(
         string slug,
+        [FromQuery] bool trackView = true,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var landingPage = await _landingPageService.GetLandingPageBySlugAsync(slug, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetLandingPageBySlugQuery(slug, trackView);
+        var landingPage = await _mediator.Send(query, cancellationToken);
         if (landingPage == null)
         {
             return NotFound();
@@ -90,6 +133,15 @@ public class LandingPagesController : BaseController
     /// <summary>
     /// Tüm landing page'leri getirir (sayfalanmış)
     /// </summary>
+    /// <param name="status">Durum filtresi (opsiyonel)</param>
+    /// <param name="isActive">Aktif durum filtresi (opsiyonel)</param>
+    /// <param name="page">Sayfa numarası (varsayılan: 1)</param>
+    /// <param name="pageSize">Sayfa boyutu (varsayılan: 20)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Sayfalanmış landing page listesi</returns>
+    /// <response code="200">Landing page'ler başarıyla getirildi</response>
+    /// <response code="400">Geçersiz sayfalama parametreleri</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
@@ -103,18 +155,26 @@ public class LandingPagesController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ⚠️ NOT: GetAllLandingPagesAsync pagination desteklemiyor - Interface'i güncellemek gerekiyor
-        var landingPages = await _landingPageService.GetAllLandingPagesAsync(status, isActive, page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetAllLandingPagesQuery(status, isActive, page, pageSize);
+        var landingPages = await _mediator.Send(query, cancellationToken);
         return Ok(landingPages);
     }
 
     /// <summary>
     /// Landing page'i günceller
     /// </summary>
+    /// <param name="id">Güncellenecek landing page ID</param>
+    /// <param name="command">Landing page güncelleme komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">Landing page başarıyla güncellendi</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="404">Landing page bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
@@ -123,38 +183,22 @@ public class LandingPagesController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> UpdateLandingPage(
         Guid id,
-        [FromBody] CreateLandingPageDto dto,
+        [FromBody] UpdateLandingPageCommand command,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi landing page'lerini güncelleyebilmeli (Admin hariç)
-        var landingPage = await _landingPageService.GetLandingPageByIdAsync(id, cancellationToken);
-        if (landingPage == null)
-        {
-            return NotFound();
-        }
-
-        // Manager rolü sadece kendi landing page'lerini güncelleyebilir (Admin hariç)
-        if (User.IsInRole("Manager") && !User.IsInRole("Admin"))
-        {
-            if (landingPage.AuthorId.HasValue && landingPage.AuthorId.Value != userId)
-            {
-                return Forbid();
-            }
-        }
-
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _landingPageService.UpdateLandingPageAsync(id, dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.2: IDOR Koruması - Handler içinde yapılıyor
+        var updateCommand = command with { Id = id, PerformedBy = userId };
+        var result = await _mediator.Send(updateCommand, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -165,6 +209,15 @@ public class LandingPagesController : BaseController
     /// <summary>
     /// Landing page'i siler
     /// </summary>
+    /// <param name="id">Silinecek landing page ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">Landing page başarıyla silindi</response>
+    /// <response code="404">Landing page bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
@@ -172,6 +225,7 @@ public class LandingPagesController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> DeleteLandingPage(
         Guid id,
@@ -182,24 +236,10 @@ public class LandingPagesController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi landing page'lerini silebilmeli (Admin hariç)
-        var landingPage = await _landingPageService.GetLandingPageByIdAsync(id, cancellationToken);
-        if (landingPage == null)
-        {
-            return NotFound();
-        }
-
-        // Manager rolü sadece kendi landing page'lerini silebilir (Admin hariç)
-        if (User.IsInRole("Manager") && !User.IsInRole("Admin"))
-        {
-            if (landingPage.AuthorId.HasValue && landingPage.AuthorId.Value != userId)
-            {
-                return Forbid();
-            }
-        }
-
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _landingPageService.DeleteLandingPageAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.2: IDOR Koruması - Handler içinde yapılıyor
+        var command = new DeleteLandingPageCommand(id, userId);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -210,6 +250,15 @@ public class LandingPagesController : BaseController
     /// <summary>
     /// Landing page'i yayınlar
     /// </summary>
+    /// <param name="id">Yayınlanacak landing page ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">Landing page başarıyla yayınlandı</response>
+    /// <response code="404">Landing page bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("{id}/publish")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
@@ -217,6 +266,7 @@ public class LandingPagesController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> PublishLandingPage(
         Guid id,
@@ -227,24 +277,10 @@ public class LandingPagesController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi landing page'lerini yayınlayabilmeli (Admin hariç)
-        var landingPage = await _landingPageService.GetLandingPageByIdAsync(id, cancellationToken);
-        if (landingPage == null)
-        {
-            return NotFound();
-        }
-
-        // Manager rolü sadece kendi landing page'lerini yayınlayabilir (Admin hariç)
-        if (User.IsInRole("Manager") && !User.IsInRole("Admin"))
-        {
-            if (landingPage.AuthorId.HasValue && landingPage.AuthorId.Value != userId)
-            {
-                return Forbid();
-            }
-        }
-
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _landingPageService.PublishLandingPageAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.2: IDOR Koruması - Handler içinde yapılıyor
+        var command = new PublishLandingPageCommand(id, userId);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -255,18 +291,27 @@ public class LandingPagesController : BaseController
     /// <summary>
     /// Landing page conversion'ı takip eder
     /// </summary>
+    /// <param name="id">Conversion takip edilecek landing page ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">Conversion başarıyla takip edildi</response>
+    /// <response code="404">Landing page bulunamadı</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("{id}/track-conversion")]
     [AllowAnonymous]
     [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika (analytics için yüksek limit)
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> TrackConversion(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _landingPageService.TrackConversionAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new TrackLandingPageConversionCommand(id);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -277,6 +322,17 @@ public class LandingPagesController : BaseController
     /// <summary>
     /// Landing page variant'ı oluşturur
     /// </summary>
+    /// <param name="id">Variant oluşturulacak orijinal landing page ID</param>
+    /// <param name="command">Variant oluşturma komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Oluşturulan variant</returns>
+    /// <response code="201">Variant başarıyla oluşturuldu</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="404">Orijinal landing page bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("{id}/create-variant")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
@@ -285,47 +341,35 @@ public class LandingPagesController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)] // BusinessException için
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<LandingPageDto>> CreateVariant(
         Guid id,
-        [FromBody] CreateLandingPageDto dto,
+        [FromBody] CreateLandingPageVariantCommand command,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized();
-        }
-
-        // ✅ BOLUM 3.2: IDOR Koruması - Manager sadece kendi landing page'lerinin variant'ını oluşturabilmeli (Admin hariç)
-        var landingPage = await _landingPageService.GetLandingPageByIdAsync(id, cancellationToken);
-        if (landingPage == null)
-        {
-            return NotFound();
-        }
-
-        // Manager rolü sadece kendi landing page'lerinin variant'ını oluşturabilir (Admin hariç)
-        if (User.IsInRole("Manager") && !User.IsInRole("Admin"))
-        {
-            if (landingPage.AuthorId.HasValue && landingPage.AuthorId.Value != userId)
-            {
-                return Forbid();
-            }
-        }
-
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var variant = await _landingPageService.CreateVariantAsync(id, dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var createCommand = command with { OriginalId = id };
+        var variant = await _mediator.Send(createCommand, cancellationToken);
         return CreatedAtAction(nameof(GetLandingPageById), new { id = variant.Id }, variant);
     }
 
     /// <summary>
     /// Landing page analytics'ini getirir
     /// </summary>
+    /// <param name="id">Landing page ID</param>
+    /// <param name="startDate">Başlangıç tarihi (opsiyonel)</param>
+    /// <param name="endDate">Bitiş tarihi (opsiyonel)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Landing page analytics verileri</returns>
+    /// <response code="200">Analytics başarıyla getirildi</response>
+    /// <response code="404">Landing page bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("{id}/analytics")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika (analytics için yüksek limit)
     [ProducesResponseType(typeof(LandingPageAnalyticsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -337,8 +381,9 @@ public class LandingPagesController : BaseController
         [FromQuery] DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var analytics = await _landingPageService.GetLandingPageAnalyticsAsync(id, startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetLandingPageAnalyticsQuery(id, startDate, endDate);
+        var analytics = await _mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 }

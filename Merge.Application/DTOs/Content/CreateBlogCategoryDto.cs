@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Content;
 
+[Obsolete("Use CreateBlogCategoryCommand via MediatR instead")]
 public class CreateBlogCategoryDto
 {
     [Required]
@@ -22,3 +23,4 @@ public class CreateBlogCategoryDto
     
     public bool IsActive { get; set; } = true;
 }
+

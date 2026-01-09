@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Content;
 
+[Obsolete("Use CreateCMSPageCommand via MediatR instead")]
 public class CreateCMSPageDto
 {
     [Required]
@@ -45,3 +46,4 @@ public class CreateCMSPageDto
     
     public Guid? ParentPageId { get; set; }
 }
+

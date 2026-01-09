@@ -34,8 +34,13 @@ public class SEOService : ISEOService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-    public async Task<SEOSettingsDto> CreateOrUpdateSEOSettingsAsync(CreateSEOSettingsDto dto, CancellationToken cancellationToken = default)
+    [Obsolete("Use CreateOrUpdateSEOSettingsCommand via MediatR instead")]
+    public async Task<SEOSettingsDto> CreateOrUpdateSEOSettingsAsync(object dtoObj, CancellationToken cancellationToken = default)
     {
+        if (dtoObj is not CreateSEOSettingsDto dto)
+        {
+            throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
+        }
         _logger.LogInformation("SEO ayarlari olusturuluyor/guncelleniyor. PageType: {PageType}, EntityId: {EntityId}", 
             dto.PageType, dto.EntityId);
 
@@ -48,22 +53,22 @@ public class SEOService : ISEOService
 
             if (existing != null)
             {
-                existing.MetaTitle = dto.MetaTitle;
-                existing.MetaDescription = dto.MetaDescription;
-                existing.MetaKeywords = dto.MetaKeywords;
-                existing.CanonicalUrl = dto.CanonicalUrl;
-                existing.OgTitle = dto.OgTitle;
-                existing.OgDescription = dto.OgDescription;
-                existing.OgImageUrl = dto.OgImageUrl;
-                existing.TwitterCard = dto.TwitterCard;
-                // ✅ BOLUM 4.3: Over-Posting Koruması - Dictionary&lt;string, object&gt; YASAK
-                // StructuredData artık string olarak geliyor (StructuredDataJson)
-                existing.StructuredData = dto.StructuredDataJson;
-                existing.IsIndexed = dto.IsIndexed;
-                existing.FollowLinks = dto.FollowLinks;
-                existing.Priority = dto.Priority;
-                existing.ChangeFrequency = dto.ChangeFrequency;
-                existing.UpdatedAt = DateTime.UtcNow;
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+                existing.UpdateMetaInformation(
+                    dto.MetaTitle,
+                    dto.MetaDescription,
+                    dto.MetaKeywords,
+                    dto.CanonicalUrl);
+
+                existing.UpdateOpenGraphInformation(
+                    dto.OgTitle,
+                    dto.OgDescription,
+                    dto.OgImageUrl,
+                    dto.TwitterCard);
+
+                existing.UpdateStructuredData(dto.StructuredDataJson);
+                existing.UpdateIndexingSettings(dto.IsIndexed, dto.FollowLinks);
+                existing.UpdateSitemapSettings(dto.Priority, dto.ChangeFrequency);
 
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -73,26 +78,23 @@ public class SEOService : ISEOService
                 return _mapper.Map<SEOSettingsDto>(existing);
             }
 
-            var seoSettings = new SEOSettings
-            {
-                PageType = dto.PageType,
-                EntityId = dto.EntityId,
-                MetaTitle = dto.MetaTitle,
-                MetaDescription = dto.MetaDescription,
-                MetaKeywords = dto.MetaKeywords,
-                CanonicalUrl = dto.CanonicalUrl,
-                OgTitle = dto.OgTitle,
-                OgDescription = dto.OgDescription,
-                OgImageUrl = dto.OgImageUrl,
-                TwitterCard = dto.TwitterCard,
-                // ✅ BOLUM 4.3: Over-Posting Koruması - Dictionary&lt;string, object&gt; YASAK
-                // StructuredData artık string olarak geliyor (StructuredDataJson)
-                StructuredData = dto.StructuredDataJson,
-                IsIndexed = dto.IsIndexed,
-                FollowLinks = dto.FollowLinks,
-                Priority = dto.Priority,
-                ChangeFrequency = dto.ChangeFrequency
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var seoSettings = SEOSettings.Create(
+                dto.PageType,
+                dto.EntityId,
+                dto.MetaTitle,
+                dto.MetaDescription,
+                dto.MetaKeywords,
+                dto.CanonicalUrl,
+                dto.OgTitle,
+                dto.OgDescription,
+                dto.OgImageUrl,
+                dto.TwitterCard,
+                dto.StructuredDataJson,
+                dto.IsIndexed,
+                dto.FollowLinks,
+                dto.Priority,
+                dto.ChangeFrequency);
 
             await _context.Set<SEOSettings>().AddAsync(seoSettings, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -140,16 +142,14 @@ public class SEOService : ISEOService
     // Sitemap
     public async Task<SitemapEntryDto> AddSitemapEntryAsync(string url, string pageType, Guid? entityId = null, string changeFrequency = "weekly", decimal priority = 0.5m, CancellationToken cancellationToken = default)
     {
-        var entry = new SitemapEntry
-        {
-            Url = url,
-            PageType = pageType,
-            EntityId = entityId,
-            ChangeFrequency = changeFrequency,
-            Priority = priority,
-            LastModified = DateTime.UtcNow,
-            IsActive = true
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var entry = SitemapEntry.Create(
+            url,
+            pageType,
+            entityId,
+            changeFrequency,
+            priority,
+            isActive: true);
 
         await _context.Set<SitemapEntry>().AddAsync(entry, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -165,15 +165,12 @@ public class SEOService : ISEOService
 
         if (entry == null) return false;
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (!string.IsNullOrEmpty(url))
-            entry.Url = url;
-        if (!string.IsNullOrEmpty(changeFrequency))
-            entry.ChangeFrequency = changeFrequency;
-        if (priority.HasValue)
-            entry.Priority = priority.Value;
+            entry.UpdateUrl(url);
+        if (!string.IsNullOrEmpty(changeFrequency) || priority.HasValue)
+            entry.UpdateSitemapSettings(changeFrequency ?? entry.ChangeFrequency, priority ?? entry.Priority);
 
-        entry.LastModified = DateTime.UtcNow;
-        entry.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -187,8 +184,8 @@ public class SEOService : ISEOService
 
         if (entry == null) return false;
 
-        entry.IsDeleted = true;
-        entry.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
+        entry.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
