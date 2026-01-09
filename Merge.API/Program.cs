@@ -354,8 +354,6 @@ builder.Services.AddScoped<ISearchSuggestionService, Merge.Application.Services.
 builder.Services.AddScoped<IAbandonedCartService, Merge.Application.Services.Cart.AbandonedCartService>();
 builder.Services.AddScoped<IUserActivityService, Merge.Application.Services.User.UserActivityService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
-builder.Services.AddScoped<ICurrencyService, CurrencyService>();
-builder.Services.AddScoped<ILanguageService, LanguageService>();
 builder.Services.AddScoped<ILoyaltyService, Merge.Application.Services.Marketing.LoyaltyService>();
 builder.Services.AddScoped<IReferralService, Merge.Application.Services.Marketing.ReferralService>();
 builder.Services.AddScoped<IReviewMediaService, Merge.Application.Services.Marketing.ReviewMediaService>();

@@ -1,10 +1,9 @@
 namespace Merge.Application.DTOs.International;
 
-public class LanguageCoverageDto
-{
-    public string LanguageCode { get; set; } = string.Empty;
-    public string LanguageName { get; set; } = string.Empty;
-    public int ProductsTranslated { get; set; }
-    public int TotalProducts { get; set; }
-    public decimal CoveragePercentage { get; set; }
-}
+// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+public record LanguageCoverageDto(
+    string LanguageCode,
+    string LanguageName,
+    int ProductsTranslated,
+    int TotalProducts,
+    decimal CoveragePercentage);

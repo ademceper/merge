@@ -1,22 +1,37 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.User;
-using Merge.Application.Interfaces.International;
+using MediatR;
 using Merge.Application.DTOs.International;
-using Merge.Application.Common;
 using Merge.API.Middleware;
+using Merge.Application.International.Queries.GetAllCurrencies;
+using Merge.Application.International.Queries.GetActiveCurrencies;
+using Merge.Application.International.Queries.GetCurrencyById;
+using Merge.Application.International.Queries.GetCurrencyByCode;
+using Merge.Application.International.Commands.CreateCurrency;
+using Merge.Application.International.Commands.UpdateCurrency;
+using Merge.Application.International.Commands.DeleteCurrency;
+using Merge.Application.International.Commands.UpdateExchangeRate;
+using Merge.Application.International.Commands.ConvertPrice;
+using Merge.Application.International.Queries.FormatPrice;
+using Merge.Application.International.Queries.GetExchangeRateHistory;
+using Merge.Application.International.Commands.SetUserCurrencyPreference;
+using Merge.Application.International.Queries.GetUserCurrencyPreference;
+using Merge.Application.International.Queries.GetCurrencyStats;
+using Merge.Application.International.Commands.SyncExchangeRates;
 
 namespace Merge.API.Controllers.International;
 
+// ✅ BOLUM 4.1: API Versioning (ZORUNLU)
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/international/currencies")]
+[Route("api/v{version:apiVersion}/international/currencies")]
 public class CurrenciesController : BaseController
 {
-    private readonly ICurrencyService _currencyService;
+    private readonly IMediator _mediator;
 
-    public CurrenciesController(ICurrencyService currencyService)
+    public CurrenciesController(IMediator mediator)
     {
-        _currencyService = currencyService;
+        _mediator = mediator;
     }
 
     /// <summary>
@@ -30,8 +45,10 @@ public class CurrenciesController : BaseController
     public async Task<ActionResult<IEnumerable<CurrencyDto>>> GetAllCurrencies(
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var currencies = await _currencyService.GetAllCurrenciesAsync(cancellationToken);
+        var query = new GetAllCurrenciesQuery();
+        var currencies = await _mediator.Send(query, cancellationToken);
         return Ok(currencies);
     }
 
@@ -46,8 +63,10 @@ public class CurrenciesController : BaseController
     public async Task<ActionResult<IEnumerable<CurrencyDto>>> GetActiveCurrencies(
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var currencies = await _currencyService.GetActiveCurrenciesAsync(cancellationToken);
+        var query = new GetActiveCurrenciesQuery();
+        var currencies = await _mediator.Send(query, cancellationToken);
         return Ok(currencies);
     }
 
@@ -64,8 +83,10 @@ public class CurrenciesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var currency = await _currencyService.GetCurrencyByIdAsync(id, cancellationToken);
+        var query = new GetCurrencyByIdQuery(id);
+        var currency = await _mediator.Send(query, cancellationToken);
 
         if (currency == null)
         {
@@ -88,8 +109,10 @@ public class CurrenciesController : BaseController
         string code,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var currency = await _currencyService.GetCurrencyByCodeAsync(code, cancellationToken);
+        var query = new GetCurrencyByCodeQuery(code);
+        var currency = await _mediator.Send(query, cancellationToken);
 
         if (currency == null)
         {
@@ -114,11 +137,19 @@ public class CurrenciesController : BaseController
         [FromBody] CreateCurrencyDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var currency = await _currencyService.CreateCurrencyAsync(dto, cancellationToken);
+        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
+        var command = new CreateCurrencyCommand(
+            dto.Code,
+            dto.Name,
+            dto.Symbol,
+            dto.ExchangeRate,
+            dto.IsBaseCurrency,
+            dto.IsActive,
+            dto.DecimalPlaces,
+            dto.Format);
+        var currency = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetCurrencyById), new { id = currency.Id }, currency);
     }
 
@@ -139,15 +170,18 @@ public class CurrenciesController : BaseController
         [FromBody] UpdateCurrencyDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var currency = await _currencyService.UpdateCurrencyAsync(id, dto, cancellationToken);
-        if (currency == null)
-        {
-            return NotFound();
-        }
+        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
+        var command = new UpdateCurrencyCommand(
+            id,
+            dto.Name,
+            dto.Symbol,
+            dto.ExchangeRate,
+            dto.IsActive,
+            dto.DecimalPlaces,
+            dto.Format);
+        var currency = await _mediator.Send(command, cancellationToken);
         return Ok(currency);
     }
 
@@ -166,8 +200,10 @@ public class CurrenciesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        await _currencyService.DeleteCurrencyAsync(id, cancellationToken);
+        var command = new DeleteCurrencyCommand(id);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -188,8 +224,10 @@ public class CurrenciesController : BaseController
         [FromQuery] string source = "Manual",
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        await _currencyService.UpdateExchangeRateAsync(currencyCode, newRate, source, cancellationToken);
+        var command = new UpdateExchangeRateCommand(currencyCode, newRate, source);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -206,11 +244,11 @@ public class CurrenciesController : BaseController
         [FromBody] ConvertPriceDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _currencyService.ConvertPriceAsync(dto.Amount, dto.FromCurrency, dto.ToCurrency, cancellationToken);
+        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
+        var command = new ConvertPriceCommand(dto.Amount, dto.FromCurrency, dto.ToCurrency);
+        var result = await _mediator.Send(command, cancellationToken);
         return Ok(result);
     }
 
@@ -228,8 +266,10 @@ public class CurrenciesController : BaseController
         [FromQuery] string currencyCode,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var formatted = await _currencyService.FormatPriceAsync(amount, currencyCode, cancellationToken);
+        var query = new FormatPriceQuery(amount, currencyCode);
+        var formatted = await _mediator.Send(query, cancellationToken);
         return Ok(new { formatted });
     }
 
@@ -247,8 +287,10 @@ public class CurrenciesController : BaseController
         [FromQuery] int days = 30,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var history = await _currencyService.GetExchangeRateHistoryAsync(currencyCode, days, cancellationToken);
+        var query = new GetExchangeRateHistoryQuery(currencyCode, days);
+        var history = await _mediator.Send(query, cancellationToken);
         return Ok(history);
     }
 
@@ -276,9 +318,11 @@ public class CurrenciesController : BaseController
             return Unauthorized();
         }
 
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi tercihini ayarlayabilir
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        await _currencyService.SetUserCurrencyPreferenceAsync(userId, currencyCode, cancellationToken);
+        var command = new SetUserCurrencyPreferenceCommand(userId, currencyCode);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -299,9 +343,11 @@ public class CurrenciesController : BaseController
             return Unauthorized();
         }
 
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi tercihini görebilir
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var currencyCode = await _currencyService.GetUserCurrencyPreferenceAsync(userId, cancellationToken);
+        var query = new GetUserCurrencyPreferenceQuery(userId);
+        var currencyCode = await _mediator.Send(query, cancellationToken);
         return Ok(new { currencyCode });
     }
 
@@ -318,8 +364,10 @@ public class CurrenciesController : BaseController
     public async Task<ActionResult<CurrencyStatsDto>> GetCurrencyStats(
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var stats = await _currencyService.GetCurrencyStatsAsync(cancellationToken);
+        var query = new GetCurrencyStatsQuery();
+        var stats = await _mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 
@@ -336,8 +384,10 @@ public class CurrenciesController : BaseController
     public async Task<IActionResult> SyncExchangeRates(
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        await _currencyService.SyncExchangeRatesAsync(cancellationToken);
+        var command = new SyncExchangeRatesCommand();
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 }

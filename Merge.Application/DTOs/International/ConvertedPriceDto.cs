@@ -1,11 +1,10 @@
 namespace Merge.Application.DTOs.International;
 
-public class ConvertedPriceDto
-{
-    public decimal OriginalAmount { get; set; }
-    public string FromCurrency { get; set; } = string.Empty;
-    public decimal ConvertedAmount { get; set; }
-    public string ToCurrency { get; set; } = string.Empty;
-    public string FormattedPrice { get; set; } = string.Empty;
-    public decimal ExchangeRate { get; set; }
-}
+// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+public record ConvertedPriceDto(
+    decimal OriginalAmount,
+    string FromCurrency,
+    decimal ConvertedAmount,
+    string ToCurrency,
+    string FormattedPrice,
+    decimal ExchangeRate);

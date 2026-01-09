@@ -2,31 +2,30 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.International;
 
-public class CreateProductTranslationDto
-{
+// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+public record CreateProductTranslationDto(
     [Required]
-    public Guid ProductId { get; set; }
+    Guid ProductId,
     
     [Required]
     [StringLength(10, MinimumLength = 2, ErrorMessage = "Dil kodu en az 2, en fazla 10 karakter olmalıdır.")]
-    public string LanguageCode { get; set; } = string.Empty;
+    string LanguageCode,
     
     [Required]
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Ürün adı en az 2, en fazla 200 karakter olmalıdır.")]
-    public string Name { get; set; } = string.Empty;
+    string Name,
     
     [StringLength(5000)]
-    public string Description { get; set; } = string.Empty;
+    string Description = "",
     
     [StringLength(500)]
-    public string ShortDescription { get; set; } = string.Empty;
+    string ShortDescription = "",
     
     [StringLength(200)]
-    public string MetaTitle { get; set; } = string.Empty;
+    string MetaTitle = "",
     
     [StringLength(500)]
-    public string MetaDescription { get; set; } = string.Empty;
+    string MetaDescription = "",
     
     [StringLength(200)]
-    public string MetaKeywords { get; set; } = string.Empty;
-}
+    string MetaKeywords = "");

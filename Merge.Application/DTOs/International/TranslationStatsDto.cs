@@ -1,9 +1,8 @@
 namespace Merge.Application.DTOs.International;
 
-public class TranslationStatsDto
-{
-    public int TotalLanguages { get; set; }
-    public int ActiveLanguages { get; set; }
-    public string DefaultLanguage { get; set; } = string.Empty;
-    public List<LanguageCoverageDto> LanguageCoverage { get; set; } = new();
-}
+// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+public record TranslationStatsDto(
+    int TotalLanguages,
+    int ActiveLanguages,
+    string DefaultLanguage,
+    IReadOnlyList<LanguageCoverageDto> LanguageCoverage);

@@ -1,9 +1,8 @@
 namespace Merge.Application.DTOs.International;
 
-public class CurrencyUsageDto
-{
-    public string CurrencyCode { get; set; } = string.Empty;
-    public string CurrencyName { get; set; } = string.Empty;
-    public int UserCount { get; set; }
-    public decimal Percentage { get; set; }
-}
+// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+public record CurrencyUsageDto(
+    string CurrencyCode,
+    string CurrencyName,
+    int UserCount,
+    decimal Percentage);

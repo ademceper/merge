@@ -1,10 +1,9 @@
 namespace Merge.Application.DTOs.International;
 
-public class ExchangeRateHistoryDto
-{
-    public Guid Id { get; set; }
-    public string CurrencyCode { get; set; } = string.Empty;
-    public decimal ExchangeRate { get; set; }
-    public DateTime RecordedAt { get; set; }
-    public string Source { get; set; } = string.Empty;
-}
+// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+public record ExchangeRateHistoryDto(
+    Guid Id,
+    string CurrencyCode,
+    decimal ExchangeRate,
+    DateTime RecordedAt,
+    string Source);

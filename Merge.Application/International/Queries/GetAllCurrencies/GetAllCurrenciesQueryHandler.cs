@@ -1,0 +1,46 @@
+using MediatR;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Merge.Application.DTOs.International;
+using Merge.Application.Interfaces;
+using Merge.Domain.Entities;
+
+namespace Merge.Application.International.Queries.GetAllCurrencies;
+
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
+public class GetAllCurrenciesQueryHandler : IRequestHandler<GetAllCurrenciesQuery, IEnumerable<CurrencyDto>>
+{
+    private readonly IDbContext _context;
+    private readonly IMapper _mapper;
+    private readonly ILogger<GetAllCurrenciesQueryHandler> _logger;
+
+    public GetAllCurrenciesQueryHandler(
+        IDbContext context,
+        IMapper mapper,
+        ILogger<GetAllCurrenciesQueryHandler> logger)
+    {
+        _context = context;
+        _mapper = mapper;
+        _logger = logger;
+    }
+
+    public async Task<IEnumerable<CurrencyDto>> Handle(GetAllCurrenciesQuery request, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Getting all currencies");
+
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
+        // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+        var currencies = await _context.Set<Currency>()
+            .AsNoTracking()
+            .OrderBy(c => c.Code)
+            .Take(500) // ✅ Güvenlik: Maksimum 500 para birimi
+            .ToListAsync(cancellationToken);
+
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper'ın Map<IEnumerable<T>> metodunu kullan
+        return _mapper.Map<IEnumerable<CurrencyDto>>(currencies);
+    }
+}
+

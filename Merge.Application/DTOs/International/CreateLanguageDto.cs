@@ -2,26 +2,25 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.International;
 
-public class CreateLanguageDto
-{
+// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+public record CreateLanguageDto(
     [Required]
     [StringLength(10, MinimumLength = 2, ErrorMessage = "Dil kodu en az 2, en fazla 10 karakter olmalıdır.")]
-    public string Code { get; set; } = string.Empty;
+    string Code,
     
     [Required]
     [StringLength(100, MinimumLength = 2, ErrorMessage = "Dil adı en az 2, en fazla 100 karakter olmalıdır.")]
-    public string Name { get; set; } = string.Empty;
+    string Name,
     
     [Required]
     [StringLength(100, MinimumLength = 2, ErrorMessage = "Yerel dil adı en az 2, en fazla 100 karakter olmalıdır.")]
-    public string NativeName { get; set; } = string.Empty;
+    string NativeName,
     
-    public bool IsDefault { get; set; } = false;
+    bool IsDefault = false,
     
-    public bool IsActive { get; set; } = true;
+    bool IsActive = true,
     
-    public bool IsRTL { get; set; } = false;
+    bool IsRTL = false,
     
     [StringLength(200)]
-    public string FlagIcon { get; set; } = string.Empty;
-}
+    string FlagIcon = "");

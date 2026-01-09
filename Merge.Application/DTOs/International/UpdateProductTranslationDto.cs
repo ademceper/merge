@@ -1,0 +1,25 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace Merge.Application.DTOs.International;
+
+// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+public record UpdateProductTranslationDto(
+    [Required]
+    [StringLength(200, MinimumLength = 2, ErrorMessage = "Ürün adı en az 2, en fazla 200 karakter olmalıdır.")]
+    string Name,
+    
+    [StringLength(5000)]
+    string Description = "",
+    
+    [StringLength(500)]
+    string ShortDescription = "",
+    
+    [StringLength(200)]
+    string MetaTitle = "",
+    
+    [StringLength(500)]
+    string MetaDescription = "",
+    
+    [StringLength(200)]
+    string MetaKeywords = "");
+

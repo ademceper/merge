@@ -1,0 +1,14 @@
+using FluentValidation;
+
+namespace Merge.Application.International.Queries.GetActiveCurrencies;
+
+// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
+public class GetActiveCurrenciesQueryValidator : AbstractValidator<GetActiveCurrenciesQuery>
+{
+    public GetActiveCurrenciesQueryValidator()
+    {
+        // GetActiveCurrenciesQuery parametre almadığı için validator boş
+        // Ancak FluentValidation pipeline'ı için gerekli
+    }
+}
+

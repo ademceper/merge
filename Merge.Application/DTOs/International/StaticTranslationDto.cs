@@ -1,10 +1,9 @@
 namespace Merge.Application.DTOs.International;
 
-public class StaticTranslationDto
-{
-    public Guid Id { get; set; }
-    public string Key { get; set; } = string.Empty;
-    public string LanguageCode { get; set; } = string.Empty;
-    public string Value { get; set; } = string.Empty;
-    public string Category { get; set; } = string.Empty;
-}
+// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+public record StaticTranslationDto(
+    Guid Id,
+    string Key,
+    string LanguageCode,
+    string Value,
+    string Category);
