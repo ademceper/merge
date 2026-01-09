@@ -1,23 +1,93 @@
+using Merge.Domain.Common;
+using Merge.Domain.Exceptions;
+
 namespace Merge.Domain.Entities;
 
 /// <summary>
 /// OAuthAccount Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// BOLUM 1.1: Rich Domain Model (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class OAuthAccount : BaseEntity
 {
-    public Guid UserId { get; set; }
-    public string Provider { get; set; } = string.Empty; // google, facebook, apple
-    public string ProviderUserId { get; set; } = string.Empty; // External user ID from provider
-    public string? Email { get; set; }
-    public string? Name { get; set; }
-    public string? PictureUrl { get; set; }
-    public string? AccessToken { get; set; } // Encrypted
-    public string? RefreshToken { get; set; } // Encrypted
-    public DateTime? TokenExpiresAt { get; set; }
-    public bool IsPrimary { get; set; } = false; // Primary login method
+    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
+    public Guid UserId { get; private set; }
+    public string Provider { get; private set; } = string.Empty; // google, facebook, apple
+    public string ProviderUserId { get; private set; } = string.Empty; // External user ID from provider
+    public string? Email { get; private set; }
+    public string? Name { get; private set; }
+    public string? PictureUrl { get; private set; }
+    public string? AccessToken { get; private set; } // Encrypted
+    public string? RefreshToken { get; private set; } // Encrypted
+    public DateTime? TokenExpiresAt { get; private set; }
+    public bool IsPrimary { get; private set; } = false; // Primary login method
     
     // Navigation properties
-    public User User { get; set; } = null!;
+    public User User { get; private set; } = null!;
+
+    // ✅ BOLUM 1.1: Factory Method - Private constructor
+    private OAuthAccount() { }
+
+    // ✅ BOLUM 1.1: Factory Method with validation
+    public static OAuthAccount Create(
+        Guid userId,
+        string provider,
+        string providerUserId,
+        string? email = null,
+        string? name = null,
+        string? pictureUrl = null,
+        string? accessToken = null,
+        string? refreshToken = null,
+        DateTime? tokenExpiresAt = null,
+        bool isPrimary = false)
+    {
+        Guard.AgainstDefault(userId, nameof(userId));
+        Guard.AgainstNullOrEmpty(provider, nameof(provider));
+        Guard.AgainstNullOrEmpty(providerUserId, nameof(providerUserId));
+
+        var oauthAccount = new OAuthAccount
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Provider = provider,
+            ProviderUserId = providerUserId,
+            Email = email,
+            Name = name,
+            PictureUrl = pictureUrl,
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            TokenExpiresAt = tokenExpiresAt,
+            IsPrimary = isPrimary,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        return oauthAccount;
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Update tokens
+    public void UpdateTokens(string? accessToken, string? refreshToken, DateTime? tokenExpiresAt)
+    {
+        AccessToken = accessToken;
+        RefreshToken = refreshToken;
+        TokenExpiresAt = tokenExpiresAt;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Set as primary
+    public void SetAsPrimary()
+    {
+        IsPrimary = true;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Remove primary status
+    public void RemovePrimaryStatus()
+    {
+        IsPrimary = false;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Computed property
+    public bool IsTokenExpired => TokenExpiresAt.HasValue && DateTime.UtcNow >= TokenExpiresAt.Value;
 }
 

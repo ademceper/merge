@@ -2,13 +2,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Auth;
 
-public class LoginDto
-{
-    [Required]
-    [EmailAddress]
-    public string Email { get; set; } = string.Empty;
-
-    [Required]
-    public string Password { get; set; } = string.Empty;
-}
+// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+public record LoginDto(
+    [Required] [EmailAddress] string Email,
+    [Required] string Password);
 

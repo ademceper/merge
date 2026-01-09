@@ -1,22 +1,32 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Identity;
+using MediatR;
 using Merge.Application.DTOs.Identity;
+using VerifyBackupCodeDto = Merge.Application.DTOs.Identity.VerifyBackupCodeDto;
+using Merge.Application.Identity.Queries.Get2FAStatus;
+using Merge.Application.Identity.Commands.Setup2FA;
+using Merge.Application.Identity.Commands.Enable2FA;
+using Merge.Application.Identity.Commands.Disable2FA;
+using Merge.Application.Identity.Commands.Verify2FACode;
+using Merge.Application.Identity.Commands.SendVerificationCode;
+using Merge.Application.Identity.Commands.RegenerateBackupCodes;
+using Merge.Application.Identity.Commands.VerifyBackupCode;
 using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Identity;
 
 [ApiController]
-[Route("api/two-factor-auth")]
+[ApiVersion("1.0")] // ✅ BOLUM 4.1: API Versioning (ZORUNLU)
+[Route("api/v{version:apiVersion}/two-factor-auth")]
 [Authorize]
 public class TwoFactorAuthController : BaseController
 {
-    private readonly ITwoFactorAuthService _twoFactorAuthService;
+    private readonly IMediator _mediator;
 
-    public TwoFactorAuthController(ITwoFactorAuthService twoFactorAuthService)
+    public TwoFactorAuthController(IMediator mediator)
     {
-        _twoFactorAuthService = twoFactorAuthService;
+        _mediator = mediator;
     }
 
     /// <summary>
@@ -35,8 +45,11 @@ public class TwoFactorAuthController : BaseController
             return Unauthorized();
         }
 
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new Get2FAStatusQuery(userId);
+        
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var status = await _twoFactorAuthService.Get2FAStatusAsync(userId, cancellationToken);
+        var status = await _mediator.Send(query, cancellationToken);
         return Ok(status);
     }
 
@@ -53,16 +66,17 @@ public class TwoFactorAuthController : BaseController
         [FromBody] TwoFactorSetupDto setupDto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
+        var command = new Setup2FACommand(userId, setupDto);
+        
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _twoFactorAuthService.Setup2FAAsync(userId, setupDto, cancellationToken);
+        var result = await _mediator.Send(command, cancellationToken);
         return Ok(result);
     }
 
@@ -79,16 +93,17 @@ public class TwoFactorAuthController : BaseController
         [FromBody] Enable2FADto enableDto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
+        var command = new Enable2FACommand(userId, enableDto);
+        
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        await _twoFactorAuthService.Enable2FAAsync(userId, enableDto, cancellationToken);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -105,16 +120,17 @@ public class TwoFactorAuthController : BaseController
         [FromBody] Disable2FADto disableDto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
+        var command = new Disable2FACommand(userId, disableDto);
+        
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        await _twoFactorAuthService.Disable2FAAsync(userId, disableDto, cancellationToken);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -132,11 +148,14 @@ public class TwoFactorAuthController : BaseController
         [FromBody] Verify2FADto verifyDto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
+        // ✅ BOLUM 3.2: IDOR Protection - UserId from authenticated user (if authenticated)
+        // Note: AllowAnonymous endpoint, so UserId comes from request body (for login flow)
+        var command = new Verify2FACodeCommand(verifyDto.UserId, verifyDto.Code);
+        
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var isValid = await _twoFactorAuthService.Verify2FACodeAsync(verifyDto.UserId, verifyDto.Code, cancellationToken);
+        var isValid = await _mediator.Send(command, cancellationToken);
         if (!isValid)
         {
             return BadRequest("Geçersiz kod.");
@@ -162,8 +181,11 @@ public class TwoFactorAuthController : BaseController
             return Unauthorized();
         }
 
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new SendVerificationCodeCommand(userId, "Login");
+        
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        await _twoFactorAuthService.SendVerificationCodeAsync(userId, "Login", cancellationToken);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -180,16 +202,17 @@ public class TwoFactorAuthController : BaseController
         [FromBody] RegenerateBackupCodesDto regenerateDto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
+        var command = new RegenerateBackupCodesCommand(userId, regenerateDto);
+        
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _twoFactorAuthService.RegenerateBackupCodesAsync(userId, regenerateDto, cancellationToken);
+        var result = await _mediator.Send(command, cancellationToken);
         return Ok(result);
     }
 
@@ -203,14 +226,17 @@ public class TwoFactorAuthController : BaseController
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> VerifyBackupCode(
-        [FromBody] Verify2FADto verifyDto,
+        [FromBody] VerifyBackupCodeDto verifyDto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
+        // ✅ BOLUM 3.2: IDOR Protection - UserId from authenticated user (if authenticated)
+        // Note: AllowAnonymous endpoint, so UserId comes from request body (for login flow)
+        var command = new VerifyBackupCodeCommand(verifyDto.UserId, verifyDto.BackupCode);
+        
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var isValid = await _twoFactorAuthService.VerifyBackupCodeAsync(verifyDto.UserId, verifyDto.Code, cancellationToken);
+        var isValid = await _mediator.Send(command, cancellationToken);
         if (!isValid)
         {
             return BadRequest("Geçersiz yedek kod.");

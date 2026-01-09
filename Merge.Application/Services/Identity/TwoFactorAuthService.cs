@@ -14,6 +14,9 @@ using Merge.Application.DTOs.Identity;
 
 namespace Merge.Application.Services.Identity;
 
+// ⚠️ OBSOLETE: Bu service artık kullanılmamalı. MediatR Command/Query pattern kullanılmalı.
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service'ler yerine Command/Query handler'ları kullan
+[Obsolete("Use MediatR Commands/Queries instead. This service will be removed in a future version.")]
 public class TwoFactorAuthService : ITwoFactorAuthService
 {
     private readonly IRepository<TwoFactorAuth> _twoFactorRepository;

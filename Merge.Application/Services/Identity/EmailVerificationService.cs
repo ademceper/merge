@@ -13,6 +13,9 @@ using Merge.Domain.Entities;
 
 namespace Merge.Application.Services.Identity;
 
+// ⚠️ OBSOLETE: Bu service artık kullanılmamalı. MediatR Command/Query pattern kullanılmalı.
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service'ler yerine Command/Query handler'ları kullan
+[Obsolete("Use MediatR Commands/Queries instead. This service will be removed in a future version.")]
 public class EmailVerificationService : IEmailVerificationService
 {
     private readonly IRepository<EmailVerification> _emailVerificationRepository;
@@ -66,14 +69,12 @@ public class EmailVerificationService : IEmailVerificationService
 
             // Yeni token oluştur
             var token = Guid.NewGuid().ToString("N");
-            var verification = new EmailVerification
-            {
-                UserId = userId,
-                Email = email,
-                Token = token,
-                ExpiresAt = DateTime.UtcNow.AddHours(_emailSettings.VerificationTokenExpirationHours), // Configuration'dan alinan deger
-                IsVerified = false
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var verification = EmailVerification.Create(
+                userId,
+                email,
+                token,
+                DateTime.UtcNow.AddHours(_emailSettings.VerificationTokenExpirationHours));
 
             await _emailVerificationRepository.AddAsync(verification);
             // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)

@@ -2,14 +2,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Auth;
 
-public class RefreshTokenRequestDto
-{
-    [Required(ErrorMessage = "Refresh token zorunludur.")]
-    public string RefreshToken { get; set; } = string.Empty;
-}
+// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+public record RefreshTokenRequestDto(
+    [Required(ErrorMessage = "Refresh token zorunludur.")] string RefreshToken);
 
-public class RevokeTokenRequestDto
-{
-    [Required(ErrorMessage = "Refresh token zorunludur.")]
-    public string RefreshToken { get; set; } = string.Empty;
-}
+// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+public record RevokeTokenRequestDto(
+    [Required(ErrorMessage = "Refresh token zorunludur.")] string RefreshToken);

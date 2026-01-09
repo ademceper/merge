@@ -1,20 +1,24 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Identity;
+using MediatR;
+using Merge.Application.Identity.Commands.VerifyEmail;
+using Merge.Application.Identity.Commands.ResendVerificationEmail;
+using Merge.Application.Identity.Queries.IsEmailVerified;
 using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Identity;
 
 [ApiController]
-[Route("api/email-verification")]
+[ApiVersion("1.0")] // ✅ BOLUM 4.1: API Versioning (ZORUNLU)
+[Route("api/v{version:apiVersion}/email-verification")]
 public class EmailVerificationController : BaseController
 {
-    private readonly IEmailVerificationService _emailVerificationService;
-    public EmailVerificationController(
-    IEmailVerificationService emailVerificationService)
+    private readonly IMediator _mediator;
+
+    public EmailVerificationController(IMediator mediator)
     {
-        _emailVerificationService = emailVerificationService;
+        _mediator = mediator;
     }
 
     /// <summary>
@@ -35,12 +39,11 @@ public class EmailVerificationController : BaseController
             return BadRequest("Token boş olamaz.");
         }
 
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new VerifyEmailCommand(token);
+        
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _emailVerificationService.VerifyEmailAsync(token, cancellationToken);
-        if (!result)
-        {
-            return BadRequest("Geçersiz token.");
-        }
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -62,12 +65,11 @@ public class EmailVerificationController : BaseController
             return Unauthorized();
         }
 
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new ResendVerificationEmailCommand(userId);
+        
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _emailVerificationService.ResendVerificationEmailAsync(userId, cancellationToken);
-        if (!result)
-        {
-            return BadRequest("E-posta gönderilemedi.");
-        }
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -88,8 +90,11 @@ public class EmailVerificationController : BaseController
             return Unauthorized();
         }
 
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new IsEmailVerifiedQuery(userId);
+        
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var isVerified = await _emailVerificationService.IsEmailVerifiedAsync(userId, cancellationToken);
+        var isVerified = await _mediator.Send(query, cancellationToken);
         return Ok(new { isVerified });
     }
 }

@@ -1,20 +1,25 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using MediatR;
 using Merge.Application.DTOs.Auth;
-using Merge.Application.Interfaces.Identity;
+using Merge.Application.Identity.Commands.Login;
+using Merge.Application.Identity.Commands.Register;
+using Merge.Application.Identity.Commands.RefreshToken;
+using Merge.Application.Identity.Commands.RevokeToken;
 using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Identity;
 
 [ApiController]
-[Route("api/auth")]
+[ApiVersion("1.0")] // ✅ BOLUM 4.1: API Versioning (ZORUNLU)
+[Route("api/v{version:apiVersion}/auth")]
 public class AuthController : BaseController
 {
-    private readonly IAuthService _authService;
+    private readonly IMediator _mediator;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IMediator mediator)
     {
-        _authService = authService;
+        _mediator = mediator;
     }
 
     /// <summary>
@@ -30,15 +35,19 @@ public class AuthController : BaseController
         [FromBody] RegisterDto registerDto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var command = new RegisterCommand(
+            registerDto.FirstName,
+            registerDto.LastName,
+            registerDto.Email,
+            registerDto.Password,
+            registerDto.PhoneNumber,
+            ipAddress);
+        
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _authService.RegisterAsync(registerDto, cancellationToken);
-        if (result == null)
-        {
-            return BadRequest("Kayıt işlemi başarısız oldu.");
-        }
+        var result = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(Login), new { }, result);
     }
 
@@ -56,15 +65,16 @@ public class AuthController : BaseController
         [FromBody] LoginDto loginDto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var command = new LoginCommand(
+            loginDto.Email,
+            loginDto.Password,
+            ipAddress);
+        
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _authService.LoginAsync(loginDto, cancellationToken);
-        if (result == null)
-        {
-            return Unauthorized("Kullanıcı adı veya şifre hatalı.");
-        }
+        var result = await _mediator.Send(command, cancellationToken);
         return Ok(result);
     }
 
@@ -82,12 +92,15 @@ public class AuthController : BaseController
         [FromBody] RefreshTokenRequestDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var command = new RefreshTokenCommand(
+            dto.RefreshToken,
+            ipAddress);
+        
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _authService.RefreshTokenAsync(dto.RefreshToken, ipAddress, cancellationToken);
+        var result = await _mediator.Send(command, cancellationToken);
         return Ok(result);
     }
 
@@ -105,12 +118,15 @@ public class AuthController : BaseController
         [FromBody] RevokeTokenRequestDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var command = new RevokeTokenCommand(
+            dto.RefreshToken,
+            ipAddress);
+        
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        await _authService.RevokeTokenAsync(dto.RefreshToken, ipAddress, cancellationToken);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 }

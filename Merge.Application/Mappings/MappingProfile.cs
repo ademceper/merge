@@ -95,7 +95,15 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.SubCategories, opt => opt.Ignore())
             .ForMember(dest => dest.Products, opt => opt.Ignore());
 
-        CreateMap<Merge.Domain.Entities.User, UserDto>();
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
+        CreateMap<Merge.Domain.Entities.User, UserDto>()
+            .ConstructUsing(src => new UserDto(
+                src.Id,
+                src.FirstName,
+                src.LastName,
+                src.Email ?? string.Empty,
+                src.PhoneNumber ?? string.Empty,
+                string.Empty)); // Role handler'da set edilecek
 
         CreateMap<Address, AddressDto>();
         CreateMap<AddressDto, Address>()

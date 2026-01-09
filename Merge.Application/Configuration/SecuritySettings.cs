@@ -21,4 +21,9 @@ public class SecuritySettings
     /// Hesap kilitleme suresi (dakika)
     /// </summary>
     public int AccountLockoutMinutes { get; set; } = 15;
+
+    /// <summary>
+    /// Yeni kullanıcılar için varsayılan rol adı
+    /// </summary>
+    public string DefaultUserRole { get; set; } = "Customer";
 }

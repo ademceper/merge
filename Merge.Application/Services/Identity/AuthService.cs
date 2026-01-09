@@ -20,6 +20,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Merge.Application.Services.Identity;
 
+// ⚠️ OBSOLETE: Bu service artık kullanılmamalı. MediatR Command/Query pattern kullanılmalı.
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service'ler yerine Command/Query handler'ları kullan
+[Obsolete("Use MediatR Commands/Queries instead. This service will be removed in a future version.")]
 public class AuthService : IAuthService
 {
     private readonly UserManager<UserEntity> _userManager;
@@ -191,7 +194,8 @@ public class AuthService : IAuthService
         var expiresAt = DateTime.UtcNow.AddMinutes(AccessTokenExpirationMinutes);
 
         var userDto = _mapper.Map<UserDto>(user);
-        userDto.Role = roles.Count > 0 ? roles[0] : "Customer";
+        // ✅ BOLUM 4.2: Record DTOs - Immutable record, with expression kullan
+        userDto = userDto with { Role = roles.Count > 0 ? roles[0] : "Customer" };
 
         return new AuthResponseDto
         {
@@ -269,7 +273,8 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync(cancellationToken);
 
         var userDto = _mapper.Map<UserDto>(user);
-        userDto.Role = roles.Count > 0 ? roles[0] : "Customer";
+        // ✅ BOLUM 4.2: Record DTOs - Immutable record, with expression kullan
+        userDto = userDto with { Role = roles.Count > 0 ? roles[0] : "Customer" };
 
         return new AuthResponseDto
         {

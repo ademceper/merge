@@ -1,11 +1,10 @@
 namespace Merge.Application.DTOs.User;
 
-public class UserDto
-{
-    public Guid Id { get; set; }
-    public string FirstName { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
-    public string PhoneNumber { get; set; } = string.Empty;
-    public string Role { get; set; } = string.Empty;
-}
+// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+public record UserDto(
+    Guid Id,
+    string FirstName,
+    string LastName,
+    string Email,
+    string PhoneNumber,
+    string Role);

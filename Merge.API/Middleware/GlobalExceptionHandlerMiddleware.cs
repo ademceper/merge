@@ -1,8 +1,11 @@
 using System.Net;
 using System.Text.Json;
+using FluentValidation;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Middleware;
 
+// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior exception handling (ZORUNLU)
 public class GlobalExceptionHandlerMiddleware
 {
     private readonly RequestDelegate _next;
@@ -34,6 +37,22 @@ public class GlobalExceptionHandlerMiddleware
 
         switch (exception)
         {
+            // ✅ BOLUM 2.1: FluentValidation ValidationException handling
+            case ValidationException validationEx:
+                code = HttpStatusCode.BadRequest;
+                var errors = validationEx.Errors
+                    .GroupBy(e => e.PropertyName)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.Select(e => e.ErrorMessage).ToArray());
+                var validationResult = JsonSerializer.Serialize(new { 
+                    message = "Validation hatası",
+                    errors 
+                });
+                context.Response.ContentType = "application/json";
+                context.Response.StatusCode = (int)code;
+                return context.Response.WriteAsync(validationResult);
+            
             case ArgumentNullException:
             case ArgumentException:
                 code = HttpStatusCode.BadRequest;
@@ -43,11 +62,13 @@ public class GlobalExceptionHandlerMiddleware
                 code = HttpStatusCode.Unauthorized;
                 message = exception.Message;
                 break;
+            case NotFoundException:
             case KeyNotFoundException:
             case InvalidOperationException when exception.Message.Contains("not found") || exception.Message.Contains("bulunamadı"):
                 code = HttpStatusCode.NotFound;
                 message = exception.Message;
                 break;
+            case BusinessException:
             case InvalidOperationException:
                 code = HttpStatusCode.BadRequest;
                 message = exception.Message;

@@ -98,6 +98,10 @@ builder.Services.Configure<Merge.Application.Configuration.EmailSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.EmailSettings.SectionName));
 builder.Services.Configure<Merge.Application.Configuration.SecuritySettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.SecuritySettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.JwtSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.JwtSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.TwoFactorAuthSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.TwoFactorAuthSettings.SectionName));
 builder.Services.Configure<Merge.Application.Configuration.SupportSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.SupportSettings.SectionName));
 builder.Services.Configure<Merge.Application.Configuration.MLSettings>(
@@ -442,9 +446,11 @@ builder.Services.AddAutoMapper(typeof(Merge.Application.Mappings.MappingProfile)
 builder.Services.AddMediatR(cfg =>
 {
     cfg.RegisterServicesFromAssembly(typeof(Merge.Application.Orders.Commands.CreateOrder.CreateOrderCommand).Assembly);
+    // ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
+    cfg.AddOpenBehavior(typeof(Merge.Application.Common.Behaviors.ValidationBehavior<,>));
 });
 
-// ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
+// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
 builder.Services.AddValidatorsFromAssembly(typeof(Merge.Application.Orders.Commands.CreateOrder.CreateOrderCommandValidator).Assembly);
 
 // JWT Authentication

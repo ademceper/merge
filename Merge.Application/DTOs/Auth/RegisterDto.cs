@@ -2,26 +2,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Auth;
 
-public class RegisterDto
-{
-    [Required]
-    [StringLength(100)]
-    public string FirstName { get; set; } = string.Empty;
-
-    [Required]
-    [StringLength(100)]
-    public string LastName { get; set; } = string.Empty;
-
-    [Required]
-    [EmailAddress]
-    public string Email { get; set; } = string.Empty;
-
-    [Required]
-    [MinLength(6)]
-    public string Password { get; set; } = string.Empty;
-
-    [Required]
-    [Phone]
-    public string PhoneNumber { get; set; } = string.Empty;
-}
+// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+public record RegisterDto(
+    [Required] [StringLength(100)] string FirstName,
+    [Required] [StringLength(100)] string LastName,
+    [Required] [EmailAddress] string Email,
+    [Required] [MinLength(6)] string Password,
+    [Required] [Phone] string PhoneNumber);
 

@@ -21,4 +21,9 @@ public class EmailSettings
     /// Davet token gecerlilik suresi (gun)
     /// </summary>
     public int InvitationTokenExpirationDays { get; set; } = 7;
+
+    /// <summary>
+    /// Email doğrulama URL path'i (örn: /verify-email)
+    /// </summary>
+    public string VerificationUrlPath { get; set; } = "/verify-email";
 }
