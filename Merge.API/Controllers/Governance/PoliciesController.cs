@@ -1,21 +1,42 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Governance;
+using MediatR;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Governance;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
+using Merge.Application.Governance.Commands.CreatePolicy;
+using Merge.Application.Governance.Commands.UpdatePolicy;
+using Merge.Application.Governance.Commands.DeletePolicy;
+using Merge.Application.Governance.Commands.ActivatePolicy;
+using Merge.Application.Governance.Commands.DeactivatePolicy;
+using Merge.Application.Governance.Commands.AcceptPolicy;
+using Merge.Application.Governance.Commands.RevokeAcceptance;
+using Merge.Application.Governance.Queries.GetPolicyById;
+using Merge.Application.Governance.Queries.GetActivePolicy;
+using Merge.Application.Governance.Queries.GetPolicies;
+using Merge.Application.Governance.Queries.GetUserAcceptances;
+using Merge.Application.Governance.Queries.GetPendingPolicies;
+using Merge.Application.Governance.Queries.GetAcceptanceCount;
+using Merge.Application.Governance.Queries.GetAcceptanceStats;
 using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Governance;
 
 [ApiController]
-[Route("api/governance/policies")]
+[ApiVersion("1.0")] // ✅ BOLUM 4.1: API Versioning (ZORUNLU)
+[Route("api/v{version:apiVersion}/governance/policies")]
 public class PoliciesController : BaseController
 {
-    private readonly IPolicyService _policyService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
 
-    public PoliciesController(IPolicyService policyService)
+    public PoliciesController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _policyService = policyService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
     // Public endpoints
@@ -33,8 +54,9 @@ public class PoliciesController : BaseController
         [FromQuery] string language = "tr",
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var policy = await _policyService.GetActivePolicyAsync(policyType, language, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetActivePolicyQuery(policyType, language);
+        var policy = await _mediator.Send(query, cancellationToken);
         if (policy == null)
         {
             return NotFound();
@@ -59,11 +81,9 @@ public class PoliciesController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var policies = await _policyService.GetPoliciesAsync(policyType, language, activeOnly, page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetPoliciesQuery(policyType, language, activeOnly, page, pageSize);
+        var policies = await _mediator.Send(query, cancellationToken);
         return Ok(policies);
     }
 
@@ -80,8 +100,9 @@ public class PoliciesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var policy = await _policyService.GetPolicyAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetPolicyByIdQuery(id);
+        var policy = await _mediator.Send(query, cancellationToken);
         if (policy == null)
         {
             return NotFound();
@@ -113,8 +134,11 @@ public class PoliciesController : BaseController
         }
 
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var acceptance = await _policyService.AcceptPolicyAsync(userId, dto, ipAddress, cancellationToken);
+        var userAgent = Request.Headers["User-Agent"].ToString();
+
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new AcceptPolicyCommand(userId, dto.PolicyId, ipAddress, userAgent);
+        var acceptance = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetMyAcceptances), new { }, acceptance);
     }
 
@@ -135,8 +159,9 @@ public class PoliciesController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var acceptances = await _policyService.GetUserAcceptancesAsync(userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetUserAcceptancesQuery(userId);
+        var acceptances = await _mediator.Send(query, cancellationToken);
         return Ok(acceptances);
     }
 
@@ -157,8 +182,9 @@ public class PoliciesController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var policies = await _policyService.GetPendingPoliciesAsync(userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetPendingPoliciesQuery(userId);
+        var policies = await _mediator.Send(query, cancellationToken);
         return Ok(policies);
     }
 
@@ -170,7 +196,6 @@ public class PoliciesController : BaseController
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> RevokeAcceptance(
@@ -182,14 +207,12 @@ public class PoliciesController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi acceptance'larını iptal edebilir
-        // Service layer'da userId kontrolü var, burada da kontrol ediyoruz
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _policyService.RevokeAcceptanceAsync(userId, policyId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.2: IDOR Koruması - Handler'da userId kontrolü var
+        var command = new RevokeAcceptanceCommand(userId, policyId);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
-            // NotFound döndürüyoruz çünkü service layer'da acceptance bulunamazsa false döner
-            // Bu, kullanıcının bu policy'yi kabul etmediği veya zaten iptal edildiği anlamına gelir
             return NotFound();
         }
         return NoContent();
@@ -219,8 +242,20 @@ public class PoliciesController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var policy = await _policyService.CreatePolicyAsync(dto, userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new CreatePolicyCommand(
+            userId,
+            dto.PolicyType,
+            dto.Title,
+            dto.Content,
+            dto.Version ?? "1.0",
+            dto.IsActive,
+            dto.RequiresAcceptance,
+            dto.EffectiveDate,
+            dto.ExpiryDate,
+            dto.ChangeLog,
+            dto.Language ?? "tr");
+        var policy = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetPolicy), new { id = policy.Id }, policy);
     }
 
@@ -249,12 +284,20 @@ public class PoliciesController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var policy = await _policyService.UpdatePolicyAsync(id, dto, userId, cancellationToken);
-        if (policy == null)
-        {
-            return NotFound();
-        }
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new UpdatePolicyCommand(
+            id,
+            userId,
+            dto.Title,
+            dto.Content,
+            dto.Version,
+            dto.IsActive,
+            dto.RequiresAcceptance,
+            dto.EffectiveDate,
+            dto.ExpiryDate,
+            dto.ChangeLog,
+            userId); // PerformedBy for IDOR protection
+        var policy = await _mediator.Send(command, cancellationToken);
         return Ok(policy);
     }
 
@@ -273,8 +316,9 @@ public class PoliciesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _policyService.DeletePolicyAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeletePolicyCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -297,8 +341,9 @@ public class PoliciesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _policyService.ActivatePolicyAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new ActivatePolicyCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -321,8 +366,9 @@ public class PoliciesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _policyService.DeactivatePolicyAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeactivatePolicyCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -343,8 +389,9 @@ public class PoliciesController : BaseController
     public async Task<ActionResult<Dictionary<string, int>>> GetAcceptanceStats(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var stats = await _policyService.GetAcceptanceStatsAsync(cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetAcceptanceStatsQuery();
+        var stats = await _mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 
@@ -363,9 +410,9 @@ public class PoliciesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var count = await _policyService.GetAcceptanceCountAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetAcceptanceCountQuery(id);
+        var count = await _mediator.Send(query, cancellationToken);
         return Ok(new { count });
     }
 }
-

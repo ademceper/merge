@@ -1,5 +1,6 @@
 using Merge.Domain.Enums;
 using Merge.Domain.Common;
+using Merge.Domain.Common.DomainEvents;
 using Merge.Domain.Exceptions;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -9,10 +10,11 @@ namespace Merge.Domain.Entities;
 /// <summary>
 /// AuditLog Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'leri olduğu için IAggregateRoot
 /// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class AuditLog : BaseEntity
+public class AuditLog : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid? UserId { get; private set; } // User who performed the action
@@ -93,6 +95,17 @@ public class AuditLog : BaseEntity
             ErrorMessage = errorMessage,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events - AuditLogCreatedEvent yayınla
+        log.AddDomainEvent(new AuditLogCreatedEvent(
+            log.Id,
+            action,
+            entityType,
+            userId,
+            userEmail ?? string.Empty,
+            severity,
+            module,
+            isSuccessful));
 
         return log;
     }

@@ -3,10 +3,9 @@ using System.ComponentModel.DataAnnotations;
 namespace Merge.Application.DTOs.Governance;
 
 /// <summary>
-/// Policy kabul DTO - BOLUM 4.1: Validation Attributes (ZORUNLU)
+/// Policy kabul DTO - BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+/// BOLUM 4.1: Validation Attributes (ZORUNLU)
 /// </summary>
-public class AcceptPolicyDto
-{
+public record AcceptPolicyDto(
     [Required(ErrorMessage = "Policy ID zorunludur")]
-    public Guid PolicyId { get; set; }
-}
+    Guid PolicyId);

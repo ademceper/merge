@@ -2,25 +2,27 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Governance;
 
-public class UpdatePolicyDto
-{
+/// <summary>
+/// Policy güncelleme DTO - BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+/// BOLUM 4.1: Validation Attributes (ZORUNLU)
+/// </summary>
+public record UpdatePolicyDto(
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Başlık en az 2, en fazla 200 karakter olmalıdır.")]
-    public string? Title { get; set; }
+    string? Title = null,
     
     [StringLength(50000)]
-    public string? Content { get; set; }
+    string? Content = null,
     
     [StringLength(20)]
-    public string? Version { get; set; }
+    string? Version = null,
     
-    public bool? IsActive { get; set; }
+    bool? IsActive = null,
     
-    public bool? RequiresAcceptance { get; set; }
+    bool? RequiresAcceptance = null,
     
-    public DateTime? EffectiveDate { get; set; }
+    DateTime? EffectiveDate = null,
     
-    public DateTime? ExpiryDate { get; set; }
+    DateTime? ExpiryDate = null,
     
     [StringLength(2000)]
-    public string? ChangeLog { get; set; }
-}
+    string? ChangeLog = null);

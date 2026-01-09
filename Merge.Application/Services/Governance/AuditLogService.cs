@@ -13,6 +13,8 @@ using Merge.Application.DTOs.Security;
 
 namespace Merge.Application.Services.Governance;
 
+// ⚠️ OBSOLETE: Bu service artık kullanılmamalı. MediatR Command/Query handler'ları kullanın.
+[Obsolete("Use MediatR commands and queries instead. This service will be removed in a future version.")]
 public class AuditLogService : IAuditLogService
 {
     private readonly IDbContext _context;
@@ -57,6 +59,7 @@ public class AuditLogService : IAuditLogService
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    [Obsolete("Use GetAuditLogByIdQuery via MediatR instead")]
     public async Task<AuditLogDto?> GetAuditByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
@@ -76,6 +79,7 @@ public class AuditLogService : IAuditLogService
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination - PagedResult dönmeli (ZORUNLU)
+    [Obsolete("Use SearchAuditLogsQuery via MediatR instead")]
     public async Task<PagedResult<AuditLogDto>> GetAuditLogsAsync(AuditLogFilterDto filter, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
@@ -155,6 +159,7 @@ public class AuditLogService : IAuditLogService
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+    [Obsolete("Use GetEntityHistoryQuery via MediatR instead")]
     public async Task<EntityAuditHistoryDto?> GetEntityHistoryAsync(string entityType, Guid entityId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
@@ -225,6 +230,7 @@ public class AuditLogService : IAuditLogService
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    [Obsolete("Use GetAuditStatsQuery via MediatR instead")]
     public async Task<AuditStatsDto> GetAuditStatsAsync(int days = 30, CancellationToken cancellationToken = default)
     {
         var startDate = DateTime.UtcNow.AddDays(-days);
@@ -309,6 +315,7 @@ public class AuditLogService : IAuditLogService
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+    [Obsolete("Use GetUserAuditHistoryQuery via MediatR instead")]
     public async Task<IEnumerable<AuditLogDto>> GetUserAuditHistoryAsync(Guid userId, int days = 30, CancellationToken cancellationToken = default)
     {
         var startDate = DateTime.UtcNow.AddDays(-days);
@@ -336,6 +343,7 @@ public class AuditLogService : IAuditLogService
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    [Obsolete("Use CompareChangesQuery via MediatR instead")]
     public async Task<IEnumerable<AuditComparisonDto>> CompareChangesAsync(Guid auditLogId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
@@ -389,6 +397,7 @@ public class AuditLogService : IAuditLogService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+    [Obsolete("Use DeleteOldAuditLogsCommand via MediatR instead")]
     public async Task DeleteOldAuditLogsAsync(int daysToKeep = 365, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Eski audit log'lar siliniyor. DaysToKeep: {DaysToKeep}", daysToKeep);

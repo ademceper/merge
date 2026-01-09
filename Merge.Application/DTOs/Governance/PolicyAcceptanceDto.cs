@@ -1,14 +1,13 @@
 namespace Merge.Application.DTOs.Governance;
 
-public class PolicyAcceptanceDto
-{
-    public Guid Id { get; set; }
-    public Guid PolicyId { get; set; }
-    public string PolicyTitle { get; set; } = string.Empty;
-    public Guid UserId { get; set; }
-    public string UserName { get; set; } = string.Empty;
-    public string AcceptedVersion { get; set; } = string.Empty;
-    public string IpAddress { get; set; } = string.Empty;
-    public DateTime AcceptedAt { get; set; }
-    public bool IsActive { get; set; }
-}
+// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+public record PolicyAcceptanceDto(
+    Guid Id,
+    Guid PolicyId,
+    string PolicyTitle,
+    Guid UserId,
+    string UserName,
+    string AcceptedVersion,
+    string IpAddress,
+    DateTime AcceptedAt,
+    bool IsActive);

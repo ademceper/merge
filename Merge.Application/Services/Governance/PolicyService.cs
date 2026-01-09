@@ -11,6 +11,8 @@ using Merge.Application.DTOs.Governance;
 
 namespace Merge.Application.Services.Governance;
 
+// ⚠️ OBSOLETE: Bu service artık kullanılmamalı. MediatR Command/Query handler'ları kullanın.
+[Obsolete("Use MediatR commands and queries instead. This service will be removed in a future version.")]
 public class PolicyService : IPolicyService
 {
     private readonly IDbContext _context;
@@ -29,27 +31,32 @@ public class PolicyService : IPolicyService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-    public async Task<PolicyDto> CreatePolicyAsync(CreatePolicyDto dto, Guid createdByUserId, CancellationToken cancellationToken = default)
+    [Obsolete("Use CreatePolicyCommand via MediatR instead")]
+    public async Task<PolicyDto> CreatePolicyAsync(object dtoObj, Guid createdByUserId, CancellationToken cancellationToken = default)
     {
+        if (dtoObj is not CreatePolicyDto dto)
+        {
+            throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
+        }
+
         _logger.LogInformation("Policy olusturuluyor. PolicyType: {PolicyType}, Version: {Version}, CreatedByUserId: {CreatedByUserId}", 
             dto.PolicyType, dto.Version, createdByUserId);
 
         try
         {
-            var policy = new Policy
-            {
-                PolicyType = dto.PolicyType,
-                Title = dto.Title,
-                Content = dto.Content,
-                Version = dto.Version,
-                IsActive = dto.IsActive,
-                RequiresAcceptance = dto.RequiresAcceptance,
-                EffectiveDate = dto.EffectiveDate ?? DateTime.UtcNow,
-                ExpiryDate = dto.ExpiryDate,
-                CreatedByUserId = createdByUserId,
-                ChangeLog = dto.ChangeLog,
-                Language = dto.Language
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var policy = Policy.Create(
+                policyType: dto.PolicyType,
+                title: dto.Title,
+                content: dto.Content,
+                version: dto.Version,
+                createdByUserId: createdByUserId,
+                isActive: dto.IsActive,
+                requiresAcceptance: dto.RequiresAcceptance,
+                effectiveDate: dto.EffectiveDate ?? DateTime.UtcNow,
+                expiryDate: dto.ExpiryDate,
+                changeLog: dto.ChangeLog,
+                language: dto.Language);
 
             // If activating a new version, deactivate old versions of the same type
             if (dto.IsActive)
@@ -63,8 +70,8 @@ public class PolicyService : IPolicyService
 
                 foreach (var existing in existingPolicies)
                 {
-                    existing.IsActive = false;
-                    existing.UpdatedAt = DateTime.UtcNow;
+                    // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+                    existing.Deactivate();
                 }
             }
 
@@ -83,7 +90,7 @@ public class PolicyService : IPolicyService
             }
             
             var policyDto = _mapper.Map<PolicyDto>(reloadedPolicy);
-            policyDto.AcceptanceCount = await GetAcceptanceCountAsync(reloadedPolicy.Id, cancellationToken);
+            policyDto = policyDto with { AcceptanceCount = await GetAcceptanceCountAsync(reloadedPolicy.Id, cancellationToken) };
 
             _logger.LogInformation("Policy olusturuldu. PolicyId: {PolicyId}, PolicyType: {PolicyType}, Version: {Version}", 
                 policy.Id, policy.PolicyType, policy.Version);
@@ -99,6 +106,7 @@ public class PolicyService : IPolicyService
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    [Obsolete("Use GetPolicyByIdQuery via MediatR instead")]
     public async Task<PolicyDto?> GetPolicyAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
@@ -113,12 +121,14 @@ public class PolicyService : IPolicyService
         var dto = _mapper.Map<PolicyDto>(policy);
         
         // ✅ PERFORMANCE: AcceptanceCount database'de hesapla
-        dto.AcceptanceCount = await GetAcceptanceCountAsync(policy.Id, cancellationToken);
+        // ✅ BOLUM 7.1.5: Records - with expression kullanımı
+        dto = dto with { AcceptanceCount = await GetAcceptanceCountAsync(policy.Id, cancellationToken) };
         
         return dto;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    [Obsolete("Use GetActivePolicyQuery via MediatR instead")]
     public async Task<PolicyDto?> GetActivePolicyAsync(string policyType, string language = "tr", CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
@@ -139,7 +149,8 @@ public class PolicyService : IPolicyService
         var dto = _mapper.Map<PolicyDto>(policy);
         
         // ✅ PERFORMANCE: AcceptanceCount database'de hesapla
-        dto.AcceptanceCount = await GetAcceptanceCountAsync(policy.Id, cancellationToken);
+        // ✅ BOLUM 7.1.5: Records - with expression kullanımı
+        dto = dto with { AcceptanceCount = await GetAcceptanceCountAsync(policy.Id, cancellationToken) };
         
         return dto;
     }
@@ -147,6 +158,7 @@ public class PolicyService : IPolicyService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination - PagedResult dönmeli (ZORUNLU)
     // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+    [Obsolete("Use GetPoliciesQuery via MediatR instead")]
     public async Task<PagedResult<PolicyDto>> GetPoliciesAsync(string? policyType = null, string? language = null, bool activeOnly = false, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
@@ -200,7 +212,8 @@ public class PolicyService : IPolicyService
         foreach (var policy in policies)
         {
             var dto = _mapper.Map<PolicyDto>(policy);
-            dto.AcceptanceCount = acceptanceCounts.GetValueOrDefault(policy.Id, 0);
+            // ✅ BOLUM 7.1.5: Records - with expression kullanımı
+            dto = dto with { AcceptanceCount = acceptanceCounts.GetValueOrDefault(policy.Id, 0) };
             result.Add(dto);
         }
 
@@ -216,8 +229,14 @@ public class PolicyService : IPolicyService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-    public async Task<PolicyDto> UpdatePolicyAsync(Guid id, UpdatePolicyDto dto, Guid updatedByUserId, CancellationToken cancellationToken = default)
+    [Obsolete("Use UpdatePolicyCommand via MediatR instead")]
+    public async Task<PolicyDto> UpdatePolicyAsync(Guid id, object dtoObj, Guid updatedByUserId, CancellationToken cancellationToken = default)
     {
+        if (dtoObj is not UpdatePolicyDto dto)
+        {
+            throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
+        }
+
         _logger.LogInformation("Policy guncelleniyor. PolicyId: {PolicyId}, UpdatedByUserId: {UpdatedByUserId}", id, updatedByUserId);
 
         try
@@ -233,31 +252,38 @@ public class PolicyService : IPolicyService
                 throw new NotFoundException("Politika", id);
             }
 
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             if (!string.IsNullOrEmpty(dto.Title))
-                policy.Title = dto.Title;
+                policy.UpdateTitle(dto.Title);
             if (!string.IsNullOrEmpty(dto.Content))
-                policy.Content = dto.Content;
+                policy.UpdateContent(dto.Content);
             if (!string.IsNullOrEmpty(dto.Version))
-                policy.Version = dto.Version;
+                policy.UpdateVersion(dto.Version);
             if (dto.IsActive.HasValue)
-                policy.IsActive = dto.IsActive.Value;
+            {
+                if (dto.IsActive.Value)
+                    policy.Activate();
+                else
+                    policy.Deactivate();
+            }
             if (dto.RequiresAcceptance.HasValue)
-                policy.RequiresAcceptance = dto.RequiresAcceptance.Value;
+                policy.UpdateRequiresAcceptance(dto.RequiresAcceptance.Value);
             if (dto.EffectiveDate.HasValue)
-                policy.EffectiveDate = dto.EffectiveDate.Value;
+                policy.UpdateEffectiveDate(dto.EffectiveDate.Value);
             if (dto.ExpiryDate.HasValue)
-                policy.ExpiryDate = dto.ExpiryDate.Value;
+                policy.UpdateExpiryDate(dto.ExpiryDate.Value);
             if (dto.ChangeLog != null)
-                policy.ChangeLog = dto.ChangeLog;
+                policy.UpdateChangeLog(dto.ChangeLog);
 
-            policy.CreatedByUserId = updatedByUserId;
-            policy.UpdatedAt = DateTime.UtcNow;
+            // Update created by user ID
+            policy.UpdateCreatedByUserId(updatedByUserId);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
             var policyDto = _mapper.Map<PolicyDto>(policy);
-            policyDto.AcceptanceCount = await GetAcceptanceCountAsync(policy.Id, cancellationToken);
+            // ✅ BOLUM 7.1.5: Records - with expression kullanımı
+            policyDto = policyDto with { AcceptanceCount = await GetAcceptanceCountAsync(policy.Id, cancellationToken) };
 
             _logger.LogInformation("Policy guncellendi. PolicyId: {PolicyId}, Version: {Version}", policy.Id, policy.Version);
 
@@ -279,14 +305,15 @@ public class PolicyService : IPolicyService
 
         if (policy == null) return false;
 
-        policy.IsDeleted = true;
-        policy.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        policy.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    [Obsolete("Use ActivatePolicyCommand via MediatR instead")]
     public async Task<bool> ActivatePolicyAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
@@ -306,18 +333,19 @@ public class PolicyService : IPolicyService
 
         foreach (var existing in existingPolicies)
         {
-            existing.IsActive = false;
-            existing.UpdatedAt = DateTime.UtcNow;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            existing.Deactivate();
         }
 
-        policy.IsActive = true;
-        policy.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        policy.Activate();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    [Obsolete("Use DeactivatePolicyCommand via MediatR instead")]
     public async Task<bool> DeactivatePolicyAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
@@ -326,8 +354,8 @@ public class PolicyService : IPolicyService
 
         if (policy == null) return false;
 
-        policy.IsActive = false;
-        policy.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        policy.Deactivate();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -336,8 +364,14 @@ public class PolicyService : IPolicyService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-    public async Task<PolicyAcceptanceDto> AcceptPolicyAsync(Guid userId, AcceptPolicyDto dto, string? ipAddress = null, CancellationToken cancellationToken = default)
+    [Obsolete("Use AcceptPolicyCommand via MediatR instead")]
+    public async Task<PolicyAcceptanceDto> AcceptPolicyAsync(Guid userId, object dtoObj, string? ipAddress = null, CancellationToken cancellationToken = default)
     {
+        if (dtoObj is not AcceptPolicyDto dto)
+        {
+            throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
+        }
+
         _logger.LogInformation("Policy kabul ediliyor. UserId: {UserId}, PolicyId: {PolicyId}", userId, dto.PolicyId);
 
         try
@@ -376,20 +410,20 @@ public class PolicyService : IPolicyService
 
             foreach (var old in oldAcceptances)
             {
-                old.IsActive = false;
-                old.UpdatedAt = DateTime.UtcNow;
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+                if (old.IsActive)
+                {
+                    old.Revoke();
+                }
             }
 
-            var acceptance = new PolicyAcceptance
-            {
-                PolicyId = dto.PolicyId,
-                UserId = userId,
-                AcceptedVersion = policy.Version,
-                IpAddress = ipAddress ?? string.Empty,
-                UserAgent = string.Empty,
-                AcceptedAt = DateTime.UtcNow,
-                IsActive = true
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var acceptance = PolicyAcceptance.Create(
+                policyId: dto.PolicyId,
+                userId: userId,
+                acceptedVersion: policy.Version,
+                ipAddress: ipAddress ?? string.Empty,
+                userAgent: string.Empty);
 
             await _context.Set<PolicyAcceptance>().AddAsync(acceptance, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -420,6 +454,7 @@ public class PolicyService : IPolicyService
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    [Obsolete("Use RevokeAcceptanceCommand via MediatR instead")]
     public async Task<bool> RevokeAcceptanceAsync(Guid userId, Guid policyId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !pa.IsDeleted (Global Query Filter)
@@ -430,8 +465,8 @@ public class PolicyService : IPolicyService
 
         if (acceptance == null) return false;
 
-        acceptance.IsActive = false;
-        acceptance.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        acceptance.Revoke();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -439,6 +474,7 @@ public class PolicyService : IPolicyService
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+    [Obsolete("Use GetUserAcceptancesQuery via MediatR instead")]
     public async Task<IEnumerable<PolicyAcceptanceDto>> GetUserAcceptancesAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pa.IsDeleted (Global Query Filter)
@@ -464,6 +500,7 @@ public class PolicyService : IPolicyService
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    [Obsolete("This method is deprecated. Use GetUserAcceptancesQuery and filter in-memory if needed.")]
     public async Task<bool> HasUserAcceptedAsync(Guid userId, string policyType, string version, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pa.IsDeleted (Global Query Filter)
@@ -478,6 +515,7 @@ public class PolicyService : IPolicyService
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+    [Obsolete("Use GetPendingPoliciesQuery via MediatR instead")]
     public async Task<IEnumerable<PolicyDto>> GetPendingPoliciesAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Database'de filtering yap (memory'de işlem YASAK)
@@ -517,13 +555,15 @@ public class PolicyService : IPolicyService
         foreach (var policy in pendingPolicies)
         {
             var dto = _mapper.Map<PolicyDto>(policy);
-            dto.AcceptanceCount = acceptanceCounts.GetValueOrDefault(policy.Id, 0);
+            // ✅ BOLUM 7.1.5: Records - with expression kullanımı
+            dto = dto with { AcceptanceCount = acceptanceCounts.GetValueOrDefault(policy.Id, 0) };
             result.Add(dto);
         }
         return result;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    [Obsolete("Use GetAcceptanceCountQuery via MediatR instead")]
     public async Task<int> GetAcceptanceCountAsync(Guid policyId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !pa.IsDeleted (Global Query Filter)
@@ -533,6 +573,7 @@ public class PolicyService : IPolicyService
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    [Obsolete("Use GetAcceptanceStatsQuery via MediatR instead")]
     public async Task<Dictionary<string, int>> GetAcceptanceStatsAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)

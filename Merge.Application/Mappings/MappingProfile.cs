@@ -796,18 +796,61 @@ public class MappingProfile : Profile
             ));
 
         // Governance mappings
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
+        // Governance mappings
         CreateMap<Policy, PolicyDto>()
-            .ForMember(dest => dest.CreatedByName, opt => opt.MapFrom(src => 
-                src.CreatedBy != null ? $"{src.CreatedBy.FirstName} {src.CreatedBy.LastName}" : null));
+            .ConstructUsing(src => new PolicyDto(
+                src.Id,
+                src.PolicyType,
+                src.Title,
+                src.Content,
+                src.Version,
+                src.IsActive,
+                src.RequiresAcceptance,
+                src.EffectiveDate,
+                src.ExpiryDate,
+                src.CreatedByUserId,
+                src.CreatedBy != null ? $"{src.CreatedBy.FirstName} {src.CreatedBy.LastName}" : null,
+                src.ChangeLog,
+                src.Language,
+                0, // AcceptanceCount - Set manually (computed)
+                src.CreatedAt,
+                src.UpdatedAt));
 
         CreateMap<PolicyAcceptance, PolicyAcceptanceDto>()
-            .ForMember(dest => dest.PolicyTitle, opt => opt.MapFrom(src => src.Policy != null ? src.Policy.Title : string.Empty))
-            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => 
-                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty));
+            .ConstructUsing(src => new PolicyAcceptanceDto(
+                src.Id,
+                src.PolicyId,
+                src.Policy != null ? src.Policy.Title : string.Empty,
+                src.UserId,
+                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty,
+                src.AcceptedVersion,
+                src.IpAddress,
+                src.AcceptedAt,
+                src.IsActive));
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // AuditLog mapping
         CreateMap<AuditLog, AuditLogDto>()
-            .ForMember(dest => dest.Severity, opt => opt.MapFrom(src => src.Severity.ToString()));
+            .ConstructUsing(src => new AuditLogDto(
+                src.Id,
+                src.UserId,
+                src.UserEmail,
+                src.Action,
+                src.EntityType,
+                src.EntityId,
+                src.TableName,
+                src.PrimaryKey,
+                src.OldValues,
+                src.NewValues,
+                src.Changes,
+                src.IpAddress,
+                src.UserAgent,
+                src.Severity.ToString(),
+                src.Module,
+                src.IsSuccessful,
+                src.ErrorMessage,
+                src.CreatedAt));
 
         // International mappings
         CreateMap<Language, LanguageDto>();
