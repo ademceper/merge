@@ -2488,7 +2488,10 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
         modelBuilder.Entity<LiveStream>(entity =>
         {
             entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.Status).HasMaxLength(50);
+            // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK) - Enum olarak yapılandır
+            entity.Property(e => e.Status)
+                  .HasConversion<string>()
+                  .HasMaxLength(50);
             entity.HasOne(e => e.Seller)
                   .WithMany()
                   .HasForeignKey(e => e.SellerId)

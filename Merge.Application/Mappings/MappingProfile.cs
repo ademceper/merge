@@ -931,16 +931,57 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.BackupCodesRemaining, opt => opt.Ignore()); // Set manually (Array.Length)
 
         // LiveCommerce mappings
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<LiveStream, LiveStreamDto>()
-            .ForMember(dest => dest.SellerName, opt => opt.MapFrom(src => src.Seller != null ? src.Seller.StoreName : string.Empty))
-            .ForMember(dest => dest.Products, opt => opt.MapFrom(src => src.Products));
+            .ConstructUsing(src => new LiveStreamDto(
+                src.Id,
+                src.SellerId,
+                src.Seller != null ? src.Seller.StoreName : string.Empty,
+                src.Title,
+                src.Description,
+                src.Status.ToString(),
+                src.ScheduledStartTime,
+                src.ActualStartTime,
+                src.EndTime,
+                src.StreamUrl,
+                src.StreamKey,
+                src.ThumbnailUrl,
+                src.ViewerCount,
+                src.PeakViewerCount,
+                src.TotalViewerCount,
+                src.OrderCount,
+                src.Revenue,
+                src.IsActive,
+                src.Category,
+                src.Tags,
+                src.Products != null ? src.Products.Select(p => _mapper.Map<LiveStreamProductDto>(p)).ToList().AsReadOnly() : new List<LiveStreamProductDto>().AsReadOnly(),
+                src.CreatedAt,
+                src.UpdatedAt));
 
         CreateMap<LiveStreamProduct, LiveStreamProductDto>()
-            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : string.Empty))
-            .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src => src.Product != null ? src.Product.ImageUrl : string.Empty))
-            .ForMember(dest => dest.ProductPrice, opt => opt.MapFrom(src => src.Product != null ? src.Product.Price : 0));
+            .ConstructUsing(src => new LiveStreamProductDto(
+                src.Id,
+                src.ProductId,
+                src.Product != null ? src.Product.Name : string.Empty,
+                src.Product != null ? src.Product.ImageUrl : null,
+                src.Product != null ? src.Product.Price : null,
+                src.SpecialPrice,
+                src.DisplayOrder,
+                src.IsHighlighted,
+                src.ShowcasedAt,
+                src.ViewCount,
+                src.ClickCount,
+                src.OrderCount,
+                src.ShowcaseNotes));
 
-        CreateMap<LiveStreamOrder, LiveStreamOrderDto>();
+        CreateMap<LiveStreamOrder, LiveStreamOrderDto>()
+            .ConstructUsing(src => new LiveStreamOrderDto(
+                src.Id,
+                src.LiveStreamId,
+                src.OrderId,
+                src.ProductId,
+                src.OrderAmount,
+                src.CreatedAt));
 
         // Marketing - Email Campaign mappings
         CreateMap<EmailCampaign, EmailCampaignDto>()

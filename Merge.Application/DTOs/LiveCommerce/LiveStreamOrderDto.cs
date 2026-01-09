@@ -1,11 +1,10 @@
 namespace Merge.Application.DTOs.LiveCommerce;
 
-public class LiveStreamOrderDto
-{
-    public Guid Id { get; set; }
-    public Guid LiveStreamId { get; set; }
-    public Guid OrderId { get; set; }
-    public Guid? ProductId { get; set; }
-    public decimal OrderAmount { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
+// ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan
+public record LiveStreamOrderDto(
+    Guid Id,
+    Guid LiveStreamId,
+    Guid OrderId,
+    Guid? ProductId,
+    decimal OrderAmount,
+    DateTime CreatedAt);

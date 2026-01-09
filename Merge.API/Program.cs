@@ -420,7 +420,6 @@ builder.Services.AddScoped<Merge.Application.Services.SmsProviders.NetgsmProvide
 builder.Services.AddScoped<Merge.Application.Services.Search.IPersonalizationService, Merge.Application.Services.Search.PersonalizationService>();
 
 // Live Commerce
-builder.Services.AddScoped<ILiveCommerceService, Merge.Application.Services.LiveCommerce.LiveCommerceService>();
 
 // Page Builder
 builder.Services.AddScoped<IPageBuilderService, Merge.Application.Services.Content.PageBuilderService>();
