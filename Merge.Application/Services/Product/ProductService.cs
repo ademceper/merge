@@ -265,7 +265,7 @@ public class ProductService : IProductService
         
         product.SetStockQuantity(productDto.StockQuantity);
         product.UpdateBrand(productDto.Brand);
-        product.UpdateImages(productDto.ImageUrl, productDto.ImageUrls ?? new List<string>());
+        product.UpdateImages(productDto.ImageUrl, productDto.ImageUrls?.ToList() ?? new List<string>());
         
         if (productDto.IsActive)
             product.Activate();

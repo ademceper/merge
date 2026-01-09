@@ -1,26 +1,48 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.User;
-using Merge.Application.Interfaces.Product;
+using Microsoft.Extensions.Options;
+using MediatR;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
+using Merge.Application.Product.Queries.GetAllProducts;
+using Merge.Application.Product.Queries.GetProductById;
+using Merge.Application.Product.Queries.GetProductsByCategory;
+using Merge.Application.Product.Queries.SearchProducts;
+using Merge.Application.Product.Commands.CreateProduct;
+using Merge.Application.Product.Commands.UpdateProduct;
+using Merge.Application.Product.Commands.DeleteProduct;
 using Merge.API.Middleware;
-
 
 namespace Merge.API.Controllers.Product;
 
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/products")]
+[Route("api/v{version:apiVersion}/products")]
 public class ProductsController : BaseController
 {
-    private readonly IProductService _productService;
+    private readonly IMediator _mediator;
+    private readonly IOptions<PaginationSettings> _paginationSettings;
 
-    public ProductsController(IProductService productService)
+    public ProductsController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _productService = productService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings;
     }
 
+    /// <summary>
+    /// Gets all active products with pagination
+    /// </summary>
+    /// <param name="page">Page number (default: 1)</param>
+    /// <param name="pageSize">Page size (default: 20, max: configured limit)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Paginated list of products</returns>
+    /// <response code="200">Returns the paginated list of products</response>
+    /// <response code="429">Too many requests</response>
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -34,11 +56,25 @@ public class ProductsController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var products = await _productService.GetAllAsync(page, pageSize, cancellationToken);
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > _paginationSettings.Value.MaxPageSize) pageSize = _paginationSettings.Value.MaxPageSize;
+        if (page < 1) page = 1;
+
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetAllProductsQuery(page, pageSize);
+        var products = await _mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
+    /// <summary>
+    /// Gets a product by ID
+    /// </summary>
+    /// <param name="id">Product ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Product details</returns>
+    /// <response code="200">Returns the product</response>
+    /// <response code="404">Product not found</response>
+    /// <response code="429">Too many requests</response>
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -49,8 +85,9 @@ public class ProductsController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<ProductDto>> GetById(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var product = await _productService.GetByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetProductByIdQuery(id);
+        var product = await _mediator.Send(query, cancellationToken);
         if (product == null)
         {
             return NotFound();
@@ -58,6 +95,16 @@ public class ProductsController : BaseController
         return Ok(product);
     }
 
+    /// <summary>
+    /// Gets products by category ID with pagination
+    /// </summary>
+    /// <param name="categoryId">Category ID</param>
+    /// <param name="page">Page number (default: 1)</param>
+    /// <param name="pageSize">Page size (default: 20, max: configured limit)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Paginated list of products in the category</returns>
+    /// <response code="200">Returns the paginated list of products</response>
+    /// <response code="429">Too many requests</response>
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -72,11 +119,27 @@ public class ProductsController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var products = await _productService.GetByCategoryAsync(categoryId, page, pageSize, cancellationToken);
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > _paginationSettings.Value.MaxPageSize) pageSize = _paginationSettings.Value.MaxPageSize;
+        if (page < 1) page = 1;
+
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetProductsByCategoryQuery(categoryId, page, pageSize);
+        var products = await _mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
+    /// <summary>
+    /// Searches products by name, description, or brand with pagination
+    /// </summary>
+    /// <param name="q">Search query</param>
+    /// <param name="page">Page number (default: 1)</param>
+    /// <param name="pageSize">Page size (default: 20, max: configured limit)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Paginated list of matching products</returns>
+    /// <response code="200">Returns the paginated list of matching products</response>
+    /// <response code="400">Invalid search query</response>
+    /// <response code="429">Too many requests</response>
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -92,11 +155,28 @@ public class ProductsController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var products = await _productService.SearchAsync(q, page, pageSize, cancellationToken);
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > _paginationSettings.Value.MaxPageSize) pageSize = _paginationSettings.Value.MaxPageSize;
+        if (page < 1) page = 1;
+
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new SearchProductsQuery(q, page, pageSize);
+        var products = await _mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
+    /// <summary>
+    /// Creates a new product
+    /// </summary>
+    /// <param name="command">Product creation command</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Created product</returns>
+    /// <response code="201">Product created successfully</response>
+    /// <response code="400">Invalid request data</response>
+    /// <response code="401">User not authenticated</response>
+    /// <response code="403">User not authorized</response>
+    /// <response code="422">Business rule violation</response>
+    /// <response code="429">Too many requests</response>
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -107,9 +187,10 @@ public class ProductsController : BaseController
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<ProductDto>> Create(
-        [FromBody] ProductDto productDto,
+        [FromBody] CreateProductCommand command,
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -123,15 +204,28 @@ public class ProductsController : BaseController
         }
 
         // Admin değilse, SellerId'yi zorunlu olarak kendi userId'si yap
-        if (!User.IsInRole("Admin"))
-        {
-            productDto.SellerId = userId;
-        }
+        var sellerId = User.IsInRole("Admin") ? command.SellerId : userId;
 
-        var product = await _productService.CreateAsync(productDto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var updatedCommand = command with { SellerId = sellerId };
+        var product = await _mediator.Send(updatedCommand, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = product.Id }, product);
     }
 
+    /// <summary>
+    /// Updates an existing product
+    /// </summary>
+    /// <param name="id">Product ID</param>
+    /// <param name="command">Product update command</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Updated product</returns>
+    /// <response code="200">Product updated successfully</response>
+    /// <response code="400">Invalid request data</response>
+    /// <response code="401">User not authenticated</response>
+    /// <response code="403">User not authorized or IDOR violation</response>
+    /// <response code="404">Product not found</response>
+    /// <response code="422">Business rule violation or concurrency conflict</response>
+    /// <response code="429">Too many requests</response>
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -143,10 +237,11 @@ public class ProductsController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<ProductDto>> Update(
         Guid id,
-        [FromBody] ProductDto productDto,
+        [FromBody] UpdateProductCommand command,
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -159,7 +254,8 @@ public class ProductsController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Seller sadece kendi ürünlerini güncelleyebilir
-        var existingProduct = await _productService.GetByIdAsync(id, cancellationToken);
+        var getQuery = new GetProductByIdQuery(id);
+        var existingProduct = await _mediator.Send(getQuery, cancellationToken);
         if (existingProduct == null)
         {
             return NotFound();
@@ -170,14 +266,26 @@ public class ProductsController : BaseController
             return Forbid();
         }
 
-        var product = await _productService.UpdateAsync(id, productDto, cancellationToken);
-        if (product == null)
-        {
-            return NotFound();
-        }
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // Preserve SellerId from existing product (IDOR protection)
+        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (UpdateProductCommandHandler)
+        var updatedCommand = command with { Id = id, SellerId = existingProduct.SellerId, PerformedBy = userId };
+        var product = await _mediator.Send(updatedCommand, cancellationToken);
         return Ok(product);
     }
 
+    /// <summary>
+    /// Deletes a product (soft delete)
+    /// </summary>
+    /// <param name="id">Product ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>No content if successful</returns>
+    /// <response code="204">Product deleted successfully</response>
+    /// <response code="401">User not authenticated</response>
+    /// <response code="403">User not authorized or IDOR violation</response>
+    /// <response code="404">Product not found</response>
+    /// <response code="422">Business rule violation (product has orders) or concurrency conflict</response>
+    /// <response code="429">Too many requests</response>
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -188,6 +296,7 @@ public class ProductsController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken = default)
     {
@@ -198,7 +307,8 @@ public class ProductsController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Seller sadece kendi ürünlerini silebilir
-        var existingProduct = await _productService.GetByIdAsync(id, cancellationToken);
+        var getQuery = new GetProductByIdQuery(id);
+        var existingProduct = await _mediator.Send(getQuery, cancellationToken);
         if (existingProduct == null)
         {
             return NotFound();
@@ -209,7 +319,10 @@ public class ProductsController : BaseController
             return Forbid();
         }
 
-        var result = await _productService.DeleteAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (DeleteProductCommandHandler)
+        var command = new DeleteProductCommand(id, userId);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();

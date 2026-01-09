@@ -1,14 +1,18 @@
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Common;
+using Merge.Domain.Common.DomainEvents;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Entities;
 
 /// <summary>
 /// Category Entity - Rich Domain Model implementation
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'leri olduğu için IAggregateRoot
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// </summary>
-public class Category : BaseEntity
+public class Category : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
@@ -24,6 +28,10 @@ public class Category : BaseEntity
     
     public string ImageUrl { get; private set; } = string.Empty;
     public Guid? ParentCategoryId { get; private set; }
+    
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
     
     // Navigation properties
     public Category? ParentCategory { get; private set; }
@@ -63,6 +71,9 @@ public class Category : BaseEntity
             UpdatedAt = DateTime.UtcNow
         };
 
+        // ✅ BOLUM 1.5: Domain Events - CategoryCreatedEvent yayınla (ÖNERİLİR)
+        category.AddDomainEvent(new CategoryCreatedEvent(category.Id, name, slug, parentCategoryId));
+
         return category;
     }
 
@@ -72,6 +83,9 @@ public class Category : BaseEntity
         Guard.AgainstNullOrEmpty(newName, nameof(newName));
         Name = newName;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CategoryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CategoryUpdatedEvent(Id, newName, _slug));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update description
@@ -92,6 +106,9 @@ public class Category : BaseEntity
         }
         _slug = newSlug.ToLowerInvariant();
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CategoryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CategoryUpdatedEvent(Id, Name, _slug));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update image URL
@@ -110,6 +127,16 @@ public class Category : BaseEntity
         }
         ParentCategoryId = parentCategoryId;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
+    public void MarkAsDeleted()
+    {
+        IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CategoryDeletedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CategoryDeletedEvent(Id, Name));
     }
 
     // ✅ BOLUM 1.3: Slug validation helper

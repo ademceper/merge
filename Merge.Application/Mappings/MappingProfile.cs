@@ -32,18 +32,63 @@ public class MappingProfile : Profile
 {
     public MappingProfile()
     {
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<Merge.Domain.Entities.Product, ProductDto>()
-            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name));
+            .ConstructUsing(src => new ProductDto(
+                src.Id,
+                src.Name,
+                src.Description,
+                src.SKU,
+                src.Price,
+                src.DiscountPrice,
+                src.StockQuantity,
+                src.Brand,
+                src.ImageUrl,
+                src.ImageUrls.AsReadOnly(),
+                src.Rating,
+                src.ReviewCount,
+                src.IsActive,
+                src.CategoryId,
+                src.Category != null ? src.Category.Name : string.Empty,
+                src.SellerId,
+                src.StoreId
+            ));
 
+        // ProductDto → Product mapping (Create/Update için)
         CreateMap<ProductDto, Merge.Domain.Entities.Product>()
             .ForMember(dest => dest.Category, opt => opt.Ignore())
             .ForMember(dest => dest.OrderItems, opt => opt.Ignore())
             .ForMember(dest => dest.CartItems, opt => opt.Ignore())
             .ForMember(dest => dest.Reviews, opt => opt.Ignore())
-            .ForMember(dest => dest.Seller, opt => opt.Ignore());
+            .ForMember(dest => dest.Seller, opt => opt.Ignore())
+            .ForMember(dest => dest.Variants, opt => opt.Ignore())
+            .ForMember(dest => dest.Wishlists, opt => opt.Ignore())
+            .ForMember(dest => dest.FlashSaleProducts, opt => opt.Ignore())
+            .ForMember(dest => dest.BundleItems, opt => opt.Ignore())
+            .ForMember(dest => dest.RecentlyViewedProducts, opt => opt.Ignore());
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<Category, CategoryDto>()
-            .ForMember(dest => dest.ParentCategoryName, opt => opt.MapFrom(src => src.ParentCategory != null ? src.ParentCategory.Name : null));
+            .ConstructUsing(src => new CategoryDto(
+                src.Id,
+                src.Name,
+                src.Description,
+                src.Slug,
+                src.ImageUrl,
+                src.ParentCategoryId,
+                src.ParentCategory != null ? src.ParentCategory.Name : null,
+                src.SubCategories != null && src.SubCategories.Any()
+                    ? src.SubCategories.Select(sc => new CategoryDto(
+                        sc.Id,
+                        sc.Name,
+                        sc.Description,
+                        sc.Slug,
+                        sc.ImageUrl,
+                        sc.ParentCategoryId,
+                        null,
+                        null)).ToList().AsReadOnly()
+                    : null
+            ));
 
         CreateMap<CategoryDto, Category>()
             .ForMember(dest => dest.ParentCategory, opt => opt.Ignore())
@@ -333,26 +378,43 @@ public class MappingProfile : Profile
         CreateMap<CreateWarehouseDto, Warehouse>();
         CreateMap<UpdateWarehouseDto, Warehouse>();
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // Inventory mappings
         CreateMap<Inventory, InventoryDto>()
-            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product.Name))
-            .ForMember(dest => dest.ProductSKU, opt => opt.MapFrom(src => src.Product.SKU))
-            .ForMember(dest => dest.WarehouseName, opt => opt.MapFrom(src => src.Warehouse.Name))
-            .ForMember(dest => dest.WarehouseCode, opt => opt.MapFrom(src => src.Warehouse.Code))
-            .ForMember(dest => dest.AvailableQuantity, opt => opt.MapFrom(src => src.AvailableQuantity));
+            .ConstructUsing(src => new InventoryDto(
+                src.Id,
+                src.ProductId,
+                src.Product != null ? src.Product.Name : string.Empty,
+                src.Product != null ? src.Product.SKU : string.Empty,
+                src.WarehouseId,
+                src.Warehouse != null ? src.Warehouse.Name : string.Empty,
+                src.Warehouse != null ? src.Warehouse.Code : string.Empty,
+                src.Quantity,
+                src.ReservedQuantity,
+                src.AvailableQuantity,
+                src.MinimumStockLevel,
+                src.MaximumStockLevel,
+                src.UnitCost,
+                src.Location,
+                src.LastRestockedAt,
+                src.LastCountedAt,
+                src.CreatedAt
+            ));
         CreateMap<CreateInventoryDto, Inventory>();
         CreateMap<UpdateInventoryDto, Inventory>();
 
         // LowStockAlert mappings
         CreateMap<Inventory, LowStockAlertDto>()
-            .ForMember(dest => dest.ProductId, opt => opt.MapFrom(src => src.ProductId))
-            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : string.Empty))
-            .ForMember(dest => dest.ProductSKU, opt => opt.MapFrom(src => src.Product != null ? src.Product.SKU : string.Empty))
-            .ForMember(dest => dest.WarehouseId, opt => opt.MapFrom(src => src.WarehouseId))
-            .ForMember(dest => dest.WarehouseName, opt => opt.MapFrom(src => src.Warehouse != null ? src.Warehouse.Name : string.Empty))
-            .ForMember(dest => dest.CurrentQuantity, opt => opt.MapFrom(src => src.Quantity))
-            .ForMember(dest => dest.MinimumStockLevel, opt => opt.MapFrom(src => src.MinimumStockLevel))
-            .ForMember(dest => dest.QuantityNeeded, opt => opt.MapFrom(src => src.MinimumStockLevel - src.Quantity));
+            .ConstructUsing(src => new LowStockAlertDto(
+                src.ProductId,
+                src.Product != null ? src.Product.Name : string.Empty,
+                src.Product != null ? src.Product.SKU : string.Empty,
+                src.WarehouseId,
+                src.Warehouse != null ? src.Warehouse.Name : string.Empty,
+                src.Quantity,
+                src.MinimumStockLevel,
+                src.MinimumStockLevel - src.Quantity
+            ));
 
         // StockMovement mappings
         CreateMap<StockMovement, StockMovementDto>()

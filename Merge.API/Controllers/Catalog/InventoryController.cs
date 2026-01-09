@@ -1,31 +1,56 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Catalog;
-using Merge.Application.Interfaces.Product;
+using MediatR;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Common;
 using Merge.API.Middleware;
-
+using Merge.Application.Catalog.Queries.GetInventoryById;
+using Merge.Application.Catalog.Queries.GetInventoriesByProductId;
+using Merge.Application.Catalog.Queries.GetInventoriesByWarehouseId;
+using Merge.Application.Catalog.Queries.GetInventoryByProductAndWarehouse;
+using Merge.Application.Catalog.Queries.GetLowStockAlerts;
+using Merge.Application.Catalog.Queries.GetStockReportByProduct;
+using Merge.Application.Catalog.Queries.GetAvailableStock;
+using Merge.Application.Catalog.Commands.CreateInventory;
+using Merge.Application.Catalog.Commands.UpdateInventory;
+using Merge.Application.Catalog.Commands.DeleteInventory;
+using Merge.Application.Catalog.Commands.AdjustStock;
+using Merge.Application.Catalog.Commands.TransferStock;
+using Merge.Application.Catalog.Commands.ReserveStock;
+using Merge.Application.Catalog.Commands.ReleaseStock;
+using Merge.Application.Catalog.Commands.UpdateLastCountDate;
+using Microsoft.Extensions.Options;
+using Merge.Application.Configuration;
 
 namespace Merge.API.Controllers.Catalog;
 
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/catalog/inventory")]
+[Route("api/v{version:apiVersion}/catalog/inventory")]
 [Authorize(Roles = "Admin,Seller")]
 public class InventoryController : BaseController
 {
-    private readonly IInventoryService _inventoryService;
-    private readonly IProductService _productService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
 
-    public InventoryController(IInventoryService inventoryService, IProductService productService)
+    public InventoryController(IMediator mediator, IOptions<PaginationSettings> paginationSettings)
     {
-        _inventoryService = inventoryService;
-        _productService = productService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
     /// <summary>
     /// Envanter detaylarını getirir
     /// </summary>
+    /// <param name="id">Envanter ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Envanter detayları</returns>
+    /// <response code="200">Envanter başarıyla getirildi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="404">Envanter bulunamadı</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("{id}")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(InventoryDto), StatusCodes.Status200OK)]
@@ -42,22 +67,13 @@ public class InventoryController : BaseController
             return Unauthorized();
         }
 
-        var inventory = await _inventoryService.GetByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetInventoryByIdQuery(id, userId);
+        var inventory = await _mediator.Send(query, cancellationToken);
+        
         if (inventory == null)
         {
             return NotFound();
-        }
-
-        // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin inventory'sine erişebilmeli
-        var product = await _productService.GetByIdAsync(inventory.ProductId, cancellationToken);
-        if (product == null)
-        {
-            return NotFound();
-        }
-
-        if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
-        {
-            return Forbid();
         }
 
         return Ok(inventory);
@@ -66,6 +82,14 @@ public class InventoryController : BaseController
     /// <summary>
     /// Ürüne göre envanterleri getirir
     /// </summary>
+    /// <param name="productId">Ürün ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Ürüne ait envanter listesi</returns>
+    /// <response code="200">Envanterler başarıyla getirildi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="404">Ürün bulunamadı</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpGet("product/{productId}")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(IEnumerable<InventoryDto>), StatusCodes.Status200OK)]
@@ -82,19 +106,10 @@ public class InventoryController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin inventory'sine erişebilmeli
-        var product = await _productService.GetByIdAsync(productId, cancellationToken);
-        if (product == null)
-        {
-            return NotFound();
-        }
-
-        if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
-        {
-            return Forbid();
-        }
-
-        var inventories = await _inventoryService.GetByProductIdAsync(productId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetInventoriesByProductIdQuery(productId, userId);
+        var inventories = await _mediator.Send(query, cancellationToken);
+        
         return Ok(inventories);
     }
 
@@ -114,13 +129,20 @@ public class InventoryController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
 
-        // Admin tüm warehouse'ları görebilir, Seller sadece kendi ürünlerinin inventory'sini görebilir
-        // Bu endpoint'te filtreleme service katmanında yapılmalı
-        var inventories = await _inventoryService.GetByWarehouseIdAsync(warehouseId, page, pageSize, cancellationToken);
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        var validPageSize = pageSize > _paginationSettings.MaxPageSize ? _paginationSettings.MaxPageSize : pageSize;
+        var validPage = page < 1 ? 1 : page;
+
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ SECURITY: PerformedBy userId'den alınmalı (IDOR protection)
+        var query = new GetInventoriesByWarehouseIdQuery(warehouseId, userId, validPage, validPageSize);
+        var inventories = await _mediator.Send(query, cancellationToken);
+        
         return Ok(inventories);
     }
 
@@ -144,23 +166,15 @@ public class InventoryController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin inventory'sine erişebilmeli
-        var product = await _productService.GetByIdAsync(productId, cancellationToken);
-        if (product == null)
-        {
-            return NotFound();
-        }
-
-        if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
-        {
-            return Forbid();
-        }
-
-        var inventory = await _inventoryService.GetByProductAndWarehouseAsync(productId, warehouseId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetInventoryByProductAndWarehouseQuery(productId, warehouseId, userId);
+        var inventory = await _mediator.Send(query, cancellationToken);
+        
         if (inventory == null)
         {
             return NotFound();
         }
+
         return Ok(inventory);
     }
 
@@ -180,11 +194,20 @@ public class InventoryController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
 
-        var alerts = await _inventoryService.GetLowStockAlertsAsync(warehouseId, page, pageSize, cancellationToken);
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        var validPageSize = pageSize > _paginationSettings.MaxPageSize ? _paginationSettings.MaxPageSize : pageSize;
+        var validPage = page < 1 ? 1 : page;
+
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ SECURITY: PerformedBy userId'den alınmalı (IDOR protection)
+        var query = new GetLowStockAlertsQuery(userId, warehouseId, validPage, validPageSize);
+        var alerts = await _mediator.Send(query, cancellationToken);
+        
         return Ok(alerts);
     }
 
@@ -207,23 +230,15 @@ public class InventoryController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin stock report'una erişebilmeli
-        var product = await _productService.GetByIdAsync(productId, cancellationToken);
-        if (product == null)
-        {
-            return NotFound();
-        }
-
-        if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
-        {
-            return Forbid();
-        }
-
-        var report = await _inventoryService.GetStockReportByProductAsync(productId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetStockReportByProductQuery(productId, userId);
+        var report = await _mediator.Send(query, cancellationToken);
+        
         if (report == null)
         {
             return NotFound();
         }
+
         return Ok(report);
     }
 
@@ -241,22 +256,32 @@ public class InventoryController : BaseController
         [FromQuery] Guid? warehouseId = null,
         CancellationToken cancellationToken = default)
     {
-        // Available stock bilgisi public olabilir (ürün detay sayfasında gösterilir)
-        // Ancak Seller kendi ürünlerinin stokunu görebilmeli
-        var availableStock = await _inventoryService.GetAvailableStockAsync(productId, warehouseId, cancellationToken);
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetAvailableStockQuery(productId, warehouseId, userId);
+        var availableStock = await _mediator.Send(query, cancellationToken);
         
         // ✅ BOLUM 4.3: Over-Posting Koruması - Anonymous object YASAK, DTO kullan
-        return Ok(new AvailableStockDto
-        {
-            ProductId = productId,
-            WarehouseId = warehouseId,
-            AvailableStock = availableStock
-        });
+        return Ok(availableStock);
     }
 
     /// <summary>
     /// Yeni envanter kaydı oluşturur
     /// </summary>
+    /// <param name="command">Envanter oluşturma komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Oluşturulan envanter</returns>
+    /// <response code="201">Envanter başarıyla oluşturuldu</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="404">Ürün veya depo bulunamadı</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [ProducesResponseType(typeof(InventoryDto), StatusCodes.Status201Created)]
@@ -264,9 +289,10 @@ public class InventoryController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<InventoryDto>> Create(
-        [FromBody] CreateInventoryDto createDto,
+        [FromBody] CreateInventoryCommand command,
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
@@ -277,25 +303,30 @@ public class InventoryController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin inventory'sini oluşturabilmeli
-        var product = await _productService.GetByIdAsync(createDto.ProductId, cancellationToken);
-        if (product == null)
-        {
-            return NotFound("Ürün bulunamadı.");
-        }
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ SECURITY: PerformedBy userId'den alınmalı (IDOR protection)
+        var updatedCommand = command with { PerformedBy = userId };
+        var inventory = await _mediator.Send(updatedCommand, cancellationToken);
+        
+        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (CreateInventoryCommandHandler)
 
-        if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
-        {
-            return Forbid();
-        }
-
-        var inventory = await _inventoryService.CreateAsync(createDto, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = inventory.Id }, inventory);
     }
 
     /// <summary>
     /// Envanter kaydını günceller
     /// </summary>
+    /// <param name="id">Envanter ID</param>
+    /// <param name="command">Envanter güncelleme komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Güncellenen envanter</returns>
+    /// <response code="200">Envanter başarıyla güncellendi</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="404">Envanter bulunamadı</response>
+    /// <response code="422">İş kuralı ihlali veya concurrency conflict</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPut("{id}")]
     [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
     [ProducesResponseType(typeof(InventoryDto), StatusCodes.Status200OK)]
@@ -303,10 +334,11 @@ public class InventoryController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<InventoryDto>> Update(
         Guid id,
-        [FromBody] UpdateInventoryDto updateDto,
+        [FromBody] UpdateInventoryCommand command,
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
@@ -317,29 +349,13 @@ public class InventoryController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin inventory'sini güncelleyebilmeli
-        var inventory = await _inventoryService.GetByIdAsync(id, cancellationToken);
-        if (inventory == null)
-        {
-            return NotFound();
-        }
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ SECURITY: PerformedBy userId'den alınmalı (IDOR protection)
+        var updatedCommand = command with { Id = id, PerformedBy = userId };
+        var updatedInventory = await _mediator.Send(updatedCommand, cancellationToken);
+        
+        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (UpdateInventoryCommandHandler)
 
-        var product = await _productService.GetByIdAsync(inventory.ProductId, cancellationToken);
-        if (product == null)
-        {
-            return NotFound();
-        }
-
-        if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
-        {
-            return Forbid();
-        }
-
-        var updatedInventory = await _inventoryService.UpdateAsync(id, updateDto, cancellationToken);
-        if (updatedInventory == null)
-        {
-            return NotFound();
-        }
         return Ok(updatedInventory);
     }
 
@@ -362,35 +378,33 @@ public class InventoryController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin inventory'sini silebilmeli
-        var inventory = await _inventoryService.GetByIdAsync(id, cancellationToken);
-        if (inventory == null)
-        {
-            return NotFound();
-        }
-
-        var product = await _productService.GetByIdAsync(inventory.ProductId, cancellationToken);
-        if (product == null)
-        {
-            return NotFound();
-        }
-
-        if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
-        {
-            return Forbid();
-        }
-
-        var result = await _inventoryService.DeleteAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeleteInventoryCommand(id, userId);
+        var result = await _mediator.Send(command, cancellationToken);
+        
         if (!result)
         {
             return NotFound();
         }
+        
+        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (DeleteInventoryCommandHandler)
+
         return NoContent();
     }
 
     /// <summary>
     /// Stok miktarını ayarlar
     /// </summary>
+    /// <param name="command">Stok ayarlama komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Güncellenen envanter</returns>
+    /// <response code="200">Stok başarıyla ayarlandı</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="404">Envanter bulunamadı</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("adjust")]
     [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
     [ProducesResponseType(typeof(InventoryDto), StatusCodes.Status200OK)]
@@ -398,9 +412,10 @@ public class InventoryController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<InventoryDto>> AdjustStock(
-        [FromBody] AdjustInventoryDto adjustDto,
+        [FromBody] AdjustStockCommand command,
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
@@ -411,31 +426,29 @@ public class InventoryController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin inventory'sini güncelleyebilmeli
-        var inventory = await _inventoryService.GetByIdAsync(adjustDto.InventoryId, cancellationToken);
-        if (inventory == null)
-        {
-            return NotFound();
-        }
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ SECURITY: PerformedBy userId'den alınmalı (IDOR protection)
+        var updatedCommand = command with { PerformedBy = userId };
+        var updatedInventory = await _mediator.Send(updatedCommand, cancellationToken);
+        
+        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (AdjustStockCommandHandler)
 
-        var product = await _productService.GetByIdAsync(inventory.ProductId, cancellationToken);
-        if (product == null)
-        {
-            return NotFound();
-        }
-
-        if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
-        {
-            return Forbid();
-        }
-
-        var updatedInventory = await _inventoryService.AdjustStockAsync(adjustDto, userId, cancellationToken);
         return Ok(updatedInventory);
     }
 
     /// <summary>
     /// Stok transferi yapar
     /// </summary>
+    /// <param name="command">Stok transfer komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">Stok transferi başarıyla tamamlandı</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="404">Envanter bulunamadı</response>
+    /// <response code="422">İş kuralı ihlali (yetersiz stok)</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("transfer")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -443,9 +456,10 @@ public class InventoryController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> TransferStock(
-        [FromBody] TransferInventoryDto transferDto,
+        [FromBody] TransferStockCommand command,
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
@@ -456,25 +470,29 @@ public class InventoryController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin inventory'sini transfer edebilmeli
-        var product = await _productService.GetByIdAsync(transferDto.ProductId, cancellationToken);
-        if (product == null)
-        {
-            return NotFound();
-        }
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ SECURITY: PerformedBy userId'den alınmalı (IDOR protection)
+        var updatedCommand = command with { PerformedBy = userId };
+        var result = await _mediator.Send(updatedCommand, cancellationToken);
+        
+        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (TransferStockCommandHandler)
 
-        if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
-        {
-            return Forbid();
-        }
-
-        var result = await _inventoryService.TransferStockAsync(transferDto, userId, cancellationToken);
         return NoContent();
     }
 
     /// <summary>
     /// Stok rezervasyonu yapar
     /// </summary>
+    /// <param name="command">Stok rezervasyon komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">Stok rezervasyonu başarıyla tamamlandı</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="404">Envanter bulunamadı</response>
+    /// <response code="422">İş kuralı ihlali (yetersiz stok)</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("reserve")]
     [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika (order işlemleri için yüksek limit)
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -482,9 +500,10 @@ public class InventoryController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ReserveStock(
-        [FromBody] ReserveStockDto reserveDto,
+        [FromBody] ReserveStockCommand command,
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
@@ -495,31 +514,29 @@ public class InventoryController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin stokunu rezerve edebilmeli
-        var product = await _productService.GetByIdAsync(reserveDto.ProductId, cancellationToken);
-        if (product == null)
-        {
-            return NotFound();
-        }
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ SECURITY: PerformedBy userId'den alınmalı (IDOR protection)
+        var updatedCommand = command with { PerformedBy = userId };
+        var result = await _mediator.Send(updatedCommand, cancellationToken);
+        
+        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (ReserveStockCommandHandler)
 
-        if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
-        {
-            return Forbid();
-        }
-
-        var result = await _inventoryService.ReserveStockAsync(
-            reserveDto.ProductId,
-            reserveDto.WarehouseId,
-            reserveDto.Quantity,
-            reserveDto.OrderId,
-            cancellationToken
-        );
         return NoContent();
     }
 
     /// <summary>
     /// Stok rezervasyonunu iptal eder
     /// </summary>
+    /// <param name="command">Stok serbest bırakma komutu</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem sonucu</returns>
+    /// <response code="204">Stok rezervasyonu başarıyla iptal edildi</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
+    /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <response code="404">Envanter bulunamadı</response>
+    /// <response code="422">İş kuralı ihlali</response>
+    /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>
     [HttpPost("release")]
     [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika (order işlemleri için yüksek limit)
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -527,9 +544,10 @@ public class InventoryController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ReleaseStock(
-        [FromBody] ReleaseStockDto releaseDto,
+        [FromBody] ReleaseStockCommand command,
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
@@ -540,25 +558,13 @@ public class InventoryController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin stokunu serbest bırakabilmeli
-        var product = await _productService.GetByIdAsync(releaseDto.ProductId, cancellationToken);
-        if (product == null)
-        {
-            return NotFound();
-        }
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ SECURITY: PerformedBy userId'den alınmalı (IDOR protection)
+        var updatedCommand = command with { PerformedBy = userId };
+        var result = await _mediator.Send(updatedCommand, cancellationToken);
+        
+        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (ReleaseStockCommandHandler)
 
-        if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
-        {
-            return Forbid();
-        }
-
-        var result = await _inventoryService.ReleaseStockAsync(
-            releaseDto.ProductId,
-            releaseDto.WarehouseId,
-            releaseDto.Quantity,
-            releaseDto.OrderId,
-            cancellationToken
-        );
         return NoContent();
     }
 
@@ -581,29 +587,17 @@ public class InventoryController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin inventory'sini güncelleyebilmeli
-        var inventory = await _inventoryService.GetByIdAsync(id, cancellationToken);
-        if (inventory == null)
-        {
-            return NotFound();
-        }
-
-        var product = await _productService.GetByIdAsync(inventory.ProductId, cancellationToken);
-        if (product == null)
-        {
-            return NotFound();
-        }
-
-        if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
-        {
-            return Forbid();
-        }
-
-        var result = await _inventoryService.UpdateLastCountDateAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new UpdateLastCountDateCommand(id, userId);
+        var result = await _mediator.Send(command, cancellationToken);
+        
         if (!result)
         {
             return NotFound();
         }
+        
+        // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (UpdateLastCountDateCommandHandler)
+
         return NoContent();
     }
 }

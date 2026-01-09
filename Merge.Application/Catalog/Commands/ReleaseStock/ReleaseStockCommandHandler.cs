@@ -1,0 +1,132 @@
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
+using Merge.Application.Exceptions;
+using Merge.Domain.Entities;
+using Merge.Domain.Enums;
+using ProductEntity = Merge.Domain.Entities.Product;
+
+namespace Merge.Application.Catalog.Commands.ReleaseStock;
+
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
+public class ReleaseStockCommandHandler : IRequestHandler<ReleaseStockCommand, bool>
+{
+    private readonly IDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IRepository<Inventory> _inventoryRepository;
+    private readonly ICacheService _cache;
+    private readonly ILogger<ReleaseStockCommandHandler> _logger;
+    private const string CACHE_KEY_INVENTORY_BY_PRODUCT_WAREHOUSE = "inventory_product_warehouse_";
+
+    public ReleaseStockCommandHandler(
+        IDbContext context,
+        IUnitOfWork unitOfWork,
+        IRepository<Inventory> inventoryRepository,
+        ICacheService cache,
+        ILogger<ReleaseStockCommandHandler> logger)
+    {
+        _context = context;
+        _unitOfWork = unitOfWork;
+        _inventoryRepository = inventoryRepository;
+        _cache = cache;
+        _logger = logger;
+    }
+
+    public async Task<bool> Handle(ReleaseStockCommand request, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Releasing stock. ProductId: {ProductId}, WarehouseId: {WarehouseId}, Quantity: {Quantity}, OrderId: {OrderId}, UserId: {UserId}",
+            request.ProductId, request.WarehouseId, request.Quantity, request.OrderId, request.PerformedBy);
+
+        if (request.Quantity <= 0)
+        {
+            throw new ValidationException("Serbest bırakılacak miktar 0'dan büyük olmalıdır.");
+        }
+
+        // ✅ ARCHITECTURE: Transaction başlat - atomic operation (Inventory + StockMovement)
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin stokunu serbest bırakabilmeli
+            var product = await _context.Set<ProductEntity>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
+
+            if (product == null)
+            {
+                throw new NotFoundException("Ürün", request.ProductId);
+            }
+
+            if (product.SellerId.HasValue && product.SellerId != request.PerformedBy)
+            {
+                _logger.LogWarning("IDOR attempt: User {UserId} tried to release stock for product {ProductId} owned by {OwnerId}",
+                    request.PerformedBy, request.ProductId, product.SellerId);
+                throw new BusinessException("Bu ürün için stok serbest bırakma yetkiniz yok.");
+            }
+
+            // ✅ PERFORMANCE: Removed manual !i.IsDeleted check (Global Query Filter handles it)
+            var inventory = await _context.Set<Inventory>()
+                .FirstOrDefaultAsync(i => i.ProductId == request.ProductId &&
+                                        i.WarehouseId == request.WarehouseId, cancellationToken);
+
+            if (inventory == null)
+            {
+                throw new NotFoundException("Envanter", Guid.Empty);
+            }
+
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (validation entity içinde)
+            var quantityBefore = inventory.Quantity;
+            inventory.ReleaseAndReduce(request.Quantity);
+
+            await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
+
+            // Create stock movement record for sale
+            // ⚠️ NOT: StockMovement entity anemic (factory method yok), object initializer kullanılıyor
+            var stockMovement = new StockMovement
+            {
+                Id = Guid.NewGuid(),
+                InventoryId = inventory.Id,
+                ProductId = request.ProductId,
+                WarehouseId = request.WarehouseId,
+                MovementType = StockMovementType.Sale,
+                Quantity = -request.Quantity,
+                QuantityBefore = quantityBefore,
+                QuantityAfter = inventory.Quantity,
+                ReferenceId = request.OrderId,
+                Notes = $"Stock released for order fulfillment {request.OrderId}",
+                PerformedBy = request.PerformedBy,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await _context.Set<StockMovement>().AddAsync(stockMovement, cancellationToken);
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            _logger.LogInformation("Successfully released stock. ProductId: {ProductId}, Quantity: {Quantity}, OrderId: {OrderId}",
+                request.ProductId, request.Quantity, request.OrderId);
+
+            // ✅ BOLUM 10.2: Cache invalidation
+            await _cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_PRODUCT_WAREHOUSE}{request.ProductId}_{request.WarehouseId}", cancellationToken);
+            await _cache.RemoveAsync($"inventories_by_product_{request.ProductId}", cancellationToken); // Invalidate product inventories list cache
+
+            return true;
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            _logger.LogError(ex, "Concurrency conflict while releasing stock. ProductId: {ProductId}", request.ProductId);
+            throw new BusinessException("Stok serbest bırakma çakışması. Başka bir kullanıcı aynı envanteri güncelledi. Lütfen tekrar deneyin.");
+        }
+        catch (Exception ex)
+        {
+            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
+            _logger.LogError(ex, "Error releasing stock. ProductId: {ProductId}", request.ProductId);
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            throw;
+        }
+    }
+}
+

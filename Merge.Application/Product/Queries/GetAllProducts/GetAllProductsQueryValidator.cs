@@ -1,18 +1,24 @@
 using FluentValidation;
+using Microsoft.Extensions.Options;
+using Merge.Application.Configuration;
 
 namespace Merge.Application.Product.Queries.GetAllProducts;
 
-// BOLUM 2.0: FluentValidation (ZORUNLU)
+// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 public class GetAllProductsQueryValidator : AbstractValidator<GetAllProductsQuery>
 {
-    public GetAllProductsQueryValidator()
+    public GetAllProductsQueryValidator(IOptions<PaginationSettings> paginationSettings)
     {
+        var settings = paginationSettings.Value;
+
         RuleFor(x => x.Page)
-            .GreaterThanOrEqualTo(1)
-            .WithMessage("Sayfa numarasi en az 1 olmalidir.");
+            .GreaterThan(0)
+            .WithMessage("Sayfa numarası 1'den büyük olmalıdır.");
 
         RuleFor(x => x.PageSize)
-            .InclusiveBetween(1, 100)
-            .WithMessage("Sayfa boyutu 1 ile 100 arasinda olmalidir.");
+            .GreaterThan(0)
+            .WithMessage("Sayfa boyutu 1'den büyük olmalıdır.")
+            .LessThanOrEqualTo(settings.MaxPageSize)
+            .WithMessage($"Sayfa boyutu en fazla {settings.MaxPageSize} olabilir.");
     }
 }

@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Common;
+using Merge.Domain.Common.DomainEvents;
 
 namespace Merge.Domain.Entities;
 
@@ -155,6 +156,9 @@ public class Product : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
+        // ✅ BOLUM 1.5: Domain Events - ProductCreatedEvent yayınla (ÖNERİLİR)
+        product.AddDomainEvent(new ProductCreatedEvent(product.Id, name, sku.Value, categoryId, sellerId));
+
         return product;
     }
 
@@ -268,6 +272,9 @@ public class Product : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(newName, nameof(newName));
         Name = newName;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new ProductUpdatedEvent(Id, newName, _sku, CategoryId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update description
@@ -284,6 +291,9 @@ public class Product : BaseEntity, IAggregateRoot
         Guard.AgainstNull(newSku, nameof(newSku));
         _sku = newSku.Value;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update brand
@@ -319,6 +329,9 @@ public class Product : BaseEntity, IAggregateRoot
         Guard.AgainstDefault(categoryId, nameof(categoryId));
         CategoryId = categoryId;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, categoryId));
     }
 
     // ✅ BOLUM 1.4: Invariant validation
@@ -361,6 +374,16 @@ public class Product : BaseEntity, IAggregateRoot
         var discountAmount = _price - _discountPrice!.Value;
         var percentage = (discountAmount / _price) * 100;
         return new Percentage(percentage);
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
+    public void MarkAsDeleted()
+    {
+        IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductDeletedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new ProductDeletedEvent(Id, Name, _sku));
     }
 }
 

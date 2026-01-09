@@ -1,14 +1,16 @@
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Common;
+using Merge.Domain.Common.DomainEvents;
 
 namespace Merge.Domain.Entities;
 
 /// <summary>
 /// Inventory Entity - Rich Domain Model implementation
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'leri olduğu için IAggregateRoot
 /// </summary>
-public class Inventory : BaseEntity
+public class Inventory : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid ProductId { get; private set; }
@@ -137,6 +139,9 @@ public class Inventory : BaseEntity
             UpdatedAt = DateTime.UtcNow
         };
 
+        // ✅ BOLUM 1.5: Domain Events - InventoryCreatedEvent yayınla (ÖNERİLİR)
+        inventory.AddDomainEvent(new InventoryCreatedEvent(inventory.Id, productId, warehouseId, quantity));
+
         return inventory;
     }
 
@@ -219,6 +224,9 @@ public class Inventory : BaseEntity
         _minimumStockLevel = minimumStockLevel;
         _maximumStockLevel = maximumStockLevel;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - InventoryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new InventoryUpdatedEvent(Id, ProductId, WarehouseId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update unit cost
@@ -227,6 +235,9 @@ public class Inventory : BaseEntity
         Guard.AgainstNegative(unitCost, nameof(unitCost));
         _unitCost = unitCost;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - InventoryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new InventoryUpdatedEvent(Id, ProductId, WarehouseId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update location
@@ -234,6 +245,9 @@ public class Inventory : BaseEntity
     {
         Location = location;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - InventoryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new InventoryUpdatedEvent(Id, ProductId, WarehouseId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update last counted date
@@ -247,5 +261,17 @@ public class Inventory : BaseEntity
     public bool IsLowStock()
     {
         return _maximumStockLevel > 0 && _quantity <= _minimumStockLevel;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
+    // Note: Inventory için soft delete kullanılabilir, ancak stok 0 ise hard delete de mantıklı olabilir
+    public void MarkAsDeleted()
+    {
+        if (_quantity > 0)
+        {
+            throw new DomainException("Stoklu envanter silinemez. Önce stoku sıfırlayın.");
+        }
+        IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
     }
 }

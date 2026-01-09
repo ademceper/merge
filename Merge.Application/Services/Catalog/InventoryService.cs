@@ -206,17 +206,17 @@ public class InventoryService : IInventoryService
             .Where(i => i.ProductId == productId)
             .ToListAsync(cancellationToken);
 
-        return new StockReportDto
-        {
-            ProductId = productId,
-            ProductName = product.Name,
-            ProductSKU = product.SKU,
-            TotalQuantity = totalQuantity,
-            TotalReserved = totalReserved,
-            TotalAvailable = totalAvailable,
-            TotalValue = totalValue,
-            WarehouseBreakdown = _mapper.Map<List<InventoryDto>>(inventories)
-        };
+        // ✅ BOLUM 7.1.5: Records - Positional constructor kullanımı
+        return new StockReportDto(
+            productId,
+            product.Name,
+            product.SKU,
+            totalQuantity,
+            totalReserved,
+            totalAvailable,
+            totalValue,
+            _mapper.Map<List<InventoryDto>>(inventories)
+        );
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
