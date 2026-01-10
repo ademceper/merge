@@ -58,6 +58,9 @@ public class CreateDeliveryTimeEstimationCommandHandler : IRequestHandler<Create
             request.IsActive);
 
         await _context.Set<DeliveryTimeEstimation>().AddAsync(estimation, cancellationToken);
+        
+        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
+        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)

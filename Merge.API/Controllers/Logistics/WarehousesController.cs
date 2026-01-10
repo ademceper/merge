@@ -31,6 +31,13 @@ public class WarehousesController : BaseController
     /// <summary>
     /// Tüm depoları getirir (Admin only)
     /// </summary>
+    /// <param name="includeInactive">Pasif depoları da dahil et (varsayılan: false)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Depo listesi</returns>
+    /// <response code="200">Depolar başarıyla getirildi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Bu işlem için yetki yok</response>
+    /// <response code="429">Çok fazla istek</response>
     [HttpGet]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(IEnumerable<WarehouseDto>), StatusCodes.Status200OK)]
@@ -49,6 +56,12 @@ public class WarehousesController : BaseController
     /// <summary>
     /// Aktif depoları getirir (Admin only)
     /// </summary>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Aktif depo listesi</returns>
+    /// <response code="200">Aktif depolar başarıyla getirildi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Bu işlem için yetki yok</response>
+    /// <response code="429">Çok fazla istek</response>
     [HttpGet("active")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(IEnumerable<WarehouseDto>), StatusCodes.Status200OK)]
@@ -66,6 +79,14 @@ public class WarehousesController : BaseController
     /// <summary>
     /// Depo detaylarını getirir (Admin only)
     /// </summary>
+    /// <param name="id">Depo ID'si</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Depo detayları</returns>
+    /// <response code="200">Depo başarıyla getirildi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Bu işlem için yetki yok</response>
+    /// <response code="404">Depo bulunamadı</response>
+    /// <response code="429">Çok fazla istek</response>
     [HttpGet("{id}")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(WarehouseDto), StatusCodes.Status200OK)]
@@ -89,6 +110,14 @@ public class WarehousesController : BaseController
     /// <summary>
     /// Depo koduna göre getirir (Admin only)
     /// </summary>
+    /// <param name="code">Depo kodu (örn: WH001)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Depo detayları</returns>
+    /// <response code="200">Depo başarıyla getirildi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Bu işlem için yetki yok</response>
+    /// <response code="404">Depo bulunamadı</response>
+    /// <response code="429">Çok fazla istek</response>
     [HttpGet("code/{code}")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(WarehouseDto), StatusCodes.Status200OK)]
@@ -112,17 +141,30 @@ public class WarehousesController : BaseController
     /// <summary>
     /// Yeni depo oluşturur (Admin only)
     /// </summary>
+    /// <param name="createDto">Depo oluşturma verileri</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Oluşturulan depo bilgileri</returns>
+    /// <response code="201">Depo başarıyla oluşturuldu</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Bu işlem için yetki yok</response>
+    /// <response code="422">İş kuralı ihlali (örn: aynı kod ile depo mevcut)</response>
+    /// <response code="429">Çok fazla istek</response>
     [HttpPost]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [ProducesResponseType(typeof(WarehouseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<WarehouseDto>> Create(
         [FromBody] CreateWarehouseDto createDto,
         CancellationToken cancellationToken = default)
     {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
         var command = new CreateWarehouseCommand(
             createDto.Name,
             createDto.Code,
@@ -142,6 +184,16 @@ public class WarehousesController : BaseController
     /// <summary>
     /// Depo bilgilerini günceller (Admin only)
     /// </summary>
+    /// <param name="id">Depo ID'si</param>
+    /// <param name="updateDto">Güncelleme verileri</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Güncellenmiş depo bilgileri</returns>
+    /// <response code="200">Depo başarıyla güncellendi</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Bu işlem için yetki yok</response>
+    /// <response code="404">Depo bulunamadı</response>
+    /// <response code="429">Çok fazla istek</response>
     [HttpPut("{id}")]
     [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
     [ProducesResponseType(typeof(WarehouseDto), StatusCodes.Status200OK)]
@@ -155,6 +207,9 @@ public class WarehousesController : BaseController
         [FromBody] UpdateWarehouseDto updateDto,
         CancellationToken cancellationToken = default)
     {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
         // Mevcut warehouse'u çek
         var existingQuery = new GetWarehouseByIdQuery(id);
         var existingWarehouse = await _mediator.Send(existingQuery, cancellationToken);
@@ -183,12 +238,22 @@ public class WarehousesController : BaseController
     /// <summary>
     /// Depoyu siler (Admin only)
     /// </summary>
+    /// <param name="id">Depo ID'si</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem başarılı (204 No Content)</returns>
+    /// <response code="204">Depo başarıyla silindi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Bu işlem için yetki yok</response>
+    /// <response code="404">Depo bulunamadı</response>
+    /// <response code="422">İş kuralı ihlali (örn: depoda envanter mevcut)</response>
+    /// <response code="429">Çok fazla istek</response>
     [HttpDelete("{id}")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Delete(
         Guid id,
@@ -202,6 +267,14 @@ public class WarehousesController : BaseController
     /// <summary>
     /// Depoyu aktifleştirir (Admin only)
     /// </summary>
+    /// <param name="id">Depo ID'si</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem başarılı (204 No Content)</returns>
+    /// <response code="204">Depo başarıyla aktifleştirildi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Bu işlem için yetki yok</response>
+    /// <response code="404">Depo bulunamadı</response>
+    /// <response code="429">Çok fazla istek</response>
     [HttpPost("{id}/activate")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -221,6 +294,14 @@ public class WarehousesController : BaseController
     /// <summary>
     /// Depoyu deaktifleştirir (Admin only)
     /// </summary>
+    /// <param name="id">Depo ID'si</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>İşlem başarılı (204 No Content)</returns>
+    /// <response code="204">Depo başarıyla deaktifleştirildi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Bu işlem için yetki yok</response>
+    /// <response code="404">Depo bulunamadı</response>
+    /// <response code="429">Çok fazla istek</response>
     [HttpPost("{id}/deactivate")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]

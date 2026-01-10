@@ -82,6 +82,9 @@ public class CreateStockMovementCommandHandler : IRequestHandler<CreateStockMove
                 request.ToWarehouseId);
 
             await _context.Set<StockMovement>().AddAsync(stockMovement, cancellationToken);
+            
+            // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
+            // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 

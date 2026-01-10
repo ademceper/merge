@@ -78,6 +78,9 @@ public class CreateShippingAddressCommandHandler : IRequestHandler<CreateShippin
             request.Instructions);
 
         await _context.Set<ShippingAddress>().AddAsync(address, cancellationToken);
+        
+        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
+        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Shipping address created successfully. AddressId: {AddressId}, UserId: {UserId}", address.Id, request.UserId);

@@ -1,5 +1,6 @@
 using Merge.Domain.Enums;
 using Merge.Domain.Common;
+using Merge.Domain.Common.DomainEvents;
 using Merge.Domain.Exceptions;
 
 namespace Merge.Domain.Entities;
@@ -7,9 +8,11 @@ namespace Merge.Domain.Entities;
 /// <summary>
 /// StockMovement Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class StockMovement : BaseEntity
+public class StockMovement : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid InventoryId { get; private set; }
@@ -74,7 +77,7 @@ public class StockMovement : BaseEntity
         if (quantityAfter < 0)
             throw new DomainException("Stok miktarı negatif olamaz.");
 
-        return new StockMovement
+        var stockMovement = new StockMovement
         {
             Id = Guid.NewGuid(),
             InventoryId = inventoryId,
@@ -92,6 +95,18 @@ public class StockMovement : BaseEntity
             ToWarehouseId = toWarehouseId,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events - StockMovementCreatedEvent
+        stockMovement.AddDomainEvent(new StockMovementCreatedEvent(
+            stockMovement.Id,
+            stockMovement.ProductId,
+            stockMovement.WarehouseId,
+            stockMovement.MovementType,
+            stockMovement.Quantity,
+            stockMovement.QuantityBefore,
+            stockMovement.QuantityAfter));
+
+        return stockMovement;
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)

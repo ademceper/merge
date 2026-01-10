@@ -180,6 +180,9 @@ public class Shipping : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(trackingNumber, nameof(trackingNumber));
         TrackingNumber = trackingNumber;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ShippingTrackingUpdatedEvent
+        AddDomainEvent(new ShippingTrackingUpdatedEvent(Id, OrderId, trackingNumber));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update estimated delivery date
@@ -190,6 +193,9 @@ public class Shipping : BaseEntity, IAggregateRoot
 
         EstimatedDeliveryDate = estimatedDeliveryDate;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ShippingDetailsUpdatedEvent
+        AddDomainEvent(new ShippingDetailsUpdatedEvent(Id, OrderId, "EstimatedDeliveryDate"));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Set shipping label URL
@@ -198,6 +204,9 @@ public class Shipping : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(url, nameof(url));
         ShippingLabelUrl = url;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ShippingDetailsUpdatedEvent
+        AddDomainEvent(new ShippingDetailsUpdatedEvent(Id, OrderId, "ShippingLabelUrl"));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update shipping cost
@@ -211,6 +220,9 @@ public class Shipping : BaseEntity, IAggregateRoot
 
         _shippingCost = newCost.Amount;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ShippingDetailsUpdatedEvent
+        AddDomainEvent(new ShippingDetailsUpdatedEvent(Id, OrderId, "ShippingCost"));
     }
 }
 

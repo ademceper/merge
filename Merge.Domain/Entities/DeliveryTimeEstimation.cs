@@ -1,4 +1,5 @@
 using Merge.Domain.Common;
+using Merge.Domain.Common.DomainEvents;
 using Merge.Domain.Exceptions;
 
 namespace Merge.Domain.Entities;
@@ -6,9 +7,11 @@ namespace Merge.Domain.Entities;
 /// <summary>
 /// DeliveryTimeEstimation Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class DeliveryTimeEstimation : BaseEntity
+public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid? ProductId { get; private set; } // Product-specific estimation
@@ -86,7 +89,7 @@ public class DeliveryTimeEstimation : BaseEntity
         if (averageDays < minDays || averageDays > maxDays)
             throw new DomainException("Ortalama gün sayısı minimum ve maksimum gün sayıları arasında olmalıdır.");
 
-        return new DeliveryTimeEstimation
+        var estimation = new DeliveryTimeEstimation
         {
             Id = Guid.NewGuid(),
             ProductId = productId,
@@ -102,6 +105,18 @@ public class DeliveryTimeEstimation : BaseEntity
             IsActive = isActive,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events - DeliveryTimeEstimationCreatedEvent
+        estimation.AddDomainEvent(new DeliveryTimeEstimationCreatedEvent(
+            estimation.Id,
+            estimation.ProductId,
+            estimation.CategoryId,
+            estimation.WarehouseId,
+            estimation.MinDays,
+            estimation.MaxDays,
+            estimation.AverageDays));
+
+        return estimation;
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update estimation days
@@ -121,6 +136,9 @@ public class DeliveryTimeEstimation : BaseEntity
         _maxDays = maxDays;
         _averageDays = averageDays;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - DeliveryTimeEstimationUpdatedEvent
+        AddDomainEvent(new DeliveryTimeEstimationUpdatedEvent(Id, _minDays, _maxDays, _averageDays));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update conditions

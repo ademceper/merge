@@ -126,6 +126,9 @@ public class Warehouse : BaseEntity, IAggregateRoot
         _capacity = capacity;
         Description = description;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - WarehouseUpdatedEvent
+        AddDomainEvent(new WarehouseUpdatedEvent(Id, Name, Code));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Activate warehouse

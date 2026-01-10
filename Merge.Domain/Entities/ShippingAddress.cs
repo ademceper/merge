@@ -1,4 +1,5 @@
 using Merge.Domain.Common;
+using Merge.Domain.Common.DomainEvents;
 using Merge.Domain.Exceptions;
 
 namespace Merge.Domain.Entities;
@@ -6,9 +7,11 @@ namespace Merge.Domain.Entities;
 /// <summary>
 /// ShippingAddress Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class ShippingAddress : BaseEntity
+public class ShippingAddress : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
@@ -58,7 +61,7 @@ public class ShippingAddress : BaseEntity
         Guard.AgainstNullOrEmpty(city, nameof(city));
         Guard.AgainstNullOrEmpty(country, nameof(country));
 
-        return new ShippingAddress
+        var address = new ShippingAddress
         {
             Id = Guid.NewGuid(),
             UserId = userId,
@@ -77,6 +80,17 @@ public class ShippingAddress : BaseEntity
             Instructions = instructions,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events - ShippingAddressCreatedEvent
+        address.AddDomainEvent(new ShippingAddressCreatedEvent(
+            address.Id,
+            address.UserId,
+            address.Label,
+            address.City,
+            address.Country,
+            address.IsDefault));
+
+        return address;
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update address details
@@ -113,6 +127,9 @@ public class ShippingAddress : BaseEntity
         Country = country;
         Instructions = instructions;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ShippingAddressUpdatedEvent
+        AddDomainEvent(new ShippingAddressUpdatedEvent(Id, UserId));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Set as default
@@ -122,6 +139,9 @@ public class ShippingAddress : BaseEntity
 
         IsDefault = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ShippingAddressSetAsDefaultEvent
+        AddDomainEvent(new ShippingAddressSetAsDefaultEvent(Id, UserId));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Unset as default
