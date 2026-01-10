@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.ML;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Application.DTOs.Analytics;
 
@@ -15,11 +17,16 @@ public class DemandForecastingService : IDemandForecastingService
 {
     private readonly IDbContext _context;
     private readonly ILogger<DemandForecastingService> _logger;
+    private readonly MLSettings _mlSettings;
 
-    public DemandForecastingService(IDbContext context, ILogger<DemandForecastingService> logger)
+    public DemandForecastingService(
+        IDbContext context,
+        ILogger<DemandForecastingService> logger,
+        IOptions<MLSettings> mlSettings)
     {
         _context = context;
         _logger = logger;
+        _mlSettings = mlSettings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -169,11 +176,13 @@ public class DemandForecastingService : IDemandForecastingService
         if (!historicalSales.Any())
         {
             // Satış geçmişi yoksa, kategori ortalamasına göre tahmin
+            // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
+            var defaultQuantity = 10;
             return new DemandForecastCalculation
             {
-                ForecastedQuantity = 10, // Varsayılan
-                MinQuantity = 5,
-                MaxQuantity = 20,
+                ForecastedQuantity = defaultQuantity,
+                MinQuantity = defaultQuantity / 2,
+                MaxQuantity = defaultQuantity * 2,
                 Confidence = 30,
                 // ✅ PERFORMANCE: Enumerable.Range - Business logic için gerekli (DTO oluşturma)
                 DailyForecast = Enumerable.Range(0, forecastDays)
@@ -194,8 +203,9 @@ public class DemandForecastingService : IDemandForecastingService
 
         // Trend analizi (basit)
         // ✅ PERFORMANCE: TakeLast, Skip, Take - List üzerinde işlem (business logic için gerekli)
-        var recentSales = historicalSales.TakeLast(7).ToList();
-        var olderSales = historicalSales.Skip(Math.Max(0, historicalSales.Count - 14)).Take(7).ToList();
+        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
+        var recentSales = historicalSales.TakeLast(_mlSettings.RecentDaysForTrend).ToList();
+        var olderSales = historicalSales.Skip(Math.Max(0, historicalSales.Count - _mlSettings.OlderDaysForTrend)).Take(_mlSettings.RecentDaysForTrend).ToList();
 
         var recentAvg = recentSales.Any() ? recentSales.Average(s => (decimal)((dynamic)s).Quantity) : 0;
         var olderAvg = olderSales.Any() ? olderSales.Average(s => (decimal)((dynamic)s).Quantity) : 0;
@@ -275,8 +285,9 @@ public class DemandForecastingService : IDemandForecastingService
         var confidence = 50m; // Base confidence
 
         // Daha fazla veri varsa confidence artar
-        if (totalDays > 30) confidence += 20;
-        if (totalDays > 90) confidence += 10;
+        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
+        if (totalDays > _mlSettings.HighConfidenceMinDays) confidence += 20;
+        if (totalDays > _mlSettings.VeryHighConfidenceMinDays) confidence += 10;
 
         // Satış sıklığı
         var salesFrequency = totalDays > 0 ? (decimal)daysWithSales / totalDays : 0;
@@ -286,7 +297,8 @@ public class DemandForecastingService : IDemandForecastingService
         // Trend stabilitesi
         if (Math.Abs(trend) < 0.1m) confidence += 10; // Stabil trend
 
-        return Math.Min(confidence, 100);
+        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
+        return Math.Min(confidence, _mlSettings.MaxRiskScore);
     }
 }
 

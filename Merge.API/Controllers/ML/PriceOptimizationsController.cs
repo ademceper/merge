@@ -1,28 +1,35 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Services;
-using Merge.Application.Interfaces.ML;
 using Merge.Application.DTOs.Analytics;
-using Merge.Application.Common;
+using Merge.Application.ML.Commands.OptimizePrice;
+using Merge.Application.ML.Queries.OptimizePricesForCategory;
+using Merge.Application.ML.Queries.GetPriceRecommendation;
+using Merge.Application.ML.Queries.GetPriceOptimizationStats;
 using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.ML;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/ml/price-optimization")]
+[Route("api/v{version:apiVersion}/ml/price-optimization")]
 [Authorize(Roles = "Admin,Manager")]
 public class PriceOptimizationsController : BaseController
 {
-    private readonly IPriceOptimizationService _priceOptimizationService;
+    private readonly IMediator _mediator;
 
-    public PriceOptimizationsController(IPriceOptimizationService priceOptimizationService)
+    public PriceOptimizationsController(IMediator mediator)
     {
-        _priceOptimizationService = priceOptimizationService;
+        _mediator = mediator;
     }
 
     /// <summary>
     /// Ürün için fiyat optimizasyonu yapar (Admin, Manager)
     /// </summary>
+    /// <param name="productId">Ürün ID</param>
+    /// <param name="request">Fiyat optimizasyon isteği (opsiyonel)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Fiyat optimizasyon sonuçları</returns>
     [HttpPost("products/{productId}")]
     [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
     [ProducesResponseType(typeof(PriceOptimizationDto), StatusCodes.Status200OK)]
@@ -36,14 +43,21 @@ public class PriceOptimizationsController : BaseController
         [FromBody] PriceOptimizationRequestDto? request = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _priceOptimizationService.OptimizePriceAsync(productId, request, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new OptimizePriceCommand(productId, request);
+        var result = await _mediator.Send(command, cancellationToken);
         return Ok(result);
     }
 
     /// <summary>
     /// Kategori için fiyat optimizasyonu yapar (pagination ile) (Admin, Manager)
     /// </summary>
+    /// <param name="categoryId">Kategori ID</param>
+    /// <param name="request">Fiyat optimizasyon isteği (opsiyonel)</param>
+    /// <param name="page">Sayfa numarası (varsayılan: 1)</param>
+    /// <param name="pageSize">Sayfa boyutu (varsayılan: 20)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Sayfalanmış fiyat optimizasyon sonuçları</returns>
     [HttpPost("categories/{categoryId}")]
     [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
     [ProducesResponseType(typeof(PagedResult<PriceOptimizationDto>), StatusCodes.Status200OK)]
@@ -59,35 +73,18 @@ public class PriceOptimizationsController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-        if (pageSize > 100) pageSize = 100; // Max limit
-        if (page < 1) page = 1;
-
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var allResults = await _priceOptimizationService.OptimizePricesForCategoryAsync(categoryId, request, cancellationToken);
-        var resultsList = allResults.ToList();
-
-        // ✅ BOLUM 3.4: Pagination implementation
-        var totalCount = resultsList.Count;
-        var pagedResults = resultsList
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
-
-        var result = new PagedResult<PriceOptimizationDto>
-        {
-            Items = pagedResults,
-            TotalCount = totalCount,
-            Page = page,
-            PageSize = pageSize
-        };
-
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new OptimizePricesForCategoryQuery(categoryId, request, page, pageSize);
+        var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);
     }
 
     /// <summary>
     /// Ürün için fiyat önerisi getirir (Admin, Manager)
     /// </summary>
+    /// <param name="productId">Ürün ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Fiyat önerisi</returns>
     [HttpGet("products/{productId}/recommendation")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(PriceRecommendationDto), StatusCodes.Status200OK)]
@@ -99,14 +96,19 @@ public class PriceOptimizationsController : BaseController
         Guid productId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var recommendation = await _priceOptimizationService.GetPriceRecommendationAsync(productId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetPriceRecommendationQuery(productId);
+        var recommendation = await _mediator.Send(query, cancellationToken);
         return Ok(recommendation);
     }
 
     /// <summary>
     /// Fiyat optimizasyon istatistiklerini getirir (Admin, Manager)
     /// </summary>
+    /// <param name="startDate">Başlangıç tarihi (opsiyonel)</param>
+    /// <param name="endDate">Bitiş tarihi (opsiyonel)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Fiyat optimizasyon istatistikleri</returns>
     [HttpGet("stats")]
     [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
     [ProducesResponseType(typeof(PriceOptimizationStatsDto), StatusCodes.Status200OK)]
@@ -118,8 +120,9 @@ public class PriceOptimizationsController : BaseController
         [FromQuery] DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var stats = await _priceOptimizationService.GetOptimizationStatsAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetPriceOptimizationStatsQuery(startDate, endDate);
+        var stats = await _mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 }

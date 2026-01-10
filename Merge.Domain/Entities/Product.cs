@@ -173,6 +173,9 @@ public class Product : BaseEntity, IAggregateRoot
 
         _price = newPrice.Amount;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Set discount price

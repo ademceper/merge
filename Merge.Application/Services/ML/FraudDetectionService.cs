@@ -1,10 +1,12 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.ML;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using PaymentEntity = Merge.Domain.Entities.Payment;
 using OrderEntity = Merge.Domain.Entities.Order;
@@ -22,13 +24,20 @@ public class FraudDetectionService : IFraudDetectionService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<FraudDetectionService> _logger;
+    private readonly MLSettings _mlSettings;
 
-    public FraudDetectionService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<FraudDetectionService> logger)
+    public FraudDetectionService(
+        IDbContext context,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        ILogger<FraudDetectionService> logger,
+        IOptions<MLSettings> mlSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _mlSettings = mlSettings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -39,17 +48,24 @@ public class FraudDetectionService : IFraudDetectionService
             "Fraud detection rule oluşturuluyor. Name: {Name}, RuleType: {RuleType}, RiskScore: {RiskScore}",
             dto.Name, dto.RuleType, dto.RiskScore);
 
-        var rule = new FraudDetectionRule
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var ruleType = Enum.TryParse<FraudRuleType>(dto.RuleType, true, out var rt) ? rt : FraudRuleType.Order;
+        var action = Enum.TryParse<FraudAction>(dto.Action, true, out var act) ? act : FraudAction.Flag;
+        var conditions = dto.Conditions != null ? JsonSerializer.Serialize(dto.Conditions) : string.Empty;
+        
+        var rule = FraudDetectionRule.Create(
+            name: dto.Name,
+            ruleType: ruleType,
+            conditions: conditions,
+            riskScore: dto.RiskScore,
+            action: action,
+            priority: dto.Priority,
+            description: dto.Description);
+        
+        if (!dto.IsActive)
         {
-            Name = dto.Name,
-            RuleType = dto.RuleType,
-            Conditions = dto.Conditions != null ? JsonSerializer.Serialize(dto.Conditions) : string.Empty,
-            RiskScore = dto.RiskScore,
-            Action = dto.Action,
-            IsActive = dto.IsActive,
-            Priority = dto.Priority,
-            Description = dto.Description
-        };
+            rule.Deactivate();
+        }
 
         await _context.Set<FraudDetectionRule>().AddAsync(rule, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -88,9 +104,9 @@ public class FraudDetectionService : IFraudDetectionService
         IQueryable<FraudDetectionRule> query = _context.Set<FraudDetectionRule>()
             .AsNoTracking();
 
-        if (!string.IsNullOrEmpty(ruleType))
+        if (!string.IsNullOrEmpty(ruleType) && Enum.TryParse<FraudRuleType>(ruleType, true, out var rt))
         {
-            query = query.Where(r => r.RuleType == ruleType);
+            query = query.Where(r => r.RuleType == rt);
         }
 
         if (isActive.HasValue)
@@ -116,21 +132,20 @@ public class FraudDetectionService : IFraudDetectionService
 
         if (rule == null) return false;
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         if (!string.IsNullOrEmpty(dto.Name))
-            rule.Name = dto.Name;
-        if (!string.IsNullOrEmpty(dto.RuleType))
-            rule.RuleType = dto.RuleType;
+            rule.UpdateName(dto.Name);
         if (dto.Conditions != null)
-            rule.Conditions = JsonSerializer.Serialize(dto.Conditions);
-        rule.RiskScore = dto.RiskScore;
-        if (!string.IsNullOrEmpty(dto.Action))
-            rule.Action = dto.Action;
-        rule.IsActive = dto.IsActive;
-        rule.Priority = dto.Priority;
-        if (dto.Description != null)
-            rule.Description = dto.Description;
-
-        rule.UpdatedAt = DateTime.UtcNow;
+            rule.UpdateConditions(JsonSerializer.Serialize(dto.Conditions));
+        rule.UpdateRiskScore(dto.RiskScore);
+        if (!string.IsNullOrEmpty(dto.Action) && Enum.TryParse<FraudAction>(dto.Action, true, out var action))
+            rule.UpdateAction(action);
+        rule.UpdatePriority(dto.Priority);
+        
+        if (dto.IsActive && !rule.IsActive)
+            rule.Activate();
+        else if (!dto.IsActive && rule.IsActive)
+            rule.Deactivate();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -145,8 +160,8 @@ public class FraudDetectionService : IFraudDetectionService
 
         if (rule == null) return false;
 
-        rule.IsDeleted = true;
-        rule.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+        rule.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -166,22 +181,19 @@ public class FraudDetectionService : IFraudDetectionService
             throw new NotFoundException("Sipariş", orderId);
         }
 
-        var riskScore = await CalculateRiskScoreAsync("Order", orderId, order.UserId, cancellationToken);
-        var matchedRules = await GetMatchedRulesAsync("Order", orderId, order.UserId, cancellationToken);
+        // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
+        var riskScore = await CalculateRiskScoreAsync(FraudRuleType.Order, orderId, order.UserId, cancellationToken);
+        var matchedRules = await GetMatchedRulesAsync(FraudRuleType.Order, orderId, order.UserId, cancellationToken);
 
-        var alert = new FraudAlert
-        {
-            UserId = order.UserId,
-            OrderId = orderId,
-            AlertType = "Order",
-            RiskScore = riskScore,
-            Status = FraudAlertStatus.Pending,
-            Reason = $"Order evaluation: Risk score {riskScore}",
-            // ✅ PERFORMANCE: ToListAsync() sonrası Any() ve Select() YASAK
-            // Not: Bu durumda `matchedRules` zaten memory'de (List), bu yüzden bu minimal bir işlem
-            // Ancak business logic için gerekli (JSON serialization için)
-            MatchedRules = matchedRules.Any() ? JsonSerializer.Serialize(matchedRules.Select(r => r.Id)) : null
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var matchedRulesJson = matchedRules.Any() ? JsonSerializer.Serialize(matchedRules.Select(r => r.Id)) : null;
+        var alert = FraudAlert.Create(
+            userId: order.UserId,
+            alertType: FraudAlertType.Order,
+            riskScore: riskScore,
+            reason: $"Order evaluation: Risk score {riskScore}",
+            orderId: orderId,
+            matchedRules: matchedRulesJson);
 
         await _context.Set<FraudAlert>().AddAsync(alert, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -214,22 +226,19 @@ public class FraudDetectionService : IFraudDetectionService
             throw new NotFoundException("Ödeme", paymentId);
         }
 
-        var riskScore = await CalculateRiskScoreAsync("Payment", paymentId, payment.Order?.UserId, cancellationToken);
-        var matchedRules = await GetMatchedRulesAsync("Payment", paymentId, payment.Order?.UserId, cancellationToken);
+        // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
+        var riskScore = await CalculateRiskScoreAsync(FraudRuleType.Payment, paymentId, payment.Order?.UserId, cancellationToken);
+        var matchedRules = await GetMatchedRulesAsync(FraudRuleType.Payment, paymentId, payment.Order?.UserId, cancellationToken);
 
-        var alert = new FraudAlert
-        {
-            UserId = payment.Order?.UserId,
-            PaymentId = paymentId,
-            AlertType = "Payment",
-            RiskScore = riskScore,
-            Status = FraudAlertStatus.Pending,
-            Reason = $"Payment evaluation: Risk score {riskScore}",
-            // ✅ PERFORMANCE: ToListAsync() sonrası Any() ve Select() YASAK
-            // Not: Bu durumda `matchedRules` zaten memory'de (List), bu yüzden bu minimal bir işlem
-            // Ancak business logic için gerekli (JSON serialization için)
-            MatchedRules = matchedRules.Any() ? JsonSerializer.Serialize(matchedRules.Select(r => r.Id)) : null
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var matchedRulesJson = matchedRules.Any() ? JsonSerializer.Serialize(matchedRules.Select(r => r.Id)) : null;
+        var alert = FraudAlert.Create(
+            userId: payment.Order?.UserId,
+            alertType: FraudAlertType.Payment,
+            riskScore: riskScore,
+            reason: $"Payment evaluation: Risk score {riskScore}",
+            paymentId: paymentId,
+            matchedRules: matchedRulesJson);
 
         await _context.Set<FraudAlert>().AddAsync(alert, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -260,21 +269,18 @@ public class FraudDetectionService : IFraudDetectionService
             throw new NotFoundException("Kullanıcı", userId);
         }
 
-        var riskScore = await CalculateRiskScoreAsync("Account", null, userId, cancellationToken);
-        var matchedRules = await GetMatchedRulesAsync("Account", null, userId, cancellationToken);
+        // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
+        var riskScore = await CalculateRiskScoreAsync(FraudRuleType.Account, null, userId, cancellationToken);
+        var matchedRules = await GetMatchedRulesAsync(FraudRuleType.Account, null, userId, cancellationToken);
 
-        var alert = new FraudAlert
-        {
-            UserId = userId,
-            AlertType = "Account",
-            RiskScore = riskScore,
-            Status = FraudAlertStatus.Pending,
-            Reason = $"User evaluation: Risk score {riskScore}",
-            // ✅ PERFORMANCE: ToListAsync() sonrası Any() ve Select() YASAK
-            // Not: Bu durumda `matchedRules` zaten memory'de (List), bu yüzden bu minimal bir işlem
-            // Ancak business logic için gerekli (JSON serialization için)
-            MatchedRules = matchedRules.Any() ? JsonSerializer.Serialize(matchedRules.Select(r => r.Id)) : null
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var matchedRulesJson = matchedRules.Any() ? JsonSerializer.Serialize(matchedRules.Select(r => r.Id)) : null;
+        var alert = FraudAlert.Create(
+            userId: userId,
+            alertType: FraudAlertType.Account,
+            riskScore: riskScore,
+            reason: $"User evaluation: Risk score {riskScore}",
+            matchedRules: matchedRulesJson);
 
         await _context.Set<FraudAlert>().AddAsync(alert, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -341,11 +347,11 @@ public class FraudDetectionService : IFraudDetectionService
 
         if (alert == null) return false;
 
-        alert.Status = Enum.Parse<FraudAlertStatus>(status);
-        alert.ReviewedByUserId = reviewedByUserId;
-        alert.ReviewedAt = DateTime.UtcNow;
-        alert.ReviewNotes = notes;
-        alert.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+        if (Enum.TryParse<FraudAlertStatus>(status, true, out var statusEnum))
+        {
+            alert.Review(reviewedByUserId, statusEnum, notes);
+        }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -422,11 +428,12 @@ public class FraudDetectionService : IFraudDetectionService
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    private async Task<int> CalculateRiskScoreAsync(string alertType, Guid? entityId, Guid? userId, CancellationToken cancellationToken = default)
+    // ✅ BOLUM 1.2: Enum kullanımı (string alertType YASAK)
+    private async Task<int> CalculateRiskScoreAsync(FraudRuleType ruleType, Guid? entityId, Guid? userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted (Global Query Filter)
         var activeRules = await _context.Set<FraudDetectionRule>()
-            .Where(r => r.IsActive && r.RuleType == alertType)
+            .Where(r => r.IsActive && r.RuleType == ruleType)
             .OrderByDescending(r => r.Priority)
             .ToListAsync(cancellationToken);
 
@@ -440,15 +447,20 @@ public class FraudDetectionService : IFraudDetectionService
             }
         }
 
-        return Math.Min(totalRiskScore, 100); // Cap at 100
+        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
+        // Not: MLSettings.MaxRiskScore kullanılabilir, ancak şu an service'te configuration yok
+        // Bu method private olduğu için şimdilik 100 kullanıyoruz
+        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
+        return Math.Min(totalRiskScore, _mlSettings.MaxRiskScore);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    private async Task<List<FraudDetectionRule>> GetMatchedRulesAsync(string alertType, Guid? entityId, Guid? userId, CancellationToken cancellationToken = default)
+    // ✅ BOLUM 1.2: Enum kullanımı (string alertType YASAK)
+    private async Task<List<FraudDetectionRule>> GetMatchedRulesAsync(FraudRuleType ruleType, Guid? entityId, Guid? userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted (Global Query Filter)
         var activeRules = await _context.Set<FraudDetectionRule>()
-            .Where(r => r.IsActive && r.RuleType == alertType)
+            .Where(r => r.IsActive && r.RuleType == ruleType)
             .OrderByDescending(r => r.Priority)
             .ToListAsync(cancellationToken);
 
@@ -484,7 +496,7 @@ public class FraudDetectionService : IFraudDetectionService
             // Simplified rule evaluation - in production, this would be more sophisticated
             // For now, we'll do basic checks based on common fraud patterns
 
-            if (rule.RuleType == "Order" && entityId.HasValue)
+            if (rule.RuleType == FraudRuleType.Order && entityId.HasValue)
             {
                 // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
                 var order = await _context.Set<OrderEntity>()
@@ -516,7 +528,7 @@ public class FraudDetectionService : IFraudDetectionService
                 }
             }
 
-            if (rule.RuleType == "Payment" && entityId.HasValue)
+            if (rule.RuleType == FraudRuleType.Payment && entityId.HasValue)
             {
                 // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
                 var payment = await _context.Set<PaymentEntity>()
@@ -537,7 +549,7 @@ public class FraudDetectionService : IFraudDetectionService
                 }
             }
 
-            if (rule.RuleType == "Account" && userId.HasValue)
+            if (rule.RuleType == FraudRuleType.Account && userId.HasValue)
             {
                 // ✅ PERFORMANCE: Removed manual !u.IsDeleted (Global Query Filter)
                 var user = await _context.Users
@@ -552,7 +564,8 @@ public class FraudDetectionService : IFraudDetectionService
                     {
                         var maxOrders = Convert.ToInt32(conditions["max_orders_for_new_account"]);
                         var daysSinceCreation = (DateTime.UtcNow - user.CreatedAt).Days;
-                        if (daysSinceCreation < 7 && user.Orders.Count > maxOrders)
+                        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
+                        if (daysSinceCreation < _mlSettings.NewAccountCheckDays && user.Orders.Count > maxOrders)
                         {
                             return true;
                         }

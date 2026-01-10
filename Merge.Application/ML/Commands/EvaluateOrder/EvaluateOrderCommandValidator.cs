@@ -1,0 +1,13 @@
+using FluentValidation;
+
+namespace Merge.Application.ML.Commands.EvaluateOrder;
+
+// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
+public class EvaluateOrderCommandValidator : AbstractValidator<EvaluateOrderCommand>
+{
+    public EvaluateOrderCommandValidator()
+    {
+        RuleFor(x => x.OrderId)
+            .NotEmpty().WithMessage("Order ID is required.");
+    }
+}

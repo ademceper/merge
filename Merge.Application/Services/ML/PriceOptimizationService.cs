@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.ML;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.ValueObjects;
 using ProductEntity = Merge.Domain.Entities.Product;
@@ -17,12 +19,21 @@ public class PriceOptimizationService : IPriceOptimizationService
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<PriceOptimizationService> _logger;
+    private readonly MLSettings _mlSettings;
+    private readonly PriceOptimizationHelper _helper;
 
-    public PriceOptimizationService(IDbContext context, IUnitOfWork unitOfWork, ILogger<PriceOptimizationService> logger)
+    public PriceOptimizationService(
+        IDbContext context,
+        IUnitOfWork unitOfWork,
+        ILogger<PriceOptimizationService> logger,
+        IOptions<MLSettings> mlSettings,
+        PriceOptimizationHelper helper)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _mlSettings = mlSettings.Value;
+        _helper = helper;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -47,8 +58,8 @@ public class PriceOptimizationService : IPriceOptimizationService
                        p.IsActive)
             .ToListAsync(cancellationToken);
 
-        // Basit fiyat optimizasyon algoritması
-        var recommendation = await CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
+        // ✅ ARCHITECTURE: Helper kullan (business logic helper'da)
+        var recommendation = await _helper.CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
 
         // Fiyatı güncelle (opsiyonel - sadece öneri döndürmek için kullanılabilir)
         if (request?.ApplyOptimization == true)
@@ -123,7 +134,7 @@ public class PriceOptimizationService : IPriceOptimizationService
                 ? similar.Where(p => p.Id != product.Id).ToList() 
                 : new List<ProductEntity>();
             
-            var recommendation = await CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
+            var recommendation = await _helper.CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
             results.Add(new PriceOptimizationDto(
                 product.Id,
                 product.Name,
@@ -167,7 +178,7 @@ public class PriceOptimizationService : IPriceOptimizationService
                        p.IsActive)
             .ToListAsync(cancellationToken);
 
-        return await CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
+        return await _helper.CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -192,7 +203,7 @@ public class PriceOptimizationService : IPriceOptimizationService
                        p.IsActive)
             .ToListAsync(cancellationToken);
 
-        var recommendation = await CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
+        var recommendation = await _helper.CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
         return new[] { recommendation };
     }
 
@@ -221,119 +232,7 @@ public class PriceOptimizationService : IPriceOptimizationService
         );
     }
 
-    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    private async Task<PriceRecommendationDto> CalculateOptimalPriceAsync(ProductEntity product, List<ProductEntity>? similarProducts = null, CancellationToken cancellationToken = default)
-    {
-        // Basit fiyat optimizasyon algoritması
-        // Gerçek implementasyonda ML modeli kullanılabilir
-
-        var currentPrice = product.DiscountPrice ?? product.Price;
-        var basePrice = product.Price;
-
-        // ✅ PERFORMANCE: Similar products parametre olarak geliyor (N+1 fix)
-        if (similarProducts == null)
-        {
-            // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-            similarProducts = await _context.Set<ProductEntity>()
-                .AsNoTracking()
-                .Where(p => p.CategoryId == product.CategoryId && 
-                           p.Id != product.Id && 
-                           p.IsActive)
-                .ToListAsync(cancellationToken);
-        }
-
-        // ✅ PERFORMANCE: Memory'de minimal işlem (business logic için gerekli)
-        var competitorPrices = similarProducts
-            .Select(p => p.DiscountPrice ?? p.Price)
-            .Where(p => p > 0)
-            .ToList();
-
-        var avgCompetitorPrice = competitorPrices.Any() ? competitorPrices.Average() : currentPrice;
-        var minCompetitorPrice = competitorPrices.Any() ? competitorPrices.Min() : currentPrice;
-        var maxCompetitorPrice = competitorPrices.Any() ? competitorPrices.Max() : currentPrice;
-
-        // Stok durumuna göre fiyatlandırma
-        var stockFactor = product.StockQuantity switch
-        {
-            <= 0 => 1.0m, // Stok yoksa fiyatı artır
-            <= 10 => 0.95m, // Düşük stok, biraz indirim
-            _ => 0.90m // Yüksek stok, daha fazla indirim
-        };
-
-        // Rating'e göre fiyatlandırma
-        var ratingFactor = product.Rating switch
-        {
-            >= 4.5m => 1.05m, // Yüksek rating, premium fiyat
-            >= 4.0m => 1.0m,
-            >= 3.5m => 0.95m,
-            _ => 0.90m // Düşük rating, indirim
-        };
-
-        // Satış hacmine göre fiyatlandırma
-        var salesFactor = product.ReviewCount switch
-        {
-            >= 100 => 1.02m, // Popüler ürün, biraz artır
-            >= 50 => 1.0m,
-            _ => 0.98m // Yeni ürün, biraz indirim
-        };
-
-        // Optimal fiyat hesaplama
-        var optimalPrice = avgCompetitorPrice * stockFactor * ratingFactor * salesFactor;
-        
-        // Min ve Max fiyat aralığı
-        var minPrice = Math.Max(basePrice * 0.7m, minCompetitorPrice * 0.9m);
-        var maxPrice = Math.Min(basePrice * 1.3m, maxCompetitorPrice * 1.1m);
-        
-        optimalPrice = Math.Max(minPrice, Math.Min(maxPrice, optimalPrice));
-
-        // Beklenen değişiklikler
-        var priceChange = optimalPrice - currentPrice;
-        var priceChangePercent = currentPrice > 0 ? (priceChange / currentPrice) * 100 : 0;
-        
-        var expectedSalesChange = priceChangePercent switch
-        {
-            < -10 => 15, // %10+ indirim -> %15 satış artışı
-            < -5 => 10,
-            < 0 => 5,
-            < 5 => -5,
-            < 10 => -10,
-            _ => -15 // %10+ artış -> %15 satış düşüşü
-        };
-
-        var expectedRevenueChange = (priceChangePercent + expectedSalesChange) / 2; // Basit hesaplama
-
-        var confidence = CalculateConfidence(product, competitorPrices.Count);
-
-        var reasoning = $"Based on competitor analysis ({competitorPrices.Count} similar products), " +
-                       $"stock level ({product.StockQuantity} units), " +
-                       $"rating ({product.Rating:F1}), and sales volume ({product.ReviewCount} reviews). " +
-                       $"Optimal price calculated: {optimalPrice:C} (current: {currentPrice:C}).";
-
-        return new PriceRecommendationDto(
-            Math.Round(optimalPrice, 2),
-            Math.Round(minPrice, 2),
-            Math.Round(maxPrice, 2),
-            confidence,
-            Math.Round(expectedRevenueChange, 2),
-            expectedSalesChange,
-            reasoning
-        );
-    }
-
-    private decimal CalculateConfidence(ProductEntity product, int competitorCount)
-    {
-        var confidence = 50m; // Base confidence
-
-        // Rakipler varsa confidence artar
-        if (competitorCount > 0) confidence += 20;
-        if (competitorCount > 5) confidence += 10;
-
-        // Rating varsa confidence artar
-        if (product.Rating > 0) confidence += 10;
-        if (product.ReviewCount > 10) confidence += 10;
-
-        return Math.Min(confidence, 100);
-    }
+    // ✅ ARCHITECTURE: Business logic helper'a taşındı (PriceOptimizationHelper)
 }
 
 
