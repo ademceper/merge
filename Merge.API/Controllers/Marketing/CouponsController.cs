@@ -172,7 +172,7 @@ public class CouponsController : BaseController
     }
 
     /// <summary>
-    /// Yeni kupon oluşturur (Admin only
+    /// Yeni kupon oluşturur (Admin only)
     /// </summary>
     /// <param name="dto">Kupon oluşturma bilgileri</param>
     /// <param name="cancellationToken">İptal token'ı</param>
