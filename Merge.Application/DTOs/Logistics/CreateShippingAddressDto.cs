@@ -2,47 +2,47 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Logistics;
 
-public class CreateShippingAddressDto
-{
+// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
+public record CreateShippingAddressDto(
     [StringLength(50)]
-    public string Label { get; set; } = string.Empty;
+    string Label,
     
     [Required]
     [StringLength(100, MinimumLength = 2, ErrorMessage = "Ad en az 2, en fazla 100 karakter olmalıdır.")]
-    public string FirstName { get; set; } = string.Empty;
+    string FirstName,
     
     [Required]
     [StringLength(100, MinimumLength = 2, ErrorMessage = "Soyad en az 2, en fazla 100 karakter olmalıdır.")]
-    public string LastName { get; set; } = string.Empty;
+    string LastName,
     
     [Required]
     [Phone(ErrorMessage = "Geçerli bir telefon numarası giriniz.")]
     [StringLength(20)]
-    public string Phone { get; set; } = string.Empty;
+    string Phone,
     
     [Required]
     [StringLength(200, MinimumLength = 5, ErrorMessage = "Adres satırı en az 5, en fazla 200 karakter olmalıdır.")]
-    public string AddressLine1 { get; set; } = string.Empty;
+    string AddressLine1,
     
     [StringLength(200)]
-    public string? AddressLine2 { get; set; }
+    string? AddressLine2 = null,
     
     [Required]
     [StringLength(100, MinimumLength = 2, ErrorMessage = "Şehir en az 2, en fazla 100 karakter olmalıdır.")]
-    public string City { get; set; } = string.Empty;
+    string City,
     
     [StringLength(100)]
-    public string State { get; set; } = string.Empty;
+    string State,
     
     [StringLength(20)]
-    public string PostalCode { get; set; } = string.Empty;
+    string PostalCode,
     
     [Required]
     [StringLength(100)]
-    public string Country { get; set; } = string.Empty;
+    string Country,
     
-    public bool IsDefault { get; set; } = false;
+    bool IsDefault = false,
     
     [StringLength(500)]
-    public string? Instructions { get; set; }
-}
+    string? Instructions = null
+);

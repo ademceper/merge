@@ -1,26 +1,38 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.User;
-using Merge.Application.Interfaces.Logistics;
-using Merge.Application.Interfaces.Order;
+using MediatR;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Common;
 using Merge.API.Middleware;
+using Merge.Application.Logistics.Commands.CreatePickPack;
+using Merge.Application.Logistics.Queries.GetPickPackById;
+using Merge.Application.Logistics.Queries.GetPickPackByPackNumber;
+using Merge.Application.Logistics.Queries.GetPickPacksByOrderId;
+using Merge.Application.Logistics.Queries.GetAllPickPacks;
+using Merge.Application.Logistics.Queries.GetPickPackStats;
+using Merge.Application.Logistics.Commands.UpdatePickPackDetails;
+using Merge.Application.Logistics.Commands.StartPicking;
+using Merge.Application.Logistics.Commands.CompletePicking;
+using Merge.Application.Logistics.Commands.StartPacking;
+using Merge.Application.Logistics.Commands.CompletePacking;
+using Merge.Application.Logistics.Commands.MarkPickPackAsShipped;
+using Merge.Application.Logistics.Commands.UpdatePickPackItemStatus;
+using Merge.Application.Order.Queries.GetOrderById;
+using Merge.Domain.Enums;
 
 namespace Merge.API.Controllers.Logistics;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/logistics/pick-packs")]
+[Route("api/v{version:apiVersion}/logistics/pick-packs")]
 [Authorize(Roles = "Admin,Manager,Warehouse")]
 public class PickPacksController : BaseController
 {
-    private readonly IPickPackService _pickPackService;
-    private readonly IOrderService _orderService;
+    private readonly IMediator _mediator;
 
-    public PickPacksController(IPickPackService pickPackService, IOrderService orderService)
+    public PickPacksController(IMediator mediator)
     {
-        _pickPackService = pickPackService;
-        _orderService = orderService;
+        _mediator = mediator;
     }
 
     /// <summary>
@@ -40,8 +52,8 @@ public class PickPacksController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var pickPack = await _pickPackService.CreatePickPackAsync(dto, cancellationToken);
+        var command = new CreatePickPackCommand(dto.OrderId, dto.WarehouseId, dto.Notes);
+        var pickPack = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetPickPack), new { id = pickPack.Id }, pickPack);
     }
 
@@ -64,15 +76,16 @@ public class PickPacksController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var pickPack = await _pickPackService.GetPickPackByIdAsync(id, cancellationToken);
+        var query = new GetPickPackByIdQuery(id);
+        var pickPack = await _mediator.Send(query, cancellationToken);
         if (pickPack == null)
         {
             return NotFound();
         }
 
         // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi siparişlerinin pick-pack'lerine erişebilmeli
-        var order = await _orderService.GetByIdAsync(pickPack.OrderId, cancellationToken);
+        var orderQuery = new GetOrderByIdQuery(pickPack.OrderId);
+        var order = await _mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -105,15 +118,16 @@ public class PickPacksController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var pickPack = await _pickPackService.GetPickPackByPackNumberAsync(packNumber, cancellationToken);
+        var query = new GetPickPackByPackNumberQuery(packNumber);
+        var pickPack = await _mediator.Send(query, cancellationToken);
         if (pickPack == null)
         {
             return NotFound();
         }
 
         // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi siparişlerinin pick-pack'lerine erişebilmeli
-        var order = await _orderService.GetByIdAsync(pickPack.OrderId, cancellationToken);
+        var orderQuery = new GetOrderByIdQuery(pickPack.OrderId);
+        var order = await _mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -147,7 +161,8 @@ public class PickPacksController : BaseController
         }
 
         // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi siparişlerinin pick-pack'lerine erişebilmeli
-        var order = await _orderService.GetByIdAsync(orderId, cancellationToken);
+        var orderQuery = new GetOrderByIdQuery(orderId);
+        var order = await _mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -158,8 +173,8 @@ public class PickPacksController : BaseController
             return Forbid();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var pickPacks = await _pickPackService.GetPickPacksByOrderIdAsync(orderId, cancellationToken);
+        var query = new GetPickPacksByOrderIdQuery(orderId);
+        var pickPacks = await _mediator.Send(query, cancellationToken);
         return Ok(pickPacks);
     }
 
@@ -182,8 +197,14 @@ public class PickPacksController : BaseController
         // ✅ BOLUM 3.4: Pagination (ZORUNLU)
         if (pageSize > 100) pageSize = 100; // Max limit
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var pickPacks = await _pickPackService.GetAllPickPacksAsync(status, warehouseId, page, pageSize, cancellationToken);
+        PickPackStatus? statusEnum = null;
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<PickPackStatus>(status, out var parsedStatus))
+        {
+            statusEnum = parsedStatus;
+        }
+
+        var query = new GetAllPickPacksQuery(statusEnum, warehouseId, page, pageSize);
+        var pickPacks = await _mediator.Send(query, cancellationToken);
         return Ok(pickPacks);
     }
 
@@ -206,13 +227,14 @@ public class PickPacksController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var userId = GetUserIdOrNull();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _pickPackService.UpdatePickPackStatusAsync(id, dto, userId, cancellationToken);
-        if (!success)
+        PickPackStatus? statusEnum = null;
+        if (!string.IsNullOrEmpty(dto.Status) && Enum.TryParse<PickPackStatus>(dto.Status, out var parsedStatus))
         {
-            return NotFound();
+            statusEnum = parsedStatus;
         }
+
+        var command = new UpdatePickPackDetailsCommand(id, statusEnum, dto.Notes, dto.Weight, dto.Dimensions, dto.PackageCount);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -231,12 +253,8 @@ public class PickPacksController : BaseController
         CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _pickPackService.StartPickingAsync(id, userId, cancellationToken);
-        if (!success)
-        {
-            return BadRequest();
-        }
+        var command = new StartPickingCommand(id, userId);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -254,13 +272,8 @@ public class PickPacksController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _pickPackService.CompletePickingAsync(id, userId, cancellationToken);
-        if (!success)
-        {
-            return BadRequest();
-        }
+        var command = new CompletePickingCommand(id);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -279,12 +292,8 @@ public class PickPacksController : BaseController
         CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _pickPackService.StartPackingAsync(id, userId, cancellationToken);
-        if (!success)
-        {
-            return BadRequest();
-        }
+        var command = new StartPackingCommand(id, userId);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -294,21 +303,20 @@ public class PickPacksController : BaseController
     [HttpPost("{id}/complete-packing")]
     [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> CompletePacking(
         Guid id,
+        [FromBody] CompletePackingDto dto,
         CancellationToken cancellationToken = default)
     {
-        var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _pickPackService.CompletePackingAsync(id, userId, cancellationToken);
-        if (!success)
-        {
-            return BadRequest();
-        }
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var command = new CompletePackingCommand(id, dto.Weight, dto.Dimensions, dto.PackageCount);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -326,12 +334,8 @@ public class PickPacksController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _pickPackService.MarkAsShippedAsync(id, cancellationToken);
-        if (!success)
-        {
-            return BadRequest();
-        }
+        var command = new MarkPickPackAsShippedCommand(id);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -354,12 +358,8 @@ public class PickPacksController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _pickPackService.UpdatePickPackItemStatusAsync(itemId, dto, cancellationToken);
-        if (!success)
-        {
-            return NotFound();
-        }
+        var command = new UpdatePickPackItemStatusCommand(itemId, dto.IsPicked, dto.IsPacked, dto.Location);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -379,8 +379,8 @@ public class PickPacksController : BaseController
         [FromQuery] DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var stats = await _pickPackService.GetPickPackStatsAsync(warehouseId, startDate, endDate, cancellationToken);
+        var query = new GetPickPackStatsQuery(warehouseId, startDate, endDate);
+        var stats = await _mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 }

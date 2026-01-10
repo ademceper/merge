@@ -1,20 +1,27 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Logistics;
+using MediatR;
 using Merge.Application.DTOs.Logistics;
 using Merge.API.Middleware;
+using Merge.Application.Logistics.Queries.EstimateDeliveryTime;
+using Merge.Application.Logistics.Queries.GetAllDeliveryTimeEstimations;
+using Merge.Application.Logistics.Queries.GetDeliveryTimeEstimationById;
+using Merge.Application.Logistics.Commands.CreateDeliveryTimeEstimation;
+using Merge.Application.Logistics.Commands.UpdateDeliveryTimeEstimation;
+using Merge.Application.Logistics.Commands.DeleteDeliveryTimeEstimation;
 
 namespace Merge.API.Controllers.Logistics;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/logistics/delivery-time")]
+[Route("api/v{version:apiVersion}/logistics/delivery-time")]
 public class DeliveryTimeEstimationsController : BaseController
 {
-    private readonly IDeliveryTimeEstimationService _deliveryTimeEstimationService;
+    private readonly IMediator _mediator;
 
-    public DeliveryTimeEstimationsController(IDeliveryTimeEstimationService deliveryTimeEstimationService)
+    public DeliveryTimeEstimationsController(IMediator mediator)
     {
-        _deliveryTimeEstimationService = deliveryTimeEstimationService;
+        _mediator = mediator;
     }
 
     /// <summary>
@@ -30,8 +37,15 @@ public class DeliveryTimeEstimationsController : BaseController
         [FromQuery] EstimateDeliveryTimeDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _deliveryTimeEstimationService.EstimateDeliveryTimeAsync(dto, cancellationToken);
+        var query = new EstimateDeliveryTimeQuery(
+            dto.ProductId,
+            dto.CategoryId,
+            dto.WarehouseId,
+            dto.ShippingProviderId,
+            dto.City,
+            dto.Country,
+            dto.OrderDate);
+        var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);
     }
 
@@ -50,8 +64,8 @@ public class DeliveryTimeEstimationsController : BaseController
         [FromQuery] bool? isActive = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var estimations = await _deliveryTimeEstimationService.GetAllEstimationsAsync(productId, categoryId, warehouseId, isActive, cancellationToken);
+        var query = new GetAllDeliveryTimeEstimationsQuery(productId, categoryId, warehouseId, isActive);
+        var estimations = await _mediator.Send(query, cancellationToken);
         return Ok(estimations);
     }
 
@@ -68,8 +82,8 @@ public class DeliveryTimeEstimationsController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var estimation = await _deliveryTimeEstimationService.GetEstimationByIdAsync(id, cancellationToken);
+        var query = new GetDeliveryTimeEstimationByIdQuery(id);
+        var estimation = await _mediator.Send(query, cancellationToken);
         if (estimation == null)
         {
             return NotFound();
@@ -95,8 +109,19 @@ public class DeliveryTimeEstimationsController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var estimation = await _deliveryTimeEstimationService.CreateEstimationAsync(dto, cancellationToken);
+        var command = new CreateDeliveryTimeEstimationCommand(
+            dto.ProductId,
+            dto.CategoryId,
+            dto.WarehouseId,
+            dto.ShippingProviderId,
+            dto.City,
+            dto.Country,
+            dto.MinDays,
+            dto.MaxDays,
+            dto.AverageDays,
+            dto.IsActive,
+            dto.Conditions);
+        var estimation = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetEstimation), new { id = estimation.Id }, estimation);
     }
 
@@ -120,12 +145,14 @@ public class DeliveryTimeEstimationsController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _deliveryTimeEstimationService.UpdateEstimationAsync(id, dto, cancellationToken);
-        if (!success)
-        {
-            return NotFound();
-        }
+        var command = new UpdateDeliveryTimeEstimationCommand(
+            id,
+            dto.MinDays,
+            dto.MaxDays,
+            dto.AverageDays,
+            dto.IsActive,
+            dto.Conditions);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -144,12 +171,8 @@ public class DeliveryTimeEstimationsController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _deliveryTimeEstimationService.DeleteEstimationAsync(id, cancellationToken);
-        if (!success)
-        {
-            return NotFound();
-        }
+        var command = new DeleteDeliveryTimeEstimationCommand(id);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 }

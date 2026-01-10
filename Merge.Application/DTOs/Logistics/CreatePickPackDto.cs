@@ -2,14 +2,14 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Logistics;
 
-public class CreatePickPackDto
-{
+// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
+public record CreatePickPackDto(
     [Required]
-    public Guid OrderId { get; set; }
+    Guid OrderId,
     
     [Required]
-    public Guid WarehouseId { get; set; }
+    Guid WarehouseId,
     
     [StringLength(2000)]
-    public string? Notes { get; set; }
-}
+    string? Notes = null
+);

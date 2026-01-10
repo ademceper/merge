@@ -2,21 +2,21 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Logistics;
 
-public class UpdatePickPackStatusDto
-{
+// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
+public record UpdatePickPackStatusDto(
     [Required]
     [StringLength(50)]
-    public string Status { get; set; } = string.Empty;
+    string Status,
     
     [StringLength(2000)]
-    public string? Notes { get; set; }
+    string? Notes = null,
     
     [Range(0, double.MaxValue, ErrorMessage = "Ağırlık 0 veya daha büyük olmalıdır.")]
-    public decimal? Weight { get; set; }
+    decimal? Weight = null,
     
     [StringLength(100)]
-    public string? Dimensions { get; set; }
+    string? Dimensions = null,
     
     [Range(1, int.MaxValue, ErrorMessage = "Paket sayısı en az 1 olmalıdır.")]
-    public int? PackageCount { get; set; }
-}
+    int? PackageCount = null
+);

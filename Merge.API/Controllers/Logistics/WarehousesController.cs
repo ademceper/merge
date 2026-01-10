@@ -1,21 +1,31 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Logistics;
+using MediatR;
 using Merge.Application.DTOs.Logistics;
 using Merge.API.Middleware;
+using Merge.Application.Logistics.Queries.GetAllWarehouses;
+using Merge.Application.Logistics.Queries.GetActiveWarehouses;
+using Merge.Application.Logistics.Queries.GetWarehouseById;
+using Merge.Application.Logistics.Queries.GetWarehouseByCode;
+using Merge.Application.Logistics.Commands.CreateWarehouse;
+using Merge.Application.Logistics.Commands.UpdateWarehouse;
+using Merge.Application.Logistics.Commands.DeleteWarehouse;
+using Merge.Application.Logistics.Commands.ActivateWarehouse;
+using Merge.Application.Logistics.Commands.DeactivateWarehouse;
 
 namespace Merge.API.Controllers.Logistics;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/logistics/warehouses")]
+[Route("api/v{version:apiVersion}/logistics/warehouses")]
 [Authorize(Roles = "Admin")]
 public class WarehousesController : BaseController
 {
-    private readonly IWarehouseService _warehouseService;
+    private readonly IMediator _mediator;
 
-    public WarehousesController(IWarehouseService warehouseService)
+    public WarehousesController(IMediator mediator)
     {
-        _warehouseService = warehouseService;
+        _mediator = mediator;
     }
 
     /// <summary>
@@ -31,8 +41,8 @@ public class WarehousesController : BaseController
         [FromQuery] bool includeInactive = false,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var warehouses = await _warehouseService.GetAllAsync(includeInactive, cancellationToken);
+        var query = new GetAllWarehousesQuery(includeInactive);
+        var warehouses = await _mediator.Send(query, cancellationToken);
         return Ok(warehouses);
     }
 
@@ -48,8 +58,8 @@ public class WarehousesController : BaseController
     public async Task<ActionResult<IEnumerable<WarehouseDto>>> GetActive(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var warehouses = await _warehouseService.GetActiveWarehousesAsync(cancellationToken);
+        var query = new GetActiveWarehousesQuery();
+        var warehouses = await _mediator.Send(query, cancellationToken);
         return Ok(warehouses);
     }
 
@@ -67,8 +77,8 @@ public class WarehousesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var warehouse = await _warehouseService.GetByIdAsync(id, cancellationToken);
+        var query = new GetWarehouseByIdQuery(id);
+        var warehouse = await _mediator.Send(query, cancellationToken);
         if (warehouse == null)
         {
             return NotFound();
@@ -90,8 +100,8 @@ public class WarehousesController : BaseController
         string code,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var warehouse = await _warehouseService.GetByCodeAsync(code, cancellationToken);
+        var query = new GetWarehouseByCodeQuery(code);
+        var warehouse = await _mediator.Send(query, cancellationToken);
         if (warehouse == null)
         {
             return NotFound();
@@ -113,11 +123,19 @@ public class WarehousesController : BaseController
         [FromBody] CreateWarehouseDto createDto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var warehouse = await _warehouseService.CreateAsync(createDto, cancellationToken);
+        var command = new CreateWarehouseCommand(
+            createDto.Name,
+            createDto.Code,
+            createDto.Address,
+            createDto.City,
+            createDto.Country,
+            createDto.PostalCode,
+            createDto.ContactPerson,
+            createDto.ContactPhone,
+            createDto.ContactEmail,
+            createDto.Capacity,
+            createDto.Description);
+        var warehouse = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = warehouse.Id }, warehouse);
     }
 
@@ -137,15 +155,20 @@ public class WarehousesController : BaseController
         [FromBody] UpdateWarehouseDto updateDto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var warehouse = await _warehouseService.UpdateAsync(id, updateDto, cancellationToken);
-        if (warehouse == null)
-        {
-            return NotFound();
-        }
+        var command = new UpdateWarehouseCommand(
+            id,
+            updateDto.Name,
+            updateDto.Address,
+            updateDto.City,
+            updateDto.Country,
+            updateDto.PostalCode,
+            updateDto.ContactPerson,
+            updateDto.ContactPhone,
+            updateDto.ContactEmail,
+            updateDto.Capacity,
+            updateDto.IsActive,
+            updateDto.Description);
+        var warehouse = await _mediator.Send(command, cancellationToken);
         return Ok(warehouse);
     }
 
@@ -163,12 +186,8 @@ public class WarehousesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _warehouseService.DeleteAsync(id, cancellationToken);
-        if (!result)
-        {
-            return NotFound();
-        }
+        var command = new DeleteWarehouseCommand(id);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -186,12 +205,8 @@ public class WarehousesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _warehouseService.ActivateAsync(id, cancellationToken);
-        if (!result)
-        {
-            return NotFound();
-        }
+        var command = new ActivateWarehouseCommand(id);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -209,12 +224,8 @@ public class WarehousesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _warehouseService.DeactivateAsync(id, cancellationToken);
-        if (!result)
-        {
-            return NotFound();
-        }
+        var command = new DeactivateWarehouseCommand(id);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 }

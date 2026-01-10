@@ -4,71 +4,72 @@ namespace Merge.Application.DTOs.Logistics;
 
 /// <summary>
 /// Delivery time estimation ayarlari icin typed DTO - Dictionary yerine guvenli
+/// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
 /// </summary>
-public class DeliveryTimeSettingsDto
-{
+public record DeliveryTimeSettingsDto(
     /// <summary>
     /// Aktif mi
     /// </summary>
-    public bool IsActive { get; set; } = true;
+    [Required]
+    bool IsActive = true,
 
     /// <summary>
     /// Varsayilan teslimat suresi (gun)
     /// </summary>
     [Range(1, 365)]
-    public int DefaultDeliveryDays { get; set; } = 3;
+    int DefaultDeliveryDays = 3,
 
     /// <summary>
     /// Minimum teslimat suresi (gun)
     /// </summary>
     [Range(1, 365)]
-    public int MinDeliveryDays { get; set; } = 1;
+    int MinDeliveryDays = 1,
 
     /// <summary>
     /// Maksimum teslimat suresi (gun)
     /// </summary>
     [Range(1, 365)]
-    public int MaxDeliveryDays { get; set; } = 30;
+    int MaxDeliveryDays = 30,
 
     /// <summary>
     /// Hafta sonu teslimat aktif mi
     /// </summary>
-    public bool WeekendDelivery { get; set; } = false;
+    bool WeekendDelivery = false,
 
     /// <summary>
     /// Tatil gunleri teslimat aktif mi
     /// </summary>
-    public bool HolidayDelivery { get; set; } = false;
+    bool HolidayDelivery = false,
 
     /// <summary>
     /// Ayni gun teslimat aktif mi
     /// </summary>
-    public bool SameDayDelivery { get; set; } = false;
+    bool SameDayDelivery = false,
 
     /// <summary>
     /// Ayni gun teslimat kesim saati
     /// </summary>
-    public TimeSpan? SameDayCutoffTime { get; set; }
+    TimeSpan? SameDayCutoffTime = null,
 
     /// <summary>
     /// Ekspres teslimat aktif mi
     /// </summary>
-    public bool ExpressDelivery { get; set; } = false;
+    bool ExpressDelivery = false,
 
     /// <summary>
     /// Ekspres teslimat ek ucreti
     /// </summary>
     [Range(0, 10000)]
-    public decimal? ExpressDeliveryFee { get; set; }
+    decimal? ExpressDeliveryFee = null,
 
     /// <summary>
     /// Ucretsiz kargo esigi
     /// </summary>
     [Range(0, 100000)]
-    public decimal? FreeShippingThreshold { get; set; }
+    decimal? FreeShippingThreshold = null,
 
     /// <summary>
     /// Bolgesel farklar aktif mi
     /// </summary>
-    public bool RegionalVariationsEnabled { get; set; } = false;
-}
+    bool RegionalVariationsEnabled = false
+);

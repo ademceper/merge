@@ -1,21 +1,29 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Logistics;
+using MediatR;
 using Merge.Application.DTOs.Logistics;
 using Merge.API.Middleware;
+using Merge.Application.Logistics.Queries.GetUserShippingAddresses;
+using Merge.Application.Logistics.Queries.GetDefaultShippingAddress;
+using Merge.Application.Logistics.Queries.GetShippingAddressById;
+using Merge.Application.Logistics.Commands.CreateShippingAddress;
+using Merge.Application.Logistics.Commands.UpdateShippingAddress;
+using Merge.Application.Logistics.Commands.DeleteShippingAddress;
+using Merge.Application.Logistics.Commands.SetDefaultShippingAddress;
 
 namespace Merge.API.Controllers.Logistics;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/logistics/shipping-addresses")]
+[Route("api/v{version:apiVersion}/logistics/shipping-addresses")]
 [Authorize]
 public class ShippingAddressesController : BaseController
 {
-    private readonly IShippingAddressService _shippingAddressService;
+    private readonly IMediator _mediator;
 
-    public ShippingAddressesController(IShippingAddressService shippingAddressService)
+    public ShippingAddressesController(IMediator mediator)
     {
-        _shippingAddressService = shippingAddressService;
+        _mediator = mediator;
     }
 
     /// <summary>
@@ -31,8 +39,8 @@ public class ShippingAddressesController : BaseController
         CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var addresses = await _shippingAddressService.GetUserShippingAddressesAsync(userId, isActive, cancellationToken);
+        var query = new GetUserShippingAddressesQuery(userId, isActive);
+        var addresses = await _mediator.Send(query, cancellationToken);
         return Ok(addresses);
     }
 
@@ -49,8 +57,8 @@ public class ShippingAddressesController : BaseController
         CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var address = await _shippingAddressService.GetDefaultShippingAddressAsync(userId, cancellationToken);
+        var query = new GetDefaultShippingAddressQuery(userId);
+        var address = await _mediator.Send(query, cancellationToken);
         if (address == null)
         {
             return NotFound();
@@ -73,8 +81,8 @@ public class ShippingAddressesController : BaseController
         CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var address = await _shippingAddressService.GetShippingAddressByIdAsync(id, cancellationToken);
+        var query = new GetShippingAddressByIdQuery(id);
+        var address = await _mediator.Send(query, cancellationToken);
         if (address == null)
         {
             return NotFound();
@@ -106,8 +114,21 @@ public class ShippingAddressesController : BaseController
         if (validationResult != null) return validationResult;
 
         var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var address = await _shippingAddressService.CreateShippingAddressAsync(userId, dto, cancellationToken);
+        var command = new CreateShippingAddressCommand(
+            userId,
+            dto.Label,
+            dto.FirstName,
+            dto.LastName,
+            dto.Phone,
+            dto.AddressLine1,
+            dto.City,
+            dto.State,
+            dto.PostalCode,
+            dto.Country,
+            dto.AddressLine2,
+            dto.IsDefault,
+            dto.Instructions);
+        var address = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetAddress), new { id = address.Id }, address);
     }
 
@@ -131,8 +152,8 @@ public class ShippingAddressesController : BaseController
         if (validationResult != null) return validationResult;
 
         var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var address = await _shippingAddressService.GetShippingAddressByIdAsync(id, cancellationToken);
+        var addressQuery = new GetShippingAddressByIdQuery(id);
+        var address = await _mediator.Send(addressQuery, cancellationToken);
         if (address == null)
         {
             return NotFound();
@@ -144,12 +165,22 @@ public class ShippingAddressesController : BaseController
             return Forbid();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _shippingAddressService.UpdateShippingAddressAsync(id, dto, cancellationToken);
-        if (!success)
-        {
-            return NotFound();
-        }
+        var command = new UpdateShippingAddressCommand(
+            id,
+            dto.Label,
+            dto.FirstName,
+            dto.LastName,
+            dto.Phone,
+            dto.AddressLine1,
+            dto.City,
+            dto.State,
+            dto.PostalCode,
+            dto.Country,
+            dto.AddressLine2,
+            dto.IsDefault,
+            dto.IsActive,
+            dto.Instructions);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -168,8 +199,8 @@ public class ShippingAddressesController : BaseController
         CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var address = await _shippingAddressService.GetShippingAddressByIdAsync(id, cancellationToken);
+        var addressQuery = new GetShippingAddressByIdQuery(id);
+        var address = await _mediator.Send(addressQuery, cancellationToken);
         if (address == null)
         {
             return NotFound();
@@ -181,12 +212,8 @@ public class ShippingAddressesController : BaseController
             return Forbid();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _shippingAddressService.DeleteShippingAddressAsync(id, cancellationToken);
-        if (!success)
-        {
-            return NotFound();
-        }
+        var command = new DeleteShippingAddressCommand(id);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -204,12 +231,8 @@ public class ShippingAddressesController : BaseController
         CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _shippingAddressService.SetDefaultShippingAddressAsync(userId, id, cancellationToken);
-        if (!success)
-        {
-            return NotFound();
-        }
+        var command = new SetDefaultShippingAddressCommand(userId, id);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 }

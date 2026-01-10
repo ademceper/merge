@@ -326,7 +326,8 @@ builder.Services.AddScoped<ITrustBadgeService, Merge.Application.Services.Review
 builder.Services.AddScoped<IReviewService, Merge.Application.Services.Review.ReviewService>();
 builder.Services.AddScoped<IReturnRequestService, Merge.Application.Services.Order.ReturnRequestService>();
 builder.Services.AddScoped<IPaymentService, Merge.Application.Services.Payment.PaymentService>();
-builder.Services.AddScoped<IShippingService, Merge.Application.Services.Logistics.ShippingService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<IShippingService, Merge.Application.Services.Logistics.ShippingService>();
 builder.Services.AddScoped<IAddressService, Merge.Application.Services.User.AddressService>();
 // FileUploadService - implement edilmediği için şimdilik yorum satırı
 // builder.Services.AddScoped<IFileUploadService, Merge.Application.Services.Common.FileUploadService>();
@@ -343,9 +344,11 @@ builder.Services.AddScoped<IFaqService, Merge.Application.Services.Support.FaqSe
 builder.Services.AddScoped<IBannerService, BannerService>();
 builder.Services.AddScoped<IGiftCardService, Merge.Application.Services.Marketing.GiftCardService>();
 builder.Services.AddScoped<IOrderFilterService, Merge.Application.Services.Order.OrderFilterService>();
-builder.Services.AddScoped<IWarehouseService, Merge.Application.Services.Logistics.WarehouseService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<IWarehouseService, Merge.Application.Services.Logistics.WarehouseService>();
 builder.Services.AddScoped<IInventoryService, Merge.Application.Services.Catalog.InventoryService>();
-builder.Services.AddScoped<IStockMovementService, Merge.Application.Services.Logistics.StockMovementService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<IStockMovementService, Merge.Application.Services.Logistics.StockMovementService>();
 builder.Services.AddScoped<IBulkProductService, Merge.Application.Services.Product.BulkProductService>();
 builder.Services.AddScoped<ITwoFactorAuthService, Merge.Application.Services.Identity.TwoFactorAuthService>();
 builder.Services.AddScoped<ISellerOnboardingService, Merge.Application.Services.Seller.SellerOnboardingService>();
@@ -377,10 +380,13 @@ builder.Services.AddScoped<ICustomerCommunicationService, Merge.Application.Serv
 builder.Services.AddScoped<ISellerFinanceService, Merge.Application.Services.Seller.SellerFinanceService>();
 builder.Services.AddScoped<IStoreService, Merge.Application.Services.Seller.StoreService>();
 builder.Services.AddScoped<IProductTemplateService, Merge.Application.Services.Product.ProductTemplateService>();
-builder.Services.AddScoped<IShippingAddressService, Merge.Application.Services.Logistics.ShippingAddressService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<IShippingAddressService, Merge.Application.Services.Logistics.ShippingAddressService>();
 builder.Services.AddScoped<IPaymentMethodService, Merge.Application.Services.Payment.PaymentMethodService>();
-builder.Services.AddScoped<IPickPackService, Merge.Application.Services.Logistics.PickPackService>();
-builder.Services.AddScoped<IDeliveryTimeEstimationService, Merge.Application.Services.Logistics.DeliveryTimeEstimationService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<IPickPackService, Merge.Application.Services.Logistics.PickPackService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<IDeliveryTimeEstimationService, Merge.Application.Services.Logistics.DeliveryTimeEstimationService>();
 builder.Services.AddScoped<IOrganizationService, Merge.Application.Services.Organization.OrganizationService>();
 // ✅ ARCHITECTURE: B2BService kaldırıldı - Handler'lar direkt IDbContext kullanıyor (Clean Architecture)
 // builder.Services.AddScoped<IB2BService, B2BService>(); // DEPRECATED - MediatR + CQRS pattern kullanılıyor

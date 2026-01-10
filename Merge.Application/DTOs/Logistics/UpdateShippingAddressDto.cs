@@ -2,43 +2,43 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Logistics;
 
-public class UpdateShippingAddressDto
-{
+// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
+public record UpdateShippingAddressDto(
     [StringLength(50)]
-    public string? Label { get; set; }
+    string? Label = null,
     
     [StringLength(100, MinimumLength = 2)]
-    public string? FirstName { get; set; }
+    string? FirstName = null,
     
     [StringLength(100, MinimumLength = 2)]
-    public string? LastName { get; set; }
+    string? LastName = null,
     
     [Phone(ErrorMessage = "Geçerli bir telefon numarası giriniz.")]
     [StringLength(20)]
-    public string? Phone { get; set; }
+    string? Phone = null,
     
     [StringLength(200, MinimumLength = 5)]
-    public string? AddressLine1 { get; set; }
+    string? AddressLine1 = null,
     
     [StringLength(200)]
-    public string? AddressLine2 { get; set; }
+    string? AddressLine2 = null,
     
     [StringLength(100, MinimumLength = 2)]
-    public string? City { get; set; }
+    string? City = null,
     
     [StringLength(100)]
-    public string? State { get; set; }
+    string? State = null,
     
     [StringLength(20)]
-    public string? PostalCode { get; set; }
+    string? PostalCode = null,
     
     [StringLength(100)]
-    public string? Country { get; set; }
+    string? Country = null,
     
-    public bool? IsDefault { get; set; }
+    bool? IsDefault = null,
     
-    public bool? IsActive { get; set; }
+    bool? IsActive = null,
     
     [StringLength(500)]
-    public string? Instructions { get; set; }
-}
+    string? Instructions = null
+);

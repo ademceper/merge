@@ -2,36 +2,35 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Logistics;
 
-public class CreateDeliveryTimeEstimationDto
-{
-    public Guid? ProductId { get; set; }
+// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
+public record CreateDeliveryTimeEstimationDto(
+    Guid? ProductId = null,
     
-    public Guid? CategoryId { get; set; }
+    Guid? CategoryId = null,
     
-    public Guid? WarehouseId { get; set; }
+    Guid? WarehouseId = null,
     
-    public Guid? ShippingProviderId { get; set; }
-    
-    [StringLength(100)]
-    public string? City { get; set; }
+    Guid? ShippingProviderId = null,
     
     [StringLength(100)]
-    public string? Country { get; set; }
+    string? City = null,
+    
+    [StringLength(100)]
+    string? Country = null,
     
     [Required]
     [Range(0, int.MaxValue, ErrorMessage = "Minimum gün 0 veya daha büyük olmalıdır.")]
-    public int MinDays { get; set; }
+    int MinDays,
     
     [Required]
     [Range(0, int.MaxValue, ErrorMessage = "Maksimum gün 0 veya daha büyük olmalıdır.")]
-    public int MaxDays { get; set; }
+    int MaxDays,
     
     [Required]
     [Range(0, int.MaxValue, ErrorMessage = "Ortalama gün 0 veya daha büyük olmalıdır.")]
-    public int AverageDays { get; set; }
+    int AverageDays,
     
-    public bool IsActive { get; set; } = true;
+    bool IsActive = true,
     
-    /// Typed DTO (Over-posting korumasi)
-    public DeliveryTimeSettingsDto? Conditions { get; set; }
-}
+    DeliveryTimeSettingsDto? Conditions = null // Typed DTO (Over-posting korumasi)
+);

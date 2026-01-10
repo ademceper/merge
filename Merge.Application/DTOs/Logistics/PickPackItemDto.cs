@@ -1,16 +1,16 @@
 namespace Merge.Application.DTOs.Logistics;
 
-public class PickPackItemDto
-{
-    public Guid Id { get; set; }
-    public Guid OrderItemId { get; set; }
-    public Guid ProductId { get; set; }
-    public string ProductName { get; set; } = string.Empty;
-    public string ProductSKU { get; set; } = string.Empty;
-    public int Quantity { get; set; }
-    public bool IsPicked { get; set; }
-    public bool IsPacked { get; set; }
-    public DateTime? PickedAt { get; set; }
-    public DateTime? PackedAt { get; set; }
-    public string? Location { get; set; }
-}
+// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
+public record PickPackItemDto(
+    Guid Id,
+    Guid OrderItemId,
+    Guid ProductId,
+    string ProductName,
+    string ProductSKU,
+    int Quantity,
+    bool IsPicked,
+    bool IsPacked,
+    DateTime? PickedAt,
+    DateTime? PackedAt,
+    string? Location
+);

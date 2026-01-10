@@ -1,33 +1,32 @@
 using System.ComponentModel.DataAnnotations;
-using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 
 namespace Merge.Application.DTOs.Logistics;
 
-public class CreateStockMovementDto
-{
+// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
+public record CreateStockMovementDto(
     [Required]
-    public Guid ProductId { get; set; }
+    Guid ProductId,
     
     [Required]
-    public Guid WarehouseId { get; set; }
+    Guid WarehouseId,
     
     [Required]
-    public StockMovementType MovementType { get; set; }
+    StockMovementType MovementType,
     
     [Required]
     [Range(1, int.MaxValue, ErrorMessage = "Miktar en az 1 olmalıdır.")]
-    public int Quantity { get; set; }
+    int Quantity,
     
     [StringLength(100)]
-    public string? ReferenceNumber { get; set; }
+    string? ReferenceNumber = null,
     
-    public Guid? ReferenceId { get; set; }
+    Guid? ReferenceId = null,
     
     [StringLength(2000)]
-    public string? Notes { get; set; }
+    string? Notes = null,
     
-    public Guid? FromWarehouseId { get; set; }
+    Guid? FromWarehouseId = null,
     
-    public Guid? ToWarehouseId { get; set; }
-}
+    Guid? ToWarehouseId = null
+);

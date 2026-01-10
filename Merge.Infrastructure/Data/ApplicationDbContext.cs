@@ -1750,7 +1750,11 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
                   .WithMany()
                   .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
+            entity.HasIndex(e => e.UserId);
             entity.HasIndex(e => new { e.UserId, e.IsDefault });
+            entity.HasIndex(e => new { e.UserId, e.IsActive });
         });
 
         // PickPack configuration
@@ -1779,8 +1783,9 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
             
             // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
             entity.HasIndex(e => e.OrderId);
-            entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.WarehouseId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => new { e.WarehouseId, e.Status });
             entity.HasIndex(e => new { e.OrderId, e.Status });
             
             // ✅ SECURITY: Check Constraints (BOLUM 7.3)

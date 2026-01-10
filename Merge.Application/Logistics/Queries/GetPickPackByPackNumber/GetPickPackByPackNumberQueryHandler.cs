@@ -1,0 +1,50 @@
+using MediatR;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Merge.Application.DTOs.Logistics;
+using Merge.Application.Interfaces;
+using Merge.Domain.Entities;
+
+namespace Merge.Application.Logistics.Queries.GetPickPackByPackNumber;
+
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
+public class GetPickPackByPackNumberQueryHandler : IRequestHandler<GetPickPackByPackNumberQuery, PickPackDto?>
+{
+    private readonly IDbContext _context;
+    private readonly IMapper _mapper;
+    private readonly ILogger<GetPickPackByPackNumberQueryHandler> _logger;
+
+    public GetPickPackByPackNumberQueryHandler(
+        IDbContext context,
+        IMapper mapper,
+        ILogger<GetPickPackByPackNumberQueryHandler> logger)
+    {
+        _context = context;
+        _mapper = mapper;
+        _logger = logger;
+    }
+
+    public async Task<PickPackDto?> Handle(GetPickPackByPackNumberQuery request, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Getting pick-pack by pack number. PackNumber: {PackNumber}", request.PackNumber);
+
+        // ✅ PERFORMANCE: AsNoTracking (read-only query)
+        // ✅ PERFORMANCE: Include ile N+1 önlenir
+        var pickPack = await _context.Set<PickPack>()
+            .AsNoTracking()
+            .Include(pp => pp.Order)
+            .Include(pp => pp.Warehouse)
+            .Include(pp => pp.PickedBy)
+            .Include(pp => pp.PackedBy)
+            .Include(pp => pp.Items)
+                .ThenInclude(i => i.OrderItem)
+                    .ThenInclude(oi => oi.Product)
+            .FirstOrDefaultAsync(pp => pp.PackNumber == request.PackNumber, cancellationToken);
+
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return pickPack != null ? _mapper.Map<PickPackDto>(pickPack) : null;
+    }
+}
+

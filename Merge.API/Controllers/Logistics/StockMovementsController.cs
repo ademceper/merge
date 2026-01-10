@@ -1,32 +1,31 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.User;
-using Merge.Application.Interfaces.Logistics;
-using Merge.Application.Interfaces.Product;
-using Merge.Application.Interfaces.Catalog;
+using MediatR;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Common;
 using Merge.API.Middleware;
+using Merge.Application.Logistics.Queries.GetStockMovementById;
+using Merge.Application.Logistics.Queries.GetStockMovementsByInventoryId;
+using Merge.Application.Logistics.Queries.GetStockMovementsByProductId;
+using Merge.Application.Logistics.Queries.GetStockMovementsByWarehouseId;
+using Merge.Application.Logistics.Queries.GetFilteredStockMovements;
+using Merge.Application.Logistics.Commands.CreateStockMovement;
+using Merge.Application.Product.Queries.GetProductById;
+using Merge.Application.Catalog.Queries.GetInventoryById;
 
 namespace Merge.API.Controllers.Logistics;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/logistics/stock-movements")]
+[Route("api/v{version:apiVersion}/logistics/stock-movements")]
 [Authorize(Roles = "Admin,Seller")]
 public class StockMovementsController : BaseController
 {
-    private readonly IStockMovementService _stockMovementService;
-    private readonly IProductService _productService;
-    private readonly IInventoryService _inventoryService;
+    private readonly IMediator _mediator;
 
-    public StockMovementsController(
-        IStockMovementService stockMovementService,
-        IProductService productService,
-        IInventoryService inventoryService)
+    public StockMovementsController(IMediator mediator)
     {
-        _stockMovementService = stockMovementService;
-        _productService = productService;
-        _inventoryService = inventoryService;
+        _mediator = mediator;
     }
 
     /// <summary>
@@ -48,15 +47,16 @@ public class StockMovementsController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var movement = await _stockMovementService.GetByIdAsync(id, cancellationToken);
+        var query = new GetStockMovementByIdQuery(id);
+        var movement = await _mediator.Send(query, cancellationToken);
         if (movement == null)
         {
             return NotFound();
         }
 
         // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi ürünlerinin stock movement'larına erişebilmeli
-        var product = await _productService.GetByIdAsync(movement.ProductId, cancellationToken);
+        var productQuery = new GetProductByIdQuery(movement.ProductId);
+        var product = await _mediator.Send(productQuery, cancellationToken);
         if (product == null)
         {
             return NotFound();
@@ -90,13 +90,15 @@ public class StockMovementsController : BaseController
         }
 
         // ✅ BOLUM 3.2: IDOR Koruması - Önce inventory'yi kontrol et
-        var inventory = await _inventoryService.GetByIdAsync(inventoryId, cancellationToken);
+        var inventoryQuery = new GetInventoryByIdQuery(inventoryId);
+        var inventory = await _mediator.Send(inventoryQuery, cancellationToken);
         if (inventory == null)
         {
             return NotFound();
         }
 
-        var product = await _productService.GetByIdAsync(inventory.ProductId, cancellationToken);
+        var productQuery = new GetProductByIdQuery(inventory.ProductId);
+        var product = await _mediator.Send(productQuery, cancellationToken);
         if (product == null)
         {
             return NotFound();
@@ -107,8 +109,8 @@ public class StockMovementsController : BaseController
             return Forbid();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var movements = await _stockMovementService.GetByInventoryIdAsync(inventoryId, cancellationToken);
+        var query = new GetStockMovementsByInventoryIdQuery(inventoryId);
+        var movements = await _mediator.Send(query, cancellationToken);
         return Ok(movements);
     }
 
@@ -134,7 +136,8 @@ public class StockMovementsController : BaseController
         }
 
         // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi ürünlerinin stock movement'larına erişebilmeli
-        var product = await _productService.GetByIdAsync(productId, cancellationToken);
+        var productQuery = new GetProductByIdQuery(productId);
+        var product = await _mediator.Send(productQuery, cancellationToken);
         if (product == null)
         {
             return NotFound();
@@ -148,8 +151,8 @@ public class StockMovementsController : BaseController
         // ✅ BOLUM 3.4: Pagination (ZORUNLU)
         if (pageSize > 100) pageSize = 100; // Max limit
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var movements = await _stockMovementService.GetByProductIdAsync(productId, page, pageSize, cancellationToken);
+        var query = new GetStockMovementsByProductIdQuery(productId, page, pageSize);
+        var movements = await _mediator.Send(query, cancellationToken);
         return Ok(movements);
     }
 
@@ -171,8 +174,8 @@ public class StockMovementsController : BaseController
         // ✅ BOLUM 3.4: Pagination (ZORUNLU)
         if (pageSize > 100) pageSize = 100; // Max limit
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var movements = await _stockMovementService.GetByWarehouseIdAsync(warehouseId, page, pageSize, cancellationToken);
+        var query = new GetStockMovementsByWarehouseIdQuery(warehouseId, page, pageSize);
+        var movements = await _mediator.Send(query, cancellationToken);
         return Ok(movements);
     }
 
@@ -202,7 +205,8 @@ public class StockMovementsController : BaseController
         // Eğer ProductId filtresi varsa kontrol et
         if (filter.ProductId.HasValue)
         {
-            var product = await _productService.GetByIdAsync(filter.ProductId.Value, cancellationToken);
+            var productQuery = new GetProductByIdQuery(filter.ProductId.Value);
+            var product = await _mediator.Send(productQuery, cancellationToken);
             if (product == null)
             {
                 return NotFound();
@@ -214,8 +218,15 @@ public class StockMovementsController : BaseController
             }
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var movements = await _stockMovementService.GetFilteredAsync(filter, cancellationToken);
+        var query = new GetFilteredStockMovementsQuery(
+            filter.ProductId,
+            filter.WarehouseId,
+            filter.MovementType,
+            filter.StartDate,
+            filter.EndDate,
+            filter.Page,
+            filter.PageSize);
+        var movements = await _mediator.Send(query, cancellationToken);
         return Ok(movements);
     }
 
@@ -242,7 +253,8 @@ public class StockMovementsController : BaseController
         }
 
         // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi ürünlerinin stock movement'larını oluşturabilmeli
-        var product = await _productService.GetByIdAsync(createDto.ProductId, cancellationToken);
+        var productQuery = new GetProductByIdQuery(createDto.ProductId);
+        var product = await _mediator.Send(productQuery, cancellationToken);
         if (product == null)
         {
             return NotFound();
@@ -253,8 +265,18 @@ public class StockMovementsController : BaseController
             return Forbid();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var movement = await _stockMovementService.CreateAsync(createDto, userId, cancellationToken);
+        var command = new CreateStockMovementCommand(
+            createDto.ProductId,
+            createDto.WarehouseId,
+            createDto.MovementType,
+            createDto.Quantity,
+            createDto.ReferenceNumber,
+            createDto.ReferenceId,
+            createDto.Notes,
+            createDto.FromWarehouseId,
+            createDto.ToWarehouseId,
+            userId);
+        var movement = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = movement.Id }, movement);
     }
 }

@@ -1,10 +1,10 @@
 namespace Merge.Application.DTOs.Logistics;
 
-public class DeliveryTimeEstimateResultDto
-{
-    public int MinDays { get; set; }
-    public int MaxDays { get; set; }
-    public int AverageDays { get; set; }
-    public DateTime EstimatedDeliveryDate { get; set; }
-    public string? EstimationSource { get; set; } // Product, Category, Warehouse, Default
-}
+// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
+public record DeliveryTimeEstimateResultDto(
+    int MinDays,
+    int MaxDays,
+    int AverageDays,
+    DateTime EstimatedDeliveryDate,
+    string? EstimationSource // Product, Category, Warehouse, Default
+);

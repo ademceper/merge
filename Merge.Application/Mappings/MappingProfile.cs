@@ -233,8 +233,22 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => src.Order != null ? src.Order.OrderNumber : string.Empty));
         CreateMap<CreatePaymentDto, Merge.Domain.Entities.Payment>();
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<Shipping, ShippingDto>()
-            .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => src.Order != null ? src.Order.OrderNumber : string.Empty));
+            .ConstructUsing(src => new ShippingDto(
+                src.Id,
+                src.OrderId,
+                src.Order != null ? src.Order.OrderNumber : string.Empty,
+                src.ShippingProvider,
+                src.TrackingNumber,
+                src.Status.ToString(),
+                src.ShippedDate,
+                src.EstimatedDeliveryDate,
+                src.DeliveredDate,
+                src.ShippingCost,
+                src.ShippingLabelUrl,
+                src.CreatedAt
+            ));
         CreateMap<CreateShippingDto, Shipping>();
 
         CreateMap<CreateAddressDto, Address>();
@@ -381,8 +395,25 @@ public class MappingProfile : Profile
         // GiftCard mappings
         CreateMap<GiftCard, GiftCardDto>().ReverseMap();
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // Warehouse mappings
-        CreateMap<Warehouse, WarehouseDto>();
+        CreateMap<Warehouse, WarehouseDto>()
+            .ConstructUsing(src => new WarehouseDto(
+                src.Id,
+                src.Name,
+                src.Code,
+                src.Address,
+                src.City,
+                src.Country,
+                src.PostalCode,
+                src.ContactPerson,
+                src.ContactPhone,
+                src.ContactEmail,
+                src.Capacity,
+                src.IsActive,
+                src.Description,
+                src.CreatedAt
+            ));
         CreateMap<CreateWarehouseDto, Warehouse>();
         CreateMap<UpdateWarehouseDto, Warehouse>();
 
@@ -424,47 +455,125 @@ public class MappingProfile : Profile
                 src.MinimumStockLevel - src.Quantity
             ));
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // StockMovement mappings
         CreateMap<StockMovement, StockMovementDto>()
-            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : string.Empty))
-            .ForMember(dest => dest.ProductSKU, opt => opt.MapFrom(src => src.Product != null ? src.Product.SKU : string.Empty))
-            .ForMember(dest => dest.WarehouseName, opt => opt.MapFrom(src => src.Warehouse != null ? src.Warehouse.Name : string.Empty))
-            .ForMember(dest => dest.MovementTypeName, opt => opt.MapFrom(src => src.MovementType.ToString()))
-            .ForMember(dest => dest.PerformedByName, opt => opt.MapFrom(src => src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : null))
-            .ForMember(dest => dest.FromWarehouseName, opt => opt.MapFrom(src => src.FromWarehouse != null ? src.FromWarehouse.Name : null))
-            .ForMember(dest => dest.ToWarehouseName, opt => opt.MapFrom(src => src.ToWarehouse != null ? src.ToWarehouse.Name : null));
+            .ConstructUsing(src => new StockMovementDto(
+                src.Id,
+                src.InventoryId,
+                src.ProductId,
+                src.Product != null ? src.Product.Name : string.Empty,
+                src.Product != null ? src.Product.SKU : string.Empty,
+                src.WarehouseId,
+                src.Warehouse != null ? src.Warehouse.Name : string.Empty,
+                src.MovementType,
+                src.MovementType.ToString(),
+                src.Quantity,
+                src.QuantityBefore,
+                src.QuantityAfter,
+                src.ReferenceNumber,
+                src.ReferenceId,
+                src.Notes,
+                src.PerformedBy,
+                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : null,
+                src.FromWarehouseId,
+                src.FromWarehouse != null ? src.FromWarehouse.Name : null,
+                src.ToWarehouseId,
+                src.ToWarehouse != null ? src.ToWarehouse.Name : null,
+                src.CreatedAt
+            ));
         CreateMap<CreateStockMovementDto, StockMovement>();
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // DeliveryTimeEstimation mappings
         CreateMap<DeliveryTimeEstimation, DeliveryTimeEstimationDto>()
-            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : null))
-            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : null))
-            .ForMember(dest => dest.WarehouseName, opt => opt.MapFrom(src => src.Warehouse != null ? src.Warehouse.Name : null))
-            .AfterMap((src, dest) =>
-            {
-                // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
-                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
-                dest.Conditions = !string.IsNullOrEmpty(src.Conditions)
+            .ConstructUsing(src => new DeliveryTimeEstimationDto(
+                src.Id,
+                src.ProductId,
+                src.Product != null ? src.Product.Name : null,
+                src.CategoryId,
+                src.Category != null ? src.Category.Name : null,
+                src.WarehouseId,
+                src.Warehouse != null ? src.Warehouse.Name : null,
+                src.ShippingProviderId,
+                src.City,
+                src.Country,
+                src.MinDays,
+                src.MaxDays,
+                src.AverageDays,
+                src.IsActive,
+                !string.IsNullOrEmpty(src.Conditions)
                     ? JsonSerializer.Deserialize<DeliveryTimeSettingsDto>(src.Conditions!)
-                    : null;
-            });
+                    : null,
+                src.CreatedAt
+            ));
         CreateMap<CreateDeliveryTimeEstimationDto, DeliveryTimeEstimation>();
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // PickPack mappings
         CreateMap<PickPack, PickPackDto>()
-            .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => src.Order != null ? src.Order.OrderNumber : string.Empty))
-            .ForMember(dest => dest.WarehouseName, opt => opt.MapFrom(src => src.Warehouse != null ? src.Warehouse.Name : string.Empty))
-            .ForMember(dest => dest.PickedByName, opt => opt.MapFrom(src => src.PickedBy != null ? $"{src.PickedBy.FirstName} {src.PickedBy.LastName}" : null))
-            .ForMember(dest => dest.PackedByName, opt => opt.MapFrom(src => src.PackedBy != null ? $"{src.PackedBy.FirstName} {src.PackedBy.LastName}" : null));
+            .ConstructUsing(src => new PickPackDto(
+                src.Id,
+                src.OrderId,
+                src.Order != null ? src.Order.OrderNumber : string.Empty,
+                src.WarehouseId,
+                src.Warehouse != null ? src.Warehouse.Name : string.Empty,
+                src.PackNumber,
+                src.Status.ToString(),
+                src.PickedByUserId,
+                src.PickedBy != null ? $"{src.PickedBy.FirstName} {src.PickedBy.LastName}" : null,
+                src.PackedByUserId,
+                src.PackedBy != null ? $"{src.PackedBy.FirstName} {src.PackedBy.LastName}" : null,
+                src.PickedAt,
+                src.PackedAt,
+                src.ShippedAt,
+                src.Notes,
+                src.Weight,
+                src.Dimensions,
+                src.PackageCount,
+                src.Items != null ? src.Items.Select(i => _mapper.Map<PickPackItemDto>(i)).ToList().AsReadOnly() : new List<PickPackItemDto>().AsReadOnly(),
+                src.CreatedAt
+            ));
         CreateMap<CreatePickPackDto, PickPack>();
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // PickPackItem mappings
         CreateMap<PickPackItem, PickPackItemDto>()
-            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : string.Empty))
-            .ForMember(dest => dest.ProductSKU, opt => opt.MapFrom(src => src.Product != null ? src.Product.SKU : string.Empty));
+            .ConstructUsing(src => new PickPackItemDto(
+                src.Id,
+                src.OrderItemId,
+                src.ProductId,
+                src.Product != null ? src.Product.Name : string.Empty,
+                src.Product != null ? src.Product.SKU : string.Empty,
+                src.Quantity,
+                src.IsPicked,
+                src.IsPacked,
+                src.PickedAt,
+                src.PackedAt,
+                src.Location
+            ));
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // ShippingAddress mappings
-        CreateMap<ShippingAddress, ShippingAddressDto>();
+        CreateMap<ShippingAddress, ShippingAddressDto>()
+            .ConstructUsing(src => new ShippingAddressDto(
+                src.Id,
+                src.UserId,
+                src.Label,
+                src.FirstName,
+                src.LastName,
+                src.Phone,
+                src.AddressLine1,
+                src.AddressLine2,
+                src.City,
+                src.State,
+                src.PostalCode,
+                src.Country,
+                src.IsDefault,
+                src.IsActive,
+                src.Instructions,
+                src.CreatedAt
+            ));
         CreateMap<CreateShippingAddressDto, ShippingAddress>();
         CreateMap<UpdateShippingAddressDto, ShippingAddress>();
 

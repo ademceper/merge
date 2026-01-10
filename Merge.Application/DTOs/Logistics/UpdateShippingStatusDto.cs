@@ -2,9 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Logistics;
 
-public class UpdateShippingStatusDto
-{
+// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
+public record UpdateShippingStatusDto(
     [Required]
     [StringLength(50)]
-    public string Status { get; set; } = string.Empty;
-}
+    string Status
+);

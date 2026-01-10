@@ -4,22 +4,22 @@ namespace Merge.Application.DTOs.Logistics;
 
 /// <summary>
 /// Transfer Inventory DTO - BOLUM 4.1: Validation Attributes (ZORUNLU)
+/// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
 /// </summary>
-public class TransferInventoryDto
-{
+public record TransferInventoryDto(
     [Required(ErrorMessage = "Ürün ID zorunludur")]
-    public Guid ProductId { get; set; }
+    Guid ProductId,
 
     [Required(ErrorMessage = "Kaynak depo ID zorunludur")]
-    public Guid FromWarehouseId { get; set; }
+    Guid FromWarehouseId,
 
     [Required(ErrorMessage = "Hedef depo ID zorunludur")]
-    public Guid ToWarehouseId { get; set; }
+    Guid ToWarehouseId,
 
     [Required(ErrorMessage = "Miktar zorunludur")]
     [Range(1, int.MaxValue, ErrorMessage = "Transfer miktarı 1'den büyük olmalıdır.")]
-    public int Quantity { get; set; }
+    int Quantity,
 
     [StringLength(500, ErrorMessage = "Notlar en fazla 500 karakter olabilir.")]
-    public string? Notes { get; set; }
-}
+    string? Notes = null
+);

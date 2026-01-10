@@ -4,13 +4,18 @@ using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Common;
+using Merge.Domain.Common.DomainEvents;
 
 namespace Merge.Domain.Entities;
 
 /// <summary>
-/// Shipping aggregate root - Rich Domain Model implementation
+/// Shipping Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
+/// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class Shipping : BaseEntity
+public class Shipping : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OrderId { get; private set; }
@@ -75,6 +80,9 @@ public class Shipping : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
 
+        // ✅ BOLUM 1.5: Domain Events - ShippingCreatedEvent
+        shipping.AddDomainEvent(new ShippingCreatedEvent(shipping.Id, orderId, shippingProvider, shippingCost.Amount));
+
         return shipping;
     }
 
@@ -98,6 +106,7 @@ public class Shipping : BaseEntity
         if (!AllowedTransitions[Status].Contains(newStatus))
             throw new InvalidStateTransitionException(Status, newStatus);
 
+        var oldStatus = Status;
         Status = newStatus;
         UpdatedAt = DateTime.UtcNow;
 
@@ -106,6 +115,9 @@ public class Shipping : BaseEntity
             ShippedDate = DateTime.UtcNow;
         else if (newStatus == ShippingStatus.Delivered)
             DeliveredDate = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ShippingStatusChangedEvent
+        AddDomainEvent(new ShippingStatusChangedEvent(Id, OrderId, oldStatus, newStatus));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Convenience methods for common transitions

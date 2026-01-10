@@ -1,8 +1,8 @@
 namespace Merge.Application.DTOs.Logistics;
 
-public class PickPackItemStatusDto
-{
-    public bool IsPicked { get; set; }
-    public bool IsPacked { get; set; }
-    public string? Location { get; set; }
-}
+// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
+public record PickPackItemStatusDto(
+    bool IsPicked,
+    bool IsPacked,
+    string? Location = null
+);

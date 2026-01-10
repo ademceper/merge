@@ -2,19 +2,18 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Logistics;
 
-public class UpdateDeliveryTimeEstimationDto
-{
+// ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
+public record UpdateDeliveryTimeEstimationDto(
     [Range(0, int.MaxValue, ErrorMessage = "Minimum gün 0 veya daha büyük olmalıdır.")]
-    public int? MinDays { get; set; }
+    int? MinDays = null,
     
     [Range(0, int.MaxValue, ErrorMessage = "Maksimum gün 0 veya daha büyük olmalıdır.")]
-    public int? MaxDays { get; set; }
+    int? MaxDays = null,
     
     [Range(0, int.MaxValue, ErrorMessage = "Ortalama gün 0 veya daha büyük olmalıdır.")]
-    public int? AverageDays { get; set; }
+    int? AverageDays = null,
     
-    public bool? IsActive { get; set; }
+    bool? IsActive = null,
     
-    /// Typed DTO (Over-posting korumasi)
-    public DeliveryTimeSettingsDto? Conditions { get; set; }
-}
+    DeliveryTimeSettingsDto? Conditions = null // Typed DTO (Over-posting korumasi)
+);
