@@ -1,9 +1,10 @@
 namespace Merge.Application.DTOs.Marketing;
 
-public class ReviewMediaDto
-{
-    public Guid Id { get; set; }
-    public string MediaType { get; set; } = string.Empty;
-    public string Url { get; set; } = string.Empty;
-    public string ThumbnailUrl { get; set; } = string.Empty;
-}
+/// <summary>
+/// Review Media DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
+/// </summary>
+public record ReviewMediaDto(
+    Guid Id,
+    string MediaType,
+    string Url,
+    string ThumbnailUrl);

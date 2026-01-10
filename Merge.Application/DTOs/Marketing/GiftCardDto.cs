@@ -1,18 +1,21 @@
 namespace Merge.Application.DTOs.Marketing;
 
-public class GiftCardDto
+/// <summary>
+/// Gift Card DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
+/// </summary>
+public record GiftCardDto(
+    Guid Id,
+    string Code,
+    decimal Amount,
+    decimal RemainingAmount,
+    Guid? PurchasedByUserId,
+    Guid? AssignedToUserId,
+    string? Message,
+    DateTime ExpiresAt,
+    bool IsActive,
+    bool IsRedeemed,
+    DateTime? RedeemedAt)
 {
-    public Guid Id { get; set; }
-    public string Code { get; set; } = string.Empty;
-    public decimal Amount { get; set; }
-    public decimal RemainingAmount { get; set; }
-    public Guid? PurchasedByUserId { get; set; }
-    public Guid? AssignedToUserId { get; set; }
-    public string? Message { get; set; }
-    public DateTime ExpiresAt { get; set; }
-    public bool IsActive { get; set; }
-    public bool IsRedeemed { get; set; }
-    public DateTime? RedeemedAt { get; set; }
     public bool IsExpired => DateTime.UtcNow > ExpiresAt;
     public bool IsValid => IsActive && !IsRedeemed && !IsExpired && RemainingAmount > 0;
 }

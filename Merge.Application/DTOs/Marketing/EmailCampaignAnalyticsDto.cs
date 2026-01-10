@@ -1,19 +1,20 @@
 namespace Merge.Application.DTOs.Marketing;
 
-public class EmailCampaignAnalyticsDto
-{
-    public Guid CampaignId { get; set; }
-    public string CampaignName { get; set; } = string.Empty;
-    public int TotalRecipients { get; set; }
-    public int SentCount { get; set; }
-    public int DeliveredCount { get; set; }
-    public int OpenedCount { get; set; }
-    public int ClickedCount { get; set; }
-    public int BouncedCount { get; set; }
-    public int UnsubscribedCount { get; set; }
-    public decimal OpenRate { get; set; }
-    public decimal ClickRate { get; set; }
-    public decimal BounceRate { get; set; }
-    public decimal UnsubscribeRate { get; set; }
-    public DateTime? SentAt { get; set; }
-}
+/// <summary>
+/// Email Campaign Analytics DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
+/// </summary>
+public record EmailCampaignAnalyticsDto(
+    Guid CampaignId,
+    string CampaignName,
+    int TotalRecipients,
+    int SentCount,
+    int DeliveredCount,
+    int OpenedCount,
+    int ClickedCount,
+    int BouncedCount,
+    int UnsubscribedCount,
+    decimal OpenRate,
+    decimal ClickRate,
+    decimal BounceRate,
+    decimal UnsubscribeRate,
+    DateTime? SentAt);

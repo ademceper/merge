@@ -3,13 +3,17 @@ using System.ComponentModel.DataAnnotations.Schema;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Common;
+using Merge.Domain.Common.DomainEvents;
 
 namespace Merge.Domain.Entities;
 
 /// <summary>
 /// Coupon aggregate root - Rich Domain Model implementation
+/// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
 /// </summary>
-public class Coupon : BaseEntity
+public class Coupon : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Code { get; private set; } = string.Empty;
@@ -166,6 +170,9 @@ public class Coupon : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
 
+        // ✅ BOLUM 1.5: Domain Events - CouponCreatedEvent
+        coupon.AddDomainEvent(new CouponCreatedEvent(coupon.Id, coupon.Code, coupon.DiscountAmount, coupon.DiscountPercentage));
+
         return coupon;
     }
 
@@ -184,6 +191,9 @@ public class Coupon : BaseEntity
 
         _usedCount++;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - CouponUsedEvent
+        AddDomainEvent(new CouponUsedEvent(Id, Code, _usedCount, _usageLimit));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Check if coupon is valid
@@ -247,6 +257,9 @@ public class Coupon : BaseEntity
 
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - CouponActivatedEvent
+        AddDomainEvent(new CouponActivatedEvent(Id, Code));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Deactivate coupon
@@ -257,6 +270,9 @@ public class Coupon : BaseEntity
 
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - CouponDeactivatedEvent
+        AddDomainEvent(new CouponDeactivatedEvent(Id, Code));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update code
@@ -340,6 +356,16 @@ public class Coupon : BaseEntity
 
         StartDate = startDate;
         EndDate = endDate;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
+    public void MarkAsDeleted()
+    {
+        if (IsDeleted) return;
+
+        IsDeleted = true;
+        IsActive = false;
         UpdatedAt = DateTime.UtcNow;
     }
 }

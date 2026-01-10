@@ -3,13 +3,17 @@ using System.ComponentModel.DataAnnotations.Schema;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Common;
+using Merge.Domain.Common.DomainEvents;
 
 namespace Merge.Domain.Entities;
 
 /// <summary>
 /// GiftCard aggregate root - Rich Domain Model implementation
+/// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
 /// </summary>
-public class GiftCard : BaseEntity
+public class GiftCard : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Code { get; private set; } = string.Empty;
@@ -95,6 +99,9 @@ public class GiftCard : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
 
+        // ✅ BOLUM 1.5: Domain Events - GiftCardCreatedEvent
+        giftCard.AddDomainEvent(new GiftCardCreatedEvent(giftCard.Id, giftCard.Code, giftCard.Amount, giftCard.PurchasedByUserId, giftCard.AssignedToUserId));
+
         return giftCard;
     }
 
@@ -125,6 +132,9 @@ public class GiftCard : BaseEntity
         }
 
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - GiftCardUsedEvent
+        AddDomainEvent(new GiftCardUsedEvent(Id, Code, amount.Amount, _remainingAmount));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Redeem gift card (full amount)
@@ -143,6 +153,9 @@ public class GiftCard : BaseEntity
         _remainingAmount = 0;
         RedeemedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - GiftCardRedeemedEvent
+        AddDomainEvent(new GiftCardRedeemedEvent(Id, Code, AssignedToUserId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Check if gift card is valid
@@ -165,6 +178,9 @@ public class GiftCard : BaseEntity
 
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - GiftCardActivatedEvent
+        AddDomainEvent(new GiftCardActivatedEvent(Id, Code));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Deactivate gift card
@@ -175,6 +191,9 @@ public class GiftCard : BaseEntity
 
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - GiftCardDeactivatedEvent
+        AddDomainEvent(new GiftCardDeactivatedEvent(Id, Code));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Assign to user

@@ -1,13 +1,14 @@
 namespace Merge.Application.DTOs.Marketing;
 
-public class ReferralCodeDto
-{
-    public Guid Id { get; set; }
-    public string Code { get; set; } = string.Empty;
-    public int UsageCount { get; set; }
-    public int MaxUsage { get; set; }
-    public DateTime? ExpiresAt { get; set; }
-    public bool IsActive { get; set; }
-    public int PointsReward { get; set; }
-    public decimal DiscountPercentage { get; set; }
-}
+/// <summary>
+/// Referral Code DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
+/// </summary>
+public record ReferralCodeDto(
+    Guid Id,
+    string Code,
+    int UsageCount,
+    int MaxUsage,
+    DateTime? ExpiresAt,
+    bool IsActive,
+    int PointsReward,
+    decimal DiscountPercentage);

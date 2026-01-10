@@ -30,11 +30,11 @@ public class OrderServiceTests
     private readonly Mock<IRepository<OrderEntity>> _orderRepositoryMock;
     private readonly Mock<IRepository<OrderItem>> _orderItemRepositoryMock;
     private readonly Mock<ICartService> _cartServiceMock;
-    private readonly Mock<ICouponService> _couponServiceMock;
     private readonly Mock<IDbContext> _dbContextMock;
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
     private readonly Mock<IMapper> _mapperMock;
     private readonly Mock<ILogger<OrderService>> _loggerMock;
+    private readonly Mock<MediatR.IMediator> _mediatorMock;
     private readonly IOptions<OrderSettings> _orderSettings;
     private readonly OrderService _orderService;
 
@@ -43,11 +43,11 @@ public class OrderServiceTests
         _orderRepositoryMock = new Mock<IRepository<OrderEntity>>();
         _orderItemRepositoryMock = new Mock<IRepository<OrderItem>>();
         _cartServiceMock = new Mock<ICartService>();
-        _couponServiceMock = new Mock<ICouponService>();
         _dbContextMock = new Mock<IDbContext>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
         _mapperMock = new Mock<IMapper>();
         _loggerMock = new Mock<ILogger<OrderService>>();
+        _mediatorMock = new Mock<MediatR.IMediator>();
         _orderSettings = Options.Create(new OrderSettings
         {
             FreeShippingThreshold = 500,
@@ -59,7 +59,7 @@ public class OrderServiceTests
             _orderRepositoryMock.Object,
             _orderItemRepositoryMock.Object,
             _cartServiceMock.Object,
-            _couponServiceMock.Object,
+            _mediatorMock.Object,
             _dbContextMock.Object,
             _unitOfWorkMock.Object,
             _mapperMock.Object,

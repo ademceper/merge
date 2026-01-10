@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MediatR;
 using CartEntity = Merge.Domain.Entities.Cart;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Cart;
-using Merge.Application.Interfaces.Marketing;
 using Merge.Application.Services.Notification;
 using Merge.Application.Exceptions;
 using Merge.Application.Common;
@@ -15,6 +15,7 @@ using Merge.Domain.Enums;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Merge.Application.DTOs.Cart;
 using Merge.Application.DTOs.Marketing;
+using Merge.Application.Marketing.Commands.CreateCoupon;
 using AutoMapper;
 
 
@@ -25,7 +26,7 @@ public class AbandonedCartService : IAbandonedCartService
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
-    private readonly ICouponService _couponService;
+    private readonly IMediator _mediator;
     private readonly IMapper _mapper;
     private readonly ILogger<AbandonedCartService> _logger;
     private readonly CartSettings _cartSettings;
@@ -34,7 +35,7 @@ public class AbandonedCartService : IAbandonedCartService
         IDbContext context,
         IUnitOfWork unitOfWork,
         IEmailService emailService,
-        ICouponService couponService,
+        IMediator mediator,
         IMapper mapper,
         ILogger<AbandonedCartService> logger,
         IOptions<CartSettings> cartSettings)
@@ -42,7 +43,7 @@ public class AbandonedCartService : IAbandonedCartService
         _context = context;
         _unitOfWork = unitOfWork;
         _emailService = emailService;
-        _couponService = couponService;
+        _mediator = mediator;
         _mapper = mapper;
         _logger = logger;
         _cartSettings = cartSettings.Value;
@@ -425,20 +426,38 @@ public class AbandonedCartService : IAbandonedCartService
         {
             // ✅ BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
             var discount = couponDiscountPercentage ?? _cartSettings.DefaultAbandonedCartCouponDiscount;
-            var couponDto = new CouponDto
-            {
-                Code = $"RECOVER{DateTime.UtcNow.Ticks.ToString().Substring(8)}",
-                DiscountPercentage = discount,
-                MinimumPurchaseAmount = 0,
-                UsageLimit = 1,
-                IsActive = true,
-                StartDate = DateTime.UtcNow,
-                // ✅ BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
-                EndDate = DateTime.UtcNow.AddDays(_cartSettings.AbandonedCartCouponValidityDays),
-                Description = $"{discount}% off for completing your purchase"
-            };
+            var couponDto = new CouponDto(
+                Id: Guid.Empty,
+                Code: $"RECOVER{DateTime.UtcNow.Ticks.ToString().Substring(8)}",
+                Description: $"{discount}% off for completing your purchase",
+                DiscountAmount: 0,
+                DiscountPercentage: discount,
+                MinimumPurchaseAmount: 0,
+                MaximumDiscountAmount: null,
+                StartDate: DateTime.UtcNow,
+                EndDate: DateTime.UtcNow.AddDays(_cartSettings.AbandonedCartCouponValidityDays),
+                UsageLimit: 1,
+                UsedCount: 0,
+                IsActive: true,
+                IsForNewUsersOnly: false,
+                ApplicableCategoryIds: null,
+                ApplicableProductIds: null);
 
-            var createdCoupon = await _couponService.CreateAsync(couponDto);
+            // ✅ ARCHITECTURE: MediatR kullan (service layer YASAK)
+            var createdCoupon = await _mediator.Send(new CreateCouponCommand(
+                Code: couponDto.Code,
+                Description: couponDto.Description ?? string.Empty,
+                DiscountAmount: null,
+                DiscountPercentage: couponDto.DiscountPercentage,
+                StartDate: couponDto.StartDate,
+                EndDate: couponDto.EndDate,
+                UsageLimit: couponDto.UsageLimit,
+                MinimumPurchaseAmount: couponDto.MinimumPurchaseAmount,
+                MaximumDiscountAmount: couponDto.MaximumDiscountAmount,
+                IsForNewUsersOnly: false,
+                ApplicableCategoryIds: null,
+                ApplicableProductIds: null
+            ), cancellationToken);
             couponId = createdCoupon.Id;
             couponCode = createdCoupon.Code;
         }

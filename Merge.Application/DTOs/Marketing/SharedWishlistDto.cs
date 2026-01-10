@@ -1,13 +1,14 @@
 namespace Merge.Application.DTOs.Marketing;
 
-public class SharedWishlistDto
-{
-    public Guid Id { get; set; }
-    public string ShareCode { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public bool IsPublic { get; set; }
-    public int ViewCount { get; set; }
-    public int ItemCount { get; set; }
-    public List<SharedWishlistItemDto> Items { get; set; } = new();
-}
+/// <summary>
+/// Shared Wishlist DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
+/// </summary>
+public record SharedWishlistDto(
+    Guid Id,
+    string ShareCode,
+    string Name,
+    string Description,
+    bool IsPublic,
+    int ViewCount,
+    int ItemCount,
+    List<SharedWishlistItemDto> Items);

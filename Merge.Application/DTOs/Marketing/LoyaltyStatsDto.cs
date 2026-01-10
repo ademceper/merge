@@ -1,10 +1,11 @@
 namespace Merge.Application.DTOs.Marketing;
 
-public class LoyaltyStatsDto
-{
-    public int TotalMembers { get; set; }
-    public long TotalPointsIssued { get; set; }
-    public long TotalPointsRedeemed { get; set; }
-    public Dictionary<string, int> MembersByTier { get; set; } = new();
-    public decimal AveragePointsPerMember { get; set; }
-}
+/// <summary>
+/// Loyalty Stats DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
+/// </summary>
+public record LoyaltyStatsDto(
+    int TotalMembers,
+    long TotalPointsIssued,
+    long TotalPointsRedeemed,
+    Dictionary<string, int> MembersByTier,
+    decimal AveragePointsPerMember);

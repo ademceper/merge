@@ -1,16 +1,17 @@
 namespace Merge.Application.DTOs.Marketing;
 
-public class FlashSaleProductDto
-{
-    public Guid Id { get; set; }
-    public Guid ProductId { get; set; }
-    public string ProductName { get; set; } = string.Empty;
-    public string ProductImageUrl { get; set; } = string.Empty;
-    public decimal OriginalPrice { get; set; }
-    public decimal SalePrice { get; set; }
-    public int StockLimit { get; set; }
-    public int SoldQuantity { get; set; }
-    public int AvailableQuantity { get; set; }
-    public decimal DiscountPercentage { get; set; }
-    public int SortOrder { get; set; }
-}
+/// <summary>
+/// Flash Sale Product DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
+/// </summary>
+public record FlashSaleProductDto(
+    Guid Id,
+    Guid ProductId,
+    string ProductName,
+    string ProductImageUrl,
+    decimal OriginalPrice,
+    decimal SalePrice,
+    int StockLimit,
+    int SoldQuantity,
+    int AvailableQuantity,
+    decimal DiscountPercentage,
+    int SortOrder);

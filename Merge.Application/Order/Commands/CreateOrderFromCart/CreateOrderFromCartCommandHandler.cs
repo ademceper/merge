@@ -6,9 +6,10 @@ using AutoMapper;
 using Merge.Application.DTOs.Order;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Cart;
-using Merge.Application.Interfaces.Marketing;
 using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
+using Merge.Application.Marketing.Commands.ValidateCoupon;
+using Merge.Application.Marketing.Queries.GetCouponByCode;
 using Merge.Domain.Entities;
 using Merge.Domain.ValueObjects;
 using OrderEntity = Merge.Domain.Entities.Order;
@@ -23,7 +24,7 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICartService _cartService;
-    private readonly ICouponService _couponService;
+    private readonly IMediator _mediator;
     private readonly IMapper _mapper;
     private readonly ILogger<CreateOrderFromCartCommandHandler> _logger;
     private readonly OrderSettings _orderSettings;
@@ -32,7 +33,7 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICartService cartService,
-        ICouponService couponService,
+        IMediator mediator,
         IMapper mapper,
         ILogger<CreateOrderFromCartCommandHandler> logger,
         IOptions<OrderSettings> orderSettings)
@@ -40,7 +41,7 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
         _context = context;
         _unitOfWork = unitOfWork;
         _cartService = cartService;
-        _couponService = couponService;
+        _mediator = mediator;
         _mapper = mapper;
         _logger = logger;
         _orderSettings = orderSettings.Value;
@@ -146,11 +147,22 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
         try
         {
             var productIds = cart.CartItems.Select(ci => ci.ProductId).ToList();
-            var couponDiscount = await _couponService.CalculateDiscountAsync(couponCode, order.SubTotal, userId, productIds);
+            
+            // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+            var validateCommand = new ValidateCouponCommand(
+                couponCode,
+                order.SubTotal,
+                userId,
+                productIds);
+            
+            var couponDiscount = await _mediator.Send(validateCommand, cancellationToken);
 
             if (couponDiscount > 0)
             {
-                var couponDto = await _couponService.GetByCodeAsync(couponCode, cancellationToken);
+                // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+                var getCouponQuery = new GetCouponByCodeQuery(couponCode);
+                var couponDto = await _mediator.Send(getCouponQuery, cancellationToken);
+                
                 if (couponDto != null)
                 {
                     var coupon = await _context.Set<Coupon>()
@@ -173,7 +185,10 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
 
     private async Task RecordCouponUsageAsync(OrderEntity order, Guid userId, string couponCode, CancellationToken cancellationToken)
     {
-        var couponDto = await _couponService.GetByCodeAsync(couponCode, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var getCouponQuery = new GetCouponByCodeQuery(couponCode);
+        var couponDto = await _mediator.Send(getCouponQuery, cancellationToken);
+        
         if (couponDto != null)
         {
             var couponUsage = new CouponUsage

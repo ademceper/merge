@@ -1,0 +1,69 @@
+using MediatR;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Merge.Application.DTOs.Marketing;
+using Merge.Application.Interfaces;
+using Merge.Application.Exceptions;
+using Merge.Domain.Entities;
+
+namespace Merge.Application.Marketing.Commands.CreateFlashSale;
+
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+public class CreateFlashSaleCommandHandler : IRequestHandler<CreateFlashSaleCommand, FlashSaleDto>
+{
+    private readonly IDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
+    private readonly ILogger<CreateFlashSaleCommandHandler> _logger;
+
+    public CreateFlashSaleCommandHandler(
+        IDbContext context,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        ILogger<CreateFlashSaleCommandHandler> logger)
+    {
+        _context = context;
+        _unitOfWork = unitOfWork;
+        _mapper = mapper;
+        _logger = logger;
+    }
+
+    public async Task<FlashSaleDto> Handle(CreateFlashSaleCommand request, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Creating flash sale. Title: {Title}", request.Title);
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var flashSale = FlashSale.Create(
+            request.Title,
+            request.Description,
+            request.StartDate,
+            request.EndDate,
+            request.BannerImageUrl);
+
+        await _context.Set<FlashSale>().AddAsync(flashSale, cancellationToken);
+        
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
+        // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery ile tek query'de getir (N+1 query önleme)
+        var createdFlashSale = await _context.Set<FlashSale>()
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Include(fs => fs.FlashSaleProducts)
+                .ThenInclude(fsp => fsp.Product)
+            .FirstOrDefaultAsync(fs => fs.Id == flashSale.Id, cancellationToken);
+
+        if (createdFlashSale == null)
+        {
+            _logger.LogWarning("FlashSale not found after creation. FlashSaleId: {FlashSaleId}", flashSale.Id);
+            throw new NotFoundException("Flash Sale", flashSale.Id);
+        }
+
+        _logger.LogInformation("FlashSale created successfully. FlashSaleId: {FlashSaleId}, Title: {Title}", flashSale.Id, request.Title);
+
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return _mapper.Map<FlashSaleDto>(createdFlashSale);
+    }
+}

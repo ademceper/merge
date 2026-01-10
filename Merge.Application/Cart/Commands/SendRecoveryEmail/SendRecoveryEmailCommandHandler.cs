@@ -3,11 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces;
-using Merge.Application.Interfaces.Marketing;
 using Merge.Application.Services.Notification;
 using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
-using Merge.Application.DTOs.Marketing;
+using Merge.Application.Marketing.Commands.CreateCoupon;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 
@@ -20,7 +19,7 @@ public class SendRecoveryEmailCommandHandler : IRequestHandler<SendRecoveryEmail
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
-    private readonly ICouponService _couponService;
+    private readonly IMediator _mediator;
     private readonly ILogger<SendRecoveryEmailCommandHandler> _logger;
     private readonly CartSettings _cartSettings;
 
@@ -28,14 +27,14 @@ public class SendRecoveryEmailCommandHandler : IRequestHandler<SendRecoveryEmail
         IDbContext context,
         IUnitOfWork unitOfWork,
         IEmailService emailService,
-        ICouponService couponService,
+        IMediator mediator,
         ILogger<SendRecoveryEmailCommandHandler> logger,
         IOptions<CartSettings> cartSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _emailService = emailService;
-        _couponService = couponService;
+        _mediator = mediator;
         _logger = logger;
         _cartSettings = cartSettings.Value;
     }
@@ -67,20 +66,23 @@ public class SendRecoveryEmailCommandHandler : IRequestHandler<SendRecoveryEmail
         {
             // ✅ BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
             var discount = request.CouponDiscountPercentage ?? _cartSettings.DefaultAbandonedCartCouponDiscount;
-            var couponDto = new CouponDto
-            {
-                Code = $"RECOVER{DateTime.UtcNow.Ticks.ToString().Substring(8)}",
-                DiscountPercentage = discount,
-                MinimumPurchaseAmount = 0,
-                UsageLimit = 1,
-                IsActive = true,
-                StartDate = DateTime.UtcNow,
-                // ✅ BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
-                EndDate = DateTime.UtcNow.AddDays(_cartSettings.AbandonedCartCouponValidityDays),
-                Description = $"{discount}% off for completing your purchase"
-            };
+            
+            // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+            var createCouponCommand = new CreateCouponCommand(
+                Code: $"RECOVER{DateTime.UtcNow.Ticks.ToString().Substring(8)}",
+                Description: $"{discount}% off for completing your purchase",
+                DiscountAmount: null,
+                DiscountPercentage: discount,
+                StartDate: DateTime.UtcNow,
+                EndDate: DateTime.UtcNow.AddDays(_cartSettings.AbandonedCartCouponValidityDays),
+                UsageLimit: 1,
+                MinimumPurchaseAmount: 0,
+                MaximumDiscountAmount: null,
+                IsForNewUsersOnly: false,
+                ApplicableCategoryIds: null,
+                ApplicableProductIds: null);
 
-            var createdCoupon = await _couponService.CreateAsync(couponDto, cancellationToken);
+            var createdCoupon = await _mediator.Send(createCouponCommand, cancellationToken);
             couponId = createdCoupon.Id;
             couponCode = createdCoupon.Code;
         }

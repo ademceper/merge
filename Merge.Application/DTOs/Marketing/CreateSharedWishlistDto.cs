@@ -2,16 +2,19 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Marketing;
 
-public class CreateSharedWishlistDto
+/// <summary>
+/// Create Shared Wishlist DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
+/// </summary>
+public record CreateSharedWishlistDto
 {
     [Required]
     [StringLength(200, MinimumLength = 2, ErrorMessage = "İsim en az 2, en fazla 200 karakter olmalıdır.")]
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
     
     [StringLength(2000)]
-    public string Description { get; set; } = string.Empty;
+    public string Description { get; init; } = string.Empty;
     
-    public bool IsPublic { get; set; } = false;
+    public bool IsPublic { get; init; } = false;
     
-    public List<Guid> ProductIds { get; set; } = new();
+    public List<Guid> ProductIds { get; init; } = new();
 }

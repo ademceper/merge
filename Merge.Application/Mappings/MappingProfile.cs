@@ -1130,24 +1130,36 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.CampaignName, opt => opt.MapFrom(src => src.Name));
 
         CreateMap<EmailTemplate, EmailTemplateDto>()
-            .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.Type.ToString()))
-            .AfterMap((src, dest) =>
-            {
-                // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
-                dest.Variables = !string.IsNullOrEmpty(src.Variables)
-                    ? JsonSerializer.Deserialize<List<string>>(src.Variables) ?? new()
-                    : new();
-            });
+            .ConvertUsing(src => new EmailTemplateDto(
+                src.Id,
+                src.Name,
+                src.Description,
+                src.Subject,
+                src.HtmlContent,
+                src.Type.ToString(),
+                src.IsActive,
+                src.Thumbnail,
+                !string.IsNullOrEmpty(src.Variables)
+                    ? JsonSerializer.Deserialize<List<string>>(src.Variables, (JsonSerializerOptions?)null) ?? new List<string>()
+                    : new List<string>()));
         CreateMap<CreateEmailTemplateDto, EmailTemplate>();
 
         CreateMap<EmailSubscriber, EmailSubscriberDto>()
-            .AfterMap((src, dest) =>
-            {
-                // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
-                dest.Tags = !string.IsNullOrEmpty(src.Tags)
-                    ? JsonSerializer.Deserialize<List<string>>(src.Tags) ?? new()
-                    : new();
-            });
+            .ConvertUsing(src => new EmailSubscriberDto(
+                src.Id,
+                src.Email,
+                src.FirstName,
+                src.LastName,
+                src.IsSubscribed,
+                src.SubscribedAt,
+                src.UnsubscribedAt,
+                src.Source,
+                src.EmailsSent,
+                src.EmailsOpened,
+                src.EmailsClicked,
+                !string.IsNullOrEmpty(src.Tags)
+                    ? JsonSerializer.Deserialize<List<string>>(src.Tags, (JsonSerializerOptions?)null) ?? new List<string>()
+                    : new List<string>()));
         CreateMap<CreateEmailSubscriberDto, EmailSubscriber>();
 
         CreateMap<EmailAutomation, EmailAutomationDto>()

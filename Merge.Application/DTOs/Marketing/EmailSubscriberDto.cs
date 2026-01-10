@@ -1,17 +1,18 @@
 namespace Merge.Application.DTOs.Marketing;
 
-public class EmailSubscriberDto
-{
-    public Guid Id { get; set; }
-    public string Email { get; set; } = string.Empty;
-    public string? FirstName { get; set; }
-    public string? LastName { get; set; }
-    public bool IsSubscribed { get; set; }
-    public DateTime SubscribedAt { get; set; }
-    public DateTime? UnsubscribedAt { get; set; }
-    public string? Source { get; set; }
-    public int EmailsSent { get; set; }
-    public int EmailsOpened { get; set; }
-    public int EmailsClicked { get; set; }
-    public List<string> Tags { get; set; } = new();
-}
+/// <summary>
+/// Email Subscriber DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
+/// </summary>
+public record EmailSubscriberDto(
+    Guid Id,
+    string Email,
+    string? FirstName,
+    string? LastName,
+    bool IsSubscribed,
+    DateTime SubscribedAt,
+    DateTime? UnsubscribedAt,
+    string? Source,
+    int EmailsSent,
+    int EmailsOpened,
+    int EmailsClicked,
+    List<string> Tags);

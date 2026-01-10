@@ -27,7 +27,7 @@ public class GetAllCouponsQueryHandler : IRequestHandler<GetAllCouponsQuery, Pag
 
         var totalCount = await query.CountAsync(cancellationToken);
         var coupons = await query
-            .Skip((request.Page - 1) * request.PageSize)
+            .Skip((request.PageNumber - 1) * request.PageSize)
             .Take(request.PageSize)
             .ToListAsync(cancellationToken);
 
@@ -35,7 +35,7 @@ public class GetAllCouponsQueryHandler : IRequestHandler<GetAllCouponsQuery, Pag
         {
             Items = _mapper.Map<List<CouponDto>>(coupons),
             TotalCount = totalCount,
-            Page = request.Page,
+            Page = request.PageNumber,
             PageSize = request.PageSize
         };
     }

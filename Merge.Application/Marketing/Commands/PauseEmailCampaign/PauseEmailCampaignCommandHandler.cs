@@ -1,0 +1,52 @@
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Merge.Application.Interfaces;
+using Merge.Application.Exceptions;
+using Merge.Domain.Entities;
+
+namespace Merge.Application.Marketing.Commands.PauseEmailCampaign;
+
+public class PauseEmailCampaignCommandHandler : IRequestHandler<PauseEmailCampaignCommand, bool>
+{
+    private readonly IDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<PauseEmailCampaignCommandHandler> _logger;
+
+    public PauseEmailCampaignCommandHandler(
+        IDbContext context,
+        IUnitOfWork unitOfWork,
+        ILogger<PauseEmailCampaignCommandHandler> logger)
+    {
+        _context = context;
+        _unitOfWork = unitOfWork;
+        _logger = logger;
+    }
+
+    public async Task<bool> Handle(PauseEmailCampaignCommand request, CancellationToken cancellationToken)
+    {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation("Pausing email campaign. CampaignId: {CampaignId}", request.Id);
+
+        // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
+        var campaign = await _context.Set<EmailCampaign>()
+            .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
+
+        if (campaign == null)
+        {
+            _logger.LogWarning("Email campaign not found. CampaignId: {CampaignId}", request.Id);
+            return false;
+        }
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+        campaign.Pause();
+
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation("Email campaign paused successfully. CampaignId: {CampaignId}", request.Id);
+
+        return true;
+    }
+}

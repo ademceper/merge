@@ -1,4 +1,5 @@
 using AutoMapper;
+using MediatR;
 using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces.User;
 using OrderEntity = Merge.Domain.Entities.Order;
@@ -11,7 +12,6 @@ using Merge.Application.Interfaces;
 using Merge.Application.Services;
 using CartEntity = Merge.Domain.Entities.Cart;
 using Merge.Application.Interfaces.Cart;
-using Merge.Application.Interfaces.Marketing;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.DTOs.Order;
@@ -19,6 +19,8 @@ using Merge.Application.Common;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
+using Merge.Application.Marketing.Commands.ValidateCoupon;
+using Merge.Application.Marketing.Queries.GetCouponByCode;
 
 
 namespace Merge.Application.Services.Order;
@@ -28,7 +30,7 @@ public class OrderService : IOrderService
     private readonly IRepository<OrderEntity> _orderRepository;
     private readonly IRepository<OrderItem> _orderItemRepository;
     private readonly ICartService _cartService;
-    private readonly ICouponService _couponService;
+    private readonly IMediator _mediator;
     private readonly IEmailService? _emailService;
     private readonly ISmsService? _smsService;
     private readonly INotificationService? _notificationService;
@@ -42,7 +44,7 @@ public class OrderService : IOrderService
         IRepository<OrderEntity> orderRepository,
         IRepository<OrderItem> orderItemRepository,
         ICartService cartService,
-        ICouponService couponService,
+        IMediator mediator,
         IDbContext context, // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)
         IUnitOfWork unitOfWork,
         IMapper mapper,
@@ -55,7 +57,7 @@ public class OrderService : IOrderService
         _orderRepository = orderRepository;
         _orderItemRepository = orderItemRepository;
         _cartService = cartService;
-        _couponService = couponService;
+        _mediator = mediator;
         _emailService = emailService;
         _smsService = smsService;
         _notificationService = notificationService;
@@ -190,12 +192,19 @@ public class OrderService : IOrderService
                 try
                 {
                     var productIds = cart.CartItems.Select(ci => ci.ProductId).ToList();
-                    var couponDiscount = await _couponService.CalculateDiscountAsync(couponCode, order.SubTotal, userId, productIds);
+                    // ✅ ARCHITECTURE: MediatR kullan (service layer YASAK)
+                    var couponDiscount = await _mediator.Send(new ValidateCouponCommand(
+                        Code: couponCode,
+                        OrderAmount: order.SubTotal,
+                        UserId: userId,
+                        ProductIds: productIds
+                    ), cancellationToken);
                     
                     if (couponDiscount > 0)
                     {
                         // ✅ BOLUM 1.1: Rich Domain Model - Coupon entity gerekiyor
-                        var couponDto = await _couponService.GetByCodeAsync(couponCode, cancellationToken);
+                        // ✅ ARCHITECTURE: MediatR kullan (service layer YASAK)
+                        var couponDto = await _mediator.Send(new GetCouponByCodeQuery(couponCode), cancellationToken);
                         if (couponDto != null)
                         {
                             // ✅ PERFORMANCE: AsNoTracking for read-only query (check için)
@@ -224,7 +233,8 @@ public class OrderService : IOrderService
             // Kupon kullanımını kaydet
             if (!string.IsNullOrEmpty(couponCode) && order.CouponDiscount.HasValue && order.CouponDiscount.Value > 0)
             {
-                var couponDto = await _couponService.GetByCodeAsync(couponCode, cancellationToken);
+                // ✅ ARCHITECTURE: MediatR kullan (service layer YASAK)
+                var couponDto = await _mediator.Send(new GetCouponByCodeQuery(couponCode), cancellationToken);
                 if (couponDto != null)
                 {
                     var couponUsage = new CouponUsage

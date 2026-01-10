@@ -58,5 +58,11 @@ public static class Guard
         if (value.CompareTo(min) < 0 || value.CompareTo(max) > 0)
             throw new ArgumentOutOfRangeException(parameterName, $"{parameterName} must be between {min} and {max}");
     }
+
+    public static void AgainstLength(string? value, int maxLength, string parameterName)
+    {
+        if (value != null && value.Length > maxLength)
+            throw new ArgumentException($"{parameterName} cannot exceed {maxLength} characters", parameterName);
+    }
 }
 

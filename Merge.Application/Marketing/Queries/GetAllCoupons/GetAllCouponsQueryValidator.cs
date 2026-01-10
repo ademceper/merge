@@ -6,7 +6,7 @@ public class GetAllCouponsQueryValidator : AbstractValidator<GetAllCouponsQuery>
 {
     public GetAllCouponsQueryValidator()
     {
-        RuleFor(x => x.Page)
+        RuleFor(x => x.PageNumber)
             .GreaterThan(0)
             .WithMessage("Sayfa numarası 0'dan büyük olmalıdır.");
 

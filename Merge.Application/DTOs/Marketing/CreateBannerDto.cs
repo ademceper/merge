@@ -2,35 +2,38 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Marketing;
 
-public class CreateBannerDto
+/// <summary>
+/// Create Banner DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
+/// </summary>
+public record CreateBannerDto
 {
     [Required]
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Başlık en az 2, en fazla 200 karakter olmalıdır.")]
-    public string Title { get; set; } = string.Empty;
+    public string Title { get; init; } = string.Empty;
     
     [StringLength(1000)]
-    public string? Description { get; set; }
+    public string? Description { get; init; }
     
     [Required]
     [StringLength(500)]
     [Url(ErrorMessage = "Geçerli bir URL giriniz.")]
-    public string ImageUrl { get; set; } = string.Empty;
+    public string ImageUrl { get; init; } = string.Empty;
     
     [StringLength(500)]
     [Url(ErrorMessage = "Geçerli bir URL giriniz.")]
-    public string? LinkUrl { get; set; }
+    public string? LinkUrl { get; init; }
     
     [StringLength(50)]
-    public string Position { get; set; } = "Homepage";
+    public string Position { get; init; } = "Homepage";
     
     [Range(0, int.MaxValue)]
-    public int SortOrder { get; set; } = 0;
+    public int SortOrder { get; init; } = 0;
     
-    public DateTime? StartDate { get; set; }
+    public DateTime? StartDate { get; init; }
     
-    public DateTime? EndDate { get; set; }
+    public DateTime? EndDate { get; init; }
     
-    public Guid? CategoryId { get; set; }
+    public Guid? CategoryId { get; init; }
     
-    public Guid? ProductId { get; set; }
+    public Guid? ProductId { get; init; }
 }

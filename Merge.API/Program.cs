@@ -78,6 +78,8 @@ builder.Services.Configure<Merge.Application.Configuration.LoyaltySettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.LoyaltySettings.SectionName));
 builder.Services.Configure<Merge.Application.Configuration.ReferralSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.ReferralSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.MarketingSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.MarketingSettings.SectionName));
 builder.Services.Configure<Merge.Application.Configuration.B2BSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.B2BSettings.SectionName));
 builder.Services.Configure<Merge.Application.Configuration.AnalyticsSettings>(
@@ -316,7 +318,8 @@ builder.Services.AddScoped<IProductService, Merge.Application.Services.Product.P
 builder.Services.AddScoped<ICategoryService, Merge.Application.Services.Catalog.CategoryService>();
 builder.Services.AddScoped<IOrderService, Merge.Application.Services.Order.OrderService>();
 builder.Services.AddScoped<IOrderSplitService, Merge.Application.Services.Order.OrderSplitService>();
-builder.Services.AddScoped<ICouponService, Merge.Application.Services.Marketing.CouponService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<ICouponService, Merge.Application.Services.Marketing.CouponService>();
 builder.Services.AddScoped<INotificationService, Merge.Application.Services.Notification.NotificationService>();
 builder.Services.AddScoped<INotificationTemplateService, Merge.Application.Services.Notification.NotificationTemplateService>();
 builder.Services.AddScoped<ITrustBadgeService, Merge.Application.Services.Review.TrustBadgeService>();
@@ -331,7 +334,8 @@ builder.Services.AddScoped<IAddressService, Merge.Application.Services.User.Addr
 builder.Services.AddScoped<IProductSearchService, Merge.Application.Services.Search.ProductSearchService>();
 builder.Services.AddScoped<Merge.Application.Services.Notification.IEmailService, Merge.Application.Services.Notification.EmailService>();
 builder.Services.AddScoped<Merge.Application.Services.Notification.ISmsService, Merge.Application.Services.Notification.SmsService>();
-builder.Services.AddScoped<IFlashSaleService, Merge.Application.Services.Marketing.FlashSaleService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<IFlashSaleService, Merge.Application.Services.Marketing.FlashSaleService>();
 builder.Services.AddScoped<IProductBundleService, Merge.Application.Services.Product.ProductBundleService>();
 builder.Services.AddScoped<IInvoiceService, Merge.Application.Services.Payment.InvoiceService>();
 builder.Services.AddScoped<ISellerDashboardService, Merge.Application.Services.Seller.SellerDashboardService>();
@@ -340,7 +344,8 @@ builder.Services.AddScoped<IEmailVerificationService, Merge.Application.Services
 builder.Services.AddScoped<ISavedCartService, Merge.Application.Services.Cart.SavedCartService>();
 builder.Services.AddScoped<IFaqService, Merge.Application.Services.Support.FaqService>();
 builder.Services.AddScoped<IBannerService, BannerService>();
-builder.Services.AddScoped<IGiftCardService, Merge.Application.Services.Marketing.GiftCardService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<IGiftCardService, Merge.Application.Services.Marketing.GiftCardService>();
 builder.Services.AddScoped<IOrderFilterService, Merge.Application.Services.Order.OrderFilterService>();
 // ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
 // builder.Services.AddScoped<IWarehouseService, Merge.Application.Services.Logistics.WarehouseService>();
@@ -357,11 +362,13 @@ builder.Services.AddScoped<IAbandonedCartService, Merge.Application.Services.Car
 builder.Services.AddScoped<IUserActivityService, Merge.Application.Services.User.UserActivityService>();
 #pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
-builder.Services.AddScoped<ILoyaltyService, Merge.Application.Services.Marketing.LoyaltyService>();
-builder.Services.AddScoped<IReferralService, Merge.Application.Services.Marketing.ReferralService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<ILoyaltyService, Merge.Application.Services.Marketing.LoyaltyService>();
+// builder.Services.AddScoped<IReferralService, Merge.Application.Services.Marketing.ReferralService>();
 builder.Services.AddScoped<IReviewMediaService, Merge.Application.Services.Marketing.ReviewMediaService>();
 builder.Services.AddScoped<ISharedWishlistService, Merge.Application.Services.Marketing.SharedWishlistService>();
-builder.Services.AddScoped<IEmailCampaignService, Merge.Application.Services.Marketing.EmailCampaignService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<IEmailCampaignService, Merge.Application.Services.Marketing.EmailCampaignService>();
 // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
 builder.Services.Configure<Merge.Application.Configuration.AnalyticsSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.AnalyticsSettings.SectionName));

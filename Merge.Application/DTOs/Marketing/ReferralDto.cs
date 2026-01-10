@@ -1,11 +1,12 @@
 namespace Merge.Application.DTOs.Marketing;
 
-public class ReferralDto
-{
-    public Guid Id { get; set; }
-    public string ReferredUserEmail { get; set; } = string.Empty;
-    public string Status { get; set; } = string.Empty;
-    public DateTime CreatedAt { get; set; }
-    public DateTime? CompletedAt { get; set; }
-    public int PointsAwarded { get; set; }
-}
+/// <summary>
+/// Referral DTO - BOLUM 1.0: DTO Dosya Organizasyonu (ZORUNLU)
+/// </summary>
+public record ReferralDto(
+    Guid Id,
+    string ReferredUserEmail,
+    string Status,
+    DateTime CreatedAt,
+    DateTime? CompletedAt,
+    int PointsAwarded);
