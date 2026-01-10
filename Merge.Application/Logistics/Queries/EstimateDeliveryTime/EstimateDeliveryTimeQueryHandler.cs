@@ -110,26 +110,22 @@ public class EstimateDeliveryTimeQueryHandler : IRequestHandler<EstimateDelivery
         // If no estimation found, use default values
         if (estimation == null)
         {
-            return new DeliveryTimeEstimateResultDto
-            {
-                MinDays = 3,
-                MaxDays = 7,
-                AverageDays = 5,
-                EstimatedDeliveryDate = request.OrderDate.AddDays(5),
-                EstimationSource = "System Default"
-            };
+            return new DeliveryTimeEstimateResultDto(
+                MinDays: 3,
+                MaxDays: 7,
+                AverageDays: 5,
+                EstimatedDeliveryDate: request.OrderDate.AddDays(5),
+                EstimationSource: "System Default");
         }
 
         var estimatedDate = request.OrderDate.AddDays(estimation.AverageDays);
 
-        return new DeliveryTimeEstimateResultDto
-        {
-            MinDays = estimation.MinDays,
-            MaxDays = estimation.MaxDays,
-            AverageDays = estimation.AverageDays,
-            EstimatedDeliveryDate = estimatedDate,
-            EstimationSource = source ?? "Default"
-        };
+        return new DeliveryTimeEstimateResultDto(
+            MinDays: estimation.MinDays,
+            MaxDays: estimation.MaxDays,
+            AverageDays: estimation.AverageDays,
+            EstimatedDeliveryDate: estimatedDate,
+            EstimationSource: source ?? "Default");
     }
 }
 

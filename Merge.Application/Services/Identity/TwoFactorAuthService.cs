@@ -71,48 +71,52 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         var secret = GenerateTOTPSecret();
         var backupCodes = GenerateBackupCodes();
 
-        var twoFactorAuth = existing2FA ?? new TwoFactorAuth();
-        twoFactorAuth.UserId = userId;
-        twoFactorAuth.Method = setupDto.Method;
-        twoFactorAuth.Secret = secret;
-        twoFactorAuth.PhoneNumber = setupDto.PhoneNumber;
-        twoFactorAuth.Email = setupDto.Email ?? user.Email;
-        twoFactorAuth.IsEnabled = false;
-        twoFactorAuth.IsVerified = false;
-        twoFactorAuth.BackupCodes = backupCodes;
-
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         if (existing2FA == null)
         {
+            var twoFactorAuth = TwoFactorAuth.Create(
+                userId,
+                setupDto.Method,
+                secret,
+                setupDto.PhoneNumber,
+                setupDto.Email ?? user.Email,
+                backupCodes);
             await _twoFactorRepository.AddAsync(twoFactorAuth);
         }
         else
         {
-            await _twoFactorRepository.UpdateAsync(twoFactorAuth);
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            existing2FA.UpdateSetup(
+                setupDto.Method,
+                secret,
+                setupDto.PhoneNumber,
+                setupDto.Email ?? user.Email,
+                backupCodes);
+            await _twoFactorRepository.UpdateAsync(existing2FA);
         }
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var response = new TwoFactorSetupResponseDto
-        {
-            BackupCodes = backupCodes,
-            Message = "2FA setup initiated. Please verify with a code to enable."
-        };
-
+        // ✅ BOLUM 7.1.5: Records - Primary constructor kullanımı
         // For authenticator app method
         if (setupDto.Method == TwoFactorMethod.Authenticator)
         {
-            response.Secret = secret;
-            response.QrCodeUrl = GenerateQRCodeUrl(secret, user.Email ?? string.Empty);
+            return new TwoFactorSetupResponseDto(
+                Secret: secret,
+                QrCodeUrl: GenerateQRCodeUrl(secret, user.Email ?? string.Empty),
+                BackupCodes: backupCodes,
+                Message: "2FA setup initiated. Please verify with a code to enable.");
         }
         // For SMS/Email methods, send verification code
         else
         {
             await SendVerificationCodeAsync(userId, "Enable2FA", cancellationToken);
-            response.Message = $"Verification code sent via {setupDto.Method}. Please verify to enable 2FA.";
+            return new TwoFactorSetupResponseDto(
+                Secret: string.Empty,
+                QrCodeUrl: string.Empty,
+                BackupCodes: backupCodes,
+                Message: $"Verification code sent via {setupDto.Method}. Please verify to enable 2FA.");
         }
-
-        return response;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -153,8 +157,8 @@ public class TwoFactorAuthService : ITwoFactorAuthService
 
             if (code != null)
             {
-                code.IsUsed = true;
-                code.UsedAt = DateTime.UtcNow;
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+                code.MarkAsUsed();
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 isValid = true;
             }
@@ -165,8 +169,9 @@ public class TwoFactorAuthService : ITwoFactorAuthService
             throw new ValidationException("Geçersiz doğrulama kodu.");
         }
 
-        twoFactorAuth.IsEnabled = true;
-        twoFactorAuth.IsVerified = true;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        twoFactorAuth.Verify();
+        twoFactorAuth.Enable();
         await _twoFactorRepository.UpdateAsync(twoFactorAuth);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -195,7 +200,8 @@ public class TwoFactorAuthService : ITwoFactorAuthService
             throw new ValidationException("Geçersiz doğrulama kodu.");
         }
 
-        twoFactorAuth.IsEnabled = false;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        twoFactorAuth.Disable();
         await _twoFactorRepository.UpdateAsync(twoFactorAuth);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -213,22 +219,22 @@ public class TwoFactorAuthService : ITwoFactorAuthService
 
         if (twoFactorAuth == null)
         {
-            // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-            return new TwoFactorStatusDto
-            {
-                IsEnabled = false,
-                Method = TwoFactorMethod.None,
-                BackupCodesRemaining = 0
-            };
+            // ✅ BOLUM 7.1.5: Records - Primary constructor kullanımı
+            return new TwoFactorStatusDto(
+                IsEnabled: false,
+                Method: TwoFactorMethod.None,
+                PhoneNumber: null,
+                Email: null,
+                BackupCodesRemaining: 0);
         }
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var dto = _mapper.Map<TwoFactorStatusDto>(twoFactorAuth);
-        // ✅ PERFORMANCE: Memory'de minimal işlem (sadece property assignment)
-        dto.PhoneNumber = twoFactorAuth.PhoneNumber != null ? MaskPhoneNumber(twoFactorAuth.PhoneNumber) : null;
-        dto.Email = twoFactorAuth.Email != null ? MaskEmail(twoFactorAuth.Email) : null;
-        dto.BackupCodesRemaining = twoFactorAuth.BackupCodes?.Length ?? 0;
-        return dto;
+        // ✅ BOLUM 7.1.5: Records - Primary constructor kullanımı (immutable)
+        return new TwoFactorStatusDto(
+            IsEnabled: twoFactorAuth.IsEnabled,
+            Method: twoFactorAuth.Method,
+            PhoneNumber: twoFactorAuth.PhoneNumber != null ? MaskPhoneNumber(twoFactorAuth.PhoneNumber) : null,
+            Email: twoFactorAuth.Email != null ? MaskEmail(twoFactorAuth.Email) : null,
+            BackupCodesRemaining: twoFactorAuth.BackupCodes?.Length ?? 0);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -278,24 +284,17 @@ public class TwoFactorAuthService : ITwoFactorAuthService
 
         if (!isValid)
         {
-            twoFactorAuth.FailedAttempts++;
-            twoFactorAuth.LastAttemptAt = DateTime.UtcNow;
-
-            // Lock account after 5 failed attempts
-            if (twoFactorAuth.FailedAttempts >= 5)
-            {
-                twoFactorAuth.LockedUntil = DateTime.UtcNow.AddMinutes(15);
-            }
-
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            twoFactorAuth.RecordFailedAttempt(maxFailedAttempts: 5, lockoutMinutes: 15);
             await _twoFactorRepository.UpdateAsync(twoFactorAuth);
             // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             return false;
         }
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         // Reset failed attempts on successful verification
-        twoFactorAuth.FailedAttempts = 0;
-        twoFactorAuth.LastAttemptAt = DateTime.UtcNow;
+        twoFactorAuth.ResetFailedAttempts();
         await _twoFactorRepository.UpdateAsync(twoFactorAuth);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -318,14 +317,13 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         var code = GenerateNumericCode(6);
         var expiresAt = DateTime.UtcNow.AddMinutes(5);
 
-        var twoFactorCode = new TwoFactorCode
-        {
-            UserId = userId,
-            Code = code,
-            Method = twoFactorAuth.Method,
-            ExpiresAt = expiresAt,
-            Purpose = purpose
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var twoFactorCode = TwoFactorCode.Create(
+            userId,
+            code,
+            twoFactorAuth.Method,
+            expiresAt,
+            purpose);
 
         await _codeRepository.AddAsync(twoFactorCode);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
@@ -364,17 +362,16 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         }
 
         var backupCodes = GenerateBackupCodes();
-        twoFactorAuth.BackupCodes = backupCodes;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        twoFactorAuth.UpdateBackupCodes(backupCodes);
         await _twoFactorRepository.UpdateAsync(twoFactorAuth);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return new BackupCodesResponseDto
-        {
-            BackupCodes = backupCodes,
-            Message = "Backup codes regenerated successfully. Store them securely."
-        };
+        // ✅ BOLUM 7.1.5: Records - Primary constructor kullanımı
+        return new BackupCodesResponseDto(
+            BackupCodes: backupCodes,
+            Message: "Backup codes regenerated successfully. Store them securely.");
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)

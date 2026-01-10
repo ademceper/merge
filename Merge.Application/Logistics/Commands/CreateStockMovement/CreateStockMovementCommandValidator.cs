@@ -19,9 +19,11 @@ public class CreateStockMovementCommandValidator : AbstractValidator<CreateStock
 
         RuleFor(x => x.Quantity)
             .NotEqual(0).WithMessage("Miktar 0 olamaz.")
-            .GreaterThan(0).When(x => x.MovementType == StockMovementType.Receipt || x.MovementType == StockMovementType.TransferIn)
-            .WithMessage("Giriş hareketleri için miktar pozitif olmalıdır.")
-            .LessThan(0).When(x => x.MovementType == StockMovementType.Issue || x.MovementType == StockMovementType.TransferOut || x.MovementType == StockMovementType.Adjustment)
+            .GreaterThan(0).When(x => x.MovementType == StockMovementType.Receipt || x.MovementType == StockMovementType.Transfer)
+            .WithMessage("Giriş hareketleri için miktar pozitif olmalıdır.");
+        
+        RuleFor(x => x.Quantity)
+            .LessThan(0).When(x => x.MovementType == StockMovementType.Sale || x.MovementType == StockMovementType.Adjustment || x.MovementType == StockMovementType.Damage || x.MovementType == StockMovementType.Lost)
             .WithMessage("Çıkış hareketleri için miktar negatif olmalıdır.");
 
         RuleFor(x => x.ReferenceNumber)

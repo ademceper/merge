@@ -1,4 +1,5 @@
 using Merge.Domain.Common;
+using Merge.Domain.Enums;
 
 namespace Merge.Domain.Common.DomainEvents;
 

@@ -6,6 +6,7 @@ using Merge.Application.DTOs.Logistics;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using OrderEntity = Merge.Domain.Entities.Order;
 
 namespace Merge.Application.Logistics.Commands.UpdateShippingTracking;
 
@@ -49,7 +50,7 @@ public class UpdateShippingTrackingCommandHandler : IRequestHandler<UpdateShippi
         shipping.UpdateEstimatedDeliveryDate(DateTime.UtcNow.AddDays(3));
 
         // ✅ BOLUM 1.1: Rich Domain Model - Order status'unu güncelle
-        var order = await _context.Set<Order>()
+        var order = await _context.Set<OrderEntity>()
             .FirstOrDefaultAsync(o => o.Id == shipping.OrderId, cancellationToken);
 
         if (order != null)

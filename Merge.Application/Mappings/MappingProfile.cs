@@ -503,7 +503,7 @@ public class MappingProfile : Profile
                 src.AverageDays,
                 src.IsActive,
                 !string.IsNullOrEmpty(src.Conditions)
-                    ? JsonSerializer.Deserialize<DeliveryTimeSettingsDto>(src.Conditions!)
+                    ? JsonSerializer.Deserialize<DeliveryTimeSettingsDto>(src.Conditions!, (JsonSerializerOptions?)null)
                     : null,
                 src.CreatedAt
             ));
@@ -531,7 +531,19 @@ public class MappingProfile : Profile
                 src.Weight,
                 src.Dimensions,
                 src.PackageCount,
-                src.Items != null ? src.Items.Select(i => _mapper.Map<PickPackItemDto>(i)).ToList().AsReadOnly() : new List<PickPackItemDto>().AsReadOnly(),
+                src.Items != null ? src.Items.Select(i => new PickPackItemDto(
+                    i.Id,
+                    i.OrderItemId,
+                    i.ProductId,
+                    i.Product != null ? i.Product.Name : string.Empty,
+                    i.Product != null ? i.Product.SKU : string.Empty,
+                    i.Quantity,
+                    i.IsPicked,
+                    i.IsPacked,
+                    i.PickedAt,
+                    i.PackedAt,
+                    i.Location
+                )).ToList().AsReadOnly() : new List<PickPackItemDto>().AsReadOnly(),
                 src.CreatedAt
             ));
         CreateMap<CreatePickPackDto, PickPack>();
@@ -1063,7 +1075,21 @@ public class MappingProfile : Profile
                 src.IsActive,
                 src.Category,
                 src.Tags,
-                src.Products != null ? src.Products.Select(p => _mapper.Map<LiveStreamProductDto>(p)).ToList().AsReadOnly() : new List<LiveStreamProductDto>().AsReadOnly(),
+                src.Products != null ? src.Products.Select(p => new LiveStreamProductDto(
+                    p.Id,
+                    p.ProductId,
+                    p.Product != null ? p.Product.Name : string.Empty,
+                    p.Product != null ? p.Product.ImageUrl : null,
+                    p.Product != null ? p.Product.Price : null,
+                    p.SpecialPrice,
+                    p.DisplayOrder,
+                    p.IsHighlighted,
+                    p.ShowcasedAt,
+                    p.ViewCount,
+                    p.ClickCount,
+                    p.OrderCount,
+                    p.ShowcaseNotes
+                )).ToList().AsReadOnly() : new List<LiveStreamProductDto>().AsReadOnly(),
                 src.CreatedAt,
                 src.UpdatedAt));
 

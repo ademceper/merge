@@ -98,25 +98,24 @@ public class CreateInventoryCommandHandler : IRequestHandler<CreateInventoryComm
 
             await _context.Set<Inventory>().AddAsync(inventory, cancellationToken);
 
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             // Create initial stock movement
             if (request.Quantity > 0)
             {
-                // ⚠️ NOT: StockMovement entity anemic (factory method yok), object initializer kullanılıyor
-                var stockMovement = new StockMovement
-                {
-                    Id = Guid.NewGuid(),
-                    InventoryId = inventory.Id,
-                    ProductId = inventory.ProductId,
-                    WarehouseId = inventory.WarehouseId,
-                    MovementType = StockMovementType.Receipt,
-                    Quantity = request.Quantity,
-                    QuantityBefore = 0,
-                    QuantityAfter = request.Quantity,
-                    Notes = "Initial inventory creation",
-                    PerformedBy = request.PerformedBy,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
+                var stockMovement = StockMovement.Create(
+                    inventory.Id,
+                    inventory.ProductId,
+                    inventory.WarehouseId,
+                    StockMovementType.Receipt,
+                    request.Quantity,
+                    0, // quantityBefore
+                    request.Quantity, // quantityAfter
+                    request.PerformedBy,
+                    null, // referenceNumber
+                    null, // referenceId
+                    "Initial inventory creation",
+                    null, // fromWarehouseId
+                    null); // toWarehouseId
 
                 await _context.Set<StockMovement>().AddAsync(stockMovement, cancellationToken);
             }

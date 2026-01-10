@@ -55,13 +55,13 @@ public class GetTranslationStatsQueryHandler : IRequestHandler<GetTranslationSta
             .AsNoTracking()
             .Where(l => l.IsActive)
             .Select(l => new LanguageCoverageDto(
-                LanguageCode: l.Code,
-                LanguageName: l.Name,
-                ProductsTranslated: _context.Set<ProductTranslation>()
+                l.Code,
+                l.Name,
+                _context.Set<ProductTranslation>()
                     .AsNoTracking()
                     .Count(pt => pt.LanguageCode == l.Code),
-                TotalProducts: totalProducts,
-                CoveragePercentage: totalProducts > 0
+                totalProducts,
+                totalProducts > 0
                     ? (decimal)_context.Set<ProductTranslation>()
                         .AsNoTracking()
                         .Count(pt => pt.LanguageCode == l.Code) / totalProducts * 100

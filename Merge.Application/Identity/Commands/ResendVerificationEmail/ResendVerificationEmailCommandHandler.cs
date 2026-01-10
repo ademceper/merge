@@ -7,6 +7,7 @@ using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
+using Merge.Application.Services.Notification;
 using Merge.Domain.Entities;
 using UserEntity = Merge.Domain.Entities.User;
 

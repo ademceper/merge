@@ -17,6 +17,7 @@ using Merge.Application.Common;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using UserEntity = Merge.Domain.Entities.User;
+using RefreshTokenEntity = Merge.Domain.Entities.RefreshToken;
 
 namespace Merge.Application.Identity.Commands.RefreshToken;
 
@@ -57,7 +58,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
 
         // ✅ BOLUM 9.1: Refresh token hash'lenmiş olarak saklanıyor
         var tokenHash = TokenHasher.HashToken(request.RefreshToken);
-        var refreshTokenEntity = await _context.Set<RefreshToken>()
+        var refreshTokenEntity = await _context.Set<RefreshTokenEntity>()
             .Include(rt => rt.User)
             .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash, cancellationToken);
 
@@ -82,7 +83,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
         // ✅ SECURITY: Eski refresh token'ı revoke et (Domain Method kullanımı)
         refreshTokenEntity.Revoke(request.IpAddress, newRefreshToken.TokenHash);
 
-        _context.Set<RefreshToken>().Add(newRefreshToken);
+        _context.Set<RefreshTokenEntity>().Add(newRefreshToken);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -107,7 +108,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
             User: userDto);
     }
 
-    private (RefreshToken, string) GenerateRefreshToken(Guid userId, string? ipAddress = null)
+    private (RefreshTokenEntity, string) GenerateRefreshToken(Guid userId, string? ipAddress = null)
     {
         var randomBytes = new byte[64];
         using var rng = RandomNumberGenerator.Create();
@@ -117,7 +118,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
         var tokenHash = TokenHasher.HashToken(plainToken);
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-        var refreshToken = RefreshToken.Create(
+        var refreshToken = RefreshTokenEntity.Create(
             userId,
             tokenHash,
             DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays),

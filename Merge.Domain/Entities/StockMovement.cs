@@ -23,7 +23,7 @@ public class StockMovement : BaseEntity
         get => _quantity; 
         private set 
         { 
-            Guard.AgainstZero(value, nameof(Quantity));
+            Guard.AgainstNegativeOrZero(value, nameof(Quantity));
             _quantity = value;
         } 
     }
@@ -67,7 +67,7 @@ public class StockMovement : BaseEntity
         Guard.AgainstDefault(inventoryId, nameof(inventoryId));
         Guard.AgainstDefault(productId, nameof(productId));
         Guard.AgainstDefault(warehouseId, nameof(warehouseId));
-        Guard.AgainstZero(quantity, nameof(quantity));
+        Guard.AgainstNegativeOrZero(quantity, nameof(quantity));
         Guard.AgainstNegative(quantityBefore, nameof(quantityBefore));
         Guard.AgainstNegative(quantityAfter, nameof(quantityAfter));
 

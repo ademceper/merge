@@ -7,6 +7,7 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.ValueObjects;
+using OrderEntity = Merge.Domain.Entities.Order;
 
 namespace Merge.Application.Logistics.Commands.CreateShipping;
 
@@ -36,7 +37,7 @@ public class CreateShippingCommandHandler : IRequestHandler<CreateShippingComman
         _logger.LogInformation("Creating shipping. OrderId: {OrderId}, Provider: {Provider}", request.OrderId, request.ShippingProvider);
 
         // ✅ PERFORMANCE: AsNoTracking - Check if order exists
-        var order = await _context.Set<Order>()
+        var order = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 

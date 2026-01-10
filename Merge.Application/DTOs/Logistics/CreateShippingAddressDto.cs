@@ -24,22 +24,22 @@ public record CreateShippingAddressDto(
     [StringLength(200, MinimumLength = 5, ErrorMessage = "Adres satırı en az 5, en fazla 200 karakter olmalıdır.")]
     string AddressLine1,
     
-    [StringLength(200)]
-    string? AddressLine2 = null,
-    
     [Required]
     [StringLength(100, MinimumLength = 2, ErrorMessage = "Şehir en az 2, en fazla 100 karakter olmalıdır.")]
     string City,
     
-    [StringLength(100)]
-    string State,
-    
-    [StringLength(20)]
-    string PostalCode,
-    
     [Required]
     [StringLength(100)]
     string Country,
+    
+    [StringLength(200)]
+    string? AddressLine2 = null,
+    
+    [StringLength(100)]
+    string? State = null,
+    
+    [StringLength(20)]
+    string? PostalCode = null,
     
     bool IsDefault = false,
     

@@ -6,6 +6,7 @@ using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
+using Merge.Application.Services.Notification;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 
@@ -29,9 +30,9 @@ public class SendVerificationCodeCommandHandler : IRequestHandler<SendVerificati
         IDbContext context,
         IUnitOfWork unitOfWork,
         IOptions<TwoFactorAuthSettings> twoFactorSettings,
+        ILogger<SendVerificationCodeCommandHandler> logger,
         IEmailService? emailService = null,
-        ISmsService? smsService = null,
-        ILogger<SendVerificationCodeCommandHandler> logger)
+        ISmsService? smsService = null)
     {
         _codeRepository = codeRepository;
         _context = context;

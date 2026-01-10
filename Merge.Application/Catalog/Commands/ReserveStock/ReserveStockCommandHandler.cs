@@ -82,24 +82,21 @@ public class ReserveStockCommandHandler : IRequestHandler<ReserveStockCommand, b
             inventory.Reserve(request.Quantity);
             await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
 
-            // Create stock movement record
-            // ⚠️ NOT: StockMovement entity anemic (factory method yok), object initializer kullanılıyor
-            var stockMovement = new StockMovement
-            {
-                Id = Guid.NewGuid(),
-                InventoryId = inventory.Id,
-                ProductId = request.ProductId,
-                WarehouseId = request.WarehouseId,
-                MovementType = StockMovementType.Reserved,
-                Quantity = request.Quantity,
-                QuantityBefore = quantityBefore,
-                QuantityAfter = inventory.Quantity, // Total quantity doesn't change, only reserved
-                ReferenceId = request.OrderId,
-                Notes = $"Stock reserved for order {request.OrderId}",
-                PerformedBy = request.PerformedBy,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var stockMovement = StockMovement.Create(
+                inventory.Id,
+                request.ProductId,
+                request.WarehouseId,
+                StockMovementType.Reserved,
+                request.Quantity,
+                quantityBefore,
+                inventory.Quantity, // Total quantity doesn't change, only reserved
+                request.PerformedBy,
+                null, // referenceNumber
+                request.OrderId, // referenceId
+                $"Stock reserved for order {request.OrderId}",
+                null, // fromWarehouseId
+                null); // toWarehouseId
 
             await _context.Set<StockMovement>().AddAsync(stockMovement, cancellationToken);
 

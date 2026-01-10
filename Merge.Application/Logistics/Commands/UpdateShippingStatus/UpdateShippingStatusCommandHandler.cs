@@ -7,6 +7,7 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using OrderEntity = Merge.Domain.Entities.Order;
 
 namespace Merge.Application.Logistics.Commands.UpdateShippingStatus;
 
@@ -51,7 +52,7 @@ public class UpdateShippingStatusCommandHandler : IRequestHandler<UpdateShipping
         if (request.Status == ShippingStatus.Delivered)
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Order status'unu güncelle
-            var order = await _context.Set<Order>()
+            var order = await _context.Set<OrderEntity>()
                 .FirstOrDefaultAsync(o => o.Id == shipping.OrderId, cancellationToken);
 
             if (order != null)

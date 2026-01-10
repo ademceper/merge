@@ -81,24 +81,21 @@ public class ReleaseStockCommandHandler : IRequestHandler<ReleaseStockCommand, b
 
             await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
 
-            // Create stock movement record for sale
-            // ⚠️ NOT: StockMovement entity anemic (factory method yok), object initializer kullanılıyor
-            var stockMovement = new StockMovement
-            {
-                Id = Guid.NewGuid(),
-                InventoryId = inventory.Id,
-                ProductId = request.ProductId,
-                WarehouseId = request.WarehouseId,
-                MovementType = StockMovementType.Sale,
-                Quantity = -request.Quantity,
-                QuantityBefore = quantityBefore,
-                QuantityAfter = inventory.Quantity,
-                ReferenceId = request.OrderId,
-                Notes = $"Stock released for order fulfillment {request.OrderId}",
-                PerformedBy = request.PerformedBy,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var stockMovement = StockMovement.Create(
+                inventory.Id,
+                request.ProductId,
+                request.WarehouseId,
+                StockMovementType.Sale,
+                request.Quantity, // Absolute value, negative is handled by MovementType
+                quantityBefore,
+                inventory.Quantity,
+                request.PerformedBy,
+                null, // referenceNumber
+                request.OrderId, // referenceId
+                $"Stock released for order fulfillment {request.OrderId}",
+                null, // fromWarehouseId
+                null); // toWarehouseId
 
             await _context.Set<StockMovement>().AddAsync(stockMovement, cancellationToken);
 

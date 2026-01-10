@@ -114,43 +114,36 @@ public class TransferStockCommandHandler : IRequestHandler<TransferStockCommand,
             await _inventoryRepository.UpdateAsync(sourceInventory, cancellationToken);
             await _inventoryRepository.UpdateAsync(destInventory, cancellationToken);
 
-            // Create stock movement records
-            // ⚠️ NOT: StockMovement entity anemic (factory method yok), object initializer kullanılıyor
-            var sourceMovement = new StockMovement
-            {
-                Id = Guid.NewGuid(),
-                InventoryId = sourceInventory.Id,
-                ProductId = request.ProductId,
-                WarehouseId = request.FromWarehouseId,
-                MovementType = StockMovementType.Transfer,
-                Quantity = -request.Quantity,
-                QuantityBefore = sourceQuantityBefore,
-                QuantityAfter = sourceInventory.Quantity,
-                FromWarehouseId = request.FromWarehouseId,
-                ToWarehouseId = request.ToWarehouseId,
-                Notes = request.Notes,
-                PerformedBy = request.PerformedBy,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var sourceMovement = StockMovement.Create(
+                sourceInventory.Id,
+                request.ProductId,
+                request.FromWarehouseId,
+                StockMovementType.Transfer,
+                request.Quantity, // Absolute value, negative is handled by MovementType
+                sourceQuantityBefore,
+                sourceInventory.Quantity,
+                request.PerformedBy,
+                null, // referenceNumber
+                null, // referenceId
+                request.Notes,
+                request.FromWarehouseId,
+                request.ToWarehouseId);
 
-            var destMovement = new StockMovement
-            {
-                Id = Guid.NewGuid(),
-                InventoryId = destInventory.Id,
-                ProductId = request.ProductId,
-                WarehouseId = request.ToWarehouseId,
-                MovementType = StockMovementType.Transfer,
-                Quantity = request.Quantity,
-                QuantityBefore = destQuantityBefore,
-                QuantityAfter = destInventory.Quantity,
-                FromWarehouseId = request.FromWarehouseId,
-                ToWarehouseId = request.ToWarehouseId,
-                Notes = request.Notes,
-                PerformedBy = request.PerformedBy,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
+            var destMovement = StockMovement.Create(
+                destInventory.Id,
+                request.ProductId,
+                request.ToWarehouseId,
+                StockMovementType.Transfer,
+                request.Quantity,
+                destQuantityBefore,
+                destInventory.Quantity,
+                request.PerformedBy,
+                null, // referenceNumber
+                null, // referenceId
+                request.Notes,
+                request.FromWarehouseId,
+                request.ToWarehouseId);
 
             await _context.Set<StockMovement>().AddAsync(sourceMovement, cancellationToken);
             await _context.Set<StockMovement>().AddAsync(destMovement, cancellationToken);

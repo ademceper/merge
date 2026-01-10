@@ -6,6 +6,7 @@ using Merge.Application.DTOs.Logistics;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using UserEntity = Merge.Domain.Entities.User;
 
 namespace Merge.Application.Logistics.Commands.CreateShippingAddress;
 
@@ -35,7 +36,8 @@ public class CreateShippingAddressCommandHandler : IRequestHandler<CreateShippin
         _logger.LogInformation("Creating shipping address. UserId: {UserId}, Label: {Label}", request.UserId, request.Label);
 
         // ✅ PERFORMANCE: AsNoTracking - Check if user exists
-        var user = await _context.Set<User>()
+        // ⚠️ NOT: User entity'si BaseEntity'den türemediği için Set<UserEntity>() kullanılamaz, Users property'si kullanılmalı
+        var user = await _context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 

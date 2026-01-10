@@ -411,22 +411,21 @@ public class PickPackService : IPickPackService
 
         if (dto.IsPicked && !item.IsPicked)
         {
-            item.IsPicked = true;
-            item.PickedAt = DateTime.UtcNow;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            item.MarkAsPicked();
         }
 
         if (dto.IsPacked && !item.IsPacked)
         {
-            item.IsPacked = true;
-            item.PackedAt = DateTime.UtcNow;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            item.MarkAsPacked();
         }
 
         if (dto.Location != null)
         {
-            item.Location = dto.Location;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            item.UpdateLocation(dto.Location);
         }
-
-        item.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

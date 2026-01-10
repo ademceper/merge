@@ -5,6 +5,7 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Domain.Entities;
+using RefreshTokenEntity = Merge.Domain.Entities.RefreshToken;
 
 namespace Merge.Application.Identity.Commands.RevokeToken;
 
@@ -32,7 +33,7 @@ public class RevokeTokenCommandHandler : IRequestHandler<RevokeTokenCommand, Uni
 
         // ✅ BOLUM 9.1: Refresh token hash'lenmiş olarak saklanıyor
         var tokenHash = TokenHasher.HashToken(request.RefreshToken);
-        var refreshTokenEntity = await _context.Set<RefreshToken>()
+        var refreshTokenEntity = await _context.Set<RefreshTokenEntity>()
             .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash, cancellationToken);
 
         if (refreshTokenEntity == null)

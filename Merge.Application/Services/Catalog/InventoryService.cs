@@ -260,20 +260,24 @@ public class InventoryService : IInventoryService
 
         inventory = await _inventoryRepository.AddAsync(inventory, cancellationToken);
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         // Create initial stock movement
         if (createDto.Quantity > 0)
         {
-            var stockMovement = new StockMovement
-            {
-                InventoryId = inventory.Id,
-                ProductId = inventory.ProductId,
-                WarehouseId = inventory.WarehouseId,
-                MovementType = StockMovementType.Receipt,
-                Quantity = createDto.Quantity,
-                QuantityBefore = 0,
-                QuantityAfter = createDto.Quantity,
-                Notes = "Initial inventory creation"
-            };
+            var stockMovement = StockMovement.Create(
+                inventory.Id,
+                inventory.ProductId,
+                inventory.WarehouseId,
+                StockMovementType.Receipt,
+                createDto.Quantity,
+                0, // quantityBefore
+                createDto.Quantity, // quantityAfter
+                null, // performedBy
+                null, // referenceNumber
+                null, // referenceId
+                "Initial inventory creation",
+                null, // fromWarehouseId
+                null); // toWarehouseId
 
             await _stockMovementRepository.AddAsync(stockMovement, cancellationToken);
         }
@@ -318,9 +322,22 @@ public class InventoryService : IInventoryService
         }
 
         // ✅ BOLUM 1.1: Domain Method kullanımı
-        inventory.UpdateStockLevels(updateDto.MinimumStockLevel, updateDto.MaximumStockLevel);
-        inventory.UpdateUnitCost(updateDto.UnitCost);
-        inventory.UpdateLocation(updateDto.Location);
+        if (updateDto.MinimumStockLevel.HasValue || updateDto.MaximumStockLevel.HasValue)
+        {
+            var minLevel = updateDto.MinimumStockLevel ?? inventory.MinimumStockLevel;
+            var maxLevel = updateDto.MaximumStockLevel ?? inventory.MaximumStockLevel;
+            inventory.UpdateStockLevels(minLevel, maxLevel);
+        }
+        
+        if (updateDto.UnitCost.HasValue)
+        {
+            inventory.UpdateUnitCost(updateDto.UnitCost.Value);
+        }
+        
+        if (updateDto.Location != null)
+        {
+            inventory.UpdateLocation(updateDto.Location);
+        }
 
         await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -397,19 +414,21 @@ public class InventoryService : IInventoryService
 
             await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
 
-            // Create stock movement record
-            var stockMovement = new StockMovement
-            {
-                InventoryId = inventory.Id,
-                ProductId = inventory.ProductId,
-                WarehouseId = inventory.WarehouseId,
-                MovementType = StockMovementType.Adjustment,
-                Quantity = adjustDto.QuantityChange,
-                QuantityBefore = quantityBefore,
-                QuantityAfter = quantityAfter,
-                Notes = adjustDto.Notes,
-                PerformedBy = userId
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var stockMovement = StockMovement.Create(
+                inventory.Id,
+                inventory.ProductId,
+                inventory.WarehouseId,
+                StockMovementType.Adjustment,
+                Math.Abs(adjustDto.QuantityChange),
+                quantityBefore,
+                quantityAfter,
+                userId,
+                null, // referenceNumber
+                null, // referenceId
+                adjustDto.Notes,
+                null, // fromWarehouseId
+                null); // toWarehouseId
 
             await _stockMovementRepository.AddAsync(stockMovement, cancellationToken);
 
@@ -498,36 +517,36 @@ public class InventoryService : IInventoryService
             await _inventoryRepository.UpdateAsync(sourceInventory, cancellationToken);
             await _inventoryRepository.UpdateAsync(destInventory, cancellationToken);
 
-            // Create stock movement records
-            var sourceMovement = new StockMovement
-            {
-                InventoryId = sourceInventory.Id,
-                ProductId = transferDto.ProductId,
-                WarehouseId = transferDto.FromWarehouseId,
-                MovementType = StockMovementType.Transfer,
-                Quantity = -transferDto.Quantity,
-                QuantityBefore = sourceQuantityBefore,
-                QuantityAfter = sourceInventory.Quantity,
-                FromWarehouseId = transferDto.FromWarehouseId,
-                ToWarehouseId = transferDto.ToWarehouseId,
-                Notes = transferDto.Notes,
-                PerformedBy = userId
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var sourceMovement = StockMovement.Create(
+                sourceInventory.Id,
+                transferDto.ProductId,
+                transferDto.FromWarehouseId,
+                StockMovementType.Transfer,
+                transferDto.Quantity, // Absolute value
+                sourceQuantityBefore,
+                sourceInventory.Quantity,
+                userId,
+                null, // referenceNumber
+                null, // referenceId
+                transferDto.Notes,
+                transferDto.FromWarehouseId,
+                transferDto.ToWarehouseId);
 
-            var destMovement = new StockMovement
-            {
-                InventoryId = destInventory.Id,
-                ProductId = transferDto.ProductId,
-                WarehouseId = transferDto.ToWarehouseId,
-                MovementType = StockMovementType.Transfer,
-                Quantity = transferDto.Quantity,
-                QuantityBefore = destQuantityBefore,
-                QuantityAfter = destInventory.Quantity,
-                FromWarehouseId = transferDto.FromWarehouseId,
-                ToWarehouseId = transferDto.ToWarehouseId,
-                Notes = transferDto.Notes,
-                PerformedBy = userId
-            };
+            var destMovement = StockMovement.Create(
+                destInventory.Id,
+                transferDto.ProductId,
+                transferDto.ToWarehouseId,
+                StockMovementType.Transfer,
+                transferDto.Quantity,
+                destQuantityBefore,
+                destInventory.Quantity,
+                userId,
+                null, // referenceNumber
+                null, // referenceId
+                transferDto.Notes,
+                transferDto.FromWarehouseId,
+                transferDto.ToWarehouseId);
 
             await _stockMovementRepository.AddAsync(sourceMovement, cancellationToken);
             await _stockMovementRepository.AddAsync(destMovement, cancellationToken);
@@ -585,19 +604,21 @@ public class InventoryService : IInventoryService
             inventory.Reserve(quantity);
             await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
 
-            // Create stock movement record
-            var stockMovement = new StockMovement
-            {
-                InventoryId = inventory.Id,
-                ProductId = productId,
-                WarehouseId = warehouseId,
-                MovementType = StockMovementType.Reserved,
-                Quantity = quantity,
-                QuantityBefore = quantityBefore,
-                QuantityAfter = inventory.Quantity, // Total quantity doesn't change, only reserved
-                ReferenceId = orderId,
-                Notes = "Stock reserved for order"
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var stockMovement = StockMovement.Create(
+                inventory.Id,
+                productId,
+                warehouseId,
+                StockMovementType.Reserved,
+                quantity,
+                quantityBefore,
+                inventory.Quantity, // Total quantity doesn't change, only reserved
+                null, // performedBy
+                null, // referenceNumber
+                orderId, // referenceId
+                "Stock reserved for order",
+                null, // fromWarehouseId
+                null); // toWarehouseId
 
             await _stockMovementRepository.AddAsync(stockMovement, cancellationToken);
 
@@ -648,19 +669,21 @@ public class InventoryService : IInventoryService
 
         await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
 
-        // Create stock movement record for sale
-        var stockMovement = new StockMovement
-        {
-            InventoryId = inventory.Id,
-            ProductId = productId,
-            WarehouseId = warehouseId,
-            MovementType = StockMovementType.Sale,
-            Quantity = -quantity,
-            QuantityBefore = quantityBefore,
-            QuantityAfter = inventory.Quantity,
-            ReferenceId = orderId,
-            Notes = "Stock released for order fulfillment"
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var stockMovement = StockMovement.Create(
+            inventory.Id,
+            productId,
+            warehouseId,
+            StockMovementType.Sale,
+            quantity, // Absolute value
+            quantityBefore,
+            inventory.Quantity,
+            null, // performedBy
+            null, // referenceNumber
+            orderId, // referenceId
+            "Stock released for order fulfillment",
+            null, // fromWarehouseId
+            null); // toWarehouseId
 
         await _stockMovementRepository.AddAsync(stockMovement, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

@@ -17,6 +17,7 @@ using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Common.DomainEvents;
 using UserEntity = Merge.Domain.Entities.User;
+using RefreshTokenEntity = Merge.Domain.Entities.RefreshToken;
 
 namespace Merge.Application.Identity.Commands.Register;
 
@@ -115,7 +116,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, AuthRespo
             user.LastName,
             ipAddress));
         
-        _context.Set<RefreshToken>().Add(refreshToken);
+        _context.Set<RefreshTokenEntity>().Add(refreshToken);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -133,7 +134,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, AuthRespo
             User: userDto);
     }
 
-    private (RefreshToken, string) GenerateRefreshToken(Guid userId, string? ipAddress = null)
+    private (RefreshTokenEntity, string) GenerateRefreshToken(Guid userId, string? ipAddress = null)
     {
         var randomBytes = new byte[64];
         using var rng = RandomNumberGenerator.Create();
@@ -143,7 +144,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, AuthRespo
         var tokenHash = TokenHasher.HashToken(plainToken);
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-        var refreshToken = RefreshToken.Create(
+        var refreshToken = RefreshTokenEntity.Create(
             userId,
             tokenHash,
             DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays),
