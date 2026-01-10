@@ -94,5 +94,22 @@ public class CacheService : ICacheService
 
         return value;
     }
+
+    public async Task<T?> GetOrCreateNullableAsync<T>(string key, Func<Task<T?>> factory, TimeSpan? expiration = null, CancellationToken cancellationToken = default) where T : class
+    {
+        var cached = await GetAsync<T>(key, cancellationToken);
+        if (cached != null)
+        {
+            return cached;
+        }
+
+        var value = await factory();
+        if (value != null)
+        {
+            await SetAsync(key, value, expiration, cancellationToken);
+        }
+
+        return value;
+    }
 }
 

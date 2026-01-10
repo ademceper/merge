@@ -294,6 +294,7 @@ public class SEOService : ISEOService
                 : product.Description
             : $"Buy {product.Name} online. Best price and quality guaranteed.";
 
+#pragma warning disable CS0618 // Type or member is obsolete
         var dto = new CreateSEOSettingsDto
         {
             PageType = "Product",
@@ -312,6 +313,7 @@ public class SEOService : ISEOService
         };
 
         return await CreateOrUpdateSEOSettingsAsync(dto, cancellationToken);
+#pragma warning restore CS0618 // Type or member is obsolete
     }
 
     public async Task<SEOSettingsDto> GenerateSEOForCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default)
@@ -332,6 +334,7 @@ public class SEOService : ISEOService
                 : category.Description
             : $"Browse {category.Name} products. Wide selection and best prices.";
 
+#pragma warning disable CS0618 // Type or member is obsolete
         var dto = new CreateSEOSettingsDto
         {
             PageType = "Category",
@@ -347,6 +350,7 @@ public class SEOService : ISEOService
         };
 
         return await CreateOrUpdateSEOSettingsAsync(dto, cancellationToken);
+#pragma warning restore CS0618 // Type or member is obsolete
     }
 
     public async Task<SEOSettingsDto> GenerateSEOForBlogPostAsync(Guid postId, CancellationToken cancellationToken = default)
@@ -364,6 +368,7 @@ public class SEOService : ISEOService
         var metaTitle = post.MetaTitle ?? post.Title;
         var metaDescription = post.MetaDescription ?? post.Excerpt;
 
+#pragma warning disable CS0618 // Type or member is obsolete
         var dto = new CreateSEOSettingsDto
         {
             PageType = "Blog",
@@ -382,6 +387,7 @@ public class SEOService : ISEOService
         };
 
         return await CreateOrUpdateSEOSettingsAsync(dto, cancellationToken);
+#pragma warning restore CS0618 // Type or member is obsolete
     }
 
 }

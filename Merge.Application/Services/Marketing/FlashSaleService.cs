@@ -196,7 +196,7 @@ public class FlashSaleService : IFlashSaleService
             throw new ArgumentNullException(nameof(dto));
         }
 
-        if (dto.EndDate != null && dto.StartDate != null && dto.EndDate <= dto.StartDate)
+        if (dto.EndDate <= dto.StartDate)
         {
             throw new ValidationException("Bitiş tarihi başlangıç tarihinden sonra olmalıdır.");
         }

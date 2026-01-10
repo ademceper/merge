@@ -29,20 +29,20 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<DeliveryTimeEstimationDto> CreateEstimationAsync(CreateDeliveryTimeEstimationDto dto, CancellationToken cancellationToken = default)
     {
-        var estimation = new DeliveryTimeEstimation
-        {
-            ProductId = dto.ProductId,
-            CategoryId = dto.CategoryId,
-            WarehouseId = dto.WarehouseId,
-            ShippingProviderId = dto.ShippingProviderId,
-            City = dto.City,
-            Country = dto.Country,
-            MinDays = dto.MinDays,
-            MaxDays = dto.MaxDays,
-            AverageDays = dto.AverageDays,
-            IsActive = dto.IsActive,
-            Conditions = dto.Conditions != null ? JsonSerializer.Serialize(dto.Conditions) : null
-        };
+        // Factory method kullan
+        var conditionsJson = dto.Conditions != null ? JsonSerializer.Serialize(dto.Conditions) : null;
+        var estimation = DeliveryTimeEstimation.Create(
+            dto.MinDays,
+            dto.MaxDays,
+            dto.AverageDays,
+            dto.ProductId,
+            dto.CategoryId,
+            dto.WarehouseId,
+            dto.ShippingProviderId,
+            dto.City,
+            dto.Country,
+            conditionsJson,
+            dto.IsActive);
 
         await _context.Set<DeliveryTimeEstimation>().AddAsync(estimation, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -123,32 +123,28 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
 
         if (estimation == null) return false;
 
-        if (dto.MinDays.HasValue)
+        // Domain method kullan
+        if (dto.MinDays.HasValue || dto.MaxDays.HasValue || dto.AverageDays.HasValue)
         {
-            estimation.MinDays = dto.MinDays.Value;
-        }
-
-        if (dto.MaxDays.HasValue)
-        {
-            estimation.MaxDays = dto.MaxDays.Value;
-        }
-
-        if (dto.AverageDays.HasValue)
-        {
-            estimation.AverageDays = dto.AverageDays.Value;
-        }
-
-        if (dto.IsActive.HasValue)
-        {
-            estimation.IsActive = dto.IsActive.Value;
+            estimation.UpdateDays(
+                dto.MinDays ?? estimation.MinDays,
+                dto.MaxDays ?? estimation.MaxDays,
+                dto.AverageDays ?? estimation.AverageDays);
         }
 
         if (dto.Conditions != null)
         {
-            estimation.Conditions = JsonSerializer.Serialize(dto.Conditions);
+            estimation.UpdateConditions(JsonSerializer.Serialize(dto.Conditions));
         }
 
-        estimation.UpdatedAt = DateTime.UtcNow;
+        if (dto.IsActive.HasValue && dto.IsActive.Value && !estimation.IsActive)
+        {
+            estimation.Activate();
+        }
+        else if (dto.IsActive.HasValue && !dto.IsActive.Value && estimation.IsActive)
+        {
+            estimation.Deactivate();
+        }
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -257,26 +253,22 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
         // If no estimation found, use default values
         if (estimation == null)
         {
-            return new DeliveryTimeEstimateResultDto
-            {
-                MinDays = 3,
-                MaxDays = 7,
-                AverageDays = 5,
-                EstimatedDeliveryDate = dto.OrderDate.AddDays(5),
-                EstimationSource = "System Default"
-            };
+            return new DeliveryTimeEstimateResultDto(
+                MinDays: 3,
+                MaxDays: 7,
+                AverageDays: 5,
+                EstimatedDeliveryDate: dto.OrderDate.AddDays(5),
+                EstimationSource: "System Default");
         }
 
         var estimatedDate = dto.OrderDate.AddDays(estimation.AverageDays);
 
-        return new DeliveryTimeEstimateResultDto
-        {
-            MinDays = estimation.MinDays,
-            MaxDays = estimation.MaxDays,
-            AverageDays = estimation.AverageDays,
-            EstimatedDeliveryDate = estimatedDate,
-            EstimationSource = source ?? "Default"
-        };
+        return new DeliveryTimeEstimateResultDto(
+            MinDays: estimation.MinDays,
+            MaxDays: estimation.MaxDays,
+            AverageDays: estimation.AverageDays,
+            EstimatedDeliveryDate: estimatedDate,
+            EstimationSource: source ?? "Default");
     }
 
 }

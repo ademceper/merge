@@ -69,11 +69,11 @@ public class CreateShippingAddressCommandHandler : IRequestHandler<CreateShippin
             request.LastName,
             request.Phone,
             request.AddressLine1,
+            request.AddressLine2,
             request.City,
             request.State,
             request.PostalCode,
-            request.Country,
-            request.AddressLine2,
+            request.Country ?? string.Empty,
             request.IsDefault,
             request.Instructions);
 

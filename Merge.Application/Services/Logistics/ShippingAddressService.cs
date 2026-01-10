@@ -56,27 +56,25 @@ public class ShippingAddressService : IShippingAddressService
 
                 foreach (var existingAddr in existingDefault)
                 {
-                    existingAddr.IsDefault = false;
+                    existingAddr.UnsetAsDefault();
                 }
             }
 
-            var address = new ShippingAddress
-            {
-                UserId = userId,
-                Label = dto.Label,
-                FirstName = dto.FirstName,
-                LastName = dto.LastName,
-                Phone = dto.Phone,
-                AddressLine1 = dto.AddressLine1,
-                AddressLine2 = dto.AddressLine2,
-                City = dto.City,
-                State = dto.State,
-                PostalCode = dto.PostalCode,
-                Country = dto.Country,
-                IsDefault = dto.IsDefault,
-                IsActive = true,
-                Instructions = dto.Instructions
-            };
+            // Factory method kullan
+            var address = ShippingAddress.Create(
+                userId,
+                dto.Label,
+                dto.FirstName,
+                dto.LastName,
+                dto.Phone,
+                dto.AddressLine1,
+                dto.AddressLine2,
+                dto.City,
+                dto.State ?? string.Empty,
+                dto.PostalCode ?? string.Empty,
+                dto.Country ?? string.Empty,
+                dto.IsDefault,
+                dto.Instructions);
 
             await _context.Set<ShippingAddress>().AddAsync(address, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -149,55 +147,19 @@ public class ShippingAddressService : IShippingAddressService
 
         if (address == null) return false;
 
-        if (!string.IsNullOrEmpty(dto.Label))
-        {
-            address.Label = dto.Label;
-        }
-
-        if (!string.IsNullOrEmpty(dto.FirstName))
-        {
-            address.FirstName = dto.FirstName;
-        }
-
-        if (!string.IsNullOrEmpty(dto.LastName))
-        {
-            address.LastName = dto.LastName;
-        }
-
-        if (dto.Phone != null)
-        {
-            address.Phone = dto.Phone;
-        }
-
-        if (!string.IsNullOrEmpty(dto.AddressLine1))
-        {
-            address.AddressLine1 = dto.AddressLine1;
-        }
-
-        if (dto.AddressLine2 != null)
-        {
-            address.AddressLine2 = dto.AddressLine2;
-        }
-
-        if (!string.IsNullOrEmpty(dto.City))
-        {
-            address.City = dto.City;
-        }
-
-        if (dto.State != null)
-        {
-            address.State = dto.State;
-        }
-
-        if (dto.PostalCode != null)
-        {
-            address.PostalCode = dto.PostalCode;
-        }
-
-        if (!string.IsNullOrEmpty(dto.Country))
-        {
-            address.Country = dto.Country;
-        }
+        // Domain method kullan - mevcut değerleri kullan, sadece değişenleri güncelle
+        address.UpdateDetails(
+            !string.IsNullOrEmpty(dto.Label) ? dto.Label : address.Label,
+            !string.IsNullOrEmpty(dto.FirstName) ? dto.FirstName : address.FirstName,
+            !string.IsNullOrEmpty(dto.LastName) ? dto.LastName : address.LastName,
+            dto.Phone ?? address.Phone,
+            !string.IsNullOrEmpty(dto.AddressLine1) ? dto.AddressLine1 : address.AddressLine1,
+            dto.AddressLine2 ?? address.AddressLine2,
+            !string.IsNullOrEmpty(dto.City) ? dto.City : address.City,
+            dto.State ?? address.State,
+            dto.PostalCode ?? address.PostalCode,
+            !string.IsNullOrEmpty(dto.Country) ? dto.Country : address.Country,
+            dto.Instructions ?? address.Instructions);
 
         if (dto.IsDefault.HasValue && dto.IsDefault.Value)
         {
@@ -210,27 +172,24 @@ public class ShippingAddressService : IShippingAddressService
 
             foreach (var a in existingDefault)
             {
-                a.IsDefault = false;
+                a.UnsetAsDefault();
             }
 
-            address.IsDefault = true;
+            address.SetAsDefault();
         }
         else if (dto.IsDefault.HasValue && !dto.IsDefault.Value)
         {
-            address.IsDefault = false;
+            address.UnsetAsDefault();
         }
 
-        if (dto.IsActive.HasValue)
+        if (dto.IsActive.HasValue && dto.IsActive.Value && !address.IsActive)
         {
-            address.IsActive = dto.IsActive.Value;
+            address.Activate();
         }
-
-        if (dto.Instructions != null)
+        else if (dto.IsActive.HasValue && !dto.IsActive.Value && address.IsActive)
         {
-            address.Instructions = dto.Instructions;
+            address.Deactivate();
         }
-
-        address.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -255,16 +214,14 @@ public class ShippingAddressService : IShippingAddressService
         if (hasOrders)
         {
             // Soft delete - just mark as inactive
-            address.IsActive = false;
-            address.IsDefault = false;
+            address.Deactivate();
+            address.UnsetAsDefault();
         }
         else
         {
-            // Hard delete if no orders
-            address.IsDeleted = true;
+            // Hard delete if no orders - Domain method kullan
+            address.MarkAsDeleted();
         }
-
-        address.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -289,11 +246,11 @@ public class ShippingAddressService : IShippingAddressService
 
         foreach (var a in existingDefault)
         {
-            a.IsDefault = false;
+            a.UnsetAsDefault();
         }
 
-        address.IsDefault = true;
-        address.UpdatedAt = DateTime.UtcNow;
+        // Domain method kullan
+        address.SetAsDefault();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

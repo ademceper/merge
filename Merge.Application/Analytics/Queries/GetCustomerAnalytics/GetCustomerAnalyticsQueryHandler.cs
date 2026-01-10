@@ -115,7 +115,7 @@ public class GetCustomerAnalyticsQueryHandler : IRequestHandler<GetCustomerAnaly
             .ToListAsync(cancellationToken);
     }
 
-    private async Task<List<CustomerSegmentDto>> GetCustomerSegmentsAsync(CancellationToken cancellationToken)
+    private Task<List<CustomerSegmentDto>> GetCustomerSegmentsAsync(CancellationToken cancellationToken)
     {
         // Simplified segmentation - can be enhanced
         // ✅ ARCHITECTURE: .cursorrules'a göre manuel mapping YASAK, AutoMapper kullanıyoruz
@@ -127,7 +127,8 @@ public class GetCustomerAnalyticsQueryHandler : IRequestHandler<GetCustomerAnaly
         };
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        return _mapper.Map<List<CustomerSegmentDto>>(segmentsData);
+        var segments = _mapper.Map<List<CustomerSegmentDto>>(segmentsData);
+        return Task.FromResult(segments);
     }
 }
 

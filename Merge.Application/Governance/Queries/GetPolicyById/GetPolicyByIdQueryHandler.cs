@@ -37,7 +37,7 @@ public class GetPolicyByIdQueryHandler : IRequestHandler<GetPolicyByIdQuery, Pol
         var cacheKey = $"{CACHE_KEY_POLICY_BY_ID}{request.Id}";
 
         // ✅ BOLUM 10.2: Redis distributed cache
-        var cachedPolicy = await _cache.GetOrCreateAsync(
+        var cachedPolicy = await _cache.GetOrCreateNullableAsync<PolicyDto>(
             cacheKey,
             async () =>
             {

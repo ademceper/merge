@@ -55,8 +55,9 @@ public class UpdateLandingPageCommandValidator : AbstractValidator<UpdateLanding
             .When(x => x.TrafficSplit.HasValue);
     }
 
-    private static bool BeValidStatus(string status)
+    private static bool BeValidStatus(string? status)
     {
+        if (string.IsNullOrEmpty(status)) return false;
         return Enum.TryParse<ContentStatus>(status, true, out _);
     }
 

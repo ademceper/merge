@@ -135,9 +135,8 @@ public class EmailVerificationService : IEmailVerificationService
                 throw new BusinessException("Doğrulama linki süresi dolmuş.");
             }
 
-            // Email'i doğrula
-            verification.IsVerified = true;
-            verification.VerifiedAt = DateTime.UtcNow;
+            // Email'i doğrula - Domain method kullan
+            verification.Verify();
             await _emailVerificationRepository.UpdateAsync(verification);
             // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
             await _unitOfWork.SaveChangesAsync(cancellationToken);

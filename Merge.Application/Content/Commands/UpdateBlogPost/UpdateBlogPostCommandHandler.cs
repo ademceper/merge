@@ -146,9 +146,7 @@ public class UpdateBlogPostCommandHandler : IRequestHandler<UpdateBlogPostComman
     private static int CalculateReadingTime(string content)
     {
         // Average reading speed: 200 words per minute
-        // Average word length: 5 characters
         const int wordsPerMinute = 200;
-        const int averageWordLength = 5;
 
         // Remove HTML tags for accurate word count
         var textContent = System.Text.RegularExpressions.Regex.Replace(content, "<.*?>", string.Empty);

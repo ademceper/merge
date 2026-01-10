@@ -14,8 +14,6 @@ using Merge.Application.Interfaces.Content;
 using Merge.Application.Interfaces.EmailProviders;
 using Merge.Application.Interfaces.Governance;
 using Merge.Application.Interfaces.Identity;
-using Merge.Application.Interfaces.International;
-using Merge.Application.Interfaces.LiveCommerce;
 using Merge.Application.Interfaces.Logistics;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.Interfaces.ML;
@@ -36,10 +34,8 @@ using Merge.Application.Interfaces.Support;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Services;
 using Merge.Application.Services.Content;
-using Merge.Application.Services.International;
 using Merge.Application.Services.B2B;
 using Merge.Application.Services.Subscription;
-using Merge.Application.Services.LiveCommerce;
 using Merge.Application.Services.Governance;
 using Merge.Application.Services.Analytics;
 using Merge.Application.Services.ML;
@@ -314,6 +310,7 @@ builder.Services.AddScoped(typeof(Merge.Application.Interfaces.IRepository<>), t
 builder.Services.AddScoped<Merge.Application.Interfaces.IUnitOfWork, UnitOfWork>();
 
 // Application services
+#pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek
 builder.Services.AddScoped<IAuthService, Merge.Application.Services.Identity.AuthService>();
 builder.Services.AddScoped<IProductService, Merge.Application.Services.Product.ProductService>();
 builder.Services.AddScoped<ICategoryService, Merge.Application.Services.Catalog.CategoryService>();
@@ -338,6 +335,7 @@ builder.Services.AddScoped<IFlashSaleService, Merge.Application.Services.Marketi
 builder.Services.AddScoped<IProductBundleService, Merge.Application.Services.Product.ProductBundleService>();
 builder.Services.AddScoped<IInvoiceService, Merge.Application.Services.Payment.InvoiceService>();
 builder.Services.AddScoped<ISellerDashboardService, Merge.Application.Services.Seller.SellerDashboardService>();
+#pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek
 builder.Services.AddScoped<IEmailVerificationService, Merge.Application.Services.Identity.EmailVerificationService>();
 builder.Services.AddScoped<ISavedCartService, Merge.Application.Services.Cart.SavedCartService>();
 builder.Services.AddScoped<IFaqService, Merge.Application.Services.Support.FaqService>();
@@ -350,12 +348,14 @@ builder.Services.AddScoped<IInventoryService, Merge.Application.Services.Catalog
 // ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
 // builder.Services.AddScoped<IStockMovementService, Merge.Application.Services.Logistics.StockMovementService>();
 builder.Services.AddScoped<IBulkProductService, Merge.Application.Services.Product.BulkProductService>();
+#pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek
 builder.Services.AddScoped<ITwoFactorAuthService, Merge.Application.Services.Identity.TwoFactorAuthService>();
 builder.Services.AddScoped<ISellerOnboardingService, Merge.Application.Services.Seller.SellerOnboardingService>();
 builder.Services.AddScoped<IProductRecommendationService, Merge.Application.Services.Search.ProductRecommendationService>();
 builder.Services.AddScoped<ISearchSuggestionService, Merge.Application.Services.Search.SearchSuggestionService>();
 builder.Services.AddScoped<IAbandonedCartService, Merge.Application.Services.Cart.AbandonedCartService>();
 builder.Services.AddScoped<IUserActivityService, Merge.Application.Services.User.UserActivityService>();
+#pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<ILoyaltyService, Merge.Application.Services.Marketing.LoyaltyService>();
 builder.Services.AddScoped<IReferralService, Merge.Application.Services.Marketing.ReferralService>();
@@ -374,7 +374,9 @@ builder.Services.AddScoped<IReviewHelpfulnessService, Merge.Application.Services
 builder.Services.AddScoped<ISupportTicketService, Merge.Application.Services.Support.SupportTicketService>();
 builder.Services.AddScoped<ITrustBadgeService, Merge.Application.Services.Review.TrustBadgeService>();
 builder.Services.AddScoped<IKnowledgeBaseService, Merge.Application.Services.Support.KnowledgeBaseService>();
+#pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek
 builder.Services.AddScoped<IPolicyService, PolicyService>();
+#pragma warning restore CS0618 // Type or member is obsolete
 builder.Services.AddScoped<INotificationPreferenceService, Merge.Application.Services.Notification.NotificationPreferenceService>();
 builder.Services.AddScoped<ICustomerCommunicationService, Merge.Application.Services.Support.CustomerCommunicationService>();
 builder.Services.AddScoped<ISellerFinanceService, Merge.Application.Services.Seller.SellerFinanceService>();

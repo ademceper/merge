@@ -275,7 +275,7 @@ public class AbandonedCartService : IAbandonedCartService
         var itemsDto = _mapper.Map<IEnumerable<CartItemDto>>(items).ToList().AsReadOnly();
 
         // ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı) - Positional constructor kullanımı
-        var userEmail = cart.User != null ? cart.User.Email : string.Empty;
+        var userEmail = cart.User?.Email ?? string.Empty;
         var userName = cart.User != null ? $"{cart.User.FirstName} {cart.User.LastName}" : string.Empty;
         var lastModified = cart.UpdatedAt ?? cart.CreatedAt;
         var hoursSinceAbandonment = cart.UpdatedAt.HasValue 

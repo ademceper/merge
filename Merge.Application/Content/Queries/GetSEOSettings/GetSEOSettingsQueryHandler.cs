@@ -39,7 +39,7 @@ public class GetSEOSettingsQueryHandler : IRequestHandler<GetSEOSettingsQuery, S
         var cacheKey = $"{CACHE_KEY_SEO_SETTINGS}{request.PageType}_{request.EntityId?.ToString() ?? "null"}";
 
         // ✅ BOLUM 10.2: Redis distributed cache for SEO settings
-        var cachedSettings = await _cache.GetOrCreateAsync(
+        var cachedSettings = await _cache.GetOrCreateNullableAsync<SEOSettingsDto>(
             cacheKey,
             async () =>
             {

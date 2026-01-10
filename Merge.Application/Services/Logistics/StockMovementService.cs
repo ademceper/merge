@@ -155,8 +155,9 @@ public class StockMovementService : IStockMovementService
     public async Task<IEnumerable<StockMovementDto>> GetFilteredAsync(StockMovementFilterDto filter, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
-        if (filter.PageSize > 100) filter.PageSize = 100; // Max limit
-        if (filter.Page < 1) filter.Page = 1;
+        // Init-only property'ler için yeni filter oluştur
+        var pageSize = filter.PageSize > 100 ? 100 : filter.PageSize;
+        var page = filter.Page < 1 ? 1 : filter.Page;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
         IQueryable<StockMovement> query = _context.Set<StockMovement>()
@@ -194,8 +195,8 @@ public class StockMovementService : IStockMovementService
 
         var movements = await query
             .OrderByDescending(sm => sm.CreatedAt)
-            .Skip((filter.Page - 1) * filter.PageSize)
-            .Take(filter.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
@@ -239,23 +240,21 @@ public class StockMovementService : IStockMovementService
             var quantityChange = quantityAfter - inventory.Quantity;
             inventory.AdjustQuantity(quantityChange);
 
-            // Create stock movement
-            var stockMovement = new StockMovement
-            {
-                InventoryId = inventory.Id,
-                ProductId = createDto.ProductId,
-                WarehouseId = createDto.WarehouseId,
-                MovementType = createDto.MovementType,
-                Quantity = createDto.Quantity,
-                QuantityBefore = quantityBefore,
-                QuantityAfter = quantityAfter,
-                ReferenceNumber = createDto.ReferenceNumber,
-                ReferenceId = createDto.ReferenceId,
-                Notes = createDto.Notes,
-                PerformedBy = userId,
-                FromWarehouseId = createDto.FromWarehouseId,
-                ToWarehouseId = createDto.ToWarehouseId
-            };
+            // Factory method kullan
+            var stockMovement = StockMovement.Create(
+                inventory.Id,
+                createDto.ProductId,
+                createDto.WarehouseId,
+                createDto.MovementType,
+                createDto.Quantity,
+                quantityBefore,
+                quantityAfter,
+                userId,
+                createDto.ReferenceNumber,
+                createDto.ReferenceId,
+                createDto.Notes,
+                createDto.FromWarehouseId,
+                createDto.ToWarehouseId);
 
             stockMovement = await _stockMovementRepository.AddAsync(stockMovement, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);

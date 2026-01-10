@@ -312,10 +312,10 @@ public class ShippingService : IShippingService
         // Gerçek uygulamada veritabanından veya config'den alınacak
         return Task.FromResult<IEnumerable<ShippingProviderDto>>(new List<ShippingProviderDto>
         {
-            new ShippingProviderDto { Code = "YURTICI", Name = "Yurtiçi Kargo", BaseCost = 50m, EstimatedDays = 3 },
-            new ShippingProviderDto { Code = "ARAS", Name = "Aras Kargo", BaseCost = 45m, EstimatedDays = 2 },
-            new ShippingProviderDto { Code = "MNG", Name = "MNG Kargo", BaseCost = 40m, EstimatedDays = 2 },
-            new ShippingProviderDto { Code = "SURAT", Name = "Sürat Kargo", BaseCost = 55m, EstimatedDays = 3 }
+            new ShippingProviderDto("YURTICI", "Yurtiçi Kargo", 50m, 3),
+            new ShippingProviderDto("ARAS", "Aras Kargo", 45m, 2),
+            new ShippingProviderDto("MNG", "MNG Kargo", 40m, 2),
+            new ShippingProviderDto("SURAT", "Sürat Kargo", 55m, 3)
         });
     }
 }

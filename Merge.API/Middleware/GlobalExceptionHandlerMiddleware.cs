@@ -38,7 +38,7 @@ public class GlobalExceptionHandlerMiddleware
         switch (exception)
         {
             // ✅ BOLUM 2.1: FluentValidation ValidationException handling
-            case ValidationException validationEx:
+            case FluentValidation.ValidationException validationEx:
                 code = HttpStatusCode.BadRequest;
                 var errors = validationEx.Errors
                     .GroupBy(e => e.PropertyName)

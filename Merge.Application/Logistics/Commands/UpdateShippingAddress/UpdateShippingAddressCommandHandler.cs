@@ -54,11 +54,11 @@ public class UpdateShippingAddressCommandHandler : IRequestHandler<UpdateShippin
                 request.LastName ?? address.LastName,
                 request.Phone ?? address.Phone,
                 request.AddressLine1 ?? address.AddressLine1,
-                request.City ?? address.City,
-                request.State ?? address.State,
-                request.PostalCode ?? address.PostalCode,
-                request.Country ?? address.Country,
                 request.AddressLine2 ?? address.AddressLine2,
+                request.City ?? address.City,
+                request.State ?? address.State ?? string.Empty,
+                request.PostalCode ?? address.PostalCode ?? string.Empty,
+                request.Country ?? address.Country ?? string.Empty,
                 request.Instructions ?? address.Instructions);
         }
 

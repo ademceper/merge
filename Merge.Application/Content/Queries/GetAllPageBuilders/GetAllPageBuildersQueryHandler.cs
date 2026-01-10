@@ -91,6 +91,17 @@ public class GetAllPageBuildersQueryHandler : IRequestHandler<GetAllPageBuilders
             CACHE_EXPIRATION,
             cancellationToken);
 
+        if (cachedResult == null)
+        {
+            return new PagedResult<PageBuilderDto>
+            {
+                Items = new List<PageBuilderDto>(),
+                TotalCount = 0,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
         _logger.LogInformation("Successfully retrieved {Count} page builders (Page: {Page}, PageSize: {PageSize})",
             cachedResult.Items.Count, page, pageSize);
 

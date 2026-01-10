@@ -38,7 +38,7 @@ public class GetActivePolicyQueryHandler : IRequestHandler<GetActivePolicyQuery,
         var cacheKey = $"{CACHE_KEY_ACTIVE_POLICY}{request.PolicyType}_{request.Language}";
 
         // ✅ BOLUM 10.2: Redis distributed cache
-        var cachedPolicy = await _cache.GetOrCreateAsync(
+        var cachedPolicy = await _cache.GetOrCreateNullableAsync<PolicyDto>(
             cacheKey,
             async () =>
             {

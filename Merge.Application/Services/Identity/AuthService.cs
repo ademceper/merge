@@ -174,14 +174,11 @@ public class AuthService : IAuthService
         var user = refreshTokenEntity.User;
         var roles = await _userManager.GetRolesAsync(user);
 
-        // ✅ SECURITY: Eski refresh token'ı revoke et
-        refreshTokenEntity.IsRevoked = true;
-        refreshTokenEntity.RevokedAt = DateTime.UtcNow;
-        refreshTokenEntity.RevokedByIp = ipAddress;
-
         // ✅ SECURITY: Yeni refresh token oluştur (rotation)
         var (newRefreshToken, plainToken) = GenerateRefreshToken(user.Id, ipAddress);
-        refreshTokenEntity.ReplacedByTokenHash = newRefreshToken.TokenHash;
+
+        // ✅ SECURITY: Eski refresh token'ı revoke et - Domain method kullan
+        refreshTokenEntity.Revoke(ipAddress, newRefreshToken.TokenHash);
 
         _context.Set<RefreshToken>().Add(newRefreshToken);
         await _context.SaveChangesAsync(cancellationToken);
@@ -197,14 +194,12 @@ public class AuthService : IAuthService
         // ✅ BOLUM 4.2: Record DTOs - Immutable record, with expression kullan
         userDto = userDto with { Role = roles.Count > 0 ? roles[0] : "Customer" };
 
-        return new AuthResponseDto
-        {
-            Token = accessToken,
-            ExpiresAt = expiresAt,
-            RefreshToken = plainToken,
-            RefreshTokenExpiresAt = newRefreshToken.ExpiresAt,
-            User = userDto
-        };
+        return new AuthResponseDto(
+            accessToken,
+            expiresAt,
+            plainToken,
+            newRefreshToken.ExpiresAt,
+            userDto);
     }
 
     public async Task RevokeTokenAsync(string refreshToken, string? ipAddress = null, CancellationToken cancellationToken = default)
@@ -224,9 +219,8 @@ public class AuthService : IAuthService
             throw new BusinessException("Refresh token zaten geçersiz.");
         }
 
-        refreshTokenEntity.IsRevoked = true;
-        refreshTokenEntity.RevokedAt = DateTime.UtcNow;
-        refreshTokenEntity.RevokedByIp = ipAddress;
+        // Domain method kullan
+        refreshTokenEntity.Revoke(ipAddress);
 
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -276,14 +270,12 @@ public class AuthService : IAuthService
         // ✅ BOLUM 4.2: Record DTOs - Immutable record, with expression kullan
         userDto = userDto with { Role = roles.Count > 0 ? roles[0] : "Customer" };
 
-        return new AuthResponseDto
-        {
-            Token = accessToken,
-            ExpiresAt = expiresAt,
-            RefreshToken = plainToken,
-            RefreshTokenExpiresAt = refreshToken.ExpiresAt,
-            User = userDto
-        };
+        return new AuthResponseDto(
+            accessToken,
+            expiresAt,
+            plainToken,
+            refreshToken.ExpiresAt,
+            userDto);
     }
 
     // ✅ BOLUM 9.1: Refresh token hash'lenmiş olarak saklanıyor
@@ -297,13 +289,12 @@ public class AuthService : IAuthService
         var plainToken = Convert.ToBase64String(randomBytes);
         var tokenHash = TokenHasher.HashToken(plainToken);
 
-        var refreshToken = new RefreshToken
-        {
-            UserId = userId,
-            TokenHash = tokenHash,
-            ExpiresAt = DateTime.UtcNow.AddDays(RefreshTokenExpirationDays),
-            CreatedByIp = ipAddress
-        };
+        // Factory method kullan
+        var refreshToken = RefreshToken.Create(
+            userId,
+            tokenHash,
+            DateTime.UtcNow.AddDays(RefreshTokenExpirationDays),
+            ipAddress);
         
         return (refreshToken, plainToken);
     }

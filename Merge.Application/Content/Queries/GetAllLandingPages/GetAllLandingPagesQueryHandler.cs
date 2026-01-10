@@ -98,6 +98,17 @@ public class GetAllLandingPagesQueryHandler : IRequestHandler<GetAllLandingPages
             CACHE_EXPIRATION,
             cancellationToken);
 
+        if (cachedResult == null)
+        {
+            return new PagedResult<LandingPageDto>
+            {
+                Items = new List<LandingPageDto>(),
+                TotalCount = 0,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
         _logger.LogInformation("Successfully retrieved {Count} landing pages (Page: {Page}, PageSize: {PageSize})",
             cachedResult.Items.Count, page, pageSize);
 

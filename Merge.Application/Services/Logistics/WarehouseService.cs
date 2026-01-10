@@ -127,8 +127,19 @@ public class WarehouseService : IWarehouseService
                 throw new BusinessException($"Bu kod ile depo zaten mevcut: '{createDto.Code}'");
             }
 
-            var warehouse = _mapper.Map<Warehouse>(createDto);
-            warehouse.IsActive = true;
+            // Factory method kullan
+            var warehouse = Warehouse.Create(
+                createDto.Name,
+                createDto.Code,
+                createDto.Address,
+                createDto.City,
+                createDto.Country,
+                createDto.PostalCode,
+                createDto.ContactPerson,
+                createDto.ContactPhone,
+                createDto.ContactEmail,
+                createDto.Capacity,
+                createDto.Description);
 
             warehouse = await _warehouseRepository.AddAsync(warehouse, cancellationToken);
             // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
@@ -160,17 +171,31 @@ public class WarehouseService : IWarehouseService
             throw new NotFoundException("Depo", id);
         }
 
-        warehouse.Name = updateDto.Name;
-        warehouse.Address = updateDto.Address;
-        warehouse.City = updateDto.City;
-        warehouse.Country = updateDto.Country;
-        warehouse.PostalCode = updateDto.PostalCode;
-        warehouse.ContactPerson = updateDto.ContactPerson;
-        warehouse.ContactPhone = updateDto.ContactPhone;
-        warehouse.ContactEmail = updateDto.ContactEmail;
-        warehouse.Capacity = updateDto.Capacity;
-        warehouse.IsActive = updateDto.IsActive;
-        warehouse.Description = updateDto.Description;
+        // Domain method kullan - nullable değerleri mevcut değerlerle değiştir
+        warehouse.UpdateDetails(
+            updateDto.Name ?? warehouse.Name,
+            updateDto.Address ?? warehouse.Address,
+            updateDto.City ?? warehouse.City,
+            updateDto.Country ?? warehouse.Country,
+            updateDto.PostalCode ?? warehouse.PostalCode,
+            updateDto.ContactPerson ?? warehouse.ContactPerson,
+            updateDto.ContactPhone ?? warehouse.ContactPhone,
+            updateDto.ContactEmail ?? warehouse.ContactEmail,
+            updateDto.Capacity ?? warehouse.Capacity,
+            updateDto.Description);
+        
+        // IsActive için domain method kullan
+        if (updateDto.IsActive.HasValue)
+        {
+            if (updateDto.IsActive.Value && !warehouse.IsActive)
+            {
+                warehouse.Activate();
+            }
+            else if (!updateDto.IsActive.Value && warehouse.IsActive)
+            {
+                warehouse.Deactivate();
+            }
+        }
 
         await _warehouseRepository.UpdateAsync(warehouse, cancellationToken);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
@@ -215,7 +240,8 @@ public class WarehouseService : IWarehouseService
             return false;
         }
 
-        warehouse.IsActive = true;
+        // Domain method kullan
+        warehouse.Activate();
         await _warehouseRepository.UpdateAsync(warehouse, cancellationToken);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -231,7 +257,8 @@ public class WarehouseService : IWarehouseService
             return false;
         }
 
-        warehouse.IsActive = false;
+        // Domain method kullan
+        warehouse.Deactivate();
         await _warehouseRepository.UpdateAsync(warehouse, cancellationToken);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         await _unitOfWork.SaveChangesAsync(cancellationToken);

@@ -155,18 +155,26 @@ public class WarehousesController : BaseController
         [FromBody] UpdateWarehouseDto updateDto,
         CancellationToken cancellationToken = default)
     {
+        // Mevcut warehouse'u çek
+        var existingQuery = new GetWarehouseByIdQuery(id);
+        var existingWarehouse = await _mediator.Send(existingQuery, cancellationToken);
+        if (existingWarehouse == null)
+        {
+            return NotFound();
+        }
+
         var command = new UpdateWarehouseCommand(
             id,
-            updateDto.Name,
-            updateDto.Address,
-            updateDto.City,
-            updateDto.Country,
-            updateDto.PostalCode,
-            updateDto.ContactPerson,
-            updateDto.ContactPhone,
-            updateDto.ContactEmail,
-            updateDto.Capacity,
-            updateDto.IsActive,
+            updateDto.Name ?? existingWarehouse.Name,
+            updateDto.Address ?? existingWarehouse.Address,
+            updateDto.City ?? existingWarehouse.City,
+            updateDto.Country ?? existingWarehouse.Country,
+            updateDto.PostalCode ?? existingWarehouse.PostalCode,
+            updateDto.ContactPerson ?? existingWarehouse.ContactPerson,
+            updateDto.ContactPhone ?? existingWarehouse.ContactPhone,
+            updateDto.ContactEmail ?? existingWarehouse.ContactEmail,
+            updateDto.Capacity ?? existingWarehouse.Capacity,
+            updateDto.IsActive ?? existingWarehouse.IsActive,
             updateDto.Description);
         var warehouse = await _mediator.Send(command, cancellationToken);
         return Ok(warehouse);

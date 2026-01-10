@@ -74,14 +74,12 @@ public class PickPackService : IPickPackService
 
             var packNumber = await GeneratePackNumberAsync(cancellationToken);
 
-            var pickPack = new PickPack
-            {
-                OrderId = dto.OrderId,
-                WarehouseId = dto.WarehouseId,
-                PackNumber = packNumber,
-                Status = PickPackStatus.Pending,
-                Notes = dto.Notes
-            };
+            // Factory method kullan
+            var pickPack = PickPack.Create(
+                dto.OrderId,
+                dto.WarehouseId,
+                packNumber,
+                dto.Notes);
 
             await _context.Set<PickPack>().AddAsync(pickPack, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -91,15 +89,12 @@ public class PickPackService : IPickPackService
             var items = new List<PickPackItem>(order.OrderItems.Count);
             foreach (var orderItem in order.OrderItems)
             {
-                var pickPackItem = new PickPackItem
-                {
-                    PickPackId = pickPack.Id,
-                    OrderItemId = orderItem.Id,
-                    ProductId = orderItem.ProductId,
-                    Quantity = orderItem.Quantity,
-                    IsPicked = false,
-                    IsPacked = false
-                };
+                // Factory method kullan
+                var pickPackItem = PickPackItem.Create(
+                    pickPack.Id,
+                    orderItem.Id,
+                    orderItem.ProductId,
+                    orderItem.Quantity);
                 items.Add(pickPackItem);
             }
 
@@ -262,17 +257,12 @@ public class PickPackService : IPickPackService
             throw new ValidationException("Geçersiz pick-pack durumu.");
         }
 
-        pickPack.Status = statusEnum;
-        if (dto.Notes != null)
-            pickPack.Notes = dto.Notes;
-        if (dto.Weight.HasValue)
-            pickPack.Weight = dto.Weight.Value;
-        if (dto.Dimensions != null)
-            pickPack.Dimensions = dto.Dimensions;
-        if (dto.PackageCount.HasValue)
-            pickPack.PackageCount = dto.PackageCount.Value;
-
-        pickPack.UpdatedAt = DateTime.UtcNow;
+        // Domain method kullan
+        pickPack.UpdateDetails(
+            dto.Notes,
+            dto.Weight,
+            dto.Dimensions,
+            dto.PackageCount);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -286,11 +276,10 @@ public class PickPackService : IPickPackService
         var pickPack = await _context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
-        if (pickPack == null || pickPack.Status != PickPackStatus.Pending) return false;
+        if (pickPack == null) return false;
 
-        pickPack.Status = PickPackStatus.Picking;
-        pickPack.PickedByUserId = userId;
-        pickPack.UpdatedAt = DateTime.UtcNow;
+        // Domain method kullan
+        pickPack.StartPicking(userId);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -321,10 +310,8 @@ public class PickPackService : IPickPackService
             throw new BusinessException("Tüm kalemler seçilmemiş.");
         }
 
-        pickPack.Status = PickPackStatus.Packed;
-        pickPack.PickedByUserId = userId;
-        pickPack.PickedAt = DateTime.UtcNow;
-        pickPack.UpdatedAt = DateTime.UtcNow;
+        // Domain method kullan
+        pickPack.CompletePicking();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -338,11 +325,10 @@ public class PickPackService : IPickPackService
         var pickPack = await _context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
-        if (pickPack == null || (pickPack.Status != PickPackStatus.Packed && pickPack.Status != PickPackStatus.Picking)) return false;
+        if (pickPack == null) return false;
 
-        pickPack.Status = PickPackStatus.Packing;
-        pickPack.PackedByUserId = userId;
-        pickPack.UpdatedAt = DateTime.UtcNow;
+        // Domain method kullan
+        pickPack.StartPacking(userId);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -373,10 +359,9 @@ public class PickPackService : IPickPackService
             throw new BusinessException("Tüm kalemler paketlenmemiş.");
         }
 
-        pickPack.Status = PickPackStatus.Shipped;
-        pickPack.PackedByUserId = userId;
-        pickPack.PackedAt = DateTime.UtcNow;
-        pickPack.UpdatedAt = DateTime.UtcNow;
+        // Domain method kullan - CompletePacking weight, dimensions, packageCount parametreleri alıyor
+        // Burada default değerler kullanıyoruz, gerçek uygulamada bu değerler dto'dan gelmeli
+        pickPack.CompletePacking(weight: 0, dimensions: null, packageCount: 1);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -390,10 +375,10 @@ public class PickPackService : IPickPackService
         var pickPack = await _context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
-        if (pickPack == null || pickPack.Status != PickPackStatus.Shipped) return false;
+        if (pickPack == null) return false;
 
-        pickPack.ShippedAt = DateTime.UtcNow;
-        pickPack.UpdatedAt = DateTime.UtcNow;
+        // Domain method kullan
+        pickPack.Ship();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

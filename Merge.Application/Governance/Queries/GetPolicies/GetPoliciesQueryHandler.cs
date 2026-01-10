@@ -116,7 +116,13 @@ public class GetPoliciesQueryHandler : IRequestHandler<GetPoliciesQuery, PagedRe
             CACHE_EXPIRATION,
             cancellationToken);
 
-        return cachedResult;
+        return cachedResult ?? new PagedResult<PolicyDto>
+        {
+            Items = new List<PolicyDto>(),
+            TotalCount = 0,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 }
 

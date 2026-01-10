@@ -275,8 +275,8 @@ public class TwoFactorAuthService : ITwoFactorAuthService
 
             if (twoFactorCode != null)
             {
-                twoFactorCode.IsUsed = true;
-                twoFactorCode.UsedAt = DateTime.UtcNow;
+                // Domain method kullan
+                twoFactorCode.MarkAsUsed();
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 isValid = true;
             }
@@ -392,10 +392,8 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         // ✅ PERFORMANCE: Array üzerinde Any() ve Where().ToArray() - memory'de minimal işlem (kabul edilebilir)
         if (twoFactorAuth.BackupCodes.Any(c => c.Replace("-", "").ToUpper() == normalizedCode))
         {
-            // Remove used backup code
-            twoFactorAuth.BackupCodes = twoFactorAuth.BackupCodes
-                .Where(c => c.Replace("-", "").ToUpper() != normalizedCode)
-                .ToArray();
+            // Domain method kullan
+            twoFactorAuth.RemoveBackupCode(backupCode);
 
             await _twoFactorRepository.UpdateAsync(twoFactorAuth);
             // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)

@@ -176,8 +176,8 @@ public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQu
             var dto = new AbandonedCartDto(
                 c.CartId,
                 c.UserId,
-                c.UserEmail,
-                c.UserName,
+                c.UserEmail ?? string.Empty,
+                c.UserName ?? string.Empty,
                 c.ItemCount,
                 c.TotalValue,
                 c.LastModified,
