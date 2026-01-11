@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.DTOs.Support;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
 using Merge.API.Middleware;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -15,10 +17,15 @@ namespace Merge.API.Controllers.Support;
 public class FaqsController : BaseController
 {
     private readonly IFaqService _faqService;
-        public FaqsController(IFaqService faqService)
+    private readonly SupportSettings _settings;
+
+    public FaqsController(
+        IFaqService faqService,
+        IOptions<SupportSettings> settings)
     {
         _faqService = faqService;
-            }
+        _settings = settings.Value;
+    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
@@ -30,12 +37,14 @@ public class FaqsController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PagedResult<FaqDto>>> GetPublished(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = 0,
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        if (pageSize <= 0) pageSize = _settings.DefaultPageSize;
+        if (pageSize > _settings.MaxPageSize) pageSize = _settings.MaxPageSize;
         if (page < 1) page = 1;
 
         var faqs = await _faqService.GetPublishedAsync(page, pageSize, cancellationToken);
@@ -53,12 +62,14 @@ public class FaqsController : BaseController
     public async Task<ActionResult<PagedResult<FaqDto>>> GetByCategory(
         string category,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = 0,
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        if (pageSize <= 0) pageSize = _settings.DefaultPageSize;
+        if (pageSize > _settings.MaxPageSize) pageSize = _settings.MaxPageSize;
         if (page < 1) page = 1;
 
         var faqs = await _faqService.GetByCategoryAsync(category, page, pageSize, cancellationToken);
@@ -78,12 +89,14 @@ public class FaqsController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PagedResult<FaqDto>>> GetAll(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = 0,
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        if (pageSize <= 0) pageSize = _settings.DefaultPageSize;
+        if (pageSize > _settings.MaxPageSize) pageSize = _settings.MaxPageSize;
         if (page < 1) page = 1;
 
         var faqs = await _faqService.GetAllAsync(page, pageSize, cancellationToken);

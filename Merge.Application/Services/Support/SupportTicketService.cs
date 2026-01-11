@@ -1,13 +1,16 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.Common;
 using UserEntity = Merge.Domain.Entities.User;
 using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
@@ -24,19 +27,22 @@ public class SupportTicketService : ISupportTicketService
     private readonly IMapper _mapper;
     private readonly IEmailService _emailService;
     private readonly ILogger<SupportTicketService> _logger;
+    private readonly SupportSettings _settings;
 
     public SupportTicketService(
         IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         IEmailService emailService,
-        ILogger<SupportTicketService> logger)
+        ILogger<SupportTicketService> logger,
+        IOptions<SupportSettings> settings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _emailService = emailService;
         _logger = logger;
+        _settings = settings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -57,20 +63,23 @@ public class SupportTicketService : ISupportTicketService
             throw new NotFoundException("Kullanıcı", userId);
         }
 
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Service layer validation
+        Guard.AgainstLength(dto.Subject, _settings.MaxTicketSubjectLength, nameof(dto.Subject));
+        Guard.AgainstLength(dto.Description, _settings.MaxTicketDescriptionLength, nameof(dto.Description));
+
         // Generate ticket number
         var ticketNumber = await GenerateTicketNumberAsync(cancellationToken);
 
-        var ticket = new SupportTicket
-        {
-            TicketNumber = ticketNumber,
-            UserId = userId,
-            Category = Enum.Parse<TicketCategory>(dto.Category, true),
-            Priority = Enum.Parse<TicketPriority>(dto.Priority, true),
-            Subject = dto.Subject,
-            Description = dto.Description,
-            OrderId = dto.OrderId,
-            ProductId = dto.ProductId
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var ticket = SupportTicket.Create(
+            ticketNumber,
+            userId,
+            Enum.Parse<TicketCategory>(dto.Category, true),
+            Enum.Parse<TicketPriority>(dto.Priority, true),
+            dto.Subject,
+            dto.Description,
+            dto.OrderId,
+            dto.ProductId);
 
         await _context.Set<SupportTicket>().AddAsync(ticket, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -162,7 +171,8 @@ public class SupportTicketService : ISupportTicketService
     public async Task<PagedResult<SupportTicketDto>> GetUserTicketsAsync(Guid userId, string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        if (pageSize > _settings.MaxPageSize) pageSize = _settings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
@@ -264,7 +274,8 @@ public class SupportTicketService : ISupportTicketService
     public async Task<PagedResult<SupportTicketDto>> GetAllTicketsAsync(string? status = null, string? category = null, Guid? assignedToId = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        if (pageSize > _settings.MaxPageSize) pageSize = _settings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
@@ -388,36 +399,55 @@ public class SupportTicketService : ISupportTicketService
 
         var oldStatus = ticket.Status;
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        if (!string.IsNullOrEmpty(dto.Subject))
+        {
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Service layer validation
+            Guard.AgainstLength(dto.Subject, _settings.MaxTicketSubjectLength, nameof(dto.Subject));
+            ticket.UpdateSubject(dto.Subject);
+        }
+
+        if (!string.IsNullOrEmpty(dto.Description))
+        {
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Service layer validation
+            Guard.AgainstLength(dto.Description, _settings.MaxTicketDescriptionLength, nameof(dto.Description));
+            ticket.UpdateDescription(dto.Description);
+        }
+
         if (!string.IsNullOrEmpty(dto.Category))
         {
-            ticket.Category = Enum.Parse<TicketCategory>(dto.Category, true);
+            ticket.UpdateCategory(Enum.Parse<TicketCategory>(dto.Category, true));
         }
 
         if (!string.IsNullOrEmpty(dto.Priority))
         {
-            ticket.Priority = Enum.Parse<TicketPriority>(dto.Priority, true);
+            ticket.UpdatePriority(Enum.Parse<TicketPriority>(dto.Priority, true));
         }
 
         if (!string.IsNullOrEmpty(dto.Status))
         {
             var newStatus = Enum.Parse<TicketStatus>(dto.Status, true);
-            ticket.Status = newStatus;
-
-            if (newStatus == TicketStatus.Resolved && ticket.ResolvedAt == null)
+            
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (semantic methods)
+            if (newStatus == TicketStatus.Resolved)
             {
-                ticket.ResolvedAt = DateTime.UtcNow;
+                ticket.Resolve();
                 _logger.LogInformation("Ticket {TicketNumber} marked as resolved", ticket.TicketNumber);
             }
-            else if (newStatus == TicketStatus.Closed && ticket.ClosedAt == null)
+            else if (newStatus == TicketStatus.Closed)
             {
-                ticket.ClosedAt = DateTime.UtcNow;
+                ticket.Close();
                 _logger.LogInformation("Ticket {TicketNumber} marked as closed", ticket.TicketNumber);
+            }
+            else
+            {
+                ticket.UpdateStatus(newStatus);
             }
         }
 
         if (dto.AssignedToId.HasValue)
         {
-            ticket.AssignedToId = dto.AssignedToId.Value;
+            ticket.AssignTo(dto.AssignedToId.Value);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -441,12 +471,8 @@ public class SupportTicketService : ISupportTicketService
             return false;
         }
 
-        ticket.AssignedToId = assignedToId;
-
-        if (ticket.Status == TicketStatus.Open)
-        {
-            ticket.Status = TicketStatus.InProgress;
-        }
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        ticket.AssignTo(assignedToId);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -469,8 +495,8 @@ public class SupportTicketService : ISupportTicketService
             return false;
         }
 
-        ticket.Status = TicketStatus.Closed;
-        ticket.ClosedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        ticket.Close();
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -510,9 +536,8 @@ public class SupportTicketService : ISupportTicketService
             return false;
         }
 
-        ticket.Status = TicketStatus.Open;
-        ticket.ClosedAt = null;
-        ticket.ResolvedAt = null;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        ticket.Reopen();
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -540,30 +565,26 @@ public class SupportTicketService : ISupportTicketService
             throw new NotFoundException("Destek bileti", dto.TicketId);
         }
 
-        var message = new TicketMessage
-        {
-            TicketId = dto.TicketId,
-            UserId = userId,
-            Message = dto.Message,
-            IsStaffResponse = isStaffResponse,
-            IsInternal = dto.IsInternal
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Status'u kaydet (domain method çağrılmadan önce)
+        var oldStatus = ticket.Status;
+
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Service layer validation
+        Guard.AgainstLength(dto.Message, _settings.MaxTicketMessageLength, nameof(dto.Message));
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var message = TicketMessage.Create(
+            dto.TicketId,
+            ticket.TicketNumber,
+            userId,
+            dto.Message,
+            isStaffResponse,
+            dto.IsInternal);
 
         await _context.Set<TicketMessage>().AddAsync(message, cancellationToken);
 
-        ticket.ResponseCount++;
-        ticket.LastResponseAt = DateTime.UtcNow;
-
-        var oldStatus = ticket.Status;
-
-        if (ticket.Status == TicketStatus.Waiting && isStaffResponse)
-        {
-            ticket.Status = TicketStatus.InProgress;
-        }
-        else if (!isStaffResponse)
-        {
-            ticket.Status = TicketStatus.Waiting;
-        }
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        ticket.AddMessage();
+        ticket.UpdateStatusOnMessage(isStaffResponse);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -635,8 +656,9 @@ public class SupportTicketService : ISupportTicketService
 
         var now = DateTime.UtcNow;
         var today = now.Date;
-        var weekAgo = now.AddDays(-7);
-        var monthAgo = now.AddMonths(-1);
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        var weekAgo = now.AddDays(-_settings.WeeklyReportDays);
+        var monthAgo = now.AddDays(-_settings.DefaultStatsPeriodDays);
 
         var totalTickets = await query.CountAsync(cancellationToken);
         var openTickets = await query.CountAsync(t => t.Status == TicketStatus.Open, cancellationToken);
@@ -854,16 +876,18 @@ public class SupportTicketService : ISupportTicketService
             .FirstOrDefaultAsync(cancellationToken);
 
         int nextNumber = 1;
-        if (lastTicket != null && lastTicket.TicketNumber.StartsWith("TKT-"))
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        if (lastTicket != null && lastTicket.TicketNumber.StartsWith(_settings.TicketNumberPrefix))
         {
-            var numberPart = lastTicket.TicketNumber.Substring(4);
+            var numberPart = lastTicket.TicketNumber.Substring(_settings.TicketNumberPrefix.Length);
             if (int.TryParse(numberPart, out int lastNumber))
             {
                 nextNumber = lastNumber + 1;
             }
         }
 
-        return $"TKT-{nextNumber:D6}";
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        return $"{_settings.TicketNumberPrefix}{nextNumber.ToString($"D{_settings.TicketNumberPadding}")}";
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -910,7 +934,8 @@ public class SupportTicketService : ISupportTicketService
     // ✅ BOLUM 9.1, 9.2: Structured Logging (ZORUNLU)
     public async Task<SupportAgentDashboardDto> GetAgentDashboardAsync(Guid agentId, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
-        startDate ??= DateTime.UtcNow.AddDays(-30);
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        startDate ??= DateTime.UtcNow.AddDays(-_settings.DefaultStatsPeriodDays);
         endDate ??= DateTime.UtcNow;
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
@@ -959,8 +984,9 @@ public class SupportTicketService : ISupportTicketService
             : 0;
 
         var today = DateTime.UtcNow.Date;
-        var weekAgo = today.AddDays(-7);
-        var monthAgo = today.AddDays(-30);
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        var weekAgo = today.AddDays(-_settings.WeeklyReportDays);
+        var monthAgo = today.AddDays(-_settings.DefaultStatsPeriodDays);
 
         var ticketsResolvedToday = await allTicketsQuery.CountAsync(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value.Date == today, cancellationToken);
         var ticketsResolvedThisWeek = await allTicketsQuery.CountAsync(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value >= weekAgo, cancellationToken);
@@ -974,7 +1000,8 @@ public class SupportTicketService : ISupportTicketService
         var activeTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress, cancellationToken);
         var overdueTickets = await allTicketsQuery.CountAsync(t =>
             (t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress) &&
-            t.CreatedAt < DateTime.UtcNow.AddDays(-3), cancellationToken); // Tickets older than 3 days
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+            t.CreatedAt < DateTime.UtcNow.AddDays(-_settings.TicketOverdueDays), cancellationToken);
         var highPriorityTickets = await allTicketsQuery.CountAsync(t => t.Priority == TicketPriority.High, cancellationToken);
         var urgentTickets = await allTicketsQuery.CountAsync(t => t.Priority == TicketPriority.Urgent, cancellationToken);
 
@@ -994,7 +1021,7 @@ public class SupportTicketService : ISupportTicketService
             .Include(t => t.Product)
             .Include(t => t.AssignedTo)
             .OrderByDescending(t => t.CreatedAt)
-            .Take(10)
+            .Take(_settings.DashboardRecentTicketsCount)
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Urgent tickets - database'de query
@@ -1005,14 +1032,14 @@ public class SupportTicketService : ISupportTicketService
             .Include(t => t.AssignedTo)
             .Where(t => t.Priority == TicketPriority.Urgent && (t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress))
             .OrderBy(t => t.CreatedAt)
-            .Take(10)
+            .Take(_settings.DashboardRecentTicketsCount)
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: allTicketIds'i database'de oluştur, memory'de işlem YASAK
         // Recent tickets için ID'leri database'de al
         var recentTicketIds = await allTicketsQuery
             .OrderByDescending(t => t.CreatedAt)
-            .Take(10)
+            .Take(_settings.DashboardRecentTicketsCount)
             .Select(t => t.Id)
             .ToListAsync(cancellationToken);
         
@@ -1020,7 +1047,7 @@ public class SupportTicketService : ISupportTicketService
         var urgentTicketIds = await allTicketsQuery
             .Where(t => t.Priority == TicketPriority.Urgent && (t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress))
             .OrderBy(t => t.CreatedAt)
-            .Take(10)
+            .Take(_settings.DashboardRecentTicketsCount)
             .Select(t => t.Id)
             .ToListAsync(cancellationToken);
         

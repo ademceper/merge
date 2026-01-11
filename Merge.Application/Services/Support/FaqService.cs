@@ -1,10 +1,13 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
+using Merge.Domain.Common;
 using Merge.Application.DTOs.Support;
 using Merge.Application.Common;
 
@@ -18,19 +21,22 @@ public class FaqService : IFaqService
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<FaqService> _logger;
+    private readonly SupportSettings _settings;
 
     public FaqService(
         IRepository<FAQ> faqRepository,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
-        ILogger<FaqService> logger)
+        ILogger<FaqService> logger,
+        IOptions<SupportSettings> settings)
     {
         _faqRepository = faqRepository;
         _context = context;
         _mapper = mapper;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _settings = settings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -159,7 +165,19 @@ public class FaqService : IFaqService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<FaqDto> CreateAsync(CreateFaqDto dto, CancellationToken cancellationToken = default)
     {
-        var faq = _mapper.Map<FAQ>(dto);
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Service layer validation
+        Guard.AgainstLength(dto.Question, _settings.MaxFaqQuestionLength, nameof(dto.Question));
+        Guard.AgainstLength(dto.Answer, _settings.MaxFaqAnswerLength, nameof(dto.Answer));
+        Guard.AgainstLength(dto.Category, _settings.MaxFaqCategoryLength, nameof(dto.Category));
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var faq = FAQ.Create(
+            dto.Question,
+            dto.Answer,
+            dto.Category,
+            dto.SortOrder,
+            dto.IsPublished);
+
         faq = await _faqRepository.AddAsync(faq, cancellationToken);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -175,11 +193,16 @@ public class FaqService : IFaqService
             throw new NotFoundException("SSS", id);
         }
 
-        faq.Question = dto.Question;
-        faq.Answer = dto.Answer;
-        faq.Category = dto.Category;
-        faq.SortOrder = dto.SortOrder;
-        faq.IsPublished = dto.IsPublished;
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Service layer validation
+        Guard.AgainstLength(dto.Question, _settings.MaxFaqQuestionLength, nameof(dto.Question));
+        Guard.AgainstLength(dto.Answer, _settings.MaxFaqAnswerLength, nameof(dto.Answer));
+        Guard.AgainstLength(dto.Category, _settings.MaxFaqCategoryLength, nameof(dto.Category));
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        faq.Update(dto.Question, dto.Answer);
+        faq.UpdateCategory(dto.Category);
+        faq.SetPublished(dto.IsPublished);
+        faq.UpdateSortOrder(dto.SortOrder);
 
         await _faqRepository.UpdateAsync(faq, cancellationToken);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
@@ -208,7 +231,8 @@ public class FaqService : IFaqService
         var faq = await _faqRepository.GetByIdAsync(id, cancellationToken);
         if (faq != null)
         {
-            faq.ViewCount++;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            faq.IncrementViewCount();
             await _faqRepository.UpdateAsync(faq, cancellationToken);
             // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
             await _unitOfWork.SaveChangesAsync(cancellationToken);

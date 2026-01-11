@@ -1,12 +1,15 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.Common;
 using UserEntity = Merge.Domain.Entities.User;
 using System.Text.Json;
 using Merge.Application.DTOs.Support;
@@ -21,35 +24,43 @@ public class CustomerCommunicationService : ICustomerCommunicationService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<CustomerCommunicationService> _logger;
+    private readonly SupportSettings _settings;
 
-    public CustomerCommunicationService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CustomerCommunicationService> logger)
+    public CustomerCommunicationService(
+        IDbContext context,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        ILogger<CustomerCommunicationService> logger,
+        IOptions<SupportSettings> settings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _settings = settings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<CustomerCommunicationDto> CreateCommunicationAsync(CreateCustomerCommunicationDto dto, Guid? sentByUserId = null, CancellationToken cancellationToken = default)
     {
-        var communication = new CustomerCommunication
-        {
-            UserId = dto.UserId,
-            CommunicationType = dto.CommunicationType,
-            Channel = dto.Channel,
-            Subject = dto.Subject,
-            Content = dto.Content,
-            Direction = dto.Direction,
-            RelatedEntityId = dto.RelatedEntityId,
-            RelatedEntityType = dto.RelatedEntityType,
-            SentByUserId = sentByUserId,
-            RecipientEmail = dto.RecipientEmail,
-            RecipientPhone = dto.RecipientPhone,
-            Status = CommunicationStatus.Sent,
-            SentAt = DateTime.UtcNow,
-            Metadata = dto.Metadata != null ? JsonSerializer.Serialize(dto.Metadata) : null
-        };
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Service layer validation
+        Guard.AgainstLength(dto.Subject, _settings.MaxCommunicationSubjectLength, nameof(dto.Subject));
+        Guard.AgainstLength(dto.Content, _settings.MaxCommunicationContentLength, nameof(dto.Content));
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var communication = CustomerCommunication.Create(
+            dto.UserId,
+            dto.CommunicationType,
+            dto.Channel,
+            dto.Subject,
+            dto.Content,
+            dto.Direction,
+            dto.RelatedEntityId,
+            dto.RelatedEntityType,
+            sentByUserId,
+            dto.RecipientEmail,
+            dto.RecipientPhone,
+            dto.Metadata != null ? JsonSerializer.Serialize(dto.Metadata) : null);
 
         await _context.Set<CustomerCommunication>().AddAsync(communication, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -83,7 +94,8 @@ public class CustomerCommunicationService : ICustomerCommunicationService
     public async Task<PagedResult<CustomerCommunicationDto>> GetUserCommunicationsAsync(Guid userId, string? communicationType = null, string? channel = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        if (pageSize > _settings.MaxPageSize) pageSize = _settings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
@@ -158,7 +170,8 @@ public class CustomerCommunicationService : ICustomerCommunicationService
             .Include(c => c.User)
             .Include(c => c.SentBy)
             .OrderByDescending(c => c.CreatedAt)
-            .Take(10)
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+            .Take(_settings.DashboardRecentTicketsCount)
             .ToListAsync(cancellationToken);
 
         var history = new CommunicationHistoryDto
@@ -180,7 +193,8 @@ public class CustomerCommunicationService : ICustomerCommunicationService
     public async Task<PagedResult<CustomerCommunicationDto>> GetAllCommunicationsAsync(string? communicationType = null, string? channel = null, Guid? userId = null, DateTime? startDate = null, DateTime? endDate = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        if (pageSize > _settings.MaxPageSize) pageSize = _settings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
@@ -241,13 +255,9 @@ public class CustomerCommunicationService : ICustomerCommunicationService
 
         if (communication == null) return false;
 
-        communication.Status = Enum.Parse<CommunicationStatus>(status);
-        if (deliveredAt.HasValue)
-            communication.DeliveredAt = deliveredAt.Value;
-        if (readAt.HasValue)
-            communication.ReadAt = readAt.Value;
-        
-        communication.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        var newStatus = Enum.Parse<CommunicationStatus>(status);
+        communication.UpdateStatus(newStatus, deliveredAt, readAt);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

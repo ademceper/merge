@@ -1,12 +1,15 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.Common;
 using System.Text;
 using Merge.Application.DTOs.Support;
 
@@ -18,13 +21,20 @@ public class KnowledgeBaseService : IKnowledgeBaseService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<KnowledgeBaseService> _logger;
+    private readonly SupportSettings _settings;
 
-    public KnowledgeBaseService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<KnowledgeBaseService> logger)
+    public KnowledgeBaseService(
+        IDbContext context,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        ILogger<KnowledgeBaseService> logger,
+        IOptions<SupportSettings> settings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _settings = settings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -43,20 +53,25 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             slug = $"{slug}-{DateTime.UtcNow.Ticks}";
         }
 
-        var article = new KnowledgeBaseArticle
-        {
-            Title = dto.Title,
-            Slug = slug,
-            Content = dto.Content,
-            Excerpt = dto.Excerpt,
-            CategoryId = dto.CategoryId,
-            Status = Enum.Parse<ContentStatus>(dto.Status),
-            IsFeatured = dto.IsFeatured,
-            DisplayOrder = dto.DisplayOrder,
-            Tags = dto.Tags != null ? string.Join(",", dto.Tags) : null,
-            AuthorId = authorId,
-            PublishedAt = dto.Status == nameof(ContentStatus.Published) ? DateTime.UtcNow : null
-        };
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Service layer validation
+        Guard.AgainstLength(dto.Title, _settings.MaxArticleTitleLength, nameof(dto.Title));
+        Guard.AgainstLength(slug, _settings.MaxArticleSlugLength, nameof(slug));
+        Guard.AgainstLength(dto.Content, _settings.MaxArticleContentLength, nameof(dto.Content));
+        if (!string.IsNullOrEmpty(dto.Excerpt))
+            Guard.AgainstLength(dto.Excerpt, _settings.MaxArticleExcerptLength, nameof(dto.Excerpt));
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var article = KnowledgeBaseArticle.Create(
+            dto.Title,
+            slug,
+            dto.Content,
+            authorId,
+            dto.CategoryId,
+            dto.Excerpt,
+            Enum.Parse<ContentStatus>(dto.Status),
+            dto.IsFeatured,
+            dto.DisplayOrder,
+            dto.Tags != null ? string.Join(",", dto.Tags) : null);
 
         await _context.Set<KnowledgeBaseArticle>().AddAsync(article, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -191,33 +206,62 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             throw new NotFoundException("Makale", id);
         }
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (!string.IsNullOrEmpty(dto.Title))
         {
-            article.Title = dto.Title;
-            article.Slug = GenerateSlug(dto.Title);
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Service layer validation
+            Guard.AgainstLength(dto.Title, _settings.MaxArticleTitleLength, nameof(dto.Title));
+            var newSlug = GenerateSlug(dto.Title);
+            Guard.AgainstLength(newSlug, _settings.MaxArticleSlugLength, nameof(newSlug));
+            article.UpdateTitle(dto.Title, newSlug);
         }
         if (!string.IsNullOrEmpty(dto.Content))
-            article.Content = dto.Content;
-        if (dto.Excerpt != null)
-            article.Excerpt = dto.Excerpt;
+        {
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Service layer validation
+            Guard.AgainstLength(dto.Content, _settings.MaxArticleContentLength, nameof(dto.Content));
+            if (!string.IsNullOrEmpty(dto.Excerpt))
+                Guard.AgainstLength(dto.Excerpt, _settings.MaxArticleExcerptLength, nameof(dto.Excerpt));
+            article.UpdateContent(dto.Content, dto.Excerpt);
+        }
+        else if (dto.Excerpt != null)
+        {
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Service layer validation
+            Guard.AgainstLength(dto.Excerpt, _settings.MaxArticleExcerptLength, nameof(dto.Excerpt));
+            article.UpdateContent(article.Content, dto.Excerpt);
+        }
         if (dto.CategoryId.HasValue)
-            article.CategoryId = dto.CategoryId.Value;
+        {
+            article.UpdateCategory(dto.CategoryId.Value);
+        }
         if (!string.IsNullOrEmpty(dto.Status))
         {
-            article.Status = Enum.Parse<ContentStatus>(dto.Status);
-            if (dto.Status == nameof(ContentStatus.Published) && !article.PublishedAt.HasValue)
+            var newStatus = Enum.Parse<ContentStatus>(dto.Status);
+            if (newStatus == ContentStatus.Published && article.Status != ContentStatus.Published)
             {
-                article.PublishedAt = DateTime.UtcNow;
+                article.Publish();
+            }
+            else
+            {
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+                article.UpdateStatus(newStatus);
             }
         }
         if (dto.IsFeatured.HasValue)
-            article.IsFeatured = dto.IsFeatured.Value;
+        {
+            article.SetFeatured(dto.IsFeatured.Value);
+        }
         if (dto.DisplayOrder.HasValue)
-            article.DisplayOrder = dto.DisplayOrder.Value;
+        {
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            article.UpdateDisplayOrder(dto.DisplayOrder.Value);
+        }
         if (dto.Tags != null)
-            article.Tags = string.Join(",", dto.Tags);
+        {
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            var tagsString = string.Join(",", dto.Tags);
+            article.UpdateTags(tagsString);
+        }
 
-        article.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes for mapping
@@ -256,16 +300,15 @@ public class KnowledgeBaseService : IKnowledgeBaseService
 
         if (article == null) return false;
 
-        article.Status = ContentStatus.Published;
-        article.PublishedAt = DateTime.UtcNow;
-        article.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        article.Publish();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    public async Task RecordArticleViewAsync(Guid articleId, Guid? userId = null, string? ipAddress = null, CancellationToken cancellationToken = default)
+    public async Task RecordArticleViewAsync(Guid articleId, Guid? userId = null, string? ipAddress = null, string? userAgent = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         var article = await _context.Set<KnowledgeBaseArticle>()
@@ -273,16 +316,17 @@ public class KnowledgeBaseService : IKnowledgeBaseService
 
         if (article == null) return;
 
-        var view = new KnowledgeBaseView
-        {
-            ArticleId = articleId,
-            UserId = userId,
-            IpAddress = ipAddress ?? string.Empty,
-            UserAgent = string.Empty
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var view = KnowledgeBaseView.Create(
+            articleId,
+            userId,
+            ipAddress ?? string.Empty,
+            userAgent ?? string.Empty,
+            0);
 
         await _context.Set<KnowledgeBaseView>().AddAsync(view, cancellationToken);
-        article.ViewCount++;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        article.IncrementViewCount();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
@@ -302,16 +346,21 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             slug = $"{slug}-{DateTime.UtcNow.Ticks}";
         }
 
-        var category = new KnowledgeBaseCategory
-        {
-            Name = dto.Name,
-            Slug = slug,
-            Description = dto.Description,
-            ParentCategoryId = dto.ParentCategoryId,
-            DisplayOrder = dto.DisplayOrder,
-            IsActive = dto.IsActive,
-            IconUrl = dto.IconUrl
-        };
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Service layer validation
+        Guard.AgainstLength(dto.Name, _settings.MaxCategoryNameLength, nameof(dto.Name));
+        Guard.AgainstLength(slug, _settings.MaxCategorySlugLength, nameof(slug));
+        if (!string.IsNullOrEmpty(dto.Description))
+            Guard.AgainstLength(dto.Description, _settings.MaxCategoryDescriptionLength, nameof(dto.Description));
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var category = KnowledgeBaseCategory.Create(
+            dto.Name,
+            slug,
+            dto.Description,
+            dto.ParentCategoryId,
+            dto.DisplayOrder,
+            dto.IsActive,
+            dto.IconUrl);
 
         await _context.Set<KnowledgeBaseCategory>().AddAsync(category, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -426,23 +475,45 @@ public class KnowledgeBaseService : IKnowledgeBaseService
             throw new NotFoundException("Kategori", id);
         }
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (!string.IsNullOrEmpty(dto.Name))
         {
-            category.Name = dto.Name;
-            category.Slug = GenerateSlug(dto.Name);
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Service layer validation
+            Guard.AgainstLength(dto.Name, _settings.MaxCategoryNameLength, nameof(dto.Name));
+            var newSlug = GenerateSlug(dto.Name);
+            Guard.AgainstLength(newSlug, _settings.MaxCategorySlugLength, nameof(newSlug));
+            category.UpdateName(dto.Name, newSlug);
         }
         if (dto.Description != null)
-            category.Description = dto.Description;
+        {
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Service layer validation
+            Guard.AgainstLength(dto.Description, _settings.MaxCategoryDescriptionLength, nameof(dto.Description));
+            category.UpdateDescription(dto.Description);
+        }
         if (dto.ParentCategoryId.HasValue)
-            category.ParentCategoryId = dto.ParentCategoryId.Value;
+        {
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            category.UpdateParentCategory(dto.ParentCategoryId.Value);
+        }
+        else if (dto.ParentCategoryId == null && category.ParentCategoryId.HasValue)
+        {
+            // Remove parent category
+            category.UpdateParentCategory(null);
+        }
         if (dto.DisplayOrder.HasValue)
-            category.DisplayOrder = dto.DisplayOrder.Value;
+        {
+            category.UpdateDisplayOrder(dto.DisplayOrder.Value);
+        }
         if (dto.IsActive.HasValue)
-            category.IsActive = dto.IsActive.Value;
+        {
+            category.SetActive(dto.IsActive.Value);
+        }
         if (dto.IconUrl != null)
-            category.IconUrl = dto.IconUrl;
+        {
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            category.UpdateIconUrl(dto.IconUrl);
+        }
 
-        category.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes for mapping

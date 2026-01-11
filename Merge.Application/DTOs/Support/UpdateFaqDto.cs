@@ -9,10 +9,12 @@ public class UpdateFaqDto
     public string Question { get; set; } = string.Empty;
     
     [Required]
-    [StringLength(2000, MinimumLength = 5, ErrorMessage = "Cevap en az 5, en fazla 2000 karakter olmalıdır.")]
+    // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - DTO validation matches SupportSettings.MaxFaqAnswerLength=5000
+    [StringLength(5000, MinimumLength = 5, ErrorMessage = "Cevap en az 5, en fazla 5000 karakter olmalıdır.")]
     public string Answer { get; set; } = string.Empty;
     
-    [StringLength(100)]
+    // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - DTO validation matches SupportSettings.MaxFaqCategoryLength=50
+    [StringLength(50)]
     public string Category { get; set; } = "General";
     
     [Range(0, int.MaxValue)]

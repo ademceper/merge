@@ -2,11 +2,14 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.Common;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Content;
 using UserRole = Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>;
@@ -20,13 +23,20 @@ public class LiveChatService : ILiveChatService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<LiveChatService> _logger;
+    private readonly SupportSettings _settings;
 
-    public LiveChatService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<LiveChatService> logger)
+    public LiveChatService(
+        IDbContext context,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        ILogger<LiveChatService> logger,
+        IOptions<SupportSettings> settings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _settings = settings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -34,16 +44,15 @@ public class LiveChatService : ILiveChatService
     {
         var sessionId = GenerateSessionId();
 
-        var session = new LiveChatSession
-        {
-            UserId = userId,
-            SessionId = sessionId,
-            Status = ChatSessionStatus.Waiting,
-            GuestName = guestName,
-            GuestEmail = guestEmail,
-            Department = department,
-            StartedAt = DateTime.UtcNow
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var session = LiveChatSession.Create(
+            sessionId,
+            userId,
+            guestName,
+            guestEmail,
+            department,
+            null, // IP address will be set by controller if needed
+            null); // User agent will be set by controller if needed
 
         await _context.Set<LiveChatSession>().AddAsync(session, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -53,7 +62,8 @@ public class LiveChatService : ILiveChatService
             .AsNoTracking()
             .Include(s => s.User)
             .Include(s => s.Agent)
-            .Include(s => s.Messages.OrderByDescending(m => m.CreatedAt).Take(50))
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+            .Include(s => s.Messages.OrderByDescending(m => m.CreatedAt).Take(_settings.MaxRecentChatMessages))
             .FirstOrDefaultAsync(s => s.Id == session.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
@@ -68,7 +78,8 @@ public class LiveChatService : ILiveChatService
             .AsNoTracking()
             .Include(s => s.User)
             .Include(s => s.Agent)
-            .Include(s => s.Messages.OrderByDescending(m => m.CreatedAt).Take(50))
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+            .Include(s => s.Messages.OrderByDescending(m => m.CreatedAt).Take(_settings.MaxRecentChatMessages))
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
         return session != null ? await MapToSessionDtoAsync(session, cancellationToken) : null;
@@ -82,7 +93,8 @@ public class LiveChatService : ILiveChatService
             .AsNoTracking()
             .Include(s => s.User)
             .Include(s => s.Agent)
-            .Include(s => s.Messages.OrderByDescending(m => m.CreatedAt).Take(50))
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+            .Include(s => s.Messages.OrderByDescending(m => m.CreatedAt).Take(_settings.MaxRecentChatMessages))
             .FirstOrDefaultAsync(s => s.SessionId == sessionId, cancellationToken);
 
         return session != null ? await MapToSessionDtoAsync(session, cancellationToken) : null;
@@ -155,9 +167,8 @@ public class LiveChatService : ILiveChatService
 
         if (session == null) return false;
 
-        session.AgentId = agentId;
-        session.Status = ChatSessionStatus.Active;
-        session.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        session.AssignAgent(agentId);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -172,9 +183,8 @@ public class LiveChatService : ILiveChatService
 
         if (session == null) return false;
 
-        session.Status = ChatSessionStatus.Closed;
-        session.ResolvedAt = DateTime.UtcNow;
-        session.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        session.Close();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -217,36 +227,25 @@ public class LiveChatService : ILiveChatService
             }
         }
 
-        var message = new LiveChatMessage
-        {
-            SessionId = sessionId,
-            SenderId = senderId,
-            SenderType = senderType,
-            Content = dto.Content,
-            MessageType = dto.MessageType,
-            FileUrl = dto.FileUrl,
-            FileName = dto.FileName,
-            IsInternal = dto.IsInternal
-        };
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Service layer validation
+        Guard.AgainstLength(dto.Content, _settings.MaxLiveChatMessageLength, nameof(dto.Content));
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var message = LiveChatMessage.Create(
+            sessionId,
+            session.SessionId,
+            senderId,
+            senderType,
+            dto.Content,
+            dto.MessageType,
+            dto.FileUrl,
+            dto.FileName,
+            dto.IsInternal);
 
         await _context.Set<LiveChatMessage>().AddAsync(message, cancellationToken);
-        session.MessageCount++;
         
-        // Update unread count
-        if (senderType == "User")
-        {
-            session.UnreadCount++;
-        }
-        else if (senderType == "Agent")
-        {
-            session.UnreadCount = 0; // Reset when agent responds
-        }
-
-        // Update session status
-        if (session.Status == ChatSessionStatus.Waiting && senderType == "Agent")
-        {
-            session.Status = ChatSessionStatus.Active;
-        }
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        session.AddMessage(senderType);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -283,10 +282,10 @@ public class LiveChatService : ILiveChatService
             .Where(m => m.SessionId == sessionId && !m.IsRead && m.SenderId != userId)
             .ToListAsync(cancellationToken);
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         foreach (var message in messages)
         {
-            message.IsRead = true;
-            message.ReadAt = DateTime.UtcNow;
+            message.MarkAsRead();
         }
 
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
@@ -295,7 +294,8 @@ public class LiveChatService : ILiveChatService
 
         if (session != null)
         {
-            session.UnreadCount = 0;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            session.MarkMessagesAsRead();
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -307,7 +307,8 @@ public class LiveChatService : ILiveChatService
     public async Task<LiveChatStatsDto> GetChatStatsAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
-        var start = startDate ?? DateTime.UtcNow.AddMonths(-1);
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        var start = startDate ?? DateTime.UtcNow.AddDays(-_settings.DefaultStatsPeriodDays);
         var end = endDate ?? DateTime.UtcNow;
 
         IQueryable<LiveChatSession> query = _context.Set<LiveChatSession>()
@@ -354,7 +355,10 @@ public class LiveChatService : ILiveChatService
 
     private string GenerateSessionId()
     {
-        return $"CHAT-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        var datePart = DateTime.UtcNow.ToString(_settings.ChatSessionIdDateFormat);
+        var guidPart = Guid.NewGuid().ToString().Substring(0, _settings.ChatSessionIdGuidLength).ToUpper();
+        return $"{_settings.ChatSessionIdPrefix}{datePart}-{guidPart}";
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -372,7 +376,8 @@ public class LiveChatService : ILiveChatService
                 .Include(m => m.Sender)
                 .Where(m => m.SessionId == session.Id)
                 .OrderByDescending(m => m.CreatedAt)
-                .Take(10)
+                // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+                .Take(_settings.DashboardRecentTicketsCount)
                 .ToListAsync(cancellationToken);
             dto.RecentMessages = _mapper.Map<List<LiveChatMessageDto>>(recentMessages);
         }
@@ -380,7 +385,8 @@ public class LiveChatService : ILiveChatService
         {
             var recentMessages = session.Messages
                 .OrderByDescending(m => m.CreatedAt)
-                .Take(10)
+                // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+                .Take(_settings.DashboardRecentTicketsCount)
                 .ToList();
             dto.RecentMessages = _mapper.Map<List<LiveChatMessageDto>>(recentMessages);
         }

@@ -15,7 +15,7 @@ public interface IKnowledgeBaseService
     Task<KnowledgeBaseArticleDto> UpdateArticleAsync(Guid id, UpdateKnowledgeBaseArticleDto dto, CancellationToken cancellationToken = default);
     Task<bool> DeleteArticleAsync(Guid id, CancellationToken cancellationToken = default);
     Task<bool> PublishArticleAsync(Guid id, CancellationToken cancellationToken = default);
-    Task RecordArticleViewAsync(Guid articleId, Guid? userId = null, string? ipAddress = null, CancellationToken cancellationToken = default);
+    Task RecordArticleViewAsync(Guid articleId, Guid? userId = null, string? ipAddress = null, string? userAgent = null, CancellationToken cancellationToken = default);
 
     // Categories
     Task<KnowledgeBaseCategoryDto> CreateCategoryAsync(CreateKnowledgeBaseCategoryDto dto, CancellationToken cancellationToken = default);

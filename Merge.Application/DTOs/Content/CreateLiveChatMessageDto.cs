@@ -8,7 +8,8 @@ public class CreateLiveChatMessageDto
     public Guid SessionId { get; set; }
     
     [Required]
-    [StringLength(5000, MinimumLength = 1, ErrorMessage = "Mesaj içeriği en az 1, en fazla 5000 karakter olmalıdır.")]
+    // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - DTO validation matches SupportSettings.MaxLiveChatMessageLength=10000
+    [StringLength(10000, MinimumLength = 1, ErrorMessage = "Mesaj içeriği en az 1, en fazla 10000 karakter olmalıdır.")]
     public string Content { get; set; } = string.Empty;
     
     [StringLength(50)]

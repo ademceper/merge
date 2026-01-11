@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.DTOs.Support;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
 using Merge.API.Middleware;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -17,10 +19,14 @@ namespace Merge.API.Controllers.Support;
 public class CustomerCommunicationsController : BaseController
 {
     private readonly ICustomerCommunicationService _customerCommunicationService;
+    private readonly SupportSettings _settings;
 
-    public CustomerCommunicationsController(ICustomerCommunicationService customerCommunicationService)
+    public CustomerCommunicationsController(
+        ICustomerCommunicationService customerCommunicationService,
+        IOptions<SupportSettings> settings)
     {
         _customerCommunicationService = customerCommunicationService;
+        _settings = settings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -36,12 +42,14 @@ public class CustomerCommunicationsController : BaseController
         [FromQuery] string? communicationType = null,
         [FromQuery] string? channel = null,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = 0,
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        if (pageSize <= 0) pageSize = _settings.DefaultPageSize;
+        if (pageSize > _settings.MaxPageSize) pageSize = _settings.MaxPageSize;
         if (page < 1) page = 1;
 
         var userId = GetUserId();
@@ -131,12 +139,14 @@ public class CustomerCommunicationsController : BaseController
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = 0,
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        if (pageSize <= 0) pageSize = _settings.DefaultPageSize;
+        if (pageSize > _settings.MaxPageSize) pageSize = _settings.MaxPageSize;
         if (page < 1) page = 1;
 
         var communications = await _customerCommunicationService.GetAllCommunicationsAsync(

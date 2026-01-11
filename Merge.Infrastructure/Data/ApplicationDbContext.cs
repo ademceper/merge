@@ -730,8 +730,11 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
         // FAQ configuration
         modelBuilder.Entity<FAQ>(entity =>
         {
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - EF Core configuration matches SupportSettings.MaxFaqQuestionLength=500
             entity.Property(e => e.Question).IsRequired().HasMaxLength(500);
-            entity.Property(e => e.Answer).IsRequired();
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - EF Core configuration matches SupportSettings.MaxFaqAnswerLength=5000
+            entity.Property(e => e.Answer).IsRequired().HasMaxLength(5000);
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - EF Core configuration matches SupportSettings.MaxFaqCategoryLength=50
             entity.Property(e => e.Category).HasMaxLength(50);
         });
 
@@ -1430,7 +1433,10 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
             entity.HasOne(e => e.Product).WithMany().HasForeignKey(e => e.ProductId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(e => e.AssignedTo).WithMany().HasForeignKey(e => e.AssignedToId).OnDelete(DeleteBehavior.SetNull);
             entity.Property(e => e.TicketNumber).IsRequired().HasMaxLength(20);
-            entity.Property(e => e.Subject).IsRequired().HasMaxLength(500);
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - EF Core configuration matches SupportSettings.MaxTicketSubjectLength=200
+            entity.Property(e => e.Subject).IsRequired().HasMaxLength(200);
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - EF Core configuration matches SupportSettings.MaxTicketDescriptionLength=5000
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(5000);
             entity.HasIndex(e => e.TicketNumber).IsUnique();
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.Category);
@@ -1445,7 +1451,8 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
         {
             entity.HasOne(e => e.Ticket).WithMany(t => t.Messages).HasForeignKey(e => e.TicketId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
-            entity.Property(e => e.Message).IsRequired();
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - EF Core configuration matches SupportSettings.MaxTicketMessageLength=10000
+            entity.Property(e => e.Message).IsRequired().HasMaxLength(10000);
             entity.HasIndex(e => e.TicketId);
             entity.HasIndex(e => new { e.TicketId, e.CreatedAt });
         });
@@ -1663,8 +1670,12 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
         // KnowledgeBaseCategory configuration
         modelBuilder.Entity<KnowledgeBaseCategory>(entity =>
         {
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.Slug).IsRequired().HasMaxLength(200);
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - EF Core configuration matches SupportSettings.MaxCategoryNameLength=100
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - EF Core configuration matches SupportSettings.MaxCategorySlugLength=100
+            entity.Property(e => e.Slug).IsRequired().HasMaxLength(100);
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - EF Core configuration matches SupportSettings.MaxCategoryDescriptionLength=1000
+            entity.Property(e => e.Description).HasMaxLength(1000);
             entity.HasIndex(e => e.Slug).IsUnique();
             entity.HasOne(e => e.ParentCategory)
                   .WithMany(e => e.SubCategories)
@@ -1675,8 +1686,14 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
         // KnowledgeBaseArticle configuration
         modelBuilder.Entity<KnowledgeBaseArticle>(entity =>
         {
-            entity.Property(e => e.Title).IsRequired().HasMaxLength(500);
-            entity.Property(e => e.Slug).IsRequired().HasMaxLength(500);
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - EF Core configuration matches SupportSettings.MaxArticleTitleLength=200
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - EF Core configuration matches SupportSettings.MaxArticleSlugLength=200
+            entity.Property(e => e.Slug).IsRequired().HasMaxLength(200);
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - EF Core configuration matches SupportSettings.MaxArticleContentLength=50000
+            entity.Property(e => e.Content).IsRequired().HasMaxLength(50000);
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - EF Core configuration matches SupportSettings.MaxArticleExcerptLength=500
+            entity.Property(e => e.Excerpt).HasMaxLength(500);
             entity.HasIndex(e => e.Slug).IsUnique();
             entity.Property(e => e.Status).HasMaxLength(50);
             entity.HasOne(e => e.Category)
@@ -1729,6 +1746,10 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
             entity.Property(e => e.Channel).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Direction).HasMaxLength(20);
             entity.Property(e => e.RelatedEntityType).HasMaxLength(50);
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - EF Core configuration matches SupportSettings.MaxCommunicationSubjectLength=200
+            entity.Property(e => e.Subject).IsRequired().HasMaxLength(200);
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - EF Core configuration matches SupportSettings.MaxCommunicationContentLength=10000
+            entity.Property(e => e.Content).IsRequired().HasMaxLength(10000);
             entity.HasOne(e => e.User)
                   .WithMany()
                   .HasForeignKey(e => e.UserId)
@@ -2382,6 +2403,8 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
         {
             entity.Property(e => e.SenderType).IsRequired().HasMaxLength(50);
             entity.Property(e => e.MessageType).HasMaxLength(50);
+            // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - EF Core configuration matches SupportSettings.MaxLiveChatMessageLength=10000
+            entity.Property(e => e.Content).IsRequired().HasMaxLength(10000);
             entity.HasOne(e => e.Session)
                   .WithMany(e => e.Messages)
                   .HasForeignKey(e => e.SessionId)

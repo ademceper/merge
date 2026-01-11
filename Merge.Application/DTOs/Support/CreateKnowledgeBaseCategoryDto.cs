@@ -8,7 +8,8 @@ public class CreateKnowledgeBaseCategoryDto
     [StringLength(100, MinimumLength = 2, ErrorMessage = "Kategori adı en az 2, en fazla 100 karakter olmalıdır.")]
     public string Name { get; set; } = string.Empty;
     
-    [StringLength(500)]
+    // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - DTO validation matches SupportSettings.MaxCategoryDescriptionLength=1000
+    [StringLength(1000)]
     public string? Description { get; set; }
     
     public Guid? ParentCategoryId { get; set; }

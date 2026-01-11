@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Support;
 using Merge.Application.DTOs.Support;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
 using Merge.API.Middleware;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -16,10 +18,14 @@ namespace Merge.API.Controllers.Support;
 public class SupportTicketsController : BaseController
 {
     private readonly ISupportTicketService _supportTicketService;
+    private readonly SupportSettings _settings;
 
-    public SupportTicketsController(ISupportTicketService supportTicketService)
+    public SupportTicketsController(
+        ISupportTicketService supportTicketService,
+        IOptions<SupportSettings> settings)
     {
         _supportTicketService = supportTicketService;
+        _settings = settings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -121,12 +127,14 @@ public class SupportTicketsController : BaseController
     public async Task<ActionResult<PagedResult<SupportTicketDto>>> GetMyTickets(
         [FromQuery] string? status = null,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = 0,
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100; // Max limit
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        if (pageSize <= 0) pageSize = _settings.DefaultPageSize;
+        if (pageSize > _settings.MaxPageSize) pageSize = _settings.MaxPageSize;
         if (page < 1) page = 1;
         
         if (!TryGetUserId(out var userId))
@@ -154,12 +162,14 @@ public class SupportTicketsController : BaseController
         [FromQuery] string? category = null,
         [FromQuery] Guid? assignedToId = null,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = 0,
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        if (pageSize <= 0) pageSize = _settings.DefaultPageSize;
+        if (pageSize > _settings.MaxPageSize) pageSize = _settings.MaxPageSize;
         if (page < 1) page = 1;
 
         var tickets = await _supportTicketService.GetAllTicketsAsync(status, category, assignedToId, page, pageSize, cancellationToken);
