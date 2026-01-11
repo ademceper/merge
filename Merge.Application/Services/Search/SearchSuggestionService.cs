@@ -31,7 +31,12 @@ public class SearchSuggestionService : ISearchSuggestionService
     {
         if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
         {
-            return new AutocompleteResultDto();
+            return new AutocompleteResultDto(
+                Products: new List<ProductSuggestionDto>(),
+                Categories: new List<string>(),
+                Brands: new List<string>(),
+                PopularSearches: new List<string>()
+            );
         }
 
         var normalizedQuery = query.ToLower().Trim();
@@ -83,13 +88,12 @@ public class SearchSuggestionService : ISearchSuggestionService
             .Select(ps => ps.SearchTerm)
             .ToListAsync(cancellationToken);
 
-        return new AutocompleteResultDto
-        {
-            Products = productSuggestionDtos,
-            Categories = categorySuggestions,
-            Brands = brandSuggestions,
-            PopularSearches = popularSearches
-        };
+        return new AutocompleteResultDto(
+            Products: productSuggestionDtos,
+            Categories: categorySuggestions,
+            Brands: brandSuggestions,
+            PopularSearches: popularSearches
+        );
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -122,42 +126,31 @@ public class SearchSuggestionService : ISearchSuggestionService
 
         var normalizedTerm = searchTerm.Trim();
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         // Record in search history
-        var searchHistory = new SearchHistory
-        {
-            UserId = userId,
-            SearchTerm = normalizedTerm,
-            ResultCount = resultCount,
-            UserAgent = userAgent,
-            IpAddress = ipAddress
-        };
+        var searchHistory = SearchHistory.Create(
+            userId: userId,
+            searchTerm: normalizedTerm,
+            resultCount: resultCount,
+            userAgent: userAgent,
+            ipAddress: ipAddress);
 
         await _context.Set<SearchHistory>().AddAsync(searchHistory, cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !ps.IsDeleted (Global Query Filter)
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method ve Domain Method kullanımı
         // Update or create popular search
         var popularSearch = await _context.Set<PopularSearch>()
             .FirstOrDefaultAsync(ps => ps.SearchTerm.ToLower() == normalizedTerm.ToLower(), cancellationToken);
 
         if (popularSearch == null)
         {
-            popularSearch = new PopularSearch
-            {
-                SearchTerm = normalizedTerm,
-                SearchCount = 1,
-                ClickThroughCount = 0,
-                ClickThroughRate = 0,
-                LastSearchedAt = DateTime.UtcNow
-            };
+            popularSearch = PopularSearch.Create(normalizedTerm);
             await _context.Set<PopularSearch>().AddAsync(popularSearch, cancellationToken);
         }
         else
         {
-            popularSearch.SearchCount++;
-            popularSearch.LastSearchedAt = DateTime.UtcNow;
-            popularSearch.ClickThroughRate = popularSearch.SearchCount > 0
-                ? (decimal)popularSearch.ClickThroughCount / popularSearch.SearchCount * 100
-                : 0;
+            popularSearch.IncrementSearchCount();
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -181,18 +174,18 @@ public class SearchSuggestionService : ISearchSuggestionService
             return;
         }
 
-        searchHistory.ClickedResult = true;
-        searchHistory.ClickedProductId = productId;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        searchHistory.RecordClick(productId);
 
         // ✅ PERFORMANCE: Removed manual !ps.IsDeleted (Global Query Filter)
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         // Update popular search click-through rate
         var popularSearch = await _context.Set<PopularSearch>()
             .FirstOrDefaultAsync(ps => ps.SearchTerm.ToLower() == searchHistory.SearchTerm.ToLower(), cancellationToken);
 
         if (popularSearch != null)
         {
-            popularSearch.ClickThroughCount++;
-            popularSearch.ClickThroughRate = (decimal)popularSearch.ClickThroughCount / popularSearch.SearchCount * 100;
+            popularSearch.IncrementClickThroughCount();
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -214,12 +207,12 @@ public class SearchSuggestionService : ISearchSuggestionService
             .AsNoTracking()
             .Where(sh => sh.CreatedAt >= startDate)
             .GroupBy(sh => sh.SearchTerm.ToLower())
-            .Select(g => new SearchSuggestionDto
-            {
-                Term = g.First().SearchTerm,
-                Type = "Trending",
-                Frequency = g.Count()
-            })
+            .Select(g => new SearchSuggestionDto(
+                g.First().SearchTerm,
+                "Trending",
+                g.Count(),
+                (Guid?)null
+            ))
             .OrderByDescending(s => s.Frequency)
             .Take(maxResults)
             .ToListAsync(cancellationToken);

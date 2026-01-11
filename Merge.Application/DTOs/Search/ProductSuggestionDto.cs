@@ -1,10 +1,10 @@
 namespace Merge.Application.DTOs.Search;
 
-public class ProductSuggestionDto
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string CategoryName { get; set; } = string.Empty;
-    public decimal Price { get; set; }
-    public string ImageUrl { get; set; } = string.Empty;
-}
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+public record ProductSuggestionDto(
+    Guid Id,
+    string Name,
+    string CategoryName,
+    decimal Price,
+    string ImageUrl
+);

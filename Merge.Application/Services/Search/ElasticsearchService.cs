@@ -1,5 +1,7 @@
+using MediatR;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Search;
+using Merge.Application.Search.Queries.SearchProducts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Merge.Application.DTOs.Product;
@@ -12,16 +14,16 @@ public class ElasticsearchService : IElasticsearchService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<ElasticsearchService> _logger;
-    private readonly IProductSearchService _productSearchService; // Fallback to SQL search
+    private readonly IMediator _mediator; // Fallback to SQL search via MediatR
 
     public ElasticsearchService(
         IConfiguration configuration,
         ILogger<ElasticsearchService> logger,
-        IProductSearchService productSearchService)
+        IMediator mediator)
     {
         _configuration = configuration;
         _logger = logger;
-        _productSearchService = productSearchService;
+        _mediator = mediator;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -96,9 +98,21 @@ public class ElasticsearchService : IElasticsearchService
 
         if (string.IsNullOrEmpty(elasticsearchUrl) || !await IsAvailableAsync(cancellationToken))
         {
-            // Fallback to SQL-based search
+            // Fallback to SQL-based search via MediatR
             _logger.LogInformation("Elasticsearch not available, using SQL search");
-            return await _productSearchService.SearchAsync(request, cancellationToken);
+            var query = new SearchProductsQuery(
+                request.SearchTerm,
+                request.CategoryId,
+                request.Brand,
+                request.MinPrice,
+                request.MaxPrice,
+                request.MinRating,
+                request.InStockOnly,
+                request.SortBy,
+                request.Page ?? 1,
+                request.PageSize ?? 20
+            );
+            return await _mediator.Send(query, cancellationToken);
         }
 
         // Mock implementation - Gerçek implementasyonda Elasticsearch query yapılacak
@@ -116,8 +130,20 @@ public class ElasticsearchService : IElasticsearchService
         
         _logger.LogInformation("Elasticsearch search executed: {SearchTerm}", request.SearchTerm);
         
-        // Fallback to SQL search for now
-        return await _productSearchService.SearchAsync(request, cancellationToken);
+        // Fallback to SQL search for now via MediatR
+        var fallbackQuery = new SearchProductsQuery(
+            request.SearchTerm,
+            request.CategoryId,
+            request.Brand,
+            request.MinPrice,
+            request.MaxPrice,
+            request.MinRating,
+            request.InStockOnly,
+            request.SortBy,
+            request.Page ?? 1,
+            request.PageSize ?? 20
+        );
+        return await _mediator.Send(fallbackQuery, cancellationToken);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)

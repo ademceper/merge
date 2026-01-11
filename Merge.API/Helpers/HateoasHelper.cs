@@ -336,6 +336,65 @@ public static class HateoasHelper
 
         return links;
     }
+
+    /// <summary>
+    /// Adds HATEOAS links to SearchResultDto
+    /// </summary>
+    public static object AddSearchLinks(Merge.Application.DTOs.Search.SearchResultDto result, Microsoft.AspNetCore.Http.HttpRequest request)
+    {
+        var version = request.RouteValues["version"]?.ToString() ?? "1.0";
+        var baseUrl = $"{request.Scheme}://{request.Host}/api/v{version}/search";
+        
+        var links = new Dictionary<string, LinkDto>
+        {
+            ["self"] = new LinkDto
+            {
+                Href = $"{baseUrl}?page={result.Page}&pageSize={result.PageSize}",
+                Method = "GET"
+            }
+        };
+
+        if (result.Page > 1)
+        {
+            links["first"] = new LinkDto
+            {
+                Href = $"{baseUrl}?page=1&pageSize={result.PageSize}",
+                Method = "GET"
+            };
+            links["prev"] = new LinkDto
+            {
+                Href = $"{baseUrl}?page={result.Page - 1}&pageSize={result.PageSize}",
+                Method = "GET"
+            };
+        }
+
+        if (result.Page < result.TotalPages)
+        {
+            links["next"] = new LinkDto
+            {
+                Href = $"{baseUrl}?page={result.Page + 1}&pageSize={result.PageSize}",
+                Method = "GET"
+            };
+            links["last"] = new LinkDto
+            {
+                Href = $"{baseUrl}?page={result.TotalPages}&pageSize={result.PageSize}",
+                Method = "GET"
+            };
+        }
+
+        return new
+        {
+            Products = result.Products,
+            TotalCount = result.TotalCount,
+            Page = result.Page,
+            PageSize = result.PageSize,
+            TotalPages = result.TotalPages,
+            AvailableBrands = result.AvailableBrands,
+            MinPrice = result.MinPrice,
+            MaxPrice = result.MaxPrice,
+            _links = links
+        };
+    }
 }
 
 /// <summary>

@@ -1,0 +1,20 @@
+using FluentValidation;
+using Microsoft.Extensions.Options;
+using Merge.Application.Configuration;
+
+namespace Merge.Application.Search.Queries.GetBestSellers;
+
+// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
+public class GetBestSellersQueryValidator : AbstractValidator<GetBestSellersQuery>
+{
+    public GetBestSellersQueryValidator(IOptions<SearchSettings> searchSettings)
+    {
+        var settings = searchSettings.Value;
+
+        RuleFor(x => x.MaxResults)
+            .GreaterThan(0)
+            .WithMessage("Maksimum sonuç sayısı 1'den büyük olmalıdır.")
+            .LessThanOrEqualTo(settings.MaxRecommendationResults)
+            .WithMessage($"Maksimum sonuç sayısı en fazla {settings.MaxRecommendationResults} olabilir.");
+    }
+}

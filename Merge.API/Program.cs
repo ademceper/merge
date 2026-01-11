@@ -108,6 +108,8 @@ builder.Services.Configure<Merge.Application.Configuration.MLSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.MLSettings.SectionName));
 builder.Services.Configure<Merge.Application.Configuration.ServiceSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.ServiceSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.SearchSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.SearchSettings.SectionName));
 
 // Add services to the container
 // ✅ BOLUM 4.0: API Versioning (ZORUNLU)
@@ -369,7 +371,8 @@ builder.Services.AddScoped<IPaymentService, Merge.Application.Services.Payment.P
 builder.Services.AddScoped<IAddressService, Merge.Application.Services.User.AddressService>();
 // FileUploadService - implement edilmediği için şimdilik yorum satırı
 // builder.Services.AddScoped<IFileUploadService, Merge.Application.Services.Common.FileUploadService>();
-builder.Services.AddScoped<IProductSearchService, Merge.Application.Services.Search.ProductSearchService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<IProductSearchService, Merge.Application.Services.Search.ProductSearchService>();
 builder.Services.AddScoped<Merge.Application.Services.Notification.IEmailService, Merge.Application.Services.Notification.EmailService>();
 builder.Services.AddScoped<Merge.Application.Services.Notification.ISmsService, Merge.Application.Services.Notification.SmsService>();
 // ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
@@ -394,8 +397,9 @@ builder.Services.AddScoped<IBulkProductService, Merge.Application.Services.Produ
 #pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek
 builder.Services.AddScoped<ITwoFactorAuthService, Merge.Application.Services.Identity.TwoFactorAuthService>();
 builder.Services.AddScoped<ISellerOnboardingService, Merge.Application.Services.Seller.SellerOnboardingService>();
-builder.Services.AddScoped<IProductRecommendationService, Merge.Application.Services.Search.ProductRecommendationService>();
-builder.Services.AddScoped<ISearchSuggestionService, Merge.Application.Services.Search.SearchSuggestionService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<IProductRecommendationService, Merge.Application.Services.Search.ProductRecommendationService>();
+// builder.Services.AddScoped<ISearchSuggestionService, Merge.Application.Services.Search.SearchSuggestionService>();
 builder.Services.AddScoped<IAbandonedCartService, Merge.Application.Services.Cart.AbandonedCartService>();
 builder.Services.AddScoped<IUserActivityService, Merge.Application.Services.User.UserActivityService>();
 #pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek

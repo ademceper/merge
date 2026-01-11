@@ -138,17 +138,16 @@ public class ProductSearchService : IProductSearchService
             "Product search tamamlandı. TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}",
             totalCount, page, pageSize);
 
-        return new SearchResultDto
-        {
-            Products = rankedProducts,
-            TotalCount = totalCount,
-            Page = page,
-            PageSize = pageSize,
-            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
-            AvailableBrands = brands,
-            MinPrice = minPrice,
-            MaxPrice = maxPrice
-        };
+        return new SearchResultDto(
+            Products: rankedProducts,
+            TotalCount: totalCount,
+            Page: page,
+            PageSize: pageSize,
+            TotalPages: (int)Math.Ceiling(totalCount / (double)pageSize),
+            AvailableBrands: brands,
+            MinPrice: minPrice,
+            MaxPrice: maxPrice
+        );
     }
 
     // ✅ PERFORMANCE: ToListAsync() sonrası memory'de işlem YASAK - ama bu business logic (ranking algoritması) için gerekli
