@@ -222,7 +222,8 @@ public class ReviewService : IReviewService
         // Güncelleme sonrası tekrar onay gerekli - Reject() ile pending yap
         if (review.IsApproved)
         {
-            review.Reject();
+            // TODO: RejectedByUserId parametresi eklenmeli
+            review.Reject(Guid.Empty, "Updated by user");
         }
 
         await _reviewRepository.UpdateAsync(review);
@@ -279,7 +280,8 @@ public class ReviewService : IReviewService
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
-        review.Approve();
+        // TODO: ApprovedByUserId parametresi eklenmeli
+        review.Approve(Guid.Empty);
         await _reviewRepository.UpdateAsync(review);
 
         // Ürün rating'ini güncelle

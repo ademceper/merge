@@ -98,6 +98,17 @@ public class ProductTrustBadge : BaseEntity
         AwardReason = newReason;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    // ✅ BOLUM 1.1: Domain Method - Update awarded date
+    public void UpdateAwardedAt(DateTime newAwardedAt)
+    {
+        if (ExpiresAt.HasValue && ExpiresAt.Value <= newAwardedAt)
+        {
+            throw new DomainException("Expiry date must be after award date");
+        }
+        AwardedAt = newAwardedAt;
+        UpdatedAt = DateTime.UtcNow;
+    }
     
     // ✅ BOLUM 1.1: Domain Method - Check if expired
     public bool IsExpired()

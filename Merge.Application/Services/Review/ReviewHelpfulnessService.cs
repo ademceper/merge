@@ -68,18 +68,16 @@ public class ReviewHelpfulnessService : IReviewHelpfulnessService
                 else
                     review.MarkAsUnhelpful();
 
-                existingVote.IsHelpful = dto.IsHelpful;
+                existingVote.UpdateVote(dto.IsHelpful);
             }
         }
         else
         {
             // Create new vote
-            var vote = new ReviewHelpfulness
-            {
-                ReviewId = dto.ReviewId,
-                UserId = userId,
-                IsHelpful = dto.IsHelpful
-            };
+            var vote = ReviewHelpfulness.Create(
+                dto.ReviewId,
+                userId,
+                dto.IsHelpful);
 
             await _context.Set<ReviewHelpfulness>().AddAsync(vote, cancellationToken);
 

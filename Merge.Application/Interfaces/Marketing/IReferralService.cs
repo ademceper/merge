@@ -15,11 +15,12 @@ public interface IReferralService
     Task<ReferralStatsDto> GetReferralStatsAsync(Guid userId, CancellationToken cancellationToken = default);
 }
 
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 public interface IReviewMediaService
 {
-    Task<ReviewMediaDto> AddMediaToReviewAsync(Guid reviewId, string url, string mediaType, string? thumbnailUrl = null);
-    Task<IEnumerable<ReviewMediaDto>> GetReviewMediaAsync(Guid reviewId);
-    Task DeleteReviewMediaAsync(Guid mediaId);
+    Task<ReviewMediaDto> AddMediaToReviewAsync(Guid reviewId, string url, string mediaType, string? thumbnailUrl = null, CancellationToken cancellationToken = default);
+    Task<IEnumerable<ReviewMediaDto>> GetReviewMediaAsync(Guid reviewId, CancellationToken cancellationToken = default);
+    Task DeleteReviewMediaAsync(Guid mediaId, CancellationToken cancellationToken = default);
 }
 
 public interface ISharedWishlistService

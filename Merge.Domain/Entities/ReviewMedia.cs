@@ -1,24 +1,97 @@
 using Merge.Domain.Enums;
+using Merge.Domain.Common;
+using Merge.Domain.Exceptions;
 
 namespace Merge.Domain.Entities;
 
 /// <summary>
 /// ReviewMedia Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// BOLUM 1.1: Rich Domain Model (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class ReviewMedia : BaseEntity
 {
-    public Guid ReviewId { get; set; }
-    public ReviewMediaType MediaType { get; set; }
-    public string Url { get; set; } = string.Empty;
-    public string ThumbnailUrl { get; set; } = string.Empty;
-    public int FileSize { get; set; }
-    public int? Width { get; set; }
-    public int? Height { get; set; }
-    public int? Duration { get; set; } // For videos in seconds
-    public int DisplayOrder { get; set; } = 0;
+    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
+    public Guid ReviewId { get; private set; }
+    public ReviewMediaType MediaType { get; private set; }
+    public string Url { get; private set; } = string.Empty;
+    public string ThumbnailUrl { get; private set; } = string.Empty;
+    public int FileSize { get; private set; }
+    public int? Width { get; private set; }
+    public int? Height { get; private set; }
+    public int? Duration { get; private set; } // For videos in seconds
+    public int DisplayOrder { get; private set; } = 0;
 
     // Navigation properties
-    public Review Review { get; set; } = null!;
+    public Review Review { get; private set; } = null!;
+
+    // ✅ BOLUM 1.1: Factory Method - Private constructor
+    private ReviewMedia() { }
+
+    // ✅ BOLUM 1.1: Factory Method with validation
+    public static ReviewMedia Create(
+        Guid reviewId,
+        ReviewMediaType mediaType,
+        string url,
+        string? thumbnailUrl = null,
+        int fileSize = 0,
+        int? width = null,
+        int? height = null,
+        int? duration = null,
+        int displayOrder = 0)
+    {
+        Guard.AgainstDefault(reviewId, nameof(reviewId));
+        Guard.AgainstNullOrEmpty(url, nameof(url));
+        Guard.AgainstOutOfRange(fileSize, 0, int.MaxValue, nameof(fileSize));
+        Guard.AgainstOutOfRange(displayOrder, 0, int.MaxValue, nameof(displayOrder));
+
+        return new ReviewMedia
+        {
+            Id = Guid.NewGuid(),
+            ReviewId = reviewId,
+            MediaType = mediaType,
+            Url = url,
+            ThumbnailUrl = thumbnailUrl ?? url,
+            FileSize = fileSize,
+            Width = width,
+            Height = height,
+            Duration = duration,
+            DisplayOrder = displayOrder,
+            CreatedAt = DateTime.UtcNow
+        };
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Update URL
+    public void UpdateUrl(string newUrl)
+    {
+        Guard.AgainstNullOrEmpty(newUrl, nameof(newUrl));
+        Url = newUrl;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Update thumbnail URL
+    public void UpdateThumbnailUrl(string newThumbnailUrl)
+    {
+        ThumbnailUrl = newThumbnailUrl ?? Url;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Update display order
+    public void UpdateDisplayOrder(int newDisplayOrder)
+    {
+        Guard.AgainstOutOfRange(newDisplayOrder, 0, int.MaxValue, nameof(newDisplayOrder));
+        DisplayOrder = newDisplayOrder;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Mark as deleted
+    public void MarkAsDeleted()
+    {
+        if (IsDeleted)
+            return;
+
+        IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }
 

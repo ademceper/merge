@@ -39,17 +39,14 @@ public class TrustBadgeService : ITrustBadgeService
             "Trust badge oluşturuluyor. Name: {Name}, BadgeType: {BadgeType}",
             dto.Name, dto.BadgeType);
 
-        var badge = new TrustBadge
-        {
-            Name = dto.Name,
-            Description = dto.Description,
-            IconUrl = dto.IconUrl,
-            BadgeType = dto.BadgeType,
-            Criteria = dto.Criteria != null ? JsonSerializer.Serialize(dto.Criteria) : string.Empty,
-            IsActive = dto.IsActive,
-            DisplayOrder = dto.DisplayOrder,
-            Color = dto.Color
-        };
+        var badge = TrustBadge.Create(
+            dto.Name,
+            dto.Description ?? string.Empty,
+            dto.IconUrl ?? string.Empty,
+            dto.BadgeType,
+            dto.Criteria != null ? JsonSerializer.Serialize(dto.Criteria) : string.Empty,
+            dto.DisplayOrder,
+            dto.Color);
 
         await _context.Set<TrustBadge>().AddAsync(badge, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -110,21 +107,26 @@ public class TrustBadgeService : ITrustBadgeService
         }
 
         if (!string.IsNullOrEmpty(dto.Name))
-            badge.Name = dto.Name;
+            badge.UpdateName(dto.Name);
         if (!string.IsNullOrEmpty(dto.Description))
-            badge.Description = dto.Description;
+            badge.UpdateDescription(dto.Description);
         if (!string.IsNullOrEmpty(dto.IconUrl))
-            badge.IconUrl = dto.IconUrl;
+            badge.UpdateIconUrl(dto.IconUrl);
         if (!string.IsNullOrEmpty(dto.BadgeType))
-            badge.BadgeType = dto.BadgeType;
+            badge.UpdateBadgeType(dto.BadgeType);
         if (dto.Criteria != null)
-            badge.Criteria = JsonSerializer.Serialize(dto.Criteria);
+            badge.UpdateCriteria(JsonSerializer.Serialize(dto.Criteria));
         if (dto.IsActive.HasValue)
-            badge.IsActive = dto.IsActive.Value;
+        {
+            if (dto.IsActive.Value)
+                badge.Activate();
+            else
+                badge.Deactivate();
+        }
         if (dto.DisplayOrder.HasValue)
-            badge.DisplayOrder = dto.DisplayOrder.Value;
+            badge.UpdateDisplayOrder(dto.DisplayOrder.Value);
         if (dto.Color != null)
-            badge.Color = dto.Color;
+            badge.UpdateColor(dto.Color);
 
         badge.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -158,22 +160,18 @@ public class TrustBadgeService : ITrustBadgeService
 
         if (existing != null)
         {
-            existing.IsActive = true;
-            existing.AwardedAt = DateTime.UtcNow;
-            existing.ExpiresAt = dto.ExpiresAt;
-            existing.AwardReason = dto.AwardReason;
+            existing.Activate();
+            existing.UpdateExpiryDate(dto.ExpiresAt);
+            existing.UpdateAwardReason(dto.AwardReason);
         }
         else
         {
-            var sellerBadge = new SellerTrustBadge
-            {
-                SellerId = sellerId,
-                TrustBadgeId = dto.BadgeId,
-                AwardedAt = DateTime.UtcNow,
-                ExpiresAt = dto.ExpiresAt,
-                IsActive = true,
-                AwardReason = dto.AwardReason
-            };
+            var sellerBadge = SellerTrustBadge.Create(
+                sellerId,
+                dto.BadgeId,
+                DateTime.UtcNow,
+                dto.ExpiresAt,
+                dto.AwardReason);
 
             await _context.Set<SellerTrustBadge>().AddAsync(sellerBadge, cancellationToken);
         }
@@ -208,8 +206,8 @@ public class TrustBadgeService : ITrustBadgeService
 
         if (badge == null) return false;
 
-        badge.IsActive = false;
-        badge.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        badge.Deactivate();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

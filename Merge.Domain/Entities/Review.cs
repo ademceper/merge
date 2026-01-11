@@ -2,13 +2,16 @@ using System.ComponentModel.DataAnnotations.Schema;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Common;
+using Merge.Domain.Common.DomainEvents;
 
 namespace Merge.Domain.Entities;
 
 /// <summary>
 /// Review aggregate root - Rich Domain Model implementation
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU)
+/// BOLUM 1.5: Domain Events (ZORUNLU)
 /// </summary>
-public class Review : BaseEntity
+public class Review : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
@@ -77,6 +80,14 @@ public class Review : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
 
+        // ✅ BOLUM 1.5: Domain Events - ReviewCreatedEvent
+        review.AddDomainEvent(new ReviewCreatedEvent(
+            review.Id,
+            review.UserId,
+            review.ProductId,
+            review.Rating,
+            review.IsVerifiedPurchase));
+
         return review;
     }
 
@@ -84,8 +95,15 @@ public class Review : BaseEntity
     public void UpdateRating(Rating newRating)
     {
         Guard.AgainstNull(newRating, nameof(newRating));
+        var oldRating = _rating;
         _rating = newRating.Value;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ReviewUpdatedEvent
+        if (oldRating != _rating)
+        {
+            AddDomainEvent(new ReviewUpdatedEvent(Id, UserId, ProductId, oldRating, _rating));
+        }
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update title
@@ -105,23 +123,29 @@ public class Review : BaseEntity
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Approve review
-    public void Approve()
+    public void Approve(Guid approvedByUserId)
     {
         if (IsApproved)
             return;
 
         IsApproved = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ReviewApprovedEvent
+        AddDomainEvent(new ReviewApprovedEvent(Id, UserId, ProductId, Rating, approvedByUserId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Reject review
-    public void Reject()
+    public void Reject(Guid rejectedByUserId, string? reason = null)
     {
         if (!IsApproved)
             return;
 
         IsApproved = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ReviewRejectedEvent
+        AddDomainEvent(new ReviewRejectedEvent(Id, UserId, ProductId, rejectedByUserId, reason));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Mark as helpful
@@ -129,6 +153,9 @@ public class Review : BaseEntity
     {
         HelpfulCount++;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ReviewHelpfulnessMarkedEvent
+        // Note: UserId will be set by the service layer when marking helpfulness
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Mark as unhelpful
@@ -136,6 +163,9 @@ public class Review : BaseEntity
     {
         UnhelpfulCount++;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ReviewHelpfulnessMarkedEvent
+        // Note: UserId will be set by the service layer when marking helpfulness
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Unmark as helpful
@@ -159,5 +189,18 @@ public class Review : BaseEntity
     {
         IsVerifiedPurchase = isVerified;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
+    public void MarkAsDeleted()
+    {
+        if (IsDeleted)
+            return;
+
+        IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ReviewDeletedEvent
+        AddDomainEvent(new ReviewDeletedEvent(Id, UserId, ProductId));
     }
 }

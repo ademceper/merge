@@ -21,51 +21,55 @@ public class ReviewMediaService : IReviewMediaService
         _mapper = mapper;
     }
 
-    public async Task<ReviewMediaDto> AddMediaToReviewAsync(Guid reviewId, string url, string mediaType, string? thumbnailUrl = null)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<ReviewMediaDto> AddMediaToReviewAsync(Guid reviewId, string url, string mediaType, string? thumbnailUrl = null, CancellationToken cancellationToken = default)
     {
-        var media = new ReviewMedia
-        {
-            ReviewId = reviewId,
-            MediaType = Enum.Parse<ReviewMediaType>(mediaType, true),
-            Url = url,
-            ThumbnailUrl = thumbnailUrl ?? url
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var mediaTypeEnum = Enum.Parse<ReviewMediaType>(mediaType, true);
+        var media = ReviewMedia.Create(
+            reviewId,
+            mediaTypeEnum,
+            url,
+            thumbnailUrl);
 
-        await _context.Set<ReviewMedia>().AddAsync(media);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<ReviewMedia>().AddAsync(media, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !m.IsDeleted (Global Query Filter)
         var createdMedia = await _context.Set<ReviewMedia>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(m => m.Id == media.Id);
+            .FirstOrDefaultAsync(m => m.Id == media.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<ReviewMediaDto>(createdMedia!);
     }
 
-    public async Task<IEnumerable<ReviewMediaDto>> GetReviewMediaAsync(Guid reviewId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<IEnumerable<ReviewMediaDto>> GetReviewMediaAsync(Guid reviewId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !m.IsDeleted (Global Query Filter)
         var media = await _context.Set<ReviewMedia>()
             .AsNoTracking()
             .Where(m => m.ReviewId == reviewId)
             .OrderBy(m => m.DisplayOrder)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<IEnumerable<ReviewMediaDto>>(media);
     }
 
-    public async Task DeleteReviewMediaAsync(Guid mediaId)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task DeleteReviewMediaAsync(Guid mediaId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: FindAsync yerine FirstOrDefaultAsync (Global Query Filter)
         var media = await _context.Set<ReviewMedia>()
-            .FirstOrDefaultAsync(m => m.Id == mediaId);
+            .FirstOrDefaultAsync(m => m.Id == mediaId, cancellationToken);
         if (media != null)
         {
-            media.IsDeleted = true;
-            await _unitOfWork.SaveChangesAsync();
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+            media.MarkAsDeleted();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
     }
 }

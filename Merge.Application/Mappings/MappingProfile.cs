@@ -26,6 +26,8 @@ using Merge.Application.DTOs.Search;
 using Merge.Application.DTOs.Subscription;
 using System.Text.Json;
 using OrganizationEntity = Merge.Domain.Entities.Organization;
+using ReviewEntity = Merge.Domain.Entities.Review;
+using ProductEntity = Merge.Domain.Entities.Product;
 
 namespace Merge.Application.Mappings;
 
@@ -203,11 +205,11 @@ public class MappingProfile : Profile
         
         // CreateNotificationDto artık command'da kullanılıyor, mapping gerekmiyor
 
-        CreateMap<Review, ReviewDto>()
+        CreateMap<ReviewEntity, ReviewDto>()
             .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty))
             .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : string.Empty));
-        CreateMap<CreateReviewDto, Review>();
-        CreateMap<UpdateReviewDto, Review>();
+        CreateMap<CreateReviewDto, ReviewEntity>();
+        CreateMap<UpdateReviewDto, ReviewEntity>();
 
         // TrustBadge mappings
         CreateMap<TrustBadge, TrustBadgeDto>()
@@ -231,7 +233,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : string.Empty));
 
         // ReviewHelpfulnessStatsDto - Review entity'den mapping (computed properties)
-        CreateMap<Review, ReviewHelpfulnessStatsDto>()
+        CreateMap<ReviewEntity, ReviewHelpfulnessStatsDto>()
             .ForMember(dest => dest.ReviewId, opt => opt.MapFrom(src => src.Id))
             .ForMember(dest => dest.TotalVotes, opt => opt.MapFrom(src => src.HelpfulCount + src.UnhelpfulCount))
             .ForMember(dest => dest.HelpfulPercentage, opt => opt.MapFrom(src => 

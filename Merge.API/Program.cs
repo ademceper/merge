@@ -90,6 +90,8 @@ builder.Services.Configure<Merge.Application.Configuration.ContentSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.ContentSettings.SectionName));
 builder.Services.Configure<Merge.Application.Configuration.PaginationSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.PaginationSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.ReviewSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.ReviewSettings.SectionName));
 builder.Services.Configure<Merge.Application.Configuration.SellerSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.SellerSettings.SectionName));
 builder.Services.Configure<Merge.Application.Configuration.EmailSettings>(
@@ -357,8 +359,9 @@ builder.Services.AddScoped<IOrderSplitService, Merge.Application.Services.Order.
 // builder.Services.AddScoped<ICouponService, Merge.Application.Services.Marketing.CouponService>();
 builder.Services.AddScoped<INotificationService, Merge.Application.Services.Notification.NotificationService>();
 builder.Services.AddScoped<INotificationTemplateService, Merge.Application.Services.Notification.NotificationTemplateService>();
-builder.Services.AddScoped<ITrustBadgeService, Merge.Application.Services.Review.TrustBadgeService>();
-builder.Services.AddScoped<IReviewService, Merge.Application.Services.Review.ReviewService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<ITrustBadgeService, Merge.Application.Services.Review.TrustBadgeService>();
+// builder.Services.AddScoped<IReviewService, Merge.Application.Services.Review.ReviewService>();
 builder.Services.AddScoped<IReturnRequestService, Merge.Application.Services.Order.ReturnRequestService>();
 builder.Services.AddScoped<IPaymentService, Merge.Application.Services.Payment.PaymentService>();
 // ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
@@ -400,7 +403,8 @@ builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 // ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
 // builder.Services.AddScoped<ILoyaltyService, Merge.Application.Services.Marketing.LoyaltyService>();
 // builder.Services.AddScoped<IReferralService, Merge.Application.Services.Marketing.ReferralService>();
-builder.Services.AddScoped<IReviewMediaService, Merge.Application.Services.Marketing.ReviewMediaService>();
+// ✅ BOLUM 2.0: ReviewMediaService kaldırıldı, Commands/Queries kullanılıyor
+// builder.Services.AddScoped<IReviewMediaService, Merge.Application.Services.Marketing.ReviewMediaService>();
 builder.Services.AddScoped<ISharedWishlistService, Merge.Application.Services.Marketing.SharedWishlistService>();
 // ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
 // builder.Services.AddScoped<IEmailCampaignService, Merge.Application.Services.Marketing.EmailCampaignService>();
@@ -412,9 +416,11 @@ builder.Services.AddScoped<IAnalyticsService, Merge.Application.Services.Analyti
 builder.Services.AddScoped<Merge.Application.Interfaces.Analytics.IAdminService, Merge.Application.Services.Analytics.AdminService>();
 builder.Services.AddScoped<IProductComparisonService, Merge.Application.Services.Product.ProductComparisonService>();
 builder.Services.AddScoped<ISizeGuideService, Merge.Application.Services.Product.SizeGuideService>();
-builder.Services.AddScoped<IReviewHelpfulnessService, Merge.Application.Services.Review.ReviewHelpfulnessService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<IReviewHelpfulnessService, Merge.Application.Services.Review.ReviewHelpfulnessService>();
 builder.Services.AddScoped<ISupportTicketService, Merge.Application.Services.Support.SupportTicketService>();
-builder.Services.AddScoped<ITrustBadgeService, Merge.Application.Services.Review.TrustBadgeService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<ITrustBadgeService, Merge.Application.Services.Review.TrustBadgeService>();
 builder.Services.AddScoped<IKnowledgeBaseService, Merge.Application.Services.Support.KnowledgeBaseService>();
 #pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek
 builder.Services.AddScoped<IPolicyService, PolicyService>();
