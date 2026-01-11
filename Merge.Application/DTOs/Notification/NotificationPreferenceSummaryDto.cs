@@ -1,9 +1,10 @@
 namespace Merge.Application.DTOs.Notification;
 
-public class NotificationPreferenceSummaryDto
-{
-    public Guid UserId { get; set; }
-    public Dictionary<string, Dictionary<string, bool>> Preferences { get; set; } = new(); // NotificationType -> Channel -> IsEnabled
-    public int TotalEnabled { get; set; }
-    public int TotalDisabled { get; set; }
-}
+/// <summary>
+/// Notification Preference Summary DTO - BOLUM 7.1.5: Records (C# 12 modern features)
+/// </summary>
+public record NotificationPreferenceSummaryDto(
+    Guid UserId,
+    Dictionary<string, Dictionary<string, bool>> Preferences, // NotificationType -> Channel -> IsEnabled
+    int TotalEnabled,
+    int TotalDisabled);

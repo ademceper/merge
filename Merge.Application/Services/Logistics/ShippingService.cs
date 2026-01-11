@@ -1,17 +1,17 @@
 using AutoMapper;
+using MediatR;
 using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces.User;
 using OrderEntity = Merge.Domain.Entities.Order;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.Logistics;
-using Merge.Application.Interfaces.Notification;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
 using Merge.Application.Interfaces;
 using Merge.Application.DTOs.Logistics;
-using Merge.Application.DTOs.Notification;
+using Merge.Application.Notification.Commands.CreateNotification;
 using Microsoft.Extensions.Logging;
 
 
@@ -22,7 +22,7 @@ public class ShippingService : IShippingService
     private readonly IRepository<Shipping> _shippingRepository;
     private readonly IRepository<OrderEntity> _orderRepository;
     private readonly IEmailService? _emailService;
-    private readonly INotificationService? _notificationService;
+    private readonly IMediator _mediator;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
@@ -35,13 +35,13 @@ public class ShippingService : IShippingService
         IMapper mapper,
         IUnitOfWork unitOfWork,
         ILogger<ShippingService> logger,
-        IEmailService? emailService = null,
-        INotificationService? notificationService = null)
+        IMediator mediator,
+        IEmailService? emailService = null)
     {
         _shippingRepository = shippingRepository;
         _orderRepository = orderRepository;
         _emailService = emailService;
-        _notificationService = notificationService;
+        _mediator = mediator;
         _context = context;
         _mapper = mapper;
         _unitOfWork = unitOfWork;
@@ -166,18 +166,14 @@ public class ShippingService : IShippingService
                 _logger.LogInformation("Shipping tracking updated for order {OrderId}. Tracking: {TrackingNumber}",
                     shipping.OrderId, trackingNumber);
 
-                // Bildirim gönder (after commit)
-                if (_notificationService != null)
-                {
-                    await _notificationService.CreateNotificationAsync(new CreateNotificationDto
-                    {
-                        UserId = order.UserId,
-                        Type = "Shipping",
-                        Title = "Siparişiniz Kargoya Verildi",
-                        Message = $"Siparişiniz kargoya verildi. Takip No: {trackingNumber}",
-                        Link = $"/orders/{order.Id}"
-                    });
-                }
+                // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - INotificationService yerine MediatR kullan
+                // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
+                await _mediator.Send(new CreateNotificationCommand(
+                    order.UserId,
+                    NotificationType.Shipping,
+                    "Siparişiniz Kargoya Verildi",
+                    $"Siparişiniz kargoya verildi. Takip No: {trackingNumber}",
+                    $"/orders/{order.Id}"), cancellationToken);
 
                 // Email gönder (after commit)
                 if (_emailService != null)

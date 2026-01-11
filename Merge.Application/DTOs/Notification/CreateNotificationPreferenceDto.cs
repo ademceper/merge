@@ -1,21 +1,13 @@
 using System.ComponentModel.DataAnnotations;
+using Merge.Domain.Enums;
 
 namespace Merge.Application.DTOs.Notification;
 
-public class CreateNotificationPreferenceDto
-{
-    [Required]
-    [StringLength(100)]
-    public string NotificationType { get; set; } = string.Empty;
-    
-    [Required]
-    [StringLength(50)]
-    public string Channel { get; set; } = string.Empty;
-    
-    public bool IsEnabled { get; set; } = true;
-
-    /// <summary>
-    /// Bildirim tercihi ayarlari - Typed DTO (Over-posting korumasi)
-    /// </summary>
-    public NotificationPreferenceSettingsDto? CustomSettings { get; set; }
-}
+/// <summary>
+/// Create Notification Preference DTO - BOLUM 7.1.5: Records (C# 12 modern features)
+/// </summary>
+public record CreateNotificationPreferenceDto(
+    [Required] NotificationType NotificationType,
+    [Required] NotificationChannel Channel,
+    bool IsEnabled = true,
+    NotificationPreferenceSettingsDto? CustomSettings = null);

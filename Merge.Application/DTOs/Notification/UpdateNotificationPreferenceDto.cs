@@ -1,13 +1,8 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace Merge.Application.DTOs.Notification;
 
-public class UpdateNotificationPreferenceDto
-{
-    public bool? IsEnabled { get; set; }
-
-    /// <summary>
-    /// Bildirim tercihi ayarlari - Typed DTO (Over-posting korumasi)
-    /// </summary>
-    public NotificationPreferenceSettingsDto? CustomSettings { get; set; }
-}
+/// <summary>
+/// Update Notification Preference DTO - BOLUM 7.1.5: Records (C# 12 modern features)
+/// </summary>
+public record UpdateNotificationPreferenceDto(
+    bool? IsEnabled = null,
+    NotificationPreferenceSettingsDto? CustomSettings = null);

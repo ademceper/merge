@@ -1,36 +1,19 @@
 using System.ComponentModel.DataAnnotations;
+using Merge.Domain.Enums;
 
 namespace Merge.Application.DTOs.Notification;
 
-public class UpdateNotificationTemplateDto
-{
+/// <summary>
+/// Update Notification Template DTO - BOLUM 7.1.5: Records (C# 12 modern features)
+/// </summary>
+public record UpdateNotificationTemplateDto(
     [StringLength(100, MinimumLength = 2, ErrorMessage = "İsim en az 2, en fazla 100 karakter olmalıdır.")]
-    public string? Name { get; set; }
-    
-    [StringLength(500)]
-    public string? Description { get; set; }
-    
-    [StringLength(50)]
-    public string? Type { get; set; }
-    
-    [StringLength(200)]
-    public string? TitleTemplate { get; set; }
-    
-    [StringLength(2000)]
-    public string? MessageTemplate { get; set; }
-    
-    [StringLength(500)]
-    public string? LinkTemplate { get; set; }
-    
-    public bool? IsActive { get; set; }
-
-    /// <summary>
-    /// Template degiskenleri - Typed DTO (Over-posting korumasi)
-    /// </summary>
-    public NotificationVariablesDto? Variables { get; set; }
-
-    /// <summary>
-    /// Template ayarlari - Typed DTO (Over-posting korumasi)
-    /// </summary>
-    public NotificationTemplateSettingsDto? DefaultData { get; set; }
-}
+    string? Name = null,
+    [StringLength(500)] string? Description = null,
+    NotificationType? Type = null,
+    [StringLength(200)] string? TitleTemplate = null,
+    [StringLength(2000)] string? MessageTemplate = null,
+    [StringLength(500)] string? LinkTemplate = null,
+    bool? IsActive = null,
+    NotificationVariablesDto? Variables = null,
+    NotificationTemplateSettingsDto? DefaultData = null);

@@ -545,12 +545,16 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
         });
 
         // Notification configuration
+        // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
         modelBuilder.Entity<Notification>(entity =>
         {
             entity.HasOne(e => e.User)
                   .WithMany(e => e.Notifications)
                   .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+            entity.Property(e => e.Type)
+                  .IsRequired()
+                  .HasConversion<string>(); // Enum'u string olarak sakla (EF Core)
             entity.Property(e => e.Data)
                   .HasConversion(
                       v => v ?? string.Empty,
@@ -559,10 +563,13 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
         });
 
         // NotificationTemplate configuration
+        // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
         modelBuilder.Entity<NotificationTemplate>(entity =>
         {
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.Type).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Type)
+                  .IsRequired()
+                  .HasConversion<string>(); // Enum'u string olarak sakla (EF Core)
             entity.Property(e => e.TitleTemplate).IsRequired().HasMaxLength(500);
             entity.Property(e => e.MessageTemplate).IsRequired();
             entity.HasIndex(e => e.Type);
@@ -1630,14 +1637,19 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
         });
 
         // NotificationPreference configuration
+        // ✅ BOLUM 1.2: Enum kullanımı (string NotificationType/Channel YASAK)
         modelBuilder.Entity<NotificationPreference>(entity =>
         {
             entity.HasOne(e => e.User)
                   .WithMany()
                   .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
-            entity.Property(e => e.NotificationType).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.Channel).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.NotificationType)
+                  .IsRequired()
+                  .HasConversion<string>(); // Enum'u string olarak sakla (EF Core)
+            entity.Property(e => e.Channel)
+                  .IsRequired()
+                  .HasConversion<string>(); // Enum'u string olarak sakla (EF Core)
             entity.HasIndex(e => new { e.UserId, e.NotificationType, e.Channel }).IsUnique();
         });
 

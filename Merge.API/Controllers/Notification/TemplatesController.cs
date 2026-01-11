@@ -1,22 +1,37 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Notification;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Notification;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
+using Merge.Application.Notification.Commands.CreateNotificationFromTemplate;
+using Merge.Application.Notification.Commands.CreateTemplate;
+using Merge.Application.Notification.Commands.DeleteTemplate;
+using Merge.Application.Notification.Commands.UpdateTemplate;
+using Merge.Application.Notification.Queries.GetTemplate;
+using Merge.Application.Notification.Queries.GetTemplateByType;
+using Merge.Application.Notification.Queries.GetTemplates;
 using Merge.API.Middleware;
+using Merge.Domain.Enums;
 
 namespace Merge.API.Controllers.Notification;
 
 [ApiController]
-[Route("api/notifications/templates")]
+[ApiVersion("1.0")] // ✅ BOLUM 4.1: API Versioning (ZORUNLU)
+[Route("api/v1/notifications/templates")]
 [Authorize(Roles = "Admin,Manager")]
 public class NotificationTemplatesController : BaseController
 {
-    private readonly INotificationTemplateService _templateService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
 
-    public NotificationTemplatesController(INotificationTemplateService templateService)
+    public NotificationTemplatesController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _templateService = templateService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
     /// <summary>
@@ -33,11 +48,11 @@ public class NotificationTemplatesController : BaseController
         [FromBody] CreateNotificationTemplateDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var template = await _templateService.CreateTemplateAsync(dto, cancellationToken);
+        var command = new CreateTemplateCommand(dto);
+        var template = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetTemplate), new { id = template.Id }, template);
     }
 
@@ -55,8 +70,10 @@ public class NotificationTemplatesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var template = await _templateService.GetTemplateAsync(id, cancellationToken);
+        var query = new GetTemplateQuery(id);
+        var template = await _mediator.Send(query, cancellationToken);
         if (template == null)
         {
             return NotFound();
@@ -78,8 +95,15 @@ public class NotificationTemplatesController : BaseController
         string type,
         CancellationToken cancellationToken = default)
     {
+        if (!Enum.TryParse<NotificationType>(type, true, out var notificationTypeEnum))
+        {
+            return BadRequest("Geçersiz notification type.");
+        }
+
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var template = await _templateService.GetTemplateByTypeAsync(type, cancellationToken);
+        var query = new GetTemplateByTypeQuery(notificationTypeEnum);
+        var template = await _mediator.Send(query, cancellationToken);
         if (template == null)
         {
             return NotFound(new { message = $"Template not found for type: {type}" });
@@ -103,28 +127,24 @@ public class NotificationTemplatesController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-        if (pageSize > 100) pageSize = 100; // Max limit
+        // ✅ BOLUM 12.0: Magic Numbers YASAK - Configuration kullan
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var allTemplates = await _templateService.GetTemplatesAsync(type, cancellationToken);
-        var templatesList = allTemplates.ToList();
-
-        // ✅ BOLUM 3.4: Pagination implementation
-        var totalCount = templatesList.Count;
-        var pagedTemplates = templatesList
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
-
-        var result = new PagedResult<NotificationTemplateDto>
+        NotificationType? notificationTypeEnum = null;
+        if (!string.IsNullOrEmpty(type))
         {
-            Items = pagedTemplates,
-            TotalCount = totalCount,
-            Page = page,
-            PageSize = pageSize
-        };
+            if (!Enum.TryParse<NotificationType>(type, true, out var parsedType))
+            {
+                return BadRequest("Geçersiz notification type.");
+            }
+            notificationTypeEnum = parsedType;
+        }
 
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var query = new GetTemplatesQuery(notificationTypeEnum, page, pageSize);
+        var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);
     }
 
@@ -144,15 +164,11 @@ public class NotificationTemplatesController : BaseController
         [FromBody] UpdateNotificationTemplateDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var template = await _templateService.UpdateTemplateAsync(id, dto, cancellationToken);
-        if (template == null)
-        {
-            return NotFound();
-        }
+        var command = new UpdateTemplateCommand(id, dto);
+        var template = await _mediator.Send(command, cancellationToken);
         return Ok(template);
     }
 
@@ -170,8 +186,10 @@ public class NotificationTemplatesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _templateService.DeleteTemplateAsync(id, cancellationToken);
+        var command = new DeleteTemplateCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -194,26 +212,11 @@ public class NotificationTemplatesController : BaseController
         [FromBody] CreateNotificationFromTemplateDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // Convert NotificationVariablesDto to Dictionary
-        Dictionary<string, object>? variablesDict = null;
-        if (dto.Variables != null)
-        {
-            variablesDict = new Dictionary<string, object>();
-            var props = typeof(NotificationVariablesDto).GetProperties();
-            foreach (var prop in props)
-            {
-                var value = prop.GetValue(dto.Variables);
-                if (value != null)
-                {
-                    variablesDict[prop.Name] = value;
-                }
-            }
-        }
-        var notification = await _templateService.CreateNotificationFromTemplateAsync(dto.UserId, dto.TemplateType, variablesDict, cancellationToken);
+        var command = new CreateNotificationFromTemplateCommand(dto.UserId, dto.TemplateType, dto.Variables);
+        var notification = await _mediator.Send(command, cancellationToken);
         return Ok(notification);
     }
 }

@@ -184,8 +184,22 @@ public class MappingProfile : Profile
         CreateMap<Coupon, CouponDto>();
         CreateMap<CouponDto, Coupon>();
 
-        CreateMap<Notification, NotificationDto>();
-        CreateMap<CreateNotificationDto, Notification>();
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
+        // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
+        CreateMap<Notification, NotificationDto>()
+            .ConstructUsing(src => new NotificationDto(
+                src.Id,
+                src.UserId,
+                src.Type,
+                src.Title,
+                src.Message,
+                src.IsRead,
+                src.ReadAt,
+                src.Link,
+                src.Data,
+                src.CreatedAt));
+        
+        // CreateNotificationDto artık command'da kullanılıyor, mapping gerekmiyor
 
         CreateMap<Review, ReviewDto>()
             .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty))
@@ -1252,32 +1266,45 @@ public class MappingProfile : Profile
                     : null;
             });
 
-        // Notification mappings
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
+        // ✅ BOLUM 1.2: Enum kullanımı (string NotificationType/Channel YASAK)
         CreateMap<NotificationPreference, NotificationPreferenceDto>()
-            .AfterMap((src, dest) =>
-            {
-                // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
-                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
-                dest.CustomSettings = !string.IsNullOrEmpty(src.CustomSettings)
+            .ConstructUsing(src => new NotificationPreferenceDto(
+                src.Id,
+                src.UserId,
+                src.NotificationType,
+                src.Channel,
+                src.IsEnabled,
+                !string.IsNullOrEmpty(src.CustomSettings)
                     ? JsonSerializer.Deserialize<NotificationPreferenceSettingsDto>(src.CustomSettings)
-                    : null;
-            });
-        CreateMap<CreateNotificationPreferenceDto, NotificationPreference>();
+                    : null,
+                src.CreatedAt,
+                src.UpdatedAt));
+        
+        // CreateNotificationPreferenceDto artık command'da kullanılıyor, mapping gerekmiyor
 
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
+        // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
         CreateMap<NotificationTemplate, NotificationTemplateDto>()
-            .AfterMap((src, dest) =>
-            {
-                // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
-                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
-                dest.Variables = !string.IsNullOrEmpty(src.Variables)
+            .ConstructUsing(src => new NotificationTemplateDto(
+                src.Id,
+                src.Name,
+                src.Description,
+                src.Type,
+                src.TitleTemplate,
+                src.MessageTemplate,
+                src.LinkTemplate,
+                src.IsActive,
+                !string.IsNullOrEmpty(src.Variables)
                     ? JsonSerializer.Deserialize<NotificationVariablesDto>(src.Variables)
-                    : null;
-                dest.DefaultData = !string.IsNullOrEmpty(src.DefaultData)
+                    : null,
+                !string.IsNullOrEmpty(src.DefaultData)
                     ? JsonSerializer.Deserialize<NotificationTemplateSettingsDto>(src.DefaultData)
-                    : null;
-            });
-        CreateMap<CreateNotificationTemplateDto, NotificationTemplate>();
-        CreateMap<UpdateNotificationTemplateDto, NotificationTemplate>();
+                    : null,
+                src.CreatedAt,
+                src.UpdatedAt));
+        
+        // CreateNotificationTemplateDto ve UpdateNotificationTemplateDto artık command'da kullanılıyor, mapping gerekmiyor
 
         // Order Split mappings
         CreateMap<OrderSplitItem, OrderSplitItemDto>()

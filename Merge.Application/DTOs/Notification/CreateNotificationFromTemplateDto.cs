@@ -1,18 +1,12 @@
 using System.ComponentModel.DataAnnotations;
+using Merge.Domain.Enums;
 
 namespace Merge.Application.DTOs.Notification;
 
-public class CreateNotificationFromTemplateDto
-{
-    [Required]
-    public Guid UserId { get; set; }
-    
-    [Required]
-    [StringLength(50)]
-    public string TemplateType { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Template degiskenleri - Typed DTO (Over-posting korumasi)
-    /// </summary>
-    public NotificationVariablesDto? Variables { get; set; }
-}
+/// <summary>
+/// Create Notification From Template DTO - BOLUM 7.1.5: Records (C# 12 modern features)
+/// </summary>
+public record CreateNotificationFromTemplateDto(
+    [Required] Guid UserId,
+    [Required] NotificationType TemplateType,
+    NotificationVariablesDto? Variables = null);

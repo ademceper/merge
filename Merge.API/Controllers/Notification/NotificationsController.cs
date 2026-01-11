@@ -1,22 +1,36 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
 using Merge.Application.DTOs.Notification;
-using Merge.Application.Interfaces.Notification;
+using Merge.Application.Notification.Commands.CreateNotification;
+using Merge.Application.Notification.Commands.DeleteNotification;
+using Merge.Application.Notification.Commands.MarkAllAsRead;
+using Merge.Application.Notification.Commands.MarkAsRead;
+using Merge.Application.Notification.Queries.GetNotificationById;
+using Merge.Application.Notification.Queries.GetUnreadCount;
+using Merge.Application.Notification.Queries.GetUserNotifications;
 using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Notification;
 
 [ApiController]
-[Route("api/notifications")]
+[ApiVersion("1.0")] // ✅ BOLUM 4.1: API Versioning (ZORUNLU)
+[Route("api/v1/notifications")]
 [Authorize]
 public class NotificationsController : BaseController
 {
-    private readonly INotificationService _notificationService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
 
-    public NotificationsController(INotificationService notificationService)
+    public NotificationsController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _notificationService = notificationService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
     /// <summary>
@@ -34,12 +48,15 @@ public class NotificationsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-        if (pageSize > 100) pageSize = 100; // Max limit
+        // ✅ BOLUM 12.0: Magic Numbers YASAK - Configuration kullan
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         var userId = GetUserId();
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var notifications = await _notificationService.GetUserNotificationsAsync(userId, unreadOnly, page, pageSize, cancellationToken);
+        var query = new GetUserNotificationsQuery(userId, unreadOnly, page, pageSize);
+        var notifications = await _mediator.Send(query, cancellationToken);
         return Ok(notifications);
     }
 
@@ -54,8 +71,10 @@ public class NotificationsController : BaseController
     public async Task<ActionResult<int>> GetUnreadCount(CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var count = await _notificationService.GetUnreadCountAsync(userId, cancellationToken);
+        var query = new GetUnreadCountQuery(userId);
+        var count = await _mediator.Send(query, cancellationToken);
         return Ok(new { count });
     }
 
@@ -74,8 +93,10 @@ public class NotificationsController : BaseController
         var userId = GetUserId();
         
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi bildirimlerini okuyabilir
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var notification = await _notificationService.GetByIdAsync(notificationId, cancellationToken);
+        var notificationQuery = new GetNotificationByIdQuery(notificationId);
+        var notification = await _mediator.Send(notificationQuery, cancellationToken);
         if (notification == null)
         {
             return NotFound();
@@ -86,8 +107,10 @@ public class NotificationsController : BaseController
             return Forbid();
         }
         
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _notificationService.MarkAsReadAsync(notificationId, userId, cancellationToken);
+        var command = new MarkAsReadCommand(notificationId, userId);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -106,8 +129,10 @@ public class NotificationsController : BaseController
     public async Task<IActionResult> MarkAllAsRead(CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        await _notificationService.MarkAllAsReadAsync(userId, cancellationToken);
+        var command = new MarkAllAsReadCommand(userId);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -126,8 +151,10 @@ public class NotificationsController : BaseController
         var userId = GetUserId();
         
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi bildirimlerini silebilir
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var notification = await _notificationService.GetByIdAsync(notificationId, cancellationToken);
+        var notificationQuery = new GetNotificationByIdQuery(notificationId);
+        var notification = await _mediator.Send(notificationQuery, cancellationToken);
         if (notification == null)
         {
             return NotFound();
@@ -138,8 +165,10 @@ public class NotificationsController : BaseController
             return Forbid();
         }
         
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _notificationService.DeleteNotificationAsync(notificationId, userId, cancellationToken);
+        var command = new DeleteNotificationCommand(notificationId, userId);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();

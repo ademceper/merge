@@ -1,16 +1,16 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Application.DTOs.Notification;
 
-public class NotificationPreferenceDto
-{
-    public Guid Id { get; set; }
-    public Guid UserId { get; set; }
-    public string NotificationType { get; set; } = string.Empty;
-    public string Channel { get; set; } = string.Empty;
-    public bool IsEnabled { get; set; }
-    /// <summary>
-    /// Bildirim tercihi ayarlari - Typed DTO (Over-posting korumasi)
-    /// </summary>
-    public NotificationPreferenceSettingsDto? CustomSettings { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime? UpdatedAt { get; set; }
-}
+/// <summary>
+/// Notification Preference DTO - BOLUM 7.1.5: Records (C# 12 modern features)
+/// </summary>
+public record NotificationPreferenceDto(
+    Guid Id,
+    Guid UserId,
+    NotificationType NotificationType,
+    NotificationChannel Channel,
+    bool IsEnabled,
+    NotificationPreferenceSettingsDto? CustomSettings,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);

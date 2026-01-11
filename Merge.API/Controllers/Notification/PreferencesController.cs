@@ -1,22 +1,39 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Notification;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Notification;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
+using Merge.Application.Notification.Commands.BulkUpdatePreferences;
+using Merge.Application.Notification.Commands.CreatePreference;
+using Merge.Application.Notification.Commands.DeletePreference;
+using Merge.Application.Notification.Commands.UpdatePreference;
+using Merge.Application.Notification.Queries.GetEnabledChannels;
+using Merge.Application.Notification.Queries.GetPreference;
+using Merge.Application.Notification.Queries.GetUserPreferences;
+using Merge.Application.Notification.Queries.GetUserPreferencesSummary;
+using Merge.Application.Notification.Queries.IsNotificationEnabled;
 using Merge.API.Middleware;
+using Merge.Domain.Enums;
 
 namespace Merge.API.Controllers.Notification;
 
 [ApiController]
-[Route("api/notifications/preferences")]
+[ApiVersion("1.0")] // ✅ BOLUM 4.1: API Versioning (ZORUNLU)
+[Route("api/v1/notifications/preferences")]
 [Authorize]
 public class NotificationPreferencesController : BaseController
 {
-    private readonly INotificationPreferenceService _notificationPreferenceService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
 
-    public NotificationPreferencesController(INotificationPreferenceService notificationPreferenceService)
+    public NotificationPreferencesController(
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _notificationPreferenceService = notificationPreferenceService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
     /// <summary>
@@ -33,29 +50,15 @@ public class NotificationPreferencesController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-        if (pageSize > 100) pageSize = 100; // Max limit
+        // ✅ BOLUM 12.0: Magic Numbers YASAK - Configuration kullan
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         var userId = GetUserId();
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var allPreferences = await _notificationPreferenceService.GetUserPreferencesAsync(userId, cancellationToken);
-        var preferencesList = allPreferences.ToList();
-
-        // ✅ BOLUM 3.4: Pagination implementation
-        var totalCount = preferencesList.Count;
-        var pagedPreferences = preferencesList
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
-
-        var result = new PagedResult<NotificationPreferenceDto>
-        {
-            Items = pagedPreferences,
-            TotalCount = totalCount,
-            Page = page,
-            PageSize = pageSize
-        };
-
+        var query = new GetUserPreferencesQuery(userId, page, pageSize);
+        var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);
     }
 
@@ -71,8 +74,10 @@ public class NotificationPreferencesController : BaseController
         CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var summary = await _notificationPreferenceService.GetUserPreferencesSummaryAsync(userId, cancellationToken);
+        var query = new GetUserPreferencesSummaryQuery(userId);
+        var summary = await _mediator.Send(query, cancellationToken);
         return Ok(summary);
     }
 
@@ -90,9 +95,17 @@ public class NotificationPreferencesController : BaseController
         string channel,
         CancellationToken cancellationToken = default)
     {
+        if (!Enum.TryParse<NotificationType>(notificationType, true, out var notificationTypeEnum) ||
+            !Enum.TryParse<NotificationChannel>(channel, true, out var channelEnum))
+        {
+            return BadRequest("Geçersiz notification type veya channel.");
+        }
+
         var userId = GetUserId();
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var preference = await _notificationPreferenceService.GetPreferenceAsync(userId, notificationType, channel, cancellationToken);
+        var query = new GetPreferenceQuery(userId, notificationTypeEnum, channelEnum);
+        var preference = await _mediator.Send(query, cancellationToken);
         if (preference == null)
         {
             return NotFound();
@@ -113,13 +126,13 @@ public class NotificationPreferencesController : BaseController
         [FromBody] CreateNotificationPreferenceDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         var userId = GetUserId();
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var preference = await _notificationPreferenceService.CreatePreferenceAsync(userId, dto, cancellationToken);
-        return CreatedAtAction(nameof(GetPreference), new { notificationType = dto.NotificationType, channel = dto.Channel }, preference);
+        var command = new CreatePreferenceCommand(userId, dto);
+        var preference = await _mediator.Send(command, cancellationToken);
+        return CreatedAtAction(nameof(GetPreference), new { notificationType = dto.NotificationType.ToString(), channel = dto.Channel.ToString() }, preference);
     }
 
     /// <summary>
@@ -138,16 +151,18 @@ public class NotificationPreferencesController : BaseController
         [FromBody] UpdateNotificationPreferenceDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var preference = await _notificationPreferenceService.UpdatePreferenceAsync(userId, notificationType, channel, dto, cancellationToken);
-        if (preference == null)
+        if (!Enum.TryParse<NotificationType>(notificationType, true, out var notificationTypeEnum) ||
+            !Enum.TryParse<NotificationChannel>(channel, true, out var channelEnum))
         {
-            return NotFound();
+            return BadRequest("Geçersiz notification type veya channel.");
         }
+
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
+        var userId = GetUserId();
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var command = new UpdatePreferenceCommand(userId, notificationTypeEnum, channelEnum, dto);
+        var preference = await _mediator.Send(command, cancellationToken);
         return Ok(preference);
     }
 
@@ -164,12 +179,12 @@ public class NotificationPreferencesController : BaseController
         [FromBody] BulkUpdateNotificationPreferencesDto dto,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         var userId = GetUserId();
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _notificationPreferenceService.BulkUpdatePreferencesAsync(userId, dto, cancellationToken);
+        var command = new BulkUpdatePreferencesCommand(userId, dto);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -187,9 +202,17 @@ public class NotificationPreferencesController : BaseController
         string channel,
         CancellationToken cancellationToken = default)
     {
+        if (!Enum.TryParse<NotificationType>(notificationType, true, out var notificationTypeEnum) ||
+            !Enum.TryParse<NotificationChannel>(channel, true, out var channelEnum))
+        {
+            return BadRequest("Geçersiz notification type veya channel.");
+        }
+
         var userId = GetUserId();
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _notificationPreferenceService.DeletePreferenceAsync(userId, notificationType, channel, cancellationToken);
+        var command = new DeletePreferenceCommand(userId, notificationTypeEnum, channelEnum);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -210,9 +233,17 @@ public class NotificationPreferencesController : BaseController
         string channel,
         CancellationToken cancellationToken = default)
     {
+        if (!Enum.TryParse<NotificationType>(notificationType, true, out var notificationTypeEnum) ||
+            !Enum.TryParse<NotificationChannel>(channel, true, out var channelEnum))
+        {
+            return BadRequest("Geçersiz notification type veya channel.");
+        }
+
         var userId = GetUserId();
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var isEnabled = await _notificationPreferenceService.IsNotificationEnabledAsync(userId, notificationType, channel, cancellationToken);
+        var query = new IsNotificationEnabledQuery(userId, notificationTypeEnum, channelEnum);
+        var isEnabled = await _mediator.Send(query, cancellationToken);
         return Ok(new { isEnabled });
     }
 
@@ -228,10 +259,16 @@ public class NotificationPreferencesController : BaseController
         string notificationType,
         CancellationToken cancellationToken = default)
     {
-        var userId = GetUserId();
+        if (!Enum.TryParse<NotificationType>(notificationType, true, out var notificationTypeEnum))
+        {
+            return BadRequest("Geçersiz notification type.");
+        }
 
+        var userId = GetUserId();
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var channels = await _notificationPreferenceService.GetEnabledChannelsAsync(userId, notificationType, cancellationToken);
+        var query = new GetEnabledChannelsQuery(userId, notificationTypeEnum);
+        var channels = await _mediator.Send(query, cancellationToken);
         return Ok(channels);
     }
 }

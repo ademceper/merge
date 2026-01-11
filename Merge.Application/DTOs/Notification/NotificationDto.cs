@@ -1,14 +1,18 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Application.DTOs.Notification;
 
-public class NotificationDto
-{
-    public Guid Id { get; set; }
-    public Guid UserId { get; set; } // IDOR kontrolü için gerekli
-    public string Type { get; set; } = string.Empty;
-    public string Title { get; set; } = string.Empty;
-    public string Message { get; set; } = string.Empty;
-    public bool IsRead { get; set; }
-    public DateTime? ReadAt { get; set; }
-    public string? Link { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
+/// <summary>
+/// Notification DTO - BOLUM 7.1.5: Records (C# 12 modern features)
+/// </summary>
+public record NotificationDto(
+    Guid Id,
+    Guid UserId, // IDOR kontrolü için gerekli
+    NotificationType Type,
+    string Title,
+    string Message,
+    bool IsRead,
+    DateTime? ReadAt,
+    string? Link,
+    string? Data, // JSON formatında ek veriler
+    DateTime CreatedAt);

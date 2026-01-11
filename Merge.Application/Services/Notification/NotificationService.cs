@@ -2,11 +2,13 @@ using AutoMapper;
 using NotificationEntity = Merge.Domain.Entities.Notification;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Notification;
 using Merge.Domain.Entities;
 using Merge.Application.DTOs.Notification;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
 using System.Linq;
 
 
@@ -19,26 +21,31 @@ public class NotificationService : INotificationService
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<NotificationService> _logger;
+    private readonly PaginationSettings _paginationSettings;
 
     public NotificationService(
         IRepository<NotificationEntity> notificationRepository,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
-        ILogger<NotificationService> logger)
+        ILogger<NotificationService> logger,
+        IOptions<PaginationSettings> paginationSettings)
     {
         _notificationRepository = notificationRepository;
         _context = context;
         _mapper = mapper;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _paginationSettings = paginationSettings.Value;
     }
 
     // ✅ PERFORMANCE: Pagination ekle (BEST_PRACTICES_ANALIZI.md - BOLUM 3.1.4)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PagedResult<NotificationDto>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
-        if (pageSize > 100) pageSize = 100; // Max limit
+        // ✅ BOLUM 12.0: Magic Numbers YASAK - Configuration kullan
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !n.IsDeleted (Global Query Filter)
         IQueryable<NotificationEntity> query = _context.Set<NotificationEntity>()
@@ -93,16 +100,18 @@ public class NotificationService : INotificationService
             "Notification oluşturuluyor. UserId: {UserId}, Type: {Type}, Title: {Title}",
             dto.UserId, dto.Type, dto.Title);
 
-        var notification = new NotificationEntity
-        {
-            UserId = dto.UserId,
-            Type = dto.Type,
-            Title = dto.Title,
-            Message = dto.Message,
-            Link = dto.Link
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var notification = Notification.Create(
+            dto.UserId,
+            dto.Type,
+            dto.Title,
+            dto.Message,
+            dto.Link,
+            dto.Data);
 
         await _notificationRepository.AddAsync(notification);
+        
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
@@ -126,9 +135,10 @@ public class NotificationService : INotificationService
             return false;
         }
 
-        notification.IsRead = true;
-        notification.ReadAt = DateTime.UtcNow;
-        await _notificationRepository.UpdateAsync(notification);
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        notification.MarkAsRead();
+        
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -141,15 +151,16 @@ public class NotificationService : INotificationService
             .Where(n => n.UserId == userId && !n.IsRead)
             .ToListAsync(cancellationToken);
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         foreach (var notification in notifications)
         {
-            notification.IsRead = true;
-            notification.ReadAt = DateTime.UtcNow;
+            notification.MarkAsRead();
         }
 
         // ✅ PERFORMANCE: ToListAsync() sonrası Any() YASAK - List.Count kullan
         if (notifications.Count > 0)
         {
+            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
@@ -168,7 +179,10 @@ public class NotificationService : INotificationService
             return false;
         }
 
-        await _notificationRepository.DeleteAsync(notification);
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        notification.Delete();
+        
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
