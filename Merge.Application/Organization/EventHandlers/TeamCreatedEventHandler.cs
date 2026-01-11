@@ -1,0 +1,33 @@
+using MediatR;
+using Microsoft.Extensions.Logging;
+using Merge.Domain.Common.DomainEvents;
+
+namespace Merge.Application.Organization.EventHandlers;
+
+/// <summary>
+/// Team Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
+/// </summary>
+public class TeamCreatedEventHandler : INotificationHandler<TeamCreatedEvent>
+{
+    private readonly ILogger<TeamCreatedEventHandler> _logger;
+
+    public TeamCreatedEventHandler(ILogger<TeamCreatedEventHandler> logger)
+    {
+        _logger = logger;
+    }
+
+    public async Task Handle(TeamCreatedEvent notification, CancellationToken cancellationToken)
+    {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation(
+            "Team created event received. TeamId: {TeamId}, OrganizationId: {OrganizationId}, Name: {Name}",
+            notification.TeamId, notification.OrganizationId, notification.Name);
+
+        // TODO: İleride burada şunlar yapılabilir:
+        // - Analytics tracking
+        // - Cache invalidation
+        // - Notification gönderimi (team lead'e)
+
+        await Task.CompletedTask;
+    }
+}

@@ -1,19 +1,21 @@
 namespace Merge.Application.DTOs.Organization;
 
-public class TeamDto
-{
-    public Guid Id { get; set; }
-    public Guid OrganizationId { get; set; }
-    public string OrganizationName { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public Guid? TeamLeadId { get; set; }
-    public string? TeamLeadName { get; set; }
-    public bool IsActive { get; set; }
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
+/// <summary>
+/// Team DTO - Immutable record
+/// </summary>
+public record TeamDto(
+    Guid Id,
+    Guid OrganizationId,
+    string OrganizationName,
+    string Name,
+    string? Description,
+    Guid? TeamLeadId,
+    string? TeamLeadName,
+    bool IsActive,
     /// <summary>
     /// Takim ayarlari - Typed DTO (Over-posting korumasi)
     /// </summary>
-    public TeamSettingsDto? Settings { get; set; }
-    public int MemberCount { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
+    TeamSettingsDto? Settings,
+    int MemberCount,
+    DateTime CreatedAt);

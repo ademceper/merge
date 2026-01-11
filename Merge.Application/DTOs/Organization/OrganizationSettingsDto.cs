@@ -2,80 +2,60 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Organization;
 
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
 /// <summary>
 /// Organization ayarlari icin typed DTO - Dictionary yerine guvenli
 /// </summary>
-public class OrganizationSettingsDto
-{
+public record OrganizationSettingsDto(
     /// <summary>
     /// Organizasyon aktif mi
     /// </summary>
-    public bool IsActive { get; set; } = true;
-
+    bool IsActive = true,
     /// <summary>
     /// Coklu magaza destegi
     /// </summary>
-    public bool MultiStoreEnabled { get; set; } = false;
-
+    bool MultiStoreEnabled = false,
     /// <summary>
     /// Maksimum magaza sayisi
     /// </summary>
-    [Range(1, 1000)]
-    public int MaxStores { get; set; } = 10;
-
+    [Range(1, 1000)] int MaxStores = 10,
     /// <summary>
     /// Maksimum kullanici sayisi
     /// </summary>
-    [Range(1, 10000)]
-    public int MaxUsers { get; set; } = 50;
-
+    [Range(1, 10000)] int MaxUsers = 50,
     /// <summary>
     /// API erisimi aktif mi
     /// </summary>
-    public bool ApiAccessEnabled { get; set; } = false;
-
+    bool ApiAccessEnabled = false,
     /// <summary>
     /// Varsayilan dil kodu
     /// </summary>
-    [StringLength(10)]
-    public string? DefaultLanguage { get; set; }
-
+    [StringLength(10)] string? DefaultLanguage = null,
     /// <summary>
     /// Varsayilan para birimi
     /// </summary>
-    [StringLength(3)]
-    public string? DefaultCurrency { get; set; }
-
+    [StringLength(3)] string? DefaultCurrency = null,
     /// <summary>
     /// Varsayilan zaman dilimi
     /// </summary>
-    [StringLength(50)]
-    public string? DefaultTimezone { get; set; }
-
+    [StringLength(50)] string? DefaultTimezone = null,
     /// <summary>
     /// 2FA zorunlu mu
     /// </summary>
-    public bool Require2FA { get; set; } = false;
-
+    bool Require2FA = false,
     /// <summary>
     /// SSO aktif mi
     /// </summary>
-    public bool SsoEnabled { get; set; } = false;
-
+    bool SsoEnabled = false,
     /// <summary>
     /// SSO saglayici
     /// </summary>
-    [StringLength(50)]
-    public string? SsoProvider { get; set; }
-
+    [StringLength(50)] string? SsoProvider = null,
     /// <summary>
     /// IP whitelist aktif mi
     /// </summary>
-    public bool IpWhitelistEnabled { get; set; } = false;
-
+    bool IpWhitelistEnabled = false,
     /// <summary>
     /// Izin verilen IP adresleri (virgul ile ayrilmis)
     /// </summary>
-    [StringLength(2000)]
-    public string? AllowedIpAddresses { get; set; }
-}
+    [StringLength(2000)] string? AllowedIpAddresses = null);

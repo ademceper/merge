@@ -2,60 +2,48 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Organization;
 
+// ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)
 /// <summary>
 /// Team ayarlari icin typed DTO - Dictionary yerine guvenli
 /// </summary>
-public class TeamSettingsDto
-{
+public record TeamSettingsDto(
     /// <summary>
     /// Takim aktif mi
     /// </summary>
-    public bool IsActive { get; set; } = true;
-
+    bool IsActive = true,
     /// <summary>
     /// Maksimum uye sayisi
     /// </summary>
-    [Range(1, 1000)]
-    public int MaxMembers { get; set; } = 50;
-
+    [Range(1, 1000)] int MaxMembers = 50,
     /// <summary>
     /// Urun yonetimi izni
     /// </summary>
-    public bool CanManageProducts { get; set; } = false;
-
+    bool CanManageProducts = false,
     /// <summary>
     /// Siparis yonetimi izni
     /// </summary>
-    public bool CanManageOrders { get; set; } = false;
-
+    bool CanManageOrders = false,
     /// <summary>
     /// Musteri yonetimi izni
     /// </summary>
-    public bool CanManageCustomers { get; set; } = false;
-
+    bool CanManageCustomers = false,
     /// <summary>
     /// Finans yonetimi izni
     /// </summary>
-    public bool CanManageFinance { get; set; } = false;
-
+    bool CanManageFinance = false,
     /// <summary>
     /// Rapor gorunturleme izni
     /// </summary>
-    public bool CanViewReports { get; set; } = false;
-
+    bool CanViewReports = false,
     /// <summary>
     /// Ayar degistirme izni
     /// </summary>
-    public bool CanChangeSettings { get; set; } = false;
-
+    bool CanChangeSettings = false,
     /// <summary>
     /// Varsayilan bildirim tercihleri
     /// </summary>
-    public bool EmailNotificationsEnabled { get; set; } = true;
-
+    bool EmailNotificationsEnabled = true,
     /// <summary>
     /// Varsayilan dil
     /// </summary>
-    [StringLength(10)]
-    public string? DefaultLanguage { get; set; }
-}
+    [StringLength(10)] string? DefaultLanguage = null);

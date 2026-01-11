@@ -1,11 +1,15 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Organization;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.Common;
+using Merge.Domain.Common.DomainEvents;
+using Merge.Application.Configuration;
 using System.Text.Json;
 using OrganizationEntity = Merge.Domain.Entities.Organization;
 using UserEntity = Merge.Domain.Entities.User;
@@ -21,13 +25,20 @@ public class OrganizationService : IOrganizationService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<OrganizationService> _logger;
+    private readonly PaginationSettings _paginationSettings;
 
-    public OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<OrganizationService> logger)
+    public OrganizationService(
+        IDbContext context,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        ILogger<OrganizationService> logger,
+        IOptions<PaginationSettings> paginationSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _paginationSettings = paginationSettings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -38,25 +49,25 @@ public class OrganizationService : IOrganizationService
             "Organization oluşturuluyor. Name: {Name}, LegalName: {LegalName}, TaxNumber: {TaxNumber}",
             dto.Name, dto.LegalName, dto.TaxNumber);
 
-        var organization = new OrganizationEntity
-        {
-            Name = dto.Name,
-            LegalName = dto.LegalName,
-            TaxNumber = dto.TaxNumber,
-            RegistrationNumber = dto.RegistrationNumber,
-            Email = dto.Email,
-            Phone = dto.Phone,
-            Website = dto.Website,
-            Address = dto.Address,
-            City = dto.City,
-            State = dto.State,
-            PostalCode = dto.PostalCode,
-            Country = dto.Country,
-            Status = EntityStatus.Active,
-            Settings = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var organization = OrganizationEntity.Create(
+            dto.Name,
+            dto.LegalName,
+            dto.TaxNumber,
+            dto.RegistrationNumber,
+            dto.Email,
+            dto.Phone,
+            dto.Website,
+            dto.Address,
+            dto.City,
+            dto.State,
+            dto.PostalCode,
+            dto.Country,
+            dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null);
 
         await _context.Set<OrganizationEntity>().AddAsync(organization, cancellationToken);
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
+        // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
@@ -94,15 +105,20 @@ public class OrganizationService : IOrganizationService
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var dto = _mapper.Map<OrganizationDto>(organization);
-        dto.UserCount = userCount;
-        dto.TeamCount = teamCount;
-        return dto;
+        // ✅ BOLUM 7.1: Records immutable olduğu için with expression kullan
+        return dto with { UserCount = userCount, TeamCount = teamCount };
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-    public async Task<PagedResult<OrganizationDto>> GetAllOrganizationsAsync(string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<OrganizationDto>> GetAllOrganizationsAsync(string? status = null, int page = 1, int pageSize = 0, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
+        if (pageSize <= 0) pageSize = _paginationSettings.DefaultPageSize;
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
         var query = _context.Set<OrganizationEntity>()
             .AsNoTracking()
@@ -116,10 +132,6 @@ public class OrganizationService : IOrganizationService
                 query = query.Where(o => o.Status == statusEnum);
             }
         }
-
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
 
         var totalCount = await query.CountAsync(cancellationToken);
 
@@ -155,10 +167,15 @@ public class OrganizationService : IOrganizationService
         var result = _mapper.Map<IEnumerable<OrganizationDto>>(organizations).ToList();
         
         // ✅ PERFORMANCE: Dictionary'den Count'ları set et (memory'de minimal işlem)
-        foreach (var dto in result)
+        // ✅ BOLUM 7.1: Records immutable olduğu için with expression kullan
+        for (int i = 0; i < result.Count; i++)
         {
-            dto.UserCount = userCounts.TryGetValue(dto.Id, out var uc) ? uc : 0;
-            dto.TeamCount = teamCounts.TryGetValue(dto.Id, out var tc) ? tc : 0;
+            var dto = result[i];
+            result[i] = dto with
+            {
+                UserCount = userCounts.TryGetValue(dto.Id, out var uc) ? uc : 0,
+                TeamCount = teamCounts.TryGetValue(dto.Id, out var tc) ? tc : 0
+            };
         }
 
         return new PagedResult<OrganizationDto>
@@ -179,40 +196,36 @@ public class OrganizationService : IOrganizationService
 
         if (organization == null) return false;
 
-        if (!string.IsNullOrEmpty(dto.Name))
-            organization.Name = dto.Name;
-        if (dto.LegalName != null)
-            organization.LegalName = dto.LegalName;
-        if (dto.TaxNumber != null)
-            organization.TaxNumber = dto.TaxNumber;
-        if (dto.RegistrationNumber != null)
-            organization.RegistrationNumber = dto.RegistrationNumber;
-        if (dto.Email != null)
-            organization.Email = dto.Email;
-        if (dto.Phone != null)
-            organization.Phone = dto.Phone;
-        if (dto.Website != null)
-            organization.Website = dto.Website;
-        if (dto.Address != null)
-            organization.Address = dto.Address;
-        if (dto.City != null)
-            organization.City = dto.City;
-        if (dto.State != null)
-            organization.State = dto.State;
-        if (dto.PostalCode != null)
-            organization.PostalCode = dto.PostalCode;
-        if (dto.Country != null)
-            organization.Country = dto.Country;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        organization.Update(
+            dto.Name,
+            dto.LegalName,
+            dto.TaxNumber,
+            dto.RegistrationNumber,
+            dto.Email,
+            dto.Phone,
+            dto.Website,
+            dto.Address,
+            dto.City,
+            dto.State,
+            dto.PostalCode,
+            dto.Country,
+            dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null);
+
+        // Status update (separate domain method)
         if (!string.IsNullOrEmpty(dto.Status))
+        {
             // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
             if (Enum.TryParse<EntityStatus>(dto.Status, true, out var statusEnum))
             {
-                organization.Status = statusEnum;
+                if (statusEnum == EntityStatus.Active && organization.Status != EntityStatus.Active)
+                    organization.Activate();
+                else if (statusEnum == EntityStatus.Suspended && organization.Status != EntityStatus.Suspended)
+                    organization.Suspend();
             }
-        if (dto.Settings != null)
-            organization.Settings = JsonSerializer.Serialize(dto.Settings);
+        }
 
-        organization.UpdatedAt = DateTime.UtcNow;
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -227,8 +240,10 @@ public class OrganizationService : IOrganizationService
 
         if (organization == null) return false;
 
-        organization.IsDeleted = true;
-        organization.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        organization.Delete();
+
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -243,9 +258,10 @@ public class OrganizationService : IOrganizationService
 
         if (organization == null) return false;
 
-        organization.IsVerified = true;
-        organization.VerifiedAt = DateTime.UtcNow;
-        organization.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        organization.Verify();
+
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -260,8 +276,10 @@ public class OrganizationService : IOrganizationService
 
         if (organization == null) return false;
 
-        organization.Status = EntityStatus.Suspended;
-        organization.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        organization.Suspend();
+
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -284,22 +302,23 @@ public class OrganizationService : IOrganizationService
             throw new NotFoundException("Organizasyon", dto.OrganizationId);
         }
 
-        var team = new Team
-        {
-            OrganizationId = dto.OrganizationId,
-            Name = dto.Name,
-            Description = dto.Description,
-            TeamLeadId = dto.TeamLeadId,
-            IsActive = true,
-            Settings = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var team = Team.Create(
+            dto.OrganizationId,
+            dto.Name,
+            dto.Description,
+            dto.TeamLeadId,
+            dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null);
 
         await _context.Set<Team>().AddAsync(team, cancellationToken);
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         team = await _context.Set<Team>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(t => t.Organization)
             .Include(t => t.TeamLead)
             .FirstOrDefaultAsync(t => t.Id == team.Id, cancellationToken);
@@ -318,7 +337,8 @@ public class OrganizationService : IOrganizationService
             .AsNoTracking()
             .CountAsync(tm => tm.TeamId == team.Id && tm.IsActive, cancellationToken);
         
-        teamDto.MemberCount = memberCount;
+        // ✅ BOLUM 7.1: Records immutable olduğu için with expression kullan
+        teamDto = teamDto with { MemberCount = memberCount };
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation(
@@ -332,8 +352,10 @@ public class OrganizationService : IOrganizationService
     public async Task<TeamDto?> GetTeamByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var team = await _context.Set<Team>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(t => t.Organization)
             .Include(t => t.TeamLead)
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
@@ -347,17 +369,25 @@ public class OrganizationService : IOrganizationService
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var dto = _mapper.Map<TeamDto>(team);
-        dto.MemberCount = memberCount;
-        return dto;
+        // ✅ BOLUM 7.1: Records immutable olduğu için with expression kullan
+        return dto with { MemberCount = memberCount };
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-    public async Task<PagedResult<TeamDto>> GetOrganizationTeamsAsync(Guid organizationId, bool? isActive = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<TeamDto>> GetOrganizationTeamsAsync(Guid organizationId, bool? isActive = null, int page = 1, int pageSize = 0, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
+        if (pageSize <= 0) pageSize = _paginationSettings.DefaultPageSize;
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (page < 1) page = 1;
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var query = _context.Set<Team>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(t => t.Organization)
             .Include(t => t.TeamLead)
             .Where(t => t.OrganizationId == organizationId);
@@ -366,10 +396,6 @@ public class OrganizationService : IOrganizationService
         {
             query = query.Where(t => t.IsActive == isActive.Value);
         }
-
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
 
         var totalCount = await query.CountAsync(cancellationToken);
 
@@ -398,9 +424,11 @@ public class OrganizationService : IOrganizationService
         var result = _mapper.Map<IEnumerable<TeamDto>>(teams).ToList();
         
         // ✅ PERFORMANCE: Dictionary'den Count'ları set et (memory'de minimal işlem)
-        foreach (var dto in result)
+        // ✅ BOLUM 7.1: Records immutable olduğu için with expression kullan
+        for (int i = 0; i < result.Count; i++)
         {
-            dto.MemberCount = memberCounts.TryGetValue(dto.Id, out var count) ? count : 0;
+            var dto = result[i];
+            result[i] = dto with { MemberCount = memberCounts.TryGetValue(dto.Id, out var count) ? count : 0 };
         }
 
         return new PagedResult<TeamDto>
@@ -421,18 +449,23 @@ public class OrganizationService : IOrganizationService
 
         if (team == null) return false;
 
-        if (!string.IsNullOrEmpty(dto.Name))
-            team.Name = dto.Name;
-        if (dto.Description != null)
-            team.Description = dto.Description;
-        if (dto.TeamLeadId.HasValue)
-            team.TeamLeadId = dto.TeamLeadId.Value;
-        if (dto.IsActive.HasValue)
-            team.IsActive = dto.IsActive.Value;
-        if (dto.Settings != null)
-            team.Settings = JsonSerializer.Serialize(dto.Settings);
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        team.Update(
+            dto.Name,
+            dto.Description,
+            dto.TeamLeadId,
+            dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null);
 
-        team.UpdatedAt = DateTime.UtcNow;
+        // IsActive update (separate domain method)
+        if (dto.IsActive.HasValue)
+        {
+            if (dto.IsActive.Value && !team.IsActive)
+                team.Activate();
+            else if (!dto.IsActive.Value && team.IsActive)
+                team.Deactivate();
+        }
+
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -447,8 +480,10 @@ public class OrganizationService : IOrganizationService
 
         if (team == null) return false;
 
-        team.IsDeleted = true;
-        team.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        team.Delete();
+
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -490,15 +525,14 @@ public class OrganizationService : IOrganizationService
             throw new BusinessException("Kullanıcı zaten bu takımın üyesi.");
         }
 
-        var teamMember = new TeamMember
-        {
-            TeamId = teamId,
-            UserId = dto.UserId,
-            Role = dto.Role,
-            IsActive = true
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var teamMember = TeamMember.Create(teamId, dto.UserId, dto.Role);
+
+        // ✅ BOLUM 1.5: Domain Events - Team aggregate root'a event ekle
+        team.AddDomainEvent(new TeamMemberAddedEvent(teamMember.Id, teamId, dto.UserId, dto.Role));
 
         await _context.Set<TeamMember>().AddAsync(teamMember, cancellationToken);
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
@@ -522,12 +556,21 @@ public class OrganizationService : IOrganizationService
     {
         // ✅ PERFORMANCE: Removed manual !tm.IsDeleted (Global Query Filter)
         var teamMember = await _context.Set<TeamMember>()
+            .Include(tm => tm.Team)
             .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId, cancellationToken);
 
         if (teamMember == null) return false;
 
-        teamMember.IsDeleted = true;
-        teamMember.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.5: Domain Events - Team aggregate root'a event ekle
+        if (teamMember.Team is IAggregateRoot team)
+        {
+            team.AddDomainEvent(new TeamMemberRemovedEvent(teamMember.Id, teamId, userId));
+        }
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        teamMember.Delete();
+
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -538,16 +581,32 @@ public class OrganizationService : IOrganizationService
     {
         // ✅ PERFORMANCE: Removed manual !tm.IsDeleted (Global Query Filter)
         var teamMember = await _context.Set<TeamMember>()
+            .Include(tm => tm.Team)
             .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId, cancellationToken);
 
         if (teamMember == null) return false;
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (!string.IsNullOrEmpty(dto.Role))
-            teamMember.Role = dto.Role;
-        if (dto.IsActive.HasValue)
-            teamMember.IsActive = dto.IsActive.Value;
+        {
+            teamMember.UpdateRole(dto.Role);
+        }
 
-        teamMember.UpdatedAt = DateTime.UtcNow;
+        if (dto.IsActive.HasValue)
+        {
+            if (dto.IsActive.Value && !teamMember.IsActive)
+                teamMember.Activate();
+            else if (!dto.IsActive.Value && teamMember.IsActive)
+                teamMember.Deactivate();
+        }
+
+        // ✅ BOLUM 1.5: Domain Events - Team aggregate root'a event ekle
+        if (teamMember.Team is IAggregateRoot team)
+        {
+            team.AddDomainEvent(new TeamMemberUpdatedEvent(teamMember.Id, teamId, userId, teamMember.Role));
+        }
+
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -555,15 +614,19 @@ public class OrganizationService : IOrganizationService
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-    public async Task<PagedResult<TeamMemberDto>> GetTeamMembersAsync(Guid teamId, bool? isActive = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<TeamMemberDto>> GetTeamMembersAsync(Guid teamId, bool? isActive = null, int page = 1, int pageSize = 0, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
+        if (pageSize <= 0) pageSize = _paginationSettings.DefaultPageSize;
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !tm.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var query = _context.Set<TeamMember>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(tm => tm.Team)
             .Include(tm => tm.User)
             .Where(tm => tm.TeamId == teamId);
@@ -597,10 +660,12 @@ public class OrganizationService : IOrganizationService
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-    public async Task<PagedResult<TeamDto>> GetUserTeamsAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<TeamDto>> GetUserTeamsAsync(Guid userId, int page = 1, int pageSize = 0, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
+        if (pageSize <= 0) pageSize = _paginationSettings.DefaultPageSize;
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !tm.IsDeleted and !tm.Team.IsDeleted (Global Query Filter)
@@ -618,8 +683,10 @@ public class OrganizationService : IOrganizationService
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var teamMembers = await _context.Set<TeamMember>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(tm => tm.Team)
                 .ThenInclude(t => t.Organization)
             .Include(tm => tm.Team)
@@ -641,9 +708,11 @@ public class OrganizationService : IOrganizationService
         var result = _mapper.Map<IEnumerable<TeamDto>>(teamMembers).ToList();
         
         // ✅ PERFORMANCE: Dictionary'den Count'ları set et (memory'de minimal işlem)
-        foreach (var dto in result)
+        // ✅ BOLUM 7.1: Records immutable olduğu için with expression kullan
+        for (int i = 0; i < result.Count; i++)
         {
-            dto.MemberCount = memberCounts.TryGetValue(dto.Id, out var count) ? count : 0;
+            var dto = result[i];
+            result[i] = dto with { MemberCount = memberCounts.TryGetValue(dto.Id, out var count) ? count : 0 };
         }
 
         return new PagedResult<TeamDto>

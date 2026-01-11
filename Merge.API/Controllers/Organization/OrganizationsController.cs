@@ -9,10 +9,12 @@ using Merge.API.Middleware;
 // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
 // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
 // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
 namespace Merge.API.Controllers.Organization;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/organizations")]
+[Route("api/v{version:apiVersion}/organizations")]
 [Authorize(Roles = "Admin,Manager")]
 public class OrganizationsController : BaseController
 {
@@ -35,14 +37,11 @@ public class OrganizationsController : BaseController
     public async Task<ActionResult<PagedResult<OrganizationDto>>> GetAllOrganizations(
         [FromQuery] string? status = null,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = 0, // 0 = default (config'den gelecek)
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
-
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Pagination limit kontrolü service layer'da yapılıyor
         var organizations = await _organizationService.GetAllOrganizationsAsync(status, page, pageSize, cancellationToken);
         return Ok(organizations);
     }
@@ -195,14 +194,11 @@ public class OrganizationsController : BaseController
         Guid organizationId,
         [FromQuery] bool? isActive = null,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = 0, // 0 = default (config'den gelecek)
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
-
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Pagination limit kontrolü service layer'da yapılıyor
         var teams = await _organizationService.GetOrganizationTeamsAsync(organizationId, isActive, page, pageSize, cancellationToken);
         return Ok(teams);
     }
@@ -313,14 +309,11 @@ public class OrganizationsController : BaseController
         Guid teamId,
         [FromQuery] bool? isActive = null,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = 0, // 0 = default (config'den gelecek)
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
-
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Pagination limit kontrolü service layer'da yapılıyor
         var members = await _organizationService.GetTeamMembersAsync(teamId, isActive, page, pageSize, cancellationToken);
         return Ok(members);
     }
@@ -412,14 +405,11 @@ public class OrganizationsController : BaseController
     public async Task<ActionResult<PagedResult<TeamDto>>> GetUserTeams(
         Guid userId,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = 0, // 0 = default (config'den gelecek)
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
-
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Pagination limit kontrolü service layer'da yapılıyor
         var teams = await _organizationService.GetUserTeamsAsync(userId, page, pageSize, cancellationToken);
         return Ok(teams);
     }

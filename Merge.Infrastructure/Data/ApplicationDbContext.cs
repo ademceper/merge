@@ -1854,7 +1854,10 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
             entity.Property(e => e.TaxNumber).HasMaxLength(50);
             entity.Property(e => e.RegistrationNumber).HasMaxLength(50);
-            entity.Property(e => e.Status).HasMaxLength(50);
+            // ✅ BOLUM 1.2: Enum kullanımı - Status artık EntityStatus enum, HasMaxLength gerekmez
+            entity.Property(e => e.Status)
+                .HasConversion<string>() // Enum'u string olarak sakla
+                .HasMaxLength(50); // Database'de string olarak saklanacağı için max length gerekli
             entity.HasIndex(e => e.TaxNumber);
             entity.HasIndex(e => e.Status);
         });

@@ -1193,34 +1193,89 @@ public class MappingProfile : Profile
         CreateMap<LoyaltyTier, LoyaltyTierDto>();
 
         // Organization mappings
+        // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping (immutable DTOs + error handling)
+        // ✅ FIX: Expression tree limitation - ConvertUsing kullanıyoruz (statement body destekleniyor)
         CreateMap<Organization, OrganizationDto>()
-            .AfterMap((src, dest) =>
+            .ConvertUsing((src, context) =>
             {
-                // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
-                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
-                dest.Settings = !string.IsNullOrEmpty(src.Settings)
-                    ? JsonSerializer.Deserialize<OrganizationSettingsDto>(src.Settings)
-                    : null;
+                OrganizationSettingsDto? settings = null;
+                if (!string.IsNullOrEmpty(src.Settings))
+                {
+                    try
+                    {
+                        settings = JsonSerializer.Deserialize<OrganizationSettingsDto>(src.Settings);
+                    }
+                    catch
+                    {
+                        // ✅ ERROR HANDLING: JSON deserialize hatası - null bırak
+                    }
+                }
+
+                return new OrganizationDto(
+                    src.Id,
+                    src.Name,
+                    src.LegalName,
+                    src.TaxNumber,
+                    src.RegistrationNumber,
+                    src.Email,
+                    src.Phone,
+                    src.Website,
+                    src.Address,
+                    src.City,
+                    src.State,
+                    src.PostalCode,
+                    src.Country,
+                    src.Status.ToString(),
+                    src.IsVerified,
+                    src.VerifiedAt,
+                    settings, // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
+                    0, // UserCount - Service layer'da set edilecek
+                    0, // TeamCount - Service layer'da set edilecek
+                    src.CreatedAt);
             });
 
+        // ✅ FIX: Expression tree limitation - ConvertUsing kullanıyoruz (statement body destekleniyor)
         CreateMap<Team, TeamDto>()
-            .ForMember(dest => dest.OrganizationName, opt => opt.MapFrom(src => src.Organization != null ? src.Organization.Name : string.Empty))
-            .ForMember(dest => dest.TeamLeadName, opt => opt.MapFrom(src =>
-                src.TeamLead != null ? $"{src.TeamLead.FirstName} {src.TeamLead.LastName}" : null))
-            .AfterMap((src, dest) =>
+            .ConvertUsing((src, context) =>
             {
-                // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
-                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
-                dest.Settings = !string.IsNullOrEmpty(src.Settings)
-                    ? JsonSerializer.Deserialize<TeamSettingsDto>(src.Settings)
-                    : null;
+                TeamSettingsDto? settings = null;
+                if (!string.IsNullOrEmpty(src.Settings))
+                {
+                    try
+                    {
+                        settings = JsonSerializer.Deserialize<TeamSettingsDto>(src.Settings);
+                    }
+                    catch
+                    {
+                        // ✅ ERROR HANDLING: JSON deserialize hatası - null bırak
+                    }
+                }
+
+                return new TeamDto(
+                    src.Id,
+                    src.OrganizationId,
+                    src.Organization != null ? src.Organization.Name : string.Empty,
+                    src.Name,
+                    src.Description,
+                    src.TeamLeadId,
+                    src.TeamLead != null ? $"{src.TeamLead.FirstName} {src.TeamLead.LastName}" : null,
+                    src.IsActive,
+                    settings, // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
+                    0, // MemberCount - Service layer'da set edilecek
+                    src.CreatedAt);
             });
 
         CreateMap<TeamMember, TeamMemberDto>()
-            .ForMember(dest => dest.TeamName, opt => opt.MapFrom(src => src.Team != null ? src.Team.Name : string.Empty))
-            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => 
-                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty))
-            .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User != null ? src.User.Email : string.Empty));
+            .ConstructUsing(src => new TeamMemberDto(
+                src.Id,
+                src.TeamId,
+                src.Team != null ? src.Team.Name : string.Empty,
+                src.UserId,
+                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty,
+                src.User != null ? src.User.Email ?? string.Empty : string.Empty,
+                src.Role,
+                src.JoinedAt,
+                src.IsActive));
 
         // Marketing - Referral mappings
         CreateMap<ReferralCode, ReferralCodeDto>();
