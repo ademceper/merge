@@ -24,8 +24,10 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
     public async Task<OrderDto?> Handle(GetOrderByIdQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var order = await _context.Set<OrderEntity>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .Include(o => o.Address)

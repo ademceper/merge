@@ -1,0 +1,56 @@
+using MediatR;
+using Microsoft.Extensions.Logging;
+using Merge.Domain.Common.DomainEvents;
+using Merge.Application.Interfaces.Notification;
+
+namespace Merge.Application.Order.EventHandlers;
+
+/// <summary>
+/// Return Request Rejected Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+/// </summary>
+public class ReturnRequestRejectedEventHandler : INotificationHandler<ReturnRequestRejectedEvent>
+{
+    private readonly ILogger<ReturnRequestRejectedEventHandler> _logger;
+    private readonly INotificationService? _notificationService;
+
+    public ReturnRequestRejectedEventHandler(
+        ILogger<ReturnRequestRejectedEventHandler> logger,
+        INotificationService? notificationService = null)
+    {
+        _logger = logger;
+        _notificationService = notificationService;
+    }
+
+    public async Task Handle(ReturnRequestRejectedEvent notification, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation(
+            "Return request rejected event received. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, UserId: {UserId}, RejectionReason: {RejectionReason}",
+            notification.ReturnRequestId, notification.OrderId, notification.UserId, notification.RejectionReason ?? "N/A");
+
+        try
+        {
+            // Email bildirimi gönder
+            if (_notificationService != null)
+            {
+                await _notificationService.CreateNotificationAsync(
+                    notification.UserId,
+                    "İade Talebi Reddedildi",
+                    $"İade talebiniz reddedildi. İade Talebi No: {notification.ReturnRequestId}. Sebep: {notification.RejectionReason ?? "Belirtilmedi"}",
+                    "ReturnRequest",
+                    cancellationToken);
+            }
+
+            // Analytics tracking
+            // await _analyticsService.TrackReturnRequestRejectedAsync(notification, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
+            _logger.LogError(ex,
+                "Error handling ReturnRequestRejectedEvent. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, UserId: {UserId}",
+                notification.ReturnRequestId, notification.OrderId, notification.UserId);
+            throw;
+        }
+    }
+}

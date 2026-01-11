@@ -1,16 +1,28 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Order;
+using MediatR;
 using Merge.Application.DTOs.Order;
 using Merge.Application.Common;
+using Merge.Application.Order.Commands.CreateOrderFromCart;
+using Merge.Application.Order.Commands.CancelOrder;
+using Merge.Application.Order.Commands.UpdateOrderStatus;
+using Merge.Application.Order.Commands.Reorder;
+using Merge.Application.Order.Commands.ExportOrders;
+using Merge.Application.Order.Queries.GetOrderById;
+using Merge.Application.Order.Queries.GetOrdersByUserId;
+using Merge.Application.Order.Queries.FilterOrders;
+using Merge.Application.Order.Queries.GetOrderStatistics;
 using Merge.Domain.Enums;
 using Merge.API.Middleware;
+using Microsoft.Extensions.Options;
+using Merge.Application.Configuration;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
 // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
 // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
 namespace Merge.API.Controllers.Order;
 
 [ApiController]
@@ -18,15 +30,16 @@ namespace Merge.API.Controllers.Order;
 [Authorize]
 public class OrdersController : BaseController
 {
-    private readonly IOrderService _orderService;
-    private readonly IOrderFilterService _orderFilterService;
-        public OrdersController(
-        IOrderService orderService,
-        IOrderFilterService orderFilterService)
+    private readonly IMediator _mediator;
+    private readonly OrderSettings _orderSettings;
+
+    public OrdersController(
+        IMediator mediator,
+        IOptions<OrderSettings> orderSettings)
     {
-        _orderService = orderService;
-        _orderFilterService = orderFilterService;
-            }
+        _mediator = mediator;
+        _orderSettings = orderSettings.Value;
+    }
 
     /// <summary>
     /// Kullanıcının siparişlerini getirir (pagination ile)
@@ -41,13 +54,14 @@ public class OrdersController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Configuration'dan al
+        if (pageSize > _orderSettings.MaxPageSize) pageSize = _orderSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var orders = await _orderService.GetOrdersByUserIdAsync(userId, page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var query = new GetOrdersByUserIdQuery(userId, page, pageSize);
+        var orders = await _mediator.Send(query, cancellationToken);
         return Ok(orders);
     }
 
@@ -64,8 +78,9 @@ public class OrdersController : BaseController
     public async Task<ActionResult<OrderDto>> GetById(Guid id, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var order = await _orderService.GetByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var query = new GetOrderByIdQuery(id);
+        var order = await _mediator.Send(query, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -97,12 +112,9 @@ public class OrdersController : BaseController
         if (validationResult != null) return validationResult;
 
         var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var order = await _orderService.CreateOrderFromCartAsync(userId, dto.ShippingAddressId, dto.CouponCode, cancellationToken);
-        if (order == null)
-        {
-            return BadRequest("Sipariş oluşturulamadı.");
-        }
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var command = new CreateOrderFromCartCommand(userId, dto.ShippingAddressId, dto.CouponCode);
+        var order = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = order.Id }, order);
     }
 
@@ -127,12 +139,9 @@ public class OrdersController : BaseController
         if (validationResult != null) return validationResult;
 
         var statusEnum = Enum.Parse<OrderStatus>(dto.Status);
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var order = await _orderService.UpdateOrderStatusAsync(id, statusEnum, cancellationToken);
-        if (order == null)
-        {
-            return NotFound();
-        }
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var command = new UpdateOrderStatusCommand(id, statusEnum);
+        var order = await _mediator.Send(command, cancellationToken);
         return Ok(order);
     }
 
@@ -149,8 +158,10 @@ public class OrdersController : BaseController
     public async Task<IActionResult> CancelOrder(Guid id, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var order = await _orderService.GetByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        // Authorization check için önce order'ı getir
+        var getOrderQuery = new GetOrderByIdQuery(id);
+        var order = await _mediator.Send(getOrderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -162,8 +173,9 @@ public class OrdersController : BaseController
             return Forbid();
         }
         
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _orderService.CancelOrderAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var command = new CancelOrderCommand(id);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -186,8 +198,9 @@ public class OrdersController : BaseController
         var userId = GetUserId();
         
         // ✅ SECURITY: Authorization check - Kullanıcı sadece kendi siparişlerini yeniden sipariş edebilmeli
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var originalOrder = await _orderService.GetByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var getOrderQuery = new GetOrderByIdQuery(id);
+        var originalOrder = await _mediator.Send(getOrderQuery, cancellationToken);
         if (originalOrder == null)
         {
             return NotFound();
@@ -198,12 +211,9 @@ public class OrdersController : BaseController
             return Forbid();
         }
         
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var order = await _orderService.ReorderAsync(id, userId, cancellationToken);
-        if (order == null)
-        {
-            return NotFound();
-        }
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var command = new ReorderCommand(id, userId);
+        var order = await _mediator.Send(command, cancellationToken);
         return Ok(order);
     }
 
@@ -223,26 +233,27 @@ public class OrdersController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (filter.PageSize > 100) filter.PageSize = 100;
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Configuration'dan al
+        if (filter.PageSize > _orderSettings.MaxPageSize) filter.PageSize = _orderSettings.MaxPageSize;
         if (filter.Page < 1) filter.Page = 1;
 
         var userId = GetUserId();
-        filter.UserId = userId;
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var orders = await _orderFilterService.GetFilteredOrdersAsync(filter, cancellationToken);
-        
-        // ✅ BOLUM 3.4: Pagination - IEnumerable yerine PagedResult döndür
-        var ordersList = orders.ToList();
-        var totalCount = ordersList.Count; // Not: Filter service'de totalCount hesaplanmalı, şimdilik bu şekilde
-        
-        return Ok(new PagedResult<OrderDto>
-        {
-            Items = ordersList,
-            TotalCount = totalCount,
-            Page = filter.Page,
-            PageSize = filter.PageSize
-        });
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var query = new Merge.Application.Order.Queries.FilterOrders.FilterOrdersQuery(
+            UserId: userId,
+            Status: filter.Status,
+            PaymentStatus: filter.PaymentStatus,
+            StartDate: filter.StartDate,
+            EndDate: filter.EndDate,
+            MinAmount: filter.MinAmount,
+            MaxAmount: filter.MaxAmount,
+            OrderNumber: filter.OrderNumber,
+            Page: filter.Page,
+            PageSize: filter.PageSize,
+            SortBy: filter.SortBy,
+            SortDescending: filter.SortDescending);
+        var orders = await _mediator.Send(query, cancellationToken);
+        return Ok(orders);
     }
 
     /// <summary>
@@ -259,8 +270,10 @@ public class OrdersController : BaseController
         CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var stats = await _orderFilterService.GetOrderStatisticsAsync(userId, startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var query = new Merge.Application.Order.Queries.GetOrderStatistics.GetOrderStatisticsQuery(
+            userId, startDate, endDate);
+        var stats = await _mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 
@@ -282,8 +295,17 @@ public class OrdersController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var csvData = await _orderService.ExportOrdersToCsvAsync(exportDto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var command = new ExportOrdersCommand(
+            exportDto.StartDate,
+            exportDto.EndDate,
+            exportDto.Status,
+            exportDto.PaymentStatus,
+            exportDto.UserId,
+            exportDto.IncludeOrderItems,
+            exportDto.IncludeAddress,
+            ExportFormat.Csv);
+        var csvData = await _mediator.Send(command, cancellationToken);
         return File(csvData, "text/csv", $"orders_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
     }
 
@@ -305,8 +327,17 @@ public class OrdersController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var jsonData = await _orderService.ExportOrdersToJsonAsync(exportDto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var command = new ExportOrdersCommand(
+            exportDto.StartDate,
+            exportDto.EndDate,
+            exportDto.Status,
+            exportDto.PaymentStatus,
+            exportDto.UserId,
+            exportDto.IncludeOrderItems,
+            exportDto.IncludeAddress,
+            ExportFormat.Json);
+        var jsonData = await _mediator.Send(command, cancellationToken);
         return File(jsonData, "application/json", $"orders_{DateTime.UtcNow:yyyyMMdd_HHmmss}.json");
     }
 
@@ -328,8 +359,17 @@ public class OrdersController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var excelData = await _orderService.ExportOrdersToExcelAsync(exportDto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var command = new ExportOrdersCommand(
+            exportDto.StartDate,
+            exportDto.EndDate,
+            exportDto.Status,
+            exportDto.PaymentStatus,
+            exportDto.UserId,
+            exportDto.IncludeOrderItems,
+            exportDto.IncludeAddress,
+            ExportFormat.Excel);
+        var excelData = await _mediator.Send(command, cancellationToken);
         return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                    $"orders_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx");
     }

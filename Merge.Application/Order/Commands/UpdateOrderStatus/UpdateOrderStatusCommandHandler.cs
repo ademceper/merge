@@ -44,6 +44,8 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
         // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         order.TransitionTo(request.Status);
 
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
+        // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Single query with all includes

@@ -140,6 +140,9 @@ public class Order : BaseEntity, IAggregateRoot
         };
 
         // ✅ BOLUM 1.5: Domain Event - Order Created
+        // Not: TotalAmount henüz hesaplanmadı (items eklenmedi), 0 olarak gönderiliyor
+        // Event handler'da order reload edilerek gerçek TotalAmount alınabilir
+        // Alternatif: Items eklendikten sonra event dispatch edilebilir ama bu domain event pattern'e aykırı
         order.AddDomainEvent(new OrderCreatedEvent(order.Id, userId, 0));
 
         return order;
@@ -165,18 +168,13 @@ public class Order : BaseEntity, IAggregateRoot
         else
             unitPrice = new Money(product.Price);
 
-        var totalPrice = new Money(unitPrice.Amount * quantity);
-
-        var orderItem = new OrderItem
-        {
-            Id = Guid.NewGuid(),
-            OrderId = Id,
-            ProductId = product.Id,
-            Quantity = quantity,
-            UnitPrice = unitPrice.Amount, // EF Core compatibility
-            TotalPrice = totalPrice.Amount,
-            CreatedAt = DateTime.UtcNow
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
+        var orderItem = OrderItem.Create(
+            Id,
+            product.Id,
+            product,
+            quantity,
+            unitPrice);
 
         _orderItems.Add(orderItem);
         RecalculateTotals();
@@ -208,9 +206,9 @@ public class Order : BaseEntity, IAggregateRoot
         if (item == null)
             throw new DomainException("Sipariş öğesi bulunamadı");
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         // Stock check would require product lookup - handled in service layer
-        item.Quantity = newQuantity;
-        item.TotalPrice = item.UnitPrice * newQuantity;
+        item.UpdateQuantity(newQuantity);
         RecalculateTotals();
     }
 

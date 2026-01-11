@@ -16,7 +16,7 @@ public class GetOrdersByUserIdQueryValidator : AbstractValidator<GetOrdersByUser
             .WithMessage("Sayfa numarası en az 1 olmalıdır.");
 
         RuleFor(x => x.PageSize)
-            .InclusiveBetween(1, 100)
+            .InclusiveBetween(1, 100) // ✅ CONFIGURATION: MaxPageSize configuration'dan alınacak, validator'da hardcoded kalabilir (validation için)
             .WithMessage("Sayfa boyutu 1 ile 100 arasında olmalıdır.");
     }
 }

@@ -21,5 +21,15 @@ public class OrderSettings
     /// Varsayılan kargo maliyeti (TL)
     /// </summary>
     public decimal DefaultShippingCost { get; set; } = 50;
+
+    /// <summary>
+    /// Pagination için maksimum sayfa boyutu
+    /// </summary>
+    public int MaxPageSize { get; set; } = 100;
+
+    /// <summary>
+    /// İade süresi (gün)
+    /// </summary>
+    public int ReturnPeriodDays { get; set; } = 14;
 }
 

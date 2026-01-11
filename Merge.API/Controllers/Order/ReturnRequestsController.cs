@@ -1,15 +1,25 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Order;
+using MediatR;
 using Merge.Application.DTOs.Order;
 using Merge.Application.Common;
+using Merge.Application.Order.Commands.CreateReturnRequest;
+using Merge.Application.Order.Commands.ApproveReturnRequest;
+using Merge.Application.Order.Commands.RejectReturnRequest;
+using Merge.Application.Order.Commands.CompleteReturnRequest;
+using Merge.Application.Order.Queries.GetReturnRequestById;
+using Merge.Application.Order.Queries.GetReturnRequestsByUserId;
+using Merge.Application.Order.Queries.GetAllReturnRequests;
 using Merge.API.Middleware;
+using Microsoft.Extensions.Options;
+using Merge.Application.Configuration;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
 // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
 // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
 namespace Merge.API.Controllers.Order;
 
 [ApiController]
@@ -17,11 +27,15 @@ namespace Merge.API.Controllers.Order;
 [Authorize]
 public class ReturnRequestsController : BaseController
 {
-    private readonly IReturnRequestService _returnRequestService;
+    private readonly IMediator _mediator;
+    private readonly OrderSettings _orderSettings;
 
-    public ReturnRequestsController(IReturnRequestService returnRequestService)
+    public ReturnRequestsController(
+        IMediator mediator,
+        IOptions<OrderSettings> orderSettings)
     {
-        _returnRequestService = returnRequestService;
+        _mediator = mediator;
+        _orderSettings = orderSettings.Value;
     }
 
     /// <summary>
@@ -38,13 +52,14 @@ public class ReturnRequestsController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100; // Max limit
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Configuration'dan al
+        if (pageSize > _orderSettings.MaxPageSize) pageSize = _orderSettings.MaxPageSize;
         if (page < 1) page = 1;
         
         var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var returns = await _returnRequestService.GetByUserIdAsync(userId, page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var query = new GetReturnRequestsByUserIdQuery(userId, page, pageSize);
+        var returns = await _mediator.Send(query, cancellationToken);
         return Ok(returns);
     }
 
@@ -64,12 +79,13 @@ public class ReturnRequestsController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Configuration'dan al
+        if (pageSize > _orderSettings.MaxPageSize) pageSize = _orderSettings.MaxPageSize;
         if (page < 1) page = 1;
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var returns = await _returnRequestService.GetAllAsync(status, page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var query = new GetAllReturnRequestsQuery(status, page, pageSize);
+        var returns = await _mediator.Send(query, cancellationToken);
         return Ok(returns);
     }
 
@@ -86,8 +102,9 @@ public class ReturnRequestsController : BaseController
     public async Task<ActionResult<ReturnRequestDto>> GetById(Guid id, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var returnRequest = await _returnRequestService.GetByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var query = new GetReturnRequestByIdQuery(id);
+        var returnRequest = await _mediator.Send(query, cancellationToken);
         if (returnRequest == null)
         {
             return NotFound();
@@ -120,8 +137,9 @@ public class ReturnRequestsController : BaseController
 
         var userId = GetUserId();
         dto.UserId = userId;
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var returnRequest = await _returnRequestService.CreateAsync(dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var command = new CreateReturnRequestCommand(dto);
+        var returnRequest = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = returnRequest.Id }, returnRequest);
     }
 
@@ -138,8 +156,9 @@ public class ReturnRequestsController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Approve(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _returnRequestService.ApproveAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var command = new ApproveReturnRequestCommand(id);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -167,8 +186,9 @@ public class ReturnRequestsController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _returnRequestService.RejectAsync(id, dto.Reason, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var command = new RejectReturnRequestCommand(id, dto.Reason);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -196,8 +216,9 @@ public class ReturnRequestsController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _returnRequestService.CompleteAsync(id, dto.TrackingNumber, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var command = new CompleteReturnRequestCommand(id, dto.TrackingNumber);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();

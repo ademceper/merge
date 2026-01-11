@@ -1,13 +1,21 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Order;
+using MediatR;
 using Merge.Application.DTOs.Order;
+using Merge.Application.Order.Commands.SplitOrder;
+using Merge.Application.Order.Commands.CancelOrderSplit;
+using Merge.Application.Order.Commands.CompleteOrderSplit;
+using Merge.Application.Order.Queries.GetOrderSplit;
+using Merge.Application.Order.Queries.GetOrderSplits;
+using Merge.Application.Order.Queries.GetSplitOrders;
+using Merge.Application.Order.Queries.GetOrderById;
 using Merge.API.Middleware;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
 // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
 namespace Merge.API.Controllers.Order;
 
 [ApiController]
@@ -15,13 +23,11 @@ namespace Merge.API.Controllers.Order;
 [Authorize(Roles = "Admin,Manager")]
 public class OrderSplitsController : BaseController
 {
-    private readonly IOrderSplitService _orderSplitService;
-    private readonly IOrderService _orderService;
+    private readonly IMediator _mediator;
 
-    public OrderSplitsController(IOrderSplitService orderSplitService, IOrderService orderService)
+    public OrderSplitsController(IMediator mediator)
     {
-        _orderSplitService = orderSplitService;
-        _orderService = orderService;
+        _mediator = mediator;
     }
 
     /// <summary>
@@ -49,8 +55,9 @@ public class OrderSplitsController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerini bölebilmeli
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var order = await _orderService.GetByIdAsync(orderId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var getOrderQuery = new GetOrderByIdQuery(orderId);
+        var order = await _mediator.Send(getOrderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -61,8 +68,9 @@ public class OrderSplitsController : BaseController
             return Forbid();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var split = await _orderSplitService.SplitOrderAsync(orderId, dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var command = new SplitOrderCommand(orderId, dto);
+        var split = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetSplit), new { id = split.Id }, split);
     }
 
@@ -83,16 +91,18 @@ public class OrderSplitsController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var split = await _orderSplitService.GetSplitAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var getSplitQuery = new GetOrderSplitQuery(id);
+        var split = await _mediator.Send(getSplitQuery, cancellationToken);
         if (split == null)
         {
             return NotFound();
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin split'lerine erişebilmeli
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var order = await _orderService.GetByIdAsync(split.OriginalOrderId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var getOrderQuery = new GetOrderByIdQuery(split.OriginalOrderId);
+        var order = await _mediator.Send(getOrderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -126,8 +136,9 @@ public class OrderSplitsController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin split'lerine erişebilmeli
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var order = await _orderService.GetByIdAsync(orderId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var getOrderQuery = new GetOrderByIdQuery(orderId);
+        var order = await _mediator.Send(getOrderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -138,8 +149,9 @@ public class OrderSplitsController : BaseController
             return Forbid();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var splits = await _orderSplitService.GetOrderSplitsAsync(orderId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var query = new GetOrderSplitsQuery(orderId);
+        var splits = await _mediator.Send(query, cancellationToken);
         return Ok(splits);
     }
 
@@ -163,8 +175,9 @@ public class OrderSplitsController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin split'lerine erişebilmeli
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var splitOrder = await _orderService.GetByIdAsync(splitOrderId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var getOrderQuery = new GetOrderByIdQuery(splitOrderId);
+        var splitOrder = await _mediator.Send(getOrderQuery, cancellationToken);
         if (splitOrder == null)
         {
             return NotFound();
@@ -175,8 +188,9 @@ public class OrderSplitsController : BaseController
             return Forbid();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var splits = await _orderSplitService.GetSplitOrdersAsync(splitOrderId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var query = new GetSplitOrdersQuery(splitOrderId);
+        var splits = await _mediator.Send(query, cancellationToken);
         return Ok(splits);
     }
 
@@ -198,15 +212,17 @@ public class OrderSplitsController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin split'lerini iptal edebilmeli
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var split = await _orderSplitService.GetSplitAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var getSplitQuery = new GetOrderSplitQuery(id);
+        var split = await _mediator.Send(getSplitQuery, cancellationToken);
         if (split == null)
         {
             return NotFound();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var order = await _orderService.GetByIdAsync(split.OriginalOrderId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var getOrderQuery = new GetOrderByIdQuery(split.OriginalOrderId);
+        var order = await _mediator.Send(getOrderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -217,8 +233,9 @@ public class OrderSplitsController : BaseController
             return Forbid();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _orderSplitService.CancelSplitAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var command = new CancelOrderSplitCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -244,15 +261,17 @@ public class OrderSplitsController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin split'lerini tamamlayabilmeli
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var split = await _orderSplitService.GetSplitAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var getSplitQuery = new GetOrderSplitQuery(id);
+        var split = await _mediator.Send(getSplitQuery, cancellationToken);
         if (split == null)
         {
             return NotFound();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var order = await _orderService.GetByIdAsync(split.OriginalOrderId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var getOrderQuery = new GetOrderByIdQuery(split.OriginalOrderId);
+        var order = await _mediator.Send(getOrderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -263,8 +282,9 @@ public class OrderSplitsController : BaseController
             return Forbid();
         }
 
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _orderSplitService.CompleteSplitAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var command = new CompleteOrderSplitCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();

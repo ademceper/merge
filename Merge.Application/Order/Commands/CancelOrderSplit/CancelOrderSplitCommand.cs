@@ -1,0 +1,8 @@
+using MediatR;
+
+namespace Merge.Application.Order.Commands.CancelOrderSplit;
+
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+public record CancelOrderSplitCommand(
+    Guid SplitId
+) : IRequest<bool>;

@@ -43,8 +43,10 @@ public class ExportOrdersCommandHandler : IRequestHandler<ExportOrdersCommand, b
 
     private async Task<List<OrderDto>> GetOrdersForExportAsync(ExportOrdersCommand request, CancellationToken cancellationToken)
     {
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var query = _context.Set<OrderEntity>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .Include(o => o.Address)

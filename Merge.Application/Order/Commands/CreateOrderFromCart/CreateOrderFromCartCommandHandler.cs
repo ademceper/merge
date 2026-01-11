@@ -12,6 +12,7 @@ using Merge.Application.Marketing.Commands.ValidateCoupon;
 using Merge.Application.Marketing.Queries.GetCouponByCode;
 using Merge.Domain.Entities;
 using Merge.Domain.ValueObjects;
+using Merge.Domain.Common.DomainEvents;
 using OrderEntity = Merge.Domain.Entities.Order;
 using CartEntity = Merge.Domain.Entities.Cart;
 
@@ -102,7 +103,19 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
                 await ApplyCouponAsync(order, cart, request.UserId, request.CouponCode, cancellationToken);
             }
 
+            // ✅ BOLUM 1.5: Domain Event - OrderCreatedEvent'te TotalAmount güncelle
+            // Order.Create'te event oluşturulurken TotalAmount 0 idi, şimdi gerçek değerle güncelle
+            // Event'ler immutable olduğu için yeni event oluşturup eskisini kaldır
+            var existingEvent = order.DomainEvents.OfType<OrderCreatedEvent>().FirstOrDefault();
+            if (existingEvent != null)
+            {
+                order.RemoveDomainEvent(existingEvent);
+                order.AddDomainEvent(new OrderCreatedEvent(order.Id, order.UserId, order.TotalAmount));
+            }
+
             await _context.Set<OrderEntity>().AddAsync(order, cancellationToken);
+            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
+            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Kupon kullanımını kaydet
@@ -146,7 +159,8 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
     {
         try
         {
-            var productIds = cart.CartItems.Select(ci => ci.ProductId).ToList();
+            // ✅ PERFORMANCE: ToList() gerekmez, IEnumerable yeterli (mediator'a gönderilecek)
+            var productIds = cart.CartItems.Select(ci => ci.ProductId);
             
             // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
             var validateCommand = new ValidateCouponCommand(

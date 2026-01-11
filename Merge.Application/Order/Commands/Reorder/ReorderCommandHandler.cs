@@ -59,6 +59,9 @@ public class ReorderCommandHandler : IRequestHandler<ReorderCommand, OrderDto>
                 }
                 catch (Exception ex)
                 {
+                    // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
+                    // Ancak reorder işleminde bir ürün eklenemezse diğer ürünler eklenmeye devam etmeli
+                    // Bu durumda warning log'lanıp işlem devam ediyor (business requirement)
                     _logger.LogWarning(ex, "Failed to add product to cart during reorder. ProductId: {ProductId}", orderItem.ProductId);
                     skippedItems++;
                 }
