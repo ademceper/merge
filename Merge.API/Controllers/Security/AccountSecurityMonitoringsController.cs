@@ -1,29 +1,60 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.User;
-using Merge.Application.Interfaces.Security;
+using Microsoft.Extensions.Options;
+using MediatR;
 using Merge.Application.DTOs.Security;
-using Merge.API.Middleware;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
+using Merge.API.Middleware;
+using Merge.Application.Security.Commands.LogSecurityEvent;
+using Merge.Application.Security.Commands.CreateSecurityAlert;
+using Merge.Application.Security.Commands.AcknowledgeAlert;
+using Merge.Application.Security.Commands.ResolveAlert;
+using Merge.Application.Security.Commands.TakeAction;
+using Merge.Application.Security.Queries.GetUserSecurityEvents;
+using Merge.Application.Security.Queries.GetSuspiciousEvents;
+using Merge.Application.Security.Queries.GetSecurityAlerts;
+using Merge.Application.Security.Queries.GetSecuritySummary;
 
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
 // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
 namespace Merge.API.Controllers.Security;
 
+/// <summary>
+/// Account Security Monitoring Controller - Güvenlik olaylarını ve uyarılarını yönetir
+/// </summary>
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/security/account-monitoring")]
+[Route("api/v{version:apiVersion}/security/account-monitoring")]
 [Authorize]
 public class AccountSecurityMonitoringsController : BaseController
 {
-    private readonly IAccountSecurityMonitoringService _accountSecurityMonitoringService;
+    private readonly IMediator _mediator;
+    private readonly PaginationSettings _paginationSettings;
     
     public AccountSecurityMonitoringsController(
-        IAccountSecurityMonitoringService accountSecurityMonitoringService)
+        IMediator mediator,
+        IOptions<PaginationSettings> paginationSettings)
     {
-        _accountSecurityMonitoringService = accountSecurityMonitoringService;
+        _mediator = mediator;
+        _paginationSettings = paginationSettings.Value;
     }
 
+    /// <summary>
+    /// Güvenlik olayı kaydeder
+    /// </summary>
+    /// <param name="dto">Güvenlik olayı bilgileri</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Oluşturulan güvenlik olayı</returns>
+    /// <response code="201">Güvenlik olayı başarıyla kaydedildi</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Yetki yetersiz</response>
+    /// <response code="429">Rate limit aşıldı</response>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -40,9 +71,7 @@ public class AccountSecurityMonitoringsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         if (string.IsNullOrEmpty(dto.IpAddress))
         {
             dto.IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
@@ -52,10 +81,37 @@ public class AccountSecurityMonitoringsController : BaseController
             dto.UserAgent = Request.Headers["User-Agent"].ToString();
         }
 
-        var securityEvent = await _accountSecurityMonitoringService.LogSecurityEventAsync(dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new LogSecurityEventCommand(
+            dto.UserId,
+            dto.EventType,
+            dto.Severity,
+            dto.IpAddress,
+            dto.UserAgent,
+            dto.Location,
+            dto.DeviceFingerprint,
+            dto.IsSuspicious,
+            dto.Details,
+            dto.RequiresAction);
+        
+        var securityEvent = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetUserSecurityEvents), new { userId = securityEvent.UserId }, securityEvent);
     }
 
+    /// <summary>
+    /// Kullanıcının güvenlik olaylarını getirir
+    /// </summary>
+    /// <param name="userId">Kullanıcı ID</param>
+    /// <param name="eventType">Olay tipi (opsiyonel)</param>
+    /// <param name="page">Sayfa numarası</param>
+    /// <param name="pageSize">Sayfa boyutu (max 100)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Sayfalanmış güvenlik olayları listesi</returns>
+    /// <response code="200">Başarılı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Yetki yetersiz</response>
+    /// <response code="429">Rate limit aşıldı</response>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -75,14 +131,28 @@ public class AccountSecurityMonitoringsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - ✅ BOLUM 12.0: Magic number config'den
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
-        var events = await _accountSecurityMonitoringService.GetUserSecurityEventsAsync(userId, eventType, page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetUserSecurityEventsQuery(userId, eventType, page, pageSize);
+        var events = await _mediator.Send(query, cancellationToken);
         return Ok(events);
     }
 
+    /// <summary>
+    /// Şüpheli güvenlik olaylarını getirir
+    /// </summary>
+    /// <param name="page">Sayfa numarası</param>
+    /// <param name="pageSize">Sayfa boyutu (max 100)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Sayfalanmış şüpheli güvenlik olayları listesi</returns>
+    /// <response code="200">Başarılı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Yetki yetersiz</response>
+    /// <response code="429">Rate limit aşıldı</response>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -100,14 +170,30 @@ public class AccountSecurityMonitoringsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - ✅ BOLUM 12.0: Magic number config'den
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
-        var events = await _accountSecurityMonitoringService.GetSuspiciousEventsAsync(page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSuspiciousEventsQuery(page, pageSize);
+        var events = await _mediator.Send(query, cancellationToken);
         return Ok(events);
     }
 
+    /// <summary>
+    /// Güvenlik olayı için aksiyon alır
+    /// </summary>
+    /// <param name="eventId">Güvenlik olayı ID</param>
+    /// <param name="dto">Aksiyon bilgileri</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Başarılı işlem</returns>
+    /// <response code="204">Aksiyon başarıyla alındı</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="404">Güvenlik olayı bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Yetki yetersiz</response>
+    /// <response code="429">Rate limit aşıldı</response>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -126,11 +212,13 @@ public class AccountSecurityMonitoringsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         var actionTakenByUserId = GetUserId();
-        var result = await _accountSecurityMonitoringService.TakeActionAsync(eventId, actionTakenByUserId, dto.Action, dto.Notes, cancellationToken);
+        
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new TakeActionCommand(eventId, actionTakenByUserId, dto.Action, dto.Notes);
+        var result = await _mediator.Send(command, cancellationToken);
+        
         if (!result)
         {
             return NotFound();
@@ -138,6 +226,18 @@ public class AccountSecurityMonitoringsController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Güvenlik uyarısı oluşturur
+    /// </summary>
+    /// <param name="dto">Güvenlik uyarısı bilgileri</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Oluşturulan güvenlik uyarısı</returns>
+    /// <response code="201">Güvenlik uyarısı başarıyla oluşturuldu</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Yetki yetersiz</response>
+    /// <response code="429">Rate limit aşıldı</response>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -154,13 +254,36 @@ public class AccountSecurityMonitoringsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        var alert = await _accountSecurityMonitoringService.CreateSecurityAlertAsync(dto, cancellationToken);
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
+        
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new CreateSecurityAlertCommand(
+            dto.UserId,
+            dto.AlertType,
+            dto.Severity,
+            dto.Title,
+            dto.Description,
+            dto.Metadata);
+        
+        var alert = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetSecurityAlerts), new { userId = alert.UserId }, alert);
     }
 
+    /// <summary>
+    /// Güvenlik uyarılarını getirir
+    /// </summary>
+    /// <param name="userId">Kullanıcı ID (opsiyonel)</param>
+    /// <param name="severity">Önem seviyesi (opsiyonel)</param>
+    /// <param name="status">Durum (opsiyonel)</param>
+    /// <param name="page">Sayfa numarası</param>
+    /// <param name="pageSize">Sayfa boyutu (max 100)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Sayfalanmış güvenlik uyarıları listesi</returns>
+    /// <response code="200">Başarılı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Yetki yetersiz</response>
+    /// <response code="429">Rate limit aşıldı</response>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -181,14 +304,28 @@ public class AccountSecurityMonitoringsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - ✅ BOLUM 12.0: Magic number config'den
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
-        var alerts = await _accountSecurityMonitoringService.GetSecurityAlertsAsync(userId, severity, status, page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSecurityAlertsQuery(userId, severity, status, page, pageSize);
+        var alerts = await _mediator.Send(query, cancellationToken);
         return Ok(alerts);
     }
 
+    /// <summary>
+    /// Güvenlik uyarısını onaylar
+    /// </summary>
+    /// <param name="alertId">Güvenlik uyarısı ID</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Başarılı işlem</returns>
+    /// <response code="204">Uyarı başarıyla onaylandı</response>
+    /// <response code="404">Güvenlik uyarısı bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Yetki yetersiz</response>
+    /// <response code="429">Rate limit aşıldı</response>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -206,7 +343,11 @@ public class AccountSecurityMonitoringsController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var acknowledgedByUserId = GetUserId();
-        var result = await _accountSecurityMonitoringService.AcknowledgeAlertAsync(alertId, acknowledgedByUserId, cancellationToken);
+        
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new AcknowledgeAlertCommand(alertId, acknowledgedByUserId);
+        var result = await _mediator.Send(command, cancellationToken);
+        
         if (!result)
         {
             return NotFound();
@@ -214,6 +355,20 @@ public class AccountSecurityMonitoringsController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Güvenlik uyarısını çözer
+    /// </summary>
+    /// <param name="alertId">Güvenlik uyarısı ID</param>
+    /// <param name="dto">Çözüm bilgileri</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Başarılı işlem</returns>
+    /// <response code="204">Uyarı başarıyla çözüldü</response>
+    /// <response code="400">Geçersiz istek verisi</response>
+    /// <response code="404">Güvenlik uyarısı bulunamadı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Yetki yetersiz</response>
+    /// <response code="429">Rate limit aşıldı</response>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -232,11 +387,13 @@ public class AccountSecurityMonitoringsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         var resolvedByUserId = GetUserId();
-        var result = await _accountSecurityMonitoringService.ResolveAlertAsync(alertId, resolvedByUserId, dto.ResolutionNotes, cancellationToken);
+        
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new ResolveAlertCommand(alertId, resolvedByUserId, dto.ResolutionNotes);
+        var result = await _mediator.Send(command, cancellationToken);
+        
         if (!result)
         {
             return NotFound();
@@ -244,6 +401,18 @@ public class AccountSecurityMonitoringsController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Güvenlik izleme özetini getirir
+    /// </summary>
+    /// <param name="startDate">Başlangıç tarihi (opsiyonel)</param>
+    /// <param name="endDate">Bitiş tarihi (opsiyonel)</param>
+    /// <param name="cancellationToken">İptal token'ı</param>
+    /// <returns>Güvenlik izleme özeti</returns>
+    /// <response code="200">Başarılı</response>
+    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
+    /// <response code="403">Yetki yetersiz</response>
+    /// <response code="429">Rate limit aşıldı</response>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -260,7 +429,9 @@ public class AccountSecurityMonitoringsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var summary = await _accountSecurityMonitoringService.GetSecuritySummaryAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSecuritySummaryQuery(startDate, endDate);
+        var summary = await _mediator.Send(query, cancellationToken);
         return Ok(summary);
     }
 }

@@ -453,9 +453,8 @@ builder.Services.AddScoped<ICMSService, Merge.Application.Services.Content.CMSSe
 builder.Services.AddScoped<ILandingPageService, Merge.Application.Services.Content.LandingPageService>();
 builder.Services.AddScoped<Merge.Application.Interfaces.Support.ILiveChatService, Merge.Application.Services.Support.LiveChatService>();
 builder.Services.AddScoped<IFraudDetectionService, Merge.Application.Services.ML.FraudDetectionService>();
-builder.Services.AddScoped<IOrderVerificationService, Merge.Application.Services.Security.OrderVerificationService>();
-builder.Services.AddScoped<IPaymentFraudPreventionService, Merge.Application.Services.Security.PaymentFraudPreventionService>();
-builder.Services.AddScoped<IAccountSecurityMonitoringService, Merge.Application.Services.Security.AccountSecurityMonitoringService>();
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Security domain service'leri kaldırıldı, handler'lar kullanılıyor
+// Security domain artık MediatR handler'ları kullanıyor, service registration'ları kaldırıldı
 
 // Payment Gateways
 builder.Services.AddScoped<Merge.Application.Services.PaymentGateways.IyzicoGateway>();

@@ -1566,15 +1566,20 @@ public class MappingProfile : Profile
                     : new List<OrderSplitItem>()));
 
         // Security mappings
+        // ✅ BOLUM 1.2: Enum kullanımı (string EventType/Severity/Status YASAK) - Enum'ları string'e çevir
         CreateMap<OrderVerification, OrderVerificationDto>()
             .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => 
                 src.Order != null ? src.Order.OrderNumber : string.Empty))
             .ForMember(dest => dest.VerifiedByName, opt => opt.MapFrom(src => 
-                src.VerifiedBy != null ? $"{src.VerifiedBy.FirstName} {src.VerifiedBy.LastName}" : null));
+                src.VerifiedBy != null ? $"{src.VerifiedBy.FirstName} {src.VerifiedBy.LastName}" : null))
+            .ForMember(dest => dest.VerificationType, opt => opt.MapFrom(src => src.VerificationType.ToString()))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
 
         CreateMap<PaymentFraudPrevention, PaymentFraudPreventionDto>()
             .ForMember(dest => dest.PaymentTransactionId, opt => opt.MapFrom(src =>
                 src.Payment != null ? src.Payment.TransactionId : string.Empty))
+            .ForMember(dest => dest.CheckType, opt => opt.MapFrom(src => src.CheckType.ToString()))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
             .AfterMap((src, dest) =>
             {
                 // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
@@ -1588,6 +1593,8 @@ public class MappingProfile : Profile
                 src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty))
             .ForMember(dest => dest.ActionTakenByName, opt => opt.MapFrom(src =>
                 src.ActionTakenBy != null ? $"{src.ActionTakenBy.FirstName} {src.ActionTakenBy.LastName}" : null))
+            .ForMember(dest => dest.EventType, opt => opt.MapFrom(src => src.EventType.ToString()))
+            .ForMember(dest => dest.Severity, opt => opt.MapFrom(src => src.Severity.ToString()))
             .AfterMap((src, dest) =>
             {
                 // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
@@ -1603,6 +1610,8 @@ public class MappingProfile : Profile
                 src.AcknowledgedBy != null ? $"{src.AcknowledgedBy.FirstName} {src.AcknowledgedBy.LastName}" : null))
             .ForMember(dest => dest.ResolvedByName, opt => opt.MapFrom(src =>
                 src.ResolvedBy != null ? $"{src.ResolvedBy.FirstName} {src.ResolvedBy.LastName}" : null))
+            .ForMember(dest => dest.Severity, opt => opt.MapFrom(src => src.Severity.ToString()))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
             .AfterMap((src, dest) =>
             {
                 // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz

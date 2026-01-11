@@ -18,6 +18,13 @@ using Merge.Application.Common;
 // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 namespace Merge.Application.Services.Security;
 
+/// <summary>
+/// ⚠️ DEPRECATED: Bu service layer artık kullanılmıyor.
+/// Tüm işlevsellik MediatR handlers'a taşınmıştır (CQRS pattern).
+/// Bu dosya sadece referans amaçlı tutulmaktadır ve gelecekte silinebilir.
+/// Yeni kod için Merge.Application.Security.Commands ve Merge.Application.Security.Queries kullanın.
+/// </summary>
+[Obsolete("This service is deprecated. Use MediatR commands and queries instead. See Merge.Application.Security.Commands and Merge.Application.Security.Queries.")]
 public class OrderVerificationService : IOrderVerificationService
 {
     private readonly IDbContext _context;
@@ -65,16 +72,18 @@ public class OrderVerificationService : IOrderVerificationService
         // Calculate risk score (simplified)
         var riskScore = await CalculateOrderRiskScoreAsync(dto.OrderId, cancellationToken);
 
-        var verification = new OrderVerification
-        {
-            OrderId = dto.OrderId,
-            VerificationType = dto.VerificationType,
-            Status = VerificationStatus.Pending,
-            VerificationMethod = dto.VerificationMethod,
-            VerificationNotes = dto.VerificationNotes,
-            RequiresManualReview = dto.RequiresManualReview || riskScore >= 70,
-            RiskScore = riskScore
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var verificationType = Enum.TryParse<VerificationType>(dto.VerificationType, true, out var parsedType)
+            ? parsedType
+            : VerificationType.Manual;
+
+        var verification = OrderVerification.Create(
+            orderId: dto.OrderId,
+            verificationType: verificationType,
+            riskScore: riskScore,
+            verificationMethod: dto.VerificationMethod,
+            verificationNotes: dto.VerificationNotes,
+            requiresManualReview: dto.RequiresManualReview || riskScore >= 70);
 
         await _context.Set<OrderVerification>().AddAsync(verification, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -136,11 +145,8 @@ public class OrderVerificationService : IOrderVerificationService
 
         if (verification == null) return false;
 
-        verification.Status = VerificationStatus.Verified;
-        verification.VerifiedByUserId = verifiedByUserId;
-        verification.VerifiedAt = DateTime.UtcNow;
-        verification.VerificationNotes = notes;
-        verification.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        verification.Verify(verifiedByUserId, notes);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -161,11 +167,8 @@ public class OrderVerificationService : IOrderVerificationService
 
         if (verification == null) return false;
 
-        verification.Status = VerificationStatus.Rejected;
-        verification.VerifiedByUserId = verifiedByUserId;
-        verification.VerifiedAt = DateTime.UtcNow;
-        verification.RejectionReason = reason;
-        verification.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        verification.Reject(verifiedByUserId, reason);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -258,6 +261,13 @@ public class OrderVerificationService : IOrderVerificationService
 
 }
 
+/// <summary>
+/// ⚠️ DEPRECATED: Bu service layer artık kullanılmıyor.
+/// Tüm işlevsellik MediatR handlers'a taşınmıştır (CQRS pattern).
+/// Bu dosya sadece referans amaçlı tutulmaktadır ve gelecekte silinebilir.
+/// Yeni kod için Merge.Application.Security.Commands ve Merge.Application.Security.Queries kullanın.
+/// </summary>
+[Obsolete("This service is deprecated. Use MediatR commands and queries instead. See Merge.Application.Security.Commands and Merge.Application.Security.Queries.")]
 public class PaymentFraudPreventionService : IPaymentFraudPreventionService
 {
     private readonly IDbContext _context;
@@ -309,22 +319,24 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
         // Perform fraud checks
         var riskScore = await PerformFraudChecksAsync(dto, cancellationToken);
         var isBlocked = riskScore >= 70;
-        var status = isBlocked ? "Blocked" : (riskScore >= 50 ? "Failed" : "Passed");
+        var status = isBlocked ? VerificationStatus.Failed : (riskScore >= 50 ? VerificationStatus.Failed : VerificationStatus.Verified);
 
-        var check = new PaymentFraudPrevention
-        {
-            PaymentId = dto.PaymentId,
-            CheckType = dto.CheckType,
-            Status = Enum.Parse<VerificationStatus>(status),
-            IsBlocked = isBlocked,
-            BlockReason = isBlocked ? $"High risk score: {riskScore}" : null,
-            RiskScore = riskScore,
-            CheckResult = JsonSerializer.Serialize(new { RiskScore = riskScore, CheckType = dto.CheckType }),
-            CheckedAt = DateTime.UtcNow,
-            DeviceFingerprint = dto.DeviceFingerprint,
-            IpAddress = dto.IpAddress,
-            UserAgent = dto.UserAgent
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var checkType = Enum.TryParse<PaymentCheckType>(dto.CheckType, true, out var parsedCheckType)
+            ? parsedCheckType
+            : PaymentCheckType.Device;
+
+        var check = PaymentFraudPrevention.Create(
+            paymentId: dto.PaymentId,
+            checkType: checkType,
+            riskScore: riskScore,
+            status: status,
+            isBlocked: isBlocked,
+            blockReason: isBlocked ? $"High risk score: {riskScore}" : null,
+            checkResult: JsonSerializer.Serialize(new { RiskScore = riskScore, CheckType = dto.CheckType }),
+            deviceFingerprint: dto.DeviceFingerprint,
+            ipAddress: dto.IpAddress,
+            userAgent: dto.UserAgent);
 
         await _context.Set<PaymentFraudPrevention>().AddAsync(check, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -382,10 +394,8 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
 
         if (check == null) return false;
 
-        check.IsBlocked = true;
-        check.BlockReason = reason;
-        check.Status = VerificationStatus.Failed; // Blocked -> Failed
-        check.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        check.Block(reason);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -405,10 +415,8 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
 
         if (check == null) return false;
 
-        check.IsBlocked = false;
-        check.BlockReason = null;
-        check.Status = VerificationStatus.Verified; // Passed -> Verified
-        check.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        check.Unblock();
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -503,6 +511,13 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
 
 }
 
+/// <summary>
+/// ⚠️ DEPRECATED: Bu service layer artık kullanılmıyor.
+/// Tüm işlevsellik MediatR handlers'a taşınmıştır (CQRS pattern).
+/// Bu dosya sadece referans amaçlı tutulmaktadır ve gelecekte silinebilir.
+/// Yeni kod için Merge.Application.Security.Commands ve Merge.Application.Security.Queries kullanın.
+/// </summary>
+[Obsolete("This service is deprecated. Use MediatR commands and queries instead. See Merge.Application.Security.Commands and Merge.Application.Security.Queries.")]
 public class AccountSecurityMonitoringService : IAccountSecurityMonitoringService
 {
     private readonly IDbContext _context;
@@ -537,19 +552,26 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
             throw new NotFoundException("Kullanıcı", Guid.Empty);
         }
 
-        var securityEvent = new AccountSecurityEvent
-        {
-            UserId = dto.UserId,
-            EventType = dto.EventType,
-            Severity = dto.Severity,
-            IpAddress = dto.IpAddress,
-            UserAgent = dto.UserAgent,
-            Location = dto.Location,
-            DeviceFingerprint = dto.DeviceFingerprint,
-            IsSuspicious = dto.IsSuspicious,
-            Details = dto.Details != null ? JsonSerializer.Serialize(dto.Details) : null,
-            RequiresAction = dto.RequiresAction
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var eventType = Enum.TryParse<SecurityEventType>(dto.EventType, true, out var parsedEventType)
+            ? parsedEventType
+            : SecurityEventType.SuspiciousActivity;
+
+        var severity = Enum.TryParse<SecurityEventSeverity>(dto.Severity, true, out var parsedSeverity)
+            ? parsedSeverity
+            : SecurityEventSeverity.Info;
+
+        var securityEvent = AccountSecurityEvent.Create(
+            userId: dto.UserId,
+            eventType: eventType,
+            severity: severity,
+            ipAddress: dto.IpAddress,
+            userAgent: dto.UserAgent,
+            location: dto.Location,
+            deviceFingerprint: dto.DeviceFingerprint,
+            isSuspicious: dto.IsSuspicious,
+            details: dto.Details != null ? JsonSerializer.Serialize(dto.Details) : null,
+            requiresAction: dto.RequiresAction);
 
         await _context.Set<AccountSecurityEvent>().AddAsync(securityEvent, cancellationToken);
 
@@ -557,15 +579,15 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         if (dto.IsSuspicious || dto.RequiresAction)
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-            var severity = Enum.TryParse<AlertSeverity>(dto.Severity, true, out var parsedSeverity) 
-                ? parsedSeverity 
+            var alertSeverity = Enum.TryParse<AlertSeverity>(dto.Severity, true, out var parsedAlertSeverity) 
+                ? parsedAlertSeverity 
                 : (dto.Severity == "Critical" ? AlertSeverity.Critical : AlertSeverity.High);
             
             var alert = SecurityAlert.Create(
                 alertType: "Account",
                 title: $"Suspicious activity detected: {dto.EventType}",
                 description: $"Security event: {dto.EventType} for user {user.Email}",
-                severity: severity,
+                severity: alertSeverity,
                 userId: dto.UserId,
                 metadata: dto.Details != null ? JsonSerializer.Serialize(dto.Details) : null
             );
@@ -606,7 +628,10 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
 
         if (!string.IsNullOrEmpty(eventType))
         {
-            query = query.Where(e => e.EventType == eventType);
+            if (Enum.TryParse<SecurityEventType>(eventType, true, out var eventTypeEnum))
+            {
+                query = query.Where(e => e.EventType == eventTypeEnum);
+            }
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -647,7 +672,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         var totalCount = await query.CountAsync(cancellationToken);
 
         var events = await query
-            .OrderByDescending(e => e.Severity == "Critical")
+            .OrderByDescending(e => e.Severity == SecurityEventSeverity.Critical)
             .ThenByDescending(e => e.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -675,11 +700,8 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
 
         if (securityEvent == null) return false;
 
-        securityEvent.ActionTaken = action;
-        securityEvent.ActionTakenByUserId = actionTakenByUserId;
-        securityEvent.ActionTakenAt = DateTime.UtcNow;
-        securityEvent.RequiresAction = false;
-        securityEvent.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        securityEvent.TakeAction(actionTakenByUserId, action, notes);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -849,7 +871,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
 
         var criticalEvents = await _context.Set<AccountSecurityEvent>()
             .AsNoTracking()
-            .Where(e => e.CreatedAt >= start && e.CreatedAt <= end && e.Severity == "Critical")
+            .Where(e => e.CreatedAt >= start && e.CreatedAt <= end && e.Severity == SecurityEventSeverity.Critical)
             .CountAsync(cancellationToken);
 
         var pendingAlerts = await _context.Set<SecurityAlert>()
@@ -868,7 +890,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
             .Where(e => e.CreatedAt >= start && e.CreatedAt <= end)
             .GroupBy(e => e.EventType)
             .Select(g => new { EventType = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.EventType, x => x.Count, cancellationToken);
+            .ToDictionaryAsync(x => x.EventType.ToString(), x => x.Count, cancellationToken);
 
         var alertsBySeverity = await _context.Set<SecurityAlert>()
             .AsNoTracking()
