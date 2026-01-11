@@ -15,5 +15,6 @@ public enum NotificationType
     Account,
     Review,
     Support,
-    Marketing
+    Marketing,
+    Warning
 }

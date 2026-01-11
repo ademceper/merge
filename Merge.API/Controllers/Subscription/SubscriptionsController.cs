@@ -1,13 +1,34 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Subscription;
+using MediatR;
 using Merge.Application.DTOs.Subscription;
+using Merge.Application.Subscription.Commands.CreateSubscriptionPlan;
+using Merge.Application.Subscription.Commands.UpdateSubscriptionPlan;
+using Merge.Application.Subscription.Commands.DeleteSubscriptionPlan;
+using Merge.Application.Subscription.Commands.CreateUserSubscription;
+using Merge.Application.Subscription.Commands.CancelUserSubscription;
+using Merge.Application.Subscription.Commands.RenewSubscription;
+using Merge.Application.Subscription.Commands.UpdateUserSubscription;
+using Merge.Application.Subscription.Commands.ProcessPayment;
+using Merge.Application.Subscription.Commands.RetryFailedPayment;
+using Merge.Application.Subscription.Commands.TrackUsage;
+using Merge.Application.Subscription.Queries.GetSubscriptionPlanById;
+using Merge.Application.Subscription.Queries.GetAllSubscriptionPlans;
+using Merge.Application.Subscription.Queries.GetUserSubscriptionById;
+using Merge.Application.Subscription.Queries.GetUserActiveSubscription;
+using Merge.Application.Subscription.Queries.GetUserSubscriptions;
+using Merge.Application.Subscription.Queries.GetSubscriptionPayments;
+using Merge.Application.Subscription.Queries.GetAllUsage;
+using Merge.Application.Subscription.Queries.GetSubscriptionAnalytics;
+using Merge.Application.Subscription.Queries.GetSubscriptionTrends;
 using Merge.API.Middleware;
 using Merge.Application.Common;
+using Merge.Domain.Enums;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
 // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 namespace Merge.API.Controllers.Subscription;
 
 [ApiController]
@@ -15,17 +36,18 @@ namespace Merge.API.Controllers.Subscription;
 [Authorize]
 public class SubscriptionsController : BaseController
 {
-    private readonly ISubscriptionService _subscriptionService;
+    private readonly IMediator _mediator;
 
-    public SubscriptionsController(ISubscriptionService subscriptionService)
+    public SubscriptionsController(IMediator mediator)
     {
-        _subscriptionService = subscriptionService;
+        _mediator = mediator;
     }
 
     // Subscription Plans
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpGet("plans")]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
@@ -36,13 +58,16 @@ public class SubscriptionsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var plans = await _subscriptionService.GetAllSubscriptionPlansAsync(isActive, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetAllSubscriptionPlansQuery(isActive);
+        var plans = await _mediator.Send(query, cancellationToken);
         return Ok(plans);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpGet("plans/{id}")]
     [AllowAnonymous]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
@@ -54,7 +79,9 @@ public class SubscriptionsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var plan = await _subscriptionService.GetSubscriptionPlanByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSubscriptionPlanByIdQuery(id);
+        var plan = await _mediator.Send(query, cancellationToken);
         if (plan == null)
         {
             return NotFound();
@@ -65,6 +92,7 @@ public class SubscriptionsController : BaseController
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpPost("plans")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
@@ -81,13 +109,30 @@ public class SubscriptionsController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var plan = await _subscriptionService.CreateSubscriptionPlanAsync(dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new CreateSubscriptionPlanCommand(
+            dto.Name,
+            dto.Description,
+            dto.PlanType,
+            dto.Price,
+            dto.DurationDays,
+            dto.BillingCycle,
+            dto.MaxUsers,
+            dto.TrialDays,
+            dto.SetupFee,
+            dto.Currency ?? "TRY",
+            dto.Features,
+            dto.IsActive,
+            dto.DisplayOrder);
+
+        var plan = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetPlan), new { id = plan.Id }, plan);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpPut("plans/{id}")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
@@ -106,7 +151,23 @@ public class SubscriptionsController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var success = await _subscriptionService.UpdateSubscriptionPlanAsync(id, dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new UpdateSubscriptionPlanCommand(
+            id,
+            dto.Name,
+            dto.Description,
+            dto.Price,
+            dto.DurationDays,
+            dto.TrialDays,
+            dto.Features,
+            dto.IsActive,
+            dto.DisplayOrder,
+            dto.BillingCycle,
+            dto.MaxUsers,
+            dto.SetupFee,
+            dto.Currency);
+
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -117,6 +178,7 @@ public class SubscriptionsController : BaseController
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpDelete("plans/{id}")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
@@ -130,7 +192,9 @@ public class SubscriptionsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _subscriptionService.DeleteSubscriptionPlanAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeleteSubscriptionPlanCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -142,6 +206,7 @@ public class SubscriptionsController : BaseController
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU) - spam subscription önleme (5 req/hour)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpPost("subscribe")]
     [RateLimit(5, 3600)]
     [ProducesResponseType(typeof(UserSubscriptionDto), StatusCodes.Status201Created)]
@@ -157,13 +222,16 @@ public class SubscriptionsController : BaseController
         if (validationResult != null) return validationResult;
 
         var userId = GetUserId();
-        var subscription = await _subscriptionService.CreateUserSubscriptionAsync(userId, dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new CreateUserSubscriptionCommand(userId, dto.SubscriptionPlanId, dto.AutoRenew, dto.PaymentMethodId);
+        var subscription = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetMySubscription), new { id = subscription.Id }, subscription);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpGet("my-subscription")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
     [ProducesResponseType(typeof(UserSubscriptionDto), StatusCodes.Status200OK)]
@@ -175,7 +243,9 @@ public class SubscriptionsController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var userId = GetUserId();
-        var subscription = await _subscriptionService.GetUserActiveSubscriptionAsync(userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetUserActiveSubscriptionQuery(userId);
+        var subscription = await _mediator.Send(query, cancellationToken);
         if (subscription == null)
         {
             return NotFound();
@@ -187,6 +257,7 @@ public class SubscriptionsController : BaseController
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpGet("my-subscriptions")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
     [ProducesResponseType(typeof(PagedResult<UserSubscriptionDto>), StatusCodes.Status200OK)]
@@ -203,8 +274,17 @@ public class SubscriptionsController : BaseController
         if (pageSize > 100) pageSize = 100;
         if (page < 1) page = 1;
 
+        // ✅ BOLUM 1.2: Enum kullanımı (string YASAK) - Query string'den enum'a parse
+        SubscriptionStatus? statusEnum = null;
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<SubscriptionStatus>(status, true, out var parsedStatus))
+        {
+            statusEnum = parsedStatus;
+        }
+
         var userId = GetUserId();
-        var subscriptions = await _subscriptionService.GetUserSubscriptionsAsync(userId, status, page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetUserSubscriptionsQuery(userId, statusEnum, page, pageSize);
+        var subscriptions = await _mediator.Send(query, cancellationToken);
         return Ok(subscriptions);
     }
 
@@ -212,6 +292,7 @@ public class SubscriptionsController : BaseController
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.2: IDOR koruması (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpPut("subscriptions/{id}")]
     [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -231,7 +312,9 @@ public class SubscriptionsController : BaseController
 
         // ✅ BOLUM 3.2: IDOR koruması - Kullanıcı sadece kendi subscription'ını güncelleyebilir
         var userId = GetUserId();
-        var subscription = await _subscriptionService.GetUserSubscriptionByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var getQuery = new GetUserSubscriptionByIdQuery(id);
+        var subscription = await _mediator.Send(getQuery, cancellationToken);
         if (subscription == null)
         {
             return NotFound();
@@ -242,7 +325,9 @@ public class SubscriptionsController : BaseController
             return Forbid();
         }
 
-        var success = await _subscriptionService.UpdateUserSubscriptionAsync(id, dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new UpdateUserSubscriptionCommand(id, dto.AutoRenew, dto.PaymentMethodId);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -254,6 +339,7 @@ public class SubscriptionsController : BaseController
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.2: IDOR koruması (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpPost("subscriptions/{id}/cancel")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -276,7 +362,9 @@ public class SubscriptionsController : BaseController
 
         // ✅ BOLUM 3.2: IDOR koruması - Kullanıcı sadece kendi subscription'ını iptal edebilir
         var userId = GetUserId();
-        var subscription = await _subscriptionService.GetUserSubscriptionByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var getQuery = new GetUserSubscriptionByIdQuery(id);
+        var subscription = await _mediator.Send(getQuery, cancellationToken);
         if (subscription == null)
         {
             return NotFound();
@@ -287,7 +375,9 @@ public class SubscriptionsController : BaseController
             return Forbid();
         }
 
-        var success = await _subscriptionService.CancelUserSubscriptionAsync(id, dto?.Reason, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new CancelUserSubscriptionCommand(id, dto?.Reason);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return BadRequest("Abonelik iptal edilemedi.");
@@ -298,6 +388,7 @@ public class SubscriptionsController : BaseController
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpPost("subscriptions/{id}/renew")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
@@ -311,7 +402,9 @@ public class SubscriptionsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _subscriptionService.RenewSubscriptionAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new RenewSubscriptionCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return BadRequest("Abonelik yenilenemedi.");
@@ -324,6 +417,7 @@ public class SubscriptionsController : BaseController
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.2: IDOR koruması (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpGet("subscriptions/{id}/payments")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
     [ProducesResponseType(typeof(IEnumerable<SubscriptionPaymentDto>), StatusCodes.Status200OK)]
@@ -338,7 +432,9 @@ public class SubscriptionsController : BaseController
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 3.2: IDOR koruması - Kullanıcı sadece kendi subscription'ının payment'larını görebilir
         var userId = GetUserId();
-        var subscription = await _subscriptionService.GetUserSubscriptionByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var getQuery = new GetUserSubscriptionByIdQuery(id);
+        var subscription = await _mediator.Send(getQuery, cancellationToken);
         if (subscription == null)
         {
             return NotFound();
@@ -349,13 +445,16 @@ public class SubscriptionsController : BaseController
             return Forbid();
         }
 
-        var payments = await _subscriptionService.GetSubscriptionPaymentsAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var paymentsQuery = new GetSubscriptionPaymentsQuery(id);
+        var payments = await _mediator.Send(paymentsQuery, cancellationToken);
         return Ok(payments);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpPost("payments/{id}/process")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
@@ -373,7 +472,9 @@ public class SubscriptionsController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var success = await _subscriptionService.ProcessPaymentAsync(id, dto.TransactionId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new ProcessPaymentCommand(id, dto.TransactionId);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return BadRequest("Ödeme işlenemedi.");
@@ -384,6 +485,7 @@ public class SubscriptionsController : BaseController
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpPost("payments/{id}/retry")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
@@ -397,7 +499,9 @@ public class SubscriptionsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _subscriptionService.RetryFailedPaymentAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new RetryFailedPaymentCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return BadRequest("Ödeme tekrar denenemedi.");
@@ -409,6 +513,7 @@ public class SubscriptionsController : BaseController
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU) - usage tracking abuse önleme (100 req/hour)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpPost("usage/track")]
     [RateLimit(100, 3600)]
     [ProducesResponseType(typeof(SubscriptionUsageDto), StatusCodes.Status200OK)]
@@ -424,13 +529,17 @@ public class SubscriptionsController : BaseController
         if (validationResult != null) return validationResult;
 
         var userId = GetUserId();
-        var subscription = await _subscriptionService.GetUserActiveSubscriptionAsync(userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var getQuery = new GetUserActiveSubscriptionQuery(userId);
+        var subscription = await _mediator.Send(getQuery, cancellationToken);
         if (subscription == null)
         {
             return BadRequest("Aktif abonelik bulunamadı.");
         }
 
-        var usage = await _subscriptionService.TrackUsageAsync(subscription.Id, dto.Feature, dto.Count, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new TrackUsageCommand(subscription.Id, dto.Feature, dto.Count);
+        var usage = await _mediator.Send(command, cancellationToken);
         return Ok(usage);
     }
 
@@ -438,6 +547,7 @@ public class SubscriptionsController : BaseController
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpGet("usage")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
     [ProducesResponseType(typeof(PagedResult<SubscriptionUsageDto>), StatusCodes.Status200OK)]
@@ -455,13 +565,17 @@ public class SubscriptionsController : BaseController
         if (page < 1) page = 1;
 
         var userId = GetUserId();
-        var subscription = await _subscriptionService.GetUserActiveSubscriptionAsync(userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var getQuery = new GetUserActiveSubscriptionQuery(userId);
+        var subscription = await _mediator.Send(getQuery, cancellationToken);
         if (subscription == null)
         {
             return BadRequest("Aktif abonelik bulunamadı.");
         }
 
-        var usage = await _subscriptionService.GetAllUsageAsync(subscription.Id, page, pageSize, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var usageQuery = new GetAllUsageQuery(subscription.Id, page, pageSize);
+        var usage = await _mediator.Send(usageQuery, cancellationToken);
         return Ok(usage);
     }
 
@@ -469,6 +583,7 @@ public class SubscriptionsController : BaseController
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpGet("analytics")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
@@ -489,13 +604,16 @@ public class SubscriptionsController : BaseController
             return BadRequest("Başlangıç tarihi bitiş tarihinden sonra olamaz.");
         }
 
-        var analytics = await _subscriptionService.GetSubscriptionAnalyticsAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSubscriptionAnalyticsQuery(startDate, endDate);
+        var analytics = await _mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     [HttpGet("trends")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
@@ -516,7 +634,9 @@ public class SubscriptionsController : BaseController
             return BadRequest("Başlangıç tarihi bitiş tarihinden sonra olamaz.");
         }
 
-        var trends = await _subscriptionService.GetSubscriptionTrendsAsync(startDate, endDate, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSubscriptionTrendsQuery(startDate, endDate);
+        var trends = await _mediator.Send(query, cancellationToken);
         return Ok(trends);
     }
 }

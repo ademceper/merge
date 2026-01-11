@@ -1,10 +1,14 @@
+using Merge.Domain.Enums;
+using PaymentStatus = Merge.Domain.Enums.PaymentStatus;
+
 namespace Merge.Application.DTOs.Subscription;
 
 public class SubscriptionPaymentDto
 {
     public Guid Id { get; set; }
     public Guid UserSubscriptionId { get; set; }
-    public string PaymentStatus { get; set; } = string.Empty;
+    // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
+    public PaymentStatus PaymentStatus { get; set; }
     public decimal Amount { get; set; }
     public string? TransactionId { get; set; }
     public DateTime? PaidAt { get; set; }

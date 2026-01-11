@@ -1,3 +1,5 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Application.DTOs.Subscription;
 
 public class UserSubscriptionDto
@@ -7,7 +9,8 @@ public class UserSubscriptionDto
     public string UserName { get; set; } = string.Empty;
     public Guid SubscriptionPlanId { get; set; }
     public string PlanName { get; set; } = string.Empty;
-    public string Status { get; set; } = string.Empty;
+    // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
+    public SubscriptionStatus Status { get; set; }
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public DateTime? TrialEndDate { get; set; }

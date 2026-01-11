@@ -29,13 +29,15 @@ using Merge.Application.Interfaces.Security;
 using Merge.Application.Interfaces.Seller;
 using Merge.Application.Interfaces.ShippingProviders;
 using Merge.Application.Interfaces.SmsProviders;
-using Merge.Application.Interfaces.Subscription;
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - ISubscriptionService kaldırıldı
+// using Merge.Application.Interfaces.Subscription; // REMOVED - CQRS pattern'e geçildi
 using Merge.Application.Interfaces.Support;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Services;
 using Merge.Application.Services.Content;
 using Merge.Application.Services.B2B;
-using Merge.Application.Services.Subscription;
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - SubscriptionService kaldırıldı
+// using Merge.Application.Services.Subscription; // REMOVED - CQRS pattern'e geçildi
 using Merge.Application.Services.Governance;
 using Merge.Application.Services.Analytics;
 using Merge.Application.Services.ML;
@@ -444,7 +446,8 @@ builder.Services.AddScoped<IPaymentMethodService, Merge.Application.Services.Pay
 builder.Services.AddScoped<IOrganizationService, Merge.Application.Services.Organization.OrganizationService>();
 // ✅ ARCHITECTURE: B2BService kaldırıldı - Handler'lar direkt IDbContext kullanıyor (Clean Architecture)
 // builder.Services.AddScoped<IB2BService, B2BService>(); // DEPRECATED - MediatR + CQRS pattern kullanılıyor
-builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - SubscriptionService kaldırıldı, Commands/Queries kullanılıyor
+// builder.Services.AddScoped<ISubscriptionService, SubscriptionService>(); // REMOVED - CQRS pattern'e geçildi
 builder.Services.AddScoped<IBlogService, BlogService>();
 builder.Services.AddScoped<ISEOService, Merge.Application.Services.Content.SEOService>();
 builder.Services.AddScoped<IProductQuestionService, Merge.Application.Services.Product.ProductQuestionService>();
