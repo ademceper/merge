@@ -1,0 +1,47 @@
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using AutoMapper;
+using Merge.Application.DTOs.Payment;
+using Merge.Application.Interfaces;
+using Merge.Domain.Entities;
+
+namespace Merge.Application.Payment.Queries.GetPaymentMethodByCode;
+
+// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+// BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullaniyor (Service layer bypass)
+public class GetPaymentMethodByCodeQueryHandler : IRequestHandler<GetPaymentMethodByCodeQuery, PaymentMethodDto?>
+{
+    private readonly IDbContext _context;
+    private readonly IMapper _mapper;
+    private readonly ILogger<GetPaymentMethodByCodeQueryHandler> _logger;
+
+    public GetPaymentMethodByCodeQueryHandler(
+        IDbContext context,
+        IMapper mapper,
+        ILogger<GetPaymentMethodByCodeQueryHandler> logger)
+    {
+        _context = context;
+        _mapper = mapper;
+        _logger = logger;
+    }
+
+    public async Task<PaymentMethodDto?> Handle(GetPaymentMethodByCodeQuery request, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Retrieving payment method by code. Code: {Code}", request.Code);
+
+        // ✅ PERFORMANCE: AsNoTracking for read-only query
+        var paymentMethod = await _context.Set<PaymentMethod>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(pm => pm.Code == request.Code && pm.IsActive, cancellationToken);
+
+        if (paymentMethod == null)
+        {
+            _logger.LogWarning("Payment method not found. Code: {Code}", request.Code);
+            return null;
+        }
+
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return _mapper.Map<PaymentMethodDto>(paymentMethod);
+    }
+}

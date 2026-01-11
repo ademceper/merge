@@ -16,11 +16,15 @@ public class CreatePaymentCommandValidator : AbstractValidator<CreatePaymentComm
             .WithMessage("Odeme tutari 0'dan buyuk olmalidir.");
 
         RuleFor(x => x.PaymentMethod)
-            .IsInEnum()
-            .WithMessage("Gecerli bir odeme yontemi secilmelidir.");
+            .NotEmpty()
+            .WithMessage("Odeme yontemi zorunludur.")
+            .MaximumLength(50)
+            .WithMessage("Odeme yontemi en fazla 50 karakter olabilir.");
 
         RuleFor(x => x.PaymentProvider)
-            .IsInEnum()
-            .WithMessage("Gecerli bir odeme saglayicisi secilmelidir.");
+            .NotEmpty()
+            .WithMessage("Odeme saglayicisi zorunludur.")
+            .MaximumLength(50)
+            .WithMessage("Odeme saglayicisi en fazla 50 karakter olabilir.");
     }
 }

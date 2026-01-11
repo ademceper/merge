@@ -4,6 +4,7 @@ using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Common;
+using Merge.Domain.Common.DomainEvents;
 
 namespace Merge.Domain.Entities;
 
@@ -77,6 +78,14 @@ public class Payment : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
+        // ✅ BOLUM 1.5: Domain Events - PaymentCreatedEvent yayınla
+        payment.AddDomainEvent(new PaymentCreatedEvent(
+            payment.Id,
+            orderId,
+            paymentMethod,
+            paymentProvider,
+            amount.Amount));
+
         return payment;
     }
 
@@ -126,6 +135,14 @@ public class Payment : BaseEntity, IAggregateRoot
         TransactionId = transactionId;
         PaymentReference = paymentReference;
         TransitionTo(PaymentStatus.Completed);
+
+        // ✅ BOLUM 1.5: Domain Events - PaymentCompletedEvent yayınla
+        AddDomainEvent(new PaymentCompletedEvent(
+            Id,
+            OrderId,
+            transactionId,
+            paymentReference,
+            _amount));
     }
 
     public void Fail(string failureReason)
@@ -137,6 +154,12 @@ public class Payment : BaseEntity, IAggregateRoot
 
         FailureReason = failureReason;
         TransitionTo(PaymentStatus.Failed);
+
+        // ✅ BOLUM 1.5: Domain Events - PaymentFailedEvent yayınla
+        AddDomainEvent(new PaymentFailedEvent(
+            Id,
+            OrderId,
+            failureReason));
     }
 
     public void Cancel(string? reason = null)
@@ -148,6 +171,12 @@ public class Payment : BaseEntity, IAggregateRoot
             FailureReason = reason;
 
         TransitionTo(PaymentStatus.Cancelled);
+
+        // ✅ BOLUM 1.5: Domain Events - PaymentCancelledEvent yayınla
+        AddDomainEvent(new PaymentCancelledEvent(
+            Id,
+            OrderId,
+            reason));
     }
 
     public void Refund()
@@ -156,6 +185,13 @@ public class Payment : BaseEntity, IAggregateRoot
             throw new DomainException("Sadece tamamlanmış ödemeler iade edilebilir");
 
         TransitionTo(PaymentStatus.Refunded);
+
+        // ✅ BOLUM 1.5: Domain Events - PaymentRefundedEvent yayınla
+        AddDomainEvent(new PaymentRefundedEvent(
+            Id,
+            OrderId,
+            _amount,
+            IsFullRefund: true));
     }
 
     public void PartiallyRefund(Money refundAmount)
@@ -169,6 +205,13 @@ public class Payment : BaseEntity, IAggregateRoot
             throw new DomainException("Kısmi iade tutarı toplam tutardan küçük olmalıdır");
 
         TransitionTo(PaymentStatus.PartiallyRefunded);
+
+        // ✅ BOLUM 1.5: Domain Events - PaymentRefundedEvent yayınla
+        AddDomainEvent(new PaymentRefundedEvent(
+            Id,
+            OrderId,
+            refundAmount.Amount,
+            IsFullRefund: false));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Set transaction ID

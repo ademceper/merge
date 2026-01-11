@@ -384,7 +384,9 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.BillingAddress, opt => opt.MapFrom(src => src.Order != null ? src.Order.Address : null))
             .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.Order != null && src.Order.OrderItems != null 
                 ? src.Order.OrderItems.ToList() 
-                : new List<OrderItem>()));
+                : new List<OrderItem>()))
+            // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK) - Status zaten enum, direkt map edilebilir
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status));
         
         // PaymentMethod mappings
         CreateMap<PaymentMethod, PaymentMethodDto>()

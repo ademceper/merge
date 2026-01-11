@@ -1,22 +1,30 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Payment;
 using Merge.Application.DTOs.Payment;
+using Merge.Application.Payment.Commands.CreatePaymentMethod;
+using Merge.Application.Payment.Commands.UpdatePaymentMethod;
+using Merge.Application.Payment.Commands.DeletePaymentMethod;
+using Merge.Application.Payment.Commands.SetDefaultPaymentMethod;
+using Merge.Application.Payment.Queries.GetPaymentMethodById;
+using Merge.Application.Payment.Queries.GetPaymentMethodByCode;
+using Merge.Application.Payment.Queries.GetAllPaymentMethods;
+using Merge.Application.Payment.Queries.GetAvailablePaymentMethods;
+using Merge.Application.Payment.Queries.CalculateProcessingFee;
 using Merge.API.Middleware;
-
 
 namespace Merge.API.Controllers.Payment;
 
 [ApiController]
-[Route("api/payments/methods")]
+[Route("api/v{version:apiVersion}/payments/methods")]
 public class PaymentMethodsController : BaseController
 {
-    private readonly IPaymentMethodService _paymentMethodService;
+    private readonly IMediator _mediator;
 
-    public PaymentMethodsController(IPaymentMethodService paymentMethodService)
+    public PaymentMethodsController(IMediator mediator)
     {
-        _paymentMethodService = paymentMethodService;
+        _mediator = mediator;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -31,8 +39,10 @@ public class PaymentMethodsController : BaseController
         [FromQuery] bool? isActive = null,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var methods = await _paymentMethodService.GetAllPaymentMethodsAsync(isActive, cancellationToken);
+        var query = new GetAllPaymentMethodsQuery(isActive);
+        var methods = await _mediator.Send(query, cancellationToken);
         return Ok(methods);
     }
 
@@ -49,8 +59,10 @@ public class PaymentMethodsController : BaseController
         [FromQuery] decimal orderAmount,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var methods = await _paymentMethodService.GetAvailablePaymentMethodsAsync(orderAmount, cancellationToken);
+        var query = new GetAvailablePaymentMethodsQuery(orderAmount);
+        var methods = await _mediator.Send(query, cancellationToken);
         return Ok(methods);
     }
 
@@ -65,8 +77,10 @@ public class PaymentMethodsController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PaymentMethodDto>> GetPaymentMethod(Guid id, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var method = await _paymentMethodService.GetPaymentMethodByIdAsync(id, cancellationToken);
+        var query = new GetPaymentMethodByIdQuery(id);
+        var method = await _mediator.Send(query, cancellationToken);
         if (method == null)
         {
             return NotFound();
@@ -85,8 +99,10 @@ public class PaymentMethodsController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PaymentMethodDto>> GetPaymentMethodByCode(string code, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var method = await _paymentMethodService.GetPaymentMethodByCodeAsync(code, cancellationToken);
+        var query = new GetPaymentMethodByCodeQuery(code);
+        var method = await _mediator.Send(query, cancellationToken);
         if (method == null)
         {
             return NotFound();
@@ -109,11 +125,26 @@ public class PaymentMethodsController : BaseController
         [FromBody] CreatePaymentMethodDto dto,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        var method = await _paymentMethodService.CreatePaymentMethodAsync(dto, cancellationToken);
+        var command = new CreatePaymentMethodCommand(
+            dto.Name,
+            dto.Code,
+            dto.Description,
+            dto.IconUrl,
+            dto.IsActive,
+            dto.RequiresOnlinePayment,
+            dto.RequiresManualVerification,
+            dto.MinimumAmount,
+            dto.MaximumAmount,
+            dto.ProcessingFee,
+            dto.ProcessingFeePercentage,
+            dto.Settings,
+            dto.DisplayOrder,
+            dto.IsDefault);
+        
+        var method = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetPaymentMethod), new { id = method.Id }, method);
     }
 
@@ -134,11 +165,26 @@ public class PaymentMethodsController : BaseController
         [FromBody] UpdatePaymentMethodDto dto,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        var success = await _paymentMethodService.UpdatePaymentMethodAsync(id, dto, cancellationToken);
+        var command = new UpdatePaymentMethodCommand(
+            id,
+            dto.Name,
+            dto.Description,
+            dto.IconUrl,
+            dto.IsActive,
+            dto.RequiresOnlinePayment,
+            dto.RequiresManualVerification,
+            dto.MinimumAmount,
+            dto.MaximumAmount,
+            dto.ProcessingFee,
+            dto.ProcessingFeePercentage,
+            dto.Settings,
+            dto.DisplayOrder,
+            dto.IsDefault);
+        
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -159,8 +205,10 @@ public class PaymentMethodsController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> DeletePaymentMethod(Guid id, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _paymentMethodService.DeletePaymentMethodAsync(id, cancellationToken);
+        var command = new DeletePaymentMethodCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -181,8 +229,10 @@ public class PaymentMethodsController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> SetDefaultPaymentMethod(Guid id, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _paymentMethodService.SetDefaultPaymentMethodAsync(id, cancellationToken);
+        var command = new SetDefaultPaymentMethodCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -205,8 +255,10 @@ public class PaymentMethodsController : BaseController
         [FromQuery] decimal amount,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var fee = await _paymentMethodService.CalculateProcessingFeeAsync(id, amount, cancellationToken);
+        var query = new CalculateProcessingFeeQuery(id, amount);
+        var fee = await _mediator.Send(query, cancellationToken);
         return Ok(new { paymentMethodId = id, amount, processingFee = fee });
     }
 }

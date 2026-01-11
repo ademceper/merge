@@ -1,5 +1,6 @@
 using Merge.Application.DTOs.User;
 using Merge.Application.DTOs.Order;
+using Merge.Domain.Enums;
 
 namespace Merge.Application.DTOs.Payment;
 
@@ -16,7 +17,8 @@ public class InvoiceDto
     public decimal ShippingCost { get; set; }
     public decimal Discount { get; set; }
     public decimal TotalAmount { get; set; }
-    public string Status { get; set; } = string.Empty;
+    // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+    public InvoiceStatus Status { get; set; }
     public string? PdfUrl { get; set; }
     public string? Notes { get; set; }
     public AddressDto? BillingAddress { get; set; }

@@ -1,27 +1,30 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Payment;
-using Merge.Application.Interfaces.Order;
 using Merge.Application.DTOs.Payment;
 using Merge.Application.Common;
+using Merge.Application.Payment.Queries.GetInvoiceById;
+using Merge.Application.Payment.Queries.GetInvoiceByOrderId;
+using Merge.Application.Payment.Queries.GetInvoicesByUserId;
+using Merge.Application.Payment.Commands.GenerateInvoice;
+using Merge.Application.Payment.Commands.SendInvoice;
+using Merge.Application.Payment.Commands.GenerateInvoicePdf;
+using Merge.Application.Order.Queries.GetOrderById;
 using Merge.API.Middleware;
-
 
 namespace Merge.API.Controllers.Payment;
 
 [ApiController]
-[Route("api/payments/invoices")]
+[Route("api/v{version:apiVersion}/payments/invoices")]
 [Authorize]
 public class InvoicesController : BaseController
 {
-    private readonly IInvoiceService _invoiceService;
-    private readonly IOrderService _orderService;
+    private readonly IMediator _mediator;
 
-    public InvoicesController(IInvoiceService invoiceService, IOrderService orderService)
+    public InvoicesController(IMediator mediator)
     {
-        _invoiceService = invoiceService;
-        _orderService = orderService;
+        _mediator = mediator;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -38,9 +41,11 @@ public class InvoicesController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var userId = GetUserId();
-        var invoices = await _invoiceService.GetByUserIdAsync(userId, page, pageSize, cancellationToken);
+        var query = new GetInvoicesByUserIdQuery(userId, page, pageSize);
+        var invoices = await _mediator.Send(query, cancellationToken);
         return Ok(invoices);
     }
 
@@ -62,14 +67,19 @@ public class InvoicesController : BaseController
             return Unauthorized();
         }
 
-        var invoice = await _invoiceService.GetByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var query = new GetInvoiceByIdQuery(id);
+        var invoice = await _mediator.Send(query, cancellationToken);
         if (invoice == null)
         {
             return NotFound();
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin faturalarına erişebilmeli
-        var order = await _orderService.GetByIdAsync(invoice.OrderId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var orderQuery = new GetOrderByIdQuery(invoice.OrderId);
+        var order = await _mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -102,7 +112,9 @@ public class InvoicesController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Önce Order'ın kullanıcıya ait olduğunu kontrol et
-        var order = await _orderService.GetByIdAsync(orderId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var orderQuery = new GetOrderByIdQuery(orderId);
+        var order = await _mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -113,7 +125,9 @@ public class InvoicesController : BaseController
             return Forbid();
         }
 
-        var invoice = await _invoiceService.GetByOrderIdAsync(orderId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetInvoiceByOrderIdQuery(orderId);
+        var invoice = await _mediator.Send(query, cancellationToken);
         if (invoice == null)
         {
             return NotFound();
@@ -135,12 +149,11 @@ public class InvoicesController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<InvoiceDto>> GenerateInvoice(Guid orderId, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var invoice = await _invoiceService.GenerateInvoiceAsync(orderId, cancellationToken);
-        if (invoice == null)
-        {
-            return NotFound();
-        }
+        var command = new GenerateInvoiceCommand(orderId);
+        var invoice = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = invoice.Id }, invoice);
     }
 
@@ -157,8 +170,11 @@ public class InvoicesController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> SendInvoice(Guid id, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var result = await _invoiceService.SendInvoiceAsync(id, cancellationToken);
+        var command = new SendInvoiceCommand(id);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -184,14 +200,19 @@ public class InvoicesController : BaseController
             return Unauthorized();
         }
 
-        var invoice = await _invoiceService.GetByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var query = new GetInvoiceByIdQuery(id);
+        var invoice = await _mediator.Send(query, cancellationToken);
         if (invoice == null)
         {
             return NotFound();
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişlerinin faturalarına erişebilmeli
-        var order = await _orderService.GetByIdAsync(invoice.OrderId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var orderQuery = new GetOrderByIdQuery(invoice.OrderId);
+        var order = await _mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -202,7 +223,10 @@ public class InvoicesController : BaseController
             return Forbid();
         }
 
-        var pdfUrl = await _invoiceService.GenerateInvoicePdfAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var command = new GenerateInvoicePdfCommand(id);
+        var pdfUrl = await _mediator.Send(command, cancellationToken);
         return Ok(new { pdfUrl });
     }
 }

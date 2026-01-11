@@ -1,25 +1,29 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Payment;
-using Merge.Application.Interfaces.Order;
 using Merge.Application.DTOs.Payment;
+using Merge.Application.Payment.Commands.CreatePayment;
+using Merge.Application.Payment.Commands.ProcessPayment;
+using Merge.Application.Payment.Commands.RefundPayment;
+using Merge.Application.Payment.Queries.GetPaymentById;
+using Merge.Application.Payment.Queries.GetPaymentByOrderId;
+using Merge.Application.Payment.Queries.VerifyPayment;
+using Merge.Application.Order.Queries.GetOrderById;
 using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Payment;
 
 [ApiController]
-[Route("api/payments")]
+[Route("api/v{version:apiVersion}/payments")]
 [Authorize]
 public class PaymentsController : BaseController
 {
-    private readonly IPaymentService _paymentService;
-    private readonly IOrderService _orderService;
+    private readonly IMediator _mediator;
 
-    public PaymentsController(IPaymentService paymentService, IOrderService orderService)
+    public PaymentsController(IMediator mediator)
     {
-        _paymentService = paymentService;
-        _orderService = orderService;
+        _mediator = mediator;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -41,7 +45,9 @@ public class PaymentsController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Önce Order'ın kullanıcıya ait olduğunu kontrol et
-        var order = await _orderService.GetByIdAsync(orderId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var orderQuery = new GetOrderByIdQuery(orderId);
+        var order = await _mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -52,7 +58,9 @@ public class PaymentsController : BaseController
             return Forbid();
         }
 
-        var payment = await _paymentService.GetByOrderIdAsync(orderId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetPaymentByOrderIdQuery(orderId);
+        var payment = await _mediator.Send(query, cancellationToken);
         if (payment == null)
         {
             return NotFound();
@@ -74,17 +82,18 @@ public class PaymentsController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PaymentDto>> CreatePayment([FromBody] CreatePaymentDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi siparişleri için ödeme oluşturabilmeli
-        var order = await _orderService.GetByIdAsync(dto.OrderId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service layer bypass
+        var orderQuery = new GetOrderByIdQuery(dto.OrderId);
+        var order = await _mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -95,7 +104,15 @@ public class PaymentsController : BaseController
             return Forbid();
         }
 
-        var payment = await _paymentService.CreatePaymentAsync(dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
+        var command = new CreatePaymentCommand(
+            dto.OrderId,
+            dto.PaymentMethod,
+            dto.PaymentProvider,
+            dto.Amount);
+        
+        var payment = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetByOrderId), new { orderId = payment.OrderId }, payment);
     }
 
@@ -113,15 +130,16 @@ public class PaymentsController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PaymentDto>> ProcessPayment(Guid paymentId, [FromBody] ProcessPaymentDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        var payment = await _paymentService.ProcessPaymentAsync(paymentId, dto, cancellationToken);
-        if (payment == null)
-        {
-            return NotFound();
-        }
+        var command = new ProcessPaymentCommand(
+            paymentId,
+            dto.TransactionId,
+            dto.PaymentReference,
+            dto.Metadata);
+        
+        var payment = await _mediator.Send(command, cancellationToken);
         return Ok(payment);
     }
 
@@ -140,7 +158,10 @@ public class PaymentsController : BaseController
     public async Task<ActionResult<PaymentDto>> RefundPayment(Guid paymentId, [FromBody] RefundPaymentDto? dto = null, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var payment = await _paymentService.RefundPaymentAsync(paymentId, dto?.Amount, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var command = new RefundPaymentCommand(paymentId, dto?.Amount);
+        var payment = await _mediator.Send(command, cancellationToken);
         return Ok(payment);
     }
 
@@ -155,11 +176,11 @@ public class PaymentsController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<bool>> VerifyPayment([FromBody] VerifyPaymentDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
-
-        var result = await _paymentService.VerifyPaymentAsync(dto.TransactionId, cancellationToken);
+        var query = new VerifyPaymentQuery(dto.TransactionId);
+        var result = await _mediator.Send(query, cancellationToken);
         return Ok(new { isValid = result });
     }
 }
