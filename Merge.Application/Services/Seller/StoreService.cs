@@ -89,27 +89,34 @@ public class StoreService : IStoreService
 
             foreach (var primaryStore in existingPrimary)
             {
-                primaryStore.IsPrimary = false;
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+                primaryStore.RemovePrimaryStatus();
             }
         }
 
-        var store = new Store
+        var settingsJson = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null;
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var store = Store.Create(
+            sellerId: sellerId,
+            storeName: dto.StoreName,
+            description: dto.Description,
+            logoUrl: dto.LogoUrl,
+            bannerUrl: dto.BannerUrl,
+            contactEmail: dto.ContactEmail,
+            contactPhone: dto.ContactPhone,
+            address: dto.Address,
+            city: dto.City,
+            country: dto.Country,
+            settings: settingsJson
+        );
+
+        // Set as primary if requested
+        if (dto.IsPrimary)
         {
-            SellerId = sellerId,
-            StoreName = dto.StoreName,
-            Slug = slug,
-            Description = dto.Description,
-            LogoUrl = dto.LogoUrl,
-            BannerUrl = dto.BannerUrl,
-            ContactEmail = dto.ContactEmail,
-            ContactPhone = dto.ContactPhone,
-            Address = dto.Address,
-            City = dto.City,
-            Country = dto.Country,
-            Status = EntityStatus.Active,
-            IsPrimary = dto.IsPrimary,
-            Settings = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null
-        };
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            store.SetAsPrimary();
+        }
 
         await _context.Set<Store>().AddAsync(store, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -285,54 +292,33 @@ public class StoreService : IStoreService
 
         if (store == null) return false;
 
-        if (!string.IsNullOrEmpty(dto.StoreName))
-        {
-            store.StoreName = dto.StoreName;
-        }
-
-        if (dto.Description != null)
-        {
-            store.Description = dto.Description;
-        }
-
-        if (dto.LogoUrl != null)
-        {
-            store.LogoUrl = dto.LogoUrl;
-        }
-
-        if (dto.BannerUrl != null)
-        {
-            store.BannerUrl = dto.BannerUrl;
-        }
-
-        if (dto.ContactEmail != null)
-        {
-            store.ContactEmail = dto.ContactEmail;
-        }
-
-        if (dto.ContactPhone != null)
-        {
-            store.ContactPhone = dto.ContactPhone;
-        }
-
-        if (dto.Address != null)
-        {
-            store.Address = dto.Address;
-        }
-
-        if (dto.City != null)
-        {
-            store.City = dto.City;
-        }
-
-        if (dto.Country != null)
-        {
-            store.Country = dto.Country;
-        }
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        store.UpdateDetails(
+            storeName: !string.IsNullOrEmpty(dto.StoreName) ? dto.StoreName : null,
+            description: dto.Description,
+            logoUrl: dto.LogoUrl,
+            bannerUrl: dto.BannerUrl,
+            contactEmail: dto.ContactEmail,
+            contactPhone: dto.ContactPhone,
+            address: dto.Address,
+            city: dto.City,
+            country: dto.Country,
+            settings: dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null
+        );
 
         if (!string.IsNullOrEmpty(dto.Status))
         {
-            store.Status = Enum.Parse<EntityStatus>(dto.Status);
+            var newStatus = Enum.Parse<EntityStatus>(dto.Status);
+            if (newStatus == EntityStatus.Active && store.Status != EntityStatus.Active)
+            {
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+                store.Activate();
+            }
+            else if (newStatus == EntityStatus.Suspended && store.Status != EntityStatus.Suspended)
+            {
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+                store.Suspend();
+            }
         }
 
         if (dto.IsPrimary.HasValue && dto.IsPrimary.Value)
@@ -345,22 +331,18 @@ public class StoreService : IStoreService
 
             foreach (var s in existingPrimary)
             {
-                s.IsPrimary = false;
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+                s.RemovePrimaryStatus();
             }
 
-            store.IsPrimary = true;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            store.SetAsPrimary();
         }
         else if (dto.IsPrimary.HasValue && !dto.IsPrimary.Value)
         {
-            store.IsPrimary = false;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            store.RemovePrimaryStatus();
         }
-
-        if (dto.Settings != null)
-        {
-            store.Settings = JsonSerializer.Serialize(dto.Settings);
-        }
-
-        store.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -386,8 +368,8 @@ public class StoreService : IStoreService
             throw new BusinessException("Ürünleri olan bir mağaza silinemez. Önce ürünleri kaldırın veya transfer edin.");
         }
 
-        store.IsDeleted = true;
-        store.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        store.Delete();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -410,11 +392,12 @@ public class StoreService : IStoreService
 
         foreach (var s in existingPrimary)
         {
-            s.IsPrimary = false;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            s.RemovePrimaryStatus();
         }
 
-        store.IsPrimary = true;
-        store.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        store.SetAsPrimary();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -429,9 +412,8 @@ public class StoreService : IStoreService
 
         if (store == null) return false;
 
-        store.IsVerified = true;
-        store.VerifiedAt = DateTime.UtcNow;
-        store.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        store.Verify();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -446,8 +428,8 @@ public class StoreService : IStoreService
 
         if (store == null) return false;
 
-        store.Status = EntityStatus.Suspended;
-        store.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        store.Suspend();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

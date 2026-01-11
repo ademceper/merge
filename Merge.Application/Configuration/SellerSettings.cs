@@ -26,4 +26,29 @@ public class SellerSettings
     /// Varsayilan istatistik periyodu (gun)
     /// </summary>
     public int DefaultStatsPeriodDays { get; set; } = 30;
+
+    /// <summary>
+    /// Varsayilan platform fee orani (%)
+    /// </summary>
+    public decimal DefaultPlatformFeeRate { get; set; } = 2;
+
+    /// <summary>
+    /// Varsayilan komisyon orani (tier yoksa kullanilir) (%)
+    /// </summary>
+    public decimal DefaultCommissionRateWhenNoTier { get; set; } = 10;
+
+    /// <summary>
+    /// Payout transaction fee orani (%)
+    /// </summary>
+    public decimal PayoutTransactionFeeRate { get; set; } = 1;
+
+    /// <summary>
+    /// Varsayilan minimum payout tutari
+    /// </summary>
+    public decimal DefaultMinimumPayoutAmount { get; set; } = 100;
+
+    /// <summary>
+    /// Varsayilan odeme yontemi
+    /// </summary>
+    public string DefaultPaymentMethod { get; set; } = "Bank Transfer";
 }

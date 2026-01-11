@@ -1,9 +1,11 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
+using Merge.Application.Configuration;
 using UserEntity = Merge.Domain.Entities.User;
 using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
@@ -25,14 +27,22 @@ public class SellerCommissionService : ISellerCommissionService
     private readonly IEmailService _emailService;
     private readonly IMapper _mapper;
     private readonly ILogger<SellerCommissionService> _logger;
+    private readonly IOptions<SellerSettings> _sellerSettings;
 
-    public SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, IMapper mapper, ILogger<SellerCommissionService> logger)
+    public SellerCommissionService(
+        IDbContext context,
+        IUnitOfWork unitOfWork,
+        IEmailService emailService,
+        IMapper mapper,
+        ILogger<SellerCommissionService> logger,
+        IOptions<SellerSettings> sellerSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _emailService = emailService;
         _mapper = mapper;
         _logger = logger;
+        _sellerSettings = sellerSettings;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -99,8 +109,9 @@ public class SellerCommissionService : ISellerCommissionService
             }
             else
             {
-                commissionRate = 10; // Default 10%
-                platformFeeRate = 2; // Default 2%
+                // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
+                commissionRate = _sellerSettings.Value.DefaultCommissionRateWhenNoTier;
+                platformFeeRate = _sellerSettings.Value.DefaultPlatformFeeRate;
             }
         }
 
@@ -109,18 +120,14 @@ public class SellerCommissionService : ISellerCommissionService
         var platformFee = orderAmount * (platformFeeRate / 100);
         var netAmount = commissionAmount - platformFee;
 
-        var commission = new SellerCommission
-        {
-            SellerId = sellerId,
-            OrderId = orderId,
-            OrderItemId = orderItemId,
-            OrderAmount = orderAmount,
-            CommissionRate = commissionRate,
-            CommissionAmount = commissionAmount,
-            PlatformFee = platformFee,
-            NetAmount = netAmount,
-            Status = CommissionStatus.Pending
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var commission = SellerCommission.Create(
+            sellerId: sellerId,
+            orderId: orderId,
+            orderItemId: orderItemId,
+            orderAmount: orderAmount,
+            commissionRate: commissionRate,
+            platformFee: platformFee);
 
         await _context.Set<SellerCommission>().AddAsync(commission, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -227,8 +234,8 @@ public class SellerCommissionService : ISellerCommissionService
 
         if (commission == null) return false;
 
-        commission.Status = CommissionStatus.Approved;
-        commission.ApprovedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        commission.Approve();
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -244,7 +251,8 @@ public class SellerCommissionService : ISellerCommissionService
 
         if (commission == null) return false;
 
-        commission.Status = CommissionStatus.Cancelled;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        commission.Cancel();
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -254,30 +262,20 @@ public class SellerCommissionService : ISellerCommissionService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<CommissionTierDto> CreateTierAsync(CreateCommissionTierDto dto, CancellationToken cancellationToken = default)
     {
-        var tier = new CommissionTier
-        {
-            Name = dto.Name,
-            MinSales = dto.MinSales,
-            MaxSales = dto.MaxSales,
-            CommissionRate = dto.CommissionRate,
-            PlatformFeeRate = dto.PlatformFeeRate,
-            Priority = dto.Priority
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var tier = CommissionTier.Create(
+            name: dto.Name,
+            minSales: dto.MinSales,
+            maxSales: dto.MaxSales,
+            commissionRate: dto.CommissionRate,
+            platformFeeRate: dto.PlatformFeeRate,
+            priority: dto.Priority);
 
         await _context.Set<CommissionTier>().AddAsync(tier, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new CommissionTierDto
-        {
-            Id = tier.Id,
-            Name = tier.Name,
-            MinSales = tier.MinSales,
-            MaxSales = tier.MaxSales,
-            CommissionRate = tier.CommissionRate,
-            PlatformFeeRate = tier.PlatformFeeRate,
-            IsActive = tier.IsActive,
-            Priority = tier.Priority
-        };
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        return _mapper.Map<CommissionTierDto>(tier);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -317,12 +315,14 @@ public class SellerCommissionService : ISellerCommissionService
 
         if (tier == null) return false;
 
-        tier.Name = dto.Name;
-        tier.MinSales = dto.MinSales;
-        tier.MaxSales = dto.MaxSales;
-        tier.CommissionRate = dto.CommissionRate;
-        tier.PlatformFeeRate = dto.PlatformFeeRate;
-        tier.Priority = dto.Priority;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        tier.UpdateDetails(
+            name: dto.Name,
+            minSales: dto.MinSales,
+            maxSales: dto.MaxSales,
+            commissionRate: dto.CommissionRate,
+            platformFeeRate: dto.PlatformFeeRate,
+            priority: dto.Priority);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -338,7 +338,8 @@ public class SellerCommissionService : ISellerCommissionService
 
         if (tier == null) return false;
 
-        tier.IsDeleted = true;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        tier.Delete();
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -366,27 +367,35 @@ public class SellerCommissionService : ISellerCommissionService
 
         if (settings == null)
         {
-            settings = new SellerCommissionSettings
-            {
-                SellerId = sellerId
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
+            settings = SellerCommissionSettings.Create(
+                sellerId: sellerId,
+                minimumPayoutAmount: dto.MinimumPayoutAmount ?? _sellerSettings.Value.DefaultMinimumPayoutAmount);
             await _context.Set<SellerCommissionSettings>().AddAsync(settings, cancellationToken);
         }
 
-        if (dto.CustomCommissionRate.HasValue)
-            settings.CustomCommissionRate = dto.CustomCommissionRate.Value;
-
-        if (dto.UseCustomRate.HasValue)
-            settings.UseCustomRate = dto.UseCustomRate.Value;
+        if (dto.CustomCommissionRate.HasValue || dto.UseCustomRate.HasValue)
+        {
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            settings.UpdateCustomCommissionRate(
+                commissionRate: dto.CustomCommissionRate ?? settings.CustomCommissionRate,
+                useCustomRate: dto.UseCustomRate ?? settings.UseCustomRate);
+        }
 
         if (dto.MinimumPayoutAmount.HasValue)
-            settings.MinimumPayoutAmount = dto.MinimumPayoutAmount.Value;
+        {
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            settings.UpdateMinimumPayoutAmount(dto.MinimumPayoutAmount.Value);
+        }
 
-        if (dto.PaymentMethod != null)
-            settings.PaymentMethod = dto.PaymentMethod;
-
-        if (dto.PaymentDetails != null)
-            settings.PaymentDetails = dto.PaymentDetails;
+        if (dto.PaymentMethod != null || dto.PaymentDetails != null)
+        {
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            settings.UpdatePaymentMethod(
+                paymentMethod: dto.PaymentMethod,
+                paymentDetails: dto.PaymentDetails);
+        }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -425,39 +434,32 @@ public class SellerCommissionService : ISellerCommissionService
             throw new ValidationException($"Minimum ödeme tutarı {settings.MinimumPayoutAmount}.");
         }
 
-        var transactionFee = totalAmount * 0.01m; // 1% transaction fee
+        // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
+        var transactionFee = totalAmount * (_sellerSettings.Value.PayoutTransactionFeeRate / 100);
         var netAmount = totalAmount - transactionFee;
 
         var payoutNumber = await GeneratePayoutNumberAsync(cancellationToken);
 
-        var payout = new CommissionPayout
-        {
-            SellerId = sellerId,
-            PayoutNumber = payoutNumber,
-            TotalAmount = totalAmount,
-            TransactionFee = transactionFee,
-            NetAmount = netAmount,
-            Status = PayoutStatus.Pending,
-            PaymentMethod = settings?.PaymentMethod ?? "Bank Transfer",
-            PaymentDetails = settings?.PaymentDetails
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
+        var payout = CommissionPayout.Create(
+            sellerId: sellerId,
+            payoutNumber: payoutNumber,
+            totalAmount: totalAmount,
+            transactionFee: transactionFee,
+            paymentMethod: settings?.PaymentMethod ?? _sellerSettings.Value.DefaultPaymentMethod,
+            paymentDetails: settings?.PaymentDetails);
 
         await _context.Set<CommissionPayout>().AddAsync(payout, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         foreach (var commission in commissions)
         {
-            var item = new CommissionPayoutItem
-            {
-                PayoutId = payout.Id,
-                CommissionId = commission.Id
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            payout.AddItem(commission.Id);
 
-            await _context.Set<CommissionPayoutItem>().AddAsync(item, cancellationToken);
-
-            commission.Status = CommissionStatus.Paid;
-            commission.PaidAt = DateTime.UtcNow;
-            commission.PaymentReference = payoutNumber;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            commission.MarkAsPaid(payoutNumber);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -560,9 +562,8 @@ public class SellerCommissionService : ISellerCommissionService
 
         if (payout == null) return false;
 
-        payout.Status = PayoutStatus.Processing;
-        payout.TransactionReference = transactionReference;
-        payout.ProcessedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        payout.Process(transactionReference);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -579,8 +580,8 @@ public class SellerCommissionService : ISellerCommissionService
 
         if (payout == null) return false;
 
-        payout.Status = PayoutStatus.Completed;
-        payout.CompletedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        payout.Complete();
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -607,17 +608,16 @@ public class SellerCommissionService : ISellerCommissionService
 
         if (payout == null) return false;
 
-        payout.Status = PayoutStatus.Failed;
-        payout.Notes = reason;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        payout.Fail(reason);
 
         // Revert commissions back to approved
         foreach (var item in payout.Items)
         {
             if (item.Commission != null)
             {
-                item.Commission.Status = CommissionStatus.Approved;
-                item.Commission.PaidAt = null;
-                item.Commission.PaymentReference = null;
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+                item.Commission.RevertToApproved();
             }
         }
 

@@ -103,7 +103,7 @@ public class SellerFinanceService : ISellerFinanceService
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    public async Task<SellerTransactionDto> CreateTransactionAsync(Guid sellerId, string transactionType, decimal amount, string description, Guid? relatedEntityId = null, string? relatedEntityType = null, CancellationToken cancellationToken = default)
+    public async Task<SellerTransactionDto> CreateTransactionAsync(Guid sellerId, SellerTransactionType transactionType, decimal amount, string description, Guid? relatedEntityId = null, string? relatedEntityType = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
         var seller = await _context.Set<SellerProfile>()
@@ -117,23 +117,32 @@ public class SellerFinanceService : ISellerFinanceService
         var balanceBefore = seller.AvailableBalance;
         var balanceAfter = balanceBefore + amount;
 
-        // Update seller balance
-        seller.AvailableBalance = balanceAfter;
-        seller.TotalEarnings += amount > 0 ? amount : 0;
-        seller.PendingBalance += amount < 0 ? Math.Abs(amount) : 0;
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var transaction = SellerTransaction.Create(
+            sellerId: sellerId,
+            transactionType: transactionType,
+            description: description,
+            amount: amount,
+            balanceBefore: balanceBefore,
+            relatedEntityId: relatedEntityId,
+            relatedEntityType: relatedEntityType);
 
-        var transaction = new SellerTransaction
+        // Update seller balance using domain methods
+        if (amount > 0)
         {
-            SellerId = sellerId,
-            TransactionType = transactionType,
-            Description = description,
-            Amount = amount,
-            BalanceBefore = balanceBefore,
-            BalanceAfter = balanceAfter,
-            RelatedEntityId = relatedEntityId,
-            RelatedEntityType = relatedEntityType,
-            Status = FinanceTransactionStatus.Completed
-        };
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            seller.AddEarnings(amount);
+        }
+        else
+        {
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            seller.DeductFromAvailableBalance(Math.Abs(amount));
+        }
+
+        await _context.Set<SellerTransaction>().AddAsync(transaction, cancellationToken);
+        
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        transaction.Complete();
 
         await _context.Set<SellerTransaction>().AddAsync(transaction, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -163,7 +172,8 @@ public class SellerFinanceService : ISellerFinanceService
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-    public async Task<PagedResult<SellerTransactionDto>> GetSellerTransactionsAsync(Guid sellerId, string? transactionType = null, DateTime? startDate = null, DateTime? endDate = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    // ✅ ARCHITECTURE: Enum kullanımı (string TransactionType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public async Task<PagedResult<SellerTransactionDto>> GetSellerTransactionsAsync(Guid sellerId, SellerTransactionType? transactionType = null, DateTime? startDate = null, DateTime? endDate = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         if (pageSize > 100) pageSize = 100;
@@ -175,9 +185,10 @@ public class SellerFinanceService : ISellerFinanceService
             .Include(t => t.Seller)
             .Where(t => t.SellerId == sellerId);
 
-        if (!string.IsNullOrEmpty(transactionType))
+        // ✅ ARCHITECTURE: Enum kullanımı (string TransactionType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+        if (transactionType.HasValue)
         {
-            query = query.Where(t => t.TransactionType == transactionType);
+            query = query.Where(t => t.TransactionType == transactionType.Value);
         }
 
         if (startDate.HasValue)

@@ -79,9 +79,31 @@ public class SellerOnboardingService : ISellerOnboardingService
             throw new BusinessException("Zaten bekleyen veya onaylanmış bir başvurunuz var.");
         }
 
-        var application = _mapper.Map<SellerApplication>(applicationDto);
-        application.UserId = userId;
-        application.Status = SellerApplicationStatus.Pending;
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        // ✅ ARCHITECTURE: Enum kullanımı (string BusinessType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+        var application = SellerApplication.Create(
+            userId: userId,
+            businessName: applicationDto.BusinessName,
+            businessType: applicationDto.BusinessType,
+            taxNumber: applicationDto.TaxNumber,
+            address: applicationDto.Address,
+            city: applicationDto.City,
+            country: applicationDto.Country,
+            postalCode: applicationDto.PostalCode,
+            phoneNumber: applicationDto.PhoneNumber,
+            email: applicationDto.Email,
+            bankName: applicationDto.BankName,
+            bankAccountNumber: applicationDto.BankAccountNumber,
+            bankAccountHolderName: applicationDto.BankAccountHolderName,
+            iban: applicationDto.IBAN,
+            businessDescription: applicationDto.BusinessDescription,
+            productCategories: applicationDto.ProductCategories,
+            estimatedMonthlyRevenue: applicationDto.EstimatedMonthlyRevenue,
+            identityDocumentUrl: applicationDto.IdentityDocumentUrl,
+            taxCertificateUrl: applicationDto.TaxCertificateUrl,
+            bankStatementUrl: applicationDto.BankStatementUrl,
+            businessLicenseUrl: applicationDto.BusinessLicenseUrl
+        );
 
         application = await _applicationRepository.AddAsync(application);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -199,17 +221,20 @@ public class SellerOnboardingService : ISellerOnboardingService
                 throw new NotFoundException("Başvuru", applicationId);
             }
 
-            application.Status = reviewDto.Status;
-            application.RejectionReason = reviewDto.RejectionReason;
-            application.AdditionalNotes = reviewDto.AdditionalNotes;
-            application.ReviewedBy = reviewerId;
-            application.ReviewedAt = DateTime.UtcNow;
-
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             if (reviewDto.Status == SellerApplicationStatus.Approved)
             {
-                application.ApprovedAt = DateTime.UtcNow;
+                application.Approve(reviewerId);
                 await CreateSellerProfileAsync(application, cancellationToken);
                 _logger.LogInformation("Seller profile created for approved application {ApplicationId}", applicationId);
+            }
+            else if (reviewDto.Status == SellerApplicationStatus.Rejected)
+            {
+                application.Reject(reviewerId, reviewDto.RejectionReason ?? "Başvuru reddedildi");
+            }
+            else if (reviewDto.Status == SellerApplicationStatus.UnderReview)
+            {
+                application.Review(reviewerId, reviewDto.AdditionalNotes);
             }
 
             await _applicationRepository.UpdateAsync(application);

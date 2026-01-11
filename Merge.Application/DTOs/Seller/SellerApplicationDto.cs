@@ -9,7 +9,8 @@ public class SellerApplicationDto
     public string UserName { get; set; } = string.Empty;
     public string UserEmail { get; set; } = string.Empty;
     public string BusinessName { get; set; } = string.Empty;
-    public string BusinessType { get; set; } = string.Empty;
+    // ✅ ARCHITECTURE: Enum kullanımı (string BusinessType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public BusinessType BusinessType { get; set; }
     public string TaxNumber { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
     public string City { get; set; } = string.Empty;

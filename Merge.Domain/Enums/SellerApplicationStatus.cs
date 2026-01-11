@@ -7,6 +7,7 @@ namespace Merge.Domain.Enums;
 public enum SellerApplicationStatus
 {
     Pending,
+    Submitted,
     UnderReview,
     Approved,
     Rejected,

@@ -8,6 +8,7 @@ public enum SellerInvoiceStatus
 {
     Draft = 0,
     Sent = 1,
-    Paid = 2
+    Paid = 2,
+    Cancelled = 3
 }
 

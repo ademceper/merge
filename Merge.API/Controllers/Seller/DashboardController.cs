@@ -1,30 +1,41 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.User;
-using Merge.Application.Interfaces.Seller;
-using Merge.Application.DTOs.Order;
-using Merge.Application.DTOs.Product;
 using Merge.Application.DTOs.Seller;
 using Merge.API.Middleware;
+using Merge.API.Helpers;
 using Merge.Application.Common;
+using Merge.Application.Seller.Queries.GetDashboardStats;
+using Merge.Application.Seller.Queries.GetSellerOrders;
+using Merge.Application.Seller.Queries.GetSellerProducts;
+using Merge.Application.Seller.Queries.GetPerformanceMetrics;
+using Merge.Application.Seller.Queries.GetDetailedPerformanceMetrics;
+using Merge.Application.Seller.Queries.GetCategoryPerformance;
 
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
 // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
 namespace Merge.API.Controllers.Seller;
 
 [ApiController]
-[Route("api/seller/dashboard")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/seller/dashboard")]
 [Authorize(Roles = "Seller,Admin")]
 public class DashboardController : BaseController
 {
-    private readonly ISellerDashboardService _sellerDashboardService;
+    private readonly IMediator _mediator;
     
-    public DashboardController(ISellerDashboardService sellerDashboardService)
+    public DashboardController(IMediator mediator)
     {
-        _sellerDashboardService = sellerDashboardService;
+        _mediator = mediator;
     }
 
+    /// <summary>
+    /// Dashboard istatistiklerini getirir
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -39,60 +50,88 @@ public class DashboardController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var sellerId = GetUserId();
-        var stats = await _sellerDashboardService.GetDashboardStatsAsync(sellerId, cancellationToken);
-        return Ok(stats);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetDashboardStatsQuery(sellerId);
+        var stats = await _mediator.Send(query, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetStats", new { version }, version);
+        links["orders"] = new LinkDto { Href = $"/api/v{version}/seller/dashboard/orders", Method = "GET" };
+        links["products"] = new LinkDto { Href = $"/api/v{version}/seller/dashboard/products", Method = "GET" };
+        links["performance"] = new LinkDto { Href = $"/api/v{version}/seller/dashboard/performance", Method = "GET" };
+
+        return Ok(new { stats, _links = links });
     }
 
+    /// <summary>
+    /// Satıcının siparişlerini getirir
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     [HttpGet("orders")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
-    [ProducesResponseType(typeof(PagedResult<OrderDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<object>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<ActionResult<PagedResult<OrderDto>>> GetOrders(
+    public async Task<ActionResult<PagedResult<object>>> GetOrders(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
-
         var sellerId = GetUserId();
-        var orders = await _sellerDashboardService.GetSellerOrdersAsync(sellerId, page, pageSize, cancellationToken);
-        return Ok(orders);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSellerOrdersQuery(sellerId, page, pageSize);
+        var result = await _mediator.Send(query, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreatePaginationLinks(Url, "GetOrders", page, pageSize, result.TotalPages, new { version }, version);
+
+        return Ok(new { result.Items, result.TotalCount, result.Page, result.PageSize, result.TotalPages, _links = links });
     }
 
+    /// <summary>
+    /// Satıcının ürünlerini getirir
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     [HttpGet("products")]
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika
-    [ProducesResponseType(typeof(PagedResult<ProductDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<object>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<ActionResult<PagedResult<ProductDto>>> GetProducts(
+    public async Task<ActionResult<PagedResult<object>>> GetProducts(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
-
         var sellerId = GetUserId();
-        var products = await _sellerDashboardService.GetSellerProductsAsync(sellerId, page, pageSize, cancellationToken);
-        return Ok(products);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSellerProductsQuery(sellerId, page, pageSize);
+        var result = await _mediator.Send(query, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreatePaginationLinks(Url, "GetProducts", page, pageSize, result.TotalPages, new { version }, version);
+
+        return Ok(new { result.Items, result.TotalCount, result.Page, result.PageSize, result.TotalPages, _links = links });
     }
 
+    /// <summary>
+    /// Performans metriklerini getirir
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -109,10 +148,23 @@ public class DashboardController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var sellerId = GetUserId();
-        var performance = await _sellerDashboardService.GetPerformanceMetricsAsync(sellerId, startDate, endDate, cancellationToken);
-        return Ok(performance);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetPerformanceMetricsQuery(sellerId, startDate, endDate);
+        var performance = await _mediator.Send(query, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetPerformance", new { version, startDate, endDate }, version);
+        links["detailed"] = new LinkDto { Href = $"/api/v{version}/seller/dashboard/performance/detailed?startDate={startDate}&endDate={endDate}", Method = "GET" };
+        links["categories"] = new LinkDto { Href = $"/api/v{version}/seller/dashboard/performance/categories?startDate={startDate}&endDate={endDate}", Method = "GET" };
+
+        return Ok(new { performance, _links = links });
     }
 
+    /// <summary>
+    /// Detaylı performans metriklerini getirir
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -130,10 +182,22 @@ public class DashboardController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var sellerId = GetUserId();
-        var performance = await _sellerDashboardService.GetDetailedPerformanceMetricsAsync(sellerId, startDate, endDate, cancellationToken);
-        return Ok(performance);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetDetailedPerformanceMetricsQuery(sellerId, startDate, endDate);
+        var performance = await _mediator.Send(query, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetDetailedPerformance", new { version, startDate, endDate }, version);
+        links["performance"] = new LinkDto { Href = $"/api/v{version}/seller/dashboard/performance?startDate={startDate}&endDate={endDate}", Method = "GET" };
+
+        return Ok(new { performance, _links = links });
     }
 
+    /// <summary>
+    /// Kategori performansını getirir
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -150,7 +214,14 @@ public class DashboardController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var sellerId = GetUserId();
-        var performance = await _sellerDashboardService.GetCategoryPerformanceAsync(sellerId, startDate, endDate, cancellationToken);
-        return Ok(performance);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetCategoryPerformanceQuery(sellerId, startDate, endDate);
+        var performance = await _mediator.Send(query, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetCategoryPerformance", new { version, startDate, endDate }, version);
+
+        return Ok(new { performance, _links = links });
     }
 }

@@ -1,29 +1,43 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.User;
-using Merge.Application.Interfaces.Seller;
-using Merge.Domain.Entities;
-using Merge.Domain.Enums;
 using Merge.Application.DTOs.Seller;
 using Merge.API.Middleware;
+using Merge.API.Helpers;
 using Merge.Application.Common;
+using Merge.Application.Seller.Commands.SubmitSellerApplication;
+using Merge.Application.Seller.Queries.GetUserSellerApplication;
+using Merge.Application.Seller.Queries.GetSellerApplication;
+using Merge.Application.Seller.Queries.GetAllSellerApplications;
+using Merge.Application.Seller.Commands.ReviewSellerApplication;
+using Merge.Application.Seller.Commands.ApproveSellerApplication;
+using Merge.Application.Seller.Commands.RejectSellerApplication;
+using Merge.Application.Seller.Queries.GetSellerOnboardingStats;
+using Merge.Domain.Enums;
 
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
 // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
 namespace Merge.API.Controllers.Seller;
 
 [ApiController]
-[Route("api/seller/onboarding")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/seller/onboarding")]
 public class OnboardingController : BaseController
 {
-    private readonly ISellerOnboardingService _sellerOnboardingService;
+    private readonly IMediator _mediator;
 
-    public OnboardingController(ISellerOnboardingService sellerOnboardingService)
+    public OnboardingController(IMediator mediator)
     {
-        _sellerOnboardingService = sellerOnboardingService;
+        _mediator = mediator;
     }
 
+    /// <summary>
+    /// Satıcı başvurusu oluşturur
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -43,10 +57,22 @@ public class OnboardingController : BaseController
         if (validationResult != null) return validationResult;
 
         var userId = GetUserId();
-        var application = await _sellerOnboardingService.SubmitApplicationAsync(userId, applicationDto, cancellationToken);
-        return CreatedAtAction(nameof(GetMyApplication), new { id = application.Id }, application);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new SubmitSellerApplicationCommand(userId, applicationDto);
+        var application = await _mediator.Send(command, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetMyApplication", new { version }, version);
+        links["application"] = new LinkDto { Href = $"/api/v{version}/seller/onboarding/{application.Id}", Method = "GET" };
+
+        return CreatedAtAction(nameof(GetMyApplication), new { version }, new { application, _links = links });
     }
 
+    /// <summary>
+    /// Kullanıcının kendi başvurusunu getirir
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -62,16 +88,27 @@ public class OnboardingController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var userId = GetUserId();
-        var application = await _sellerOnboardingService.GetUserApplicationAsync(userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetUserSellerApplicationQuery(userId);
+        var application = await _mediator.Send(query, cancellationToken);
 
         if (application == null)
         {
             return NotFound();
         }
 
-        return Ok(application);
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetMyApplication", new { version }, version);
+        links["application"] = new LinkDto { Href = $"/api/v{version}/seller/onboarding/{application.Id}", Method = "GET" };
+
+        return Ok(new { application, _links = links });
     }
 
+    /// <summary>
+    /// Başvuru detaylarını getirir (Admin)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -88,16 +125,29 @@ public class OnboardingController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var application = await _sellerOnboardingService.GetApplicationByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSellerApplicationQuery(id);
+        var application = await _mediator.Send(query, cancellationToken);
 
         if (application == null)
         {
             return NotFound();
         }
 
-        return Ok(application);
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetApplication", new { version, id }, version);
+        links["review"] = new LinkDto { Href = $"/api/v{version}/seller/onboarding/{id}/review", Method = "POST" };
+        links["approve"] = new LinkDto { Href = $"/api/v{version}/seller/onboarding/{id}/approve", Method = "POST" };
+        links["reject"] = new LinkDto { Href = $"/api/v{version}/seller/onboarding/{id}/reject", Method = "POST" };
+
+        return Ok(new { application, _links = links });
     }
 
+    /// <summary>
+    /// Tüm başvuruları getirir (Admin)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -116,14 +166,21 @@ public class OnboardingController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetAllSellerApplicationsQuery(status, page, pageSize);
+        var result = await _mediator.Send(query, cancellationToken);
 
-        var applications = await _sellerOnboardingService.GetAllApplicationsAsync(status, page, pageSize, cancellationToken);
-        return Ok(applications);
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreatePaginationLinks(Url, "GetApplications", page, pageSize, result.TotalPages, new { version, status }, version);
+
+        return Ok(new { result.Items, result.TotalCount, result.Page, result.PageSize, result.TotalPages, _links = links });
     }
 
+    /// <summary>
+    /// Başvuruyu inceler (Admin)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -146,14 +203,31 @@ public class OnboardingController : BaseController
         if (validationResult != null) return validationResult;
 
         var reviewerId = GetUserId();
-        var application = await _sellerOnboardingService.ReviewApplicationAsync(id, reviewDto, reviewerId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new ReviewSellerApplicationCommand(
+            id,
+            reviewDto.Status,
+            reviewDto.RejectionReason,
+            reviewDto.AdditionalNotes,
+            reviewerId);
+        var application = await _mediator.Send(command, cancellationToken);
+
         if (application == null)
         {
             return NotFound();
         }
-        return Ok(application);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetApplication", new { version, id }, version);
+
+        return Ok(new { application, _links = links });
     }
 
+    /// <summary>
+    /// Başvuruyu onaylar (Admin)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -171,7 +245,9 @@ public class OnboardingController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var reviewerId = GetUserId();
-        var result = await _sellerOnboardingService.ApproveApplicationAsync(id, reviewerId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new ApproveSellerApplicationCommand(id, reviewerId);
+        var result = await _mediator.Send(command, cancellationToken);
 
         if (!result)
         {
@@ -181,6 +257,10 @@ public class OnboardingController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Başvuruyu reddeder (Admin)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -203,7 +283,9 @@ public class OnboardingController : BaseController
         if (validationResult != null) return validationResult;
 
         var reviewerId = GetUserId();
-        var result = await _sellerOnboardingService.RejectApplicationAsync(id, rejectDto.Reason, reviewerId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new RejectSellerApplicationCommand(id, rejectDto.Reason, reviewerId);
+        var result = await _mediator.Send(command, cancellationToken);
 
         if (!result)
         {
@@ -213,6 +295,10 @@ public class OnboardingController : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Onboarding istatistiklerini getirir (Admin)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -227,7 +313,14 @@ public class OnboardingController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var stats = await _sellerOnboardingService.GetOnboardingStatsAsync(cancellationToken);
-        return Ok(stats);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSellerOnboardingStatsQuery();
+        var stats = await _mediator.Send(query, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetStats", new { version }, version);
+
+        return Ok(new { stats, _links = links });
     }
 }

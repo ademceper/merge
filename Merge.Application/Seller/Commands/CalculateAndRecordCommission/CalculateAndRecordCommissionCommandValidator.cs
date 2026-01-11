@@ -1,0 +1,16 @@
+using FluentValidation;
+
+namespace Merge.Application.Seller.Commands.CalculateAndRecordCommission;
+
+// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
+public class CalculateAndRecordCommissionCommandValidator : AbstractValidator<CalculateAndRecordCommissionCommand>
+{
+    public CalculateAndRecordCommissionCommandValidator()
+    {
+        RuleFor(x => x.OrderId)
+            .NotEmpty().WithMessage("Order ID is required.");
+
+        RuleFor(x => x.OrderItemId)
+            .NotEmpty().WithMessage("Order Item ID is required.");
+    }
+}

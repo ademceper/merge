@@ -1,27 +1,54 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.User;
-using Merge.Application.Interfaces.Seller;
 using Merge.Application.DTOs.Seller;
 using Merge.API.Middleware;
+using Merge.API.Helpers;
 using Merge.Application.Common;
+using Merge.Application.Seller.Queries.GetCommission;
+using Merge.Application.Seller.Queries.GetSellerCommissions;
+using Merge.Application.Seller.Queries.GetAllCommissions;
+using Merge.Application.Seller.Commands.ApproveCommission;
+using Merge.Application.Seller.Commands.CancelCommission;
+using Merge.Application.Seller.Commands.CreateCommissionTier;
+using Merge.Application.Seller.Queries.GetAllCommissionTiers;
+using Merge.Application.Seller.Commands.UpdateCommissionTier;
+using Merge.Application.Seller.Commands.DeleteCommissionTier;
+using Merge.Application.Seller.Queries.GetSellerCommissionSettings;
+using Merge.Application.Seller.Commands.UpdateSellerCommissionSettings;
+using Merge.Application.Seller.Commands.RequestPayout;
+using Merge.Application.Seller.Queries.GetPayout;
+using Merge.Application.Seller.Queries.GetSellerPayouts;
+using Merge.Application.Seller.Queries.GetAllPayouts;
+using Merge.Application.Seller.Commands.ProcessPayout;
+using Merge.Application.Seller.Commands.CompletePayout;
+using Merge.Application.Seller.Commands.FailPayout;
+using Merge.Application.Seller.Queries.GetCommissionStats;
+using Merge.Application.Seller.Queries.GetAvailablePayoutAmount;
 
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
 // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
 namespace Merge.API.Controllers.Seller;
 
 [ApiController]
-[Route("api/seller/commissions")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/seller/commissions")]
 public class CommissionsController : BaseController
 {
-    private readonly ISellerCommissionService _commissionService;
+    private readonly IMediator _mediator;
 
-    public CommissionsController(ISellerCommissionService commissionService)
+    public CommissionsController(IMediator mediator)
     {
-        _commissionService = commissionService;
+        _mediator = mediator;
     }
 
+    /// <summary>
+    /// Komisyon detaylarını getirir
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -43,7 +70,9 @@ public class CommissionsController : BaseController
             return Unauthorized();
         }
 
-        var commission = await _commissionService.GetCommissionAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetCommissionQuery(id);
+        var commission = await _mediator.Send(query, cancellationToken);
 
         if (commission == null)
         {
@@ -56,9 +85,19 @@ public class CommissionsController : BaseController
             return Forbid();
         }
 
-        return Ok(commission);
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetCommission", new { version, id }, version);
+        links["approve"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/{id}/approve", Method = "POST" };
+        links["cancel"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/{id}/cancel", Method = "POST" };
+
+        return Ok(new { commission, _links = links });
     }
 
+    /// <summary>
+    /// Satıcının komisyonlarını getirir
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -83,10 +122,21 @@ public class CommissionsController : BaseController
             return Forbid();
         }
 
-        var commissions = await _commissionService.GetSellerCommissionsAsync(sellerId, status, cancellationToken);
-        return Ok(commissions);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSellerCommissionsQuery(sellerId, status);
+        var commissions = await _mediator.Send(query, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetSellerCommissions", new { version, sellerId, status }, version);
+
+        return Ok(new { commissions, _links = links });
     }
 
+    /// <summary>
+    /// Kullanıcının kendi komisyonlarını getirir
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -107,10 +157,21 @@ public class CommissionsController : BaseController
             return Unauthorized();
         }
 
-        var commissions = await _commissionService.GetSellerCommissionsAsync(userId, status, cancellationToken);
-        return Ok(commissions);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSellerCommissionsQuery(userId, status);
+        var commissions = await _mediator.Send(query, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetMyCommissions", new { version, status }, version);
+
+        return Ok(new { commissions, _links = links });
     }
 
+    /// <summary>
+    /// Tüm komisyonları getirir (Admin/Manager)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -129,14 +190,21 @@ public class CommissionsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetAllCommissionsQuery(status, page, pageSize);
+        var result = await _mediator.Send(query, cancellationToken);
 
-        var commissions = await _commissionService.GetAllCommissionsAsync(status, page, pageSize, cancellationToken);
-        return Ok(commissions);
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreatePaginationLinks(Url, "GetAllCommissions", page, pageSize, result.TotalPages, new { version, status }, version);
+
+        return Ok(new { result.Items, result.TotalCount, result.Page, result.PageSize, result.TotalPages, _links = links });
     }
 
+    /// <summary>
+    /// Komisyonu onaylar (Admin/Manager)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -153,7 +221,9 @@ public class CommissionsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _commissionService.ApproveCommissionAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new ApproveCommissionCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -163,6 +233,10 @@ public class CommissionsController : BaseController
         return Ok();
     }
 
+    /// <summary>
+    /// Komisyonu iptal eder (Admin/Manager)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -179,7 +253,9 @@ public class CommissionsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _commissionService.CancelCommissionAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new CancelCommissionCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -189,14 +265,17 @@ public class CommissionsController : BaseController
         return Ok();
     }
 
-    // Commission Tiers
+    /// <summary>
+    /// Komisyon tier'ı oluşturur (Admin)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpPost("tiers")]
     [Authorize(Roles = "Admin")]
     [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
-    [ProducesResponseType(typeof(CommissionTierDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(CommissionTierDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -206,10 +285,29 @@ public class CommissionsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var tier = await _commissionService.CreateTierAsync(dto, cancellationToken);
-        return Ok(tier);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new CreateCommissionTierCommand(
+            dto.Name,
+            dto.MinSales,
+            dto.MaxSales,
+            dto.CommissionRate,
+            dto.PlatformFeeRate,
+            dto.Priority);
+        var tier = await _mediator.Send(command, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetAllTiers", new { version }, version);
+        links["update"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/tiers/{tier.Id}", Method = "PUT" };
+        links["delete"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/tiers/{tier.Id}", Method = "DELETE" };
+
+        return CreatedAtAction(nameof(GetAllTiers), new { version }, new { tier, _links = links });
     }
 
+    /// <summary>
+    /// Tüm komisyon tier'larını getirir
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -221,10 +319,21 @@ public class CommissionsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var tiers = await _commissionService.GetAllTiersAsync(cancellationToken);
-        return Ok(tiers);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetAllCommissionTiersQuery();
+        var tiers = await _mediator.Send(query, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetAllTiers", new { version }, version);
+
+        return Ok(new { tiers, _links = links });
     }
 
+    /// <summary>
+    /// Komisyon tier'ını günceller (Admin)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -243,7 +352,16 @@ public class CommissionsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _commissionService.UpdateTierAsync(id, dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new UpdateCommissionTierCommand(
+            id,
+            dto.Name,
+            dto.MinSales,
+            dto.MaxSales,
+            dto.CommissionRate,
+            dto.PlatformFeeRate,
+            dto.Priority);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -253,6 +371,10 @@ public class CommissionsController : BaseController
         return Ok();
     }
 
+    /// <summary>
+    /// Komisyon tier'ını siler (Admin)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -269,7 +391,9 @@ public class CommissionsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _commissionService.DeleteTierAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeleteCommissionTierCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -279,7 +403,10 @@ public class CommissionsController : BaseController
         return Ok();
     }
 
-    // Seller Settings
+    /// <summary>
+    /// Satıcı komisyon ayarlarını getirir
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -303,16 +430,27 @@ public class CommissionsController : BaseController
             return Forbid();
         }
 
-        var settings = await _commissionService.GetSellerSettingsAsync(sellerId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSellerCommissionSettingsQuery(sellerId);
+        var settings = await _mediator.Send(query, cancellationToken);
 
         if (settings == null)
         {
             return NotFound();
         }
 
-        return Ok(settings);
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetSellerSettings", new { version, sellerId }, version);
+        links["update"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/settings/{sellerId}", Method = "PUT" };
+
+        return Ok(new { settings, _links = links });
     }
 
+    /// <summary>
+    /// Satıcı komisyon ayarlarını günceller
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -337,18 +475,34 @@ public class CommissionsController : BaseController
             return Forbid();
         }
 
-        var settings = await _commissionService.UpdateSellerSettingsAsync(sellerId, dto, cancellationToken);
-        return Ok(settings);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new UpdateSellerCommissionSettingsCommand(
+            sellerId,
+            dto.CustomCommissionRate,
+            dto.UseCustomRate,
+            dto.MinimumPayoutAmount,
+            dto.PaymentMethod,
+            dto.PaymentDetails);
+        var settings = await _mediator.Send(command, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetSellerSettings", new { version, sellerId }, version);
+
+        return Ok(new { settings, _links = links });
     }
 
-    // Payouts
+    /// <summary>
+    /// Ödeme talebi oluşturur (Seller)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
     [HttpPost("payouts")]
     [Authorize(Roles = "Seller")]
     [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika (Payout request koruması)
-    [ProducesResponseType(typeof(CommissionPayoutDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(CommissionPayoutDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -363,10 +517,24 @@ public class CommissionsController : BaseController
             return Unauthorized();
         }
 
-        var payout = await _commissionService.RequestPayoutAsync(userId, dto, cancellationToken);
-        return Ok(payout);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new RequestPayoutCommand(userId, dto.CommissionIds);
+        var payout = await _mediator.Send(command, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetPayout", new { version, id = payout.Id }, version);
+        links["process"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/payouts/{payout.Id}/process", Method = "POST" };
+        links["complete"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/payouts/{payout.Id}/complete", Method = "POST" };
+        links["fail"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/payouts/{payout.Id}/fail", Method = "POST" };
+
+        return CreatedAtAction(nameof(GetPayout), new { version, id = payout.Id }, new { payout, _links = links });
     }
 
+    /// <summary>
+    /// Ödeme detaylarını getirir
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -388,7 +556,9 @@ public class CommissionsController : BaseController
             return Unauthorized();
         }
 
-        var payout = await _commissionService.GetPayoutAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetPayoutQuery(id);
+        var payout = await _mediator.Send(query, cancellationToken);
 
         if (payout == null)
         {
@@ -401,9 +571,23 @@ public class CommissionsController : BaseController
             return Forbid();
         }
 
-        return Ok(payout);
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetPayout", new { version, id }, version);
+        if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+        {
+            links["process"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/payouts/{id}/process", Method = "POST" };
+            links["complete"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/payouts/{id}/complete", Method = "POST" };
+            links["fail"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/payouts/{id}/fail", Method = "POST" };
+        }
+
+        return Ok(new { payout, _links = links });
     }
 
+    /// <summary>
+    /// Satıcının ödemelerini getirir
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -426,10 +610,21 @@ public class CommissionsController : BaseController
             return Forbid();
         }
 
-        var payouts = await _commissionService.GetSellerPayoutsAsync(sellerId, cancellationToken);
-        return Ok(payouts);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSellerPayoutsQuery(sellerId);
+        var payouts = await _mediator.Send(query, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetSellerPayouts", new { version, sellerId }, version);
+
+        return Ok(new { payouts, _links = links });
     }
 
+    /// <summary>
+    /// Kullanıcının kendi ödemelerini getirir
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -449,10 +644,21 @@ public class CommissionsController : BaseController
             return Unauthorized();
         }
 
-        var payouts = await _commissionService.GetSellerPayoutsAsync(userId, cancellationToken);
-        return Ok(payouts);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSellerPayoutsQuery(userId);
+        var payouts = await _mediator.Send(query, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetMyPayouts", new { version }, version);
+
+        return Ok(new { payouts, _links = links });
     }
 
+    /// <summary>
+    /// Tüm ödemeleri getirir (Admin/Manager)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -471,14 +677,21 @@ public class CommissionsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
-        if (page < 1) page = 1;
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetAllPayoutsQuery(status, page, pageSize);
+        var result = await _mediator.Send(query, cancellationToken);
 
-        var payouts = await _commissionService.GetAllPayoutsAsync(status, page, pageSize, cancellationToken);
-        return Ok(payouts);
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreatePaginationLinks(Url, "GetAllPayouts", page, pageSize, result.TotalPages, new { version, status }, version);
+
+        return Ok(new { result.Items, result.TotalCount, result.Page, result.PageSize, result.TotalPages, _links = links });
     }
 
+    /// <summary>
+    /// Ödemeyi işleme alır (Admin/Manager)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -497,7 +710,9 @@ public class CommissionsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _commissionService.ProcessPayoutAsync(id, dto.TransactionReference, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new ProcessPayoutCommand(id, dto.TransactionReference);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -507,6 +722,10 @@ public class CommissionsController : BaseController
         return Ok();
     }
 
+    /// <summary>
+    /// Ödemeyi tamamlar (Admin/Manager)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -523,7 +742,9 @@ public class CommissionsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _commissionService.CompletePayoutAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new CompletePayoutCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -533,6 +754,10 @@ public class CommissionsController : BaseController
         return Ok();
     }
 
+    /// <summary>
+    /// Ödemeyi başarısız olarak işaretler (Admin/Manager)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -551,7 +776,9 @@ public class CommissionsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _commissionService.FailPayoutAsync(id, dto.Reason, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new FailPayoutCommand(id, dto.Reason);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -561,7 +788,10 @@ public class CommissionsController : BaseController
         return Ok();
     }
 
-    // Stats
+    /// <summary>
+    /// Komisyon istatistiklerini getirir
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -584,10 +814,21 @@ public class CommissionsController : BaseController
             sellerId = userId;
         }
 
-        var stats = await _commissionService.GetCommissionStatsAsync(sellerId, cancellationToken);
-        return Ok(stats);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetCommissionStatsQuery(sellerId);
+        var stats = await _mediator.Send(query, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetCommissionStats", new { version, sellerId }, version);
+
+        return Ok(new { stats, _links = links });
     }
 
+    /// <summary>
+    /// Kullanılabilir ödeme tutarını getirir (Seller)
+    /// </summary>
+    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
     // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
@@ -607,7 +848,15 @@ public class CommissionsController : BaseController
             return Unauthorized();
         }
 
-        var amount = await _commissionService.GetAvailablePayoutAmountAsync(userId, cancellationToken);
-        return Ok(new { availableAmount = amount });
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetAvailablePayoutAmountQuery(userId);
+        var amount = await _mediator.Send(query, cancellationToken);
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetAvailablePayoutAmount", new { version }, version);
+        links["requestPayout"] = new LinkDto { Href = $"/api/v{version}/seller/commissions/payouts", Method = "POST" };
+
+        return Ok(new { availableAmount = amount, _links = links });
     }
 }

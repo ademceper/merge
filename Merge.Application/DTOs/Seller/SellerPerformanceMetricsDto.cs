@@ -12,11 +12,13 @@ public class SellerPerformanceMetricsDto
     public int TotalOrders { get; set; }
     public int PreviousPeriodOrders { get; set; }
     public decimal OrderGrowth { get; set; } // Percentage
+    public decimal OrdersGrowth { get; set; } // Percentage (alias for OrderGrowth)
     public decimal AverageOrderValue { get; set; }
     public decimal PreviousPeriodAOV { get; set; }
     
     // Customer Metrics
     public int TotalCustomers { get; set; }
+    public int UniqueCustomers { get; set; }
     public int NewCustomers { get; set; }
     public int ReturningCustomers { get; set; }
     public decimal CustomerRetentionRate { get; set; } // Percentage
@@ -28,6 +30,7 @@ public class SellerPerformanceMetricsDto
     public int LowStockProducts { get; set; }
     public int OutOfStockProducts { get; set; }
     public decimal AverageProductRating { get; set; }
+    public decimal AverageRating { get; set; }
     public int TotalReviews { get; set; }
     
     // Order Fulfillment Metrics

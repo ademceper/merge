@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 
 namespace Merge.Application.DTOs.Seller;
 
@@ -10,8 +11,8 @@ public class CreateSellerApplicationDto
     public string BusinessName { get; set; } = string.Empty;
     
     [Required]
-    [StringLength(50)]
-    public string BusinessType { get; set; } = string.Empty;
+    // ✅ ARCHITECTURE: Enum kullanımı (string BusinessType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public BusinessType BusinessType { get; set; }
     
     [Required]
     [StringLength(50, MinimumLength = 10, ErrorMessage = "Vergi numarası en az 10, en fazla 50 karakter olmalıdır.")]
@@ -66,4 +67,16 @@ public class CreateSellerApplicationDto
     
     [Range(0, double.MaxValue, ErrorMessage = "Tahmini aylık gelir 0 veya daha büyük olmalıdır.")]
     public decimal EstimatedMonthlyRevenue { get; set; }
+    
+    [StringLength(500)]
+    public string? IdentityDocumentUrl { get; set; }
+    
+    [StringLength(500)]
+    public string? TaxCertificateUrl { get; set; }
+    
+    [StringLength(500)]
+    public string? BankStatementUrl { get; set; }
+    
+    [StringLength(500)]
+    public string? BusinessLicenseUrl { get; set; }
 }

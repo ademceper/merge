@@ -1,0 +1,11 @@
+using MediatR;
+using Merge.Application.DTOs.Seller;
+
+namespace Merge.Application.Seller.Queries.GetStoreStats;
+
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+public record GetStoreStatsQuery(
+    Guid StoreId,
+    DateTime? StartDate = null,
+    DateTime? EndDate = null
+) : IRequest<StoreStatsDto>;

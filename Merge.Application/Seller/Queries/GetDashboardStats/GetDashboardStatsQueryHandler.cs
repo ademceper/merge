@@ -1,0 +1,94 @@
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Merge.Application.DTOs.Seller;
+using Merge.Application.Interfaces;
+using Merge.Application.Exceptions;
+using Merge.Domain.Entities;
+using Merge.Domain.Enums;
+using OrderEntity = Merge.Domain.Entities.Order;
+using ProductEntity = Merge.Domain.Entities.Product;
+using ReviewEntity = Merge.Domain.Entities.Review;
+
+namespace Merge.Application.Seller.Queries.GetDashboardStats;
+
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQuery, SellerDashboardStatsDto>
+{
+    private readonly IDbContext _context;
+    private readonly ILogger<GetDashboardStatsQueryHandler> _logger;
+
+    public GetDashboardStatsQueryHandler(
+        IDbContext context,
+        ILogger<GetDashboardStatsQueryHandler> logger)
+    {
+        _context = context;
+        _logger = logger;
+    }
+
+    public async Task<SellerDashboardStatsDto> Handle(GetDashboardStatsQuery request, CancellationToken cancellationToken)
+    {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation("Getting dashboard stats. SellerId: {SellerId}", request.SellerId);
+
+        // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
+        var sellerProfile = await _context.Set<SellerProfile>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(sp => sp.UserId == request.SellerId, cancellationToken);
+
+        if (sellerProfile == null)
+        {
+            _logger.LogWarning("Seller profile not found. SellerId: {SellerId}", request.SellerId);
+            throw new NotFoundException("Satıcı profili", request.SellerId);
+        }
+
+        var today = DateTime.UtcNow.Date;
+        
+        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
+        var stats = new SellerDashboardStatsDto
+        {
+            TotalProducts = await _context.Set<ProductEntity>()
+                .AsNoTracking()
+                .CountAsync(p => p.SellerId == request.SellerId, cancellationToken),
+            ActiveProducts = await _context.Set<ProductEntity>()
+                .AsNoTracking()
+                .CountAsync(p => p.SellerId == request.SellerId && p.IsActive, cancellationToken),
+            TotalOrders = await _context.Set<OrderEntity>()
+                .AsNoTracking()
+                .CountAsync(o => o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId), cancellationToken),
+            PendingOrders = await _context.Set<OrderEntity>()
+                .AsNoTracking()
+                .CountAsync(o => o.Status == OrderStatus.Pending &&
+                           o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId), cancellationToken),
+            TotalRevenue = await _context.Set<OrderEntity>()
+                .AsNoTracking()
+                .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
+                      o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId))
+                .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == request.SellerId))
+                .SumAsync(oi => oi.TotalPrice, cancellationToken),
+            PendingBalance = sellerProfile.PendingBalance,
+            AvailableBalance = sellerProfile.AvailableBalance,
+            AverageRating = sellerProfile.AverageRating,
+            TotalReviews = await _context.Set<ReviewEntity>()
+                .AsNoTracking()
+                .CountAsync(r => r.IsApproved &&
+                           r.Product.SellerId == request.SellerId, cancellationToken),
+            TodayOrders = await _context.Set<OrderEntity>()
+                .AsNoTracking()
+                .CountAsync(o => o.CreatedAt.Date == today &&
+                           o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId), cancellationToken),
+            TodayRevenue = await _context.Set<OrderEntity>()
+                .AsNoTracking()
+                .Where(o => o.PaymentStatus == PaymentStatus.Completed && o.CreatedAt.Date == today &&
+                      o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId))
+                .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == request.SellerId))
+                .SumAsync(oi => oi.TotalPrice, cancellationToken),
+            LowStockProducts = await _context.Set<ProductEntity>()
+                .AsNoTracking()
+                .CountAsync(p => p.SellerId == request.SellerId &&
+                           p.StockQuantity <= 10 && p.IsActive, cancellationToken)
+        };
+
+        return stats;
+    }
+}

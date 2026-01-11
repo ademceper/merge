@@ -20,7 +20,7 @@ public class OrdersByUserSpec : Specification<Order>
 
         // ✅ BOLUM 7.2: Specification Pattern - Includes (Eager loading)
         AddInclude(o => o.OrderItems);
-        AddInclude(o => o.OrderItems.Select(oi => oi.Product!)); // Product navigation property
+        AddInclude(o => o.OrderItems.Select(oi => oi.Product)); // Product navigation property
         AddInclude(o => o.Payment);
         AddInclude(o => o.Address);
         AddInclude(o => o.User);

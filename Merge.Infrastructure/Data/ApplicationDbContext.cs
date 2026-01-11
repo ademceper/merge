@@ -880,8 +880,24 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
                   .HasForeignKey(e => e.ReviewedBy)
                   .OnDelete(DeleteBehavior.SetNull);
             entity.Property(e => e.BusinessName).IsRequired().HasMaxLength(200);
+            // ✅ ARCHITECTURE: Enum kullanımı (string BusinessType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+            entity.Property(e => e.BusinessType)
+                .HasConversion<string>()
+                .IsRequired()
+                .HasMaxLength(50);
             entity.Property(e => e.EstimatedMonthlyRevenue).HasPrecision(18, 2);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
             entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => new { e.UserId, e.Status });
+            entity.HasIndex(e => e.CreatedAt);
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_SellerApplication_EstimatedMonthlyRevenue_NonNegative", "\"EstimatedMonthlyRevenue\" >= 0");
+            });
         });
 
         // SellerDocument configuration
@@ -891,6 +907,24 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
                   .WithMany()
                   .HasForeignKey(e => e.SellerApplicationId)
                   .OnDelete(DeleteBehavior.Cascade);
+            
+            // ✅ ARCHITECTURE: Enum kullanımı (string DocumentType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+            entity.Property(e => e.DocumentType)
+                .HasConversion<string>()
+                .IsRequired()
+                .HasMaxLength(50);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
+            entity.HasIndex(e => e.SellerApplicationId);
+            entity.HasIndex(e => e.DocumentType);
+            entity.HasIndex(e => e.IsVerified);
+            entity.HasIndex(e => new { e.SellerApplicationId, e.DocumentType });
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_SellerDocument_FileSize_NonNegative", "\"FileSize\" >= 0");
+            });
         });
 
         // SearchHistory configuration
@@ -1478,9 +1512,23 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
             entity.Property(e => e.PlatformFee).HasPrecision(18, 2);
             entity.Property(e => e.NetAmount).HasPrecision(18, 2);
             entity.Property(e => e.PaymentReference).HasMaxLength(100);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
             entity.HasIndex(e => e.SellerId);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => new { e.OrderId, e.OrderItemId });
+            entity.HasIndex(e => new { e.SellerId, e.Status });
+            entity.HasIndex(e => new { e.SellerId, e.CreatedAt });
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_SellerCommission_OrderAmount_NonNegative", "\"OrderAmount\" >= 0");
+                t.HasCheckConstraint("CK_SellerCommission_CommissionRate_Range", "\"CommissionRate\" >= 0 AND \"CommissionRate\" <= 100");
+                t.HasCheckConstraint("CK_SellerCommission_CommissionAmount_NonNegative", "\"CommissionAmount\" >= 0");
+                t.HasCheckConstraint("CK_SellerCommission_PlatformFee_NonNegative", "\"PlatformFee\" >= 0");
+                t.HasCheckConstraint("CK_SellerCommission_NetAmount_NonNegative", "\"NetAmount\" >= 0");
+            });
         });
 
         // CommissionTier configuration
@@ -1491,8 +1539,20 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
             entity.Property(e => e.MaxSales).HasPrecision(18, 2);
             entity.Property(e => e.CommissionRate).HasPrecision(5, 2);
             entity.Property(e => e.PlatformFeeRate).HasPrecision(5, 2);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
             entity.HasIndex(e => e.IsActive);
             entity.HasIndex(e => e.Priority);
+            entity.HasIndex(e => new { e.IsActive, e.Priority });
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_CommissionTier_MinSales_NonNegative", "\"MinSales\" >= 0");
+                t.HasCheckConstraint("CK_CommissionTier_MaxSales_GreaterThan_MinSales", "\"MaxSales\" >= \"MinSales\"");
+                t.HasCheckConstraint("CK_CommissionTier_CommissionRate_Range", "\"CommissionRate\" >= 0 AND \"CommissionRate\" <= 100");
+                t.HasCheckConstraint("CK_CommissionTier_PlatformFeeRate_Range", "\"PlatformFeeRate\" >= 0 AND \"PlatformFeeRate\" <= 100");
+            });
         });
 
         // SellerCommissionSettings configuration
@@ -1502,7 +1562,16 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
             entity.Property(e => e.CustomCommissionRate).HasPrecision(5, 2);
             entity.Property(e => e.MinimumPayoutAmount).HasPrecision(18, 2);
             entity.Property(e => e.PaymentMethod).HasMaxLength(50);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
             entity.HasIndex(e => e.SellerId).IsUnique();
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_SellerCommissionSettings_CustomCommissionRate_Range", "\"CustomCommissionRate\" >= 0 AND \"CustomCommissionRate\" <= 100");
+                t.HasCheckConstraint("CK_SellerCommissionSettings_MinimumPayoutAmount_NonNegative", "\"MinimumPayoutAmount\" >= 0");
+            });
         });
 
         // CommissionPayout configuration
@@ -1681,8 +1750,14 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
         // SellerTransaction configuration
         modelBuilder.Entity<SellerTransaction>(entity =>
         {
-            entity.Property(e => e.TransactionType).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.Status).HasMaxLength(50);
+            // ✅ ARCHITECTURE: Enum kullanımı (string TransactionType yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+            entity.Property(e => e.TransactionType)
+                .HasConversion<string>()
+                .IsRequired()
+                .HasMaxLength(50);
+            entity.Property(e => e.Status)
+                .HasConversion<string>()
+                .HasMaxLength(50);
             entity.Property(e => e.RelatedEntityType).HasMaxLength(50);
             entity.Property(e => e.Amount).HasPrecision(18, 2);
             entity.Property(e => e.BalanceBefore).HasPrecision(18, 2);
@@ -1691,15 +1766,26 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
                   .WithMany()
                   .HasForeignKey(e => e.SellerId)
                   .OnDelete(DeleteBehavior.Cascade);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
             entity.HasIndex(e => new { e.SellerId, e.CreatedAt });
             entity.HasIndex(e => e.TransactionType);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => new { e.SellerId, e.Status });
+            entity.HasIndex(e => e.RelatedEntityId);
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_SellerTransaction_BalanceBefore_NonNegative", "\"BalanceBefore\" >= 0");
+                t.HasCheckConstraint("CK_SellerTransaction_BalanceAfter_NonNegative", "\"BalanceAfter\" >= 0");
+            });
         });
 
         // SellerInvoice configuration
         modelBuilder.Entity<SellerInvoice>(entity =>
         {
             entity.Property(e => e.InvoiceNumber).IsRequired().HasMaxLength(50);
-            entity.HasIndex(e => e.InvoiceNumber).IsUnique();
             entity.Property(e => e.Status).HasMaxLength(50);
             entity.Property(e => e.TotalEarnings).HasPrecision(18, 2);
             entity.Property(e => e.TotalCommissions).HasPrecision(18, 2);
@@ -1710,7 +1796,23 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
                   .WithMany()
                   .HasForeignKey(e => e.SellerId)
                   .OnDelete(DeleteBehavior.Cascade);
+            
+            // ✅ PERFORMANCE: Database Indexes (BOLUM 6.5)
+            entity.HasIndex(e => e.InvoiceNumber).IsUnique();
             entity.HasIndex(e => new { e.SellerId, e.InvoiceDate });
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => new { e.SellerId, e.Status });
+            entity.HasIndex(e => e.InvoiceDate);
+            
+            // ✅ SECURITY: Check Constraints (BOLUM 7.3)
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_SellerInvoice_TotalEarnings_NonNegative", "\"TotalEarnings\" >= 0");
+                t.HasCheckConstraint("CK_SellerInvoice_TotalCommissions_NonNegative", "\"TotalCommissions\" >= 0");
+                t.HasCheckConstraint("CK_SellerInvoice_TotalPayouts_NonNegative", "\"TotalPayouts\" >= 0");
+                t.HasCheckConstraint("CK_SellerInvoice_PlatformFees_NonNegative", "\"PlatformFees\" >= 0");
+                t.HasCheckConstraint("CK_SellerInvoice_NetAmount_NonNegative", "\"NetAmount\" >= 0");
+            });
         });
 
         // Store configuration

@@ -596,6 +596,7 @@ public class SellerDashboardService : ISellerDashboardService
                 CategoryId = g.Key.CategoryId,
                 CategoryName = g.Key.CategoryName,
                 ProductCount = g.Select(oi => oi.ProductId).Distinct().Count(),
+                OrderCount = g.Select(oi => oi.OrderId).Distinct().Count(),
                 OrdersCount = g.Select(oi => oi.OrderId).Distinct().Count(),
                 Revenue = g.Sum(oi => oi.TotalPrice),
                 AverageRating = 0
