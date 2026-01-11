@@ -2,17 +2,19 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Seller;
 
-public class CreateSellerInvoiceDto
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)
+// ✅ BOLUM 8.0: Over-posting Protection - init-only properties (ZORUNLU)
+public record CreateSellerInvoiceDto
 {
     [Required]
-    public Guid SellerId { get; set; }
+    public Guid SellerId { get; init; }
     
     [Required]
-    public DateTime PeriodStart { get; set; }
+    public DateTime PeriodStart { get; init; }
     
     [Required]
-    public DateTime PeriodEnd { get; set; }
+    public DateTime PeriodEnd { get; init; }
     
     [StringLength(2000)]
-    public string? Notes { get; set; }
+    public string? Notes { get; init; }
 }

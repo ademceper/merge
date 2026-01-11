@@ -4,10 +4,12 @@ using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Seller;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using ReviewEntity = Merge.Domain.Entities.Review;
 using Merge.Domain.Enums;
@@ -28,6 +30,8 @@ public class SellerDashboardService : ISellerDashboardService
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<SellerDashboardService> _logger;
+    private readonly SellerSettings _sellerSettings;
+    private readonly PaginationSettings _paginationSettings;
 
     public SellerDashboardService(
         IRepository<SellerProfile> sellerProfileRepository,
@@ -35,7 +39,9 @@ public class SellerDashboardService : ISellerDashboardService
         IRepository<OrderEntity> orderRepository,
         IDbContext context,
         IMapper mapper,
-        ILogger<SellerDashboardService> logger)
+        ILogger<SellerDashboardService> logger,
+        IOptions<SellerSettings> sellerSettings,
+        IOptions<PaginationSettings> paginationSettings)
     {
         _sellerProfileRepository = sellerProfileRepository;
         _productRepository = productRepository;
@@ -43,6 +49,8 @@ public class SellerDashboardService : ISellerDashboardService
         _context = context;
         _mapper = mapper;
         _logger = logger;
+        _sellerSettings = sellerSettings.Value;
+        _paginationSettings = paginationSettings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -102,7 +110,7 @@ public class SellerDashboardService : ISellerDashboardService
             LowStockProducts = await _context.Set<ProductEntity>()
                 .AsNoTracking()
                 .CountAsync(p => p.SellerId == sellerId &&
-                           p.StockQuantity <= 10 && p.IsActive, cancellationToken)
+                           p.StockQuantity <= _sellerSettings.LowStockThreshold && p.IsActive, cancellationToken)
         };
 
         return stats;
@@ -113,7 +121,8 @@ public class SellerDashboardService : ISellerDashboardService
     public async Task<PagedResult<OrderDto>> GetSellerOrdersAsync(Guid sellerId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic number config'den - PaginationSettings kullanımı
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
@@ -148,7 +157,8 @@ public class SellerDashboardService : ISellerDashboardService
     public async Task<PagedResult<ProductDto>> GetSellerProductsAsync(Guid sellerId, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic number config'den - PaginationSettings kullanımı
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
@@ -235,7 +245,7 @@ public class SellerDashboardService : ISellerDashboardService
                 Revenue = g.Sum(oi => oi.TotalPrice)
             })
             .OrderByDescending(p => p.Revenue)
-            .Take(10)
+            .Take(_sellerSettings.TopProductsLimit)
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
@@ -354,7 +364,7 @@ public class SellerDashboardService : ISellerDashboardService
 
         var lowStockProducts = await _context.Set<ProductEntity>()
             .AsNoTracking()
-            .CountAsync(p => p.SellerId == sellerId && p.IsActive && p.StockQuantity <= 10, cancellationToken);
+            .CountAsync(p => p.SellerId == sellerId && p.IsActive && p.StockQuantity <= _sellerSettings.LowStockThreshold, cancellationToken);
 
         var outOfStockProducts = await _context.Set<ProductEntity>()
             .AsNoTracking()
@@ -513,7 +523,7 @@ public class SellerDashboardService : ISellerDashboardService
                 Revenue = g.Sum(oi => oi.TotalPrice)
             })
             .OrderByDescending(p => p.Revenue)
-            .Take(10)
+            .Take(_sellerSettings.TopProductsLimit)
             .ToListAsync(cancellationToken);
 
         var worstProducts = await _context.Set<OrderItem>()
@@ -531,7 +541,7 @@ public class SellerDashboardService : ISellerDashboardService
                 Revenue = g.Sum(oi => oi.TotalPrice)
             })
             .OrderBy(p => p.Revenue)
-            .Take(10)
+            .Take(_sellerSettings.TopProductsLimit)
             .ToListAsync(cancellationToken);
 
         return new SellerPerformanceMetricsDto

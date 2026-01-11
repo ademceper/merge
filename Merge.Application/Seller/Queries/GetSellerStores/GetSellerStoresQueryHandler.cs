@@ -88,18 +88,19 @@ public class GetSellerStoresQueryHandler : IRequestHandler<GetSellerStoresQuery,
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var dtos = _mapper.Map<IEnumerable<StoreDto>>(stores).ToList();
         
-        // ✅ FIX: ProductCount set et
-        foreach (var dto in dtos)
+        // ✅ FIX: Record immutable - with expression kullan
+        var dtosWithProductCount = dtos.Select(dto =>
         {
             if (productCounts.TryGetValue(dto.Id, out var count))
             {
-                dto.ProductCount = count;
+                return dto with { ProductCount = count };
             }
-        }
+            return dto;
+        }).ToList();
         
         return new PagedResult<StoreDto>
         {
-            Items = dtos,
+            Items = dtosWithProductCount,
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize

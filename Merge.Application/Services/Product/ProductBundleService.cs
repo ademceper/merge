@@ -179,6 +179,12 @@ public class ProductBundleService : IProductBundleService
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        // ✅ FIX: CS8604 - dto.Name nullable olabilir, null check ekle
+        if (string.IsNullOrWhiteSpace(dto.Name))
+        {
+            throw new ValidationException("Paket adı boş olamaz.");
+        }
+        
         bundle.Update(
             name: dto.Name,
             description: dto.Description,

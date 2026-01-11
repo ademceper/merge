@@ -1,21 +1,27 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Application.DTOs.Seller;
 
-public class SellerInvoiceDto
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)
+// ✅ BOLUM 8.0: Over-posting Protection - init-only properties (ZORUNLU)
+// ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+public record SellerInvoiceDto
 {
-    public Guid Id { get; set; }
-    public Guid SellerId { get; set; }
-    public string SellerName { get; set; } = string.Empty;
-    public string InvoiceNumber { get; set; } = string.Empty;
-    public DateTime InvoiceDate { get; set; }
-    public DateTime PeriodStart { get; set; }
-    public DateTime PeriodEnd { get; set; }
-    public decimal TotalEarnings { get; set; }
-    public decimal TotalCommissions { get; set; }
-    public decimal TotalPayouts { get; set; }
-    public decimal PlatformFees { get; set; }
-    public decimal NetAmount { get; set; }
-    public string Status { get; set; } = string.Empty; // Draft, Sent, Paid
-    public DateTime? PaidAt { get; set; }
+    public Guid Id { get; init; }
+    public Guid SellerId { get; init; }
+    public string SellerName { get; init; } = string.Empty;
+    public string InvoiceNumber { get; init; } = string.Empty;
+    public DateTime InvoiceDate { get; init; }
+    public DateTime PeriodStart { get; init; }
+    public DateTime PeriodEnd { get; init; }
+    public decimal TotalEarnings { get; init; }
+    public decimal TotalCommissions { get; init; }
+    public decimal TotalPayouts { get; init; }
+    public decimal PlatformFees { get; init; }
+    public decimal NetAmount { get; init; }
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public SellerInvoiceStatus Status { get; init; }
+    public DateTime? PaidAt { get; init; }
     public List<InvoiceItemDto> Items { get; set; } = new();
-    public DateTime CreatedAt { get; set; }
+    public DateTime CreatedAt { get; init; }
 }

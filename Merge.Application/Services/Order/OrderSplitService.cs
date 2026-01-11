@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
+using AddressEntity = Merge.Domain.Entities.Address;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Order;
@@ -102,7 +103,7 @@ public class OrderSplitService : IOrderSplitService
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
             // Address entity'sini çek
             var addressId = dto.NewAddressId ?? originalOrder.AddressId;
-            var address = await _context.Set<Address>()
+            var address = await _context.Set<AddressEntity>()
                 .FirstOrDefaultAsync(a => a.Id == addressId, cancellationToken);
             
             if (address == null)
@@ -164,10 +165,10 @@ public class OrderSplitService : IOrderSplitService
 
             // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             // Address yükle (eğer NewAddressId varsa)
-            Address? newAddress = null;
+            AddressEntity? newAddress = null;
             if (dto.NewAddressId.HasValue)
             {
-                newAddress = await _context.Set<Address>()
+                newAddress = await _context.Set<AddressEntity>()
                     .FirstOrDefaultAsync(a => a.Id == dto.NewAddressId.Value, cancellationToken);
             }
 

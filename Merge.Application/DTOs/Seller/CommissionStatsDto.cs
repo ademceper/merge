@@ -1,14 +1,16 @@
 namespace Merge.Application.DTOs.Seller;
 
-public class CommissionStatsDto
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)
+// ✅ BOLUM 8.0: Over-posting Protection - init-only properties (ZORUNLU)
+public record CommissionStatsDto
 {
-    public int TotalCommissions { get; set; }
-    public decimal TotalEarnings { get; set; }
-    public decimal PendingCommissions { get; set; }
-    public decimal ApprovedCommissions { get; set; }
-    public decimal PaidCommissions { get; set; }
-    public decimal AvailableForPayout { get; set; }
-    public decimal AverageCommissionRate { get; set; }
-    public decimal TotalPlatformFees { get; set; }
-    public Dictionary<string, decimal> CommissionsByMonth { get; set; } = new();
+    public int TotalCommissions { get; init; }
+    public decimal TotalEarnings { get; init; }
+    public decimal PendingCommissions { get; init; }
+    public decimal ApprovedCommissions { get; init; }
+    public decimal PaidCommissions { get; init; }
+    public decimal AvailableForPayout { get; init; }
+    public decimal AverageCommissionRate { get; init; }
+    public decimal TotalPlatformFees { get; init; }
+    public Dictionary<string, decimal> CommissionsByMonth { get; init; } = new();
 }

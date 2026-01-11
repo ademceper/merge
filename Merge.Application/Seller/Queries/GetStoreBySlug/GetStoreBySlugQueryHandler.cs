@@ -44,10 +44,11 @@ public class GetStoreBySlugQueryHandler : IRequestHandler<GetStoreBySlugQuery, S
         var dto = _mapper.Map<StoreDto>(store);
         
         // ✅ PERFORMANCE: ProductCount için database'de count (N+1 fix)
-        dto.ProductCount = await _context.Set<ProductEntity>()
+        // ✅ FIX: Record immutable - with expression kullan
+        var productCount = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == store.Id, cancellationToken);
         
-        return dto;
+        return dto with { ProductCount = productCount };
     }
 }

@@ -3,6 +3,7 @@ using MediatR;
 using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces.User;
 using OrderEntity = Merge.Domain.Entities.Order;
+using AddressEntity = Merge.Domain.Entities.Address;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
@@ -156,7 +157,7 @@ public class OrderService : IOrderService
 
             // ✅ PERFORMANCE: AsNoTracking for read-only query (check için)
             // ✅ PERFORMANCE: Address entity'sini çek (Create factory method için gerekli)
-            var address = await _context.Set<Address>()
+            var address = await _context.Set<AddressEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(a => a.Id == addressId && a.UserId == userId, cancellationToken);
             if (address == null)

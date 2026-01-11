@@ -5,6 +5,7 @@ using Merge.Application.DTOs.Seller;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
 using Merge.Application.Common;
+using Merge.Domain.Enums;
 using Merge.Application.Seller.Queries.GetCommission;
 using Merge.Application.Seller.Queries.GetSellerCommissions;
 using Merge.Application.Seller.Queries.GetAllCommissions;
@@ -110,7 +111,7 @@ public class CommissionsController : BaseController
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<IEnumerable<SellerCommissionDto>>> GetSellerCommissions(
         Guid sellerId,
-        [FromQuery] string? status = null,
+        [FromQuery] CommissionStatus? status = null,
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -148,7 +149,7 @@ public class CommissionsController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<IEnumerable<SellerCommissionDto>>> GetMyCommissions(
-        [FromQuery] string? status = null,
+        [FromQuery] CommissionStatus? status = null,
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -184,7 +185,7 @@ public class CommissionsController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PagedResult<SellerCommissionDto>>> GetAllCommissions(
-        [FromQuery] string? status = null,
+        [FromQuery] CommissionStatus? status = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
@@ -671,7 +672,7 @@ public class CommissionsController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PagedResult<CommissionPayoutDto>>> GetAllPayouts(
-        [FromQuery] string? status = null,
+        [FromQuery] PayoutStatus? status = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)

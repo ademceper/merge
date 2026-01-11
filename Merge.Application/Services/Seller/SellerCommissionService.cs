@@ -28,6 +28,7 @@ public class SellerCommissionService : ISellerCommissionService
     private readonly IMapper _mapper;
     private readonly ILogger<SellerCommissionService> _logger;
     private readonly IOptions<SellerSettings> _sellerSettings;
+    private readonly PaginationSettings _paginationSettings;
 
     public SellerCommissionService(
         IDbContext context,
@@ -35,7 +36,8 @@ public class SellerCommissionService : ISellerCommissionService
         IEmailService emailService,
         IMapper mapper,
         ILogger<SellerCommissionService> logger,
-        IOptions<SellerSettings> sellerSettings)
+        IOptions<SellerSettings> sellerSettings,
+        IOptions<PaginationSettings> paginationSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -43,6 +45,7 @@ public class SellerCommissionService : ISellerCommissionService
         _mapper = mapper;
         _logger = logger;
         _sellerSettings = sellerSettings;
+        _paginationSettings = paginationSettings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -160,7 +163,8 @@ public class SellerCommissionService : ISellerCommissionService
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    public async Task<IEnumerable<SellerCommissionDto>> GetSellerCommissionsAsync(Guid sellerId, string? status = null, CancellationToken cancellationToken = default)
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public async Task<IEnumerable<SellerCommissionDto>> GetSellerCommissionsAsync(Guid sellerId, CommissionStatus? status = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sc.IsDeleted (Global Query Filter)
         IQueryable<SellerCommission> query = _context.Set<SellerCommission>()
@@ -170,10 +174,10 @@ public class SellerCommissionService : ISellerCommissionService
             .Include(sc => sc.OrderItem)
             .Where(sc => sc.SellerId == sellerId);
 
-        if (!string.IsNullOrEmpty(status))
+        // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+        if (status.HasValue)
         {
-            var commissionStatus = Enum.Parse<CommissionStatus>(status, true);
-            query = query.Where(sc => sc.Status == commissionStatus);
+            query = query.Where(sc => sc.Status == status.Value);
         }
 
         var commissions = await query
@@ -186,10 +190,12 @@ public class SellerCommissionService : ISellerCommissionService
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-    public async Task<PagedResult<SellerCommissionDto>> GetAllCommissionsAsync(string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public async Task<PagedResult<SellerCommissionDto>> GetAllCommissionsAsync(CommissionStatus? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic number config'den - PaginationSettings kullanımı
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sc.IsDeleted (Global Query Filter)
@@ -199,10 +205,10 @@ public class SellerCommissionService : ISellerCommissionService
             .Include(sc => sc.Order)
             .Include(sc => sc.OrderItem);
 
-        if (!string.IsNullOrEmpty(status))
+        // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+        if (status.HasValue)
         {
-            var commissionStatus = Enum.Parse<CommissionStatus>(status, true);
-            query = query.Where(sc => sc.Status == commissionStatus);
+            query = query.Where(sc => sc.Status == status.Value);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -513,10 +519,12 @@ public class SellerCommissionService : ISellerCommissionService
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-    public async Task<PagedResult<CommissionPayoutDto>> GetAllPayoutsAsync(string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public async Task<PagedResult<CommissionPayoutDto>> GetAllPayoutsAsync(PayoutStatus? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic number config'den - PaginationSettings kullanımı
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
@@ -527,10 +535,10 @@ public class SellerCommissionService : ISellerCommissionService
                 .ThenInclude(i => i.Commission)
                     .ThenInclude(c => c.Order);
 
-        if (!string.IsNullOrEmpty(status))
+        // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+        if (status.HasValue)
         {
-            var payoutStatus = Enum.Parse<PayoutStatus>(status, true);
-            query = query.Where(p => p.Status == payoutStatus);
+            query = query.Where(p => p.Status == status.Value);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

@@ -1,9 +1,11 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Seller;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using OrderEntity = Merge.Domain.Entities.Order;
@@ -17,13 +19,16 @@ public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQu
 {
     private readonly IDbContext _context;
     private readonly ILogger<GetDashboardStatsQueryHandler> _logger;
+    private readonly SellerSettings _sellerSettings;
 
     public GetDashboardStatsQueryHandler(
         IDbContext context,
-        ILogger<GetDashboardStatsQueryHandler> logger)
+        ILogger<GetDashboardStatsQueryHandler> logger,
+        IOptions<SellerSettings> sellerSettings)
     {
         _context = context;
         _logger = logger;
+        _sellerSettings = sellerSettings.Value;
     }
 
     public async Task<SellerDashboardStatsDto> Handle(GetDashboardStatsQuery request, CancellationToken cancellationToken)
@@ -86,7 +91,7 @@ public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQu
             LowStockProducts = await _context.Set<ProductEntity>()
                 .AsNoTracking()
                 .CountAsync(p => p.SellerId == request.SellerId &&
-                           p.StockQuantity <= 10 && p.IsActive, cancellationToken)
+                           p.StockQuantity <= _sellerSettings.LowStockThreshold && p.IsActive, cancellationToken)
         };
 
         return stats;

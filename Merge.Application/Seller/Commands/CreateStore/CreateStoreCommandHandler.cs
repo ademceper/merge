@@ -85,6 +85,7 @@ public class CreateStoreCommandHandler : IRequestHandler<CreateStoreCommand, Sto
             address: request.Dto.Address,
             city: request.Dto.City,
             country: request.Dto.Country,
+            postalCode: request.Dto.PostalCode,
             settings: request.Dto.Settings != null ? System.Text.Json.JsonSerializer.Serialize(request.Dto.Settings) : null);
 
         // Set as primary if requested
@@ -115,14 +116,15 @@ public class CreateStoreCommandHandler : IRequestHandler<CreateStoreCommand, Sto
         var storeDto = _mapper.Map<StoreDto>(reloadedStore);
         
         // ✅ PERFORMANCE: ProductCount için database'de count (N+1 fix)
-        storeDto.ProductCount = await _context.Set<ProductEntity>()
+        // ✅ FIX: Record immutable - with expression kullan
+        var productCount = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == reloadedStore.Id, cancellationToken);
         
         _logger.LogInformation("Store created. StoreId: {StoreId}, StoreName: {StoreName}",
             reloadedStore.Id, reloadedStore.StoreName);
         
-        return storeDto;
+        return storeDto with { ProductCount = productCount };
     }
 
 }

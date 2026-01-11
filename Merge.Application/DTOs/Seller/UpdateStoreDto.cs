@@ -37,6 +37,9 @@ public record UpdateStoreDto
     [StringLength(100)]
     public string? Country { get; init; }
     
+    [StringLength(20)]
+    public string? PostalCode { get; init; }
+    
     // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     public EntityStatus? Status { get; init; }
     

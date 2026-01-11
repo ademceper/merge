@@ -1,13 +1,15 @@
 namespace Merge.Application.DTOs.Seller;
 
-public class SellerBalanceDto
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)
+// ✅ BOLUM 8.0: Over-posting Protection - init-only properties (ZORUNLU)
+public record SellerBalanceDto
 {
-    public Guid SellerId { get; set; }
-    public string SellerName { get; set; } = string.Empty;
-    public decimal TotalEarnings { get; set; }
-    public decimal PendingBalance { get; set; }
-    public decimal AvailableBalance { get; set; }
-    public decimal InTransitBalance { get; set; } // Payouts being processed
-    public decimal TotalPayouts { get; set; }
-    public decimal NextPayoutDate { get; set; } // Days until next payout
+    public Guid SellerId { get; init; }
+    public string SellerName { get; init; } = string.Empty;
+    public decimal TotalEarnings { get; init; }
+    public decimal PendingBalance { get; init; }
+    public decimal AvailableBalance { get; init; }
+    public decimal InTransitBalance { get; init; } // Payouts being processed
+    public decimal TotalPayouts { get; init; }
+    public decimal NextPayoutDate { get; init; } // Days until next payout
 }

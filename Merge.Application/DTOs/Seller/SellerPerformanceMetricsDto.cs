@@ -1,64 +1,66 @@
 namespace Merge.Application.DTOs.Seller;
 
-public class SellerPerformanceMetricsDto
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)
+// ✅ BOLUM 8.0: Over-posting Protection - init-only properties (ZORUNLU)
+public record SellerPerformanceMetricsDto
 {
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
+    public DateTime StartDate { get; init; }
+    public DateTime EndDate { get; init; }
     
     // Sales Metrics
-    public decimal TotalSales { get; set; }
-    public decimal PreviousPeriodSales { get; set; }
-    public decimal SalesGrowth { get; set; } // Percentage
-    public int TotalOrders { get; set; }
-    public int PreviousPeriodOrders { get; set; }
-    public decimal OrderGrowth { get; set; } // Percentage
-    public decimal OrdersGrowth { get; set; } // Percentage (alias for OrderGrowth)
-    public decimal AverageOrderValue { get; set; }
-    public decimal PreviousPeriodAOV { get; set; }
+    public decimal TotalSales { get; init; }
+    public decimal PreviousPeriodSales { get; init; }
+    public decimal SalesGrowth { get; init; } // Percentage
+    public int TotalOrders { get; init; }
+    public int PreviousPeriodOrders { get; init; }
+    public decimal OrderGrowth { get; init; } // Percentage
+    public decimal OrdersGrowth { get; init; } // Percentage (alias for OrderGrowth)
+    public decimal AverageOrderValue { get; init; }
+    public decimal PreviousPeriodAOV { get; init; }
     
     // Customer Metrics
-    public int TotalCustomers { get; set; }
-    public int UniqueCustomers { get; set; }
-    public int NewCustomers { get; set; }
-    public int ReturningCustomers { get; set; }
-    public decimal CustomerRetentionRate { get; set; } // Percentage
-    public decimal CustomerLifetimeValue { get; set; }
+    public int TotalCustomers { get; init; }
+    public int UniqueCustomers { get; init; }
+    public int NewCustomers { get; init; }
+    public int ReturningCustomers { get; init; }
+    public decimal CustomerRetentionRate { get; init; } // Percentage
+    public decimal CustomerLifetimeValue { get; init; }
     
     // Product Metrics
-    public int TotalProducts { get; set; }
-    public int ActiveProducts { get; set; }
-    public int LowStockProducts { get; set; }
-    public int OutOfStockProducts { get; set; }
-    public decimal AverageProductRating { get; set; }
-    public decimal AverageRating { get; set; }
-    public int TotalReviews { get; set; }
+    public int TotalProducts { get; init; }
+    public int ActiveProducts { get; init; }
+    public int LowStockProducts { get; init; }
+    public int OutOfStockProducts { get; init; }
+    public decimal AverageProductRating { get; init; }
+    public decimal AverageRating { get; init; }
+    public int TotalReviews { get; init; }
     
     // Order Fulfillment Metrics
-    public decimal AverageFulfillmentTime { get; set; } // Hours
-    public decimal AverageShippingTime { get; set; } // Hours
-    public int OnTimeDeliveryRate { get; set; } // Percentage
-    public int LateDeliveries { get; set; }
+    public decimal AverageFulfillmentTime { get; init; } // Hours
+    public decimal AverageShippingTime { get; init; } // Hours
+    public int OnTimeDeliveryRate { get; init; } // Percentage
+    public int LateDeliveries { get; init; }
     
     // Return & Refund Metrics
-    public int TotalReturns { get; set; }
-    public decimal ReturnRate { get; set; } // Percentage
-    public decimal TotalRefunds { get; set; }
-    public decimal RefundRate { get; set; } // Percentage
+    public int TotalReturns { get; init; }
+    public decimal ReturnRate { get; init; } // Percentage
+    public decimal TotalRefunds { get; init; }
+    public decimal RefundRate { get; init; } // Percentage
     
     // Conversion Metrics
-    public int ProductViews { get; set; }
-    public int AddToCarts { get; set; }
-    public decimal ConversionRate { get; set; } // Percentage
-    public decimal CartAbandonmentRate { get; set; } // Percentage
+    public int ProductViews { get; init; }
+    public int AddToCarts { get; init; }
+    public decimal ConversionRate { get; init; } // Percentage
+    public decimal CartAbandonmentRate { get; init; } // Percentage
     
     // Category Performance
-    public List<CategoryPerformanceDto> CategoryPerformance { get; set; } = new();
+    public List<CategoryPerformanceDto> CategoryPerformance { get; init; } = new();
     
     // Time-based Trends
-    public List<SalesTrendDto> SalesTrends { get; set; } = new();
-    public List<OrderTrendDto> OrderTrends { get; set; } = new();
+    public List<SalesTrendDto> SalesTrends { get; init; } = new();
+    public List<OrderTrendDto> OrderTrends { get; init; } = new();
     
     // Top/Bottom Performers
-    public List<SellerTopProductDto> TopProducts { get; set; } = new();
-    public List<SellerTopProductDto> WorstProducts { get; set; } = new();
+    public List<SellerTopProductDto> TopProducts { get; init; } = new();
+    public List<SellerTopProductDto> WorstProducts { get; init; } = new();
 }

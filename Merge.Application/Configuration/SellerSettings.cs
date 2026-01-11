@@ -51,4 +51,19 @@ public class SellerSettings
     /// Varsayilan odeme yontemi
     /// </summary>
     public string DefaultPaymentMethod { get; set; } = "Bank Transfer";
+
+    /// <summary>
+    /// Top product listesi için limit (performance metrics)
+    /// </summary>
+    public int TopProductsLimit { get; set; } = 10;
+
+    /// <summary>
+    /// Low stock threshold (stok uyarısı için minimum miktar)
+    /// </summary>
+    public int LowStockThreshold { get; set; } = 10;
+
+    /// <summary>
+    /// Finance summary için recent transactions ve invoices limiti
+    /// </summary>
+    public int RecentItemsLimit { get; set; } = 10;
 }

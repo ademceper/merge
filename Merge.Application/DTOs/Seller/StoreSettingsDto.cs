@@ -5,82 +5,84 @@ namespace Merge.Application.DTOs.Seller;
 /// <summary>
 /// Store ayarlari icin typed DTO - Dictionary yerine guvenli
 /// </summary>
-public class StoreSettingsDto
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)
+// ✅ BOLUM 8.0: Over-posting Protection - init-only properties (ZORUNLU)
+public record StoreSettingsDto
 {
     /// <summary>
     /// Magaza acik mi
     /// </summary>
-    public bool IsOpen { get; set; } = true;
+    public bool IsOpen { get; init; } = true;
 
     /// <summary>
     /// Otomatik siparis onaylama aktif mi
     /// </summary>
-    public bool AutoAcceptOrders { get; set; } = true;
+    public bool AutoAcceptOrders { get; init; } = true;
 
     /// <summary>
     /// Minimum siparis tutari
     /// </summary>
     [Range(0, 100000)]
-    public decimal? MinimumOrderAmount { get; set; }
+    public decimal? MinimumOrderAmount { get; init; }
 
     /// <summary>
     /// Ucretsiz kargo icin minimum tutar
     /// </summary>
     [Range(0, 100000)]
-    public decimal? FreeShippingThreshold { get; set; }
+    public decimal? FreeShippingThreshold { get; init; }
 
     /// <summary>
     /// Varsayilan kargo maliyeti
     /// </summary>
     [Range(0, 10000)]
-    public decimal? DefaultShippingCost { get; set; }
+    public decimal? DefaultShippingCost { get; init; }
 
     /// <summary>
     /// Iade kabul suresi (gun)
     /// </summary>
     [Range(0, 365)]
-    public int? ReturnPeriodDays { get; set; }
+    public int? ReturnPeriodDays { get; init; }
 
     /// <summary>
     /// Stok uyari esigi
     /// </summary>
     [Range(0, 10000)]
-    public int? LowStockThreshold { get; set; }
+    public int? LowStockThreshold { get; init; }
 
     /// <summary>
     /// Email bildirimleri aktif mi
     /// </summary>
-    public bool EmailNotificationsEnabled { get; set; } = true;
+    public bool EmailNotificationsEnabled { get; init; } = true;
 
     /// <summary>
     /// SMS bildirimleri aktif mi
     /// </summary>
-    public bool SmsNotificationsEnabled { get; set; } = false;
+    public bool SmsNotificationsEnabled { get; init; } = false;
 
     /// <summary>
     /// Varsayilan dil kodu
     /// </summary>
     [StringLength(10)]
-    public string? DefaultLanguage { get; set; }
+    public string? DefaultLanguage { get; init; }
 
     /// <summary>
     /// Varsayilan para birimi
     /// </summary>
     [StringLength(3)]
-    public string? DefaultCurrency { get; set; }
+    public string? DefaultCurrency { get; init; }
 
     /// <summary>
     /// Calisma saatleri baslangic
     /// </summary>
-    public TimeSpan? WorkingHoursStart { get; set; }
+    public TimeSpan? WorkingHoursStart { get; init; }
 
     /// <summary>
     /// Calisma saatleri bitis
     /// </summary>
-    public TimeSpan? WorkingHoursEnd { get; set; }
+    public TimeSpan? WorkingHoursEnd { get; init; }
 
     /// <summary>
     /// Hafta sonu calisma aktif mi
     /// </summary>
-    public bool WorkOnWeekends { get; set; } = false;
+    public bool WorkOnWeekends { get; init; } = false;
 }

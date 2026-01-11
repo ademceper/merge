@@ -6,6 +6,7 @@ using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
+using AddressEntity = Merge.Domain.Entities.Address;
 
 namespace Merge.Application.Cart.Commands.ConvertPreOrderToOrder;
 
@@ -44,12 +45,12 @@ public class ConvertPreOrderToOrderCommandHandler : IRequestHandler<ConvertPreOr
                 throw new BusinessException("Ön sipariş zaten dönüştürülmüş.");
             }
 
-            var address = await _context.Set<Address>()
+            var address = await _context.Set<AddressEntity>()
                 .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId && a.IsDefault, cancellationToken);
 
             if (address == null)
             {
-                address = await _context.Set<Address>()
+                address = await _context.Set<AddressEntity>()
                     .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId, cancellationToken);
             }
 

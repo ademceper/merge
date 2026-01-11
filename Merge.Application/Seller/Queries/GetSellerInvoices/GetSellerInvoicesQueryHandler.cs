@@ -35,8 +35,9 @@ public class GetSellerInvoicesQueryHandler : IRequestHandler<GetSellerInvoicesQu
     public async Task<PagedResult<SellerInvoiceDto>> Handle(GetSellerInvoicesQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
         _logger.LogInformation("Getting seller invoices. SellerId: {SellerId}, Status: {Status}, Page: {Page}, PageSize: {PageSize}",
-            request.SellerId, request.Status ?? "All", request.Page, request.PageSize);
+            request.SellerId, request.Status?.ToString() ?? "All", request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic number config'den
@@ -51,10 +52,10 @@ public class GetSellerInvoicesQueryHandler : IRequestHandler<GetSellerInvoicesQu
             .Include(i => i.Seller)
             .Where(i => i.SellerId == request.SellerId);
 
-        if (!string.IsNullOrEmpty(request.Status))
+        // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+        if (request.Status.HasValue)
         {
-            var statusEnum = Enum.Parse<SellerInvoiceStatus>(request.Status, true);
-            query = query.Where(i => i.Status == statusEnum);
+            query = query.Where(i => i.Status == request.Status.Value);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

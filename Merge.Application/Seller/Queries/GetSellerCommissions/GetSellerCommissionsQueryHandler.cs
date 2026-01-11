@@ -30,7 +30,7 @@ public class GetSellerCommissionsQueryHandler : IRequestHandler<GetSellerCommiss
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Getting seller commissions. SellerId: {SellerId}, Status: {Status}",
-            request.SellerId, request.Status ?? "All");
+            request.SellerId, request.Status?.ToString() ?? "All");
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sc.IsDeleted (Global Query Filter)
         IQueryable<SellerCommission> query = _context.Set<SellerCommission>()
@@ -40,10 +40,10 @@ public class GetSellerCommissionsQueryHandler : IRequestHandler<GetSellerCommiss
             .Include(sc => sc.OrderItem)
             .Where(sc => sc.SellerId == request.SellerId);
 
-        if (!string.IsNullOrEmpty(request.Status))
+        // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+        if (request.Status.HasValue)
         {
-            var commissionStatus = Enum.Parse<CommissionStatus>(request.Status, true);
-            query = query.Where(sc => sc.Status == commissionStatus);
+            query = query.Where(sc => sc.Status == request.Status.Value);
         }
 
         var commissions = await query

@@ -31,6 +31,7 @@ public class SellerOnboardingService : ISellerOnboardingService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<SellerOnboardingService> _logger;
     private readonly SellerSettings _sellerSettings;
+    private readonly PaginationSettings _paginationSettings;
 
     public SellerOnboardingService(
         IRepository<SellerApplication> applicationRepository,
@@ -40,7 +41,8 @@ public class SellerOnboardingService : ISellerOnboardingService
         IEmailService emailService,
         IUnitOfWork unitOfWork,
         ILogger<SellerOnboardingService> logger,
-        IOptions<SellerSettings> sellerSettings)
+        IOptions<SellerSettings> sellerSettings,
+        IOptions<PaginationSettings> paginationSettings)
     {
         _applicationRepository = applicationRepository;
         _userManager = userManager;
@@ -50,6 +52,7 @@ public class SellerOnboardingService : ISellerOnboardingService
         _unitOfWork = unitOfWork;
         _logger = logger;
         _sellerSettings = sellerSettings.Value;
+        _paginationSettings = paginationSettings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -166,7 +169,8 @@ public class SellerOnboardingService : ISellerOnboardingService
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic number config'den - PaginationSettings kullanımı
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ FIX: Explicitly type as IQueryable to avoid IIncludableQueryable type mismatch
@@ -296,10 +300,8 @@ public class SellerOnboardingService : ISellerOnboardingService
                 return false;
             }
 
-            application.Status = SellerApplicationStatus.Approved;
-            application.ReviewedBy = reviewerId;
-            application.ReviewedAt = DateTime.UtcNow;
-            application.ApprovedAt = DateTime.UtcNow;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            application.Approve(reviewerId);
 
             await _applicationRepository.UpdateAsync(application);
             await CreateSellerProfileAsync(application, cancellationToken);
@@ -355,10 +357,8 @@ public class SellerOnboardingService : ISellerOnboardingService
             return false;
         }
 
-        application.Status = SellerApplicationStatus.Rejected;
-        application.RejectionReason = reason;
-        application.ReviewedBy = reviewerId;
-        application.ReviewedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        application.Reject(reviewerId, reason);
 
         await _applicationRepository.UpdateAsync(application);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -432,14 +432,16 @@ public class SellerOnboardingService : ISellerOnboardingService
             return;
         }
 
-        var profile = new SellerProfile
-        {
-            UserId = application.UserId,
-            StoreName = application.BusinessName,
-            CommissionRate = _sellerSettings.DefaultCommissionRate, // Configuration'dan alinan deger
-            Status = SellerStatus.Approved,
-            VerifiedAt = DateTime.UtcNow
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
+        var profile = SellerProfile.Create(
+            userId: application.UserId,
+            storeName: application.BusinessName,
+            commissionRate: _sellerSettings.DefaultCommissionRate);
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        profile.Verify();
+        profile.Activate();
 
         await _context.Set<SellerProfile>().AddAsync(profile, cancellationToken);
         _logger.LogInformation("Created seller profile for user {UserId} with store name: {StoreName}",

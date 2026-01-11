@@ -92,7 +92,8 @@ public class CreateProductFromTemplateCommandHandler : IRequestHandler<CreatePro
             }
             else if (request.ImageUrls != null && request.ImageUrls.Any())
             {
-                product.UpdateImages(null, request.ImageUrls);
+                // ✅ FIX: CS8625 - UpdateImages non-nullable string bekliyor, ilk imageUrl'i kullan
+                product.UpdateImages(request.ImageUrls.First(), request.ImageUrls);
             }
 
             await _context.Set<ProductEntity>().AddAsync(product, cancellationToken);

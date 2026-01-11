@@ -3,6 +3,7 @@ using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
 using Merge.Domain.ValueObjects;
+using AddressEntity = Merge.Domain.Entities.Address;
 
 namespace Merge.Tests.Domain;
 
@@ -15,7 +16,7 @@ public class OrderTests
         // Arrange
         var userId = Guid.NewGuid();
         var addressId = Guid.NewGuid();
-        var address = Address.Create(
+        var address = AddressEntity.Create(
             userId: userId,
             title: "Home",
             firstName: "Test",
@@ -43,7 +44,7 @@ public class OrderTests
     {
         // Arrange
         var addressId = Guid.NewGuid();
-        var address = Address.Create(
+        var address = AddressEntity.Create(
             userId: Guid.NewGuid(),
             title: "Home",
             firstName: "Test",
@@ -83,7 +84,7 @@ public class OrderTests
     {
         // Arrange
         var addressId = Guid.NewGuid();
-        var address = Address.Create(
+        var address = AddressEntity.Create(
             userId: Guid.NewGuid(),
             title: "Home",
             firstName: "Test",

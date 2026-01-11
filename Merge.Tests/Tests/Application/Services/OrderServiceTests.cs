@@ -17,6 +17,7 @@ using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
 using OrderEntity = Merge.Domain.Entities.Order;
+using AddressEntity = Merge.Domain.Entities.Address;
 
 namespace Merge.Tests.Tests.Application.Services;
 
@@ -369,7 +370,7 @@ public class OrderServiceTests
     private static OrderEntity CreateTestOrder(Guid orderId, Guid userId)
     {
         var addressId = Guid.NewGuid();
-        var address = Address.Create(
+        var address = AddressEntity.Create(
             userId: userId,
             title: "Home",
             firstName: "John",

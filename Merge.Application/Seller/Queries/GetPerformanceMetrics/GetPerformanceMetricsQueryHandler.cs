@@ -92,7 +92,8 @@ public class GetPerformanceMetricsQueryHandler : IRequestHandler<GetPerformanceM
                 Revenue = g.Sum(oi => oi.TotalPrice)
             })
             .OrderByDescending(p => p.Revenue)
-            .Take(10)
+            // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
+            .Take(_sellerSettings.TopProductsLimit)
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)

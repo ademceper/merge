@@ -1,9 +1,11 @@
 namespace Merge.Application.DTOs.Seller;
 
-public class SalesTrendDto
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)
+// ✅ BOLUM 8.0: Over-posting Protection - init-only properties (ZORUNLU)
+public record SalesTrendDto
 {
-    public DateTime Date { get; set; }
-    public decimal Sales { get; set; }
-    public int OrderCount { get; set; }
-    public decimal AverageOrderValue { get; set; }
+    public DateTime Date { get; init; }
+    public decimal Sales { get; init; }
+    public int OrderCount { get; init; }
+    public decimal AverageOrderValue { get; init; }
 }

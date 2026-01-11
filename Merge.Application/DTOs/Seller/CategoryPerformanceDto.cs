@@ -1,13 +1,15 @@
 namespace Merge.Application.DTOs.Seller;
 
-public class CategoryPerformanceDto
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)
+// ✅ BOLUM 8.0: Over-posting Protection - init-only properties (ZORUNLU)
+public record CategoryPerformanceDto
 {
-    public Guid CategoryId { get; set; }
-    public string CategoryName { get; set; } = string.Empty;
-    public int ProductCount { get; set; }
-    public int OrderCount { get; set; }
-    public int OrdersCount { get; set; } // Alias for OrderCount
-    public decimal TotalSales { get; set; }
-    public decimal Revenue { get; set; }
-    public decimal AverageRating { get; set; }
+    public Guid CategoryId { get; init; }
+    public string CategoryName { get; init; } = string.Empty;
+    public int ProductCount { get; init; }
+    public int OrderCount { get; init; }
+    public int OrdersCount { get; init; } // Alias for OrderCount
+    public decimal TotalSales { get; init; }
+    public decimal Revenue { get; init; }
+    public decimal AverageRating { get; init; }
 }

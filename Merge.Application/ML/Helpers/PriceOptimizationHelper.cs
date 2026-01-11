@@ -18,7 +18,7 @@ public class PriceOptimizationHelper
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-    public async Task<PriceRecommendationDto> CalculateOptimalPriceAsync(ProductEntity product, List<ProductEntity>? similarProducts = null, CancellationToken cancellationToken = default)
+    public Task<PriceRecommendationDto> CalculateOptimalPriceAsync(ProductEntity product, List<ProductEntity>? similarProducts = null, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 1.6: Invariant validation - Guard clauses
         Guard.AgainstNull(product, nameof(product));
@@ -108,7 +108,7 @@ public class PriceOptimizationHelper
                        $"rating ({product.Rating:F1}), and sales volume ({product.ReviewCount} reviews). " +
                        $"Optimal price calculated: {optimalPrice:C} (current: {currentPrice:C}).";
 
-        return new PriceRecommendationDto(
+        return Task.FromResult(new PriceRecommendationDto(
             Math.Round(optimalPrice, 2),
             Math.Round(minPrice, 2),
             Math.Round(maxPrice, 2),
@@ -116,7 +116,7 @@ public class PriceOptimizationHelper
             Math.Round(expectedRevenueChange, 2),
             expectedSalesChange,
             reasoning
-        );
+        ));
     }
 
     private decimal CalculateConfidence(ProductEntity product, int competitorCount)

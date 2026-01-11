@@ -41,7 +41,8 @@ public class GetProductComparisonByIdQueryHandler : IRequestHandler<GetProductCo
         var cacheKey = $"{CACHE_KEY_COMPARISON_BY_ID}{request.Id}";
 
         // ✅ BOLUM 10.2: Redis distributed cache
-        var cachedResult = await _cache.GetOrCreateAsync(
+        // ✅ FIX: CS8634 - Nullable type için GetOrCreateNullableAsync kullan
+        var cachedResult = await _cache.GetOrCreateNullableAsync(
             cacheKey,
             async () =>
             {

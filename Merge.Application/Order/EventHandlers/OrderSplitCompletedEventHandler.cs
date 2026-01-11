@@ -44,6 +44,9 @@ public class OrderSplitCompletedEventHandler : INotificationHandler<OrderSplitCo
 
             // Analytics tracking
             // await _analyticsService.TrackOrderSplitCompletedAsync(notification, cancellationToken);
+            
+            // ✅ FIX: CS1998 - Async method'da await yok, Task.CompletedTask döndür
+            await Task.CompletedTask;
         }
         catch (Exception ex)
         {

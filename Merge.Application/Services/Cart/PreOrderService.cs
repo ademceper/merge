@@ -12,6 +12,7 @@ using Merge.Domain.ValueObjects;
 using CartEntity = Merge.Domain.Entities.Cart;
 using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
+using AddressEntity = Merge.Domain.Entities.Address;
 using Merge.Application.DTOs.Cart;
 using AutoMapper;
 
@@ -271,13 +272,13 @@ public class PreOrderService : IPreOrderService
 
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
             // Kullanıcının default address'ini çek
-            var address = await _context.Set<Address>()
+            var address = await _context.Set<AddressEntity>()
                 .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId && a.IsDefault, cancellationToken);
 
             if (address == null)
             {
                 // Default address yoksa ilk address'i al
-                address = await _context.Set<Address>()
+                address = await _context.Set<AddressEntity>()
                     .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId, cancellationToken);
             }
             

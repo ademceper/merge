@@ -1,12 +1,14 @@
 using Merge.Domain.Entities;
 namespace Merge.Application.DTOs.Seller;
 
-public class SellerOnboardingStatsDto
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)
+// ✅ BOLUM 8.0: Over-posting Protection - init-only properties (ZORUNLU)
+public record SellerOnboardingStatsDto
 {
-    public int TotalApplications { get; set; }
-    public int PendingApplications { get; set; }
-    public int ApprovedApplications { get; set; }
-    public int RejectedApplications { get; set; }
-    public int ApprovedThisMonth { get; set; }
-    public decimal ApprovalRate { get; set; }
+    public int TotalApplications { get; init; }
+    public int PendingApplications { get; init; }
+    public int ApprovedApplications { get; init; }
+    public int RejectedApplications { get; init; }
+    public int ApprovedThisMonth { get; init; }
+    public decimal ApprovalRate { get; init; }
 }

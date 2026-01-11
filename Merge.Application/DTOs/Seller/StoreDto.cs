@@ -18,13 +18,14 @@ public record StoreDto
     public string? Address { get; init; }
     public string? City { get; init; }
     public string? Country { get; init; }
+    public string? PostalCode { get; init; }
     // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
     public EntityStatus Status { get; init; }
     public bool IsPrimary { get; init; }
     public bool IsVerified { get; init; }
     public DateTime? VerifiedAt { get; init; }
     // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
-    public StoreSettingsDto? Settings { get; init; }
-    public int ProductCount { get; init; }
+    public StoreSettingsDto? Settings { get; set; }
+    public int ProductCount { get; set; }
     public DateTime CreatedAt { get; init; }
 }

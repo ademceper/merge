@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using UserEntity = Merge.Domain.Entities.User;
 using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
@@ -8,6 +9,7 @@ using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Seller;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using System.Text.Json;
@@ -24,17 +26,20 @@ public class SellerFinanceService : ISellerFinanceService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<SellerFinanceService> _logger;
+    private readonly PaginationSettings _paginationSettings;
 
     public SellerFinanceService(
         IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
-        ILogger<SellerFinanceService> logger)
+        ILogger<SellerFinanceService> logger,
+        IOptions<PaginationSettings> paginationSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _paginationSettings = paginationSettings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -139,12 +144,12 @@ public class SellerFinanceService : ISellerFinanceService
             seller.DeductFromAvailableBalance(Math.Abs(amount));
         }
 
-        await _context.Set<SellerTransaction>().AddAsync(transaction, cancellationToken);
-        
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         transaction.Complete();
 
         await _context.Set<SellerTransaction>().AddAsync(transaction, cancellationToken);
+        
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
@@ -176,7 +181,8 @@ public class SellerFinanceService : ISellerFinanceService
     public async Task<PagedResult<SellerTransactionDto>> GetSellerTransactionsAsync(Guid sellerId, SellerTransactionType? transactionType = null, DateTime? startDate = null, DateTime? endDate = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic number config'den - PaginationSettings kullanımı
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
@@ -286,21 +292,18 @@ public class SellerFinanceService : ISellerFinanceService
 
         var invoiceNumber = await GenerateInvoiceNumberAsync(dto.PeriodStart, cancellationToken);
 
-        var invoice = new SellerInvoice
-        {
-            SellerId = dto.SellerId,
-            InvoiceNumber = invoiceNumber,
-            InvoiceDate = DateTime.UtcNow,
-            PeriodStart = dto.PeriodStart,
-            PeriodEnd = dto.PeriodEnd,
-            TotalEarnings = totalEarnings,
-            TotalCommissions = totalCommissions,
-            TotalPayouts = totalPayouts,
-            PlatformFees = platformFees,
-            NetAmount = netCommissions - totalPayouts,
-            Status = SellerInvoiceStatus.Draft,
-            Notes = dto.Notes
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var invoice = SellerInvoice.Create(
+            sellerId: dto.SellerId,
+            invoiceNumber: invoiceNumber,
+            periodStart: dto.PeriodStart,
+            periodEnd: dto.PeriodEnd,
+            totalEarnings: totalEarnings,
+            totalCommissions: totalCommissions,
+            totalPayouts: totalPayouts,
+            platformFees: platformFees,
+            netAmount: netCommissions - totalPayouts,
+            notes: dto.Notes);
 
         // ✅ FIX: ToListAsync() sonrası Select().ToList() YASAK - foreach ile DTO oluştur
         var invoiceItems = new List<InvoiceItemDto>();
@@ -315,7 +318,8 @@ public class SellerFinanceService : ISellerFinanceService
             });
         }
 
-        invoice.InvoiceData = JsonSerializer.Serialize(invoiceItems);
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
+        invoice.UpdateInvoiceData(JsonSerializer.Serialize(invoiceItems));
 
         await _context.Set<SellerInvoice>().AddAsync(invoice, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -345,10 +349,12 @@ public class SellerFinanceService : ISellerFinanceService
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-    public async Task<PagedResult<SellerInvoiceDto>> GetSellerInvoicesAsync(Guid sellerId, string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public async Task<PagedResult<SellerInvoiceDto>> GetSellerInvoicesAsync(Guid sellerId, SellerInvoiceStatus? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic number config'den - PaginationSettings kullanımı
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
@@ -357,10 +363,10 @@ public class SellerFinanceService : ISellerFinanceService
             .Include(i => i.Seller)
             .Where(i => i.SellerId == sellerId);
 
-        if (!string.IsNullOrEmpty(status))
+        // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+        if (status.HasValue)
         {
-            var statusEnum = Enum.Parse<SellerInvoiceStatus>(status);
-            query = query.Where(i => i.Status == statusEnum);
+            query = query.Where(i => i.Status == status.Value);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -392,9 +398,10 @@ public class SellerFinanceService : ISellerFinanceService
 
         if (invoice == null) return false;
 
-        invoice.Status = SellerInvoiceStatus.Paid;
-        invoice.PaidAt = DateTime.UtcNow;
-        invoice.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        invoice.MarkAsPaid();
+        
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

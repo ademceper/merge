@@ -15,6 +15,7 @@ using Merge.Domain.ValueObjects;
 using Merge.Domain.Common.DomainEvents;
 using OrderEntity = Merge.Domain.Entities.Order;
 using CartEntity = Merge.Domain.Entities.Cart;
+using AddressEntity = Merge.Domain.Entities.Address;
 
 namespace Merge.Application.Order.Commands.CreateOrderFromCart;
 
@@ -71,7 +72,7 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
             }
 
             // ✅ PERFORMANCE: AsNoTracking for read-only query (check için)
-            var address = await _context.Set<Address>()
+            var address = await _context.Set<AddressEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(a => a.Id == request.AddressId && a.UserId == request.UserId, cancellationToken);
 

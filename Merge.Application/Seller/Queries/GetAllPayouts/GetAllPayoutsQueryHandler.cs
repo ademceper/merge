@@ -36,7 +36,7 @@ public class GetAllPayoutsQueryHandler : IRequestHandler<GetAllPayoutsQuery, Pag
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Getting all payouts. Status: {Status}, Page: {Page}, PageSize: {PageSize}",
-            request.Status ?? "All", request.Page, request.PageSize);
+            request.Status?.ToString() ?? "All", request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic number config'den
@@ -53,10 +53,10 @@ public class GetAllPayoutsQueryHandler : IRequestHandler<GetAllPayoutsQuery, Pag
                 .ThenInclude(i => i.Commission)
                     .ThenInclude(c => c.Order);
 
-        if (!string.IsNullOrEmpty(request.Status))
+        // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+        if (request.Status.HasValue)
         {
-            var payoutStatus = Enum.Parse<PayoutStatus>(request.Status, true);
-            query = query.Where(p => p.Status == payoutStatus);
+            query = query.Where(p => p.Status == request.Status.Value);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

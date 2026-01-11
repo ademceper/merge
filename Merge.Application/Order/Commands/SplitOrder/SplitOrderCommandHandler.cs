@@ -10,6 +10,7 @@ using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
 using OrderEntity = Merge.Domain.Entities.Order;
 using ProductEntity = Merge.Domain.Entities.Product;
+using AddressEntity = Merge.Domain.Entities.Address;
 
 namespace Merge.Application.Order.Commands.SplitOrder;
 
@@ -91,7 +92,7 @@ public class SplitOrderCommandHandler : IRequestHandler<SplitOrderCommand, Order
         try
         {
             var addressId = request.Dto.NewAddressId ?? originalOrder.AddressId;
-            var address = await _context.Set<Address>()
+            var address = await _context.Set<AddressEntity>()
                 .FirstOrDefaultAsync(a => a.Id == addressId, cancellationToken);
             
             if (address == null)
@@ -162,7 +163,7 @@ public class SplitOrderCommandHandler : IRequestHandler<SplitOrderCommand, Order
 
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
             var newAddress = request.Dto.NewAddressId.HasValue
-                ? await _context.Set<Address>()
+                ? await _context.Set<AddressEntity>()
                     .FirstOrDefaultAsync(a => a.Id == request.Dto.NewAddressId.Value, cancellationToken)
                 : null;
 

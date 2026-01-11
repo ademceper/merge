@@ -49,13 +49,15 @@ public class GetSellerFinanceSummaryQueryHandler : IRequestHandler<GetSellerFina
         var balance = await _mediator.Send(balanceQuery, cancellationToken);
 
         // Get recent transactions using existing query
+        // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
         var transactionsQuery = new Queries.GetSellerTransactions.GetSellerTransactionsQuery(
-            request.SellerId, null, startDate, endDate, 1, 10);
+            request.SellerId, null, startDate, endDate, 1, _sellerSettings.RecentItemsLimit);
         var transactions = await _mediator.Send(transactionsQuery, cancellationToken);
 
         // Get recent invoices using existing query
+        // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
         var invoicesQuery = new Queries.GetSellerInvoices.GetSellerInvoicesQuery(
-            request.SellerId, null, 1, 10);
+            request.SellerId, null, 1, _sellerSettings.RecentItemsLimit);
         var invoices = await _mediator.Send(invoicesQuery, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)

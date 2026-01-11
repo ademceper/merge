@@ -57,6 +57,7 @@ public class UpdateStoreCommandHandler : IRequestHandler<UpdateStoreCommand, boo
             address: request.Dto.Address,
             city: request.Dto.City,
             country: request.Dto.Country,
+            postalCode: request.Dto.PostalCode,
             settings: request.Dto.Settings != null ? JsonSerializer.Serialize(request.Dto.Settings) : null);
 
         // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6

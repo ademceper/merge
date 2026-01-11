@@ -29,19 +29,22 @@ public class StoreService : IStoreService
     private readonly IMapper _mapper;
     private readonly ILogger<StoreService> _logger;
     private readonly ServiceSettings _serviceSettings;
+    private readonly PaginationSettings _paginationSettings;
 
     public StoreService(
         IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<StoreService> logger,
-        IOptions<ServiceSettings> serviceSettings)
+        IOptions<ServiceSettings> serviceSettings,
+        IOptions<PaginationSettings> paginationSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
         _serviceSettings = serviceSettings.Value;
+        _paginationSettings = paginationSettings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -108,6 +111,7 @@ public class StoreService : IStoreService
             address: dto.Address,
             city: dto.City,
             country: dto.Country,
+            postalCode: dto.PostalCode,
             settings: settingsJson
         );
 
@@ -190,10 +194,12 @@ public class StoreService : IStoreService
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-    public async Task<PagedResult<StoreDto>> GetSellerStoresAsync(Guid sellerId, string? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
+    // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+    public async Task<PagedResult<StoreDto>> GetSellerStoresAsync(Guid sellerId, EntityStatus? status = null, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (pageSize > 100) pageSize = 100;
+        // ✅ BOLUM 12.0: Magic number config'den - PaginationSettings kullanımı
+        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
@@ -202,10 +208,10 @@ public class StoreService : IStoreService
             .Include(s => s.Seller)
             .Where(s => s.SellerId == sellerId);
 
-        if (!string.IsNullOrEmpty(status))
+        // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+        if (status.HasValue)
         {
-            var statusEnum = Enum.Parse<EntityStatus>(status);
-            query = query.Where(s => s.Status == statusEnum);
+            query = query.Where(s => s.Status == status.Value);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -303,12 +309,14 @@ public class StoreService : IStoreService
             address: dto.Address,
             city: dto.City,
             country: dto.Country,
+            postalCode: dto.PostalCode,
             settings: dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null
         );
 
-        if (!string.IsNullOrEmpty(dto.Status))
+        // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
+        if (dto.Status.HasValue)
         {
-            var newStatus = Enum.Parse<EntityStatus>(dto.Status);
+            var newStatus = dto.Status.Value;
             if (newStatus == EntityStatus.Active && store.Status != EntityStatus.Active)
             {
                 // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı

@@ -22,9 +22,13 @@ public class Store : BaseEntity, IAggregateRoot
     public string? BannerUrl { get; private set; }
     public string? ContactEmail { get; private set; }
     public string? ContactPhone { get; private set; }
+    // ✅ BOLUM 1.3: Value Objects - Address value object kullanımı (optional)
+    // Address bilgileri string olarak tutuluyor (optional field olduğu için)
+    // Eğer Address dolu ise Address value object ile validate edilir
     public string? Address { get; private set; }
     public string? City { get; private set; }
     public string? Country { get; private set; }
+    public string? PostalCode { get; private set; }
     public EntityStatus Status { get; private set; } = EntityStatus.Active;
     public bool IsPrimary { get; private set; } = false; // Primary store for seller
     public bool IsVerified { get; private set; } = false;
@@ -59,6 +63,7 @@ public class Store : BaseEntity, IAggregateRoot
         string? address = null,
         string? city = null,
         string? country = null,
+        string? postalCode = null,
         string? settings = null)
     {
         Guard.AgainstDefault(sellerId, nameof(sellerId));
@@ -80,6 +85,22 @@ public class Store : BaseEntity, IAggregateRoot
             validatedPhone = phoneValueObject.Value;
         }
 
+        // ✅ BOLUM 1.3: Value Objects - Address validation (optional fields)
+        // Eğer tüm address bilgileri verilmişse Address value object ile validate et
+        string? validatedAddress = address;
+        string? validatedCity = city;
+        string? validatedCountry = country;
+        
+        if (!string.IsNullOrWhiteSpace(address) && !string.IsNullOrWhiteSpace(city) && 
+            !string.IsNullOrWhiteSpace(country) && !string.IsNullOrWhiteSpace(postalCode))
+        {
+            var addressValueObject = new Merge.Domain.ValueObjects.Address(
+                address, city, country, postalCode);
+            validatedAddress = addressValueObject.AddressLine1;
+            validatedCity = addressValueObject.City;
+            validatedCountry = addressValueObject.Country;
+        }
+
         var slug = GenerateSlug(storeName);
 
         var store = new Store
@@ -93,9 +114,10 @@ public class Store : BaseEntity, IAggregateRoot
             BannerUrl = bannerUrl,
             ContactEmail = validatedEmail,
             ContactPhone = validatedPhone,
-            Address = address,
-            City = city,
-            Country = country,
+            Address = validatedAddress,
+            City = validatedCity,
+            Country = validatedCountry,
+            PostalCode = postalCode,
             Settings = settings,
             Status = EntityStatus.Active,
             IsPrimary = false,
@@ -120,6 +142,7 @@ public class Store : BaseEntity, IAggregateRoot
         string? address = null,
         string? city = null,
         string? country = null,
+        string? postalCode = null,
         string? settings = null)
     {
         if (Status == EntityStatus.Deleted)
@@ -154,14 +177,30 @@ public class Store : BaseEntity, IAggregateRoot
             ContactPhone = phoneValueObject.Value;
         }
 
-        if (address != null)
-            Address = address;
-
-        if (city != null)
-            City = city;
-
-        if (country != null)
-            Country = country;
+        // ✅ BOLUM 1.3: Value Objects - Address validation (optional fields)
+        // Eğer tüm address bilgileri verilmişse Address value object ile validate et
+        if (!string.IsNullOrWhiteSpace(address) && !string.IsNullOrWhiteSpace(city) && 
+            !string.IsNullOrWhiteSpace(country) && !string.IsNullOrWhiteSpace(postalCode))
+        {
+            var addressValueObject = new Merge.Domain.ValueObjects.Address(
+                address, city, country, postalCode);
+            Address = addressValueObject.AddressLine1;
+            City = addressValueObject.City;
+            Country = addressValueObject.Country;
+            PostalCode = addressValueObject.PostalCode;
+        }
+        else
+        {
+            // Partial address bilgileri - sadece string olarak kaydet
+            if (address != null)
+                Address = address;
+            if (city != null)
+                City = city;
+            if (country != null)
+                Country = country;
+            if (postalCode != null)
+                PostalCode = postalCode;
+        }
 
         if (settings != null)
             Settings = settings;

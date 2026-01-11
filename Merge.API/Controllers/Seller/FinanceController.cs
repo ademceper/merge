@@ -255,7 +255,7 @@ public class FinanceController : BaseController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PagedResult<SellerInvoiceDto>>> GetInvoices(
-        [FromQuery] string? status = null,
+        [FromQuery] SellerInvoiceStatus? status = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
@@ -263,6 +263,7 @@ public class FinanceController : BaseController
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var sellerId = GetUserId();
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
         var query = new GetSellerInvoicesQuery(sellerId, status, page, pageSize);
         var result = await _mediator.Send(query, cancellationToken);
 
@@ -309,15 +310,16 @@ public class FinanceController : BaseController
         }
 
         // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
         var links = HateoasHelper.CreateSelfLink(Url, "GetInvoice", new { version, id }, version);
         if (User.IsInRole("Admin") || User.IsInRole("Manager"))
         {
-            if (invoice.Status == "Draft")
+            if (invoice.Status == SellerInvoiceStatus.Draft)
             {
                 links["send"] = new LinkDto { Href = $"/api/v{version}/seller/finance/invoices/{id}/send", Method = "POST" };
             }
-            if (invoice.Status == "Sent")
+            if (invoice.Status == SellerInvoiceStatus.Sent)
             {
                 links["markPaid"] = new LinkDto { Href = $"/api/v{version}/seller/finance/invoices/{id}/mark-paid", Method = "POST" };
             }

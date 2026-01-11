@@ -3,6 +3,7 @@ using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
 using Merge.Domain.ValueObjects;
+using AddressEntity = Merge.Domain.Entities.Address;
 
 namespace Merge.Tests.Tests.Domain.Entities;
 
@@ -466,9 +467,9 @@ public class OrderTests
 
     #region Helper Methods
 
-    private static Address CreateTestAddress(Guid addressId, Guid userId)
+    private static AddressEntity CreateTestAddress(Guid addressId, Guid userId)
     {
-        return Address.Create(
+        return AddressEntity.Create(
             userId: userId,
             title: "Home",
             firstName: "John",
