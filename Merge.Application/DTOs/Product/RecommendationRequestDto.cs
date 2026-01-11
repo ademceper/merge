@@ -2,12 +2,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Product;
 
-public class RecommendationRequestDto
-{
-    public Guid? ProductId { get; set; }
-    
-    public Guid? CategoryId { get; set; }
-    
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+public record RecommendationRequestDto(
+    Guid? ProductId,
+    Guid? CategoryId,
     [Range(1, 100, ErrorMessage = "Maksimum sonuç sayısı 1 ile 100 arasında olmalıdır.")]
-    public int MaxResults { get; set; } = 10;
-}
+    int MaxResults = 10
+);

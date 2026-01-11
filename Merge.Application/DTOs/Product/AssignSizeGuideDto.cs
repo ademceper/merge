@@ -2,17 +2,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Product;
 
-public class AssignSizeGuideDto
-{
-    [Required]
-    public Guid ProductId { get; set; }
-    
-    [Required]
-    public Guid SizeGuideId { get; set; }
-    
-    [StringLength(1000)]
-    public string? CustomNotes { get; set; }
-    
-    [StringLength(2000)]
-    public string? FitDescription { get; set; }
-}
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+public record AssignSizeGuideDto(
+    [Required] Guid ProductId,
+    [Required] Guid SizeGuideId,
+    [StringLength(1000)] string? CustomNotes,
+    bool FitType,
+    [StringLength(2000)] string? FitDescription
+);

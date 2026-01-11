@@ -169,19 +169,17 @@ public class InvoiceService : IInvoiceService
 
         var invoiceNumber = GenerateInvoiceNumber();
 
-        var invoice = new Invoice
-        {
-            OrderId = orderId,
-            InvoiceNumber = invoiceNumber,
-            InvoiceDate = DateTime.UtcNow,
-            DueDate = DateTime.UtcNow.AddDays(_paymentSettings.InvoiceDueDays), // ✅ BOLUM 12.0: Magic number config'den
-            SubTotal = order.SubTotal,
-            Tax = order.Tax,
-            ShippingCost = order.ShippingCost,
-            Discount = order.CouponDiscount ?? 0,
-            TotalAmount = order.TotalAmount,
-            Status = InvoiceStatus.Draft
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var invoice = Invoice.Create(
+            orderId: orderId,
+            invoiceNumber: invoiceNumber,
+            invoiceDate: DateTime.UtcNow,
+            dueDate: DateTime.UtcNow.AddDays(_paymentSettings.InvoiceDueDays), // ✅ BOLUM 12.0: Magic number config'den
+            subTotal: order.SubTotal,
+            tax: order.Tax,
+            shippingCost: order.ShippingCost,
+            discount: order.CouponDiscount ?? 0,
+            totalAmount: order.TotalAmount);
 
         invoice = await _invoiceRepository.AddAsync(invoice);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -217,7 +215,8 @@ public class InvoiceService : IInvoiceService
             return false;
         }
 
-        invoice.Status = InvoiceStatus.Sent;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        invoice.MarkAsSent();
         await _invoiceRepository.UpdateAsync(invoice);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -242,7 +241,8 @@ public class InvoiceService : IInvoiceService
         // var pdfUrl = await UploadPdfToStorage(pdfBytes, invoice.InvoiceNumber);
         
         var pdfUrl = $"/invoices/{invoice.InvoiceNumber}.pdf";
-        invoice.PdfUrl = pdfUrl;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        invoice.SetPdfUrl(pdfUrl);
         await _invoiceRepository.UpdateAsync(invoice);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

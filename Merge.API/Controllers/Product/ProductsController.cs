@@ -14,6 +14,7 @@ using Merge.Application.Product.Commands.CreateProduct;
 using Merge.Application.Product.Commands.UpdateProduct;
 using Merge.Application.Product.Commands.DeleteProduct;
 using Merge.API.Middleware;
+using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.Product;
 
@@ -63,7 +64,19 @@ public class ProductsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetAllProductsQuery(page, pageSize);
         var products = await _mediator.Send(query, cancellationToken);
-        return Ok(products);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var paginationLinks = HateoasHelper.CreatePaginationLinks(
+            Url, 
+            "GetAllProducts", 
+            page, 
+            pageSize, 
+            products.TotalPages,
+            null,
+            version);
+        
+        return Ok(new { products, _links = paginationLinks });
     }
 
     /// <summary>
@@ -92,7 +105,12 @@ public class ProductsController : BaseController
         {
             return NotFound();
         }
-        return Ok(product);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateProductLinks(Url, id, version);
+        
+        return Ok(new { product, _links = links });
     }
 
     /// <summary>
@@ -126,7 +144,19 @@ public class ProductsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetProductsByCategoryQuery(categoryId, page, pageSize);
         var products = await _mediator.Send(query, cancellationToken);
-        return Ok(products);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var paginationLinks = HateoasHelper.CreatePaginationLinks(
+            Url, 
+            "GetByCategory", 
+            page, 
+            pageSize, 
+            products.TotalPages,
+            new { categoryId },
+            version);
+        
+        return Ok(new { products, _links = paginationLinks });
     }
 
     /// <summary>
@@ -162,7 +192,19 @@ public class ProductsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new SearchProductsQuery(q, page, pageSize);
         var products = await _mediator.Send(query, cancellationToken);
-        return Ok(products);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var paginationLinks = HateoasHelper.CreatePaginationLinks(
+            Url, 
+            "Search", 
+            page, 
+            pageSize, 
+            products.TotalPages,
+            new { q },
+            version);
+        
+        return Ok(new { products, _links = paginationLinks });
     }
 
     /// <summary>
@@ -209,7 +251,12 @@ public class ProductsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var updatedCommand = command with { SellerId = sellerId };
         var product = await _mediator.Send(updatedCommand, cancellationToken);
-        return CreatedAtAction(nameof(GetById), new { id = product.Id }, product);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateProductLinks(Url, product.Id, version);
+        
+        return CreatedAtAction(nameof(GetById), new { id = product.Id }, new { product, _links = links });
     }
 
     /// <summary>
@@ -271,7 +318,12 @@ public class ProductsController : BaseController
         // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (UpdateProductCommandHandler)
         var updatedCommand = command with { Id = id, SellerId = existingProduct.SellerId, PerformedBy = userId };
         var product = await _mediator.Send(updatedCommand, cancellationToken);
-        return Ok(product);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateProductLinks(Url, product.Id, version);
+        
+        return Ok(new { product, _links = links });
     }
 
     /// <summary>

@@ -49,20 +49,22 @@ public class ProductTemplateService : IProductTemplateService
             throw new NotFoundException("Kategori", dto.CategoryId);
         }
 
-        var template = new ProductTemplate
-        {
-            Name = dto.Name,
-            Description = dto.Description,
-            CategoryId = dto.CategoryId,
-            Brand = dto.Brand,
-            DefaultSKUPrefix = dto.DefaultSKUPrefix,
-            DefaultPrice = dto.DefaultPrice,
-            DefaultStockQuantity = dto.DefaultStockQuantity,
-            DefaultImageUrl = dto.DefaultImageUrl,
-            Specifications = dto.Specifications != null ? JsonSerializer.Serialize(dto.Specifications) : null,
-            Attributes = dto.Attributes != null ? JsonSerializer.Serialize(dto.Attributes) : null,
-            IsActive = dto.IsActive
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var specificationsJson = dto.Specifications != null ? JsonSerializer.Serialize(dto.Specifications) : null;
+        var attributesJson = dto.Attributes != null ? JsonSerializer.Serialize(dto.Attributes) : null;
+        
+        var template = ProductTemplate.Create(
+            dto.Name,
+            dto.Description,
+            dto.CategoryId,
+            dto.Brand,
+            dto.DefaultSKUPrefix,
+            dto.DefaultPrice,
+            dto.DefaultStockQuantity,
+            dto.DefaultImageUrl,
+            specificationsJson,
+            attributesJson,
+            dto.IsActive);
 
         await _context.Set<ProductTemplate>().AddAsync(template, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -131,62 +133,22 @@ public class ProductTemplateService : IProductTemplateService
 
         if (template == null) return false;
 
-        if (!string.IsNullOrEmpty(dto.Name))
-        {
-            template.Name = dto.Name;
-        }
-
-        if (dto.Description != null)
-        {
-            template.Description = dto.Description;
-        }
-
-        if (dto.CategoryId.HasValue)
-        {
-            template.CategoryId = dto.CategoryId.Value;
-        }
-
-        if (dto.Brand != null)
-        {
-            template.Brand = dto.Brand;
-        }
-
-        if (dto.DefaultSKUPrefix != null)
-        {
-            template.DefaultSKUPrefix = dto.DefaultSKUPrefix;
-        }
-
-        if (dto.DefaultPrice.HasValue)
-        {
-            template.DefaultPrice = dto.DefaultPrice.Value;
-        }
-
-        if (dto.DefaultStockQuantity.HasValue)
-        {
-            template.DefaultStockQuantity = dto.DefaultStockQuantity.Value;
-        }
-
-        if (dto.DefaultImageUrl != null)
-        {
-            template.DefaultImageUrl = dto.DefaultImageUrl;
-        }
-
-        if (dto.Specifications != null)
-        {
-            template.Specifications = JsonSerializer.Serialize(dto.Specifications);
-        }
-
-        if (dto.Attributes != null)
-        {
-            template.Attributes = JsonSerializer.Serialize(dto.Attributes);
-        }
-
-        if (dto.IsActive.HasValue)
-        {
-            template.IsActive = dto.IsActive.Value;
-        }
-
-        template.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        var specificationsJson = dto.Specifications != null ? JsonSerializer.Serialize(dto.Specifications) : null;
+        var attributesJson = dto.Attributes != null ? JsonSerializer.Serialize(dto.Attributes) : null;
+        
+        template.Update(
+            dto.Name,
+            dto.Description,
+            dto.CategoryId,
+            dto.Brand,
+            dto.DefaultSKUPrefix,
+            dto.DefaultPrice,
+            dto.DefaultStockQuantity,
+            dto.DefaultImageUrl,
+            specificationsJson,
+            attributesJson,
+            dto.IsActive);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -279,15 +241,14 @@ public class ProductTemplateService : IProductTemplateService
 
         if (dto.ImageUrls != null && dto.ImageUrls.Any())
         {
-            product.UpdateImages(product.ImageUrl, dto.ImageUrls);
+            product.UpdateImages(product.ImageUrl, dto.ImageUrls.ToList());
         }
 
         await _context.Set<ProductEntity>().AddAsync(product, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // Increment template usage count
-        template.UsageCount++;
-        template.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        template.IncrementUsageCount();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)

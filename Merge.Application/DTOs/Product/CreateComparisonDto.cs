@@ -2,12 +2,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Product;
 
-public class CreateComparisonDto
-{
-    [StringLength(200)]
-    public string? Name { get; set; }
-    
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+public record CreateComparisonDto(
+    [StringLength(200)] string? Name,
     [Required]
     [MinLength(2, ErrorMessage = "En az 2 ürün karşılaştırılmalıdır.")]
-    public List<Guid> ProductIds { get; set; } = new();
-}
+    IReadOnlyList<Guid> ProductIds
+);

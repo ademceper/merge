@@ -1,8 +1,8 @@
 namespace Merge.Application.DTOs.Product;
 
-public class BulkProductExportDto
-{
-    public Guid? CategoryId { get; set; }
-    public bool ActiveOnly { get; set; } = true;
-    public bool IncludeVariants { get; set; } = false;
-}
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+public record BulkProductExportDto(
+    Guid? CategoryId,
+    bool ActiveOnly = true,
+    bool IncludeVariants = false
+);

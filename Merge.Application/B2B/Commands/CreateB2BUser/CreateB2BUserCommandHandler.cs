@@ -47,7 +47,7 @@ public class CreateB2BUserCommandHandler : IRequestHandler<CreateB2BUserCommand,
             throw new Merge.Application.Exceptions.NotFoundException("Kullanıcı", request.UserId);
         }
 
-        var organization = await _context.Set<Organization>()
+        var organization = await _context.Set<Merge.Domain.Entities.Organization>()
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == request.OrganizationId, cancellationToken);
 

@@ -2,41 +2,39 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Product;
 
-public class CreateProductFromTemplateDto
-{
-    [Required]
-    public Guid TemplateId { get; set; }
-    
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+public record CreateProductFromTemplateDto(
+    [Required] Guid TemplateId,
     [Required]
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Ürün adı en az 2, en fazla 200 karakter olmalıdır.")]
-    public string ProductName { get; set; } = string.Empty;
+    string ProductName,
     
     [StringLength(2000)]
-    public string? Description { get; set; }
+    string? Description,
     
     [StringLength(100)]
-    public string? SKU { get; set; }
+    string? SKU,
     
     [Range(0, double.MaxValue, ErrorMessage = "Fiyat 0 veya daha büyük olmalıdır.")]
-    public decimal? Price { get; set; }
+    decimal? Price,
     
     [Range(0, int.MaxValue, ErrorMessage = "Stok miktarı 0 veya daha büyük olmalıdır.")]
-    public int? StockQuantity { get; set; }
+    int? StockQuantity,
     
     [StringLength(500)]
     [Url(ErrorMessage = "Geçerli bir URL giriniz.")]
-    public string? ImageUrl { get; set; }
+    string? ImageUrl,
     
-    public Guid? SellerId { get; set; }
+    Guid? SellerId,
     
-    public Guid? StoreId { get; set; }
+    Guid? StoreId,
     
-    public Dictionary<string, string>? AdditionalSpecifications { get; set; }
+    IReadOnlyDictionary<string, string>? AdditionalSpecifications,
     
-    public Dictionary<string, string>? AdditionalAttributes { get; set; }
+    IReadOnlyDictionary<string, string>? AdditionalAttributes,
     
-    public List<string>? ImageUrls { get; set; }
+    IReadOnlyList<string>? ImageUrls,
     
     [Range(0, double.MaxValue, ErrorMessage = "İndirimli fiyat 0 veya daha büyük olmalıdır.")]
-    public decimal? DiscountPrice { get; set; }
-}
+    decimal? DiscountPrice
+);

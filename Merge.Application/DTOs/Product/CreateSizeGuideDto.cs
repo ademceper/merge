@@ -2,28 +2,28 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Product;
 
-public class CreateSizeGuideDto
-{
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+public record CreateSizeGuideDto(
     [Required]
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Beden kılavuzu adı en az 2, en fazla 200 karakter olmalıdır.")]
-    public string Name { get; set; } = string.Empty;
+    string Name,
     
     [StringLength(2000)]
-    public string Description { get; set; } = string.Empty;
+    string Description,
     
     [Required]
-    public Guid CategoryId { get; set; }
-    
-    [StringLength(100)]
-    public string? Brand { get; set; }
-    
-    [StringLength(50)]
-    public string Type { get; set; } = "Standard";
-    
-    [StringLength(20)]
-    public string MeasurementUnit { get; set; } = "cm";
+    Guid CategoryId,
     
     [Required]
     [MinLength(1, ErrorMessage = "En az bir beden girişi gereklidir.")]
-    public List<CreateSizeGuideEntryDto> Entries { get; set; } = new();
-}
+    IReadOnlyList<CreateSizeGuideEntryDto> Entries,
+    
+    [StringLength(100)]
+    string? Brand = null,
+    
+    [StringLength(50)]
+    string Type = "Standard",
+    
+    [StringLength(20)]
+    string MeasurementUnit = "cm"
+);

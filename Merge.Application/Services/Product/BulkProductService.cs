@@ -47,7 +47,13 @@ public class BulkProductService : IBulkProductService
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("CSV bulk import başlatıldı");
 
-        var result = new BulkProductImportResultDto();
+        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
+        var result = new BulkProductImportResultDto(
+            TotalProcessed: 0,
+            SuccessCount: 0,
+            FailureCount: 0,
+            Errors: new List<string>(),
+            ImportedProducts: new List<ProductDto>());
         var reader = new StreamReader(fileStream);
 
         // Skip header line
@@ -58,50 +64,74 @@ public class BulkProductService : IBulkProductService
             var line = await reader.ReadLineAsync();
             if (string.IsNullOrWhiteSpace(line)) continue;
 
-            result.TotalProcessed++;
+            var totalProcessed = result.TotalProcessed + 1;
 
             try
             {
                 var values = ParseCsvLine(line);
                 if (values.Length < 8)
                 {
-                    result.FailureCount++;
-                    result.Errors.Add($"Line {result.TotalProcessed}: Insufficient columns");
+                    var failureCount = result.FailureCount + 1;
+                    var errors = new List<string>(result.Errors) { $"Line {totalProcessed}: Insufficient columns" };
+                    result = new BulkProductImportResultDto(
+                        TotalProcessed: totalProcessed,
+                        SuccessCount: result.SuccessCount,
+                        FailureCount: failureCount,
+                        Errors: errors,
+                        ImportedProducts: result.ImportedProducts);
                     continue;
                 }
 
-                var productDto = new BulkProductImportDto
-                {
-                    Name = values[0],
-                    Description = values[1],
-                    SKU = values[2],
-                    Price = decimal.Parse(values[3], CultureInfo.InvariantCulture),
-                    DiscountPrice = string.IsNullOrWhiteSpace(values[4]) ? null : decimal.Parse(values[4], CultureInfo.InvariantCulture),
-                    StockQuantity = int.Parse(values[5]),
-                    Brand = values[6],
-                    CategoryName = values[7],
-                    ImageUrl = values.Length > 8 ? values[8] : string.Empty
-                };
+                // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
+                var productDto = new BulkProductImportDto(
+                    Name: values[0],
+                    Description: values[1],
+                    SKU: values[2],
+                    Price: decimal.Parse(values[3], CultureInfo.InvariantCulture),
+                    DiscountPrice: string.IsNullOrWhiteSpace(values[4]) ? null : decimal.Parse(values[4], CultureInfo.InvariantCulture),
+                    StockQuantity: int.Parse(values[5]),
+                    Brand: values[6],
+                    CategoryName: values[7],
+                    ImageUrl: values.Length > 8 ? values[8] : string.Empty,
+                    IsActive: true);
 
                 var product = await ImportSingleProductAsync(productDto, cancellationToken);
                 if (product != null)
                 {
-                    result.SuccessCount++;
+                    var successCount = result.SuccessCount + 1;
                     // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
                     var importedProductDto = _mapper.Map<ProductDto>(product);
-                    result.ImportedProducts.Add(importedProductDto);
+                    var importedProducts = new List<ProductDto>(result.ImportedProducts) { importedProductDto };
+                    result = new BulkProductImportResultDto(
+                        TotalProcessed: totalProcessed,
+                        SuccessCount: successCount,
+                        FailureCount: result.FailureCount,
+                        Errors: result.Errors,
+                        ImportedProducts: importedProducts);
                 }
                 else
                 {
-                    result.FailureCount++;
-                    result.Errors.Add($"Line {result.TotalProcessed}: Failed to import product '{productDto.Name}'");
+                    var failureCount = result.FailureCount + 1;
+                    var errors = new List<string>(result.Errors) { $"Line {totalProcessed}: Failed to import product '{productDto.Name}'" };
+                    result = new BulkProductImportResultDto(
+                        TotalProcessed: totalProcessed,
+                        SuccessCount: result.SuccessCount,
+                        FailureCount: failureCount,
+                        Errors: errors,
+                        ImportedProducts: result.ImportedProducts);
                 }
             }
             catch (Exception ex)
             {
-                result.FailureCount++;
-                result.Errors.Add($"Line {result.TotalProcessed}: {ex.Message}");
-                _logger.LogWarning(ex, "CSV import hatası. Line: {Line}", result.TotalProcessed);
+                var failureCount = result.FailureCount + 1;
+                var errors = new List<string>(result.Errors) { $"Line {totalProcessed}: {ex.Message}" };
+                result = new BulkProductImportResultDto(
+                    TotalProcessed: totalProcessed,
+                    SuccessCount: result.SuccessCount,
+                    FailureCount: failureCount,
+                    Errors: errors,
+                    ImportedProducts: result.ImportedProducts);
+                _logger.LogWarning(ex, "CSV import hatası. Line: {Line}", totalProcessed);
             }
         }
 
@@ -120,7 +150,13 @@ public class BulkProductService : IBulkProductService
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("JSON bulk import başlatıldı");
 
-        var result = new BulkProductImportResultDto();
+        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
+        var result = new BulkProductImportResultDto(
+            TotalProcessed: 0,
+            SuccessCount: 0,
+            FailureCount: 0,
+            Errors: new List<string>(),
+            ImportedProducts: new List<ProductDto>());
 
         try
         {
@@ -128,43 +164,72 @@ public class BulkProductService : IBulkProductService
 
             if (products == null || products.Count == 0)
             {
-                result.Errors.Add("No products found in JSON file");
-                return result;
+                var errors = new List<string>(result.Errors) { "No products found in JSON file" };
+                return new BulkProductImportResultDto(
+                    TotalProcessed: result.TotalProcessed,
+                    SuccessCount: result.SuccessCount,
+                    FailureCount: result.FailureCount,
+                    Errors: errors,
+                    ImportedProducts: result.ImportedProducts);
             }
 
             foreach (var productDto in products)
             {
                 if (cancellationToken.IsCancellationRequested) break;
 
-                result.TotalProcessed++;
+                var totalProcessed = result.TotalProcessed + 1;
 
                 try
                 {
                     var product = await ImportSingleProductAsync(productDto, cancellationToken);
                     if (product != null)
                     {
-                        result.SuccessCount++;
+                        var successCount = result.SuccessCount + 1;
                         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
                         var importedProductDto = _mapper.Map<ProductDto>(product);
-                        result.ImportedProducts.Add(importedProductDto);
+                        var importedProducts = new List<ProductDto>(result.ImportedProducts) { importedProductDto };
+                        result = new BulkProductImportResultDto(
+                            TotalProcessed: totalProcessed,
+                            SuccessCount: successCount,
+                            FailureCount: result.FailureCount,
+                            Errors: result.Errors,
+                            ImportedProducts: importedProducts);
                     }
                     else
                     {
-                        result.FailureCount++;
-                        result.Errors.Add($"Failed to import product '{productDto.Name}'");
+                        var failureCount = result.FailureCount + 1;
+                        var errors = new List<string>(result.Errors) { $"Failed to import product '{productDto.Name}'" };
+                        result = new BulkProductImportResultDto(
+                            TotalProcessed: totalProcessed,
+                            SuccessCount: result.SuccessCount,
+                            FailureCount: failureCount,
+                            Errors: errors,
+                            ImportedProducts: result.ImportedProducts);
                     }
                 }
                 catch (Exception ex)
                 {
-                    result.FailureCount++;
-                    result.Errors.Add($"Product '{productDto.Name}': {ex.Message}");
+                    var failureCount = result.FailureCount + 1;
+                    var errors = new List<string>(result.Errors) { $"Product '{productDto.Name}': {ex.Message}" };
+                    result = new BulkProductImportResultDto(
+                        TotalProcessed: totalProcessed,
+                        SuccessCount: result.SuccessCount,
+                        FailureCount: failureCount,
+                        Errors: errors,
+                        ImportedProducts: result.ImportedProducts);
                     _logger.LogWarning(ex, "JSON import hatası. Product: {ProductName}", productDto.Name);
                 }
             }
         }
         catch (Exception ex)
         {
-            result.Errors.Add($"JSON parsing error: {ex.Message}");
+            var errors = new List<string>(result.Errors) { $"JSON parsing error: {ex.Message}" };
+            result = new BulkProductImportResultDto(
+                TotalProcessed: result.TotalProcessed,
+                SuccessCount: result.SuccessCount,
+                FailureCount: result.FailureCount,
+                Errors: errors,
+                ImportedProducts: result.ImportedProducts);
             _logger.LogError(ex, "JSON parsing hatası");
         }
 

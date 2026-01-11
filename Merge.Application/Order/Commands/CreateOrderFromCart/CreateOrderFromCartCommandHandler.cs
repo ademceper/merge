@@ -159,10 +159,10 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
     {
         try
         {
-            // ✅ PERFORMANCE: ToList() gerekmez, IEnumerable yeterli (mediator'a gönderilecek)
-            var productIds = cart.CartItems.Select(ci => ci.ProductId);
-            
             // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+            // ✅ FIX: ValidateCouponCommand List<Guid> bekliyor, ToList() gerekli
+            var productIds = cart.CartItems.Select(ci => ci.ProductId).ToList();
+            
             var validateCommand = new ValidateCouponCommand(
                 couponCode,
                 order.SubTotal,

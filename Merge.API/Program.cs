@@ -109,7 +109,42 @@ builder.Services.Configure<Merge.Application.Configuration.ServiceSettings>(
 
 // Add services to the container
 // ✅ BOLUM 4.0: API Versioning (ZORUNLU)
-builder.Services.AddControllers();
+// ✅ BOLUM 4.1.5: Content Negotiation - JSON, XML, CSV format desteği (ZORUNLU)
+builder.Services.AddControllers()
+    .AddXmlSerializerFormatters()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.WriteIndented = builder.Environment.IsDevelopment();
+        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // ✅ BOLUM 4.1.4: RFC 7807 Problem Details (ZORUNLU)
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var problemDetails = new Microsoft.AspNetCore.Mvc.ProblemDetails
+            {
+                Type = "https://api.merge.com/errors/validation-error",
+                Title = "Validation Error",
+                Status = StatusCodes.Status400BadRequest,
+                Instance = context.HttpContext.Request.Path,
+                Detail = "One or more validation errors occurred.",
+                Extensions =
+                {
+                    ["errors"] = context.ModelState
+                        .Where(x => x.Value?.Errors.Count > 0)
+                        .ToDictionary(
+                            kvp => kvp.Key,
+                            kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()),
+                    ["traceId"] = System.Diagnostics.Activity.Current?.Id ?? context.HttpContext.TraceIdentifier,
+                    ["timestamp"] = DateTimeOffset.UtcNow
+                }
+            };
+            
+            return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(problemDetails);
+        };
+    });
 builder.Services.AddApiVersioning(options =>
 {
     options.DefaultApiVersion = new Microsoft.AspNetCore.Mvc.ApiVersion(1, 0);
@@ -457,13 +492,13 @@ builder.Services.AddAutoMapper(typeof(Merge.Application.Mappings.MappingProfile)
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 builder.Services.AddMediatR(cfg =>
 {
-    cfg.RegisterServicesFromAssembly(typeof(Merge.Application.Orders.Commands.CreateOrder.CreateOrderCommand).Assembly);
+    cfg.RegisterServicesFromAssembly(typeof(Merge.Application.Order.Commands.CreateOrderFromCart.CreateOrderFromCartCommand).Assembly);
     // ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
     cfg.AddOpenBehavior(typeof(Merge.Application.Common.Behaviors.ValidationBehavior<,>));
 });
 
 // ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
-builder.Services.AddValidatorsFromAssembly(typeof(Merge.Application.Orders.Commands.CreateOrder.CreateOrderCommandValidator).Assembly);
+builder.Services.AddValidatorsFromAssembly(typeof(Merge.Application.Order.Commands.CreateOrderFromCart.CreateOrderFromCartCommandValidator).Assembly);
 
 // JWT Authentication
 // ✅ SECURITY: JWT Secret önce environment variable'dan al, yoksa appsettings'ten

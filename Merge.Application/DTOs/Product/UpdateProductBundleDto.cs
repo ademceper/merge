@@ -2,24 +2,24 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Product;
 
-public class UpdateProductBundleDto
-{
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+public record UpdateProductBundleDto(
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Paket adı en az 2, en fazla 200 karakter olmalıdır.")]
-    public string Name { get; set; } = string.Empty;
+    string? Name,
     
     [StringLength(2000)]
-    public string Description { get; set; } = string.Empty;
+    string? Description,
     
     [Range(0, double.MaxValue, ErrorMessage = "Paket fiyatı 0 veya daha büyük olmalıdır.")]
-    public decimal BundlePrice { get; set; }
+    decimal? BundlePrice,
     
     [StringLength(500)]
     [Url(ErrorMessage = "Geçerli bir URL giriniz.")]
-    public string ImageUrl { get; set; } = string.Empty;
+    string? ImageUrl,
     
-    public bool IsActive { get; set; }
+    bool? IsActive,
     
-    public DateTime? StartDate { get; set; }
+    DateTime? StartDate,
     
-    public DateTime? EndDate { get; set; }
-}
+    DateTime? EndDate
+);

@@ -1,6 +1,6 @@
 namespace Merge.Application.DTOs.Product;
 
-public class AddToComparisonDto
-{
-    public Guid ProductId { get; set; }
-}
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+public record AddToComparisonDto(
+    Guid ProductId
+);

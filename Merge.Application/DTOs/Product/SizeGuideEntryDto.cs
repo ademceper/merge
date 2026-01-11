@@ -1,19 +1,19 @@
 namespace Merge.Application.DTOs.Product;
 
-public class SizeGuideEntryDto
-{
-    public Guid Id { get; set; }
-    public string SizeLabel { get; set; } = string.Empty;
-    public string? AlternativeLabel { get; set; }
-    public decimal? Chest { get; set; }
-    public decimal? Waist { get; set; }
-    public decimal? Hips { get; set; }
-    public decimal? Inseam { get; set; }
-    public decimal? Shoulder { get; set; }
-    public decimal? Length { get; set; }
-    public decimal? Width { get; set; }
-    public decimal? Height { get; set; }
-    public decimal? Weight { get; set; }
-    public Dictionary<string, string>? AdditionalMeasurements { get; set; }
-    public int DisplayOrder { get; set; }
-}
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+public record SizeGuideEntryDto(
+    Guid Id,
+    string SizeLabel,
+    string? AlternativeLabel,
+    decimal? Chest,
+    decimal? Waist,
+    decimal? Hips,
+    decimal? Inseam,
+    decimal? Shoulder,
+    decimal? Length,
+    decimal? Width,
+    decimal? Height,
+    decimal? Weight,
+    IReadOnlyDictionary<string, string>? AdditionalMeasurements,
+    int DisplayOrder
+);

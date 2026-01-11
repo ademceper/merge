@@ -57,12 +57,21 @@ public class ProductRecommendationService : IProductRecommendationService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var recommendations = _mapper.Map<IEnumerable<ProductRecommendationDto>>(similarProducts).ToList();
-        foreach (var rec in recommendations)
-        {
-            rec.RecommendationReason = "Similar to what you're viewing";
-            rec.RecommendationScore = rec.Rating;
-        }
+        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
+        var recommendations = _mapper.Map<IEnumerable<ProductRecommendationDto>>(similarProducts)
+            .Select(rec => new ProductRecommendationDto(
+                rec.ProductId,
+                rec.Name,
+                rec.Description,
+                rec.Price,
+                rec.DiscountPrice,
+                rec.ImageUrl,
+                rec.Rating,
+                rec.ReviewCount,
+                "Similar to what you're viewing",
+                rec.Rating
+            ))
+            .ToList();
         return recommendations;
     }
 
@@ -96,15 +105,25 @@ public class ProductRecommendationService : IProductRecommendationService
             .ToDictionaryAsync(p => p.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
         var recommendations = new List<ProductRecommendationDto>();
         foreach (var fb in frequentlyBought)
         {
             if (products.TryGetValue(fb.ProductId, out var product))
             {
                 var rec = _mapper.Map<ProductRecommendationDto>(product);
-                rec.RecommendationReason = "Frequently bought together";
-                rec.RecommendationScore = fb.Count;
-                recommendations.Add(rec);
+                recommendations.Add(new ProductRecommendationDto(
+                    rec.ProductId,
+                    rec.Name,
+                    rec.Description,
+                    rec.Price,
+                    rec.DiscountPrice,
+                    rec.ImageUrl,
+                    rec.Rating,
+                    rec.ReviewCount,
+                    "Frequently bought together",
+                    fb.Count
+                ));
             }
         }
 
@@ -158,12 +177,21 @@ public class ProductRecommendationService : IProductRecommendationService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var recommendationDtos = _mapper.Map<IEnumerable<ProductRecommendationDto>>(recommendations).ToList();
-        foreach (var rec in recommendationDtos)
-        {
-            rec.RecommendationReason = "Based on your interests";
-            rec.RecommendationScore = rec.Rating * rec.ReviewCount;
-        }
+        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
+        var recommendationDtos = _mapper.Map<IEnumerable<ProductRecommendationDto>>(recommendations)
+            .Select(rec => new ProductRecommendationDto(
+                rec.ProductId,
+                rec.Name,
+                rec.Description,
+                rec.Price,
+                rec.DiscountPrice,
+                rec.ImageUrl,
+                rec.Rating,
+                rec.ReviewCount,
+                "Based on your interests",
+                rec.Rating * rec.ReviewCount
+            ))
+            .ToList();
         return recommendationDtos;
     }
 
@@ -203,12 +231,21 @@ public class ProductRecommendationService : IProductRecommendationService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var recommendationDtos = _mapper.Map<IEnumerable<ProductRecommendationDto>>(recommendations).ToList();
-        foreach (var rec in recommendationDtos)
-        {
-            rec.RecommendationReason = "Based on your browsing history";
-            rec.RecommendationScore = rec.Rating;
-        }
+        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
+        var recommendationDtos = _mapper.Map<IEnumerable<ProductRecommendationDto>>(recommendations)
+            .Select(rec => new ProductRecommendationDto(
+                rec.ProductId,
+                rec.Name,
+                rec.Description,
+                rec.Price,
+                rec.DiscountPrice,
+                rec.ImageUrl,
+                rec.Rating,
+                rec.ReviewCount,
+                "Based on your browsing history",
+                rec.Rating
+            ))
+            .ToList();
         return recommendationDtos;
     }
 
@@ -241,15 +278,25 @@ public class ProductRecommendationService : IProductRecommendationService
             .ToDictionaryAsync(p => p.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
         var recommendations = new List<ProductRecommendationDto>();
         foreach (var tp in trendingProducts)
         {
             if (products.TryGetValue(tp.ProductId, out var product))
             {
                 var rec = _mapper.Map<ProductRecommendationDto>(product);
-                rec.RecommendationReason = $"Trending in last {days} days";
-                rec.RecommendationScore = tp.RecommendationScore;
-                recommendations.Add(rec);
+                recommendations.Add(new ProductRecommendationDto(
+                    rec.ProductId,
+                    rec.Name,
+                    rec.Description,
+                    rec.Price,
+                    rec.DiscountPrice,
+                    rec.ImageUrl,
+                    rec.Rating,
+                    rec.ReviewCount,
+                    $"Trending in last {days} days",
+                    tp.RecommendationScore
+                ));
             }
         }
         return recommendations;
@@ -281,15 +328,25 @@ public class ProductRecommendationService : IProductRecommendationService
             .ToDictionaryAsync(p => p.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
         var recommendations = new List<ProductRecommendationDto>();
         foreach (var bs in bestSellers)
         {
             if (products.TryGetValue(bs.ProductId, out var product))
             {
                 var rec = _mapper.Map<ProductRecommendationDto>(product);
-                rec.RecommendationReason = "Best seller";
-                rec.RecommendationScore = bs.RecommendationScore;
-                recommendations.Add(rec);
+                recommendations.Add(new ProductRecommendationDto(
+                    rec.ProductId,
+                    rec.Name,
+                    rec.Description,
+                    rec.Price,
+                    rec.DiscountPrice,
+                    rec.ImageUrl,
+                    rec.Rating,
+                    rec.ReviewCount,
+                    "Best seller",
+                    bs.RecommendationScore
+                ));
             }
         }
         return recommendations;
@@ -309,12 +366,21 @@ public class ProductRecommendationService : IProductRecommendationService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var recommendations = _mapper.Map<IEnumerable<ProductRecommendationDto>>(newArrivals).ToList();
-        foreach (var rec in recommendations)
-        {
-            rec.RecommendationReason = "New arrival";
-            rec.RecommendationScore = 0;
-        }
+        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
+        var recommendations = _mapper.Map<IEnumerable<ProductRecommendationDto>>(newArrivals)
+            .Select(rec => new ProductRecommendationDto(
+                rec.ProductId,
+                rec.Name,
+                rec.Description,
+                rec.Price,
+                rec.DiscountPrice,
+                rec.ImageUrl,
+                rec.Rating,
+                rec.ReviewCount,
+                "New arrival",
+                0
+            ))
+            .ToList();
         return recommendations;
     }
 
@@ -322,13 +388,13 @@ public class ProductRecommendationService : IProductRecommendationService
     public async Task<PersonalizedRecommendationsDto> GetCompleteRecommendationsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: ToListAsync() sonrası memory'de işlem YASAK - ama bu sadece property assignment (kabul edilebilir)
-        var recommendations = new PersonalizedRecommendationsDto
-        {
-            ForYou = (await GetPersonalizedRecommendationsAsync(userId, 10, cancellationToken)).ToList(),
-            BasedOnHistory = (await GetBasedOnViewHistoryAsync(userId, 10, cancellationToken)).ToList(),
-            Trending = (await GetTrendingProductsAsync(7, 10, cancellationToken)).ToList(),
-            BestSellers = (await GetBestSellersAsync(10, cancellationToken)).ToList()
-        };
+        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
+        var recommendations = new PersonalizedRecommendationsDto(
+            ForYou: (await GetPersonalizedRecommendationsAsync(userId, 10, cancellationToken)).ToList(),
+            BasedOnHistory: (await GetBasedOnViewHistoryAsync(userId, 10, cancellationToken)).ToList(),
+            Trending: (await GetTrendingProductsAsync(7, 10, cancellationToken)).ToList(),
+            BestSellers: (await GetBestSellersAsync(10, cancellationToken)).ToList()
+        );
 
         return recommendations;
     }

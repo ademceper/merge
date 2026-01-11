@@ -2,44 +2,44 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Product;
 
-public class CreateSizeGuideEntryDto
-{
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+public record CreateSizeGuideEntryDto(
     [Required]
     [StringLength(50, MinimumLength = 1, ErrorMessage = "Beden etiketi gereklidir.")]
-    public string SizeLabel { get; set; } = string.Empty;
+    string SizeLabel,
     
     [StringLength(50)]
-    public string? AlternativeLabel { get; set; }
+    string? AlternativeLabel,
     
     [Range(0, double.MaxValue, ErrorMessage = "Ölçü değerleri 0 veya daha büyük olmalıdır.")]
-    public decimal? Chest { get; set; }
+    decimal? Chest,
     
     [Range(0, double.MaxValue)]
-    public decimal? Waist { get; set; }
+    decimal? Waist,
     
     [Range(0, double.MaxValue)]
-    public decimal? Hips { get; set; }
+    decimal? Hips,
     
     [Range(0, double.MaxValue)]
-    public decimal? Inseam { get; set; }
+    decimal? Inseam,
     
     [Range(0, double.MaxValue)]
-    public decimal? Shoulder { get; set; }
+    decimal? Shoulder,
     
     [Range(0, double.MaxValue)]
-    public decimal? Length { get; set; }
+    decimal? Length,
     
     [Range(0, double.MaxValue)]
-    public decimal? Width { get; set; }
+    decimal? Width,
     
     [Range(0, double.MaxValue)]
-    public decimal? Height { get; set; }
+    decimal? Height,
     
     [Range(0, double.MaxValue)]
-    public decimal? Weight { get; set; }
+    decimal? Weight,
     
-    public Dictionary<string, string>? AdditionalMeasurements { get; set; }
+    IReadOnlyDictionary<string, string>? AdditionalMeasurements,
     
     [Range(0, int.MaxValue)]
-    public int DisplayOrder { get; set; }
-}
+    int DisplayOrder
+);

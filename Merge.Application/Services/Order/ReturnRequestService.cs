@@ -186,15 +186,23 @@ public class ReturnRequestService : IReturnRequestService
             throw new ValidationException("İade edilecek ürün seçilmedi.");
         }
 
-        var returnRequest = new ReturnRequest
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        // Order zaten yukarıda query edildi, tekrar query etme
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.Id == dto.UserId, cancellationToken);
+        if (user == null)
         {
-            OrderId = dto.OrderId,
-            UserId = dto.UserId,
-            Reason = dto.Reason,
-            Status = ReturnRequestStatus.Pending,
-            RefundAmount = refundAmount,
-            OrderItemIds = dto.OrderItemIds
-        };
+            throw new NotFoundException("Kullanıcı", dto.UserId);
+        }
+
+        var returnRequest = ReturnRequest.Create(
+            dto.OrderId,
+            dto.UserId,
+            dto.Reason,
+            refundAmount,
+            dto.OrderItemIds.ToList(),
+            order,
+            user);
 
         returnRequest = await _returnRequestRepository.AddAsync(returnRequest);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -236,18 +244,19 @@ public class ReturnRequestService : IReturnRequestService
             throw new NotFoundException("İade talebi", id);
         }
 
-        returnRequest.Status = Enum.Parse<ReturnRequestStatus>(status);
-        if (status == "Rejected" && !string.IsNullOrEmpty(rejectionReason))
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        var parsedStatus = Enum.Parse<ReturnRequestStatus>(status);
+        if (parsedStatus == ReturnRequestStatus.Rejected && !string.IsNullOrEmpty(rejectionReason))
         {
-            returnRequest.RejectionReason = rejectionReason;
+            returnRequest.Reject(rejectionReason);
         }
-        else if (status == "Approved")
+        else if (parsedStatus == ReturnRequestStatus.Approved)
         {
-            returnRequest.ApprovedAt = DateTime.UtcNow;
+            returnRequest.Approve();
         }
-        else if (status == "Completed")
+        else if (parsedStatus == ReturnRequestStatus.Completed)
         {
-            returnRequest.CompletedAt = DateTime.UtcNow;
+            returnRequest.Complete();
         }
 
         await _returnRequestRepository.UpdateAsync(returnRequest);
@@ -274,8 +283,8 @@ public class ReturnRequestService : IReturnRequestService
             return false;
         }
 
-        returnRequest.Status = ReturnRequestStatus.Approved;
-        returnRequest.ApprovedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        returnRequest.Approve();
         await _returnRequestRepository.UpdateAsync(returnRequest);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -300,9 +309,8 @@ public class ReturnRequestService : IReturnRequestService
             return false;
         }
 
-        returnRequest.Status = ReturnRequestStatus.Completed;
-        returnRequest.CompletedAt = DateTime.UtcNow;
-        returnRequest.TrackingNumber = trackingNumber;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        returnRequest.Complete(trackingNumber);
         await _returnRequestRepository.UpdateAsync(returnRequest);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

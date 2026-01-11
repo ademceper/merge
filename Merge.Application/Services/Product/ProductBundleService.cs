@@ -129,33 +129,27 @@ public class ProductBundleService : IProductBundleService
         decimal originalTotal = dto.Products.Sum(productDto =>
             (products[productDto.ProductId].DiscountPrice ?? products[productDto.ProductId].Price) * productDto.Quantity);
 
-        var discountPercentage = ((originalTotal - dto.BundlePrice) / originalTotal) * 100;
-
-        var bundle = new ProductBundle
-        {
-            Name = dto.Name,
-            Description = dto.Description,
-            BundlePrice = dto.BundlePrice,
-            OriginalTotalPrice = originalTotal,
-            DiscountPercentage = discountPercentage,
-            ImageUrl = dto.ImageUrl,
-            IsActive = true,
-            StartDate = dto.StartDate,
-            EndDate = dto.EndDate
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var bundle = ProductBundle.Create(
+            name: dto.Name,
+            description: dto.Description,
+            bundlePrice: dto.BundlePrice,
+            originalTotalPrice: originalTotal,
+            imageUrl: dto.ImageUrl,
+            startDate: dto.StartDate,
+            endDate: dto.EndDate);
 
         bundle = await _bundleRepository.AddAsync(bundle);
 
         // Bundle item'ları ekle
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         foreach (var productDto in dto.Products)
         {
-            var bundleItem = new BundleItem
-            {
-                BundleId = bundle.Id,
-                ProductId = productDto.ProductId,
-                Quantity = productDto.Quantity,
-                SortOrder = productDto.SortOrder
-            };
+            var bundleItem = BundleItem.Create(
+                bundleId: bundle.Id,
+                productId: productDto.ProductId,
+                quantity: productDto.Quantity,
+                sortOrder: productDto.SortOrder);
             await _bundleItemRepository.AddAsync(bundleItem);
         }
 
@@ -184,18 +178,22 @@ public class ProductBundleService : IProductBundleService
             throw new NotFoundException("Paket", id);
         }
 
-        bundle.Name = dto.Name;
-        bundle.Description = dto.Description;
-        bundle.BundlePrice = dto.BundlePrice;
-        bundle.ImageUrl = dto.ImageUrl;
-        bundle.IsActive = dto.IsActive;
-        bundle.StartDate = dto.StartDate;
-        bundle.EndDate = dto.EndDate;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        bundle.Update(
+            name: dto.Name,
+            description: dto.Description,
+            bundlePrice: dto.BundlePrice,
+            originalTotalPrice: bundle.OriginalTotalPrice,
+            imageUrl: dto.ImageUrl,
+            startDate: dto.StartDate,
+            endDate: dto.EndDate);
 
-        // İndirim yüzdesini yeniden hesapla
-        if (bundle.OriginalTotalPrice.HasValue)
+        if (dto.IsActive != bundle.IsActive)
         {
-            bundle.DiscountPercentage = ((bundle.OriginalTotalPrice.Value - dto.BundlePrice) / bundle.OriginalTotalPrice.Value) * 100;
+            if (dto.IsActive == true)
+                bundle.Activate();
+            else
+                bundle.Deactivate();
         }
 
         await _bundleRepository.UpdateAsync(bundle);
@@ -262,13 +260,12 @@ public class ProductBundleService : IProductBundleService
             throw new BusinessException("Bu ürün zaten pakette.");
         }
 
-        var bundleItem = new BundleItem
-        {
-            BundleId = bundleId,
-            ProductId = dto.ProductId,
-            Quantity = dto.Quantity,
-            SortOrder = dto.SortOrder
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var bundleItem = BundleItem.Create(
+            bundleId: bundleId,
+            productId: dto.ProductId,
+            quantity: dto.Quantity,
+            sortOrder: dto.SortOrder);
 
         await _bundleItemRepository.AddAsync(bundleItem);
 
@@ -279,8 +276,8 @@ public class ProductBundleService : IProductBundleService
             .Where(bi => bi.BundleId == bundleId)
             .SumAsync(item => (item.Product.DiscountPrice ?? item.Product.Price) * item.Quantity, cancellationToken);
 
-        bundle.OriginalTotalPrice = newTotal;
-        bundle.DiscountPercentage = ((newTotal - bundle.BundlePrice) / newTotal) * 100;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        bundle.UpdateTotalPrices(newTotal);
         await _bundleRepository.UpdateAsync(bundle);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -315,11 +312,8 @@ public class ProductBundleService : IProductBundleService
                 .Where(bi => bi.BundleId == bundleId)
                 .SumAsync(item => (item.Product.DiscountPrice ?? item.Product.Price) * item.Quantity, cancellationToken);
 
-            bundle.OriginalTotalPrice = newTotal;
-            if (newTotal > 0)
-            {
-                bundle.DiscountPercentage = ((newTotal - bundle.BundlePrice) / newTotal) * 100;
-            }
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            bundle.UpdateTotalPrices(newTotal);
             await _bundleRepository.UpdateAsync(bundle);
         }
 

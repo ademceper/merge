@@ -45,12 +45,11 @@ public class ProductComparisonService : IProductComparisonService
             throw new ValidationException("Aynı anda en fazla 5 ürün karşılaştırılabilir.");
         }
 
-        var comparison = new ProductComparison
-        {
-            UserId = userId,
-            Name = dto.Name ?? "Unnamed Comparison",
-            IsSaved = !string.IsNullOrEmpty(dto.Name)
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var comparison = ProductComparison.Create(
+            userId: userId,
+            name: dto.Name ?? "Unnamed Comparison",
+            isSaved: !string.IsNullOrEmpty(dto.Name));
 
         await _context.Set<ProductComparison>().AddAsync(comparison, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -67,12 +66,11 @@ public class ProductComparisonService : IProductComparisonService
         {
             if (products.ContainsKey(productId))
             {
-                var item = new ProductComparisonItem
-                {
-                    ComparisonId = comparison.Id,
-                    ProductId = productId,
-                    Position = position++
-                };
+                // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+                var item = ProductComparisonItem.Create(
+                    comparisonId: comparison.Id,
+                    productId: productId,
+                    position: position++);
 
                 await _context.Set<ProductComparisonItem>().AddAsync(item, cancellationToken);
             }
@@ -127,13 +125,12 @@ public class ProductComparisonService : IProductComparisonService
 
         if (comparison == null)
         {
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             // Create a new temporary comparison
-            comparison = new ProductComparison
-            {
-                UserId = userId,
-                Name = "Current Comparison",
-                IsSaved = false
-            };
+            comparison = ProductComparison.Create(
+                userId: userId,
+                name: "Current Comparison",
+                isSaved: false);
 
             await _context.Set<ProductComparison>().AddAsync(comparison, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -216,12 +213,11 @@ public class ProductComparisonService : IProductComparisonService
 
         if (comparison == null)
         {
-            comparison = new ProductComparison
-            {
-                UserId = userId,
-                Name = "Current Comparison",
-                IsSaved = false
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            comparison = ProductComparison.Create(
+                userId: userId,
+                name: "Current Comparison",
+                isSaved: false);
 
             await _context.Set<ProductComparison>().AddAsync(comparison, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -249,12 +245,11 @@ public class ProductComparisonService : IProductComparisonService
             throw new NotFoundException("Ürün", productId);
         }
 
-        var item = new ProductComparisonItem
-        {
-            ComparisonId = comparison.Id,
-            ProductId = productId,
-            Position = comparison.Items.Count
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var item = ProductComparisonItem.Create(
+            comparisonId: comparison.Id,
+            productId: productId,
+            position: comparison.Items.Count);
 
         await _context.Set<ProductComparisonItem>().AddAsync(item, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -295,9 +290,10 @@ public class ProductComparisonService : IProductComparisonService
             .OrderBy(i => i.Position)
             .ToList();
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         for (int i = 0; i < remainingItems.Count; i++)
         {
-            remainingItems[i].Position = i;
+            remainingItems[i].UpdatePosition(i);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -316,8 +312,8 @@ public class ProductComparisonService : IProductComparisonService
 
         if (comparison == null) return false;
 
-        comparison.Name = name;
-        comparison.IsSaved = true;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        comparison.Save(name);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -341,8 +337,9 @@ public class ProductComparisonService : IProductComparisonService
             return comparison.ShareCode;
         }
 
-        var shareCode = GenerateUniqueShareCode();
-        comparison.ShareCode = shareCode;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        comparison.GenerateShareCode();
+        var shareCode = comparison.ShareCode!;
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -421,18 +418,20 @@ public class ProductComparisonService : IProductComparisonService
             })
             .ToDictionaryAsync(x => x.ProductId, cancellationToken);
 
-        var matrix = new ComparisonMatrixDto
+        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
+        var attributeNames = new List<string>
         {
-            AttributeNames = new List<string>
-            {
-                "Price",
-                "Stock",
-                "Rating",
-                "Reviews",
-                "Brand",
-                "Category"
-            }
+            "Price",
+            "Stock",
+            "Rating",
+            "Reviews",
+            "Brand",
+            "Category"
         };
+        var matrix = new ComparisonMatrixDto(
+            AttributeNames: attributeNames,
+            Products: new List<ComparisonProductDto>(),
+            AttributeValues: new Dictionary<string, IReadOnlyList<string>>());
 
         var comparisonProducts = new List<ComparisonProductDto>();
         var attributeValues = new Dictionary<string, List<string>>();
@@ -448,11 +447,14 @@ public class ProductComparisonService : IProductComparisonService
             var reviewStats = reviewsDict.TryGetValue(product.Id, out var stats) ? stats : null;
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-            var compProduct = _mapper.Map<ComparisonProductDto>(product);
-            compProduct.Rating = reviewStats != null ? (decimal?)reviewStats.Rating : null;
-            compProduct.ReviewCount = reviewStats?.Count ?? 0;
-            compProduct.Specifications = new Dictionary<string, string>(); // TODO: Map from product specifications
-            compProduct.Features = new List<string>(); // TODO: Map from product features
+            // ✅ BOLUM 7.1.5: Records - with expression kullanımı (object initializer YASAK)
+            var compProduct = _mapper.Map<ComparisonProductDto>(product) with
+            {
+                Rating = reviewStats != null ? (decimal?)reviewStats.Rating : null,
+                ReviewCount = reviewStats?.Count ?? 0,
+                Specifications = new Dictionary<string, string>(), // TODO: Map from product specifications
+                Features = new List<string>() // TODO: Map from product features
+            };
             comparisonProducts.Add(compProduct);
         }
 
@@ -481,19 +483,20 @@ public class ProductComparisonService : IProductComparisonService
 
         foreach (var key in allSpecKeys)
         {
-            if (!matrix.AttributeNames.Contains(key))
+            if (!attributeNames.Contains(key))
             {
-                matrix.AttributeNames.Add(key);
+                attributeNames.Add(key);
                 attributeValues[key] = comparisonProducts
                     .Select(p => p.Specifications.ContainsKey(key) ? p.Specifications[key] : "N/A")
                     .ToList();
             }
         }
 
-        matrix.Products = comparisonProducts;
-        matrix.AttributeValues = attributeValues;
-
-        return matrix;
+        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
+        return new ComparisonMatrixDto(
+            AttributeNames: attributeNames,
+            Products: comparisonProducts,
+            AttributeValues: attributeValues.ToDictionary(kv => kv.Key, kv => (IReadOnlyList<string>)kv.Value));
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -540,19 +543,22 @@ public class ProductComparisonService : IProductComparisonService
             var hasReviewStats = reviewsDict.TryGetValue(item.ProductId, out var stats);
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+            // ✅ BOLUM 7.1.5: Records - with expression kullanımı (object initializer YASAK)
             // Not: ProductComparisonItem → ComparisonProductDto mapping'i eklenmeli
-            var compProduct = _mapper.Map<ComparisonProductDto>(item.Product);
-            compProduct.Position = item.Position;
-            compProduct.Rating = hasReviewStats ? (decimal?)stats.Rating : null;
-            compProduct.ReviewCount = hasReviewStats ? stats.Count : 0;
-            compProduct.Specifications = new Dictionary<string, string>(); // TODO: Map from product specifications
-            compProduct.Features = new List<string>(); // TODO: Map from product features
+            var compProduct = _mapper.Map<ComparisonProductDto>(item.Product) with
+            {
+                Position = item.Position,
+                Rating = hasReviewStats ? (decimal?)stats.Rating : null,
+                ReviewCount = hasReviewStats ? stats.Count : 0,
+                Specifications = new Dictionary<string, string>(), // TODO: Map from product specifications
+                Features = new List<string>() // TODO: Map from product features
+            };
             products.Add(compProduct);
         }
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var comparisonDto = _mapper.Map<ProductComparisonDto>(comparison);
-        comparisonDto.Products = products;
+        // ✅ BOLUM 7.1.5: Records - with expression kullanımı (object initializer YASAK)
+        var comparisonDto = _mapper.Map<ProductComparisonDto>(comparison) with { Products = products };
         return comparisonDto;
     }
 

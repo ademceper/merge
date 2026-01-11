@@ -1,7 +1,9 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Merge.Domain.Common.DomainEvents;
+using Merge.Domain.Enums;
 using Merge.Application.Interfaces.Notification;
+using Merge.Application.DTOs.Notification;
 
 namespace Merge.Application.Order.EventHandlers;
 
@@ -33,12 +35,14 @@ public class ReturnRequestCreatedEventHandler : INotificationHandler<ReturnReque
             // Email bildirimi gönder
             if (_notificationService != null)
             {
-                await _notificationService.CreateNotificationAsync(
+                var createDto = new CreateNotificationDto(
                     notification.UserId,
+                    NotificationType.Order,
                     "İade Talebi Oluşturuldu",
                     $"İade talebiniz başarıyla oluşturuldu. İade Talebi No: {notification.ReturnRequestId}, İade Tutarı: {notification.RefundAmount} TL",
-                    "ReturnRequest",
-                    cancellationToken);
+                    null,
+                    null);
+                await _notificationService.CreateNotificationAsync(createDto, cancellationToken);
             }
 
             // Analytics tracking

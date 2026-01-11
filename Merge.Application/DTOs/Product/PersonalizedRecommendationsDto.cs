@@ -1,9 +1,9 @@
 namespace Merge.Application.DTOs.Product;
 
-public class PersonalizedRecommendationsDto
-{
-    public List<ProductRecommendationDto> ForYou { get; set; } = new();
-    public List<ProductRecommendationDto> BasedOnHistory { get; set; } = new();
-    public List<ProductRecommendationDto> Trending { get; set; } = new();
-    public List<ProductRecommendationDto> BestSellers { get; set; } = new();
-}
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+public record PersonalizedRecommendationsDto(
+    IReadOnlyList<ProductRecommendationDto> ForYou,
+    IReadOnlyList<ProductRecommendationDto> BasedOnHistory,
+    IReadOnlyList<ProductRecommendationDto> Trending,
+    IReadOnlyList<ProductRecommendationDto> BestSellers
+);

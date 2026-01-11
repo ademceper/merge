@@ -2,8 +2,10 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using Merge.Domain.Common.DomainEvents;
+using Merge.Domain.Enums;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.Interfaces;
+using Merge.Application.DTOs.Notification;
 using OrderEntity = Merge.Domain.Entities.Order;
 
 namespace Merge.Application.Order.EventHandlers;
@@ -46,12 +48,14 @@ public class OrderCreatedEventHandler : INotificationHandler<OrderCreatedEvent>
             // Email bildirimi gönder
             if (_notificationService != null)
             {
-                await _notificationService.CreateNotificationAsync(
+                var createDto = new CreateNotificationDto(
                     notification.UserId,
+                    NotificationType.Order,
                     "Sipariş Oluşturuldu",
                     $"Siparişiniz başarıyla oluşturuldu. Sipariş No: {notification.OrderId}",
-                    "Order",
-                    cancellationToken);
+                    null,
+                    null);
+                await _notificationService.CreateNotificationAsync(createDto, cancellationToken);
             }
 
             // Analytics tracking

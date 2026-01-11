@@ -96,6 +96,30 @@ public class Order : BaseEntity, IAggregateRoot
     public Guid? ParentOrderId { get; private set; }
     public bool IsSplitOrder { get; private set; } = false;
 
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
+    // Service layer'dan event eklenebilmesi için public yapıldı (Team entity'sinde de aynı pattern kullanılıyor)
+    public new void AddDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        // BaseEntity'deki protected AddDomainEvent'i çağır
+        base.AddDomainEvent(domainEvent);
+    }
+
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
+    // Service layer'dan event kaldırılabilmesi için public yapıldı
+    public new void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        // BaseEntity'deki protected RemoveDomainEvent'i çağır
+        base.RemoveDomainEvent(domainEvent);
+    }
+
     // ✅ BOLUM 1.5: Concurrency Control
     [Timestamp]
     public byte[]? RowVersion { get; set; }

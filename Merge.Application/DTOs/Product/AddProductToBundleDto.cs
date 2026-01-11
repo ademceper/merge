@@ -1,8 +1,8 @@
 namespace Merge.Application.DTOs.Product;
 
-public class AddProductToBundleDto
-{
-    public Guid ProductId { get; set; }
-    public int Quantity { get; set; } = 1;
-    public int SortOrder { get; set; } = 0;
-}
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+public record AddProductToBundleDto(
+    Guid ProductId,
+    int Quantity = 1,
+    int SortOrder = 0
+);

@@ -562,7 +562,7 @@ public class OrganizationService : IOrganizationService
         if (teamMember == null) return false;
 
         // ✅ BOLUM 1.5: Domain Events - Team aggregate root'a event ekle
-        if (teamMember.Team is IAggregateRoot team)
+        if (teamMember.Team is Team team)
         {
             team.AddDomainEvent(new TeamMemberRemovedEvent(teamMember.Id, teamId, userId));
         }
@@ -601,7 +601,7 @@ public class OrganizationService : IOrganizationService
         }
 
         // ✅ BOLUM 1.5: Domain Events - Team aggregate root'a event ekle
-        if (teamMember.Team is IAggregateRoot team)
+        if (teamMember.Team is Team team)
         {
             team.AddDomainEvent(new TeamMemberUpdatedEvent(teamMember.Id, teamId, userId, teamMember.Role));
         }

@@ -25,6 +25,7 @@ using Merge.Application.DTOs.Organization;
 using Merge.Application.DTOs.Search;
 using Merge.Application.DTOs.Subscription;
 using System.Text.Json;
+using OrganizationEntity = Merge.Domain.Entities.Organization;
 
 namespace Merge.Application.Mappings;
 
@@ -286,85 +287,216 @@ public class MappingProfile : Profile
                     : 0));
 
         // ProductBundle mappings
+        // ProductBundle mappings
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<ProductBundle, ProductBundleDto>()
-            .ForMember(dest => dest.Items, opt => opt.MapFrom(src => 
+            .ConstructUsing(src => new ProductBundleDto(
+                src.Id,
+                src.Name,
+                src.Description,
+                src.BundlePrice,
+                src.OriginalTotalPrice,
+                src.DiscountPercentage,
+                src.ImageUrl,
+                src.IsActive,
+                src.StartDate,
+                src.EndDate,
                 src.BundleItems != null 
-                    ? src.BundleItems.OrderBy(bi => bi.SortOrder).ToList() 
-                    : new List<BundleItem>()));
+                    ? src.BundleItems.OrderBy(bi => bi.SortOrder).Select(bi => new BundleItemDto(
+                        bi.Id,
+                        bi.ProductId,
+                        bi.Product != null ? bi.Product.Name : string.Empty,
+                        bi.Product != null ? bi.Product.ImageUrl : string.Empty,
+                        bi.Product != null ? (bi.Product.DiscountPrice ?? bi.Product.Price) : 0,
+                        bi.Quantity,
+                        bi.SortOrder
+                    )).ToList().AsReadOnly()
+                    : Array.Empty<BundleItemDto>().AsReadOnly()
+            ));
         CreateMap<CreateProductBundleDto, ProductBundle>();
         CreateMap<UpdateProductBundleDto, ProductBundle>();
 
         // BundleItem mappings
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<BundleItem, BundleItemDto>()
-            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : string.Empty))
-            .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src => src.Product != null ? src.Product.ImageUrl : string.Empty))
-            .ForMember(dest => dest.ProductPrice, opt => opt.MapFrom(src => 
-                src.Product != null ? (src.Product.DiscountPrice ?? src.Product.Price) : 0));
+            .ConstructUsing(src => new BundleItemDto(
+                src.Id,
+                src.ProductId,
+                src.Product != null ? src.Product.Name : string.Empty,
+                src.Product != null ? src.Product.ImageUrl : string.Empty,
+                src.Product != null ? (src.Product.DiscountPrice ?? src.Product.Price) : 0,
+                src.Quantity,
+                src.SortOrder
+            ));
 
         // ProductQuestion mappings
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<ProductQuestion, ProductQuestionDto>()
-            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : string.Empty))
-            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => 
-                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty))
-            .ForMember(dest => dest.Answers, opt => opt.MapFrom(src => 
-                src.Answers != null ? src.Answers.Where(a => a.IsApproved).ToList() : new List<ProductAnswer>()))
-            .ForMember(dest => dest.HasUserVoted, opt => opt.Ignore()); // Set manually in service
+            .ConstructUsing(src => new ProductQuestionDto(
+                src.Id,
+                src.ProductId,
+                src.Product != null ? src.Product.Name : string.Empty,
+                src.UserId,
+                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty,
+                src.Question,
+                src.IsApproved,
+                src.AnswerCount,
+                src.HelpfulCount,
+                src.HasSellerAnswer,
+                false, // HasUserVoted - Set manually in handler with 'with' expression
+                src.CreatedAt,
+                src.Answers != null 
+                    ? src.Answers.Where(a => a.IsApproved).Select(a => new ProductAnswerDto(
+                        a.Id,
+                        a.QuestionId,
+                        a.UserId,
+                        a.User != null ? $"{a.User.FirstName} {a.User.LastName}" : string.Empty,
+                        a.Answer,
+                        a.IsApproved,
+                        a.IsSellerAnswer,
+                        a.IsVerifiedPurchase,
+                        a.HelpfulCount,
+                        false, // HasUserVoted - Set manually in handler
+                        a.CreatedAt
+                    )).ToList().AsReadOnly()
+                    : Array.Empty<ProductAnswerDto>().AsReadOnly()
+            ));
         CreateMap<CreateProductQuestionDto, ProductQuestion>();
 
         // ProductAnswer mappings
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<ProductAnswer, ProductAnswerDto>()
-            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => 
-                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty))
-            .ForMember(dest => dest.HasUserVoted, opt => opt.Ignore()); // Set manually in service
+            .ConstructUsing(src => new ProductAnswerDto(
+                src.Id,
+                src.QuestionId,
+                src.UserId,
+                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty,
+                src.Answer,
+                src.IsApproved,
+                src.IsSellerAnswer,
+                src.IsVerifiedPurchase,
+                src.HelpfulCount,
+                false, // HasUserVoted - Set manually in handler with 'with' expression
+                src.CreatedAt
+            ));
         CreateMap<CreateProductAnswerDto, ProductAnswer>();
 
         // ProductTemplate mappings
+        // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping (expression tree limitation için)
         CreateMap<ProductTemplate, ProductTemplateDto>()
-            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : string.Empty))
-            .AfterMap((src, dest) =>
-            {
-                // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
-                dest.Specifications = !string.IsNullOrEmpty(src.Specifications)
-                    ? JsonSerializer.Deserialize<Dictionary<string, string>>(src.Specifications)
-                    : null;
-                dest.Attributes = !string.IsNullOrEmpty(src.Attributes)
-                    ? JsonSerializer.Deserialize<Dictionary<string, string>>(src.Attributes)
-                    : null;
-            });
+            .ConvertUsing((src, context) => new ProductTemplateDto(
+                src.Id,
+                src.Name,
+                src.Description,
+                src.CategoryId,
+                src.Category != null ? src.Category.Name : string.Empty,
+                src.Brand,
+                src.DefaultSKUPrefix,
+                src.DefaultPrice,
+                src.DefaultStockQuantity,
+                src.DefaultImageUrl,
+                !string.IsNullOrEmpty(src.Specifications)
+                    ? JsonSerializer.Deserialize<IReadOnlyDictionary<string, string>>(src.Specifications)
+                    : null,
+                !string.IsNullOrEmpty(src.Attributes)
+                    ? JsonSerializer.Deserialize<IReadOnlyDictionary<string, string>>(src.Attributes)
+                    : null,
+                src.IsActive,
+                src.UsageCount,
+                src.CreatedAt
+            ));
         CreateMap<CreateProductTemplateDto, ProductTemplate>();
         CreateMap<UpdateProductTemplateDto, ProductTemplate>();
 
         // SizeGuide mappings
+        // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping (expression tree limitation için)
         CreateMap<SizeGuide, SizeGuideDto>()
-            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : string.Empty))
-            .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.Type.ToString()))
-            .ForMember(dest => dest.Entries, opt => opt.MapFrom(src => 
-                src.Entries != null ? src.Entries.OrderBy(e => e.DisplayOrder).ToList() : new List<SizeGuideEntry>()));
+            .ConvertUsing((src, context) => new SizeGuideDto(
+                src.Id,
+                src.Name,
+                src.Description,
+                src.CategoryId,
+                src.Category != null ? src.Category.Name : string.Empty,
+                src.Brand,
+                src.Type.ToString(),
+                src.MeasurementUnit,
+                src.IsActive,
+                src.Entries != null 
+                    ? src.Entries.OrderBy(e => e.DisplayOrder).Select(e => new SizeGuideEntryDto(
+                        e.Id,
+                        e.SizeLabel,
+                        e.AlternativeLabel,
+                        e.Chest,
+                        e.Waist,
+                        e.Hips,
+                        e.Inseam,
+                        e.Shoulder,
+                        e.Length,
+                        e.Width,
+                        e.Height,
+                        e.Weight,
+                        !string.IsNullOrEmpty(e.AdditionalMeasurements)
+                            ? JsonSerializer.Deserialize<IReadOnlyDictionary<string, string>>(e.AdditionalMeasurements)
+                            : null,
+                        e.DisplayOrder
+                    )).ToList().AsReadOnly()
+                    : Array.Empty<SizeGuideEntryDto>().AsReadOnly()
+            ));
 
         // SizeGuideEntry mappings
+        // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping (expression tree limitation için)
         CreateMap<SizeGuideEntry, SizeGuideEntryDto>()
-            .AfterMap((src, dest) =>
-            {
-                // ✅ FIX: JsonSerializer.Deserialize expression tree içinde kullanılamaz, AfterMap kullanıyoruz
-                dest.AdditionalMeasurements = !string.IsNullOrEmpty(src.AdditionalMeasurements)
-                    ? JsonSerializer.Deserialize<Dictionary<string, string>>(src.AdditionalMeasurements)
-                    : null;
-            });
+            .ConvertUsing((src, context) => new SizeGuideEntryDto(
+                src.Id,
+                src.SizeLabel,
+                src.AlternativeLabel,
+                src.Chest,
+                src.Waist,
+                src.Hips,
+                src.Inseam,
+                src.Shoulder,
+                src.Length,
+                src.Width,
+                src.Height,
+                src.Weight,
+                !string.IsNullOrEmpty(src.AdditionalMeasurements)
+                    ? JsonSerializer.Deserialize<IReadOnlyDictionary<string, string>>(src.AdditionalMeasurements)
+                    : null,
+                src.DisplayOrder
+            ));
 
         // ProductComparison mappings
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<ProductComparison, ProductComparisonDto>()
-            .ForMember(dest => dest.Products, opt => opt.Ignore()); // Set manually in service
+            .ConstructUsing(src => new ProductComparisonDto(
+                src.Id,
+                src.UserId,
+                src.Name,
+                src.IsSaved,
+                src.ShareCode,
+                Array.Empty<ComparisonProductDto>().AsReadOnly(), // Products - Set manually in handler
+                src.CreatedAt
+            ));
 
         // Product → ComparisonProductDto mapping
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<Merge.Domain.Entities.Product, ComparisonProductDto>()
-            .ForMember(dest => dest.ProductId, opt => opt.MapFrom(src => src.Id))
-            .ForMember(dest => dest.MainImage, opt => opt.MapFrom(src => src.ImageUrl))
-            .ForMember(dest => dest.Category, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : "N/A"))
-            .ForMember(dest => dest.Specifications, opt => opt.Ignore()) // TODO: Map from product specifications
-            .ForMember(dest => dest.Features, opt => opt.Ignore()) // TODO: Map from product features
-            .ForMember(dest => dest.Rating, opt => opt.Ignore()) // Set manually in service
-            .ForMember(dest => dest.ReviewCount, opt => opt.Ignore()) // Set manually in service
-            .ForMember(dest => dest.Position, opt => opt.Ignore()); // Set manually in service
+            .ConstructUsing(src => new ComparisonProductDto(
+                src.Id, // ProductId
+                src.Name,
+                src.SKU,
+                src.Price,
+                src.DiscountPrice,
+                src.ImageUrl, // MainImage
+                src.Brand,
+                src.Category != null ? src.Category.Name : "N/A",
+                src.StockQuantity,
+                null, // Rating - Set manually in handler with 'with' expression
+                0, // ReviewCount - Set manually in handler with 'with' expression
+                new Dictionary<string, string>().AsReadOnly(), // Specifications - Set manually in handler
+                new List<string>().AsReadOnly(), // Features - Set manually in handler
+                0 // Position - Set manually in handler with 'with' expression
+            ));
 
         // Search domain mappings
         // Product → ProductSuggestionDto mapping
@@ -373,10 +505,20 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.DiscountPrice ?? src.Price));
 
         // Product → ProductRecommendationDto mapping
+        // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<Merge.Domain.Entities.Product, ProductRecommendationDto>()
-            .ForMember(dest => dest.ProductId, opt => opt.MapFrom(src => src.Id))
-            .ForMember(dest => dest.RecommendationReason, opt => opt.Ignore()) // Set manually in service
-            .ForMember(dest => dest.RecommendationScore, opt => opt.Ignore()); // Set manually in service
+            .ConstructUsing(src => new ProductRecommendationDto(
+                src.Id, // ProductId
+                src.Name,
+                src.Description,
+                src.Price,
+                src.DiscountPrice,
+                src.ImageUrl,
+                src.Rating,
+                src.ReviewCount,
+                string.Empty, // RecommendationReason - Set manually in handler with 'with' expression
+                0 // RecommendationScore - Set manually in handler with 'with' expression
+            ));
 
         // Invoice mappings
         CreateMap<Invoice, InvoiceDto>()
@@ -1197,7 +1339,7 @@ public class MappingProfile : Profile
         // Organization mappings
         // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping (immutable DTOs + error handling)
         // ✅ FIX: Expression tree limitation - ConvertUsing kullanıyoruz (statement body destekleniyor)
-        CreateMap<Organization, OrganizationDto>()
+        CreateMap<OrganizationEntity, OrganizationDto>()
             .ConvertUsing((src, context) =>
             {
                 OrganizationSettingsDto? settings = null;

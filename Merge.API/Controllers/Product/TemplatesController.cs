@@ -1,25 +1,35 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.User;
-using Merge.Application.Interfaces.Product;
+using MediatR;
 using Merge.Application.DTOs.Product;
+using Merge.Application.Product.Commands.CreateProductTemplate;
+using Merge.Application.Product.Commands.UpdateProductTemplate;
+using Merge.Application.Product.Commands.DeleteProductTemplate;
+using Merge.Application.Product.Commands.CreateProductFromTemplate;
+using Merge.Application.Product.Queries.GetProductTemplate;
+using Merge.Application.Product.Queries.GetAllProductTemplates;
+using Merge.Application.Product.Queries.GetPopularProductTemplates;
 using Merge.API.Middleware;
+using Merge.API.Helpers;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
 // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 namespace Merge.API.Controllers.Product;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/products/templates")]
+[Route("api/v{version:apiVersion}/products/templates")]
 public class ProductTemplatesController : BaseController
 {
-    private readonly IProductTemplateService _productTemplateService;
+    private readonly IMediator _mediator;
 
-    public ProductTemplatesController(IProductTemplateService productTemplateService)
+    public ProductTemplatesController(IMediator mediator)
     {
-        _productTemplateService = productTemplateService;
+        _mediator = mediator;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -36,8 +46,15 @@ public class ProductTemplatesController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var templates = await _productTemplateService.GetAllTemplatesAsync(categoryId, isActive, cancellationToken);
-        return Ok(templates);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetAllProductTemplatesQuery(categoryId, isActive);
+        var templates = await _mediator.Send(query, cancellationToken);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = templates.Select(t => HateoasHelper.CreateProductTemplateLinks(Url, t.Id, version)).ToList();
+        
+        return Ok(new { templates, _links = links });
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -57,8 +74,15 @@ public class ProductTemplatesController : BaseController
         if (limit > 100) limit = 100;
         if (limit < 1) limit = 10;
 
-        var templates = await _productTemplateService.GetPopularTemplatesAsync(limit, cancellationToken);
-        return Ok(templates);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetPopularProductTemplatesQuery(limit);
+        var templates = await _mediator.Send(query, cancellationToken);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = templates.Select(t => HateoasHelper.CreateProductTemplateLinks(Url, t.Id, version)).ToList();
+        
+        return Ok(new { templates, _links = links });
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -73,12 +97,19 @@ public class ProductTemplatesController : BaseController
     public async Task<ActionResult<ProductTemplateDto>> GetTemplate(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var template = await _productTemplateService.GetTemplateByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetProductTemplateQuery(id);
+        var template = await _mediator.Send(query, cancellationToken);
         if (template == null)
         {
             return NotFound();
         }
-        return Ok(template);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateProductTemplateLinks(Url, template.Id, version);
+        
+        return Ok(new { template, _links = links });
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -100,8 +131,26 @@ public class ProductTemplatesController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var template = await _productTemplateService.CreateTemplateAsync(dto, cancellationToken);
-        return CreatedAtAction(nameof(GetTemplate), new { id = template.Id }, template);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new CreateProductTemplateCommand(
+            dto.Name,
+            dto.Description,
+            dto.CategoryId,
+            dto.Brand,
+            dto.DefaultSKUPrefix,
+            dto.DefaultPrice,
+            dto.DefaultStockQuantity,
+            dto.DefaultImageUrl,
+            dto.Specifications?.ToDictionary(kv => kv.Key, kv => kv.Value),
+            dto.Attributes?.ToDictionary(kv => kv.Key, kv => kv.Value),
+            dto.IsActive);
+        var template = await _mediator.Send(command, cancellationToken);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateProductTemplateLinks(Url, template.Id, version);
+        
+        return CreatedAtAction(nameof(GetTemplate), new { id = template.Id }, new { template, _links = links });
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -125,7 +174,21 @@ public class ProductTemplatesController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var success = await _productTemplateService.UpdateTemplateAsync(id, dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new UpdateProductTemplateCommand(
+            id,
+            dto.Name,
+            dto.Description,
+            dto.CategoryId,
+            dto.Brand,
+            dto.DefaultSKUPrefix,
+            dto.DefaultPrice,
+            dto.DefaultStockQuantity,
+            dto.DefaultImageUrl,
+            dto.Specifications?.ToDictionary(kv => kv.Key, kv => kv.Value),
+            dto.Attributes?.ToDictionary(kv => kv.Key, kv => kv.Value),
+            dto.IsActive);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -147,7 +210,9 @@ public class ProductTemplatesController : BaseController
     public async Task<IActionResult> DeleteTemplate(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _productTemplateService.DeleteTemplateAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeleteProductTemplateCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -181,12 +246,22 @@ public class ProductTemplatesController : BaseController
         }
 
         // Admin değilse, SellerId'yi zorunlu olarak kendi userId'si yap
-        if (!User.IsInRole("Admin"))
-        {
-            dto.SellerId = userId;
-        }
+        var sellerId = User.IsInRole("Admin") ? dto.SellerId : userId;
 
-        var product = await _productTemplateService.CreateProductFromTemplateAsync(dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new CreateProductFromTemplateCommand(
+            dto.TemplateId,
+            dto.ProductName,
+            dto.Description ?? string.Empty,
+            dto.SKU ?? string.Empty,
+            dto.Price ?? 0,
+            dto.DiscountPrice,
+            dto.StockQuantity ?? 0,
+            sellerId,
+            dto.StoreId,
+            dto.ImageUrl,
+            dto.ImageUrls?.ToList());
+        var product = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetTemplate), new { id = product.Id }, product);
     }
 }

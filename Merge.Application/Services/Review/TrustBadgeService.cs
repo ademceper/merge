@@ -224,22 +224,20 @@ public class TrustBadgeService : ITrustBadgeService
 
         if (existing != null)
         {
-            existing.IsActive = true;
-            existing.AwardedAt = DateTime.UtcNow;
-            existing.ExpiresAt = dto.ExpiresAt;
-            existing.AwardReason = dto.AwardReason;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            existing.Activate();
+            existing.UpdateExpiryDate(dto.ExpiresAt);
+            existing.UpdateAwardReason(dto.AwardReason);
         }
         else
         {
-            var productBadge = new ProductTrustBadge
-            {
-                ProductId = productId,
-                TrustBadgeId = dto.BadgeId,
-                AwardedAt = DateTime.UtcNow,
-                ExpiresAt = dto.ExpiresAt,
-                IsActive = true,
-                AwardReason = dto.AwardReason
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var productBadge = ProductTrustBadge.Create(
+                productId,
+                dto.BadgeId,
+                DateTime.UtcNow,
+                dto.ExpiresAt,
+                dto.AwardReason);
 
             await _context.Set<ProductTrustBadge>().AddAsync(productBadge, cancellationToken);
         }
@@ -274,8 +272,8 @@ public class TrustBadgeService : ITrustBadgeService
 
         if (badge == null) return false;
 
-        badge.IsActive = false;
-        badge.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        badge.Deactivate();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

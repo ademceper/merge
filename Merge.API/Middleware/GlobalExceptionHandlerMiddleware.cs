@@ -1,20 +1,30 @@
 using System.Net;
 using System.Text.Json;
+using System.Diagnostics;
 using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 using Merge.Application.Exceptions;
 
 namespace Merge.API.Middleware;
 
 // ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior exception handling (ZORUNLU)
+// ✅ BOLUM 4.1.4: RFC 7807 Problem Details (ZORUNLU)
 public class GlobalExceptionHandlerMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<GlobalExceptionHandlerMiddleware> _logger;
+    private readonly IWebHostEnvironment _environment;
 
-    public GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<GlobalExceptionHandlerMiddleware> logger)
+    public GlobalExceptionHandlerMiddleware(
+        RequestDelegate next,
+        ILogger<GlobalExceptionHandlerMiddleware> logger,
+        IWebHostEnvironment environment)
     {
         _next = next;
         _logger = logger;
+        _environment = environment;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -30,72 +40,114 @@ public class GlobalExceptionHandlerMiddleware
         }
     }
 
-    private static Task HandleExceptionAsync(HttpContext context, Exception exception)
+    private Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
-        var code = HttpStatusCode.InternalServerError;
-        var message = "Bir hata oluştu.";
+        var problemDetails = new ProblemDetails();
+        var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
 
         switch (exception)
         {
             // ✅ BOLUM 2.1: FluentValidation ValidationException handling
             case FluentValidation.ValidationException validationEx:
-                code = HttpStatusCode.BadRequest;
+                problemDetails.Type = "https://api.merge.com/errors/validation-error";
+                problemDetails.Title = "Validation Error";
+                problemDetails.Status = (int)HttpStatusCode.BadRequest;
+                problemDetails.Instance = context.Request.Path;
+                problemDetails.Detail = "One or more validation errors occurred.";
+                
                 var errors = validationEx.Errors
                     .GroupBy(e => e.PropertyName)
                     .ToDictionary(
                         g => g.Key,
                         g => g.Select(e => e.ErrorMessage).ToArray());
-                var validationResult = JsonSerializer.Serialize(new { 
-                    message = "Validation hatası",
-                    errors 
-                });
-                context.Response.ContentType = "application/json";
-                context.Response.StatusCode = (int)code;
-                return context.Response.WriteAsync(validationResult);
+                
+                problemDetails.Extensions["errors"] = errors;
+                problemDetails.Extensions["traceId"] = traceId;
+                problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
+                
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                break;
             
             case ArgumentNullException:
             case ArgumentException:
-                code = HttpStatusCode.BadRequest;
-                message = exception.Message;
+                problemDetails.Type = "https://api.merge.com/errors/bad-request";
+                problemDetails.Title = "Bad Request";
+                problemDetails.Status = (int)HttpStatusCode.BadRequest;
+                problemDetails.Instance = context.Request.Path;
+                problemDetails.Detail = exception.Message;
+                problemDetails.Extensions["traceId"] = traceId;
+                problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
+                
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 break;
+                
             case UnauthorizedAccessException:
-                code = HttpStatusCode.Unauthorized;
-                message = exception.Message;
+                problemDetails.Type = "https://api.merge.com/errors/unauthorized";
+                problemDetails.Title = "Unauthorized";
+                problemDetails.Status = (int)HttpStatusCode.Unauthorized;
+                problemDetails.Instance = context.Request.Path;
+                problemDetails.Detail = exception.Message;
+                problemDetails.Extensions["traceId"] = traceId;
+                problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
+                
+                context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
                 break;
+                
             case NotFoundException:
             case KeyNotFoundException:
             case InvalidOperationException when exception.Message.Contains("not found") || exception.Message.Contains("bulunamadı"):
-                code = HttpStatusCode.NotFound;
-                message = exception.Message;
+                problemDetails.Type = "https://api.merge.com/errors/not-found";
+                problemDetails.Title = "Not Found";
+                problemDetails.Status = (int)HttpStatusCode.NotFound;
+                problemDetails.Instance = context.Request.Path;
+                problemDetails.Detail = exception.Message;
+                problemDetails.Extensions["traceId"] = traceId;
+                problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
+                
+                context.Response.StatusCode = (int)HttpStatusCode.NotFound;
                 break;
+                
             case BusinessException:
             case InvalidOperationException:
-                code = HttpStatusCode.BadRequest;
-                message = exception.Message;
+                problemDetails.Type = "https://api.merge.com/errors/business-error";
+                problemDetails.Title = "Business Error";
+                problemDetails.Status = (int)HttpStatusCode.BadRequest;
+                problemDetails.Instance = context.Request.Path;
+                problemDetails.Detail = exception.Message;
+                problemDetails.Extensions["traceId"] = traceId;
+                problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
+                
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 break;
+                
             default:
-                if (exception.Message.Contains("bulunamadı") || exception.Message.Contains("not found"))
+                problemDetails.Type = "https://api.merge.com/errors/internal-server-error";
+                problemDetails.Title = "An unexpected error occurred";
+                problemDetails.Status = (int)HttpStatusCode.InternalServerError;
+                problemDetails.Instance = context.Request.Path;
+                problemDetails.Detail = _environment.IsDevelopment() ? exception.Message : null;
+                problemDetails.Extensions["traceId"] = traceId;
+                problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
+                
+                if (_environment.IsDevelopment())
                 {
-                    code = HttpStatusCode.NotFound;
-                    message = exception.Message;
+                    problemDetails.Extensions["exception"] = exception.GetType().Name;
+                    problemDetails.Extensions["stackTrace"] = exception.StackTrace;
                 }
-                else if (exception.Message.Contains("yetersiz") || exception.Message.Contains("insufficient") || 
-                         exception.Message.Contains("geçersiz") || exception.Message.Contains("invalid"))
-                {
-                    code = HttpStatusCode.BadRequest;
-                    message = exception.Message;
-                }
-                else
-                {
-                    message = exception.Message;
-                }
+                
+                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 break;
         }
 
-        var result = JsonSerializer.Serialize(new { message });
-        context.Response.ContentType = "application/json";
-        context.Response.StatusCode = (int)code;
-
+        context.Response.ContentType = "application/problem+json";
+        
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = _environment.IsDevelopment()
+        };
+        
+        var result = JsonSerializer.Serialize(problemDetails, options);
         return context.Response.WriteAsync(result);
     }
 }

@@ -78,7 +78,7 @@ public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceComm
                     existingInvoice.Id, request.OrderId);
                 // Reload with includes
                 // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-                var invoice = await _context.Set<Invoice>()
+                var reloadedInvoice = await _context.Set<Invoice>()
                     .AsNoTracking()
                     .AsSplitQuery()
                     .Include(i => i.Order)
@@ -90,7 +90,7 @@ public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceComm
                         .ThenInclude(o => o.User)
                     .FirstOrDefaultAsync(i => i.Id == existingInvoice.Id, cancellationToken);
 
-                return _mapper.Map<InvoiceDto>(invoice!);
+                return _mapper.Map<InvoiceDto>(reloadedInvoice!);
             }
 
             var invoiceNumber = GenerateInvoiceNumber();

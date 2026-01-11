@@ -2,35 +2,35 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Product;
 
-public class UpdateProductTemplateDto
-{
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+public record UpdateProductTemplateDto(
     [StringLength(200, MinimumLength = 2, ErrorMessage = "Şablon adı en az 2, en fazla 200 karakter olmalıdır.")]
-    public string? Name { get; set; }
+    string? Name,
     
     [StringLength(2000)]
-    public string? Description { get; set; }
+    string? Description,
     
-    public Guid? CategoryId { get; set; }
+    Guid? CategoryId,
     
     [StringLength(100)]
-    public string? Brand { get; set; }
+    string? Brand,
     
     [StringLength(50)]
-    public string? DefaultSKUPrefix { get; set; }
+    string? DefaultSKUPrefix,
     
     [Range(0, double.MaxValue, ErrorMessage = "Varsayılan fiyat 0 veya daha büyük olmalıdır.")]
-    public decimal? DefaultPrice { get; set; }
+    decimal? DefaultPrice,
     
     [Range(0, int.MaxValue, ErrorMessage = "Varsayılan stok miktarı 0 veya daha büyük olmalıdır.")]
-    public int? DefaultStockQuantity { get; set; }
+    int? DefaultStockQuantity,
     
     [StringLength(500)]
     [Url(ErrorMessage = "Geçerli bir URL giriniz.")]
-    public string? DefaultImageUrl { get; set; }
+    string? DefaultImageUrl,
     
-    public Dictionary<string, string>? Specifications { get; set; }
+    IReadOnlyDictionary<string, string>? Specifications,
     
-    public Dictionary<string, string>? Attributes { get; set; }
+    IReadOnlyDictionary<string, string>? Attributes,
     
-    public bool? IsActive { get; set; }
-}
+    bool? IsActive
+);

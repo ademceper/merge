@@ -1,9 +1,9 @@
 namespace Merge.Application.DTOs.Product;
 
-public class SizeRecommendationDto
-{
-    public string RecommendedSize { get; set; } = string.Empty;
-    public string Confidence { get; set; } = string.Empty; // High, Medium, Low
-    public List<string> AlternativeSizes { get; set; } = new();
-    public string Reasoning { get; set; } = string.Empty;
-}
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+public record SizeRecommendationDto(
+    string RecommendedSize,
+    string Confidence, // High, Medium, Low
+    IReadOnlyList<string> AlternativeSizes,
+    string Reasoning
+);

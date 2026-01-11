@@ -2,12 +2,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Application.DTOs.Product;
 
-public class CreateProductAnswerDto
-{
-    [Required]
-    public Guid QuestionId { get; set; }
-    
+// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+public record CreateProductAnswerDto(
+    [Required] Guid QuestionId,
     [Required]
     [StringLength(2000, MinimumLength = 5, ErrorMessage = "Cevap en az 5, en fazla 2000 karakter olmalıdır.")]
-    public string Answer { get; set; } = string.Empty;
-}
+    string Answer
+);

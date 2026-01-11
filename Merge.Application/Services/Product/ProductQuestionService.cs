@@ -49,13 +49,11 @@ public class ProductQuestionService : IProductQuestionService
             throw new NotFoundException("Ürün", dto.ProductId);
         }
 
-        var question = new ProductQuestion
-        {
-            ProductId = dto.ProductId,
-            UserId = userId,
-            Question = dto.Question,
-            IsApproved = false // Requires admin approval
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var question = ProductQuestion.Create(
+            productId: dto.ProductId,
+            userId: userId,
+            question: dto.Question);
 
         await _context.Set<ProductQuestion>().AddAsync(question, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -75,8 +73,8 @@ public class ProductQuestionService : IProductQuestionService
             question!.Id, userId, dto.ProductId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var questionDto = _mapper.Map<ProductQuestionDto>(question);
-        questionDto.HasUserVoted = false; // Yeni soru, henüz oy verilmemiş
+        // ✅ BOLUM 7.1.5: Records - with expression kullanımı (object initializer YASAK)
+        var questionDto = _mapper.Map<ProductQuestionDto>(question) with { HasUserVoted = false }; // Yeni soru, henüz oy verilmemiş
         return questionDto;
     }
 
@@ -102,8 +100,8 @@ public class ProductQuestionService : IProductQuestionService
             : false;
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var questionDto = _mapper.Map<ProductQuestionDto>(question);
-        questionDto.HasUserVoted = hasUserVoted;
+        // ✅ BOLUM 7.1.5: Records - with expression kullanımı (object initializer YASAK)
+        var questionDto = _mapper.Map<ProductQuestionDto>(question) with { HasUserVoted = hasUserVoted };
         return questionDto;
     }
 
@@ -144,11 +142,11 @@ public class ProductQuestionService : IProductQuestionService
             : new Dictionary<Guid, QuestionHelpfulness>();
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        // ✅ BOLUM 7.1.5: Records - with expression kullanımı (object initializer YASAK)
         var dtos = new List<ProductQuestionDto>(questions.Count);
         foreach (var question in questions)
         {
-            var dto = _mapper.Map<ProductQuestionDto>(question);
-            dto.HasUserVoted = userId.HasValue && userVotes.ContainsKey(question.Id);
+            var dto = _mapper.Map<ProductQuestionDto>(question) with { HasUserVoted = userId.HasValue && userVotes.ContainsKey(question.Id) };
             dtos.Add(dto);
         }
 
@@ -196,11 +194,11 @@ public class ProductQuestionService : IProductQuestionService
             : new Dictionary<Guid, QuestionHelpfulness>();
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        // ✅ BOLUM 7.1.5: Records - with expression kullanımı (object initializer YASAK)
         var dtos = new List<ProductQuestionDto>(questions.Count);
         foreach (var question in questions)
         {
-            var dto = _mapper.Map<ProductQuestionDto>(question);
-            dto.HasUserVoted = userVotes.ContainsKey(question.Id);
+            var dto = _mapper.Map<ProductQuestionDto>(question) with { HasUserVoted = userVotes.ContainsKey(question.Id) };
             dtos.Add(dto);
         }
 
@@ -222,7 +220,8 @@ public class ProductQuestionService : IProductQuestionService
 
         if (question == null) return false;
 
-        question.IsApproved = true;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        question.Approve();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -268,24 +267,19 @@ public class ProductQuestionService : IProductQuestionService
                           oi.Order.UserId == userId &&
                           oi.Order.PaymentStatus == PaymentStatus.Completed, cancellationToken);
 
-        var answer = new ProductAnswer
-        {
-            QuestionId = dto.QuestionId,
-            UserId = userId,
-            Answer = dto.Answer,
-            IsApproved = false, // Requires admin approval
-            IsSellerAnswer = isSellerAnswer,
-            IsVerifiedPurchase = hasOrder
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var answer = ProductAnswer.Create(
+            questionId: dto.QuestionId,
+            userId: userId,
+            answer: dto.Answer,
+            isSellerAnswer: isSellerAnswer,
+            isVerifiedPurchase: hasOrder,
+            autoApprove: false); // Requires admin approval
 
         await _context.Set<ProductAnswer>().AddAsync(answer, cancellationToken);
 
-        // Update question stats
-        question.AnswerCount++;
-        if (isSellerAnswer)
-        {
-            question.HasSellerAnswer = true;
-        }
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        question.IncrementAnswerCount(isSellerAnswer);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -296,8 +290,8 @@ public class ProductQuestionService : IProductQuestionService
             .FirstOrDefaultAsync(a => a.Id == answer.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var answerDto = _mapper.Map<ProductAnswerDto>(answer);
-        answerDto.HasUserVoted = false; // Yeni cevap, henüz oy verilmemiş
+        // ✅ BOLUM 7.1.5: Records - with expression kullanımı (object initializer YASAK)
+        var answerDto = _mapper.Map<ProductAnswerDto>(answer) with { HasUserVoted = false }; // Yeni cevap, henüz oy verilmemiş
         return answerDto;
     }
 
@@ -324,11 +318,11 @@ public class ProductQuestionService : IProductQuestionService
             : new Dictionary<Guid, AnswerHelpfulness>();
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
+        // ✅ BOLUM 7.1.5: Records - with expression kullanımı (object initializer YASAK)
         var dtos = new List<ProductAnswerDto>(answers.Count);
         foreach (var answer in answers)
         {
-            var dto = _mapper.Map<ProductAnswerDto>(answer);
-            dto.HasUserVoted = userId.HasValue && userVotes.ContainsKey(answer.Id);
+            var dto = _mapper.Map<ProductAnswerDto>(answer) with { HasUserVoted = userId.HasValue && userVotes.ContainsKey(answer.Id) };
             dtos.Add(dto);
         }
 
@@ -344,7 +338,8 @@ public class ProductQuestionService : IProductQuestionService
 
         if (answer == null) return false;
 
-        answer.IsApproved = true;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        answer.Approve();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -365,19 +360,19 @@ public class ProductQuestionService : IProductQuestionService
         // Update question stats
         if (answer.Question != null)
         {
-            answer.Question.AnswerCount = Math.Max(0, answer.Question.AnswerCount - 1);
+            // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
+            // Check if there are other seller answers
+            var hasOtherSellerAnswer = answer.IsSellerAnswer
+                ? await _context.Set<ProductAnswer>()
+                    .AnyAsync(a => a.QuestionId == answer.QuestionId && a.IsSellerAnswer && a.Id != answerId, cancellationToken)
+                : false;
 
-            if (answer.IsSellerAnswer)
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            answer.Question.DecrementAnswerCount(answer.IsSellerAnswer);
+            
+            if (answer.IsSellerAnswer && !hasOtherSellerAnswer)
             {
-                // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-                // Check if there are other seller answers
-                var hasOtherSellerAnswer = await _context.Set<ProductAnswer>()
-                    .AnyAsync(a => a.QuestionId == answer.QuestionId && a.IsSellerAnswer && a.Id != answerId, cancellationToken);
-
-                if (!hasOtherSellerAnswer)
-                {
-                    answer.Question.HasSellerAnswer = false;
-                }
+                answer.Question.SetHasSellerAnswer(false);
             }
         }
 
@@ -409,7 +404,8 @@ public class ProductQuestionService : IProductQuestionService
 
         if (question != null)
         {
-            question.HelpfulCount++;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            question.IncrementHelpfulCount();
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -432,7 +428,8 @@ public class ProductQuestionService : IProductQuestionService
 
         if (question != null)
         {
-            question.HelpfulCount = Math.Max(0, question.HelpfulCount - 1);
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            question.DecrementHelpfulCount();
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -461,7 +458,8 @@ public class ProductQuestionService : IProductQuestionService
 
         if (answer != null)
         {
-            answer.HelpfulCount++;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            answer.IncrementHelpfulCount();
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -484,7 +482,8 @@ public class ProductQuestionService : IProductQuestionService
 
         if (answer != null)
         {
-            answer.HelpfulCount = Math.Max(0, answer.HelpfulCount - 1);
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            answer.DecrementHelpfulCount();
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -547,16 +546,16 @@ public class ProductQuestionService : IProductQuestionService
         var recentDtos = _mapper.Map<IEnumerable<ProductQuestionDto>>(recentQuestions).ToList();
         var helpfulDtos = _mapper.Map<IEnumerable<ProductQuestionDto>>(mostHelpfulQuestions).ToList();
 
-        return new QAStatsDto
-        {
-            TotalQuestions = totalQuestions,
-            TotalAnswers = totalAnswers,
-            UnansweredQuestions = unansweredQuestions,
-            QuestionsWithSellerAnswer = questionsWithSellerAnswer,
-            AverageAnswersPerQuestion = averageAnswersPerQuestion,
-            RecentQuestions = recentDtos,
-            MostHelpfulQuestions = helpfulDtos
-        };
+        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
+        return new QAStatsDto(
+            TotalQuestions: totalQuestions,
+            TotalAnswers: totalAnswers,
+            UnansweredQuestions: unansweredQuestions,
+            QuestionsWithSellerAnswer: questionsWithSellerAnswer,
+            AverageAnswersPerQuestion: averageAnswersPerQuestion,
+            RecentQuestions: recentDtos,
+            MostHelpfulQuestions: helpfulDtos
+        );
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)

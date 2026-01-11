@@ -1,7 +1,9 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Merge.Domain.Common.DomainEvents;
+using Merge.Domain.Enums;
 using Merge.Application.Interfaces.Notification;
+using Merge.Application.DTOs.Notification;
 
 namespace Merge.Application.Order.EventHandlers;
 
@@ -33,12 +35,14 @@ public class OrderCancelledEventHandler : INotificationHandler<OrderCancelledEve
             // Email bildirimi gönder
             if (_notificationService != null)
             {
-                await _notificationService.CreateNotificationAsync(
+                var createDto = new CreateNotificationDto(
                     notification.UserId,
+                    NotificationType.Order,
                     "Siparişiniz İptal Edildi",
                     $"Siparişiniz iptal edildi. Sipariş No: {notification.OrderId}. Sebep: {notification.Reason ?? "Belirtilmedi"}",
-                    "Order",
-                    cancellationToken);
+                    null,
+                    null);
+                await _notificationService.CreateNotificationAsync(createDto, cancellationToken);
             }
 
             // Analytics tracking

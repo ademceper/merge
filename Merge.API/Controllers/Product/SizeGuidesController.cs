@@ -1,24 +1,38 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Product;
+using MediatR;
 using Merge.Application.DTOs.Product;
+using Merge.Application.Product.Commands.CreateSizeGuide;
+using Merge.Application.Product.Commands.UpdateSizeGuide;
+using Merge.Application.Product.Commands.DeleteSizeGuide;
+using Merge.Application.Product.Commands.AssignSizeGuideToProduct;
+using Merge.Application.Product.Commands.RemoveSizeGuideFromProduct;
+using Merge.Application.Product.Queries.GetSizeGuide;
+using Merge.Application.Product.Queries.GetSizeGuidesByCategory;
+using Merge.Application.Product.Queries.GetAllSizeGuides;
+using Merge.Application.Product.Queries.GetProductSizeGuide;
+using Merge.Application.Product.Queries.GetSizeRecommendation;
 using Merge.API.Middleware;
+using Merge.API.Helpers;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
 // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 namespace Merge.API.Controllers.Product;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/products/size-guides")]
+[Route("api/v{version:apiVersion}/products/size-guides")]
 public class SizeGuidesController : BaseController
 {
-    private readonly ISizeGuideService _sizeGuideService;
+    private readonly IMediator _mediator;
 
-    public SizeGuidesController(ISizeGuideService sizeGuideService)
+    public SizeGuidesController(IMediator mediator)
     {
-        _sizeGuideService = sizeGuideService;
+        _mediator = mediator;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -40,8 +54,22 @@ public class SizeGuidesController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var sizeGuide = await _sizeGuideService.CreateSizeGuideAsync(dto, cancellationToken);
-        return CreatedAtAction(nameof(GetSizeGuide), new { id = sizeGuide.Id }, sizeGuide);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new CreateSizeGuideCommand(
+            dto.Name,
+            dto.Description,
+            dto.CategoryId,
+            dto.Brand,
+            dto.Type,
+            dto.MeasurementUnit,
+            dto.Entries.ToList());
+        var sizeGuide = await _mediator.Send(command, cancellationToken);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSizeGuideLinks(Url, sizeGuide.Id, version);
+        
+        return CreatedAtAction(nameof(GetSizeGuide), new { id = sizeGuide.Id }, new { sizeGuide, _links = links });
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -55,14 +83,20 @@ public class SizeGuidesController : BaseController
     public async Task<ActionResult<SizeGuideDto>> GetSizeGuide(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var sizeGuide = await _sizeGuideService.GetSizeGuideAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSizeGuideQuery(id);
+        var sizeGuide = await _mediator.Send(query, cancellationToken);
 
         if (sizeGuide == null)
         {
             return NotFound();
         }
 
-        return Ok(sizeGuide);
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSizeGuideLinks(Url, sizeGuide.Id, version);
+        
+        return Ok(new { sizeGuide, _links = links });
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -77,8 +111,15 @@ public class SizeGuidesController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var sizeGuides = await _sizeGuideService.GetSizeGuidesByCategoryAsync(categoryId, cancellationToken);
-        return Ok(sizeGuides);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSizeGuidesByCategoryQuery(categoryId);
+        var sizeGuides = await _mediator.Send(query, cancellationToken);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = sizeGuides.Select(sg => HateoasHelper.CreateSizeGuideLinks(Url, sg.Id, version)).ToList();
+        
+        return Ok(new { sizeGuides, _links = links });
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -91,8 +132,15 @@ public class SizeGuidesController : BaseController
     public async Task<ActionResult<IEnumerable<SizeGuideDto>>> GetAllSizeGuides(CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var sizeGuides = await _sizeGuideService.GetAllSizeGuidesAsync(cancellationToken);
-        return Ok(sizeGuides);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetAllSizeGuidesQuery();
+        var sizeGuides = await _mediator.Send(query, cancellationToken);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = sizeGuides.Select(sg => HateoasHelper.CreateSizeGuideLinks(Url, sg.Id, version)).ToList();
+        
+        return Ok(new { sizeGuides, _links = links });
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -116,7 +164,17 @@ public class SizeGuidesController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var success = await _sizeGuideService.UpdateSizeGuideAsync(id, dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new UpdateSizeGuideCommand(
+            id,
+            dto.Name,
+            dto.Description,
+            dto.CategoryId,
+            dto.Brand,
+            dto.Type,
+            dto.MeasurementUnit,
+            dto.Entries.ToList());
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -140,7 +198,9 @@ public class SizeGuidesController : BaseController
     public async Task<IActionResult> DeleteSizeGuide(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _sizeGuideService.DeleteSizeGuideAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeleteSizeGuideCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -169,7 +229,14 @@ public class SizeGuidesController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        await _sizeGuideService.AssignSizeGuideToProductAsync(dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new AssignSizeGuideToProductCommand(
+            dto.ProductId,
+            dto.SizeGuideId,
+            dto.CustomNotes,
+            dto.FitType,
+            dto.FitDescription);
+        await _mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -186,14 +253,20 @@ public class SizeGuidesController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var productSizeGuide = await _sizeGuideService.GetProductSizeGuideAsync(productId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetProductSizeGuideQuery(productId);
+        var productSizeGuide = await _mediator.Send(query, cancellationToken);
 
         if (productSizeGuide == null)
         {
             return NotFound();
         }
 
-        return Ok(productSizeGuide);
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSizeGuideLinks(Url, productSizeGuide.SizeGuide.Id, version);
+        
+        return Ok(new { productSizeGuide, _links = links });
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -212,7 +285,9 @@ public class SizeGuidesController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var success = await _sizeGuideService.RemoveSizeGuideFromProductAsync(productId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new RemoveSizeGuideFromProductCommand(productId);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -238,13 +313,19 @@ public class SizeGuidesController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        var recommendation = await _sizeGuideService.GetSizeRecommendationAsync(
-            dto.ProductId, 
-            dto.Height, 
-            dto.Weight, 
-            dto.Chest, 
-            dto.Waist,
-            cancellationToken);
-        return Ok(recommendation);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetSizeRecommendationQuery(
+            dto.ProductId,
+            dto.Height,
+            dto.Weight,
+            dto.Chest,
+            dto.Waist);
+        var recommendation = await _mediator.Send(query, cancellationToken);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetSizeRecommendation", new { dto.ProductId }, version);
+        
+        return Ok(new { recommendation, _links = links });
     }
 }

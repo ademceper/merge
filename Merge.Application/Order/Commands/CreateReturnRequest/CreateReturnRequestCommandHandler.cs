@@ -90,7 +90,7 @@ public class CreateReturnRequestCommandHandler : IRequestHandler<CreateReturnReq
 
         // ✅ PERFORMANCE: Order zaten yukarıda query edildi, tekrar query etme
         // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
-        var user = await _context.Set<UserEntity>()
+        var user = await _context.Users
             .FirstOrDefaultAsync(u => u.Id == request.Dto.UserId, cancellationToken);
         if (user == null)
         {

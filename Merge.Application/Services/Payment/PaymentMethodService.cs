@@ -55,29 +55,31 @@ public class PaymentMethodService : IPaymentMethodService
                 .Where(pm => pm.IsDefault)
                 .ToListAsync(cancellationToken);
 
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             foreach (var method in existingDefault)
             {
-                method.IsDefault = false;
+                method.UnsetAsDefault();
             }
         }
 
-        var paymentMethod = new PaymentMethod
-        {
-            Name = dto.Name,
-            Code = dto.Code,
-            Description = dto.Description,
-            IconUrl = dto.IconUrl,
-            IsActive = dto.IsActive,
-            RequiresOnlinePayment = dto.RequiresOnlinePayment,
-            RequiresManualVerification = dto.RequiresManualVerification,
-            MinimumAmount = dto.MinimumAmount,
-            MaximumAmount = dto.MaximumAmount,
-            ProcessingFee = dto.ProcessingFee,
-            ProcessingFeePercentage = dto.ProcessingFeePercentage,
-            Settings = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null,
-            DisplayOrder = dto.DisplayOrder,
-            IsDefault = dto.IsDefault
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var settingsJson = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null;
+        
+        var paymentMethod = PaymentMethod.Create(
+            dto.Name,
+            dto.Code,
+            dto.Description,
+            dto.IconUrl,
+            dto.IsActive,
+            dto.RequiresOnlinePayment,
+            dto.RequiresManualVerification,
+            dto.MinimumAmount,
+            dto.MaximumAmount,
+            dto.ProcessingFee,
+            dto.ProcessingFeePercentage,
+            settingsJson,
+            dto.DisplayOrder,
+            dto.IsDefault);
 
         await _context.Set<PaymentMethod>().AddAsync(paymentMethod, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -165,66 +167,24 @@ public class PaymentMethodService : IPaymentMethodService
 
         if (paymentMethod == null) return false;
 
-        if (!string.IsNullOrEmpty(dto.Name))
-        {
-            paymentMethod.Name = dto.Name;
-        }
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        var settingsJson = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null;
+        
+        paymentMethod.Update(
+            dto.Name,
+            dto.Description,
+            dto.IconUrl,
+            dto.IsActive,
+            dto.RequiresOnlinePayment,
+            dto.RequiresManualVerification,
+            dto.MinimumAmount,
+            dto.MaximumAmount,
+            dto.ProcessingFee,
+            dto.ProcessingFeePercentage,
+            settingsJson,
+            dto.DisplayOrder);
 
-        if (dto.Description != null)
-        {
-            paymentMethod.Description = dto.Description;
-        }
-
-        if (dto.IconUrl != null)
-        {
-            paymentMethod.IconUrl = dto.IconUrl;
-        }
-
-        if (dto.IsActive.HasValue)
-        {
-            paymentMethod.IsActive = dto.IsActive.Value;
-        }
-
-        if (dto.RequiresOnlinePayment.HasValue)
-        {
-            paymentMethod.RequiresOnlinePayment = dto.RequiresOnlinePayment.Value;
-        }
-
-        if (dto.RequiresManualVerification.HasValue)
-        {
-            paymentMethod.RequiresManualVerification = dto.RequiresManualVerification.Value;
-        }
-
-        if (dto.MinimumAmount.HasValue)
-        {
-            paymentMethod.MinimumAmount = dto.MinimumAmount.Value;
-        }
-
-        if (dto.MaximumAmount.HasValue)
-        {
-            paymentMethod.MaximumAmount = dto.MaximumAmount.Value;
-        }
-
-        if (dto.ProcessingFee.HasValue)
-        {
-            paymentMethod.ProcessingFee = dto.ProcessingFee.Value;
-        }
-
-        if (dto.ProcessingFeePercentage.HasValue)
-        {
-            paymentMethod.ProcessingFeePercentage = dto.ProcessingFeePercentage.Value;
-        }
-
-        if (dto.Settings != null)
-        {
-            paymentMethod.Settings = JsonSerializer.Serialize(dto.Settings);
-        }
-
-        if (dto.DisplayOrder.HasValue)
-        {
-            paymentMethod.DisplayOrder = dto.DisplayOrder.Value;
-        }
-
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (dto.IsDefault.HasValue && dto.IsDefault.Value)
         {
             // ✅ PERFORMANCE: Removed manual !pm.IsDeleted (Global Query Filter)
@@ -235,17 +195,15 @@ public class PaymentMethodService : IPaymentMethodService
 
             foreach (var method in existingDefault)
             {
-                method.IsDefault = false;
+                method.UnsetAsDefault();
             }
 
-            paymentMethod.IsDefault = true;
+            paymentMethod.SetAsDefault();
         }
         else if (dto.IsDefault.HasValue && !dto.IsDefault.Value)
         {
-            paymentMethod.IsDefault = false;
+            paymentMethod.UnsetAsDefault();
         }
-
-        paymentMethod.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -268,9 +226,9 @@ public class PaymentMethodService : IPaymentMethodService
 
         if (hasOrders)
         {
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             // Soft delete - just mark as inactive
-            paymentMethod.IsActive = false;
-            paymentMethod.IsDefault = false;
+            paymentMethod.Deactivate();
         }
         else
         {
@@ -301,10 +259,12 @@ public class PaymentMethodService : IPaymentMethodService
 
         foreach (var method in existingDefault)
         {
-            method.IsDefault = false;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            method.UnsetAsDefault();
         }
 
-        paymentMethod.IsDefault = true;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        paymentMethod.SetAsDefault();
         paymentMethod.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

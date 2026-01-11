@@ -185,6 +185,8 @@ public class Product : BaseEntity, IAggregateRoot
         {
             _discountPrice = null;
             UpdatedAt = DateTime.UtcNow;
+            // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+            AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
             return;
         }
 
@@ -195,6 +197,9 @@ public class Product : BaseEntity, IAggregateRoot
 
         _discountPrice = discountPrice.Amount;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Reduce stock
@@ -207,6 +212,10 @@ public class Product : BaseEntity, IAggregateRoot
 
         _stockQuantity -= quantity;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        // Stok azalması önemli bir business event'tir
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Increase stock
@@ -216,6 +225,10 @@ public class Product : BaseEntity, IAggregateRoot
 
         _stockQuantity += quantity;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        // Stok artışı önemli bir business event'tir
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Reserve stock (for cart/order)
@@ -236,6 +249,10 @@ public class Product : BaseEntity, IAggregateRoot
         Guard.AgainstNegative(quantity, nameof(quantity));
         _stockQuantity = quantity;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        // Stok miktarı değişikliği önemli bir business event'tir
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Activate product
@@ -246,6 +263,10 @@ public class Product : BaseEntity, IAggregateRoot
 
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        // Ürün aktif/pasif durumu önemli bir business event'tir
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Deactivate product
@@ -256,6 +277,10 @@ public class Product : BaseEntity, IAggregateRoot
 
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        // Ürün aktif/pasif durumu önemli bir business event'tir
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update rating (called when review is added/updated)
@@ -267,6 +292,10 @@ public class Product : BaseEntity, IAggregateRoot
         _rating = newRating;
         ReviewCount = reviewCount;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        // Rating değişikliği önemli bir business event'tir
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update name
@@ -286,6 +315,9 @@ public class Product : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(newDescription, nameof(newDescription));
         Description = newDescription;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update SKU
@@ -305,6 +337,9 @@ public class Product : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(newBrand, nameof(newBrand));
         Brand = newBrand;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update images
@@ -316,6 +351,9 @@ public class Product : BaseEntity, IAggregateRoot
         ImageUrl = imageUrl;
         ImageUrls = imageUrls;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Set image URL
@@ -324,6 +362,9 @@ public class Product : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(imageUrl, nameof(imageUrl));
         ImageUrl = imageUrl;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Set category

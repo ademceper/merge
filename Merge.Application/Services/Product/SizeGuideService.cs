@@ -39,40 +39,43 @@ public class SizeGuideService : ISizeGuideService
             "Size guide oluşturuluyor. Name: {Name}, CategoryId: {CategoryId}",
             dto.Name, dto.CategoryId);
 
-        var sizeGuide = new SizeGuide
-        {
-            Name = dto.Name,
-            Description = dto.Description,
-            CategoryId = dto.CategoryId,
-            Brand = dto.Brand,
-            Type = Enum.Parse<SizeGuideType>(dto.Type, true),
-            MeasurementUnit = dto.MeasurementUnit
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var sizeGuide = SizeGuide.Create(
+            dto.Name,
+            dto.Description,
+            dto.CategoryId,
+            Enum.Parse<SizeGuideType>(dto.Type, true),
+            dto.Brand,
+            dto.MeasurementUnit);
 
         await _context.Set<SizeGuide>().AddAsync(sizeGuide, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method ve Domain Method kullanımı
         foreach (var entryDto in dto.Entries)
         {
-            var entry = new SizeGuideEntry
-            {
-                SizeGuideId = sizeGuide.Id,
-                SizeLabel = entryDto.SizeLabel,
-                AlternativeLabel = entryDto.AlternativeLabel,
-                Chest = entryDto.Chest,
-                Waist = entryDto.Waist,
-                Hips = entryDto.Hips,
-                Inseam = entryDto.Inseam,
-                Shoulder = entryDto.Shoulder,
-                Length = entryDto.Length,
-                Width = entryDto.Width,
-                Height = entryDto.Height,
-                Weight = entryDto.Weight,
-                AdditionalMeasurements = entryDto.AdditionalMeasurements != null ? JsonSerializer.Serialize(entryDto.AdditionalMeasurements) : null,
-                DisplayOrder = entryDto.DisplayOrder
-            };
+            var additionalMeasurementsJson = entryDto.AdditionalMeasurements != null 
+                ? JsonSerializer.Serialize(entryDto.AdditionalMeasurements) 
+                : null;
 
-            await _context.Set<SizeGuideEntry>().AddAsync(entry, cancellationToken);
+            var entry = SizeGuideEntry.Create(
+                sizeGuide.Id,
+                entryDto.SizeLabel,
+                entryDto.AlternativeLabel,
+                entryDto.Chest,
+                entryDto.Waist,
+                entryDto.Hips,
+                entryDto.Inseam,
+                entryDto.Shoulder,
+                entryDto.Length,
+                entryDto.Width,
+                entryDto.Height,
+                entryDto.Weight,
+                additionalMeasurementsJson,
+                entryDto.DisplayOrder);
+
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            sizeGuide.AddEntry(entry);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -147,41 +150,49 @@ public class SizeGuideService : ISizeGuideService
 
         if (sizeGuide == null) return false;
 
-        sizeGuide.Name = dto.Name;
-        sizeGuide.Description = dto.Description;
-        sizeGuide.CategoryId = dto.CategoryId;
-        sizeGuide.Brand = dto.Brand;
-        sizeGuide.Type = Enum.Parse<SizeGuideType>(dto.Type, true);
-        sizeGuide.MeasurementUnit = dto.MeasurementUnit;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        sizeGuide.Update(
+            dto.Name,
+            dto.Description,
+            dto.CategoryId,
+            Enum.Parse<SizeGuideType>(dto.Type, true),
+            dto.Brand,
+            dto.MeasurementUnit);
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         // Remove old entries
-        foreach (var entry in sizeGuide.Entries)
+        var entryIdsToRemove = sizeGuide.Entries.Select(e => e.Id).ToList();
+        foreach (var entryId in entryIdsToRemove)
         {
-            entry.IsDeleted = true;
+            sizeGuide.RemoveEntry(entryId);
         }
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method ve Domain Method kullanımı
         // Add new entries
         foreach (var entryDto in dto.Entries)
         {
-            var entry = new SizeGuideEntry
-            {
-                SizeGuideId = sizeGuide.Id,
-                SizeLabel = entryDto.SizeLabel,
-                AlternativeLabel = entryDto.AlternativeLabel,
-                Chest = entryDto.Chest,
-                Waist = entryDto.Waist,
-                Hips = entryDto.Hips,
-                Inseam = entryDto.Inseam,
-                Shoulder = entryDto.Shoulder,
-                Length = entryDto.Length,
-                Width = entryDto.Width,
-                Height = entryDto.Height,
-                Weight = entryDto.Weight,
-                AdditionalMeasurements = entryDto.AdditionalMeasurements != null ? JsonSerializer.Serialize(entryDto.AdditionalMeasurements) : null,
-                DisplayOrder = entryDto.DisplayOrder
-            };
+            var additionalMeasurementsJson = entryDto.AdditionalMeasurements != null 
+                ? JsonSerializer.Serialize(entryDto.AdditionalMeasurements) 
+                : null;
 
-            await _context.Set<SizeGuideEntry>().AddAsync(entry, cancellationToken);
+            var entry = SizeGuideEntry.Create(
+                sizeGuide.Id,
+                entryDto.SizeLabel,
+                entryDto.AlternativeLabel,
+                entryDto.Chest,
+                entryDto.Waist,
+                entryDto.Hips,
+                entryDto.Inseam,
+                entryDto.Shoulder,
+                entryDto.Length,
+                entryDto.Width,
+                entryDto.Height,
+                entryDto.Weight,
+                additionalMeasurementsJson,
+                entryDto.DisplayOrder);
+
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            sizeGuide.AddEntry(entry);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -221,14 +232,12 @@ public class SizeGuideService : ISizeGuideService
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var sizeGuideDto = _mapper.Map<SizeGuideDto>(productSizeGuide.SizeGuide);
-        return new ProductSizeGuideDto
-        {
-            ProductId = productSizeGuide.ProductId,
-            ProductName = productSizeGuide.Product.Name,
-            SizeGuide = sizeGuideDto,
-            CustomNotes = productSizeGuide.CustomNotes,
-            FitDescription = productSizeGuide.FitDescription
-        };
+        return new ProductSizeGuideDto(
+            productSizeGuide.ProductId,
+            productSizeGuide.Product.Name,
+            sizeGuideDto,
+            productSizeGuide.CustomNotes,
+            productSizeGuide.FitDescription);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -240,19 +249,22 @@ public class SizeGuideService : ISizeGuideService
 
         if (existing != null)
         {
-            existing.SizeGuideId = dto.SizeGuideId;
-            existing.CustomNotes = dto.CustomNotes;
-            existing.FitDescription = dto.FitDescription;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            existing.Update(
+                dto.SizeGuideId,
+                dto.CustomNotes,
+                null, // fitType değiştirilmiyor
+                dto.FitDescription);
         }
         else
         {
-            var productSizeGuide = new ProductSizeGuide
-            {
-                ProductId = dto.ProductId,
-                SizeGuideId = dto.SizeGuideId,
-                CustomNotes = dto.CustomNotes,
-                FitDescription = dto.FitDescription
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var productSizeGuide = ProductSizeGuide.Create(
+                dto.ProductId,
+                dto.SizeGuideId,
+                dto.CustomNotes,
+                true, // default fitType
+                dto.FitDescription);
 
             await _context.Set<ProductSizeGuide>().AddAsync(productSizeGuide, cancellationToken);
         }
@@ -287,12 +299,11 @@ public class SizeGuideService : ISizeGuideService
 
         if (productSizeGuide == null)
         {
-            return new SizeRecommendationDto
-            {
-                RecommendedSize = "N/A",
-                Confidence = "Low",
-                Reasoning = "No size guide available for this product"
-            };
+            return new SizeRecommendationDto(
+                RecommendedSize: "N/A",
+                Confidence: "Low",
+                AlternativeSizes: Array.Empty<string>().ToList().AsReadOnly(),
+                Reasoning: "No size guide available for this product");
         }
 
         // ✅ PERFORMANCE: Removed manual !e.IsDeleted (Global Query Filter)
@@ -355,21 +366,18 @@ public class SizeGuideService : ISizeGuideService
             if (currentIndex < entries.Count - 1)
                 alternatives.Add(entries[currentIndex + 1].SizeLabel);
 
-            return new SizeRecommendationDto
-            {
-                RecommendedSize = bestMatch.SizeLabel,
-                Confidence = bestScore < 5 ? "High" : bestScore < 15 ? "Medium" : "Low",
-                AlternativeSizes = alternatives,
-                Reasoning = $"Based on your measurements (Height: {height}cm, Weight: {weight}kg)"
-            };
+            return new SizeRecommendationDto(
+                RecommendedSize: bestMatch.SizeLabel,
+                Confidence: bestScore < 5 ? "High" : bestScore < 15 ? "Medium" : "Low",
+                AlternativeSizes: alternatives.AsReadOnly(),
+                Reasoning: $"Based on your measurements (Height: {height}cm, Weight: {weight}kg)");
         }
 
-        return new SizeRecommendationDto
-        {
-            RecommendedSize = "N/A",
-            Confidence = "Low",
-            Reasoning = "Unable to determine size based on provided measurements"
-        };
+        return new SizeRecommendationDto(
+            RecommendedSize: "N/A",
+            Confidence: "Low",
+            AlternativeSizes: Array.Empty<string>().ToList().AsReadOnly(),
+            Reasoning: "Unable to determine size based on provided measurements");
     }
 
 }

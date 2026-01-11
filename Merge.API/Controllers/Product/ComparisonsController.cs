@@ -1,26 +1,42 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.Product;
+using MediatR;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Common;
+using Merge.Application.Product.Commands.CreateProductComparison;
+using Merge.Application.Product.Commands.AddProductToComparison;
+using Merge.Application.Product.Commands.RemoveProductFromComparison;
+using Merge.Application.Product.Commands.SaveComparison;
+using Merge.Application.Product.Commands.GenerateShareCode;
+using Merge.Application.Product.Commands.ClearComparison;
+using Merge.Application.Product.Commands.DeleteComparison;
+using Merge.Application.Product.Queries.GetProductComparisonById;
+using Merge.Application.Product.Queries.GetUserComparison;
+using Merge.Application.Product.Queries.GetUserComparisons;
+using Merge.Application.Product.Queries.GetComparisonByShareCode;
+using Merge.Application.Product.Queries.GetComparisonMatrix;
 using Merge.API.Middleware;
+using Merge.API.Helpers;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
 // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
 // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 namespace Merge.API.Controllers.Product;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/products/comparisons")]
+[Route("api/v{version:apiVersion}/products/comparisons")]
 public class ProductComparisonsController : BaseController
 {
-    private readonly IProductComparisonService _comparisonService;
+    private readonly IMediator _mediator;
 
-    public ProductComparisonsController(IProductComparisonService comparisonService)
+    public ProductComparisonsController(IMediator mediator)
     {
-        _comparisonService = comparisonService;
+        _mediator = mediator;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -41,9 +57,16 @@ public class ProductComparisonsController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var comparison = await _comparisonService.CreateComparisonAsync(userId, dto, cancellationToken);
-        return CreatedAtAction(nameof(GetComparison), new { id = comparison.Id }, comparison);
+        var command = new CreateProductComparisonCommand(userId, dto.Name, dto.ProductIds.ToList());
+        var comparison = await _mediator.Send(command, cancellationToken);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateProductComparisonLinks(Url, comparison.Id, version);
+        
+        return CreatedAtAction(nameof(GetComparison), new { id = comparison.Id }, new { comparison, _links = links });
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -64,7 +87,9 @@ public class ProductComparisonsController : BaseController
             return Unauthorized();
         }
 
-        var comparison = await _comparisonService.GetComparisonAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetProductComparisonByIdQuery(id);
+        var comparison = await _mediator.Send(query, cancellationToken);
 
         if (comparison == null)
         {
@@ -77,7 +102,11 @@ public class ProductComparisonsController : BaseController
             return Forbid();
         }
 
-        return Ok(comparison);
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateProductComparisonLinks(Url, comparison.Id, version);
+        
+        return Ok(new { comparison, _links = links });
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -92,9 +121,21 @@ public class ProductComparisonsController : BaseController
     public async Task<ActionResult<ProductComparisonDto>> GetCurrentComparison(CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var comparison = await _comparisonService.GetUserComparisonAsync(userId, cancellationToken);
-        return Ok(comparison);
+        var query = new GetUserComparisonQuery(userId);
+        var comparison = await _mediator.Send(query, cancellationToken);
+        
+        if (comparison == null)
+        {
+            return NotFound();
+        }
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateProductComparisonLinks(Url, comparison.Id, version);
+        
+        return Ok(new { comparison, _links = links });
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -114,9 +155,23 @@ public class ProductComparisonsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var comparisons = await _comparisonService.GetUserComparisonsAsync(userId, savedOnly, page, pageSize, cancellationToken);
-        return Ok(comparisons);
+        var query = new GetUserComparisonsQuery(userId, savedOnly, page, pageSize);
+        var comparisons = await _mediator.Send(query, cancellationToken);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var paginationLinks = HateoasHelper.CreatePaginationLinks(
+            Url,
+            "GetMyComparisons",
+            page,
+            pageSize,
+            comparisons.TotalPages,
+            new { savedOnly },
+            version);
+        
+        return Ok(new { comparisons, _links = paginationLinks });
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -132,14 +187,20 @@ public class ProductComparisonsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var comparison = await _comparisonService.GetComparisonByShareCodeAsync(shareCode, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetComparisonByShareCodeQuery(shareCode);
+        var comparison = await _mediator.Send(query, cancellationToken);
 
         if (comparison == null)
         {
             return NotFound();
         }
 
-        return Ok(comparison);
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateProductComparisonLinks(Url, comparison.Id, version);
+        
+        return Ok(new { comparison, _links = links });
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -160,9 +221,16 @@ public class ProductComparisonsController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var comparison = await _comparisonService.AddProductToComparisonAsync(userId, dto.ProductId, cancellationToken);
-        return Ok(comparison);
+        var command = new AddProductToComparisonCommand(userId, dto.ProductId);
+        var comparison = await _mediator.Send(command, cancellationToken);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateProductComparisonLinks(Url, comparison.Id, version);
+        
+        return Ok(new { comparison, _links = links });
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -178,8 +246,10 @@ public class ProductComparisonsController : BaseController
     public async Task<IActionResult> RemoveProduct(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var success = await _comparisonService.RemoveProductFromComparisonAsync(userId, productId, cancellationToken);
+        var command = new RemoveProductFromComparisonCommand(userId, productId);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -210,8 +280,10 @@ public class ProductComparisonsController : BaseController
             return BadRequest("İsim boş olamaz.");
         }
 
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var success = await _comparisonService.SaveComparisonAsync(userId, name, cancellationToken);
+        var command = new SaveComparisonCommand(userId, name);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -241,7 +313,9 @@ public class ProductComparisonsController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Kullanıcı sadece kendi karşılaştırmaları için share code oluşturabilmeli
-        var comparison = await _comparisonService.GetComparisonAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var getQuery = new GetProductComparisonByIdQuery(id);
+        var comparison = await _mediator.Send(getQuery, cancellationToken);
         if (comparison == null)
         {
             return NotFound();
@@ -252,7 +326,8 @@ public class ProductComparisonsController : BaseController
             return Forbid();
         }
 
-        var shareCode = await _comparisonService.GenerateShareCodeAsync(id, cancellationToken);
+        var command = new GenerateShareCodeCommand(id);
+        var shareCode = await _mediator.Send(command, cancellationToken);
         return Ok(new { shareCode });
     }
 
@@ -269,8 +344,10 @@ public class ProductComparisonsController : BaseController
     public async Task<IActionResult> ClearComparison(CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var success = await _comparisonService.ClearComparisonAsync(userId, cancellationToken);
+        var command = new ClearComparisonCommand(userId);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -293,8 +370,10 @@ public class ProductComparisonsController : BaseController
     public async Task<IActionResult> DeleteComparison(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var success = await _comparisonService.DeleteComparisonAsync(id, userId, cancellationToken);
+        var command = new DeleteComparisonCommand(id, userId);
+        var success = await _mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -323,7 +402,9 @@ public class ProductComparisonsController : BaseController
         }
 
         // ✅ SECURITY: IDOR koruması - Önce comparison'ı al ve ownership kontrolü yap
-        var comparison = await _comparisonService.GetComparisonAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var getQuery = new GetProductComparisonByIdQuery(id);
+        var comparison = await _mediator.Send(getQuery, cancellationToken);
         if (comparison == null)
         {
             return NotFound();
@@ -335,7 +416,13 @@ public class ProductComparisonsController : BaseController
             return Forbid();
         }
 
-        var matrix = await _comparisonService.GetComparisonMatrixAsync(id, cancellationToken);
-        return Ok(matrix);
+        var query = new GetComparisonMatrixQuery(id);
+        var matrix = await _mediator.Send(query, cancellationToken);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateProductComparisonLinks(Url, id, version);
+        
+        return Ok(new { matrix, _links = links });
     }
 }

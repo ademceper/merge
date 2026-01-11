@@ -120,6 +120,7 @@ public class OrderSplitService : IOrderSplitService
 
             // Calculate split order totals
             decimal splitSubTotal = 0;
+            var splitOrderItems = new List<OrderItem>(); // ✅ FIX: Declare for later use
 
             foreach (var item in dto.Items)
             {
@@ -137,10 +138,13 @@ public class OrderSplitService : IOrderSplitService
                 // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
                 splitOrder.AddItem(product, item.Quantity);
                 splitSubTotal += originalItem.UnitPrice * item.Quantity;
+                
+                // ✅ BOLUM 1.1: Rich Domain Model - OrderItem'lar AddItem ile Order.OrderItems collection'ına ekleniyor
+                splitOrderItems.Add(splitOrder.OrderItems.Last());
 
-                // Update original order item quantity
-                originalItem.Quantity -= item.Quantity;
-                originalItem.TotalPrice = originalItem.UnitPrice * originalItem.Quantity;
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+                var newQuantity = originalItem.Quantity - item.Quantity;
+                originalItem.UpdateQuantity(newQuantity);
             }
 
             // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
@@ -154,35 +158,31 @@ public class OrderSplitService : IOrderSplitService
             // Update original order totals - Domain method'lar kullanılamıyor çünkü Order entity'sinde RecalculateTotals private
             // Bu durumda service layer'da manuel hesaplama yapılıyor (Order entity'sine public RecalculateTotals eklenebilir)
             // Şimdilik manuel hesaplama yapılıyor
-
-            // ✅ BOLUM 1.1: Rich Domain Model - OrderItem'lar AddItem ile Order.OrderItems collection'ına ekleniyor
-            var splitOrderItems = new List<OrderItem>(); // ✅ FIX: Declare for later use
-            foreach (var item in dto.Items)
-            {
-                var originalItem = originalOrder.OrderItems.First(oi => oi.Id == item.OrderItemId);
-                var product = await _context.Set<ProductEntity>().FirstOrDefaultAsync(p => p.Id == originalItem.ProductId, cancellationToken);
-                if (product != null)
-                {
-                    splitOrder.AddItem(product, item.Quantity);
-                    splitOrderItems.Add(splitOrder.OrderItems.Last());
-                }
-            }
             
             await _context.Set<OrderEntity>().AddAsync(splitOrder, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // Create OrderSplit record
-            var orderSplit = new OrderSplit
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            // Address yükle (eğer NewAddressId varsa)
+            Address? newAddress = null;
+            if (dto.NewAddressId.HasValue)
             {
-                OriginalOrderId = originalOrder.Id,
-                SplitOrderId = splitOrder.Id,
-                SplitReason = dto.SplitReason,
-                NewAddressId = dto.NewAddressId,
-                Status = OrderSplitStatus.Pending
-            };
+                newAddress = await _context.Set<Address>()
+                    .FirstOrDefaultAsync(a => a.Id == dto.NewAddressId.Value, cancellationToken);
+            }
+
+            var orderSplit = OrderSplit.Create(
+                originalOrder.Id,
+                splitOrder.Id,
+                dto.SplitReason,
+                dto.NewAddressId,
+                originalOrder,
+                splitOrder,
+                newAddress);
 
             await _context.Set<OrderSplit>().AddAsync(orderSplit, cancellationToken);
 
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             // Create OrderSplitItem records
             var splitItemRecords = new List<OrderSplitItem>();
             foreach (var item in dto.Items)
@@ -190,13 +190,14 @@ public class OrderSplitService : IOrderSplitService
                 var originalItem = originalOrder.OrderItems.First(oi => oi.Id == item.OrderItemId);
                 var splitItem = splitOrderItems.First(si => si.ProductId == originalItem.ProductId && si.Quantity == item.Quantity);
 
-                splitItemRecords.Add(new OrderSplitItem
-                {
-                    OrderSplitId = orderSplit.Id,
-                    OriginalOrderItemId = originalItem.Id,
-                    SplitOrderItemId = splitItem.Id,
-                    Quantity = item.Quantity
-                });
+                splitItemRecords.Add(OrderSplitItem.Create(
+                    orderSplit.Id,
+                    originalItem.Id,
+                    splitItem.Id,
+                    item.Quantity,
+                    orderSplit,
+                    originalItem,
+                    splitItem));
             }
 
             await _context.Set<OrderSplitItem>().AddRangeAsync(splitItemRecords, cancellationToken);
@@ -330,8 +331,8 @@ public class OrderSplitService : IOrderSplitService
             var originalItem = splitItem.OriginalOrderItem;
             var splitOrderItem = splitItem.SplitOrderItem;
             
-            originalItem.Quantity += splitItem.Quantity;
-            originalItem.TotalPrice = originalItem.UnitPrice * originalItem.Quantity;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            originalItem.UpdateQuantity(originalItem.Quantity + splitItem.Quantity);
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
@@ -341,7 +342,8 @@ public class OrderSplitService : IOrderSplitService
 
         // Delete split order
         split.SplitOrder.IsDeleted = true;
-        split.Status = OrderSplitStatus.Cancelled;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        split.Cancel();
         split.IsDeleted = true;
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -357,7 +359,8 @@ public class OrderSplitService : IOrderSplitService
 
         if (split == null) return false;
 
-        split.Status = OrderSplitStatus.Completed;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        split.Complete();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
