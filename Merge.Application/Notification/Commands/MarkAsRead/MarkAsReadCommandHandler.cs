@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
+using NotificationEntity = Merge.Domain.Entities.Notification;
 
 namespace Merge.Application.Notification.Commands.MarkAsRead;
 
@@ -28,7 +29,7 @@ public class MarkAsReadCommandHandler : IRequestHandler<MarkAsReadCommand, bool>
     public async Task<bool> Handle(MarkAsReadCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Removed manual !n.IsDeleted (Global Query Filter)
-        var notification = await _context.Set<Notification>()
+        var notification = await _context.Set<NotificationEntity>()
             .FirstOrDefaultAsync(n => n.Id == request.NotificationId && n.UserId == request.UserId, cancellationToken);
 
         if (notification == null)

@@ -235,15 +235,14 @@ public class OrderService : IOrderService
             {
                 // ✅ ARCHITECTURE: MediatR kullan (service layer YASAK)
                 var couponDto = await _mediator.Send(new GetCouponByCodeQuery(couponCode), cancellationToken);
-                if (couponDto != null)
+                if (couponDto != null && order.CouponDiscount.HasValue)
                 {
-                    var couponUsage = new CouponUsage
-                    {
-                        CouponId = couponDto.Id,
-                        UserId = userId,
-                        OrderId = order.Id,
-                        DiscountAmount = order.CouponDiscount.Value
-                    };
+                    // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+                    var couponUsage = CouponUsage.Create(
+                        couponDto.Id,
+                        userId,
+                        order.Id,
+                        new Money(order.CouponDiscount.Value));
                     await _context.Set<CouponUsage>().AddAsync(couponUsage, cancellationToken);
 
                     // ✅ NOT: AsNoTracking() YOK - Entity track edilmeli (update için - IncrementUsage)

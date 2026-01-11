@@ -6,6 +6,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.ML;
 using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
+using Merge.Application.ML.Helpers;
 using Merge.Domain.Entities;
 using Merge.Domain.ValueObjects;
 using ProductEntity = Merge.Domain.Entities.Product;

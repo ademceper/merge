@@ -41,31 +41,38 @@ public class PriceOptimizationHelper
 
         // Stok durumuna göre fiyatlandırma
         // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-        var stockFactor = product.StockQuantity switch
-        {
-            <= 0 => _mlSettings.PriceOptimizationStockFactorZero,
-            <= _mlSettings.StockThresholdLow => _mlSettings.PriceOptimizationStockFactorLow,
-            _ => _mlSettings.PriceOptimizationStockFactorHigh
-        };
+        // ✅ FIX: Switch expression'da constant değer bekleniyor, if-else kullanıyoruz
+        decimal stockFactor;
+        if (product.StockQuantity <= 0)
+            stockFactor = _mlSettings.PriceOptimizationStockFactorZero;
+        else if (product.StockQuantity <= _mlSettings.StockThresholdLow)
+            stockFactor = _mlSettings.PriceOptimizationStockFactorLow;
+        else
+            stockFactor = _mlSettings.PriceOptimizationStockFactorHigh;
 
         // Rating'e göre fiyatlandırma
         // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-        var ratingFactor = product.Rating switch
-        {
-            >= _mlSettings.RatingThresholdHigh => _mlSettings.PriceOptimizationRatingFactorHigh,
-            >= _mlSettings.RatingThresholdMediumHigh => _mlSettings.PriceOptimizationRatingFactorMediumHigh,
-            >= _mlSettings.RatingThresholdMedium => _mlSettings.PriceOptimizationRatingFactorMedium,
-            _ => _mlSettings.PriceOptimizationRatingFactorLow
-        };
+        // ✅ FIX: Switch expression'da constant değer bekleniyor, if-else kullanıyoruz
+        decimal ratingFactor;
+        if (product.Rating >= _mlSettings.RatingThresholdHigh)
+            ratingFactor = _mlSettings.PriceOptimizationRatingFactorHigh;
+        else if (product.Rating >= _mlSettings.RatingThresholdMediumHigh)
+            ratingFactor = _mlSettings.PriceOptimizationRatingFactorMediumHigh;
+        else if (product.Rating >= _mlSettings.RatingThresholdMedium)
+            ratingFactor = _mlSettings.PriceOptimizationRatingFactorMedium;
+        else
+            ratingFactor = _mlSettings.PriceOptimizationRatingFactorLow;
 
         // Satış hacmine göre fiyatlandırma
         // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-        var salesFactor = product.ReviewCount switch
-        {
-            >= _mlSettings.ReviewCountThresholdHigh => _mlSettings.PriceOptimizationSalesFactorHigh,
-            >= _mlSettings.ReviewCountThresholdMedium => _mlSettings.PriceOptimizationSalesFactorMedium,
-            _ => _mlSettings.PriceOptimizationSalesFactorLow
-        };
+        // ✅ FIX: Switch expression'da constant değer bekleniyor, if-else kullanıyoruz
+        decimal salesFactor;
+        if (product.ReviewCount >= _mlSettings.ReviewCountThresholdHigh)
+            salesFactor = _mlSettings.PriceOptimizationSalesFactorHigh;
+        else if (product.ReviewCount >= _mlSettings.ReviewCountThresholdMedium)
+            salesFactor = _mlSettings.PriceOptimizationSalesFactorMedium;
+        else
+            salesFactor = _mlSettings.PriceOptimizationSalesFactorLow;
 
         // Optimal fiyat hesaplama
         var optimalPrice = avgCompetitorPrice * stockFactor * ratingFactor * salesFactor;

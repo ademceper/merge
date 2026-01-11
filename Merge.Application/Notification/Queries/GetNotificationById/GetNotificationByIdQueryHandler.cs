@@ -4,6 +4,7 @@ using AutoMapper;
 using Merge.Application.DTOs.Notification;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
+using NotificationEntity = Merge.Domain.Entities.Notification;
 
 namespace Merge.Application.Notification.Queries.GetNotificationById;
 
@@ -24,7 +25,7 @@ public class GetNotificationByIdQueryHandler : IRequestHandler<GetNotificationBy
     public async Task<NotificationDto?> Handle(GetNotificationByIdQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !n.IsDeleted (Global Query Filter)
-        var notification = await _context.Set<Notification>()
+        var notification = await _context.Set<NotificationEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(n => n.Id == request.NotificationId, cancellationToken);
 

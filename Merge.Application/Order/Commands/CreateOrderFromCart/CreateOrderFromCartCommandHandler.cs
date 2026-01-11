@@ -189,15 +189,14 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
         var getCouponQuery = new GetCouponByCodeQuery(couponCode);
         var couponDto = await _mediator.Send(getCouponQuery, cancellationToken);
         
-        if (couponDto != null)
+        if (couponDto != null && order.CouponDiscount.HasValue)
         {
-            var couponUsage = new CouponUsage
-            {
-                CouponId = couponDto.Id,
-                UserId = userId,
-                OrderId = order.Id,
-                DiscountAmount = order.CouponDiscount!.Value
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var couponUsage = CouponUsage.Create(
+                couponDto.Id,
+                userId,
+                order.Id,
+                new Money(order.CouponDiscount.Value));
             await _context.Set<CouponUsage>().AddAsync(couponUsage, cancellationToken);
 
             var couponEntity = await _context.Set<Coupon>()

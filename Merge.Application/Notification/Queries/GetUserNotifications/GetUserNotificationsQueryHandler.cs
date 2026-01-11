@@ -7,6 +7,7 @@ using Merge.Application.Configuration;
 using Merge.Application.DTOs.Notification;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
+using NotificationEntity = Merge.Domain.Entities.Notification;
 
 namespace Merge.Application.Notification.Queries.GetUserNotifications;
 
@@ -39,7 +40,7 @@ public class GetUserNotificationsQueryHandler : IRequestHandler<GetUserNotificat
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !n.IsDeleted (Global Query Filter)
-        IQueryable<Notification> query = _context.Set<Notification>()
+        IQueryable<NotificationEntity> query = _context.Set<NotificationEntity>()
             .AsNoTracking()
             .Where(n => n.UserId == request.UserId);
 

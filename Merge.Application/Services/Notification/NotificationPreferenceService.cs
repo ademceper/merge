@@ -48,24 +48,20 @@ public class NotificationPreferenceService : INotificationPreferenceService
 
         if (existing != null)
         {
-            existing.IsEnabled = dto.IsEnabled;
-            existing.CustomSettings = dto.CustomSettings != null 
-                ? JsonSerializer.Serialize(dto.CustomSettings) 
-                : null;
-            existing.UpdatedAt = DateTime.UtcNow;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            existing.Update(
+                dto.IsEnabled,
+                dto.CustomSettings != null ? JsonSerializer.Serialize(dto.CustomSettings) : null);
         }
         else
         {
-            var preference = new NotificationPreference
-            {
-                UserId = userId,
-                NotificationType = dto.NotificationType,
-                Channel = dto.Channel,
-                IsEnabled = dto.IsEnabled,
-                CustomSettings = dto.CustomSettings != null 
-                    ? JsonSerializer.Serialize(dto.CustomSettings) 
-                    : null
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var preference = NotificationPreference.Create(
+                userId,
+                dto.NotificationType,
+                dto.Channel,
+                dto.IsEnabled,
+                dto.CustomSettings != null ? JsonSerializer.Serialize(dto.CustomSettings) : null);
 
             await _context.Set<NotificationPreference>().AddAsync(preference, cancellationToken);
         }
@@ -97,12 +93,19 @@ public class NotificationPreferenceService : INotificationPreferenceService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<NotificationPreferenceDto?> GetPreferenceAsync(Guid userId, string notificationType, string channel, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
+        if (!Enum.TryParse<Merge.Domain.Enums.NotificationType>(notificationType, true, out var notificationTypeEnum) ||
+            !Enum.TryParse<Merge.Domain.Enums.NotificationChannel>(channel, true, out var channelEnum))
+        {
+            return null;
+        }
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !np.IsDeleted (Global Query Filter)
         var preference = await _context.Set<NotificationPreference>()
             .AsNoTracking()
             .FirstOrDefaultAsync(np => np.UserId == userId && 
-                                  np.NotificationType == notificationType && 
-                                  np.Channel == channel, cancellationToken);
+                                  np.NotificationType == notificationTypeEnum && 
+                                  np.Channel == channelEnum, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return preference != null ? _mapper.Map<NotificationPreferenceDto>(preference) : null;
@@ -133,25 +136,34 @@ public class NotificationPreferenceService : INotificationPreferenceService
             .Where(np => np.UserId == userId)
             .ToListAsync(cancellationToken);
 
-        var summary = new NotificationPreferenceSummaryDto
-        {
-            UserId = userId,
-            Preferences = new Dictionary<string, Dictionary<string, bool>>()
-        };
+        // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK) - Enum.ToString() kullanıyoruz
+        var preferencesDict = new Dictionary<string, Dictionary<string, bool>>();
+        int totalEnabled = 0;
+        int totalDisabled = 0;
 
         foreach (var pref in preferences)
         {
-            if (!summary.Preferences.ContainsKey(pref.NotificationType))
+            var notificationTypeStr = pref.NotificationType.ToString();
+            var channelStr = pref.Channel.ToString();
+
+            if (!preferencesDict.ContainsKey(notificationTypeStr))
             {
-                summary.Preferences[pref.NotificationType] = new Dictionary<string, bool>();
+                preferencesDict[notificationTypeStr] = new Dictionary<string, bool>();
             }
-            summary.Preferences[pref.NotificationType][pref.Channel] = pref.IsEnabled;
+            preferencesDict[notificationTypeStr][channelStr] = pref.IsEnabled;
 
             if (pref.IsEnabled)
-                summary.TotalEnabled++;
+                totalEnabled++;
             else
-                summary.TotalDisabled++;
+                totalDisabled++;
         }
+
+        // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı
+        var summary = new NotificationPreferenceSummaryDto(
+            userId,
+            preferencesDict,
+            totalEnabled,
+            totalDisabled);
 
         return summary;
     }
@@ -159,23 +171,28 @@ public class NotificationPreferenceService : INotificationPreferenceService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<NotificationPreferenceDto> UpdatePreferenceAsync(Guid userId, string notificationType, string channel, UpdateNotificationPreferenceDto dto, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
+        if (!Enum.TryParse<Merge.Domain.Enums.NotificationType>(notificationType, true, out var notificationTypeEnum) ||
+            !Enum.TryParse<Merge.Domain.Enums.NotificationChannel>(channel, true, out var channelEnum))
+        {
+            throw new NotFoundException("Tercih", Guid.Empty);
+        }
+
         // ✅ PERFORMANCE: Removed manual !np.IsDeleted (Global Query Filter)
         var preference = await _context.Set<NotificationPreference>()
             .FirstOrDefaultAsync(np => np.UserId == userId && 
-                                  np.NotificationType == notificationType && 
-                                  np.Channel == channel, cancellationToken);
+                                  np.NotificationType == notificationTypeEnum && 
+                                  np.Channel == channelEnum, cancellationToken);
 
         if (preference == null)
         {
             throw new NotFoundException("Tercih", Guid.Empty);
         }
 
-        if (dto.IsEnabled.HasValue)
-            preference.IsEnabled = dto.IsEnabled.Value;
-        if (dto.CustomSettings != null)
-            preference.CustomSettings = JsonSerializer.Serialize(dto.CustomSettings);
-
-        preference.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        preference.Update(
+            dto.IsEnabled ?? preference.IsEnabled,
+            dto.CustomSettings != null ? JsonSerializer.Serialize(dto.CustomSettings) : null);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
@@ -185,16 +202,23 @@ public class NotificationPreferenceService : INotificationPreferenceService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> DeletePreferenceAsync(Guid userId, string notificationType, string channel, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
+        if (!Enum.TryParse<Merge.Domain.Enums.NotificationType>(notificationType, true, out var notificationTypeEnum) ||
+            !Enum.TryParse<Merge.Domain.Enums.NotificationChannel>(channel, true, out var channelEnum))
+        {
+            return false;
+        }
+
         // ✅ PERFORMANCE: Removed manual !np.IsDeleted (Global Query Filter)
         var preference = await _context.Set<NotificationPreference>()
             .FirstOrDefaultAsync(np => np.UserId == userId && 
-                                  np.NotificationType == notificationType && 
-                                  np.Channel == channel, cancellationToken);
+                                  np.NotificationType == notificationTypeEnum && 
+                                  np.Channel == channelEnum, cancellationToken);
 
         if (preference == null) return false;
 
-        preference.IsDeleted = true;
-        preference.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        preference.Delete();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -232,25 +256,21 @@ public class NotificationPreferenceService : INotificationPreferenceService
             var key = new { prefDto.NotificationType, prefDto.Channel };
             if (existingPreferences.TryGetValue(key, out var existing))
             {
-                existing.IsEnabled = prefDto.IsEnabled;
-                existing.CustomSettings = prefDto.CustomSettings != null 
-                    ? JsonSerializer.Serialize(prefDto.CustomSettings) 
-                    : null;
-                existing.UpdatedAt = DateTime.UtcNow;
+                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+                existing.Update(
+                    prefDto.IsEnabled,
+                    prefDto.CustomSettings != null ? JsonSerializer.Serialize(prefDto.CustomSettings) : null);
                 preferencesToUpdate.Add(existing);
             }
             else
             {
-                var preference = new NotificationPreference
-                {
-                    UserId = userId,
-                    NotificationType = prefDto.NotificationType,
-                    Channel = prefDto.Channel,
-                    IsEnabled = prefDto.IsEnabled,
-                    CustomSettings = prefDto.CustomSettings != null 
-                        ? JsonSerializer.Serialize(prefDto.CustomSettings) 
-                        : null
-                };
+                // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+                var preference = NotificationPreference.Create(
+                    userId,
+                    prefDto.NotificationType,
+                    prefDto.Channel,
+                    prefDto.IsEnabled,
+                    prefDto.CustomSettings != null ? JsonSerializer.Serialize(prefDto.CustomSettings) : null);
                 preferencesToAdd.Add(preference);
             }
         }
@@ -269,12 +289,19 @@ public class NotificationPreferenceService : INotificationPreferenceService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> IsNotificationEnabledAsync(Guid userId, string notificationType, string channel, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
+        if (!Enum.TryParse<Merge.Domain.Enums.NotificationType>(notificationType, true, out var notificationTypeEnum) ||
+            !Enum.TryParse<Merge.Domain.Enums.NotificationChannel>(channel, true, out var channelEnum))
+        {
+            return false;
+        }
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !np.IsDeleted (Global Query Filter)
         var preference = await _context.Set<NotificationPreference>()
             .AsNoTracking()
             .FirstOrDefaultAsync(np => np.UserId == userId && 
-                                  np.NotificationType == notificationType && 
-                                  np.Channel == channel, cancellationToken);
+                                  np.NotificationType == notificationTypeEnum && 
+                                  np.Channel == channelEnum, cancellationToken);
 
         // If no preference exists, default to enabled
         return preference?.IsEnabled ?? true;
@@ -283,13 +310,19 @@ public class NotificationPreferenceService : INotificationPreferenceService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<string>> GetEnabledChannelsAsync(Guid userId, string notificationType, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
+        if (!Enum.TryParse<Merge.Domain.Enums.NotificationType>(notificationType, true, out var notificationTypeEnum))
+        {
+            return Enumerable.Empty<string>();
+        }
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !np.IsDeleted (Global Query Filter)
         var preferences = await _context.Set<NotificationPreference>()
             .AsNoTracking()
             .Where(np => np.UserId == userId && 
-                   np.NotificationType == notificationType && 
+                   np.NotificationType == notificationTypeEnum && 
                    np.IsEnabled)
-            .Select(np => np.Channel)
+            .Select(np => np.Channel.ToString()) // ✅ BOLUM 1.2: Enum.ToString() kullanıyoruz
             .ToListAsync(cancellationToken);
 
         return preferences;

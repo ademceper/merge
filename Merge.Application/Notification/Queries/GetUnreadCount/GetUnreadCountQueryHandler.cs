@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
+using NotificationEntity = Merge.Domain.Entities.Notification;
 
 namespace Merge.Application.Notification.Queries.GetUnreadCount;
 
@@ -20,7 +21,7 @@ public class GetUnreadCountQueryHandler : IRequestHandler<GetUnreadCountQuery, i
     public async Task<int> Handle(GetUnreadCountQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Removed manual !n.IsDeleted (Global Query Filter)
-        return await _context.Set<Notification>()
+        return await _context.Set<NotificationEntity>()
             .CountAsync(n => n.UserId == request.UserId && !n.IsRead, cancellationToken);
     }
 }

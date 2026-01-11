@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Content;
+using Merge.Application.Common;
 using Merge.Application.ML.Commands.CreateFraudDetectionRule;
 using Merge.Application.ML.Commands.UpdateFraudDetectionRule;
 using Merge.Application.ML.Commands.DeleteFraudDetectionRule;

@@ -152,8 +152,8 @@ public class LoyaltyTier : BaseEntity
         if (minimumPoints.HasValue)
             MinimumPoints = minimumPoints.Value;
 
-        if (discountPercentage.HasValue)
-            DiscountPercentage = discountPercentage.Value.Value;
+        if (discountPercentage != null)
+            DiscountPercentage = discountPercentage.Value;
 
         if (pointsMultiplier.HasValue)
             PointsMultiplier = pointsMultiplier.Value;

@@ -186,7 +186,8 @@ public class MappingProfile : Profile
 
         // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
-        CreateMap<Notification, NotificationDto>()
+        // ✅ FIX: Notification namespace conflict - using alias
+        CreateMap<Merge.Domain.Entities.Notification, NotificationDto>()
             .ConstructUsing(src => new NotificationDto(
                 src.Id,
                 src.UserId,
@@ -1268,41 +1269,81 @@ public class MappingProfile : Profile
 
         // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // ✅ BOLUM 1.2: Enum kullanımı (string NotificationType/Channel YASAK)
+        // ✅ FIX: Expression tree limitation - ConvertUsing kullanıyoruz
         CreateMap<NotificationPreference, NotificationPreferenceDto>()
-            .ConstructUsing(src => new NotificationPreferenceDto(
-                src.Id,
-                src.UserId,
-                src.NotificationType,
-                src.Channel,
-                src.IsEnabled,
-                !string.IsNullOrEmpty(src.CustomSettings)
-                    ? JsonSerializer.Deserialize<NotificationPreferenceSettingsDto>(src.CustomSettings)
-                    : null,
-                src.CreatedAt,
-                src.UpdatedAt));
+            .ConvertUsing((src, context) =>
+            {
+                NotificationPreferenceSettingsDto? customSettings = null;
+                if (!string.IsNullOrEmpty(src.CustomSettings))
+                {
+                    try
+                    {
+                        customSettings = JsonSerializer.Deserialize<NotificationPreferenceSettingsDto>(src.CustomSettings);
+                    }
+                    catch
+                    {
+                        // JSON deserialize hatası - null bırak
+                    }
+                }
+                return new NotificationPreferenceDto(
+                    src.Id,
+                    src.UserId,
+                    src.NotificationType,
+                    src.Channel,
+                    src.IsEnabled,
+                    customSettings,
+                    src.CreatedAt,
+                    src.UpdatedAt);
+            });
         
         // CreateNotificationPreferenceDto artık command'da kullanılıyor, mapping gerekmiyor
 
         // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
+        // ✅ FIX: Expression tree limitation - ConvertUsing kullanıyoruz (statement body destekleniyor)
         CreateMap<NotificationTemplate, NotificationTemplateDto>()
-            .ConstructUsing(src => new NotificationTemplateDto(
-                src.Id,
-                src.Name,
-                src.Description,
-                src.Type,
-                src.TitleTemplate,
-                src.MessageTemplate,
-                src.LinkTemplate,
-                src.IsActive,
-                !string.IsNullOrEmpty(src.Variables)
-                    ? JsonSerializer.Deserialize<NotificationVariablesDto>(src.Variables)
-                    : null,
-                !string.IsNullOrEmpty(src.DefaultData)
-                    ? JsonSerializer.Deserialize<NotificationTemplateSettingsDto>(src.DefaultData)
-                    : null,
-                src.CreatedAt,
-                src.UpdatedAt));
+            .ConvertUsing((src, context) =>
+            {
+                NotificationVariablesDto? variables = null;
+                if (!string.IsNullOrEmpty(src.Variables))
+                {
+                    try
+                    {
+                        variables = JsonSerializer.Deserialize<NotificationVariablesDto>(src.Variables);
+                    }
+                    catch
+                    {
+                        // JSON deserialize hatası - null bırak
+                    }
+                }
+
+                NotificationTemplateSettingsDto? defaultData = null;
+                if (!string.IsNullOrEmpty(src.DefaultData))
+                {
+                    try
+                    {
+                        defaultData = JsonSerializer.Deserialize<NotificationTemplateSettingsDto>(src.DefaultData);
+                    }
+                    catch
+                    {
+                        // JSON deserialize hatası - null bırak
+                    }
+                }
+
+                return new NotificationTemplateDto(
+                    src.Id,
+                    src.Name,
+                    src.Description,
+                    src.Type,
+                    src.TitleTemplate,
+                    src.MessageTemplate,
+                    src.LinkTemplate,
+                    src.IsActive,
+                    variables,
+                    defaultData,
+                    src.CreatedAt,
+                    src.UpdatedAt);
+            });
         
         // CreateNotificationTemplateDto ve UpdateNotificationTemplateDto artık command'da kullanılıyor, mapping gerekmiyor
 

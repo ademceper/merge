@@ -319,9 +319,13 @@ public class FraudDetectionService : IFraudDetectionService
             }
         }
 
+        // ✅ BOLUM 1.2: Enum kullanımı (string AlertType YASAK)
         if (!string.IsNullOrEmpty(alertType))
         {
-            query = query.Where(a => a.AlertType == alertType);
+            if (Enum.TryParse<FraudAlertType>(alertType, true, out var alertTypeEnum))
+            {
+                query = query.Where(a => a.AlertType == alertTypeEnum);
+            }
         }
 
         if (minRiskScore.HasValue)
@@ -385,12 +389,15 @@ public class FraudDetectionService : IFraudDetectionService
             : 0;
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        var alertsByType = await _context.Set<FraudAlert>()
+        // ✅ BOLUM 1.2: Enum kullanımı - Dictionary için string'e çevir (DTO uyumluluğu için)
+        var alertsByTypeRaw = await _context.Set<FraudAlert>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= start && a.CreatedAt <= end)
             .GroupBy(a => a.AlertType)
             .Select(g => new { Type = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Type, x => x.Count, cancellationToken);
+        
+        var alertsByType = alertsByTypeRaw.ToDictionary(kvp => kvp.Key.ToString(), kvp => kvp.Value);
 
         // ✅ BOLUM 1.2: Enum kullanımı - Dictionary için string'e çevir (DTO uyumluluğu için)
         var alertsByStatus = await _context.Set<FraudAlert>()
@@ -408,7 +415,7 @@ public class FraudDetectionService : IFraudDetectionService
             .Take(10)
             .Select(a => new HighRiskAlertDto(
                 a.Id,
-                a.AlertType,
+                a.AlertType.ToString(), // ✅ BOLUM 1.2: Enum -> string (DTO uyumluluğu)
                 a.RiskScore,
                 a.Status.ToString(), // ✅ BOLUM 1.2: Enum -> string (DTO uyumluluğu)
                 a.CreatedAt

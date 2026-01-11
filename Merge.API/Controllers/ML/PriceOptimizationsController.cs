@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.DTOs.Analytics;
+using Merge.Application.Common;
 using Merge.Application.ML.Commands.OptimizePrice;
 using Merge.Application.ML.Queries.OptimizePricesForCategory;
 using Merge.Application.ML.Queries.GetPriceRecommendation;

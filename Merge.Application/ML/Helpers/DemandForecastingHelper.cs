@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
+using Merge.Application.DTOs.Analytics;
 using Merge.Domain.Entities;
 using Merge.Domain.Common;
 using ProductEntity = Merge.Domain.Entities.Product;
@@ -7,7 +8,7 @@ using ProductEntity = Merge.Domain.Entities.Product;
 namespace Merge.Application.ML.Helpers;
 
 // ✅ BOLUM 1.1: Clean Architecture - Helper class for shared demand forecasting logic
-internal class DemandForecastCalculation
+public class DemandForecastCalculation
 {
     public int ForecastedQuantity { get; set; }
     public int MinQuantity { get; set; }
@@ -85,22 +86,27 @@ public class DemandForecastingHelper
 
         // Stok durumu faktörü
         // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-        var stockFactor = product.StockQuantity switch
-        {
-            <= 0 => _mlSettings.DemandForecastStockFactorZero,
-            <= _mlSettings.StockThresholdLow => _mlSettings.DemandForecastStockFactorLow,
-            _ => _mlSettings.DemandForecastStockFactorHigh
-        };
+        // ✅ FIX: Switch expression'da constant değer bekleniyor, if-else kullanıyoruz
+        decimal stockFactor;
+        if (product.StockQuantity <= 0)
+            stockFactor = _mlSettings.DemandForecastStockFactorZero;
+        else if (product.StockQuantity <= _mlSettings.StockThresholdLow)
+            stockFactor = _mlSettings.DemandForecastStockFactorLow;
+        else
+            stockFactor = _mlSettings.DemandForecastStockFactorHigh;
 
         // Rating faktörü
         // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-        var ratingFactor = product.Rating switch
-        {
-            >= _mlSettings.RatingThresholdHigh => _mlSettings.DemandForecastRatingFactorHigh,
-            >= _mlSettings.RatingThresholdMediumHigh => _mlSettings.DemandForecastRatingFactorMediumHigh,
-            >= _mlSettings.RatingThresholdMedium => _mlSettings.DemandForecastRatingFactorMedium,
-            _ => _mlSettings.DemandForecastRatingFactorLow
-        };
+        // ✅ FIX: Switch expression'da constant değer bekleniyor, if-else kullanıyoruz
+        decimal ratingFactor;
+        if (product.Rating >= _mlSettings.RatingThresholdHigh)
+            ratingFactor = _mlSettings.DemandForecastRatingFactorHigh;
+        else if (product.Rating >= _mlSettings.RatingThresholdMediumHigh)
+            ratingFactor = _mlSettings.DemandForecastRatingFactorMediumHigh;
+        else if (product.Rating >= _mlSettings.RatingThresholdMedium)
+            ratingFactor = _mlSettings.DemandForecastRatingFactorMedium;
+        else
+            ratingFactor = _mlSettings.DemandForecastRatingFactorLow;
 
         // Tahmin hesaplama
         var baseForecast = avgDailySales * (1 + trend) * dayOfWeekFactor * stockFactor * ratingFactor;

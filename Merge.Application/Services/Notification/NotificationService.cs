@@ -101,7 +101,8 @@ public class NotificationService : INotificationService
             dto.UserId, dto.Type, dto.Title);
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-        var notification = Notification.Create(
+        // ✅ FIX: Notification namespace conflict - using alias
+        var notification = NotificationEntity.Create(
             dto.UserId,
             dto.Type,
             dto.Title,

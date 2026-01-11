@@ -6,6 +6,7 @@ using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using System.Text.Json;
 using Merge.Application.DTOs.Notification;
 
@@ -42,18 +43,17 @@ public class NotificationTemplateService : INotificationTemplateService
             "Notification template oluşturuluyor. Name: {Name}, Type: {Type}",
             dto.Name, dto.Type);
 
-        var template = new NotificationTemplate
-        {
-            Name = dto.Name,
-            Description = dto.Description,
-            Type = dto.Type,
-            TitleTemplate = dto.TitleTemplate,
-            MessageTemplate = dto.MessageTemplate,
-            LinkTemplate = dto.LinkTemplate,
-            IsActive = dto.IsActive,
-            Variables = dto.Variables != null ? JsonSerializer.Serialize(dto.Variables) : null,
-            DefaultData = dto.DefaultData != null ? JsonSerializer.Serialize(dto.DefaultData) : null
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var template = NotificationTemplate.Create(
+            dto.Name,
+            dto.Type,
+            dto.TitleTemplate,
+            dto.MessageTemplate,
+            dto.Description,
+            dto.LinkTemplate,
+            dto.IsActive,
+            dto.Variables != null ? JsonSerializer.Serialize(dto.Variables) : null,
+            dto.DefaultData != null ? JsonSerializer.Serialize(dto.DefaultData) : null);
 
         await _context.Set<NotificationTemplate>().AddAsync(template, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -82,10 +82,16 @@ public class NotificationTemplateService : INotificationTemplateService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<NotificationTemplateDto?> GetTemplateByTypeAsync(string type, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
+        if (!Enum.TryParse<Merge.Domain.Enums.NotificationType>(type, true, out var notificationTypeEnum))
+        {
+            return null;
+        }
+
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         var template = await _context.Set<NotificationTemplate>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Type == type && t.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(t => t.Type == notificationTypeEnum && t.IsActive, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return template != null ? _mapper.Map<NotificationTemplateDto>(template) : null;
@@ -100,7 +106,11 @@ public class NotificationTemplateService : INotificationTemplateService
 
         if (!string.IsNullOrEmpty(type))
         {
-            query = query.Where(t => t.Type == type);
+            // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
+            if (Enum.TryParse<Merge.Domain.Enums.NotificationType>(type, true, out var notificationTypeEnum))
+            {
+                query = query.Where(t => t.Type == notificationTypeEnum);
+            }
         }
 
         var templates = await query
@@ -124,26 +134,17 @@ public class NotificationTemplateService : INotificationTemplateService
             throw new NotFoundException("Şablon", id);
         }
 
-        if (!string.IsNullOrEmpty(dto.Name))
-            template.Name = dto.Name;
-        if (!string.IsNullOrEmpty(dto.Description))
-            template.Description = dto.Description;
-        if (!string.IsNullOrEmpty(dto.Type))
-            template.Type = dto.Type;
-        if (!string.IsNullOrEmpty(dto.TitleTemplate))
-            template.TitleTemplate = dto.TitleTemplate;
-        if (!string.IsNullOrEmpty(dto.MessageTemplate))
-            template.MessageTemplate = dto.MessageTemplate;
-        if (dto.LinkTemplate != null)
-            template.LinkTemplate = dto.LinkTemplate;
-        if (dto.IsActive.HasValue)
-            template.IsActive = dto.IsActive.Value;
-        if (dto.Variables != null)
-            template.Variables = JsonSerializer.Serialize(dto.Variables);
-        if (dto.DefaultData != null)
-            template.DefaultData = JsonSerializer.Serialize(dto.DefaultData);
-
-        template.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        template.Update(
+            dto.Name,
+            dto.Description,
+            dto.Type,
+            dto.TitleTemplate,
+            dto.MessageTemplate,
+            dto.LinkTemplate,
+            dto.IsActive,
+            dto.Variables != null ? JsonSerializer.Serialize(dto.Variables) : null,
+            dto.DefaultData != null ? JsonSerializer.Serialize(dto.DefaultData) : null);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
@@ -159,8 +160,8 @@ public class NotificationTemplateService : INotificationTemplateService
 
         if (template == null) return false;
 
-        template.IsDeleted = true;
-        template.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        template.Delete();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -209,14 +210,18 @@ public class NotificationTemplateService : INotificationTemplateService
             ? ReplaceVariables(template.LinkTemplate, allVariables) 
             : null;
 
-        var createDto = new CreateNotificationDto
+        // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
+        if (!Enum.TryParse<Merge.Domain.Enums.NotificationType>(templateType, true, out var notificationTypeEnum))
         {
-            UserId = userId,
-            Type = templateType,
-            Title = title,
-            Message = message,
-            Link = link
-        };
+            throw new NotFoundException("Şablon", Guid.Empty);
+        }
+
+        var createDto = new CreateNotificationDto(
+            userId,
+            notificationTypeEnum,
+            title,
+            message,
+            link);
 
         return await _notificationService.CreateNotificationAsync(createDto, cancellationToken);
     }

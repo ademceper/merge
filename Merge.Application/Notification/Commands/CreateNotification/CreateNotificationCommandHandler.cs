@@ -5,6 +5,7 @@ using AutoMapper;
 using Merge.Application.Interfaces;
 using Merge.Application.DTOs.Notification;
 using Merge.Domain.Entities;
+using NotificationEntity = Merge.Domain.Entities.Notification;
 
 namespace Merge.Application.Notification.Commands.CreateNotification;
 
@@ -33,7 +34,7 @@ public class CreateNotificationCommandHandler : IRequestHandler<CreateNotificati
     public async Task<NotificationDto> Handle(CreateNotificationCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-        var notification = Notification.Create(
+        var notification = NotificationEntity.Create(
             request.UserId,
             request.Type,
             request.Title,
@@ -41,7 +42,7 @@ public class CreateNotificationCommandHandler : IRequestHandler<CreateNotificati
             request.Link,
             request.Data);
 
-        await _context.Set<Notification>().AddAsync(notification, cancellationToken);
+        await _context.Set<NotificationEntity>().AddAsync(notification, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await _unitOfWork.SaveChangesAsync(cancellationToken);
