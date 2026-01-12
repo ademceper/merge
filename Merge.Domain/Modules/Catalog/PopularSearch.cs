@@ -2,6 +2,7 @@ using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Catalog;
 
@@ -64,6 +65,10 @@ public class PopularSearch : BaseEntity, IAggregateRoot
     }
     
     public DateTime LastSearchedAt { get; private set; }
+    
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private PopularSearch() { }
@@ -84,6 +89,9 @@ public class PopularSearch : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
+        // ✅ BOLUM 1.4: Invariant validation
+        popularSearch.ValidateInvariants();
+
         // ✅ BOLUM 1.5: Domain Events - PopularSearchCreatedEvent
         popularSearch.AddDomainEvent(new PopularSearchCreatedEvent(
             popularSearch.Id,
@@ -100,6 +108,9 @@ public class PopularSearch : BaseEntity, IAggregateRoot
         RecalculateClickThroughRate();
         UpdatedAt = DateTime.UtcNow;
 
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+
         // ✅ BOLUM 1.5: Domain Events - PopularSearchUpdatedEvent
         AddDomainEvent(new PopularSearchUpdatedEvent(
             Id,
@@ -115,6 +126,9 @@ public class PopularSearch : BaseEntity, IAggregateRoot
         ClickThroughCount++;
         RecalculateClickThroughRate();
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
 
         // ✅ BOLUM 1.5: Domain Events - PopularSearchUpdatedEvent
         AddDomainEvent(new PopularSearchUpdatedEvent(
@@ -136,6 +150,25 @@ public class PopularSearch : BaseEntity, IAggregateRoot
         {
             ClickThroughRate = 0;
         }
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (string.IsNullOrWhiteSpace(_searchTerm))
+            throw new DomainException("Arama terimi boş olamaz");
+
+        if (_searchTerm.Length > 200)
+            throw new DomainException("Arama terimi en fazla 200 karakter olabilir");
+
+        if (_searchCount < 0)
+            throw new DomainException("Arama sayısı negatif olamaz");
+
+        if (_clickThroughCount < 0)
+            throw new DomainException("Tıklama sayısı negatif olamaz");
+
+        if (_clickThroughRate < 0 || _clickThroughRate > 100)
+            throw new DomainException("Tıklama oranı 0-100 arasında olmalıdır");
     }
 }
 

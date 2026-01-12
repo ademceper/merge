@@ -1,0 +1,27 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Merge.Domain.Modules.Catalog;
+
+namespace Merge.Infrastructure.Data.Configurations.Catalog;
+
+public class ProductComparisonConfiguration : IEntityTypeConfiguration<ProductComparison>
+{
+    public void Configure(EntityTypeBuilder<ProductComparison> builder)
+    {
+        builder.HasIndex(e => e.UserId);
+        builder.HasIndex(e => e.ShareCode).IsUnique().HasFilter("\"ShareCode\" IS NOT NULL");
+        
+        builder.HasOne(e => e.User)
+              .WithMany()
+              .HasForeignKey(e => e.UserId)
+              .OnDelete(DeleteBehavior.Cascade);
+        
+        // ✅ BOLUM 1.1: Backing field mapping for encapsulated collections
+        // EF Core automatically discovers backing fields by convention (_fieldName)
+        // Navigation property'ler IReadOnlyCollection olduğu için EF Core backing field'ları otomatik bulur
+        builder.HasMany(e => e.Items)
+              .WithOne(e => e.Comparison)
+              .HasForeignKey(e => e.ComparisonId)
+              .OnDelete(DeleteBehavior.Cascade);
+    }
+}

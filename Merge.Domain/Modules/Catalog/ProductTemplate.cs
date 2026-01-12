@@ -82,6 +82,10 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         } 
     }
     
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [System.ComponentModel.DataAnnotations.Timestamp]
+    public byte[]? RowVersion { get; set; }
+    
     // Navigation properties
     public Category Category { get; private set; } = null!;
     
@@ -131,6 +135,9 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
         
+        // ✅ BOLUM 1.4: Invariant validation
+        template.ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events
         template.AddDomainEvent(new ProductTemplateCreatedEvent(template.Id, name, categoryId));
         
@@ -165,6 +172,9 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new ProductTemplateUpdatedEvent(Id, Name));
     }
@@ -174,6 +184,13 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
     {
         _usageCount++;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductTemplateUpdatedEvent yayınla (ÖNERİLİR)
+        // Usage count değişikliği önemli bir business event'tir
+        AddDomainEvent(new ProductTemplateUpdatedEvent(Id, Name));
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Activate
@@ -183,6 +200,9 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
         
         // ✅ BOLUM 1.5: Domain Events - ProductTemplateUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new ProductTemplateUpdatedEvent(Id, Name));
@@ -196,6 +216,9 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events - ProductTemplateUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new ProductTemplateUpdatedEvent(Id, Name));
     }
@@ -208,8 +231,33 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new ProductTemplateDeletedEvent(Id, Name));
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (string.IsNullOrWhiteSpace(_name))
+            throw new DomainException("Şablon adı boş olamaz");
+
+        if (_name.Length < 2 || _name.Length > 200)
+            throw new DomainException("Şablon adı 2-200 karakter arasında olmalıdır");
+
+        if (Guid.Empty == CategoryId)
+            throw new DomainException("Kategori ID boş olamaz");
+
+        if (_defaultPrice.HasValue && _defaultPrice.Value <= 0)
+            throw new DomainException("Varsayılan fiyat pozitif olmalıdır");
+
+        if (_defaultStockQuantity.HasValue && _defaultStockQuantity.Value < 0)
+            throw new DomainException("Varsayılan stok miktarı negatif olamaz");
+
+        if (_usageCount < 0)
+            throw new DomainException("Kullanım sayısı negatif olamaz");
     }
 }
 

@@ -1,6 +1,7 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Catalog;
 
@@ -33,6 +34,10 @@ public class ProductSizeGuide : BaseEntity
         } 
     }
     
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
+    
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ProductSizeGuide() { }
     
@@ -63,6 +68,9 @@ public class ProductSizeGuide : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
         
+        // ✅ BOLUM 1.4: Invariant validation
+        productSizeGuide.ValidateInvariants();
+        
         return productSizeGuide;
     }
     
@@ -84,6 +92,9 @@ public class ProductSizeGuide : BaseEntity
         if (fitDescription != null) FitDescription = fitDescription;
         
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
@@ -93,6 +104,22 @@ public class ProductSizeGuide : BaseEntity
         
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (Guid.Empty == ProductId)
+            throw new DomainException("Ürün ID boş olamaz");
+
+        if (Guid.Empty == SizeGuideId)
+            throw new DomainException("Size guide ID boş olamaz");
+
+        if (!string.IsNullOrEmpty(_fitDescription) && _fitDescription.Length > 500)
+            throw new DomainException("Fit açıklaması en fazla 500 karakter olabilir");
     }
 }
 

@@ -3,6 +3,7 @@ using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Modules.Identity;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Catalog;
 
@@ -18,6 +19,10 @@ public class ReviewHelpfulness : BaseEntity
     public Guid ReviewId { get; private set; }
     public Guid UserId { get; private set; }
     public bool IsHelpful { get; private set; } // true = helpful, false = not helpful
+
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public Review Review { get; private set; } = null!;
@@ -44,6 +49,9 @@ public class ReviewHelpfulness : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
 
+        // ✅ BOLUM 1.4: Invariant validation
+        reviewHelpfulness.ValidateInvariants();
+
         // ✅ BOLUM 1.5: Domain Events - ReviewHelpfulnessMarkedEvent
         reviewHelpfulness.AddDomainEvent(new ReviewHelpfulnessMarkedEvent(
             reviewHelpfulness.ReviewId,
@@ -62,6 +70,9 @@ public class ReviewHelpfulness : BaseEntity
         IsHelpful = newIsHelpful;
         UpdatedAt = DateTime.UtcNow;
 
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+
         // ✅ BOLUM 1.5: Domain Events - ReviewHelpfulnessMarkedEvent
         AddDomainEvent(new ReviewHelpfulnessMarkedEvent(ReviewId, UserId, IsHelpful));
     }
@@ -74,5 +85,18 @@ public class ReviewHelpfulness : BaseEntity
 
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (Guid.Empty == ReviewId)
+            throw new DomainException("Review ID boş olamaz");
+
+        if (Guid.Empty == UserId)
+            throw new DomainException("Kullanıcı ID boş olamaz");
     }
 }

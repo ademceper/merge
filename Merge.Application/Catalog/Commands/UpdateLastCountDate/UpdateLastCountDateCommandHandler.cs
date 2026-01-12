@@ -74,6 +74,9 @@ public class UpdateLastCountDateCommandHandler : IRequestHandler<UpdateLastCount
             // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             inventory.UpdateLastCountedDate();
             await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
+            
+            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
+            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 

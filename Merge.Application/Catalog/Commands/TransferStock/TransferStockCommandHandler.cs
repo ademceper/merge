@@ -154,7 +154,8 @@ public class TransferStockCommandHandler : IRequestHandler<TransferStockCommand,
             await _context.Set<StockMovement>().AddAsync(sourceMovement, cancellationToken);
             await _context.Set<StockMovement>().AddAsync(destMovement, cancellationToken);
 
-            // Save changes with concurrency check
+            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
+            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 

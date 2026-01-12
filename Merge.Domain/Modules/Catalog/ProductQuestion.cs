@@ -4,6 +4,7 @@ using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Support;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Catalog;
 
@@ -63,6 +64,10 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
     }
     
     public bool HasSellerAnswer { get; private set; } = false;
+    
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public Product Product { get; private set; } = null!;
@@ -104,6 +109,9 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
         
+        // ✅ BOLUM 1.4: Invariant validation
+        productQuestion.ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events
         productQuestion.AddDomainEvent(new ProductQuestionCreatedEvent(productQuestion.Id, productId, userId, question));
         
@@ -118,6 +126,9 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
         IsApproved = true;
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new ProductQuestionApprovedEvent(Id, ProductId));
     }
@@ -131,6 +142,9 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
             HasSellerAnswer = true;
         }
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Increment helpful count
@@ -138,6 +152,9 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
     {
         _helpfulCount++;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Decrement helpful count
@@ -147,6 +164,9 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
         {
             _helpfulCount--;
             UpdatedAt = DateTime.UtcNow;
+            
+            // ✅ BOLUM 1.4: Invariant validation
+            ValidateInvariants();
         }
     }
     
@@ -164,6 +184,9 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
                 // For now, we'll just mark it as false if it was a seller answer
                 HasSellerAnswer = false;
             }
+            
+            // ✅ BOLUM 1.4: Invariant validation
+            ValidateInvariants();
         }
     }
     
@@ -172,8 +195,86 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
     {
         HasSellerAnswer = value;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
+    // ✅ BOLUM 1.1: Domain Logic - Add answer (collection manipulation)
+    public void AddAnswer(ProductAnswer answer)
+    {
+        Guard.AgainstNull(answer, nameof(answer));
+        if (answer.QuestionId != Id)
+        {
+            throw new DomainException("Answer bu question'a ait değil");
+        }
+        if (_answers.Any(a => a.Id == answer.Id))
+        {
+            throw new DomainException("Bu answer zaten eklenmiş");
+        }
+        _answers.Add(answer);
+        IncrementAnswerCount(answer.IsSellerAnswer);
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+    
+    // ✅ BOLUM 1.1: Domain Logic - Remove answer (collection manipulation)
+    public void RemoveAnswer(Guid answerId)
+    {
+        Guard.AgainstDefault(answerId, nameof(answerId));
+        var answer = _answers.FirstOrDefault(a => a.Id == answerId);
+        if (answer == null)
+        {
+            throw new DomainException("Answer bulunamadı");
+        }
+        var wasSellerAnswer = answer.IsSellerAnswer;
+        _answers.Remove(answer);
+        DecrementAnswerCount(wasSellerAnswer);
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+    
+    // ✅ BOLUM 1.1: Domain Logic - Add helpfulness vote (collection manipulation)
+    public void AddHelpfulnessVote(QuestionHelpfulness helpfulness)
+    {
+        Guard.AgainstNull(helpfulness, nameof(helpfulness));
+        if (helpfulness.QuestionId != Id)
+        {
+            throw new DomainException("Helpfulness vote bu question'a ait değil");
+        }
+        if (_helpfulnessVotes.Any(v => v.Id == helpfulness.Id))
+        {
+            throw new DomainException("Bu vote zaten eklenmiş");
+        }
+        _helpfulnessVotes.Add(helpfulness);
+        IncrementHelpfulCount();
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+    
+    // ✅ BOLUM 1.1: Domain Logic - Remove helpfulness vote (collection manipulation)
+    public void RemoveHelpfulnessVote(Guid voteId)
+    {
+        Guard.AgainstDefault(voteId, nameof(voteId));
+        var vote = _helpfulnessVotes.FirstOrDefault(v => v.Id == voteId);
+        if (vote == null)
+        {
+            throw new DomainException("Vote bulunamadı");
+        }
+        _helpfulnessVotes.Remove(vote);
+        DecrementHelpfulCount();
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
@@ -182,8 +283,33 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events - ProductQuestionDeletedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new ProductQuestionDeletedEvent(Id, ProductId, UserId));
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (string.IsNullOrWhiteSpace(_question))
+            throw new DomainException("Soru boş olamaz");
+
+        if (_question.Length < 5 || _question.Length > 1000)
+            throw new DomainException("Soru 5-1000 karakter arasında olmalıdır");
+
+        if (Guid.Empty == ProductId)
+            throw new DomainException("Ürün ID boş olamaz");
+
+        if (Guid.Empty == UserId)
+            throw new DomainException("Kullanıcı ID boş olamaz");
+
+        if (_answerCount < 0)
+            throw new DomainException("Cevap sayısı negatif olamaz");
+
+        if (_helpfulCount < 0)
+            throw new DomainException("Yardımcı sayısı negatif olamaz");
     }
 }
 

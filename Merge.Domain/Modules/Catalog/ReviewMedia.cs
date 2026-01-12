@@ -2,6 +2,7 @@ using Merge.Domain.SharedKernel;
 using Merge.Domain.Enums;
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Catalog;
 
@@ -22,6 +23,10 @@ public class ReviewMedia : BaseEntity
     public int? Height { get; private set; }
     public int? Duration { get; private set; } // For videos in seconds
     public int DisplayOrder { get; private set; } = 0;
+
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public Review Review { get; private set; } = null!;
@@ -46,7 +51,7 @@ public class ReviewMedia : BaseEntity
         Guard.AgainstOutOfRange(fileSize, 0, int.MaxValue, nameof(fileSize));
         Guard.AgainstOutOfRange(displayOrder, 0, int.MaxValue, nameof(displayOrder));
 
-        return new ReviewMedia
+        var media = new ReviewMedia
         {
             Id = Guid.NewGuid(),
             ReviewId = reviewId,
@@ -60,6 +65,11 @@ public class ReviewMedia : BaseEntity
             DisplayOrder = displayOrder,
             CreatedAt = DateTime.UtcNow
         };
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        media.ValidateInvariants();
+        
+        return media;
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update URL
@@ -68,6 +78,9 @@ public class ReviewMedia : BaseEntity
         Guard.AgainstNullOrEmpty(newUrl, nameof(newUrl));
         Url = newUrl;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update thumbnail URL
@@ -75,6 +88,9 @@ public class ReviewMedia : BaseEntity
     {
         ThumbnailUrl = newThumbnailUrl ?? Url;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update display order
@@ -83,6 +99,9 @@ public class ReviewMedia : BaseEntity
         Guard.AgainstOutOfRange(newDisplayOrder, 0, int.MaxValue, nameof(newDisplayOrder));
         DisplayOrder = newDisplayOrder;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted
@@ -93,6 +112,25 @@ public class ReviewMedia : BaseEntity
 
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (Guid.Empty == ReviewId)
+            throw new DomainException("Review ID boş olamaz");
+
+        if (string.IsNullOrWhiteSpace(Url))
+            throw new DomainException("Media URL boş olamaz");
+
+        if (FileSize < 0)
+            throw new DomainException("Dosya boyutu negatif olamaz");
+
+        if (DisplayOrder < 0)
+            throw new DomainException("Görüntüleme sırası negatif olamaz");
     }
 }
 

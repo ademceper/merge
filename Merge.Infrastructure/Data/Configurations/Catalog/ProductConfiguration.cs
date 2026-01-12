@@ -16,6 +16,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         
         builder.Property(e => e.Price).HasPrecision(18, 2);
         builder.Property(e => e.DiscountPrice).HasPrecision(18, 2);
+        builder.Property(e => e.Rating).HasPrecision(3, 2); // 0.00-5.00 arası rating
         
         builder.ToTable(t =>
         {
@@ -24,7 +25,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         });
         
         builder.HasOne(e => e.Category)
-              .WithMany(e => e.Products)
+              .WithMany()
               .HasForeignKey(e => e.CategoryId)
               .OnDelete(DeleteBehavior.Restrict);
               
@@ -38,7 +39,37 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
               .HasForeignKey(e => e.StoreId)
               .OnDelete(DeleteBehavior.SetNull);
         
-        builder.Property(e => e.ImageUrls)
+        // ✅ BOLUM 1.1: Backing field mapping for encapsulated collections
+        // EF Core automatically discovers backing fields by convention (_fieldName)
+        // Navigation property'ler IReadOnlyCollection olduğu için EF Core backing field'ları otomatik bulur
+        builder.HasMany(e => e.Reviews)
+              .WithOne(e => e.Product)
+              .HasForeignKey(e => e.ProductId)
+              .OnDelete(DeleteBehavior.Cascade);
+        
+        builder.HasMany(e => e.Variants)
+              .WithOne(e => e.Product)
+              .HasForeignKey(e => e.ProductId)
+              .OnDelete(DeleteBehavior.Cascade);
+        
+        builder.HasMany(e => e.Wishlists)
+              .WithOne(e => e.Product)
+              .HasForeignKey(e => e.ProductId)
+              .OnDelete(DeleteBehavior.Cascade);
+        
+        builder.HasMany(e => e.BundleItems)
+              .WithOne(e => e.Product)
+              .HasForeignKey(e => e.ProductId)
+              .OnDelete(DeleteBehavior.Cascade);
+        
+        builder.HasMany(e => e.RecentlyViewedProducts)
+              .WithOne(e => e.Product)
+              .HasForeignKey(e => e.ProductId)
+              .OnDelete(DeleteBehavior.Cascade);
+        
+        // ✅ BOLUM 1.1: ImageUrls collection backing field mapping
+        // EF Core automatically discovers backing fields by convention (_fieldName)
+        builder.Property("_imageUrls")
               .HasConversion(
                   v => string.Join(',', v),
                   v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());

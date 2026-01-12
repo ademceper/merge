@@ -2,6 +2,7 @@ using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Modules.Content;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Catalog;
 
@@ -22,6 +23,10 @@ public class ProductTranslation : BaseEntity
     public string MetaTitle { get; private set; } = string.Empty;
     public string MetaDescription { get; private set; } = string.Empty;
     public string MetaKeywords { get; private set; } = string.Empty;
+
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public Product Product { get; private set; } = null!;
@@ -47,7 +52,7 @@ public class ProductTranslation : BaseEntity
         Guard.AgainstNullOrEmpty(languageCode, nameof(languageCode));
         Guard.AgainstNullOrEmpty(name, nameof(name));
 
-        return new ProductTranslation
+        var translation = new ProductTranslation
         {
             Id = Guid.NewGuid(),
             ProductId = productId,
@@ -61,6 +66,11 @@ public class ProductTranslation : BaseEntity
             MetaKeywords = metaKeywords,
             CreatedAt = DateTime.UtcNow
         };
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        translation.ValidateInvariants();
+        
+        return translation;
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update translation
@@ -81,6 +91,9 @@ public class ProductTranslation : BaseEntity
         MetaDescription = metaDescription;
         MetaKeywords = metaKeywords;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
@@ -91,6 +104,25 @@ public class ProductTranslation : BaseEntity
 
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (Guid.Empty == ProductId)
+            throw new DomainException("Ürün ID boş olamaz");
+
+        if (Guid.Empty == LanguageId)
+            throw new DomainException("Dil ID boş olamaz");
+
+        if (string.IsNullOrWhiteSpace(LanguageCode))
+            throw new DomainException("Dil kodu boş olamaz");
+
+        if (string.IsNullOrWhiteSpace(Name))
+            throw new DomainException("Çeviri adı boş olamaz");
     }
 }
 

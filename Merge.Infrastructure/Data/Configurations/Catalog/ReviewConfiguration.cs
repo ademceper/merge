@@ -14,8 +14,21 @@ public class ReviewConfiguration : IEntityTypeConfiguration<Review>
               .OnDelete(DeleteBehavior.Restrict);
               
         builder.HasOne(e => e.Product)
-              .WithMany(e => e.Reviews)
+              .WithMany()
               .HasForeignKey(e => e.ProductId)
+              .OnDelete(DeleteBehavior.Cascade);
+        
+        // ✅ BOLUM 1.1: Backing field mapping for encapsulated collections
+        // EF Core automatically discovers backing fields by convention (_fieldName)
+        // Navigation property'ler IReadOnlyCollection olduğu için EF Core backing field'ları otomatik bulur
+        builder.HasMany(e => e.HelpfulnessVotes)
+              .WithOne(e => e.Review)
+              .HasForeignKey(e => e.ReviewId)
+              .OnDelete(DeleteBehavior.Cascade);
+        
+        builder.HasMany(e => e.Media)
+              .WithOne(e => e.Review)
+              .HasForeignKey(e => e.ReviewId)
               .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(e => e.ProductId);

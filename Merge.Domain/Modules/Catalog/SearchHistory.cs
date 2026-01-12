@@ -3,6 +3,7 @@ using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Modules.Identity;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Catalog;
 
@@ -72,6 +73,10 @@ public class SearchHistory : BaseEntity, IAggregateRoot
             _ipAddress = value;
         }
     }
+    
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public User? User { get; private set; }
@@ -102,6 +107,9 @@ public class SearchHistory : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
+        // ✅ BOLUM 1.4: Invariant validation
+        searchHistory.ValidateInvariants();
+
         // ✅ BOLUM 1.5: Domain Events - SearchRecordedEvent
         searchHistory.AddDomainEvent(new SearchRecordedEvent(
             searchHistory.Id,
@@ -129,6 +137,25 @@ public class SearchHistory : BaseEntity, IAggregateRoot
             productId,
             UserId,
             SearchTerm));
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (string.IsNullOrWhiteSpace(_searchTerm))
+            throw new DomainException("Arama terimi boş olamaz");
+
+        if (_searchTerm.Length > 200)
+            throw new DomainException("Arama terimi en fazla 200 karakter olabilir");
+
+        if (_resultCount < 0)
+            throw new DomainException("Sonuç sayısı negatif olamaz");
+
+        if (_userAgent != null && _userAgent.Length > 500)
+            throw new DomainException("User agent en fazla 500 karakter olabilir");
+
+        if (_ipAddress != null && _ipAddress.Length > 50)
+            throw new DomainException("IP adresi en fazla 50 karakter olabilir");
     }
 }
 

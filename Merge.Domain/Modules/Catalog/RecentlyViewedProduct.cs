@@ -35,7 +35,7 @@ public class RecentlyViewedProduct : BaseEntity
         Guard.AgainstDefault(userId, nameof(userId));
         Guard.AgainstDefault(productId, nameof(productId));
 
-        return new RecentlyViewedProduct
+        var recentlyViewed = new RecentlyViewedProduct
         {
             Id = Guid.NewGuid(),
             UserId = userId,
@@ -43,6 +43,11 @@ public class RecentlyViewedProduct : BaseEntity
             ViewedAt = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow
         };
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        recentlyViewed.ValidateInvariants();
+        
+        return recentlyViewed;
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update viewed timestamp
@@ -50,13 +55,31 @@ public class RecentlyViewedProduct : BaseEntity
     {
         ViewedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
+        if (IsDeleted) return;
+        
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (Guid.Empty == UserId)
+            throw new DomainException("Kullanıcı ID boş olamaz");
+
+        if (Guid.Empty == ProductId)
+            throw new DomainException("Ürün ID boş olamaz");
     }
 }
 

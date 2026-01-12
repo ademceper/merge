@@ -3,6 +3,7 @@ using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.ValueObjects;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Merge.Domain.Modules.Catalog;
 
@@ -60,6 +61,20 @@ public class ProductBundle : BaseEntity, IAggregateRoot
     public DateTime? StartDate { get; private set; }
     public DateTime? EndDate { get; private set; }
     
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [System.ComponentModel.DataAnnotations.Timestamp]
+    public byte[]? RowVersion { get; set; }
+    
+    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
+    [NotMapped]
+    public Money BundlePriceMoney => new Money(_bundlePrice);
+    
+    [NotMapped]
+    public Money? OriginalTotalPriceMoney => _originalTotalPrice.HasValue ? new Money(_originalTotalPrice.Value) : null;
+    
+    [NotMapped]
+    public Percentage DiscountPercentageValueObject => new Percentage(_discountPercentage);
+    
     // Navigation properties
     private readonly List<BundleItem> _bundleItems = new();
     public IReadOnlyCollection<BundleItem> BundleItems => _bundleItems.AsReadOnly();
@@ -104,6 +119,9 @@ public class ProductBundle : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
         
+        // ✅ BOLUM 1.4: Invariant validation
+        bundle.ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events
         bundle.AddDomainEvent(new ProductBundleCreatedEvent(bundle.Id, name, bundlePrice, discountPercentage));
         
@@ -143,6 +161,9 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new ProductBundleUpdatedEvent(Id, Name, BundlePrice));
     }
@@ -165,6 +186,9 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         _bundleItems.Add(item);
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events - ProductBundleUpdatedEvent yayınla (ÖNERİLİR)
         // Ürün ekleme önemli bir business event'tir
         AddDomainEvent(new ProductBundleUpdatedEvent(Id, Name, BundlePrice));
@@ -183,6 +207,9 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         
         _bundleItems.Remove(item);
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
         
         // ✅ BOLUM 1.5: Domain Events - ProductBundleUpdatedEvent yayınla (ÖNERİLİR)
         // Ürün çıkarma önemli bir business event'tir
@@ -211,6 +238,9 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events - ProductBundleUpdatedEvent yayınla (ÖNERİLİR)
         // Fiyat güncellemesi önemli bir business event'tir
         AddDomainEvent(new ProductBundleUpdatedEvent(Id, Name, BundlePrice));
@@ -224,6 +254,9 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events - ProductBundleUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new ProductBundleUpdatedEvent(Id, Name, BundlePrice));
     }
@@ -235,6 +268,9 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
         
         // ✅ BOLUM 1.5: Domain Events - ProductBundleUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new ProductBundleUpdatedEvent(Id, Name, BundlePrice));
@@ -248,8 +284,27 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new ProductBundleDeletedEvent(Id, Name));
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (string.IsNullOrWhiteSpace(Name))
+            throw new DomainException("Bundle adı boş olamaz");
+
+        if (_bundlePrice <= 0)
+            throw new DomainException("Bundle fiyatı pozitif olmalıdır");
+
+        if (_discountPercentage < 0 || _discountPercentage > 100)
+            throw new DomainException("İndirim yüzdesi 0-100 arasında olmalıdır");
+
+        if (StartDate.HasValue && EndDate.HasValue && EndDate.Value < StartDate.Value)
+            throw new DomainException("Bitiş tarihi başlangıç tarihinden önce olamaz");
     }
 }
 

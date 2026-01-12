@@ -1,6 +1,7 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Catalog;
 
@@ -52,6 +53,10 @@ public class SizeGuideEntry : BaseEntity
         } 
     }
     
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
+    
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SizeGuideEntry() { }
     
@@ -101,6 +106,9 @@ public class SizeGuideEntry : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
         
+        // ✅ BOLUM 1.4: Invariant validation
+        entry.ValidateInvariants();
+        
         return entry;
     }
     
@@ -127,6 +135,9 @@ public class SizeGuideEntry : BaseEntity
         if (weight.HasValue) Weight = weight;
         
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Update display order
@@ -135,6 +146,9 @@ public class SizeGuideEntry : BaseEntity
         Guard.AgainstNegative(newDisplayOrder, nameof(newDisplayOrder));
         _displayOrder = newDisplayOrder;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
@@ -144,6 +158,25 @@ public class SizeGuideEntry : BaseEntity
         
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (Guid.Empty == SizeGuideId)
+            throw new DomainException("Size guide ID boş olamaz");
+
+        if (string.IsNullOrWhiteSpace(_sizeLabel))
+            throw new DomainException("Beden etiketi boş olamaz");
+
+        if (_sizeLabel.Length > 50)
+            throw new DomainException("Beden etiketi en fazla 50 karakter olabilir");
+
+        if (_displayOrder < 0)
+            throw new DomainException("Görüntüleme sırası negatif olamaz");
     }
 }
 

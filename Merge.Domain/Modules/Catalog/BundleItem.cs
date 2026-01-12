@@ -1,6 +1,7 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Catalog;
 
@@ -36,6 +37,10 @@ public class BundleItem : BaseEntity
         } 
     }
     
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
+    
     // Navigation properties
     public ProductBundle Bundle { get; private set; } = null!;
     public Product Product { get; private set; } = null!;
@@ -65,6 +70,9 @@ public class BundleItem : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
         
+        // ✅ BOLUM 1.4: Invariant validation
+        item.ValidateInvariants();
+        
         return item;
     }
     
@@ -74,6 +82,9 @@ public class BundleItem : BaseEntity
         Guard.AgainstNegativeOrZero(newQuantity, nameof(newQuantity));
         _quantity = newQuantity;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Update sort order
@@ -82,6 +93,9 @@ public class BundleItem : BaseEntity
         Guard.AgainstNegative(newSortOrder, nameof(newSortOrder));
         _sortOrder = newSortOrder;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
@@ -91,6 +105,25 @@ public class BundleItem : BaseEntity
         
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (Guid.Empty == BundleId)
+            throw new DomainException("Bundle ID boş olamaz");
+
+        if (Guid.Empty == ProductId)
+            throw new DomainException("Ürün ID boş olamaz");
+
+        if (_quantity <= 0)
+            throw new DomainException("Miktar pozitif olmalıdır");
+
+        if (_sortOrder < 0)
+            throw new DomainException("Sıralama negatif olamaz");
     }
 }
 

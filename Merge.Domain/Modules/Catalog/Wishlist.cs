@@ -34,20 +34,40 @@ public class Wishlist : BaseEntity
         Guard.AgainstDefault(userId, nameof(userId));
         Guard.AgainstDefault(productId, nameof(productId));
 
-        return new Wishlist
+        var wishlist = new Wishlist
         {
             Id = Guid.NewGuid(),
             UserId = userId,
             ProductId = productId,
             CreatedAt = DateTime.UtcNow
         };
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        wishlist.ValidateInvariants();
+        
+        return wishlist;
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
+        if (IsDeleted) return;
+        
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (Guid.Empty == UserId)
+            throw new DomainException("Kullanıcı ID boş olamaz");
+
+        if (Guid.Empty == ProductId)
+            throw new DomainException("Ürün ID boş olamaz");
     }
 }
 

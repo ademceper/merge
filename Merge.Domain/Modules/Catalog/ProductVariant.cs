@@ -2,6 +2,8 @@ using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
 using Merge.Domain.ValueObjects;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Merge.Domain.Modules.Catalog;
 
@@ -36,7 +38,12 @@ public class ProductVariant : BaseEntity
         } 
     }
     
-    public string? SKU { get; private set; }
+    private string? _sku;
+    public string? SKU 
+    { 
+        get => _sku; 
+        private set => _sku = value; 
+    }
     
     private decimal? _price;
     public decimal? Price 
@@ -65,6 +72,17 @@ public class ProductVariant : BaseEntity
     
     public string? ImageUrl { get; private set; }
     
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
+    
+    // ✅ BOLUM 1.3: Value Object properties (computed from nullable types)
+    [NotMapped]
+    public SKU? SKUValueObject => _sku != null ? new SKU(_sku) : null;
+    
+    [NotMapped]
+    public Money? PriceMoney => _price.HasValue ? new Money(_price.Value) : null;
+    
     // Navigation properties
     public Product Product { get; private set; } = null!;
     
@@ -85,18 +103,23 @@ public class ProductVariant : BaseEntity
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNullOrEmpty(value, nameof(value));
         
-        return new ProductVariant
+        var variant = new ProductVariant
         {
             Id = Guid.NewGuid(),
             ProductId = productId,
             _name = name,
             _value = value,
-            SKU = sku,
+            _sku = sku,
             _price = price,
             _stockQuantity = stockQuantity,
             ImageUrl = imageUrl,
             CreatedAt = DateTime.UtcNow
         };
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        variant.ValidateInvariants();
+        
+        return variant;
     }
     
     // ✅ BOLUM 1.1: Domain Method - Update variant details
@@ -112,10 +135,13 @@ public class ProductVariant : BaseEntity
         
         _name = name;
         _value = value;
-        SKU = sku;
+        _sku = sku;
         _price = price;
         ImageUrl = imageUrl;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
     // ✅ BOLUM 1.1: Domain Method - Update stock quantity
@@ -124,6 +150,9 @@ public class ProductVariant : BaseEntity
         Guard.AgainstNegative(newStockQuantity, nameof(newStockQuantity));
         _stockQuantity = newStockQuantity;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
     // ✅ BOLUM 1.1: Domain Method - Update price
@@ -135,6 +164,9 @@ public class ProductVariant : BaseEntity
         }
         _price = newPrice;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted
@@ -144,6 +176,40 @@ public class ProductVariant : BaseEntity
         
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (Guid.Empty == ProductId)
+            throw new DomainException("Ürün ID boş olamaz");
+
+        if (string.IsNullOrWhiteSpace(_name))
+            throw new DomainException("Varyant adı boş olamaz");
+
+        if (string.IsNullOrWhiteSpace(_value))
+            throw new DomainException("Varyant değeri boş olamaz");
+
+        if (_sku != null)
+        {
+            try
+            {
+                var skuValueObject = new SKU(_sku); // Validation için
+            }
+            catch (ArgumentException)
+            {
+                throw new DomainException("Geçersiz SKU formatı");
+            }
+        }
+
+        if (_price.HasValue && _price.Value <= 0)
+            throw new DomainException("Varyant fiyatı pozitif olmalıdır");
+
+        if (_stockQuantity < 0)
+            throw new DomainException("Varyant stok miktarı negatif olamaz");
     }
 }
 

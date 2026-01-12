@@ -62,11 +62,19 @@ public class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategoryComman
             // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             category.UpdateName(request.Name);
             category.UpdateDescription(request.Description);
-            category.UpdateSlug(request.Slug);
+            // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
+            if (!string.IsNullOrEmpty(request.Slug))
+            {
+                var slug = new Slug(request.Slug);
+                category.UpdateSlug(slug);
+            }
             category.UpdateImageUrl(request.ImageUrl);
             category.SetParentCategory(request.ParentCategoryId);
 
             await _categoryRepository.UpdateAsync(category, cancellationToken);
+            
+            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
+            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 

@@ -2,6 +2,7 @@ using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Modules.Marketplace;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Catalog;
 
@@ -28,6 +29,10 @@ public class ProductTrustBadge : BaseEntity
     
     public string? AwardReason { get; private set; }
     
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
+    
     // Navigation properties
     public Product Product { get; private set; } = null!;
     public TrustBadge TrustBadge { get; private set; } = null!;
@@ -51,7 +56,7 @@ public class ProductTrustBadge : BaseEntity
             throw new DomainException("Expiry date must be after award date");
         }
         
-        return new ProductTrustBadge
+        var badge = new ProductTrustBadge
         {
             Id = Guid.NewGuid(),
             ProductId = productId,
@@ -62,6 +67,11 @@ public class ProductTrustBadge : BaseEntity
             AwardReason = awardReason,
             CreatedAt = DateTime.UtcNow
         };
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        badge.ValidateInvariants();
+        
+        return badge;
     }
     
     // ✅ BOLUM 1.1: Domain Method - Activate badge
@@ -71,6 +81,9 @@ public class ProductTrustBadge : BaseEntity
         
         _isActive = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
     // ✅ BOLUM 1.1: Domain Method - Deactivate badge
@@ -80,6 +93,9 @@ public class ProductTrustBadge : BaseEntity
         
         _isActive = false;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
     // ✅ BOLUM 1.1: Domain Method - Update expiry date
@@ -92,6 +108,9 @@ public class ProductTrustBadge : BaseEntity
         
         ExpiresAt = newExpiryDate;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
     // ✅ BOLUM 1.1: Domain Method - Update award reason
@@ -99,6 +118,9 @@ public class ProductTrustBadge : BaseEntity
     {
         AwardReason = newReason;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update awarded date
@@ -110,6 +132,9 @@ public class ProductTrustBadge : BaseEntity
         }
         AwardedAt = newAwardedAt;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
     // ✅ BOLUM 1.1: Domain Method - Check if expired
@@ -125,6 +150,22 @@ public class ProductTrustBadge : BaseEntity
         
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (Guid.Empty == ProductId)
+            throw new DomainException("Ürün ID boş olamaz");
+
+        if (Guid.Empty == TrustBadgeId)
+            throw new DomainException("Trust badge ID boş olamaz");
+
+        if (ExpiresAt.HasValue && ExpiresAt.Value <= AwardedAt)
+            throw new DomainException("Expiry date must be after award date");
     }
 }
 

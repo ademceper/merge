@@ -4,6 +4,7 @@ using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Support;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Catalog;
 
@@ -50,6 +51,10 @@ public class ProductAnswer : BaseEntity
             _helpfulCount = value;
         } 
     }
+    
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public ProductQuestion Question { get; private set; } = null!;
@@ -94,6 +99,9 @@ public class ProductAnswer : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
         
+        // ✅ BOLUM 1.4: Invariant validation
+        productAnswer.ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events
         productAnswer.AddDomainEvent(new ProductAnswerCreatedEvent(productAnswer.Id, questionId, userId, isSellerAnswer));
         
@@ -108,6 +116,9 @@ public class ProductAnswer : BaseEntity
         IsApproved = true;
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new ProductAnswerApprovedEvent(Id, QuestionId));
     }
@@ -117,6 +128,9 @@ public class ProductAnswer : BaseEntity
     {
         _helpfulCount++;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Decrement helpful count
@@ -126,9 +140,49 @@ public class ProductAnswer : BaseEntity
         {
             _helpfulCount--;
             UpdatedAt = DateTime.UtcNow;
+            
+            // ✅ BOLUM 1.4: Invariant validation
+            ValidateInvariants();
         }
     }
     
+    // ✅ BOLUM 1.1: Domain Logic - Add helpfulness vote (collection manipulation)
+    public void AddHelpfulnessVote(AnswerHelpfulness helpfulness)
+    {
+        Guard.AgainstNull(helpfulness, nameof(helpfulness));
+        if (helpfulness.AnswerId != Id)
+        {
+            throw new DomainException("Helpfulness vote bu answer'a ait değil");
+        }
+        if (_helpfulnessVotes.Any(v => v.Id == helpfulness.Id))
+        {
+            throw new DomainException("Bu vote zaten eklenmiş");
+        }
+        _helpfulnessVotes.Add(helpfulness);
+        IncrementHelpfulCount();
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+    
+    // ✅ BOLUM 1.1: Domain Logic - Remove helpfulness vote (collection manipulation)
+    public void RemoveHelpfulnessVote(Guid voteId)
+    {
+        Guard.AgainstDefault(voteId, nameof(voteId));
+        var vote = _helpfulnessVotes.FirstOrDefault(v => v.Id == voteId);
+        if (vote == null)
+        {
+            throw new DomainException("Vote bulunamadı");
+        }
+        _helpfulnessVotes.Remove(vote);
+        DecrementHelpfulCount();
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
@@ -137,8 +191,30 @@ public class ProductAnswer : BaseEntity
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events - ProductAnswerDeletedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new ProductAnswerDeletedEvent(Id, QuestionId, UserId));
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (Guid.Empty == QuestionId)
+            throw new DomainException("Soru ID boş olamaz");
+
+        if (Guid.Empty == UserId)
+            throw new DomainException("Kullanıcı ID boş olamaz");
+
+        if (string.IsNullOrWhiteSpace(_answer))
+            throw new DomainException("Cevap boş olamaz");
+
+        if (_answer.Length < 5 || _answer.Length > 2000)
+            throw new DomainException("Cevap 5-2000 karakter arasında olmalıdır");
+
+        if (_helpfulCount < 0)
+            throw new DomainException("Yardımcı sayısı negatif olamaz");
     }
 }
 

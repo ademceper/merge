@@ -77,6 +77,9 @@ public class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategoryComman
             // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
             category.MarkAsDeleted();
             await _categoryRepository.UpdateAsync(category, cancellationToken);
+            
+            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
+            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 

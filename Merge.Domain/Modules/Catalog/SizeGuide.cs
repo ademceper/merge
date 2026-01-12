@@ -57,10 +57,17 @@ public class SizeGuide : BaseEntity, IAggregateRoot
     
     public bool IsActive { get; private set; } = true;
     
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [System.ComponentModel.DataAnnotations.Timestamp]
+    public byte[]? RowVersion { get; set; }
+    
     // Navigation properties
     private readonly List<SizeGuideEntry> _entries = new();
     public IReadOnlyCollection<SizeGuideEntry> Entries => _entries.AsReadOnly();
-    public ICollection<ProductSizeGuide> ProductSizeGuides { get; private set; } = new List<ProductSizeGuide>();
+    
+    // ✅ BOLUM 1.1: Encapsulated collection - Read-only access
+    private readonly List<ProductSizeGuide> _productSizeGuides = new();
+    public IReadOnlyCollection<ProductSizeGuide> ProductSizeGuides => _productSizeGuides.AsReadOnly();
     
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SizeGuide() { }
@@ -100,6 +107,9 @@ public class SizeGuide : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
         
+        // ✅ BOLUM 1.4: Invariant validation
+        sizeGuide.ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events
         sizeGuide.AddDomainEvent(new SizeGuideCreatedEvent(sizeGuide.Id, name, categoryId));
         
@@ -126,6 +136,9 @@ public class SizeGuide : BaseEntity, IAggregateRoot
         
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new SizeGuideUpdatedEvent(Id, Name));
     }
@@ -144,12 +157,15 @@ public class SizeGuide : BaseEntity, IAggregateRoot
         _entries.Add(entry);
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events - SizeGuideUpdatedEvent yayınla (ÖNERİLİR)
         // Entry ekleme önemli bir business event'tir
         AddDomainEvent(new SizeGuideUpdatedEvent(Id, Name));
     }
     
-    // ✅ BOLUM 1.1: Domain Logic - Remove entry
+    // ✅ BOLUM 1.1: Domain Logic - Remove entry (collection manipulation)
     public void RemoveEntry(Guid entryId)
     {
         Guard.AgainstDefault(entryId, nameof(entryId));
@@ -162,6 +178,9 @@ public class SizeGuide : BaseEntity, IAggregateRoot
         
         _entries.Remove(entry);
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
         
         // ✅ BOLUM 1.5: Domain Events - SizeGuideUpdatedEvent yayınla (ÖNERİLİR)
         // Entry çıkarma önemli bir business event'tir
@@ -176,6 +195,9 @@ public class SizeGuide : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events - SizeGuideUpdatedEvent yayınla (ÖNERİLİR)
         // Aktif/pasif durumu önemli bir business event'tir
         AddDomainEvent(new SizeGuideUpdatedEvent(Id, Name));
@@ -189,11 +211,49 @@ public class SizeGuide : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events - SizeGuideUpdatedEvent yayınla (ÖNERİLİR)
         // Aktif/pasif durumu önemli bir business event'tir
         AddDomainEvent(new SizeGuideUpdatedEvent(Id, Name));
     }
     
+    // ✅ BOLUM 1.1: Domain Logic - Add product size guide (collection manipulation)
+    public void AddProductSizeGuide(ProductSizeGuide productSizeGuide)
+    {
+        Guard.AgainstNull(productSizeGuide, nameof(productSizeGuide));
+        if (productSizeGuide.SizeGuideId != Id)
+        {
+            throw new DomainException("Product size guide bu size guide'a ait değil");
+        }
+        if (_productSizeGuides.Any(psg => psg.Id == productSizeGuide.Id))
+        {
+            throw new DomainException("Bu product size guide zaten eklenmiş");
+        }
+        _productSizeGuides.Add(productSizeGuide);
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+    
+    // ✅ BOLUM 1.1: Domain Logic - Remove product size guide (collection manipulation)
+    public void RemoveProductSizeGuide(Guid productSizeGuideId)
+    {
+        Guard.AgainstDefault(productSizeGuideId, nameof(productSizeGuideId));
+        var productSizeGuide = _productSizeGuides.FirstOrDefault(psg => psg.Id == productSizeGuideId);
+        if (productSizeGuide == null)
+        {
+            throw new DomainException("Product size guide bulunamadı");
+        }
+        _productSizeGuides.Remove(productSizeGuide);
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
     public void MarkAsDeleted()
     {
@@ -202,8 +262,30 @@ public class SizeGuide : BaseEntity, IAggregateRoot
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events
         AddDomainEvent(new SizeGuideDeletedEvent(Id, Name));
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (string.IsNullOrWhiteSpace(_name))
+            throw new DomainException("Beden kılavuzu adı boş olamaz");
+
+        if (_name.Length < 2 || _name.Length > 200)
+            throw new DomainException("Beden kılavuzu adı 2-200 karakter arasında olmalıdır");
+
+        if (Guid.Empty == CategoryId)
+            throw new DomainException("Kategori ID boş olamaz");
+
+        if (string.IsNullOrWhiteSpace(_measurementUnit))
+            throw new DomainException("Ölçü birimi boş olamaz");
+
+        if (_measurementUnit.Length > 20)
+            throw new DomainException("Ölçü birimi en fazla 20 karakter olabilir");
     }
 }
 

@@ -1,6 +1,7 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Catalog;
 
@@ -29,6 +30,10 @@ public class ProductComparisonItem : BaseEntity
     
     public DateTime AddedAt { get; private set; } = DateTime.UtcNow;
     
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
+    
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private ProductComparisonItem() { }
     
@@ -52,6 +57,9 @@ public class ProductComparisonItem : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
         
+        // ✅ BOLUM 1.4: Invariant validation
+        item.ValidateInvariants();
+        
         return item;
     }
     
@@ -61,6 +69,9 @@ public class ProductComparisonItem : BaseEntity
         Guard.AgainstNegative(newPosition, nameof(newPosition));
         _position = newPosition;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
@@ -70,6 +81,22 @@ public class ProductComparisonItem : BaseEntity
         
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (Guid.Empty == ComparisonId)
+            throw new DomainException("Karşılaştırma ID boş olamaz");
+
+        if (Guid.Empty == ProductId)
+            throw new DomainException("Ürün ID boş olamaz");
+
+        if (_position < 0)
+            throw new DomainException("Pozisyon negatif olamaz");
     }
 }
 

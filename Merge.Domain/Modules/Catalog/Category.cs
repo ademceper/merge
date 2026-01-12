@@ -4,6 +4,7 @@ using Merge.Domain.Exceptions;
 using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Merge.Domain.Modules.Catalog;
 
@@ -34,10 +35,19 @@ public class Category : BaseEntity, IAggregateRoot
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
+    // ✅ BOLUM 1.3: Value Object property (computed from string)
+    [NotMapped]
+    public Slug SlugValueObject => new Slug(_slug);
+    
     // Navigation properties
     public Category? ParentCategory { get; private set; }
-    public ICollection<Category> SubCategories { get; private set; } = new List<Category>();
-    public ICollection<Product> Products { get; private set; } = new List<Product>();
+    
+    // ✅ BOLUM 1.1: Encapsulated collection - Read-only access
+    private readonly List<Category> _subCategories = new();
+    public IReadOnlyCollection<Category> SubCategories => _subCategories.AsReadOnly();
+    
+    private readonly List<Product> _products = new();
+    public IReadOnlyCollection<Product> Products => _products.AsReadOnly();
 
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Category() { }
@@ -46,34 +56,31 @@ public class Category : BaseEntity, IAggregateRoot
     public static Category Create(
         string name,
         string description,
-        string slug,
+        Slug slug,
         string? imageUrl = null,
         Guid? parentCategoryId = null)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNullOrEmpty(description, nameof(description));
-        Guard.AgainstNullOrEmpty(slug, nameof(slug));
-
-        // ✅ BOLUM 1.3: Slug validation
-        if (!IsValidSlug(slug))
-        {
-            throw new DomainException("Geçersiz slug formatı. Slug sadece küçük harf, rakam ve tire içerebilir.");
-        }
+        Guard.AgainstNull(slug, nameof(slug));
 
         var category = new Category
         {
             Id = Guid.NewGuid(),
             Name = name,
             Description = description,
-            _slug = slug.ToLowerInvariant(),
+            _slug = slug.Value,
             ImageUrl = imageUrl ?? string.Empty,
             ParentCategoryId = parentCategoryId,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
+        // ✅ BOLUM 1.4: Invariant validation
+        category.ValidateInvariants();
+
         // ✅ BOLUM 1.5: Domain Events - CategoryCreatedEvent yayınla (ÖNERİLİR)
-        category.AddDomainEvent(new CategoryCreatedEvent(category.Id, name, slug, parentCategoryId));
+        category.AddDomainEvent(new CategoryCreatedEvent(category.Id, name, slug.Value, parentCategoryId));
 
         return category;
     }
@@ -85,6 +92,9 @@ public class Category : BaseEntity, IAggregateRoot
         Name = newName;
         UpdatedAt = DateTime.UtcNow;
         
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
         // ✅ BOLUM 1.5: Domain Events - CategoryUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new CategoryUpdatedEvent(Id, newName, _slug));
     }
@@ -95,18 +105,23 @@ public class Category : BaseEntity, IAggregateRoot
         Guard.AgainstNull(newDescription, nameof(newDescription));
         Description = newDescription;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - CategoryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CategoryUpdatedEvent(Id, Name, _slug));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update slug
-    public void UpdateSlug(string newSlug)
+    public void UpdateSlug(Slug newSlug)
     {
-        Guard.AgainstNullOrEmpty(newSlug, nameof(newSlug));
-        if (!IsValidSlug(newSlug))
-        {
-            throw new DomainException("Geçersiz slug formatı. Slug sadece küçük harf, rakam ve tire içerebilir.");
-        }
-        _slug = newSlug.ToLowerInvariant();
+        Guard.AgainstNull(newSlug, nameof(newSlug));
+        _slug = newSlug.Value;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
         
         // ✅ BOLUM 1.5: Domain Events - CategoryUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new CategoryUpdatedEvent(Id, Name, _slug));
@@ -117,6 +132,9 @@ public class Category : BaseEntity, IAggregateRoot
     {
         ImageUrl = newImageUrl ?? string.Empty;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Set parent category
@@ -128,26 +146,86 @@ public class Category : BaseEntity, IAggregateRoot
         }
         ParentCategoryId = parentCategoryId;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Add subcategory (collection manipulation)
+    public void AddSubCategory(Category subCategory)
+    {
+        Guard.AgainstNull(subCategory, nameof(subCategory));
+        if (subCategory.ParentCategoryId != Id)
+        {
+            throw new DomainException("Alt kategori bu kategoriye ait değil");
+        }
+        if (_subCategories.Any(c => c.Id == subCategory.Id))
+        {
+            throw new DomainException("Bu alt kategori zaten eklenmiş");
+        }
+        _subCategories.Add(subCategory);
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+    
+    // ✅ BOLUM 1.1: Domain Logic - Remove subcategory (collection manipulation)
+    public void RemoveSubCategory(Guid subCategoryId)
+    {
+        Guard.AgainstDefault(subCategoryId, nameof(subCategoryId));
+        var subCategory = _subCategories.FirstOrDefault(c => c.Id == subCategoryId);
+        if (subCategory == null)
+        {
+            throw new DomainException("Alt kategori bulunamadı");
+        }
+        _subCategories.Remove(subCategory);
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
+        if (IsDeleted) return;
+        
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
         
         // ✅ BOLUM 1.5: Domain Events - CategoryDeletedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new CategoryDeletedEvent(Id, Name));
     }
 
-    // ✅ BOLUM 1.3: Slug validation helper
-    private static bool IsValidSlug(string slug)
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
     {
-        if (string.IsNullOrWhiteSpace(slug))
-            return false;
+        if (string.IsNullOrWhiteSpace(Name))
+            throw new DomainException("Kategori adı boş olamaz");
 
-        var normalized = slug.Trim().ToLowerInvariant();
-        return System.Text.RegularExpressions.Regex.IsMatch(normalized, @"^[a-z0-9]+(?:-[a-z0-9]+)*$");
+        if (string.IsNullOrWhiteSpace(Description))
+            throw new DomainException("Kategori açıklaması boş olamaz");
+
+        if (string.IsNullOrWhiteSpace(_slug))
+            throw new DomainException("Kategori slug'ı boş olamaz");
+
+        // Slug Value Object validation zaten constructor'da yapılıyor
+        // Burada sadece boş olup olmadığını kontrol ediyoruz
+        try
+        {
+            var slug = new Slug(_slug); // Validation için
+        }
+        catch (ArgumentException)
+        {
+            throw new DomainException("Geçersiz slug formatı");
+        }
+
+        if (ParentCategoryId.HasValue && ParentCategoryId.Value == Id)
+            throw new DomainException("Kategori kendisinin alt kategorisi olamaz");
     }
 }
 

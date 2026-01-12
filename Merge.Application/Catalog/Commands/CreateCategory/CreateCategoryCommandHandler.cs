@@ -54,14 +54,19 @@ public class CreateCategoryCommandHandler : IRequestHandler<CreateCategoryComman
         try
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
+            var slug = new Slug(request.Slug);
             var category = Category.Create(
                 request.Name,
                 request.Description,
-                request.Slug,
+                slug,
                 request.ImageUrl,
                 request.ParentCategoryId);
 
             category = await _categoryRepository.AddAsync(category, cancellationToken);
+            
+            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
+            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
