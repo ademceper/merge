@@ -46,9 +46,11 @@ public class GetB2BUserPurchaseOrdersQueryHandler : IRequestHandler<GetB2BUserPu
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE: AsSplitQuery to avoid Cartesian Explosion (multiple collection includes)
         // ✅ PERFORMANCE: Removed manual !po.IsDeleted check (Global Query Filter handles it)
         var query = _context.Set<PurchaseOrder>()
             .AsNoTracking()
+            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting - Multiple Include'lar için
             .Include(po => po.Organization)
             .Include(po => po.B2BUser!)
                 .ThenInclude(b => b.User)

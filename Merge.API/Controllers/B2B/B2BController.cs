@@ -36,7 +36,9 @@ using Merge.Application.B2B.Queries.GetCreditTermById;
 using Merge.Application.B2B.Queries.GetOrganizationCreditTerms;
 using Merge.Application.B2B.Queries.GetVolumeDiscounts;
 using Merge.Application.B2B.Queries.CalculateVolumeDiscount;
+using Merge.Application.B2B.Commands.UpdateCreditUsage;
 using Merge.API.Middleware;
+using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.B2B;
 
@@ -86,7 +88,12 @@ public class B2BController : BaseController
             dto.Settings);
         
         var b2bUser = await _mediator.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(GetB2BUser), new { id = b2bUser.Id }, b2bUser);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateB2BUserLinks(Url, b2bUser.Id, version);
+        
+        return CreatedAtAction(nameof(GetB2BUser), new { id = b2bUser.Id }, new { b2bUser, _links = links });
     }
 
     /// <summary>
@@ -119,7 +126,11 @@ public class B2BController : BaseController
             return Forbid();
         }
 
-        return Ok(b2bUser);
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateB2BUserLinks(Url, b2bUser.Id, version);
+        
+        return Ok(new { b2bUser, _links = links });
     }
 
     /// <summary>
@@ -142,7 +153,12 @@ public class B2BController : BaseController
         {
             return NotFound();
         }
-        return Ok(b2bUser);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateB2BUserLinks(Url, b2bUser.Id, version);
+        
+        return Ok(new { b2bUser, _links = links });
     }
 
     /// <summary>
@@ -169,7 +185,13 @@ public class B2BController : BaseController
 
         var query = new GetOrganizationB2BUsersQuery(organizationId, status, page, pageSize);
         var users = await _mediator.Send(query, cancellationToken);
-        return Ok(users);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var totalPages = (int)Math.Ceiling((double)users.TotalCount / users.PageSize);
+        var links = HateoasHelper.CreatePaginationLinks(Url, "GetOrganizationB2BUsers", users.Page, users.PageSize, totalPages, new { version, organizationId, status }, version);
+        
+        return Ok(new { users.Items, users.TotalCount, users.Page, users.PageSize, _links = links });
     }
 
     /// <summary>
@@ -260,7 +282,12 @@ public class B2BController : BaseController
 
         var command = new CreateWholesalePriceCommand(dto);
         var price = await _mediator.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(GetProductWholesalePrices), new { productId = price.ProductId }, price);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateWholesalePriceLinks(Url, price.Id, price.ProductId, version);
+        
+        return CreatedAtAction(nameof(GetProductWholesalePrices), new { productId = price.ProductId }, new { price, _links = links });
     }
 
     /// <summary>
@@ -286,7 +313,13 @@ public class B2BController : BaseController
 
         var query = new GetProductWholesalePricesQuery(productId, organizationId, page, pageSize);
         var prices = await _mediator.Send(query, cancellationToken);
-        return Ok(prices);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var totalPages = (int)Math.Ceiling((double)prices.TotalCount / prices.PageSize);
+        var links = HateoasHelper.CreatePaginationLinks(Url, "GetProductWholesalePrices", prices.Page, prices.PageSize, totalPages, new { version, productId, organizationId }, version);
+        
+        return Ok(new { prices.Items, prices.TotalCount, prices.Page, prices.PageSize, _links = links });
     }
 
     /// <summary>
@@ -309,13 +342,72 @@ public class B2BController : BaseController
         var query = new GetWholesalePriceQuery(productId, quantity, organizationId);
         var price = await _mediator.Send(query, cancellationToken);
         
-        return Ok(new WholesalePriceResponseDto
+        var response = new WholesalePriceResponseDto
         {
             ProductId = productId,
             Quantity = quantity,
             OrganizationId = organizationId,
             Price = price
-        });
+        };
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetWholesalePrice", new { version, productId, quantity, organizationId }, version);
+        
+        return Ok(new { response, _links = links });
+    }
+
+    /// <summary>
+    /// Toptan satış fiyatını günceller
+    /// </summary>
+    [HttpPut("wholesale-prices/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20/dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> UpdateWholesalePrice(
+        Guid id,
+        [FromBody] CreateWholesalePriceDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var command = new UpdateWholesalePriceCommand(id, dto);
+        var success = await _mediator.Send(command, cancellationToken);
+        
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Toptan satış fiyatını siler
+    /// </summary>
+    [HttpDelete("wholesale-prices/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20/dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> DeleteWholesalePrice(Guid id, CancellationToken cancellationToken = default)
+    {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeleteWholesalePriceCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
+        
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
     }
 
     // Credit Terms
@@ -337,7 +429,12 @@ public class B2BController : BaseController
 
         var command = new CreateCreditTermCommand(dto);
         var creditTerm = await _mediator.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(GetOrganizationCreditTerms), new { organizationId = creditTerm.OrganizationId }, creditTerm);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateCreditTermLinks(Url, creditTerm.Id, version);
+        
+        return CreatedAtAction(nameof(GetOrganizationCreditTerms), new { organizationId = creditTerm.OrganizationId }, new { creditTerm, _links = links });
     }
 
     /// <summary>
@@ -374,7 +471,103 @@ public class B2BController : BaseController
 
         var query = new GetOrganizationCreditTermsQuery(organizationId, isActive, page, pageSize);
         var creditTerms = await _mediator.Send(query, cancellationToken);
-        return Ok(creditTerms);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var totalPages = (int)Math.Ceiling((double)creditTerms.TotalCount / creditTerms.PageSize);
+        var links = HateoasHelper.CreatePaginationLinks(Url, "GetOrganizationCreditTerms", creditTerms.Page, creditTerms.PageSize, totalPages, new { version, organizationId, isActive }, version);
+        
+        return Ok(new { creditTerms.Items, creditTerms.TotalCount, creditTerms.Page, creditTerms.PageSize, _links = links });
+    }
+
+    /// <summary>
+    /// Kredi koşulu detaylarını getirir
+    /// </summary>
+    [HttpGet("credit-terms/{id}")]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(CreditTermDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<CreditTermDto>> GetCreditTerm(Guid id, CancellationToken cancellationToken = default)
+    {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetCreditTermByIdQuery(id);
+        var creditTerm = await _mediator.Send(query, cancellationToken);
+        
+        if (creditTerm == null)
+        {
+            return NotFound();
+        }
+
+        var userId = GetUserId();
+        var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
+        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        
+        // ✅ SECURITY: Authorization check - Users can only view credit terms for their own organization or must be Admin/Manager
+        if (b2bUser == null || (creditTerm.OrganizationId != b2bUser.OrganizationId && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
+        {
+            return Forbid();
+        }
+
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateCreditTermLinks(Url, creditTerm.Id, version);
+        
+        return Ok(new { creditTerm, _links = links });
+    }
+
+    /// <summary>
+    /// Kredi koşulunu günceller
+    /// </summary>
+    [HttpPut("credit-terms/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20/dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> UpdateCreditTerm(
+        Guid id,
+        [FromBody] CreateCreditTermDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var command = new UpdateCreditTermCommand(id, dto);
+        var success = await _mediator.Send(command, cancellationToken);
+        
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Kredi koşulunu siler
+    /// </summary>
+    [HttpDelete("credit-terms/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20/dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> DeleteCreditTerm(Guid id, CancellationToken cancellationToken = default)
+    {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeleteCreditTermCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
+        
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
     }
 
     // Purchase Orders
@@ -403,7 +596,12 @@ public class B2BController : BaseController
 
         var command = new CreatePurchaseOrderCommand(b2bUser.Id, dto);
         var po = await _mediator.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(GetPurchaseOrder), new { id = po.Id }, po);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreatePurchaseOrderLinks(Url, po.Id, version);
+        
+        return CreatedAtAction(nameof(GetPurchaseOrder), new { id = po.Id }, new { po, _links = links });
     }
 
     /// <summary>
@@ -437,7 +635,11 @@ public class B2BController : BaseController
             return Forbid();
         }
 
-        return Ok(po);
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreatePurchaseOrderLinks(Url, po.Id, version);
+        
+        return Ok(new { po, _links = links });
     }
 
     /// <summary>
@@ -471,7 +673,11 @@ public class B2BController : BaseController
             return Forbid();
         }
 
-        return Ok(po);
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreatePurchaseOrderLinks(Url, po.Id, version);
+        
+        return Ok(new { po, _links = links });
     }
 
     /// <summary>
@@ -499,7 +705,13 @@ public class B2BController : BaseController
 
         var query = new GetOrganizationPurchaseOrdersQuery(organizationId, status, page, pageSize);
         var pos = await _mediator.Send(query, cancellationToken);
-        return Ok(pos);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var totalPages = (int)Math.Ceiling((double)pos.TotalCount / pos.PageSize);
+        var links = HateoasHelper.CreatePaginationLinks(Url, "GetOrganizationPurchaseOrders", pos.Page, pos.PageSize, totalPages, new { version, organizationId, status }, version);
+        
+        return Ok(new { pos.Items, pos.TotalCount, pos.Page, pos.PageSize, _links = links });
     }
 
     /// <summary>
@@ -534,7 +746,13 @@ public class B2BController : BaseController
 
         var query = new GetB2BUserPurchaseOrdersQuery(b2bUser.Id, status, page, pageSize);
         var pos = await _mediator.Send(query, cancellationToken);
-        return Ok(pos);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var totalPages = (int)Math.Ceiling((double)pos.TotalCount / pos.PageSize);
+        var links = HateoasHelper.CreatePaginationLinks(Url, "GetMyPurchaseOrders", pos.Page, pos.PageSize, totalPages, new { version, status }, version);
+        
+        return Ok(new { pos.Items, pos.TotalCount, pos.Page, pos.PageSize, _links = links });
     }
 
     /// <summary>
@@ -691,7 +909,12 @@ public class B2BController : BaseController
 
         var command = new CreateVolumeDiscountCommand(dto);
         var discount = await _mediator.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(GetVolumeDiscounts), new { productId = discount.ProductId }, discount);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateVolumeDiscountLinks(Url, discount.Id, discount.ProductId, version);
+        
+        return CreatedAtAction(nameof(GetVolumeDiscounts), new { productId = discount.ProductId }, new { discount, _links = links });
     }
 
     /// <summary>
@@ -718,7 +941,146 @@ public class B2BController : BaseController
 
         var query = new GetVolumeDiscountsQuery(productId, categoryId, organizationId, page, pageSize);
         var discounts = await _mediator.Send(query, cancellationToken);
-        return Ok(discounts);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var totalPages = (int)Math.Ceiling((double)discounts.TotalCount / discounts.PageSize);
+        var links = HateoasHelper.CreatePaginationLinks(Url, "GetVolumeDiscounts", discounts.Page, discounts.PageSize, totalPages, new { version, productId, categoryId, organizationId }, version);
+        
+        return Ok(new { discounts.Items, discounts.TotalCount, discounts.Page, discounts.PageSize, _links = links });
+    }
+
+    /// <summary>
+    /// Hacim indirimini günceller
+    /// </summary>
+    [HttpPut("volume-discounts/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20/dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> UpdateVolumeDiscount(
+        Guid id,
+        [FromBody] CreateVolumeDiscountDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var command = new UpdateVolumeDiscountCommand(id, dto);
+        var success = await _mediator.Send(command, cancellationToken);
+        
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Hacim indirimini siler
+    /// </summary>
+    [HttpDelete("volume-discounts/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20/dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> DeleteVolumeDiscount(Guid id, CancellationToken cancellationToken = default)
+    {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeleteVolumeDiscountCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
+        
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
+    /// B2B kullanıcıyı siler
+    /// </summary>
+    [HttpDelete("users/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> DeleteB2BUser(Guid id, CancellationToken cancellationToken = default)
+    {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeleteB2BUserCommand(id);
+        var success = await _mediator.Send(command, cancellationToken);
+        
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Hacim indirimi hesaplar
+    /// </summary>
+    [HttpGet("volume-discounts/calculate")]
+    [AllowAnonymous]
+    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [ProducesResponseType(typeof(decimal), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<decimal>> CalculateVolumeDiscount(
+        [FromQuery] Guid productId,
+        [FromQuery] int quantity,
+        [FromQuery] Guid? organizationId = null,
+        CancellationToken cancellationToken = default)
+    {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var query = new CalculateVolumeDiscountQuery(productId, quantity, organizationId);
+        var discount = await _mediator.Send(query, cancellationToken);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "CalculateVolumeDiscount", new { version, productId, quantity, organizationId }, version);
+        
+        return Ok(new { discount, _links = links });
+    }
+
+    /// <summary>
+    /// Kredi kullanımını günceller
+    /// </summary>
+    [HttpPut("credit-terms/{id}/credit-usage")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20/dakika
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> UpdateCreditUsage(
+        Guid id,
+        [FromBody] UpdateCreditUsageDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        var command = new UpdateCreditUsageCommand(id, dto.Amount);
+        var success = await _mediator.Send(command, cancellationToken);
+        
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
     }
 }
 

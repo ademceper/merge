@@ -36,9 +36,11 @@ public class GetPurchaseOrderByPONumberQueryHandler : IRequestHandler<GetPurchas
     public async Task<PurchaseOrderDto?> Handle(GetPurchaseOrderByPONumberQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE: AsSplitQuery to avoid Cartesian Explosion (multiple collection includes)
         // ✅ PERFORMANCE: Removed manual !po.IsDeleted check (Global Query Filter handles it)
         var po = await _context.Set<PurchaseOrder>()
             .AsNoTracking()
+            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting - Multiple Include'lar için
             .Include(po => po.Organization)
             .Include(po => po.B2BUser!)
                 .ThenInclude(b => b.User)

@@ -87,7 +87,7 @@ public class ETLProcess : BaseAggregateRoot
         if (Status != TransactionStatus.Pending)
             throw new InvalidOperationException($"ETL process {Status} durumunda, başlatılamaz");
 
-        Status = TransactionStatus.InProgress;
+        Status = TransactionStatus.Running;
         UpdatedAt = DateTime.UtcNow;
 
         // ✅ BOLUM 1.5: Domain Events - ETLProcessStartedEvent yayınla
@@ -97,7 +97,7 @@ public class ETLProcess : BaseAggregateRoot
     // ✅ BOLUM 1.1: Domain Logic - Complete process
     public void Complete(int recordsProcessed, TimeSpan executionTime)
     {
-        if (Status != TransactionStatus.InProgress)
+        if (Status != TransactionStatus.Running)
             throw new InvalidOperationException($"ETL process {Status} durumunda, tamamlanamaz");
 
         // ✅ BOLUM 1.6: Invariant Validation - RecordsProcessed >= 0

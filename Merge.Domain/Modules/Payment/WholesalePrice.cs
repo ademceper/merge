@@ -1,5 +1,6 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Modules.Catalog;
@@ -10,8 +11,10 @@ namespace Merge.Domain.Modules.Payment;
 /// <summary>
 /// WholesalePrice Entity - Rich Domain Model implementation
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
 /// </summary>
-public class WholesalePrice : BaseEntity
+public class WholesalePrice : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid ProductId { get; private set; }
@@ -93,6 +96,15 @@ public class WholesalePrice : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
 
+        // ✅ BOLUM 1.5: Domain Event - Wholesale Price Created
+        wholesalePrice.AddDomainEvent(new WholesalePriceCreatedEvent(
+            wholesalePrice.Id,
+            productId,
+            organizationId,
+            minQuantity,
+            maxQuantity,
+            price));
+
         return wholesalePrice;
     }
 
@@ -102,6 +114,9 @@ public class WholesalePrice : BaseEntity
         Guard.AgainstNegativeOrZero(newPrice, nameof(newPrice));
         Price = newPrice;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - Wholesale Price Updated
+        AddDomainEvent(new WholesalePriceUpdatedEvent(Id, ProductId, OrganizationId, newPrice));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update quantity range
@@ -116,6 +131,9 @@ public class WholesalePrice : BaseEntity
         MinQuantity = minQuantity;
         MaxQuantity = maxQuantity;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - Wholesale Price Updated
+        AddDomainEvent(new WholesalePriceUpdatedEvent(Id, ProductId, OrganizationId, Price));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Activate/Deactivate
@@ -123,12 +141,18 @@ public class WholesalePrice : BaseEntity
     {
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - Wholesale Price Activated
+        AddDomainEvent(new WholesalePriceActivatedEvent(Id, ProductId, OrganizationId));
     }
 
     public void Deactivate()
     {
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - Wholesale Price Deactivated
+        AddDomainEvent(new WholesalePriceDeactivatedEvent(Id, ProductId, OrganizationId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update dates
@@ -141,6 +165,22 @@ public class WholesalePrice : BaseEntity
         StartDate = startDate;
         EndDate = endDate;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - Wholesale Price Updated
+        AddDomainEvent(new WholesalePriceUpdatedEvent(Id, ProductId, OrganizationId, Price));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Delete (soft delete)
+    public void Delete()
+    {
+        if (IsDeleted)
+            throw new DomainException("Wholesale price zaten silinmiş");
+
+        IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - Wholesale Price Deleted
+        AddDomainEvent(new WholesalePriceDeletedEvent(Id, ProductId, OrganizationId));
     }
 }
 

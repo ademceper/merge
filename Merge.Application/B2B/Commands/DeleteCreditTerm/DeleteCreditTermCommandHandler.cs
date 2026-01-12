@@ -42,9 +42,8 @@ public class DeleteCreditTermCommandHandler : IRequestHandler<DeleteCreditTermCo
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Soft delete (IsDeleted flag)
-        // ✅ BOLUM 1.1: Rich Domain Model - Soft delete (IsDeleted flag)
-        creditTerm.MarkAsDeleted();
+        // ✅ BOLUM 1.1: Rich Domain Model - Delete method (soft delete + domain event)
+        creditTerm.Delete();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Credit term deleted successfully. CreditTermId: {CreditTermId}", request.Id);

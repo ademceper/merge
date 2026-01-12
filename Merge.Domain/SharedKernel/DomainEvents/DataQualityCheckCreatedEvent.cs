@@ -1,5 +1,6 @@
 using Merge.Domain.Modules.Analytics;
 using Merge.Domain.SharedKernel;
+using Merge.Domain.Enums;
 
 namespace Merge.Domain.SharedKernel.DomainEvents;
 

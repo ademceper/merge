@@ -87,8 +87,10 @@ public class CreateVolumeDiscountCommandHandler : IRequestHandler<CreateVolumeDi
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: Reload with Include for AutoMapper
+        // ✅ PERFORMANCE: AsSplitQuery to avoid Cartesian Explosion (multiple Include'lar)
         discount = await _context.Set<VolumeDiscount>()
             .AsNoTracking()
+            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting - Multiple Include'lar için
             .Include(vd => vd.Product)
             .Include(vd => vd.Category)
             .Include(vd => vd.Organization)

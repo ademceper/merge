@@ -1,5 +1,6 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Modules.Catalog;
@@ -10,8 +11,10 @@ namespace Merge.Domain.Modules.Payment;
 /// <summary>
 /// VolumeDiscount Entity - Rich Domain Model implementation
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
 /// </summary>
-public class VolumeDiscount : BaseEntity
+public class VolumeDiscount : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid ProductId { get; private set; }
@@ -120,6 +123,17 @@ public class VolumeDiscount : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
 
+        // ✅ BOLUM 1.5: Domain Event - Volume Discount Created
+        volumeDiscount.AddDomainEvent(new VolumeDiscountCreatedEvent(
+            volumeDiscount.Id,
+            productId,
+            categoryId,
+            organizationId,
+            minQuantity,
+            maxQuantity,
+            discountPercentage,
+            fixedDiscountAmount));
+
         return volumeDiscount;
     }
 
@@ -135,6 +149,9 @@ public class VolumeDiscount : BaseEntity
         DiscountPercentage = discountPercentage;
         FixedDiscountAmount = fixedDiscountAmount;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - Volume Discount Updated
+        AddDomainEvent(new VolumeDiscountUpdatedEvent(Id, ProductId, CategoryId, OrganizationId, discountPercentage, fixedDiscountAmount));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update quantity range
@@ -149,6 +166,9 @@ public class VolumeDiscount : BaseEntity
         MinQuantity = minQuantity;
         MaxQuantity = maxQuantity;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - Volume Discount Updated
+        AddDomainEvent(new VolumeDiscountUpdatedEvent(Id, ProductId, CategoryId, OrganizationId, DiscountPercentage, FixedDiscountAmount));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Activate/Deactivate
@@ -156,12 +176,18 @@ public class VolumeDiscount : BaseEntity
     {
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - Volume Discount Activated
+        AddDomainEvent(new VolumeDiscountActivatedEvent(Id, ProductId, CategoryId, OrganizationId));
     }
 
     public void Deactivate()
     {
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - Volume Discount Deactivated
+        AddDomainEvent(new VolumeDiscountDeactivatedEvent(Id, ProductId, CategoryId, OrganizationId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update dates
@@ -174,6 +200,22 @@ public class VolumeDiscount : BaseEntity
         StartDate = startDate;
         EndDate = endDate;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - Volume Discount Updated
+        AddDomainEvent(new VolumeDiscountUpdatedEvent(Id, ProductId, CategoryId, OrganizationId, DiscountPercentage, FixedDiscountAmount));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Delete (soft delete)
+    public void Delete()
+    {
+        if (IsDeleted)
+            throw new DomainException("Volume discount zaten silinmiş");
+
+        IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - Volume Discount Deleted
+        AddDomainEvent(new VolumeDiscountDeletedEvent(Id, ProductId, CategoryId, OrganizationId));
     }
 }
 

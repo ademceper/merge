@@ -113,6 +113,16 @@ public class B2BUser : BaseEntity, IAggregateRoot
             CreatedAt = DateTime.UtcNow
         };
 
+        // ✅ BOLUM 1.5: Domain Event - B2B User Created
+        b2bUser.AddDomainEvent(new B2BUserCreatedEvent(
+            b2bUser.Id,
+            userId,
+            organizationId,
+            employeeId,
+            department,
+            jobTitle,
+            creditLimit));
+
         return b2bUser;
     }
 
@@ -148,6 +158,9 @@ public class B2BUser : BaseEntity, IAggregateRoot
 
         CreditLimit = creditLimit;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - B2B User Updated
+        AddDomainEvent(new B2BUserUpdatedEvent(Id, UserId, OrganizationId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Use credit
@@ -166,6 +179,9 @@ public class B2BUser : BaseEntity, IAggregateRoot
 
         UsedCredit = newUsedCredit;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - B2B User Credit Used
+        AddDomainEvent(new B2BUserCreditUsedEvent(Id, UserId, OrganizationId, amount, newUsedCredit));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Release credit
@@ -181,6 +197,9 @@ public class B2BUser : BaseEntity, IAggregateRoot
 
         UsedCredit = newUsedCredit;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - B2B User Credit Released
+        AddDomainEvent(new B2BUserCreditReleasedEvent(Id, UserId, OrganizationId, amount, newUsedCredit));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update profile
@@ -190,6 +209,9 @@ public class B2BUser : BaseEntity, IAggregateRoot
         Department = department;
         JobTitle = jobTitle;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - B2B User Updated
+        AddDomainEvent(new B2BUserUpdatedEvent(Id, UserId, OrganizationId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update status
@@ -200,6 +222,9 @@ public class B2BUser : BaseEntity, IAggregateRoot
 
         Status = status;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - B2B User Updated
+        AddDomainEvent(new B2BUserUpdatedEvent(Id, UserId, OrganizationId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update settings
@@ -207,5 +232,22 @@ public class B2BUser : BaseEntity, IAggregateRoot
     {
         Settings = settingsJson;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - B2B User Updated
+        AddDomainEvent(new B2BUserUpdatedEvent(Id, UserId, OrganizationId));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Delete (soft delete)
+    public void Delete()
+    {
+        if (IsDeleted)
+            throw new DomainException("B2B kullanıcı zaten silinmiş");
+
+        IsDeleted = true;
+        Status = EntityStatus.Deleted;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - B2B User Deleted
+        AddDomainEvent(new B2BUserDeletedEvent(Id, UserId, OrganizationId));
     }
 }

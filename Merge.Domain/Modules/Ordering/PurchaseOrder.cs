@@ -158,6 +158,12 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
 
         _items.Add(item);
         RecalculateTotals();
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - Purchase Order Item Added
+        // Not: PurchaseOrderItem aggregate içinde entity olduğu için ayrı event'e gerek yok
+        // Ancak PurchaseOrder'ın toplam tutarı değiştiği için event ekleniyor
+        AddDomainEvent(new PurchaseOrderItemAddedEvent(Id, product.Id, quantity, unitPrice));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Calculate totals

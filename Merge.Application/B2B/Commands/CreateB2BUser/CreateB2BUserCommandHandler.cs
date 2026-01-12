@@ -95,8 +95,10 @@ public class CreateB2BUserCommandHandler : IRequestHandler<CreateB2BUserCommand,
         _logger.LogInformation("Successfully created B2B user with Id: {B2BUserId}", b2bUser.Id);
 
         // ✅ PERFORMANCE: Reload with Include for AutoMapper
+        // ✅ PERFORMANCE: AsSplitQuery to avoid Cartesian Explosion (multiple Include'lar)
         b2bUser = await _context.Set<B2BUser>()
             .AsNoTracking()
+            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting - Multiple Include'lar için
             .Include(b => b.User)
             .Include(b => b.Organization)
             .FirstOrDefaultAsync(b => b.Id == b2bUser.Id, cancellationToken);

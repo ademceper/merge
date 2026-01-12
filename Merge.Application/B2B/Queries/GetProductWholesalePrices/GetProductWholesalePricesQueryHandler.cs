@@ -45,9 +45,11 @@ public class GetProductWholesalePricesQueryHandler : IRequestHandler<GetProductW
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE: AsSplitQuery to avoid Cartesian Explosion (multiple Include'lar)
         // ✅ PERFORMANCE: Removed manual !wp.IsDeleted check (Global Query Filter handles it)
         var query = _context.Set<WholesalePrice>()
             .AsNoTracking()
+            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting - Multiple Include'lar için
             .Include(wp => wp.Product)
             .Include(wp => wp.Organization)
             .Where(wp => wp.ProductId == request.ProductId && wp.IsActive);

@@ -33,9 +33,11 @@ public class GetB2BUserByIdQueryHandler : IRequestHandler<GetB2BUserByIdQuery, B
     public async Task<B2BUserDto?> Handle(GetB2BUserByIdQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE: AsSplitQuery to avoid Cartesian Explosion (multiple Include'lar)
         // ✅ PERFORMANCE: Removed manual !b.IsDeleted check (Global Query Filter handles it)
         var b2bUser = await _context.Set<B2BUser>()
             .AsNoTracking()
+            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting - Multiple Include'lar için
             .Include(b => b.User)
             .Include(b => b.Organization)
             .FirstOrDefaultAsync(b => b.Id == request.Id, cancellationToken);

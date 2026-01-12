@@ -597,6 +597,165 @@ public static class HateoasHelper
 
         return links;
     }
+
+    /// <summary>
+    /// Creates HATEOAS links for a B2B user resource
+    /// </summary>
+    public static Dictionary<string, LinkDto> CreateB2BUserLinks(IUrlHelper urlHelper, Guid b2bUserId, string version = "1.0")
+    {
+        var links = new Dictionary<string, LinkDto>
+        {
+            ["self"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/users/{b2bUserId}",
+                Method = "GET"
+            },
+            ["update"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/users/{b2bUserId}",
+                Method = "PUT"
+            },
+            ["delete"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/users/{b2bUserId}",
+                Method = "DELETE"
+            },
+            ["approve"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/users/{b2bUserId}/approve",
+                Method = "POST"
+            }
+        };
+
+        return links;
+    }
+
+    /// <summary>
+    /// Creates HATEOAS links for a purchase order resource
+    /// </summary>
+    public static Dictionary<string, LinkDto> CreatePurchaseOrderLinks(IUrlHelper urlHelper, Guid purchaseOrderId, string version = "1.0")
+    {
+        var links = new Dictionary<string, LinkDto>
+        {
+            ["self"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/purchase-orders/{purchaseOrderId}",
+                Method = "GET"
+            },
+            ["submit"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/purchase-orders/{purchaseOrderId}/submit",
+                Method = "POST"
+            },
+            ["cancel"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/purchase-orders/{purchaseOrderId}/cancel",
+                Method = "POST"
+            },
+            ["approve"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/purchase-orders/{purchaseOrderId}/approve",
+                Method = "POST"
+            },
+            ["reject"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/purchase-orders/{purchaseOrderId}/reject",
+                Method = "POST"
+            }
+        };
+
+        return links;
+    }
+
+    /// <summary>
+    /// Creates HATEOAS links for a credit term resource
+    /// </summary>
+    public static Dictionary<string, LinkDto> CreateCreditTermLinks(IUrlHelper urlHelper, Guid creditTermId, string version = "1.0")
+    {
+        var links = new Dictionary<string, LinkDto>
+        {
+            ["self"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/credit-terms/{creditTermId}",
+                Method = "GET"
+            },
+            ["update"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/credit-terms/{creditTermId}",
+                Method = "PUT"
+            },
+            ["delete"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/credit-terms/{creditTermId}",
+                Method = "DELETE"
+            }
+        };
+
+        return links;
+    }
+
+    /// <summary>
+    /// Creates HATEOAS links for a wholesale price resource
+    /// </summary>
+    public static Dictionary<string, LinkDto> CreateWholesalePriceLinks(IUrlHelper urlHelper, Guid wholesalePriceId, Guid productId, string version = "1.0")
+    {
+        var links = new Dictionary<string, LinkDto>
+        {
+            ["self"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/products/{productId}/wholesale-prices",
+                Method = "GET"
+            },
+            ["update"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/wholesale-prices/{wholesalePriceId}",
+                Method = "PUT"
+            },
+            ["delete"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/wholesale-prices/{wholesalePriceId}",
+                Method = "DELETE"
+            }
+        };
+
+        return links;
+    }
+
+    /// <summary>
+    /// Creates HATEOAS links for a volume discount resource
+    /// </summary>
+    public static Dictionary<string, LinkDto> CreateVolumeDiscountLinks(IUrlHelper urlHelper, Guid volumeDiscountId, Guid? productId, string version = "1.0")
+    {
+        var links = new Dictionary<string, LinkDto>
+        {
+            ["self"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/volume-discounts",
+                Method = "GET"
+            },
+            ["update"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/volume-discounts/{volumeDiscountId}",
+                Method = "PUT"
+            },
+            ["delete"] = new LinkDto
+            {
+                Href = $"/api/v{version}/b2b/volume-discounts/{volumeDiscountId}",
+                Method = "DELETE"
+            }
+        };
+
+        if (productId.HasValue)
+        {
+            links["product"] = new LinkDto
+            {
+                Href = $"/api/v{version}/products/{productId.Value}",
+                Method = "GET"
+            };
+        }
+
+        return links;
+    }
 }
 
 /// <summary>

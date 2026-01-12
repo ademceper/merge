@@ -47,9 +47,11 @@ public class GetOrganizationB2BUsersQueryHandler : IRequestHandler<GetOrganizati
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE: AsSplitQuery to avoid Cartesian Explosion (multiple Include'lar)
         // ✅ PERFORMANCE: Removed manual !b.IsDeleted check (Global Query Filter handles it)
         var query = _context.Set<B2BUser>()
             .AsNoTracking()
+            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting - Multiple Include'lar için
             .Include(b => b.User)
             .Include(b => b.Organization)
             .Where(b => b.OrganizationId == request.OrganizationId);

@@ -42,9 +42,8 @@ public class DeleteVolumeDiscountCommandHandler : IRequestHandler<DeleteVolumeDi
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Soft delete (IsDeleted flag)
-        // ✅ BOLUM 1.1: Rich Domain Model - Soft delete (IsDeleted flag)
-        discount.MarkAsDeleted();
+        // ✅ BOLUM 1.1: Rich Domain Model - Delete method (soft delete + domain event)
+        discount.Delete();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Volume discount deleted successfully. VolumeDiscountId: {VolumeDiscountId}", request.Id);

@@ -45,9 +45,11 @@ public class GetVolumeDiscountsQueryHandler : IRequestHandler<GetVolumeDiscounts
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE: AsSplitQuery to avoid Cartesian Explosion (multiple Include'lar)
         // ✅ PERFORMANCE: Removed manual !vd.IsDeleted check (Global Query Filter handles it)
         var query = _context.Set<VolumeDiscount>()
             .AsNoTracking()
+            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting - Multiple Include'lar için
             .Include(vd => vd.Product)
             .Include(vd => vd.Category)
             .Include(vd => vd.Organization)
