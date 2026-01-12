@@ -49,7 +49,7 @@ public class SubscribeEmailCommandHandler : IRequestHandler<SubscribeEmailComman
         {
             if (existing.IsDeleted)
             {
-                existing.IsDeleted = false;
+                existing.Restore();
             }
 
             // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı

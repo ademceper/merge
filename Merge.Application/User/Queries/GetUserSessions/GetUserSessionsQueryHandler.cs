@@ -11,7 +11,6 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
-using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.User.Queries.GetUserSessions;
 
@@ -54,7 +53,7 @@ public class GetUserSessionsQueryHandler : IRequestHandler<GetUserSessionsQuery,
             .OrderBy(a => a.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        var sessions = new List<UserSessionDto>(activities.Count > 0 ? activities.Count / 10 : 1);
+        var sessions = new List<UserSessionDto>(activities.Count > 0 ? activities.Count / _userSettings.Activity.AverageActivitiesPerSession : 1);
         var currentSession = new List<UserActivityLog>();
         var sessionTimeout = TimeSpan.FromMinutes(_userSettings.Activity.SessionTimeoutMinutes);
 

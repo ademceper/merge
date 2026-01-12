@@ -42,7 +42,7 @@ public class CreateAddressCommandHandler : IRequestHandler<CreateAddressCommand,
         if (request.IsDefault)
         {
             var existingDefaults = await _context.Set<Merge.Domain.Modules.Identity.Address>()
-                .Where(a => a.UserId == request.UserId && a.IsDefault)
+                .Where(a => a.UserId == request.UserId && a.IsDefault && !a.IsDeleted)
                 .ToListAsync(cancellationToken);
 
             foreach (var addr in existingDefaults)

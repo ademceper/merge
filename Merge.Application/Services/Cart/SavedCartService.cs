@@ -3,6 +3,8 @@ using CartEntity = Merge.Domain.Modules.Ordering.Cart;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
+using MediatR;
+using Merge.Application.Cart.Commands.AddItemToCart;
 using Merge.Application.Interfaces.Cart;
 using Merge.Application.Exceptions;
 using Merge.Application.Common;
@@ -21,7 +23,7 @@ public class SavedCartService : ISavedCartService
 {
     private readonly Merge.Application.Interfaces.IRepository<SavedCartItem> _savedCartItemRepository;
     private readonly Merge.Application.Interfaces.IRepository<ProductEntity> _productRepository;
-    private readonly ICartService _cartService;
+    private readonly IMediator _mediator;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
@@ -30,7 +32,7 @@ public class SavedCartService : ISavedCartService
     public SavedCartService(
         Merge.Application.Interfaces.IRepository<SavedCartItem> savedCartItemRepository,
         Merge.Application.Interfaces.IRepository<ProductEntity> productRepository,
-        ICartService cartService,
+        IMediator mediator,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
@@ -38,7 +40,7 @@ public class SavedCartService : ISavedCartService
     {
         _savedCartItemRepository = savedCartItemRepository;
         _productRepository = productRepository;
-        _cartService = cartService;
+        _mediator = mediator;
         _context = context;
         _mapper = mapper;
         _unitOfWork = unitOfWork;
@@ -172,7 +174,8 @@ public class SavedCartService : ISavedCartService
         try
         {
             // Sepete ekle
-            await _cartService.AddItemToCartAsync(userId, item.ProductId, item.Quantity, cancellationToken);
+            // ✅ BOLUM 2.0: MediatR + CQRS pattern (Legacy Service Removed)
+            await _mediator.Send(new AddItemToCartCommand(userId, item.ProductId, item.Quantity), cancellationToken);
             
             // Kayıtlı listeden kaldır
             await _savedCartItemRepository.DeleteAsync(item);
@@ -211,8 +214,7 @@ public class SavedCartService : ISavedCartService
                 // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı (MarkAsDeleted yoksa soft delete için IsDeleted set edilebilir)
                 // SavedCartItem'da MarkAsDeleted yok, bu yüzden direkt IsDeleted set ediyoruz
                 // Ancak UpdatedAt'i de güncellemeliyiz
-                item.IsDeleted = true;
-                item.UpdatedAt = DateTime.UtcNow;
+                item.MarkAsDeleted();
             }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Single SaveChanges

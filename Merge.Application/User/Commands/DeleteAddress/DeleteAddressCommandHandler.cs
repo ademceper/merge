@@ -33,7 +33,8 @@ public class DeleteAddressCommandHandler : IRequestHandler<DeleteAddressCommand,
         _logger.LogInformation("Deleting address with ID: {AddressId}", request.Id);
 
         var address = await _context.Set<Address>()
-            .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
+            .Where(a => a.Id == request.Id && !a.IsDeleted)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (address == null)
         {

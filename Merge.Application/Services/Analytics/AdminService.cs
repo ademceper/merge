@@ -3,7 +3,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using AutoMapper;
 using Merge.Application.Interfaces.Analytics;
-using Merge.Application.Interfaces.Catalog;
+using MediatR;
+using Merge.Application.Catalog.Queries.GetLowStockAlerts;
 using Merge.Application.Interfaces.Logistics;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
@@ -37,7 +38,7 @@ public class AdminService : IAdminService
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
-    private readonly IInventoryService _inventoryService;
+    private readonly IMediator _mediator;
     private readonly ILogger<AdminService> _logger;
     private readonly AnalyticsSettings _settings;
     private readonly ServiceSettings _serviceSettings;
@@ -47,7 +48,7 @@ public class AdminService : IAdminService
         IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
-        IInventoryService inventoryService,
+        IMediator mediator,
         ILogger<AdminService> logger,
         IOptions<AnalyticsSettings> settings,
         IOptions<ServiceSettings> serviceSettings,
@@ -56,7 +57,7 @@ public class AdminService : IAdminService
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
-        _inventoryService = inventoryService;
+        _mediator = mediator;
         _logger = logger;
         _settings = settings.Value;
         _serviceSettings = serviceSettings.Value;
@@ -174,7 +175,9 @@ public class AdminService : IAdminService
         _logger.LogInformation("Fetching inventory overview");
         
         // ✅ PERFORMANCE: Materialize IEnumerable to avoid re-enumeration
-        var lowStockAlertsResult = await _inventoryService.GetLowStockAlertsAsync(cancellationToken: cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (Legacy Service Removed)
+        // Admin service context, using Guid.Empty (or retrieve current user if available)
+        var lowStockAlertsResult = await _mediator.Send(new GetLowStockAlertsQuery(Guid.Empty), cancellationToken);
         var lowStockAlerts = lowStockAlertsResult.Items;
         
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
@@ -443,8 +446,7 @@ public class AdminService : IAdminService
             return false;
         }
 
-        user.IsDeleted = true;
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        user.MarkAsDeleted();
         
         _logger.LogInformation("User deleted successfully. UserId: {UserId}", userId);
         return true;

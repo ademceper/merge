@@ -45,7 +45,7 @@ public class UpdateCreditUsageCommandHandler : IRequestHandler<UpdateCreditUsage
 
         // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
         creditTerm.UseCredit(request.Amount);
-        creditTerm.UpdatedAt = DateTime.UtcNow;
+        // creditTerm.UpdatedAt = DateTime.UtcNow; // Handled by entity
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Credit usage updated successfully. CreditTermId: {CreditTermId}", request.CreditTermId);

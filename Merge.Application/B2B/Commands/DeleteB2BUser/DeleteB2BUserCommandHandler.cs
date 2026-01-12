@@ -43,8 +43,8 @@ public class DeleteB2BUserCommandHandler : IRequestHandler<DeleteB2BUserCommand,
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Soft delete (IsDeleted flag)
-        b2bUser.IsDeleted = true;
-        b2bUser.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Soft delete (IsDeleted flag)
+        b2bUser.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("B2B user deleted successfully. B2BUserId: {B2BUserId}", request.Id);

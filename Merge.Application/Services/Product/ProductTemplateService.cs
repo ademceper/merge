@@ -168,8 +168,7 @@ public class ProductTemplateService : IProductTemplateService
 
         if (template == null) return false;
 
-        template.IsDeleted = true;
-        template.UpdatedAt = DateTime.UtcNow;
+        template.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

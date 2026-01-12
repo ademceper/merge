@@ -43,8 +43,8 @@ public class DeleteWholesalePriceCommandHandler : IRequestHandler<DeleteWholesal
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Soft delete (IsDeleted flag)
-        price.IsDeleted = true;
-        price.UpdatedAt = DateTime.UtcNow;
+        // ✅ BOLUM 1.1: Rich Domain Model - Soft delete (IsDeleted flag)
+        price.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Wholesale price deleted successfully. WholesalePriceId: {WholesalePriceId}", request.Id);

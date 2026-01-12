@@ -127,8 +127,7 @@ public class RecentlyViewedService : IRecentlyViewedService
 
                 foreach (var item in oldest)
                 {
-                    item.IsDeleted = true;
-                    item.UpdatedAt = DateTime.UtcNow;
+                    item.MarkAsDeleted();
                 }
 
                 await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Single SaveChanges
@@ -147,8 +146,7 @@ public class RecentlyViewedService : IRecentlyViewedService
 
         foreach (var item in recentlyViewed)
         {
-            item.IsDeleted = true;
-            item.UpdatedAt = DateTime.UtcNow;
+            item.MarkAsDeleted();
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Single SaveChanges

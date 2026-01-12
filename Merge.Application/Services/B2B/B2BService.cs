@@ -258,8 +258,7 @@ public class B2BService : IB2BService
 
         if (b2bUser == null) return false;
 
-        b2bUser.IsDeleted = true;
-        b2bUser.UpdatedAt = DateTime.UtcNow;
+        b2bUser.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -442,8 +441,7 @@ public class B2BService : IB2BService
 
         if (price == null) return false;
 
-        price.IsDeleted = true;
-        price.UpdatedAt = DateTime.UtcNow;
+        price.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -554,7 +552,7 @@ public class B2BService : IB2BService
         creditTerm.UpdateDetails(dto.Name, dto.PaymentDays, dto.Terms);
         creditTerm.UpdateCreditLimit(dto.CreditLimit);
 
-        creditTerm.UpdatedAt = DateTime.UtcNow;
+        // creditTerm.UpdatedAt = DateTime.UtcNow; // Handled by entity
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -568,8 +566,7 @@ public class B2BService : IB2BService
 
         if (creditTerm == null) return false;
 
-        creditTerm.IsDeleted = true;
-        creditTerm.UpdatedAt = DateTime.UtcNow;
+        creditTerm.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -585,7 +582,7 @@ public class B2BService : IB2BService
 
         // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
         creditTerm.UseCredit(amount);
-        creditTerm.UpdatedAt = DateTime.UtcNow;
+        // creditTerm.UpdatedAt = DateTime.UtcNow; // Handled by entity
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -1255,8 +1252,7 @@ public class B2BService : IB2BService
 
         if (discount == null) return false;
 
-        discount.IsDeleted = true;
-        discount.UpdatedAt = DateTime.UtcNow;
+        discount.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

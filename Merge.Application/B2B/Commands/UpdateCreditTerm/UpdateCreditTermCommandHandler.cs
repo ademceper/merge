@@ -45,7 +45,7 @@ public class UpdateCreditTermCommandHandler : IRequestHandler<UpdateCreditTermCo
         // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
         creditTerm.UpdateDetails(request.Dto.Name, request.Dto.PaymentDays, request.Dto.Terms);
         creditTerm.UpdateCreditLimit(request.Dto.CreditLimit);
-        creditTerm.UpdatedAt = DateTime.UtcNow;
+        // creditTerm.UpdatedAt = DateTime.UtcNow; // Handled by entity
         
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

@@ -8,7 +8,6 @@ using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Identity;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
-using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.User.Queries.GetAddressesByUserId;
 
@@ -36,7 +35,7 @@ public class GetAddressesByUserIdQueryHandler : IRequestHandler<GetAddressesByUs
 
         var addresses = await _context.Set<Address>()
             .AsNoTracking()
-            .Where(a => a.UserId == request.UserId)
+            .Where(a => a.UserId == request.UserId && !a.IsDeleted)
             .OrderByDescending(a => a.IsDefault)
             .ThenByDescending(a => a.CreatedAt)
             .ToListAsync(cancellationToken);

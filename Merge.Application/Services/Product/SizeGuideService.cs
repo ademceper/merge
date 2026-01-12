@@ -214,7 +214,7 @@ public class SizeGuideService : ISizeGuideService
 
         if (sizeGuide == null) return false;
 
-        sizeGuide.IsDeleted = true;
+        sizeGuide.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -286,7 +286,7 @@ public class SizeGuideService : ISizeGuideService
 
         if (productSizeGuide == null) return false;
 
-        productSizeGuide.IsDeleted = true;
+        productSizeGuide.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

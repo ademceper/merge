@@ -15,7 +15,6 @@ using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Ordering;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
-using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.User.Queries.GetActivityStats;
 
@@ -83,7 +82,7 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
                 ActivityCount = g.Count()
             })
             .OrderByDescending(u => u.ActivityCount)
-            .Take(10)
+            .Take(_userSettings.Activity.DefaultTopN)
             .Select(u => u.UserId)
             .ToListAsync(cancellationToken);
         
@@ -103,7 +102,7 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
                 LastActivity = g.Max(a => a.CreatedAt)
             })
             .OrderByDescending(u => u.ActivityCount)
-            .Take(10)
+            .Take(_userSettings.Activity.DefaultTopN)
             .ToListAsync(cancellationToken);
 
         foreach (var user in topUsersData)

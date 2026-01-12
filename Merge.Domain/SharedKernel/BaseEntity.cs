@@ -39,6 +39,15 @@ public abstract class BaseEntity
     }
 
     /// <summary>
+    /// Mark entity as deleted
+    /// </summary>
+    public virtual void MarkAsDeleted()
+    {
+        IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
     /// Clear all domain events - Called after events are published
     /// </summary>
     public void ClearDomainEvents()

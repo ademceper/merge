@@ -38,7 +38,8 @@ public class ResetUserPreferenceCommandHandler : IRequestHandler<ResetUserPrefer
         _logger.LogInformation("Resetting preferences to defaults for user: {UserId}", request.UserId);
 
         var preferences = await _context.Set<UserPreference>()
-            .FirstOrDefaultAsync(up => up.UserId == request.UserId, cancellationToken);
+            .Where(up => up.UserId == request.UserId && !up.IsDeleted)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (preferences == null)
         {

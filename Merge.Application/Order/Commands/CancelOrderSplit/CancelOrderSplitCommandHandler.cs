@@ -64,8 +64,8 @@ public class CancelOrderSplitCommandHandler : IRequestHandler<CancelOrderSplitCo
         var originalOrder = split.OriginalOrder;
         originalOrder.RecalculateTotals();
 
-        split.SplitOrder.IsDeleted = true;
-        split.IsDeleted = true;
+        split.SplitOrder.MarkAsDeleted();
+        split.MarkAsDeleted();
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         split.Cancel();

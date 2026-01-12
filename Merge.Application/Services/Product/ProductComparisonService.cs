@@ -288,7 +288,7 @@ public class ProductComparisonService : IProductComparisonService
         var item = comparison.Items.FirstOrDefault(i => i.ProductId == productId);
         if (item == null) return false;
 
-        item.IsDeleted = true;
+        item.MarkAsDeleted();
 
         // ✅ PERFORMANCE: Removed manual !i.IsDeleted (Global Query Filter)
         // Reorder remaining items
@@ -366,7 +366,7 @@ public class ProductComparisonService : IProductComparisonService
 
         foreach (var item in comparison.Items)
         {
-            item.IsDeleted = true;
+            item.MarkAsDeleted();
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -383,7 +383,7 @@ public class ProductComparisonService : IProductComparisonService
 
         if (comparison == null) return false;
 
-        comparison.IsDeleted = true;
+        comparison.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

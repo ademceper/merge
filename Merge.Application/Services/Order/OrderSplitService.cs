@@ -7,6 +7,7 @@ using AddressEntity = Merge.Domain.Modules.Identity.Address;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Order;
+
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
@@ -27,20 +28,20 @@ public class OrderSplitService : IOrderSplitService
 {
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IOrderService _orderService;
+
     private readonly IMapper _mapper;
     private readonly ILogger<OrderSplitService> _logger;
 
     public OrderSplitService(
         IDbContext context,
         IUnitOfWork unitOfWork,
-        IOrderService orderService,
+
         IMapper mapper,
         ILogger<OrderSplitService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
-        _orderService = orderService;
+
         _mapper = mapper;
         _logger = logger;
     }
@@ -348,10 +349,7 @@ public class OrderSplitService : IOrderSplitService
         originalOrder.RecalculateTotals();
 
         // Delete split order
-        split.SplitOrder.IsDeleted = true;
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
-        split.Cancel();
-        split.IsDeleted = true;
+        split.MarkAsDeleted();
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;

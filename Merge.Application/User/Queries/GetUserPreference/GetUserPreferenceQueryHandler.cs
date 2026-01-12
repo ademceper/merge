@@ -39,7 +39,8 @@ public class GetUserPreferenceQueryHandler : IRequestHandler<GetUserPreferenceQu
 
         var preferences = await _context.Set<UserPreference>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(up => up.UserId == request.UserId, cancellationToken);
+            .Where(up => up.UserId == request.UserId && !up.IsDeleted)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (preferences == null)
         {

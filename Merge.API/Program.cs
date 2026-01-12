@@ -1,54 +1,20 @@
-using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
-using FluentValidation;
-using MediatR;
-using Microsoft.AspNetCore.Mvc.ApiExplorer;
-using Merge.Application.Interfaces.Analytics;
-using Merge.Application.Interfaces.B2B;
-using Merge.Application.Interfaces.Cart;
-using Merge.Application.Interfaces.Catalog;
-using Merge.Application.Interfaces.Content;
-using Merge.Application.Interfaces.EmailProviders;
-using Merge.Application.Interfaces.Governance;
-using Merge.Application.Interfaces.Identity;
-using Merge.Application.Interfaces.Logistics;
-using Merge.Application.Interfaces.Marketing;
-using Merge.Application.Interfaces.ML;
-using Merge.Application.Interfaces.Notification;
-using Merge.Application.Interfaces.Order;
-using Merge.Application.Interfaces.Organization;
-using Merge.Application.Interfaces.Payment;
-using Merge.Application.Interfaces.PaymentGateways;
-using Merge.Application.Interfaces.Product;
-using Merge.Application.Interfaces.Review;
-using Merge.Application.Interfaces.Search;
-using Merge.Application.Interfaces.Security;
-using Merge.Application.Interfaces.Seller;
-using Merge.Application.Interfaces.ShippingProviders;
-using Merge.Application.Interfaces.SmsProviders;
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - ISubscriptionService kaldırıldı
-// using Merge.Application.Interfaces.Subscription; // REMOVED - CQRS pattern'e geçildi
-// using Merge.Application.Interfaces.Support; // REMOVED - CQRS pattern'e geçildi
-using Merge.Application.Interfaces.User;
-using Merge.Application.Services;
-using Merge.Application.Services.Content;
-using Merge.Application.Services.B2B;
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - SubscriptionService kaldırıldı
-// using Merge.Application.Services.Subscription; // REMOVED - CQRS pattern'e geçildi
-using Merge.Application.Services.Governance;
-using Merge.Application.Services.Analytics;
-using Merge.Application.Services.ML;
-using Merge.Infrastructure.Data;
-using Merge.Infrastructure.Repositories;
+using Merge.Application;
+using Merge.Infrastructure;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Entities;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.SharedKernel;
 using Merge.API.Middleware;
 using Merge.Application.Interfaces;
+using Merge.Infrastructure.Data;
+using Merge.Infrastructure.Data.Contexts;
+using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using Microsoft.AspNetCore.Mvc.ApiExplorer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -236,35 +202,9 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// Database configuration
-// ✅ SECURITY: Connection string önce environment variable'dan al
-var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
-    ?? builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Database connection string bulunamadı. DATABASE_URL environment variable veya appsettings ConnectionStrings:DefaultConnection tanımlayın.");
-
-// ✅ SECURITY: Production'da varsayılan password kullanımını engelle
-if (!builder.Environment.IsDevelopment() && connectionString.Contains("Password=postgres"))
-{
-    throw new InvalidOperationException("CRITICAL SECURITY ERROR: Production'da varsayılan database password kullanılamaz! DATABASE_URL environment variable tanımlayın.");
-}
-
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(connectionString));
-
-// ✅ BOLUM 1.1: IDbContext registration (Clean Architecture)
-// Service'ler ApplicationDbContext yerine IDbContext kullanmalı
-builder.Services.AddScoped<Merge.Application.Interfaces.IDbContext, ApplicationDbContext>();
-
-// ✅ BOLUM 5.0: Health Checks (ZORUNLU - Gerçek health check)
-builder.Services.AddHealthChecks()
-    .AddNpgSql(
-        connectionString,
-        name: "postgres",
-        tags: new[] { "db", "postgres", "sql" })
-    .AddRedis(
-        builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379",
-        name: "redis",
-        tags: new[] { "cache", "redis" });
+// ✅ BOLUM 1.1: Clean Architecture - Dependency Injection (ZORUNLU)
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
 
 // ✅ BOLUM 10.2: Redis distributed cache (ZORUNLU)
 var redisConnectionString = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
@@ -276,55 +216,6 @@ builder.Services.AddStackExchangeRedisCache(options =>
 
 // ✅ BOLUM 10.2: Cache service registration
 builder.Services.AddScoped<Merge.Application.Interfaces.ICacheService, Merge.Application.Services.CacheService>();
-
-// ✅ BOLUM 10.0: Polly resilience (circuit breaker, retry) (ZORUNLU)
-builder.Services.AddHttpClient("PaymentGateway")
-    .AddStandardResilienceHandler(options =>
-    {
-        options.Retry.MaxRetryAttempts = 3;
-        options.Retry.Delay = TimeSpan.FromSeconds(2);
-        options.CircuitBreaker.FailureRatio = 0.5;
-        options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(30);
-        options.CircuitBreaker.MinimumThroughput = 10;
-        options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(30);
-        options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(30);
-    });
-
-builder.Services.AddHttpClient("ShippingProvider")
-    .AddStandardResilienceHandler(options =>
-    {
-        options.Retry.MaxRetryAttempts = 3;
-        options.Retry.Delay = TimeSpan.FromSeconds(2);
-        options.CircuitBreaker.FailureRatio = 0.5;
-        options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(30);
-        options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(30);
-    });
-
-// Memory Cache configuration for performance optimization (fallback)
-builder.Services.AddMemoryCache(options =>
-{
-    options.SizeLimit = 1024; // Maximum number of cache entries
-});
-
-// ✅ BOLUM 7.1: Response Compression (ZORUNLU)
-builder.Services.AddResponseCompression(options =>
-{
-    options.EnableForHttps = true;
-    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
-    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
-    options.MimeTypes = Microsoft.AspNetCore.ResponseCompression.ResponseCompressionDefaults.MimeTypes.Concat(
-        new[] { "application/json", "text/json", "application/xml", "text/xml" });
-});
-
-builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProviderOptions>(options =>
-{
-    options.Level = System.IO.Compression.CompressionLevel.Optimal;
-});
-
-builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(options =>
-{
-    options.Level = System.IO.Compression.CompressionLevel.Optimal;
-});
 
 // Identity configuration
 builder.Services.AddIdentity<Merge.Domain.Modules.Identity.User, Merge.Domain.Modules.Identity.Role>(options =>
@@ -344,184 +235,9 @@ builder.Services.AddIdentity<Merge.Domain.Modules.Identity.User, Merge.Domain.Mo
 
     // User settings
     options.User.RequireUniqueEmail = true;
-    options.SignIn.RequireConfirmedEmail = false; // Email confirmation için false (şimdilik)
+    options.SignIn.RequireConfirmedEmail = false; 
 })
 .AddEntityFrameworkStores<ApplicationDbContext>();
-
-// Repository pattern
-// ✅ BOLUM 1.5: Domain Events publish mekanizması (ZORUNLU)
-builder.Services.AddScoped<Merge.Domain.SharedKernel.IDomainEventDispatcher, Merge.Infrastructure.Common.DomainEventDispatcher>();
-
-// ✅ BOLUM 1.1: Clean Architecture - Application.Interfaces'den IRepository ve IUnitOfWork kullan
-builder.Services.AddScoped(typeof(Merge.Application.Interfaces.IRepository<>), typeof(Repository<>));
-builder.Services.AddScoped<Merge.Application.Interfaces.IUnitOfWork, UnitOfWork>();
-
-// Application services
-#pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek
-builder.Services.AddScoped<IAuthService, Merge.Application.Services.Identity.AuthService>();
-builder.Services.AddScoped<IProductService, Merge.Application.Services.Product.ProductService>();
-builder.Services.AddScoped<ICategoryService, Merge.Application.Services.Catalog.CategoryService>();
-builder.Services.AddScoped<IOrderService, Merge.Application.Services.Order.OrderService>();
-builder.Services.AddScoped<IOrderSplitService, Merge.Application.Services.Order.OrderSplitService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<ICouponService, Merge.Application.Services.Marketing.CouponService>();
-builder.Services.AddScoped<INotificationService, Merge.Application.Services.Notification.NotificationService>();
-builder.Services.AddScoped<INotificationTemplateService, Merge.Application.Services.Notification.NotificationTemplateService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<ITrustBadgeService, Merge.Application.Services.Review.TrustBadgeService>();
-// builder.Services.AddScoped<IReviewService, Merge.Application.Services.Review.ReviewService>();
-builder.Services.AddScoped<IReturnRequestService, Merge.Application.Services.Order.ReturnRequestService>();
-builder.Services.AddScoped<IPaymentService, Merge.Application.Services.Payment.PaymentService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<IShippingService, Merge.Application.Services.Logistics.ShippingService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<IAddressService, Merge.Application.Services.User.AddressService>();
-// FileUploadService - implement edilmediği için şimdilik yorum satırı
-// builder.Services.AddScoped<IFileUploadService, Merge.Application.Services.Common.FileUploadService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<IProductSearchService, Merge.Application.Services.Search.ProductSearchService>();
-builder.Services.AddScoped<Merge.Application.Services.Notification.IEmailService, Merge.Application.Services.Notification.EmailService>();
-builder.Services.AddScoped<Merge.Application.Services.Notification.ISmsService, Merge.Application.Services.Notification.SmsService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<IFlashSaleService, Merge.Application.Services.Marketing.FlashSaleService>();
-builder.Services.AddScoped<IProductBundleService, Merge.Application.Services.Product.ProductBundleService>();
-builder.Services.AddScoped<IInvoiceService, Merge.Application.Services.Payment.InvoiceService>();
-builder.Services.AddScoped<ISellerDashboardService, Merge.Application.Services.Seller.SellerDashboardService>();
-#pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek
-builder.Services.AddScoped<IEmailVerificationService, Merge.Application.Services.Identity.EmailVerificationService>();
-builder.Services.AddScoped<ISavedCartService, Merge.Application.Services.Cart.SavedCartService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<IFaqService, Merge.Application.Services.Support.FaqService>();
-builder.Services.AddScoped<IBannerService, BannerService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<IGiftCardService, Merge.Application.Services.Marketing.GiftCardService>();
-builder.Services.AddScoped<IOrderFilterService, Merge.Application.Services.Order.OrderFilterService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<IWarehouseService, Merge.Application.Services.Logistics.WarehouseService>();
-builder.Services.AddScoped<IInventoryService, Merge.Application.Services.Catalog.InventoryService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<IStockMovementService, Merge.Application.Services.Logistics.StockMovementService>();
-builder.Services.AddScoped<IBulkProductService, Merge.Application.Services.Product.BulkProductService>();
-#pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek
-builder.Services.AddScoped<ITwoFactorAuthService, Merge.Application.Services.Identity.TwoFactorAuthService>();
-builder.Services.AddScoped<ISellerOnboardingService, Merge.Application.Services.Seller.SellerOnboardingService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<IProductRecommendationService, Merge.Application.Services.Search.ProductRecommendationService>();
-// builder.Services.AddScoped<ISearchSuggestionService, Merge.Application.Services.Search.SearchSuggestionService>();
-builder.Services.AddScoped<IAbandonedCartService, Merge.Application.Services.Cart.AbandonedCartService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<IUserActivityService, Merge.Application.Services.User.UserActivityService>();
-#pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek
-builder.Services.AddScoped<IAuditLogService, AuditLogService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<ILoyaltyService, Merge.Application.Services.Marketing.LoyaltyService>();
-// builder.Services.AddScoped<IReferralService, Merge.Application.Services.Marketing.ReferralService>();
-// ✅ BOLUM 2.0: ReviewMediaService kaldırıldı, Commands/Queries kullanılıyor
-// builder.Services.AddScoped<IReviewMediaService, Merge.Application.Services.Marketing.ReviewMediaService>();
-builder.Services.AddScoped<ISharedWishlistService, Merge.Application.Services.Marketing.SharedWishlistService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<IEmailCampaignService, Merge.Application.Services.Marketing.EmailCampaignService>();
-// ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-builder.Services.Configure<Merge.Application.Configuration.AnalyticsSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.AnalyticsSettings.SectionName));
-
-builder.Services.AddScoped<IAnalyticsService, Merge.Application.Services.Analytics.AnalyticsService>();
-builder.Services.AddScoped<Merge.Application.Interfaces.Analytics.IAdminService, Merge.Application.Services.Analytics.AdminService>();
-builder.Services.AddScoped<IProductComparisonService, Merge.Application.Services.Product.ProductComparisonService>();
-builder.Services.AddScoped<ISizeGuideService, Merge.Application.Services.Product.SizeGuideService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<IReviewHelpfulnessService, Merge.Application.Services.Review.ReviewHelpfulnessService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<ISupportTicketService, Merge.Application.Services.Support.SupportTicketService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<ITrustBadgeService, Merge.Application.Services.Review.TrustBadgeService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<IKnowledgeBaseService, Merge.Application.Services.Support.KnowledgeBaseService>();
-#pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek
-builder.Services.AddScoped<IPolicyService, PolicyService>();
-#pragma warning restore CS0618 // Type or member is obsolete
-builder.Services.AddScoped<INotificationPreferenceService, Merge.Application.Services.Notification.NotificationPreferenceService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<ICustomerCommunicationService, Merge.Application.Services.Support.CustomerCommunicationService>();
-builder.Services.AddScoped<ISellerFinanceService, Merge.Application.Services.Seller.SellerFinanceService>();
-builder.Services.AddScoped<IStoreService, Merge.Application.Services.Seller.StoreService>();
-builder.Services.AddScoped<IProductTemplateService, Merge.Application.Services.Product.ProductTemplateService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<IShippingAddressService, Merge.Application.Services.Logistics.ShippingAddressService>();
-builder.Services.AddScoped<IPaymentMethodService, Merge.Application.Services.Payment.PaymentMethodService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<IPickPackService, Merge.Application.Services.Logistics.PickPackService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<IDeliveryTimeEstimationService, Merge.Application.Services.Logistics.DeliveryTimeEstimationService>();
-builder.Services.AddScoped<IOrganizationService, Merge.Application.Services.Organization.OrganizationService>();
-// ✅ ARCHITECTURE: B2BService kaldırıldı - Handler'lar direkt IDbContext kullanıyor (Clean Architecture)
-// builder.Services.AddScoped<IB2BService, B2BService>(); // DEPRECATED - MediatR + CQRS pattern kullanılıyor
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - SubscriptionService kaldırıldı, Commands/Queries kullanılıyor
-// builder.Services.AddScoped<ISubscriptionService, SubscriptionService>(); // REMOVED - CQRS pattern'e geçildi
-builder.Services.AddScoped<IBlogService, BlogService>();
-builder.Services.AddScoped<ISEOService, Merge.Application.Services.Content.SEOService>();
-builder.Services.AddScoped<IProductQuestionService, Merge.Application.Services.Product.ProductQuestionService>();
-builder.Services.AddScoped<ISellerCommissionService, Merge.Application.Services.Seller.SellerCommissionService>();
-builder.Services.AddScoped<ICMSService, Merge.Application.Services.Content.CMSService>();
-builder.Services.AddScoped<ILandingPageService, Merge.Application.Services.Content.LandingPageService>();
-// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
-// builder.Services.AddScoped<Merge.Application.Interfaces.Support.ILiveChatService, Merge.Application.Services.Support.LiveChatService>();
-builder.Services.AddScoped<IFraudDetectionService, Merge.Application.Services.ML.FraudDetectionService>();
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Security domain service'leri kaldırıldı, handler'lar kullanılıyor
-// Security domain artık MediatR handler'ları kullanıyor, service registration'ları kaldırıldı
-
-// Payment Gateways
-builder.Services.AddScoped<Merge.Application.Services.PaymentGateways.IyzicoGateway>();
-builder.Services.AddScoped<Merge.Application.Services.PaymentGateways.PayTRGateway>();
-builder.Services.AddScoped<Merge.Application.Services.PaymentGateways.StripeGateway>();
-builder.Services.AddScoped<Merge.Application.Services.PaymentGateways.PaymentGatewayFactory>();
-
-// Shipping Providers
-builder.Services.AddScoped<Merge.Application.Services.ShippingProviders.YurticiProvider>();
-builder.Services.AddScoped<Merge.Application.Services.ShippingProviders.ArasProvider>();
-builder.Services.AddScoped<Merge.Application.Services.ShippingProviders.MNGProvider>();
-builder.Services.AddScoped<Merge.Application.Services.ShippingProviders.ShippingProviderFactory>();
-
-// Email Providers
-builder.Services.AddScoped<Merge.Application.Services.EmailProviders.SendGridProvider>();
-
-// SMS Providers
-builder.Services.AddScoped<Merge.Application.Services.SmsProviders.TwilioProvider>();
-builder.Services.AddScoped<Merge.Application.Services.SmsProviders.NetgsmProvider>();
-
-// Personalization
-builder.Services.AddScoped<Merge.Application.Services.Search.IPersonalizationService, Merge.Application.Services.Search.PersonalizationService>();
-
-// Live Commerce
-
-// Page Builder
-builder.Services.AddScoped<IPageBuilderService, Merge.Application.Services.Content.PageBuilderService>();
-
-// Price Optimization
-builder.Services.AddScoped<IPriceOptimizationService, Merge.Application.Services.ML.PriceOptimizationService>();
-
-// Demand Forecasting
-builder.Services.AddScoped<IDemandForecastingService, Merge.Application.Services.ML.DemandForecastingService>();
-
-// Data Platform - implement edilmediği için şimdilik yorum satırı
-// builder.Services.AddScoped<IDataPlatformService, Merge.Application.Services.DataPlatform.DataPlatformService>();
-
-// Elasticsearch (with SQL fallback)
-builder.Services.AddScoped<IElasticsearchService, Merge.Application.Services.Search.ElasticsearchService>();
-
-// AutoMapper
-builder.Services.AddAutoMapper(typeof(Merge.Application.Mappings.MappingProfile));
-
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-builder.Services.AddMediatR(cfg =>
-{
-    cfg.RegisterServicesFromAssembly(typeof(Merge.Application.Order.Commands.CreateOrderFromCart.CreateOrderFromCartCommand).Assembly);
-    // ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
-    cfg.AddOpenBehavior(typeof(Merge.Application.Common.Behaviors.ValidationBehavior<,>));
-});
-
-// ✅ BOLUM 2.1: Pipeline Behaviors - FluentValidation validators (ZORUNLU)
-builder.Services.AddValidatorsFromAssembly(typeof(Merge.Application.Order.Commands.CreateOrderFromCart.CreateOrderFromCartCommandValidator).Assembly);
 
 // JWT Authentication
 // ✅ SECURITY: JWT Secret önce environment variable'dan al, yoksa appsettings'ten

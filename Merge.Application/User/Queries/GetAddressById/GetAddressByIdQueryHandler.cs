@@ -8,7 +8,6 @@ using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Identity;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
-using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.User.Queries.GetAddressById;
 
@@ -36,7 +35,8 @@ public class GetAddressByIdQueryHandler : IRequestHandler<GetAddressByIdQuery, A
 
         var address = await _context.Set<Address>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
+            .Where(a => a.Id == request.Id && !a.IsDeleted)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (address == null)
         {

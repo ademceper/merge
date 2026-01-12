@@ -136,7 +136,6 @@ public class TrustBadgeService : ITrustBadgeService
         if (dto.Color != null)
             badge.UpdateColor(dto.Color);
 
-        badge.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
@@ -152,8 +151,7 @@ public class TrustBadgeService : ITrustBadgeService
 
         if (badge == null) return false;
 
-        badge.IsDeleted = true;
-        badge.UpdatedAt = DateTime.UtcNow;
+        badge.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

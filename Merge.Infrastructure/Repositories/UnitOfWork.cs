@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
-using Merge.Domain.SharedKernel;
 using Merge.Application.Interfaces;
 using Merge.Infrastructure.Data;
 

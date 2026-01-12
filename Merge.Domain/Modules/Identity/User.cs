@@ -30,9 +30,9 @@ public class User : IdentityUser<Guid>, IAggregateRoot
     public string FirstName { get; private set; } = string.Empty;
     public string LastName { get; private set; } = string.Empty;
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime? UpdatedAt { get; set; }
-    public bool IsDeleted { get; set; } = false;
+    public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; private set; }
+    public bool IsDeleted { get; private set; } = false;
     
     // Navigation properties
     public ICollection<Address> Addresses { get; private set; } = new List<Address>();
@@ -51,7 +51,7 @@ public class User : IdentityUser<Guid>, IAggregateRoot
     public ICollection<GiftCard> AssignedGiftCards { get; private set; } = new List<GiftCard>();
     
     // Organization & Team
-    public Guid? OrganizationId { get; set; }
+    public Guid? OrganizationId { get; private set; }
     public Organization? Organization { get; private set; }
     public ICollection<TeamMember> TeamMemberships { get; private set; } = new List<TeamMember>();
 

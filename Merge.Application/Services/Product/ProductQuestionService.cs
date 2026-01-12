@@ -243,7 +243,7 @@ public class ProductQuestionService : IProductQuestionService
 
         if (question == null) return false;
 
-        question.IsDeleted = true;
+        question.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -362,7 +362,7 @@ public class ProductQuestionService : IProductQuestionService
 
         if (answer == null) return false;
 
-        answer.IsDeleted = true;
+        answer.MarkAsDeleted();
 
         // Update question stats
         if (answer.Question != null)
@@ -427,7 +427,7 @@ public class ProductQuestionService : IProductQuestionService
 
         if (vote == null) return;
 
-        vote.IsDeleted = true;
+        vote.MarkAsDeleted();
 
         // ✅ PERFORMANCE: Removed manual !q.IsDeleted (Global Query Filter)
         var question = await _context.Set<ProductQuestion>()
@@ -481,7 +481,7 @@ public class ProductQuestionService : IProductQuestionService
 
         if (vote == null) return;
 
-        vote.IsDeleted = true;
+        vote.MarkAsDeleted();
 
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         var answer = await _context.Set<ProductAnswer>()

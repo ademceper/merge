@@ -33,7 +33,8 @@ public class SetDefaultAddressCommandHandler : IRequestHandler<SetDefaultAddress
         _logger.LogInformation("Setting address {AddressId} as default for user {UserId}", request.Id, request.UserId);
 
         var address = await _context.Set<Address>()
-            .FirstOrDefaultAsync(a => a.Id == request.Id && a.UserId == request.UserId, cancellationToken);
+            .Where(a => a.Id == request.Id && a.UserId == request.UserId && !a.IsDeleted)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (address == null)
         {
@@ -43,7 +44,7 @@ public class SetDefaultAddressCommandHandler : IRequestHandler<SetDefaultAddress
 
         // Diğer adreslerin default'unu kaldır
         var existingDefaults = await _context.Set<Address>()
-            .Where(a => a.UserId == request.UserId && a.Id != request.Id && a.IsDefault)
+            .Where(a => a.UserId == request.UserId && a.Id != request.Id && a.IsDefault && !a.IsDeleted)
             .ToListAsync(cancellationToken);
 
         foreach (var addr in existingDefaults)

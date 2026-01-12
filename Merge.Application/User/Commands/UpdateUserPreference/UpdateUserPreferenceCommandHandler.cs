@@ -38,7 +38,8 @@ public class UpdateUserPreferenceCommandHandler : IRequestHandler<UpdateUserPref
         _logger.LogInformation("Updating preferences for user: {UserId}", request.UserId);
 
         var preferences = await _context.Set<UserPreference>()
-            .FirstOrDefaultAsync(up => up.UserId == request.UserId, cancellationToken);
+            .Where(up => up.UserId == request.UserId && !up.IsDeleted)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (preferences == null)
         {

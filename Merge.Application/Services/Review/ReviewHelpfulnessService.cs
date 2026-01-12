@@ -126,7 +126,7 @@ public class ReviewHelpfulnessService : IReviewHelpfulnessService
                 review.UnmarkAsUnhelpful();
         }
 
-        vote.IsDeleted = true;
+        vote.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)

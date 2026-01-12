@@ -39,7 +39,8 @@ public class UpdateAddressCommandHandler : IRequestHandler<UpdateAddressCommand,
         _logger.LogInformation("Updating address with ID: {AddressId}", request.Id);
 
         var address = await _context.Set<Merge.Domain.Modules.Identity.Address>()
-            .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
+            .Where(a => a.Id == request.Id && !a.IsDeleted)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (address == null)
         {
@@ -59,7 +60,7 @@ public class UpdateAddressCommandHandler : IRequestHandler<UpdateAddressCommand,
         if (request.IsDefault && !address.IsDefault)
         {
             var existingDefaults = await _context.Set<Merge.Domain.Modules.Identity.Address>()
-                .Where(a => a.UserId == address.UserId && a.Id != request.Id && a.IsDefault)
+                .Where(a => a.UserId == address.UserId && a.Id != request.Id && a.IsDefault && !a.IsDeleted)
                 .ToListAsync(cancellationToken);
 
             foreach (var addr in existingDefaults)

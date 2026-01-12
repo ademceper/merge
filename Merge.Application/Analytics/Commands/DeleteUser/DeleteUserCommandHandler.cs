@@ -40,7 +40,8 @@ public class DeleteUserCommandHandler : IRequestHandler<DeleteUserCommand, bool>
             return false;
         }
 
-        user.IsDeleted = true;
+        // ✅ BOLUM 1.1: Rich Domain Model - Soft delete
+        user.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         
         _logger.LogInformation("User deleted successfully. UserId: {UserId}", request.UserId);

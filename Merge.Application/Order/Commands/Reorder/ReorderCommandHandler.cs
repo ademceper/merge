@@ -20,19 +20,17 @@ namespace Merge.Application.Order.Commands.Reorder;
 public class ReorderCommandHandler : IRequestHandler<ReorderCommand, OrderDto>
 {
     private readonly IDbContext _context;
+
     private readonly IMediator _mediator;
-    private readonly ICartService _cartService;
     private readonly ILogger<ReorderCommandHandler> _logger;
 
     public ReorderCommandHandler(
         IDbContext context,
         IMediator mediator,
-        ICartService cartService,
         ILogger<ReorderCommandHandler> logger)
     {
         _context = context;
         _mediator = mediator;
-        _cartService = cartService;
         _logger = logger;
     }
 
@@ -60,7 +58,8 @@ public class ReorderCommandHandler : IRequestHandler<ReorderCommand, OrderDto>
             {
                 try
                 {
-                    await _cartService.AddItemToCartAsync(request.UserId, orderItem.ProductId, orderItem.Quantity, cancellationToken);
+                    // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+                    await _mediator.Send(new Merge.Application.Cart.Commands.AddItemToCart.AddItemToCartCommand(request.UserId, orderItem.ProductId, orderItem.Quantity), cancellationToken);
                     addedItems++;
                 }
                 catch (Exception ex)

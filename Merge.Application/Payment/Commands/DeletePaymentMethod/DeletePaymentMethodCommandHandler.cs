@@ -62,10 +62,10 @@ public class DeletePaymentMethodCommandHandler : IRequestHandler<DeletePaymentMe
             else
             {
                 // Hard delete if no orders
-                paymentMethod.IsDeleted = true;
+                paymentMethod.MarkAsDeleted();
             }
 
-            paymentMethod.UpdatedAt = DateTime.UtcNow;
+            // paymentMethod.UpdatedAt = DateTime.UtcNow; // Handled by entity
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 

@@ -166,8 +166,7 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
 
         if (estimation == null) return false;
 
-        estimation.IsDeleted = true;
-        estimation.UpdatedAt = DateTime.UtcNow;
+        estimation.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

@@ -139,8 +139,7 @@ public class SEOService : ISEOService
 
         if (settings == null) return false;
 
-        settings.IsDeleted = true;
-        settings.UpdatedAt = DateTime.UtcNow;
+        settings.MarkAsDeleted();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

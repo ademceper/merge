@@ -211,5 +211,14 @@ public class EmailSubscriber : BaseEntity, IAggregateRoot
         // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new EmailSubscriberDeletedEvent(Id, Email));
     }
+    // ✅ BOLUM 1.1: Domain Method - Restore (undelete)
+    public void Restore()
+    {
+        if (!IsDeleted)
+            return;
+
+        IsDeleted = false;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }
 

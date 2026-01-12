@@ -239,10 +239,8 @@ public class PaymentMethodService : IPaymentMethodService
         else
         {
             // Hard delete if no orders
-            paymentMethod.IsDeleted = true;
+            paymentMethod.MarkAsDeleted();
         }
-
-        paymentMethod.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -271,7 +269,7 @@ public class PaymentMethodService : IPaymentMethodService
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         paymentMethod.SetAsDefault();
-        paymentMethod.UpdatedAt = DateTime.UtcNow;
+        // paymentMethod.UpdatedAt = DateTime.UtcNow; // Handled by SetAsDefault
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

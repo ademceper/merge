@@ -68,6 +68,11 @@ public class ActivitySettings
     /// Eski aktiviteleri silme - maksimum tutulacak gün sayısı - default: 365
     /// </summary>
     public int MaxDaysToKeep { get; set; } = 365;
+
+    /// <summary>
+    /// Session başına ortalama aktivite sayısı tahmini (List capacity için) - default: 10
+    /// </summary>
+    public int AverageActivitiesPerSession { get; set; } = 10;
 }
 
 /// <summary>

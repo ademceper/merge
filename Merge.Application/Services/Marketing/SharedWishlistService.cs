@@ -142,7 +142,7 @@ public class SharedWishlistService : ISharedWishlistService
             .FirstOrDefaultAsync(w => w.Id == wishlistId);
         if (wishlist != null)
         {
-            wishlist.IsDeleted = true;
+            wishlist.MarkAsDeleted();
             await _unitOfWork.SaveChangesAsync();
         }
     }

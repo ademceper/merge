@@ -57,9 +57,7 @@ public class BulkImportEmailSubscribersCommandHandler : IRequestHandler<BulkImpo
                 // Update existing
                 if (existing.IsDeleted)
                 {
-                    // Soft delete'den geri almak için reflection gerekebilir (BaseEntity'de IsDeleted private değil)
-                    // Ancak bu durumda direkt set kabul edilebilir çünkü BaseEntity'de private değil
-                    existing.IsDeleted = false;
+                    existing.Restore();
                 }
 
                 // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı

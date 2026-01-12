@@ -18,8 +18,24 @@ public class Role : IdentityRole<Guid>, IAggregateRoot
 
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation (mümkün olduğunca)
     public string? Description { get; private set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime? UpdatedAt { get; set; }
+    public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; private set; }
+
+    // ✅ BOLUM 1.1: Factory Method
+    public static Role Create(string name, string? description = null)
+    {
+        Guard.AgainstNullOrEmpty(name, nameof(name));
+        
+        return new Role
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            NormalizedName = name.ToUpperInvariant(),
+            Description = description,
+            CreatedAt = DateTime.UtcNow,
+            ConcurrencyStamp = Guid.NewGuid().ToString()
+        };
+    }
 
     // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();

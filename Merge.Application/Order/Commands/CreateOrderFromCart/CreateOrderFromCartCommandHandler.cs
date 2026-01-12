@@ -31,8 +31,8 @@ namespace Merge.Application.Order.Commands.CreateOrderFromCart;
 public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFromCartCommand, OrderDto>
 {
     private readonly IDbContext _context;
+
     private readonly IUnitOfWork _unitOfWork;
-    private readonly ICartService _cartService;
     private readonly IMediator _mediator;
     private readonly IMapper _mapper;
     private readonly ILogger<CreateOrderFromCartCommandHandler> _logger;
@@ -41,7 +41,6 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
     public CreateOrderFromCartCommandHandler(
         IDbContext context,
         IUnitOfWork unitOfWork,
-        ICartService cartService,
         IMediator mediator,
         IMapper mapper,
         ILogger<CreateOrderFromCartCommandHandler> logger,
@@ -49,7 +48,6 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
     {
         _context = context;
         _unitOfWork = unitOfWork;
-        _cartService = cartService;
         _mediator = mediator;
         _mapper = mapper;
         _logger = logger;
@@ -133,7 +131,8 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
             }
 
             // Sepeti temizle
-            await _cartService.ClearCartAsync(request.UserId, cancellationToken);
+            // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+            await _mediator.Send(new Merge.Application.Cart.Commands.ClearCart.ClearCartCommand(request.UserId), cancellationToken);
 
             // ✅ CRITICAL: Commit all changes atomically
             await _unitOfWork.CommitTransactionAsync(cancellationToken);

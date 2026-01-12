@@ -1,44 +1,36 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using AutoMapper;
-using Merge.Application.DTOs.Order;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
-using OrderEntity = Merge.Domain.Modules.Ordering.Order;
-using Merge.Domain.Entities;
-using Merge.Domain.Interfaces;
-using Merge.Domain.Modules.Catalog;
-using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Ordering;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Commands.UpdateOrderStatus;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatusCommand, OrderDto>
+public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatusCommand, bool>
 {
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
     private readonly ILogger<UpdateOrderStatusCommandHandler> _logger;
 
     public UpdateOrderStatusCommandHandler(
         IDbContext context,
         IUnitOfWork unitOfWork,
-        IMapper mapper,
         ILogger<UpdateOrderStatusCommandHandler> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
-        _mapper = mapper;
         _logger = logger;
     }
 
-    public async Task<OrderDto> Handle(UpdateOrderStatusCommand request, CancellationToken cancellationToken)
+    public async Task<bool> Handle(UpdateOrderStatusCommand request, CancellationToken cancellationToken)
     {
-        var order = await _context.Set<OrderEntity>()
+        _logger.LogInformation("Updating order status. OrderId: {OrderId}, NewStatus: {NewStatus}",
+            request.OrderId, request.Status);
+
+        var order = await _context.Set<Merge.Domain.Modules.Ordering.Order>()
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
         if (order == null)
@@ -46,28 +38,25 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
             throw new NotFoundException("Sipariş", request.OrderId);
         }
 
-        var oldStatus = order.Status;
+        try
+        {
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan (Encapsulation)
+            // TransitionTo methodu içinde status validasyonu ve Domain Event tetiklenmesi yapılır
+            order.TransitionTo(request.Status);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
-        order.TransitionTo(request.Status);
+            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Order status updated successfully. OrderId: {OrderId}, Status: {NewStatus}",
+                request.OrderId, request.Status);
 
-        // ✅ PERFORMANCE: Single query with all includes
-        order = await _context.Set<OrderEntity>()
-            .AsNoTracking()
-            .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Product)
-            .Include(o => o.Address)
-            .Include(o => o.User)
-            .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
-
-        _logger.LogInformation(
-            "Order status updated. OrderId: {OrderId}, OldStatus: {OldStatus}, NewStatus: {NewStatus}",
-            request.OrderId, oldStatus, request.Status);
-
-        return _mapper.Map<OrderDto>(order!);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Order status update failed. OrderId: {OrderId}, NewStatus: {NewStatus}",
+                request.OrderId, request.Status);
+            throw;
+        }
     }
 }
