@@ -1,14 +1,17 @@
 using Merge.Domain.SharedKernel;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Modules.Catalog;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Domain.Modules.Ordering;
 
 /// <summary>
 /// CartItem Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.3: Value Objects (ZORUNLU) - Money Value Object kullanımı
 /// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// </summary>
 public class CartItem : BaseEntity
@@ -18,7 +21,18 @@ public class CartItem : BaseEntity
     public Guid ProductId { get; private set; }
     public Guid? ProductVariantId { get; private set; } // Seçilen varyant (renk, beden vb.)
     public int Quantity { get; private set; }
-    public decimal Price { get; private set; } // Sepete eklendiğindeki fiyat
+    
+    // ✅ BOLUM 1.3: Value Objects - Money backing field (EF Core compatibility)
+    private decimal _price;
+    public decimal Price
+    {
+        get => _price;
+        private set
+        {
+            Guard.AgainstNegativeOrZero(value, nameof(Price));
+            _price = value;
+        }
+    }
 
     // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
@@ -28,6 +42,10 @@ public class CartItem : BaseEntity
     public Cart Cart { get; private set; } = null!;
     public Product Product { get; private set; } = null!;
     public ProductVariant? ProductVariant { get; private set; }
+
+    // ✅ BOLUM 1.3: Value Object property (computed from decimal)
+    [NotMapped]
+    public Money PriceMoney => new Money(_price);
 
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private CartItem() { }
@@ -52,10 +70,15 @@ public class CartItem : BaseEntity
         };
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Update quantity
-    public void UpdateQuantity(int newQuantity)
+    // ✅ BOLUM 1.1: Domain Logic - Update quantity with maximum limit validation
+    public void UpdateQuantity(int newQuantity, int? maxQuantity = null)
     {
         Guard.AgainstNegativeOrZero(newQuantity, nameof(newQuantity));
+        
+        if (maxQuantity.HasValue && newQuantity > maxQuantity.Value)
+        {
+            throw new DomainException($"Miktar maksimum {maxQuantity.Value} olabilir.");
+        }
 
         Quantity = newQuantity;
         UpdatedAt = DateTime.UtcNow;

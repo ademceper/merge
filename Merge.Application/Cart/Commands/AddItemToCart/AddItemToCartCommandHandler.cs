@@ -1,9 +1,11 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Cart;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using AutoMapper;
 using CartEntity = Merge.Domain.Modules.Ordering.Cart;
@@ -23,17 +25,20 @@ public class AddItemToCartCommandHandler : IRequestHandler<AddItemToCartCommand,
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<AddItemToCartCommandHandler> _logger;
+    private readonly CartSettings _cartSettings;
 
     public AddItemToCartCommandHandler(
         IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
-        ILogger<AddItemToCartCommandHandler> logger)
+        ILogger<AddItemToCartCommandHandler> logger,
+        IOptions<CartSettings> cartSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _cartSettings = cartSettings.Value;
     }
 
     public async Task<CartItemDto> Handle(AddItemToCartCommand request, CancellationToken cancellationToken)
@@ -52,7 +57,8 @@ public class AddItemToCartCommandHandler : IRequestHandler<AddItemToCartCommand,
                 .Include(c => c.CartItems)
                 .FirstOrDefaultAsync(c => c.UserId == request.UserId, cancellationToken);
 
-            if (cart == null)
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            if (cart is null)
             {
                 _logger.LogInformation("Creating new cart for user {UserId}", request.UserId);
                 // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
@@ -66,7 +72,8 @@ public class AddItemToCartCommandHandler : IRequestHandler<AddItemToCartCommand,
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
             
-            if (product == null)
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            if (product is null)
             {
                 _logger.LogWarning("Product {ProductId} not found for user {UserId}", request.ProductId, request.UserId);
                 throw new NotFoundException("Ürün", request.ProductId);
@@ -88,14 +95,18 @@ public class AddItemToCartCommandHandler : IRequestHandler<AddItemToCartCommand,
                 throw new BusinessException("Yeterli stok yok.");
             }
 
+            // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration'dan al
+            var maxQuantity = _cartSettings.MaxCartItemQuantity;
+
             // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
             // Check if item already exists (same product and variant)
             var existingItem = cart.CartItems.FirstOrDefault(ci => ci.ProductId == request.ProductId);
             
-            if (existingItem != null)
+            if (existingItem is not null)
             {
                 // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
-                existingItem.UpdateQuantity(existingItem.Quantity + request.Quantity);
+                existingItem.UpdateQuantity(existingItem.Quantity + request.Quantity, maxQuantity);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
@@ -121,7 +132,7 @@ public class AddItemToCartCommandHandler : IRequestHandler<AddItemToCartCommand,
                 product.DiscountPrice ?? product.Price);
 
             // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
-            cart.AddItem(cartItem);
+            cart.AddItem(cartItem, maxQuantity);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 

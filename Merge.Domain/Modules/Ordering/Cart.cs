@@ -1,16 +1,16 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
 using Merge.Domain.SharedKernel.DomainEvents;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using Merge.Domain.Modules.Identity;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Domain.Modules.Ordering;
 
 /// <summary>
 /// Cart Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.3: Value Objects (ZORUNLU) - Money Value Object kullanımı
 /// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU)
 /// BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 1.7: Concurrency Control (ZORUNLU)
@@ -18,7 +18,8 @@ namespace Merge.Domain.Modules.Ordering;
 /// </summary>
 public class Cart : BaseAggregateRoot
 {
-    private readonly List<CartItem> _cartItems = new();
+    // ✅ BOLUM 7.1.9: Collection Expressions (C# 12) - List yerine collection expression
+    private readonly List<CartItem> _cartItems = [];
 
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
@@ -55,7 +56,7 @@ public class Cart : BaseAggregateRoot
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Add item to cart
-    public void AddItem(CartItem item)
+    public void AddItem(CartItem item, int? maxQuantity = null)
     {
         Guard.AgainstNull(item, nameof(item));
 
@@ -69,13 +70,20 @@ public class Cart : BaseAggregateRoot
             ci.ProductVariantId == item.ProductVariantId &&
             !ci.IsDeleted);
 
-        if (existingItem != null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (existingItem is not null)
         {
             // Update quantity instead of adding duplicate
-            existingItem.UpdateQuantity(existingItem.Quantity + item.Quantity);
+            var newQuantity = existingItem.Quantity + item.Quantity;
+            existingItem.UpdateQuantity(newQuantity, maxQuantity);
         }
         else
         {
+            // Validate quantity if maxQuantity is provided
+            if (maxQuantity.HasValue && item.Quantity > maxQuantity.Value)
+            {
+                throw new DomainException($"Miktar maksimum {maxQuantity.Value} olabilir.");
+            }
             _cartItems.Add(item);
         }
 
@@ -86,10 +94,13 @@ public class Cart : BaseAggregateRoot
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Remove item from cart
+    // ✅ BOLUM 7.1.6: Pattern Matching - Switch expression kullanımı (modern C#)
     public void RemoveItem(Guid cartItemId)
     {
         var item = _cartItems.FirstOrDefault(ci => ci.Id == cartItemId && !ci.IsDeleted);
-        if (item == null)
+        
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (item is null)
             throw new DomainException($"Sepet öğesi bulunamadı: {cartItemId}");
 
         item.MarkAsDeleted();
@@ -113,12 +124,26 @@ public class Cart : BaseAggregateRoot
         AddDomainEvent(new CartClearedEvent(Id, UserId));
     }
 
-    // ✅ BOLUM 1.1: Domain Logic - Calculate total amount
+    // ✅ BOLUM 1.1: Domain Logic - Calculate total amount (returns decimal for backward compatibility)
     public decimal CalculateTotalAmount()
     {
         return _cartItems
             .Where(item => !item.IsDeleted)
             .Sum(item => item.Quantity * item.Price);
+    }
+
+    // ✅ BOLUM 1.3: Value Objects - Calculate total amount as Money Value Object using Money.Add
+    public Money CalculateTotalAmountMoney(string currency = "TRY")
+    {
+        var total = Money.Zero(currency);
+        
+        foreach (var item in _cartItems.Where(i => !i.IsDeleted))
+        {
+            var itemTotal = new Money(item.Quantity * item.Price, currency);
+            total = total.Add(itemTotal);
+        }
+        
+        return total;
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Get item count

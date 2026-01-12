@@ -1,7 +1,7 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.ValueObjects;
@@ -11,6 +11,7 @@ namespace Merge.Domain.Modules.Ordering;
 /// <summary>
 /// SavedCartItem Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.3: Value Objects (ZORUNLU) - Money Value Object kullanımı
 /// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// </summary>
 public class SavedCartItem : BaseEntity
@@ -27,8 +28,7 @@ public class SavedCartItem : BaseEntity
         get => _price;
         private set
         {
-            if (value < 0)
-                throw new DomainException("Fiyat negatif olamaz");
+            Guard.AgainstNegativeOrZero(value, nameof(Price));
             _price = value;
         }
     }
@@ -42,6 +42,10 @@ public class SavedCartItem : BaseEntity
     // Navigation properties
     public User User { get; private set; } = null!;
     public Product Product { get; private set; } = null!;
+
+    // ✅ BOLUM 1.3: Value Object property (computed from decimal)
+    [NotMapped]
+    public Money PriceMoney => new Money(_price);
 
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SavedCartItem() { }

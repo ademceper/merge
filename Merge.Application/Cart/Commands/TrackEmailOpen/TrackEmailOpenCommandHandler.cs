@@ -35,7 +35,8 @@ public class TrackEmailOpenCommandHandler : IRequestHandler<TrackEmailOpenComman
         var email = await _context.Set<AbandonedCartEmail>()
             .FirstOrDefaultAsync(e => e.Id == request.EmailId, cancellationToken);
 
-        if (email == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (email is null)
         {
             return false;
         }

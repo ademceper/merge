@@ -36,7 +36,8 @@ public class ClearCartCommandHandler : IRequestHandler<ClearCartCommand, bool>
             .Include(c => c.CartItems)
             .FirstOrDefaultAsync(c => c.UserId == request.UserId, cancellationToken);
 
-        if (cart == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (cart is null)
         {
             return false;
         }

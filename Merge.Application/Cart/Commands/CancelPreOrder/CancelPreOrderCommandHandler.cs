@@ -38,7 +38,8 @@ public class CancelPreOrderCommandHandler : IRequestHandler<CancelPreOrderComman
             var preOrder = await _context.Set<Merge.Domain.Modules.Ordering.PreOrder>()
                 .FirstOrDefaultAsync(po => po.Id == request.PreOrderId && po.UserId == request.UserId, cancellationToken);
 
-            if (preOrder == null) return false;
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            if (preOrder is null) return false;
 
             if (preOrder.Status == PreOrderStatus.Converted)
             {
@@ -50,7 +51,8 @@ public class CancelPreOrderCommandHandler : IRequestHandler<CancelPreOrderComman
             var campaign = await _context.Set<Merge.Domain.Modules.Marketing.PreOrderCampaign>()
                 .FirstOrDefaultAsync(c => c.ProductId == preOrder.ProductId, cancellationToken);
 
-            if (campaign != null)
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            if (campaign is not null)
             {
                 campaign.DecrementQuantity(preOrder.Quantity);
             }

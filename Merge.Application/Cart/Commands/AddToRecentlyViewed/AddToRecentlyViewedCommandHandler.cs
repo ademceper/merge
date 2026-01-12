@@ -41,7 +41,8 @@ public class AddToRecentlyViewedCommandHandler : IRequestHandler<AddToRecentlyVi
             .FirstOrDefaultAsync(rvp => rvp.UserId == request.UserId &&
                                       rvp.ProductId == request.ProductId, cancellationToken);
 
-        if (existing != null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (existing is not null)
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
             existing.UpdateViewedAt();

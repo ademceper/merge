@@ -12,6 +12,7 @@ using Merge.Application.Cart.Commands.UpdateCartItem;
 using Merge.Application.Cart.Commands.RemoveCartItem;
 using Merge.Application.Cart.Commands.ClearCart;
 using Merge.API.Middleware;
+using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.Cart;
 
@@ -52,7 +53,12 @@ public class CartController : BaseController
         var userId = GetUserId();
         var query = new GetCartByUserIdQuery(userId);
         var cart = await _mediator.Send(query, cancellationToken);
-        return Ok(cart);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateCartLinks(Url, cart.Id, cart.UserId, version);
+        
+        return Ok(new { cart, _links = links });
     }
 
     /// <summary>
@@ -80,7 +86,12 @@ public class CartController : BaseController
         var userId = GetUserId();
         var command = new AddItemToCartCommand(userId, dto.ProductId, dto.Quantity);
         var cartItem = await _mediator.Send(command, cancellationToken);
-        return Ok(cartItem);
+        
+        // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateCartItemLinks(Url, cartItem.Id, cartItem.ProductId, version);
+        
+        return Ok(new { cartItem, _links = links });
     }
 
     /// <summary>
@@ -116,7 +127,8 @@ public class CartController : BaseController
         var cartQuery = new GetCartByCartItemIdQuery(cartItemId);
         var cart = await _mediator.Send(cartQuery, cancellationToken);
         
-        if (cart == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (cart is null)
         {
             return NotFound();
         }
@@ -163,7 +175,8 @@ public class CartController : BaseController
         var cartQuery = new GetCartByCartItemIdQuery(cartItemId);
         var cart = await _mediator.Send(cartQuery, cancellationToken);
         
-        if (cart == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (cart is null)
         {
             return NotFound();
         }

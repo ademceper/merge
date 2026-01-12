@@ -36,7 +36,8 @@ public class RemoveCartItemCommandHandler : IRequestHandler<RemoveCartItemComman
         var cartItem = await _context.Set<CartItem>()
             .FirstOrDefaultAsync(ci => ci.Id == request.CartItemId, cancellationToken);
         
-        if (cartItem == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (cartItem is null)
         {
             _logger.LogWarning("Cart item {CartItemId} not found", request.CartItemId);
             return false;
@@ -48,7 +49,8 @@ public class RemoveCartItemCommandHandler : IRequestHandler<RemoveCartItemComman
             .Include(c => c.CartItems)
             .FirstOrDefaultAsync(c => c.Id == cartItem.CartId, cancellationToken);
 
-        if (cart == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (cart is null)
         {
             _logger.LogWarning("Cart not found for cart item {CartItemId}", request.CartItemId);
             return false;

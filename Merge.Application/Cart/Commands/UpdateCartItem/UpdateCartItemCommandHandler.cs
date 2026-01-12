@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
@@ -19,15 +21,18 @@ public class UpdateCartItemCommandHandler : IRequestHandler<UpdateCartItemComman
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<UpdateCartItemCommandHandler> _logger;
+    private readonly CartSettings _cartSettings;
 
     public UpdateCartItemCommandHandler(
         IDbContext context,
         IUnitOfWork unitOfWork,
-        ILogger<UpdateCartItemCommandHandler> logger)
+        ILogger<UpdateCartItemCommandHandler> logger,
+        IOptions<CartSettings> cartSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _cartSettings = cartSettings.Value;
     }
 
     public async Task<bool> Handle(UpdateCartItemCommand request, CancellationToken cancellationToken)
@@ -39,7 +44,8 @@ public class UpdateCartItemCommandHandler : IRequestHandler<UpdateCartItemComman
         var cartItem = await _context.Set<CartItem>()
             .FirstOrDefaultAsync(ci => ci.Id == request.CartItemId, cancellationToken);
         
-        if (cartItem == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (cartItem is null)
         {
             _logger.LogWarning("Cart item {CartItemId} not found", request.CartItemId);
             return false;
@@ -50,7 +56,8 @@ public class UpdateCartItemCommandHandler : IRequestHandler<UpdateCartItemComman
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == cartItem.ProductId, cancellationToken);
         
-        if (product == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (product is null)
         {
             _logger.LogWarning(
                 "Product {ProductId} not found for cart item {CartItemId}",
@@ -66,8 +73,11 @@ public class UpdateCartItemCommandHandler : IRequestHandler<UpdateCartItemComman
             throw new BusinessException("Yeterli stok yok.");
         }
 
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration'dan al
+        var maxQuantity = _cartSettings.MaxCartItemQuantity;
+
         // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
-        cartItem.UpdateQuantity(request.Quantity);
+        cartItem.UpdateQuantity(request.Quantity, maxQuantity);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(

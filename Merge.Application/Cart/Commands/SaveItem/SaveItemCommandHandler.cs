@@ -42,7 +42,8 @@ public class SaveItemCommandHandler : IRequestHandler<SaveItemCommand, SavedCart
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
         
-        if (product == null || !product.IsActive)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (product is null || !product.IsActive)
         {
             throw new NotFoundException("Ürün", request.ProductId);
         }
@@ -54,7 +55,8 @@ public class SaveItemCommandHandler : IRequestHandler<SaveItemCommand, SavedCart
 
         var currentPrice = product.DiscountPrice ?? product.Price;
 
-        if (existing != null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (existing is not null)
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
             existing.UpdateQuantity(request.Quantity);

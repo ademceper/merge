@@ -29,7 +29,8 @@ public class UpdatePreOrderCampaignCommandHandler : IRequestHandler<UpdatePreOrd
         var campaign = await _context.Set<Merge.Domain.Modules.Marketing.PreOrderCampaign>()
             .FirstOrDefaultAsync(c => c.Id == request.CampaignId, cancellationToken);
 
-        if (campaign == null) return false;
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (campaign is null) return false;
 
         campaign.UpdateBasicInfo(request.Name, request.Description, request.MaxQuantity);
         campaign.UpdateDates(request.StartDate, request.EndDate, request.ExpectedDeliveryDate);

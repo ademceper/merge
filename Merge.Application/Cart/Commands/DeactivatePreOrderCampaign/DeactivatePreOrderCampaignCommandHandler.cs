@@ -29,7 +29,8 @@ public class DeactivatePreOrderCampaignCommandHandler : IRequestHandler<Deactiva
         var campaign = await _context.Set<Merge.Domain.Modules.Marketing.PreOrderCampaign>()
             .FirstOrDefaultAsync(c => c.Id == request.CampaignId, cancellationToken);
 
-        if (campaign == null) return false;
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (campaign is null) return false;
 
         campaign.Deactivate();
 

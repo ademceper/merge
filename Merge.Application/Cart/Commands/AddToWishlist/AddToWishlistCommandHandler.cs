@@ -41,7 +41,8 @@ public class AddToWishlistCommandHandler : IRequestHandler<AddToWishlistCommand,
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.UserId == request.UserId && w.ProductId == request.ProductId, cancellationToken);
 
-        if (existing != null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (existing is not null)
         {
             _logger.LogWarning(
                 "Product {ProductId} already exists in wishlist for user {UserId}",
@@ -54,7 +55,8 @@ public class AddToWishlistCommandHandler : IRequestHandler<AddToWishlistCommand,
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
         
-        if (product == null || !product.IsActive)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (product is null || !product.IsActive)
         {
             _logger.LogWarning(
                 "Product {ProductId} not found or inactive for user {UserId}",

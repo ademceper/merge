@@ -29,12 +29,15 @@ public class GetPreOrderQueryHandler : IRequestHandler<GetPreOrderQuery, PreOrde
 
     public async Task<PreOrderDto?> Handle(GetPreOrderQuery request, CancellationToken cancellationToken)
     {
+        // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // Note: Single Include, AsSplitQuery not strictly necessary but good practice
         var preOrder = await _context.Set<PreOrder>()
             .AsNoTracking()
             .Include(po => po.Product)
             .FirstOrDefaultAsync(po => po.Id == request.PreOrderId, cancellationToken);
 
-        return preOrder != null ? _mapper.Map<PreOrderDto>(preOrder) : null;
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        return preOrder is not null ? _mapper.Map<PreOrderDto>(preOrder) : null;
     }
 }
 

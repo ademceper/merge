@@ -29,7 +29,8 @@ public class PayPreOrderDepositCommandHandler : IRequestHandler<PayPreOrderDepos
         var preOrder = await _context.Set<Merge.Domain.Modules.Ordering.PreOrder>()
             .FirstOrDefaultAsync(po => po.Id == request.PreOrderId && po.UserId == request.UserId, cancellationToken);
 
-        if (preOrder == null) return false;
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (preOrder is null) return false;
 
         if (preOrder.DepositPaid >= preOrder.DepositAmount)
         {

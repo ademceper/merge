@@ -33,14 +33,18 @@ public class NotifyPreOrderAvailableCommandHandler : IRequestHandler<NotifyPreOr
 
     public async Task Handle(NotifyPreOrderAvailableCommand request, CancellationToken cancellationToken)
     {
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var preOrder = await _context.Set<Merge.Domain.Modules.Ordering.PreOrder>()
+            .AsSplitQuery()
             .Include(po => po.Product)
             .Include(po => po.User)
             .FirstOrDefaultAsync(po => po.Id == request.PreOrderId, cancellationToken);
 
-        if (preOrder == null) return;
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (preOrder is null) return;
 
-        if (preOrder.NotificationSentAt != null) return;
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (preOrder.NotificationSentAt is not null) return;
 
         await _emailService.SendEmailAsync(
             preOrder.User.Email ?? string.Empty,

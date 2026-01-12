@@ -51,19 +51,23 @@ public class SendRecoveryEmailCommandHandler : IRequestHandler<SendRecoveryEmail
     public async Task Handle(SendRecoveryEmailCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var cart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
+            .AsSplitQuery()
             .Include(c => c.User)
             .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.Product)
             .FirstOrDefaultAsync(c => c.Id == request.CartId, cancellationToken);
 
-        if (cart == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (cart is null)
         {
             throw new NotFoundException("Sepet", request.CartId);
         }
 
         var user = cart.User;
-        if (user == null || string.IsNullOrEmpty(user.Email))
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (user is null || string.IsNullOrEmpty(user.Email))
         {
             throw new NotFoundException("Kullanıcı email", Guid.Empty);
         }

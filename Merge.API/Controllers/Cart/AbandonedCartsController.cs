@@ -102,7 +102,8 @@ public class AbandonedCartsController : BaseController
         var query = new GetAbandonedCartByIdQuery(cartId);
         var cart = await _mediator.Send(query, cancellationToken);
 
-        if (cart == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (cart is null)
         {
             return NotFound();
         }
@@ -287,7 +288,8 @@ public class AbandonedCartsController : BaseController
         var cartQuery = new GetAbandonedCartByIdQuery(cartId);
         var cart = await _mediator.Send(cartQuery, cancellationToken);
         
-        if (cart == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (cart is null)
         {
             return NotFound();
         }
@@ -348,7 +350,8 @@ public class AbandonedCartsController : BaseController
             var cartQuery = new GetAbandonedCartByIdQuery(cartId);
             var cart = await _mediator.Send(cartQuery, cancellationToken);
             
-            if (cart == null || cart.UserId != userId)
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            if (cart is null || cart.UserId != userId)
             {
                 return Forbid();
             }

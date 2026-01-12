@@ -756,6 +756,70 @@ public static class HateoasHelper
 
         return links;
     }
+
+    /// <summary>
+    /// Creates HATEOAS links for a cart resource
+    /// </summary>
+    public static Dictionary<string, LinkDto> CreateCartLinks(IUrlHelper urlHelper, Guid cartId, Guid userId, string version = "1.0")
+    {
+        var links = new Dictionary<string, LinkDto>
+        {
+            ["self"] = new LinkDto
+            {
+                Href = $"/api/v{version}/cart",
+                Method = "GET"
+            },
+            ["addItem"] = new LinkDto
+            {
+                Href = $"/api/v{version}/cart/items",
+                Method = "POST"
+            },
+            ["clear"] = new LinkDto
+            {
+                Href = $"/api/v{version}/cart",
+                Method = "DELETE"
+            },
+            ["user"] = new LinkDto
+            {
+                Href = $"/api/v{version}/users/{userId}",
+                Method = "GET"
+            }
+        };
+
+        return links;
+    }
+
+    /// <summary>
+    /// Creates HATEOAS links for a cart item resource
+    /// </summary>
+    public static Dictionary<string, LinkDto> CreateCartItemLinks(IUrlHelper urlHelper, Guid cartItemId, Guid productId, string version = "1.0")
+    {
+        var links = new Dictionary<string, LinkDto>
+        {
+            ["self"] = new LinkDto
+            {
+                Href = $"/api/v{version}/cart/items/{cartItemId}",
+                Method = "GET"
+            },
+            ["update"] = new LinkDto
+            {
+                Href = $"/api/v{version}/cart/items/{cartItemId}",
+                Method = "PUT"
+            },
+            ["remove"] = new LinkDto
+            {
+                Href = $"/api/v{version}/cart/items/{cartItemId}",
+                Method = "DELETE"
+            },
+            ["product"] = new LinkDto
+            {
+                Href = $"/api/v{version}/products/{productId}",
+                Method = "GET"
+            }
+        };
+
+        return links;
+    }
 }
 
 /// <summary>

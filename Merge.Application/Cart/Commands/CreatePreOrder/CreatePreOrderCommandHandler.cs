@@ -46,7 +46,8 @@ public class CreatePreOrderCommandHandler : IRequestHandler<CreatePreOrderComman
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
-            if (product == null)
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            if (product is null)
             {
                 throw new NotFoundException("Ürün", request.ProductId);
             }
@@ -57,7 +58,8 @@ public class CreatePreOrderCommandHandler : IRequestHandler<CreatePreOrderComman
                 .Where(c => c.StartDate <= DateTime.UtcNow && c.EndDate >= DateTime.UtcNow)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (campaign == null)
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            if (campaign is null)
             {
                 throw new BusinessException("Bu ürün için aktif ön sipariş kampanyası yok.");
             }
@@ -91,7 +93,8 @@ public class CreatePreOrderCommandHandler : IRequestHandler<CreatePreOrderComman
             var campaignToUpdate = await _context.Set<PreOrderCampaign>()
                 .FirstOrDefaultAsync(c => c.Id == campaign.Id, cancellationToken);
 
-            if (campaignToUpdate == null)
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            if (campaignToUpdate is null)
             {
                 throw new NotFoundException("Kampanya", campaign.Id);
             }

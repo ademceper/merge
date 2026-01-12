@@ -23,5 +23,10 @@ public class CartSettings
     /// Terk edilmiş sepet için varsayılan kupon geçerlilik süresi (gün)
     /// </summary>
     public int AbandonedCartCouponValidityDays { get; set; } = 7;
+
+    /// <summary>
+    /// Sepet öğesi için maksimum miktar limiti
+    /// </summary>
+    public int MaxCartItemQuantity { get; set; } = 1000;
 }
 

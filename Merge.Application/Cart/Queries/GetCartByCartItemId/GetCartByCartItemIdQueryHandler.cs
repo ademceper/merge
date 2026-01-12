@@ -39,20 +39,24 @@ public class GetCartByCartItemIdQueryHandler : IRequestHandler<GetCartByCartItem
             .Include(ci => ci.Cart)
             .FirstOrDefaultAsync(ci => ci.Id == request.CartItemId, cancellationToken);
 
-        if (cartItem == null || cartItem.Cart == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (cartItem is null || cartItem.Cart is null)
         {
             return null;
         }
 
         // Load cart with items for mapping
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var cart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.Product)
             .FirstOrDefaultAsync(c => c.Id == cartItem.Cart.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        return cart != null ? _mapper.Map<CartDto>(cart) : null;
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        return cart is not null ? _mapper.Map<CartDto>(cart) : null;
     }
 }
 

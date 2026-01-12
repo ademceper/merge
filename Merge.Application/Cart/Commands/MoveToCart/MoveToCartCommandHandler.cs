@@ -46,7 +46,8 @@ public class MoveToCartCommandHandler : IRequestHandler<MoveToCartCommand, bool>
                 .FirstOrDefaultAsync(sci => sci.Id == request.ItemId &&
                                           sci.UserId == request.UserId, cancellationToken);
 
-            if (item == null)
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            if (item is null)
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                 return false;

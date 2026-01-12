@@ -38,7 +38,8 @@ public class RemoveFromWishlistCommandHandler : IRequestHandler<RemoveFromWishli
         var wishlist = await _context.Set<Wishlist>()
             .FirstOrDefaultAsync(w => w.UserId == request.UserId && w.ProductId == request.ProductId, cancellationToken);
 
-        if (wishlist == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (wishlist is null)
         {
             _logger.LogWarning(
                 "Wishlist item not found for product {ProductId} and user {UserId}",

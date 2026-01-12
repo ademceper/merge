@@ -44,7 +44,8 @@ public class ConvertPreOrderToOrderCommandHandler : IRequestHandler<ConvertPreOr
                 .Include(po => po.User)
                 .FirstOrDefaultAsync(po => po.Id == request.PreOrderId, cancellationToken);
 
-            if (preOrder == null) return false;
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            if (preOrder is null) return false;
 
             if (preOrder.Status == PreOrderStatus.Converted)
             {
@@ -54,13 +55,15 @@ public class ConvertPreOrderToOrderCommandHandler : IRequestHandler<ConvertPreOr
             var address = await _context.Set<AddressEntity>()
                 .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId && a.IsDefault, cancellationToken);
 
-            if (address == null)
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            if (address is null)
             {
                 address = await _context.Set<AddressEntity>()
                     .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId, cancellationToken);
             }
 
-            if (address == null)
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            if (address is null)
             {
                 throw new BusinessException("Sipariş oluşturmak için adres bilgisi gereklidir.");
             }
@@ -70,7 +73,8 @@ public class ConvertPreOrderToOrderCommandHandler : IRequestHandler<ConvertPreOr
             var product = await _context.Set<Merge.Domain.Modules.Catalog.Product>()
                 .FirstOrDefaultAsync(p => p.Id == preOrder.ProductId, cancellationToken);
 
-            if (product == null)
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            if (product is null)
             {
                 throw new NotFoundException("Ürün", preOrder.ProductId);
             }

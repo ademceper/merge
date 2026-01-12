@@ -39,14 +39,17 @@ public class GetCartByUserIdQueryHandler : IRequestHandler<GetCartByUserIdQuery,
         _logger.LogInformation("Retrieving cart for user {UserId}", request.UserId);
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         // ✅ PERFORMANCE: Removed manual !ci.IsDeleted check (Global Query Filter handles it)
         var cart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.Product)
             .FirstOrDefaultAsync(c => c.UserId == request.UserId, cancellationToken);
 
-        if (cart == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (cart is null)
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
             var newCart = Merge.Domain.Modules.Ordering.Cart.Create(request.UserId);
@@ -57,8 +60,10 @@ public class GetCartByUserIdQueryHandler : IRequestHandler<GetCartByUserIdQuery,
                 request.UserId, newCart.Id);
 
             // Reload with Include for AutoMapper
+            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
             newCart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(c => c.CartItems)
                     .ThenInclude(ci => ci.Product)
                 .FirstOrDefaultAsync(c => c.Id == newCart.Id, cancellationToken);

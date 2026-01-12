@@ -118,8 +118,9 @@ public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQu
             {
                 CartId = c.Id,
                 UserId = c.UserId,
-                UserEmail = c.User != null ? c.User.Email : "",
-                UserName = c.User != null ? (c.User.FirstName + " " + c.User.LastName) : "",
+                // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+                UserEmail = c.User is not null ? c.User.Email : "",
+                UserName = c.User is not null ? (c.User.FirstName + " " + c.User.LastName) : "",
                 LastModified = c.UpdatedAt ?? c.CreatedAt,
                 HoursSinceAbandonment = c.UpdatedAt.HasValue 
                     ? (int)((now - c.UpdatedAt.Value).TotalHours)

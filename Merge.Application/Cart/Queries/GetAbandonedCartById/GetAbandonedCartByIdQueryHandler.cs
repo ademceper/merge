@@ -37,15 +37,18 @@ public class GetAbandonedCartByIdQueryHandler : IRequestHandler<GetAbandonedCart
     public async Task<AbandonedCartDto?> Handle(GetAbandonedCartByIdQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
         var cart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.User)
             .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.Product)
             .FirstOrDefaultAsync(c => c.Id == request.CartId, cancellationToken);
 
-        if (cart == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (cart is null)
         {
             return null;
         }
@@ -86,8 +89,9 @@ public class GetAbandonedCartByIdQueryHandler : IRequestHandler<GetAbandonedCart
         var itemsDto = _mapper.Map<IEnumerable<CartItemDto>>(items).ToList().AsReadOnly();
 
         // ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı) - Positional constructor kullanımı
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         var userEmail = cart.User?.Email ?? string.Empty;
-        var userName = cart.User != null ? $"{cart.User.FirstName} {cart.User.LastName}" : string.Empty;
+        var userName = cart.User is not null ? $"{cart.User.FirstName} {cart.User.LastName}" : string.Empty;
         var lastModified = cart.UpdatedAt ?? cart.CreatedAt;
         var hoursSinceAbandonment = cart.UpdatedAt.HasValue 
             ? (int)(DateTime.UtcNow - cart.UpdatedAt.Value).TotalHours 

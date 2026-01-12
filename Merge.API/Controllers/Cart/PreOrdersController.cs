@@ -100,7 +100,8 @@ public class PreOrdersController : BaseController
         var query = new GetPreOrderQuery(id);
         var preOrder = await _mediator.Send(query, cancellationToken);
 
-        if (preOrder == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (preOrder is null)
         {
             return NotFound();
         }
@@ -174,7 +175,8 @@ public class PreOrdersController : BaseController
         // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         var preOrderQuery = new GetPreOrderQuery(id);
         var preOrder = await _mediator.Send(preOrderQuery, cancellationToken);
-        if (preOrder == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (preOrder is null)
         {
             return NotFound();
         }
@@ -227,7 +229,8 @@ public class PreOrdersController : BaseController
         // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         var preOrderQuery = new GetPreOrderQuery(dto.PreOrderId);
         var preOrder = await _mediator.Send(preOrderQuery, cancellationToken);
-        if (preOrder == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (preOrder is null)
         {
             return NotFound();
         }
@@ -372,7 +375,8 @@ public class PreOrdersController : BaseController
         var query = new GetPreOrderCampaignQuery(id);
         var campaign = await _mediator.Send(query, cancellationToken);
 
-        if (campaign == null)
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (campaign is null)
         {
             return NotFound();
         }

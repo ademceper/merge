@@ -44,9 +44,11 @@ public class GetRecentlyViewedQueryHandler : IRequestHandler<GetRecentlyViewedQu
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         // ✅ PERFORMANCE: Removed manual !rvp.IsDeleted and !rvp.Product.IsDeleted checks (Global Query Filter handles it)
         var query = _context.Set<RecentlyViewedProduct>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(rvp => rvp.Product)
                 .ThenInclude(p => p.Category)
             .Where(rvp => rvp.UserId == request.UserId && rvp.Product.IsActive);
