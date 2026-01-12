@@ -86,7 +86,10 @@ public class UpdateKnowledgeBaseArticleCommandHandler : IRequestHandler<UpdateKn
         }
         if (request.IsFeatured.HasValue)
         {
-            article.SetFeatured(request.IsFeatured.Value);
+            if (request.IsFeatured.Value)
+                article.SetAsFeatured();
+            else
+                article.UnsetAsFeatured();
         }
         if (request.DisplayOrder.HasValue)
         {
