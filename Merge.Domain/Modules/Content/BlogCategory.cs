@@ -53,6 +53,11 @@ public class BlogCategory : BaseEntity, IAggregateRoot
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNegative(displayOrder, nameof(displayOrder));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxCategoryNameLength=100, MaxCategoryDescriptionLength=1000
+        Guard.AgainstLength(name, 100, nameof(name));
+        if (description != null)
+            Guard.AgainstLength(description, 1000, nameof(description));
 
         if (parentCategoryId.HasValue && parentCategoryId.Value == Guid.Empty)
         {
@@ -61,6 +66,12 @@ public class BlogCategory : BaseEntity, IAggregateRoot
 
         // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
         var finalSlug = slug != null ? Slug.FromString(slug) : Slug.FromString(name);
+
+        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
+        if (!string.IsNullOrEmpty(imageUrl) && !IsValidUrl(imageUrl))
+        {
+            throw new DomainException("Geçerli bir image URL giriniz.");
+        }
 
         var category = new BlogCategory
         {
@@ -86,6 +97,9 @@ public class BlogCategory : BaseEntity, IAggregateRoot
     public void UpdateName(string newName)
     {
         Guard.AgainstNullOrEmpty(newName, nameof(newName));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxCategoryNameLength=100
+        Guard.AgainstLength(newName, 100, nameof(newName));
         Name = newName;
         // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
         Slug = Slug.FromString(newName);
@@ -95,9 +109,25 @@ public class BlogCategory : BaseEntity, IAggregateRoot
         AddDomainEvent(new BlogCategoryUpdatedEvent(Id, newName, Slug.Value));
     }
 
+    // ✅ BOLUM 1.1: Domain Logic - Update slug (manual slug update)
+    public void UpdateSlug(string newSlug)
+    {
+        Guard.AgainstNullOrEmpty(newSlug, nameof(newSlug));
+        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
+        Slug = Slug.FromString(newSlug);
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogCategoryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogCategoryUpdatedEvent(Id, Name, Slug.Value));
+    }
+
     // ✅ BOLUM 1.1: Domain Logic - Update description
     public void UpdateDescription(string? newDescription)
     {
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxCategoryDescriptionLength=1000
+        if (newDescription != null)
+            Guard.AgainstLength(newDescription, 1000, nameof(newDescription));
         Description = newDescription;
         UpdatedAt = DateTime.UtcNow;
         
@@ -122,6 +152,12 @@ public class BlogCategory : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Logic - Update image URL
     public void UpdateImageUrl(string? newImageUrl)
     {
+        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
+        if (!string.IsNullOrEmpty(newImageUrl) && !IsValidUrl(newImageUrl))
+        {
+            throw new DomainException("Geçerli bir image URL giriniz.");
+        }
+        
         ImageUrl = newImageUrl;
         UpdatedAt = DateTime.UtcNow;
         
@@ -179,5 +215,27 @@ public class BlogCategory : BaseEntity, IAggregateRoot
         AddDomainEvent(new BlogCategoryDeletedEvent(Id, Name));
     }
 
+    // ✅ BOLUM 1.1: Domain Logic - Restore deleted category
+    public void Restore()
+    {
+        if (!IsDeleted)
+            return;
+
+        IsDeleted = false;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogCategoryRestoredEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogCategoryRestoredEvent(Id, Name, Slug.Value));
+    }
+
+    // ✅ BOLUM 1.3: URL Validation Helper Method
+    private static bool IsValidUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        return Uri.TryCreate(url, UriKind.Absolute, out var result) &&
+               (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
+    }
 }
 

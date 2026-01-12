@@ -43,6 +43,11 @@ public class StaticTranslation : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(languageCode, nameof(languageCode));
         Guard.AgainstNullOrEmpty(value, nameof(value));
         Guard.AgainstNullOrEmpty(category, nameof(category));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxTranslationKeyLength=200, MaxTranslationValueLength=5000, MaxTranslationCategoryLength=50
+        Guard.AgainstLength(key, 200, nameof(key));
+        Guard.AgainstLength(value, 5000, nameof(value));
+        Guard.AgainstLength(category, 50, nameof(category));
 
         var translation = new StaticTranslation
         {
@@ -62,10 +67,54 @@ public class StaticTranslation : BaseEntity, IAggregateRoot
         return translation;
     }
 
+    // ✅ BOLUM 1.1: Domain Method - Update translation key
+    public void UpdateKey(string newKey)
+    {
+        Guard.AgainstNullOrEmpty(newKey, nameof(newKey));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxTranslationKeyLength=200
+        Guard.AgainstLength(newKey, 200, nameof(newKey));
+        Key = newKey;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - StaticTranslationUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new StaticTranslationUpdatedEvent(Id, newKey, LanguageCode));
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Update language
+    public void UpdateLanguage(Guid newLanguageId, string newLanguageCode)
+    {
+        Guard.AgainstDefault(newLanguageId, nameof(newLanguageId));
+        Guard.AgainstNullOrEmpty(newLanguageCode, nameof(newLanguageCode));
+        LanguageId = newLanguageId;
+        LanguageCode = newLanguageCode.ToLowerInvariant();
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - StaticTranslationUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new StaticTranslationUpdatedEvent(Id, Key, newLanguageCode));
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Update category
+    public void UpdateCategory(string newCategory)
+    {
+        Guard.AgainstNullOrEmpty(newCategory, nameof(newCategory));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxTranslationCategoryLength=50
+        Guard.AgainstLength(newCategory, 50, nameof(newCategory));
+        Category = newCategory;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - StaticTranslationUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new StaticTranslationUpdatedEvent(Id, Key, LanguageCode));
+    }
+
     // ✅ BOLUM 1.1: Domain Method - Update translation value
     public void UpdateValue(string value)
     {
         Guard.AgainstNullOrEmpty(value, nameof(value));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxTranslationValueLength=5000
+        Guard.AgainstLength(value, 5000, nameof(value));
 
         Value = value;
         UpdatedAt = DateTime.UtcNow;
@@ -79,6 +128,10 @@ public class StaticTranslation : BaseEntity, IAggregateRoot
     {
         Guard.AgainstNullOrEmpty(value, nameof(value));
         Guard.AgainstNullOrEmpty(category, nameof(category));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxTranslationValueLength=5000, MaxTranslationCategoryLength=50
+        Guard.AgainstLength(value, 5000, nameof(value));
+        Guard.AgainstLength(category, 50, nameof(category));
 
         Value = value;
         Category = category;
@@ -99,6 +152,19 @@ public class StaticTranslation : BaseEntity, IAggregateRoot
         
         // ✅ BOLUM 1.5: Domain Events - StaticTranslationDeletedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new StaticTranslationDeletedEvent(Id, Key, LanguageCode));
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Restore deleted translation
+    public void Restore()
+    {
+        if (!IsDeleted)
+            return;
+
+        IsDeleted = false;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - StaticTranslationRestoredEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new StaticTranslationRestoredEvent(Id, Key, LanguageCode));
     }
 }
 

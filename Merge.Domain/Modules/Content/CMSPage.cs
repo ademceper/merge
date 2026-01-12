@@ -73,6 +73,27 @@ public class CMSPage : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(title, nameof(title));
         Guard.AgainstNullOrEmpty(content, nameof(content));
         Guard.AgainstNegative(displayOrder, nameof(displayOrder));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxCMSPageTitleLength=200, MaxCMSPageContentLength=50000, MaxCMSPageExcerptLength=500, MaxPageTypeLength=50
+        Guard.AgainstLength(title, 200, nameof(title));
+        Guard.AgainstLength(content, 50000, nameof(content));
+        Guard.AgainstLength(pageType, 50, nameof(pageType));
+        if (excerpt != null)
+            Guard.AgainstLength(excerpt, 500, nameof(excerpt));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxTemplateNameLength=100, MaxMenuTitleLength=200
+        if (template != null)
+            Guard.AgainstLength(template, 100, nameof(template));
+        if (menuTitle != null)
+            Guard.AgainstLength(menuTitle, 200, nameof(menuTitle));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxMetaTitleLength=60, MaxMetaDescriptionLength=160, MaxMetaKeywordsLength=255
+        if (metaTitle != null)
+            Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
+        if (metaDescription != null)
+            Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
+        if (metaKeywords != null)
+            Guard.AgainstLength(metaKeywords, 255, nameof(metaKeywords));
 
         if (parentPageId.HasValue && parentPageId.Value == Guid.Empty)
         {
@@ -116,6 +137,9 @@ public class CMSPage : BaseEntity, IAggregateRoot
     public void UpdateTitle(string newTitle)
     {
         Guard.AgainstNullOrEmpty(newTitle, nameof(newTitle));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxCMSPageTitleLength=200
+        Guard.AgainstLength(newTitle, 200, nameof(newTitle));
         Title = newTitle;
         // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
         Slug = Slug.FromString(newTitle);
@@ -125,10 +149,25 @@ public class CMSPage : BaseEntity, IAggregateRoot
         AddDomainEvent(new CMSPageUpdatedEvent(Id, newTitle, Slug.Value));
     }
 
+    // ✅ BOLUM 1.1: Domain Logic - Update slug (manual slug update)
+    public void UpdateSlug(string newSlug)
+    {
+        Guard.AgainstNullOrEmpty(newSlug, nameof(newSlug));
+        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
+        Slug = Slug.FromString(newSlug);
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CMSPageUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CMSPageUpdatedEvent(Id, Title, Slug.Value));
+    }
+
     // ✅ BOLUM 1.1: Domain Logic - Update content
     public void UpdateContent(string newContent)
     {
         Guard.AgainstNullOrEmpty(newContent, nameof(newContent));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxCMSPageContentLength=50000
+        Guard.AgainstLength(newContent, 50000, nameof(newContent));
         Content = newContent;
         UpdatedAt = DateTime.UtcNow;
         
@@ -139,6 +178,10 @@ public class CMSPage : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Logic - Update excerpt
     public void UpdateExcerpt(string? newExcerpt)
     {
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxCMSPageExcerptLength=500
+        if (newExcerpt != null)
+            Guard.AgainstLength(newExcerpt, 500, nameof(newExcerpt));
         Excerpt = newExcerpt;
         UpdatedAt = DateTime.UtcNow;
         
@@ -150,6 +193,9 @@ public class CMSPage : BaseEntity, IAggregateRoot
     public void UpdatePageType(string newPageType)
     {
         Guard.AgainstNullOrEmpty(newPageType, nameof(newPageType));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxPageTypeLength=50
+        Guard.AgainstLength(newPageType, 50, nameof(newPageType));
         PageType = newPageType;
         UpdatedAt = DateTime.UtcNow;
         
@@ -206,6 +252,10 @@ public class CMSPage : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Logic - Update template
     public void UpdateTemplate(string? newTemplate)
     {
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxTemplateNameLength=100
+        if (newTemplate != null)
+            Guard.AgainstLength(newTemplate, 100, nameof(newTemplate));
         Template = newTemplate;
         UpdatedAt = DateTime.UtcNow;
         
@@ -216,6 +266,15 @@ public class CMSPage : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Logic - Update meta information
     public void UpdateMetaInformation(string? metaTitle, string? metaDescription, string? metaKeywords)
     {
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxMetaTitleLength=60, MaxMetaDescriptionLength=160, MaxMetaKeywordsLength=255
+        if (metaTitle != null)
+            Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
+        if (metaDescription != null)
+            Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
+        if (metaKeywords != null)
+            Guard.AgainstLength(metaKeywords, 255, nameof(metaKeywords));
+        
         MetaTitle = metaTitle;
         MetaDescription = metaDescription;
         MetaKeywords = metaKeywords;
@@ -275,6 +334,10 @@ public class CMSPage : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Logic - Update menu title
     public void UpdateMenuTitle(string? newMenuTitle)
     {
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxMenuTitleLength=200
+        if (newMenuTitle != null)
+            Guard.AgainstLength(newMenuTitle, 200, nameof(newMenuTitle));
         MenuTitle = newMenuTitle;
         UpdatedAt = DateTime.UtcNow;
         
@@ -290,6 +353,16 @@ public class CMSPage : BaseEntity, IAggregateRoot
             throw new DomainException("Sayfa kendisinin alt sayfası olamaz.");
         }
         ParentPageId = parentPageId;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CMSPageUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CMSPageUpdatedEvent(Id, Title, Slug.Value));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Update author
+    public void UpdateAuthor(Guid? newAuthorId)
+    {
+        AuthorId = newAuthorId;
         UpdatedAt = DateTime.UtcNow;
         
         // ✅ BOLUM 1.5: Domain Events - CMSPageUpdatedEvent yayınla (ÖNERİLİR)
@@ -317,6 +390,19 @@ public class CMSPage : BaseEntity, IAggregateRoot
         
         // ✅ BOLUM 1.5: Domain Events - CMSPageDeletedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new CMSPageDeletedEvent(Id, Title));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Restore deleted page
+    public void Restore()
+    {
+        if (!IsDeleted)
+            return;
+
+        IsDeleted = false;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CMSPageRestoredEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CMSPageRestoredEvent(Id, Title, Slug.Value));
     }
 
 }

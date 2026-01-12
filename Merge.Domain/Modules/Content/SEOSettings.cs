@@ -58,13 +58,39 @@ public class SEOSettings : BaseEntity, IAggregateRoot
     {
         Guard.AgainstNullOrEmpty(pageType, nameof(pageType));
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
-        // Configuration değerleri: MinSEOPriority=0.0, MaxSEOPriority=1.0
+        // Configuration değerleri: MinSEOPriority=0.0, MaxSEOPriority=1.0, MaxPageTypeLength=50
         Guard.AgainstOutOfRange(priority, 0m, 1m, nameof(priority));
+        Guard.AgainstLength(pageType, 50, nameof(pageType));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxMetaTitleLength=60, MaxMetaDescriptionLength=160, MaxMetaKeywordsLength=255, MaxOgTitleLength=60, MaxOgDescriptionLength=160, MaxTwitterCardLength=30
+        if (metaTitle != null)
+            Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
+        if (metaDescription != null)
+            Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
+        if (metaKeywords != null)
+            Guard.AgainstLength(metaKeywords, 255, nameof(metaKeywords));
+        if (ogTitle != null)
+            Guard.AgainstLength(ogTitle, 60, nameof(ogTitle));
+        if (ogDescription != null)
+            Guard.AgainstLength(ogDescription, 160, nameof(ogDescription));
+        if (twitterCard != null)
+            Guard.AgainstLength(twitterCard, 30, nameof(twitterCard));
 
         var validChangeFrequencies = new[] { "always", "hourly", "daily", "weekly", "monthly", "yearly", "never" };
         if (!string.IsNullOrEmpty(changeFrequency) && !validChangeFrequencies.Contains(changeFrequency.ToLowerInvariant()))
         {
             throw new DomainException($"Geçersiz change frequency. Geçerli değerler: {string.Join(", ", validChangeFrequencies)}");
+        }
+
+        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
+        if (!string.IsNullOrEmpty(canonicalUrl) && !IsValidUrl(canonicalUrl))
+        {
+            throw new DomainException("Geçerli bir canonical URL giriniz.");
+        }
+
+        if (!string.IsNullOrEmpty(ogImageUrl) && !IsValidUrl(ogImageUrl))
+        {
+            throw new DomainException("Geçerli bir Open Graph image URL giriniz.");
         }
 
         var settings = new SEOSettings
@@ -102,6 +128,21 @@ public class SEOSettings : BaseEntity, IAggregateRoot
         string? metaKeywords,
         string? canonicalUrl)
     {
+        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
+        if (!string.IsNullOrEmpty(canonicalUrl) && !IsValidUrl(canonicalUrl))
+        {
+            throw new DomainException("Geçerli bir canonical URL giriniz.");
+        }
+        
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxMetaTitleLength=60, MaxMetaDescriptionLength=160, MaxMetaKeywordsLength=255
+        if (metaTitle != null)
+            Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
+        if (metaDescription != null)
+            Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
+        if (metaKeywords != null)
+            Guard.AgainstLength(metaKeywords, 255, nameof(metaKeywords));
+        
         MetaTitle = metaTitle;
         MetaDescription = metaDescription;
         MetaKeywords = metaKeywords;
@@ -119,6 +160,21 @@ public class SEOSettings : BaseEntity, IAggregateRoot
         string? ogImageUrl,
         string? twitterCard)
     {
+        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
+        if (!string.IsNullOrEmpty(ogImageUrl) && !IsValidUrl(ogImageUrl))
+        {
+            throw new DomainException("Geçerli bir Open Graph image URL giriniz.");
+        }
+        
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxOgTitleLength=60, MaxOgDescriptionLength=160, MaxTwitterCardLength=30
+        if (ogTitle != null)
+            Guard.AgainstLength(ogTitle, 60, nameof(ogTitle));
+        if (ogDescription != null)
+            Guard.AgainstLength(ogDescription, 160, nameof(ogDescription));
+        if (twitterCard != null)
+            Guard.AgainstLength(twitterCard, 30, nameof(twitterCard));
+        
         OgTitle = ogTitle;
         OgDescription = ogDescription;
         OgImageUrl = ogImageUrl;
@@ -148,6 +204,30 @@ public class SEOSettings : BaseEntity, IAggregateRoot
         
         // ✅ BOLUM 1.5: Domain Events - SEOSettingsUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new SEOSettingsUpdatedEvent(Id, PageType, EntityId));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Update page type
+    public void UpdatePageType(string newPageType)
+    {
+        Guard.AgainstNullOrEmpty(newPageType, nameof(newPageType));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxPageTypeLength=50
+        Guard.AgainstLength(newPageType, 50, nameof(newPageType));
+        PageType = newPageType;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - SEOSettingsUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new SEOSettingsUpdatedEvent(Id, newPageType, EntityId));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Update entity ID
+    public void UpdateEntityId(Guid? newEntityId)
+    {
+        EntityId = newEntityId;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - SEOSettingsUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new SEOSettingsUpdatedEvent(Id, PageType, newEntityId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update sitemap settings
@@ -182,6 +262,29 @@ public class SEOSettings : BaseEntity, IAggregateRoot
         
         // ✅ BOLUM 1.5: Domain Events - SEOSettingsDeletedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new SEOSettingsDeletedEvent(Id, PageType, EntityId));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Restore deleted SEO settings
+    public void Restore()
+    {
+        if (!IsDeleted)
+            return;
+
+        IsDeleted = false;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - SEOSettingsRestoredEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new SEOSettingsRestoredEvent(Id, PageType, EntityId));
+    }
+
+    // ✅ BOLUM 1.3: URL Validation Helper Method
+    private static bool IsValidUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        return Uri.TryCreate(url, UriKind.Absolute, out var result) &&
+               (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
     }
 }
 

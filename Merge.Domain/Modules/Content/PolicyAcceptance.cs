@@ -47,6 +47,11 @@ public class PolicyAcceptance : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(acceptedVersion, nameof(acceptedVersion));
         Guard.AgainstNullOrEmpty(ipAddress, nameof(ipAddress));
         Guard.AgainstNullOrEmpty(userAgent, nameof(userAgent));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxVersionLength=20, MaxIpAddressLength=45, MaxUserAgentLength=500
+        Guard.AgainstLength(acceptedVersion, 20, nameof(acceptedVersion));
+        Guard.AgainstLength(ipAddress, 45, nameof(ipAddress));
+        Guard.AgainstLength(userAgent, 500, nameof(userAgent));
 
         var acceptance = new PolicyAcceptance
         {
@@ -92,5 +97,18 @@ public class PolicyAcceptance : BaseEntity, IAggregateRoot
         
         // ✅ BOLUM 1.5: Domain Events - PolicyAcceptanceDeletedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new PolicyAcceptanceDeletedEvent(Id, PolicyId, UserId));
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Restore deleted acceptance
+    public void Restore()
+    {
+        if (!IsDeleted)
+            return;
+
+        IsDeleted = false;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - PolicyAcceptanceRestoredEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new PolicyAcceptanceRestoredEvent(Id, PolicyId, UserId));
     }
 }

@@ -44,8 +44,10 @@ public class Language : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNullOrEmpty(nativeName, nameof(nativeName));
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
-        // Configuration değerleri: MinLanguageCodeLength=2, MaxLanguageCodeLength=10
+        // Configuration değerleri: MinLanguageCodeLength=2, MaxLanguageCodeLength=10, MaxLanguageNameLength=100
         Guard.AgainstOutOfRange(code.Length, 2, 10, nameof(code));
+        Guard.AgainstLength(name, 100, nameof(name));
+        Guard.AgainstLength(nativeName, 100, nameof(nativeName));
 
         var language = new Language
         {
@@ -67,11 +69,22 @@ public class Language : BaseEntity, IAggregateRoot
         return language;
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Update language details
+        // ✅ BOLUM 1.1: Domain Method - Update language details
     public void UpdateDetails(string name, string nativeName, bool isRTL, string flagIcon)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNullOrEmpty(nativeName, nameof(nativeName));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxLanguageNameLength=100
+        Guard.AgainstLength(name, 100, nameof(name));
+        Guard.AgainstLength(nativeName, 100, nameof(nativeName));
+
+        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu (FlagIcon URL veya emoji olabilir)
+        // Eğer URL formatındaysa validasyon yapılır, emoji ise geçer
+        if (!string.IsNullOrEmpty(flagIcon) && flagIcon.StartsWith("http", StringComparison.OrdinalIgnoreCase) && !IsValidUrl(flagIcon))
+        {
+            throw new DomainException("Geçerli bir flag icon URL giriniz.");
+        }
 
         Name = name;
         NativeName = nativeName;
@@ -166,6 +179,16 @@ public class Language : BaseEntity, IAggregateRoot
         
         // ✅ BOLUM 1.5: Domain Events - LanguageRestoredEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new LanguageRestoredEvent(Id, Code));
+    }
+
+    // ✅ BOLUM 1.3: URL Validation Helper Method
+    private static bool IsValidUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        return Uri.TryCreate(url, UriKind.Absolute, out var result) &&
+               (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
     }
 }
 

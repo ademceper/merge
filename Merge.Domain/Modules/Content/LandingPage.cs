@@ -75,8 +75,19 @@ public class LandingPage : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(title, nameof(title));
         Guard.AgainstNullOrEmpty(content, nameof(content));
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
-        // Configuration değerleri: MinTrafficSplit=0, MaxTrafficSplit=100
+        // Configuration değerleri: MinTrafficSplit=0, MaxTrafficSplit=100, MaxLandingPageNameLength=200, MaxLandingPageTitleLength=200, MaxLandingPageContentLength=50000
         Guard.AgainstOutOfRange(trafficSplit, 0, 100, nameof(trafficSplit));
+        Guard.AgainstLength(name, 200, nameof(name));
+        Guard.AgainstLength(title, 200, nameof(title));
+        Guard.AgainstLength(content, 50000, nameof(content));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxTemplateNameLength=100, MaxMetaTitleLength=60, MaxMetaDescriptionLength=160
+        if (template != null)
+            Guard.AgainstLength(template, 100, nameof(template));
+        if (metaTitle != null)
+            Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
+        if (metaDescription != null)
+            Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
 
         if (startDate.HasValue && endDate.HasValue && startDate.Value >= endDate.Value)
         {
@@ -85,6 +96,12 @@ public class LandingPage : BaseEntity, IAggregateRoot
 
         // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
         var finalSlug = slug != null ? Slug.FromString(slug) : Slug.FromString(name);
+
+        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
+        if (!string.IsNullOrEmpty(ogImageUrl) && !IsValidUrl(ogImageUrl))
+        {
+            throw new DomainException("Geçerli bir Open Graph image URL giriniz.");
+        }
 
         var landingPage = new LandingPage
         {
@@ -124,6 +141,9 @@ public class LandingPage : BaseEntity, IAggregateRoot
     public void UpdateName(string name)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxLandingPageNameLength=200
+        Guard.AgainstLength(name, 200, nameof(name));
         Name = name;
         // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
         Slug = Slug.FromString(name);
@@ -131,9 +151,22 @@ public class LandingPage : BaseEntity, IAggregateRoot
         AddDomainEvent(new LandingPageUpdatedEvent(Id, Name, Slug.Value));
     }
 
+    // ✅ BOLUM 1.1: Domain Logic - Update slug (manual slug update)
+    public void UpdateSlug(string newSlug)
+    {
+        Guard.AgainstNullOrEmpty(newSlug, nameof(newSlug));
+        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
+        Slug = Slug.FromString(newSlug);
+        UpdatedAt = DateTime.UtcNow;
+        AddDomainEvent(new LandingPageUpdatedEvent(Id, Name, Slug.Value));
+    }
+
     public void UpdateTitle(string title)
     {
         Guard.AgainstNullOrEmpty(title, nameof(title));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxLandingPageTitleLength=200
+        Guard.AgainstLength(title, 200, nameof(title));
         Title = title;
         UpdatedAt = DateTime.UtcNow;
         AddDomainEvent(new LandingPageUpdatedEvent(Id, Name, Slug.Value));
@@ -142,6 +175,9 @@ public class LandingPage : BaseEntity, IAggregateRoot
     public void UpdateContent(string content)
     {
         Guard.AgainstNullOrEmpty(content, nameof(content));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxLandingPageContentLength=50000
+        Guard.AgainstLength(content, 50000, nameof(content));
         Content = content;
         UpdatedAt = DateTime.UtcNow;
         AddDomainEvent(new LandingPageUpdatedEvent(Id, Name, Slug.Value));
@@ -149,6 +185,10 @@ public class LandingPage : BaseEntity, IAggregateRoot
 
     public void UpdateTemplate(string? template)
     {
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxTemplateNameLength=100
+        if (template != null)
+            Guard.AgainstLength(template, 100, nameof(template));
         Template = template;
         UpdatedAt = DateTime.UtcNow;
         AddDomainEvent(new LandingPageUpdatedEvent(Id, Name, Slug.Value));
@@ -187,6 +227,19 @@ public class LandingPage : BaseEntity, IAggregateRoot
 
     public void UpdateMetaInformation(string? metaTitle, string? metaDescription, string? ogImageUrl)
     {
+        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
+        if (!string.IsNullOrEmpty(ogImageUrl) && !IsValidUrl(ogImageUrl))
+        {
+            throw new DomainException("Geçerli bir Open Graph image URL giriniz.");
+        }
+        
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxMetaTitleLength=60, MaxMetaDescriptionLength=160
+        if (metaTitle != null)
+            Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
+        if (metaDescription != null)
+            Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
+        
         MetaTitle = metaTitle;
         MetaDescription = metaDescription;
         OgImageUrl = ogImageUrl;
@@ -257,6 +310,25 @@ public class LandingPage : BaseEntity, IAggregateRoot
         AddDomainEvent(new LandingPageViewedEvent(Id, Name, ViewCount));
     }
 
+    public void UpdateAuthor(Guid? newAuthorId)
+    {
+        AuthorId = newAuthorId;
+        UpdatedAt = DateTime.UtcNow;
+        AddDomainEvent(new LandingPageUpdatedEvent(Id, Name, Slug.Value));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Update variant relationship
+    public void UpdateVariantOf(Guid? variantOfId)
+    {
+        if (variantOfId.HasValue && variantOfId.Value == Id)
+        {
+            throw new DomainException("Landing page cannot be a variant of itself.");
+        }
+        VariantOfId = variantOfId;
+        UpdatedAt = DateTime.UtcNow;
+        AddDomainEvent(new LandingPageUpdatedEvent(Id, Name, Slug.Value));
+    }
+
     public void TrackConversion()
     {
         ConversionCount++;
@@ -268,6 +340,32 @@ public class LandingPage : BaseEntity, IAggregateRoot
 
         // ✅ BOLUM 1.5: Domain Events (ÖNERİLİR)
         AddDomainEvent(new LandingPageConversionTrackedEvent(Id, ConversionCount, ConversionRate));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Update conversion count (manual update)
+    public void UpdateConversionCount(int conversionCount)
+    {
+        Guard.AgainstNegative(conversionCount, nameof(conversionCount));
+        ConversionCount = conversionCount;
+        if (ViewCount > 0)
+        {
+            ConversionRate = (decimal)ConversionCount / ViewCount * 100;
+        }
+        else
+        {
+            ConversionRate = 0;
+        }
+        UpdatedAt = DateTime.UtcNow;
+        AddDomainEvent(new LandingPageUpdatedEvent(Id, Name, Slug.Value));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Reset conversion count
+    public void ResetConversionCount()
+    {
+        ConversionCount = 0;
+        ConversionRate = 0;
+        UpdatedAt = DateTime.UtcNow;
+        AddDomainEvent(new LandingPageUpdatedEvent(Id, Name, Slug.Value));
     }
 
     public LandingPage CreateVariant(
@@ -314,4 +412,22 @@ public class LandingPage : BaseEntity, IAggregateRoot
         AddDomainEvent(new LandingPageDeletedEvent(Id, Name, Slug.Value));
     }
 
+    // ✅ BOLUM 1.1: Domain Logic - Restore deleted landing page
+    public void Restore()
+    {
+        if (!IsDeleted) return;
+        IsDeleted = false;
+        UpdatedAt = DateTime.UtcNow;
+        AddDomainEvent(new LandingPageRestoredEvent(Id, Name, Slug.Value));
+    }
+
+    // ✅ BOLUM 1.3: URL Validation Helper Method
+    private static bool IsValidUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        return Uri.TryCreate(url, UriKind.Absolute, out var result) &&
+               (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
+    }
 }

@@ -41,6 +41,12 @@ public class KnowledgeBaseView : BaseEntity
     {
         Guard.AgainstDefault(articleId, nameof(articleId));
         Guard.AgainstNegative(viewDuration, nameof(viewDuration));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxIpAddressLength=45, MaxUserAgentLength=500
+        if (!string.IsNullOrEmpty(ipAddress))
+            Guard.AgainstLength(ipAddress, 45, nameof(ipAddress));
+        if (!string.IsNullOrEmpty(userAgent))
+            Guard.AgainstLength(userAgent, 500, nameof(userAgent));
 
         return new KnowledgeBaseView
         {
@@ -70,6 +76,16 @@ public class KnowledgeBaseView : BaseEntity
             return;
 
         IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Restore deleted view
+    public void Restore()
+    {
+        if (!IsDeleted)
+            return;
+
+        IsDeleted = false;
         UpdatedAt = DateTime.UtcNow;
     }
 }

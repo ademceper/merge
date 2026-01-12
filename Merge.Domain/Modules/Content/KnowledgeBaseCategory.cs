@@ -59,6 +59,13 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
         var slugValueObject = Slug.FromString(slug);
         if (description != null)
             Guard.AgainstLength(description, 1000, nameof(description));
+        Guard.AgainstNegative(displayOrder, nameof(displayOrder));
+
+        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
+        if (!string.IsNullOrEmpty(iconUrl) && !IsValidUrl(iconUrl))
+        {
+            throw new DomainException("Geçerli bir icon URL giriniz.");
+        }
 
         var category = new KnowledgeBaseCategory
         {
@@ -99,6 +106,32 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
         
         // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseCategoryUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new KnowledgeBaseCategoryUpdatedEvent(Id, name, slugValueObject.Value));
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Update name only (slug auto-generated from name)
+    public void UpdateName(string name)
+    {
+        Guard.AgainstNullOrEmpty(name, nameof(name));
+        Guard.AgainstLength(name, 100, nameof(name));
+        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
+        Name = name;
+        Slug = Slug.FromString(name);
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseCategoryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new KnowledgeBaseCategoryUpdatedEvent(Id, name, Slug.Value));
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Update slug (manual slug update)
+    public void UpdateSlug(string slug)
+    {
+        Guard.AgainstNullOrEmpty(slug, nameof(slug));
+        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
+        Slug = Slug.FromString(slug);
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseCategoryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new KnowledgeBaseCategoryUpdatedEvent(Id, Name, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update description
@@ -152,6 +185,7 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Method - Update display order
     public void UpdateDisplayOrder(int displayOrder)
     {
+        Guard.AgainstNegative(displayOrder, nameof(displayOrder));
         DisplayOrder = displayOrder;
         UpdatedAt = DateTime.UtcNow;
         
@@ -176,6 +210,12 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Method - Update icon URL
     public void UpdateIconUrl(string? iconUrl)
     {
+        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
+        if (!string.IsNullOrEmpty(iconUrl) && !IsValidUrl(iconUrl))
+        {
+            throw new DomainException("Geçerli bir icon URL giriniz.");
+        }
+        
         IconUrl = iconUrl;
         UpdatedAt = DateTime.UtcNow;
         
@@ -199,6 +239,29 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
 
         // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseCategoryDeletedEvent
         AddDomainEvent(new KnowledgeBaseCategoryDeletedEvent(Id, Name, Slug.Value, ParentCategoryId));
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Restore deleted category
+    public void Restore()
+    {
+        if (!IsDeleted)
+            return;
+
+        IsDeleted = false;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseCategoryRestoredEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new KnowledgeBaseCategoryRestoredEvent(Id, Name, Slug.Value));
+    }
+
+    // ✅ BOLUM 1.3: URL Validation Helper Method
+    private static bool IsValidUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        return Uri.TryCreate(url, UriKind.Absolute, out var result) &&
+               (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
     }
 }
 

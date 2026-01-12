@@ -42,8 +42,15 @@ public class SitemapEntry : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(url, nameof(url));
         Guard.AgainstNullOrEmpty(pageType, nameof(pageType));
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
-        // Configuration değerleri: MinSitemapPriority=0.0, MaxSitemapPriority=1.0
+        // Configuration değerleri: MinSitemapPriority=0.0, MaxSitemapPriority=1.0, MaxPageTypeLength=50
         Guard.AgainstOutOfRange(priority, 0m, 1m, nameof(priority));
+        Guard.AgainstLength(pageType, 50, nameof(pageType));
+
+        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
+        if (!IsValidUrl(url))
+        {
+            throw new DomainException("Geçerli bir URL giriniz.");
+        }
 
         var validChangeFrequencies = new[] { "always", "hourly", "daily", "weekly", "monthly", "yearly", "never" };
         if (!validChangeFrequencies.Contains(changeFrequency.ToLowerInvariant()))
@@ -75,12 +82,45 @@ public class SitemapEntry : BaseEntity, IAggregateRoot
     public void UpdateUrl(string newUrl)
     {
         Guard.AgainstNullOrEmpty(newUrl, nameof(newUrl));
+        
+        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
+        if (!IsValidUrl(newUrl))
+        {
+            throw new DomainException("Geçerli bir URL giriniz.");
+        }
+        
         Url = newUrl;
         LastModified = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         
         // ✅ BOLUM 1.5: Domain Events - SitemapEntryUpdatedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new SitemapEntryUpdatedEvent(Id, newUrl));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Update page type
+    public void UpdatePageType(string newPageType)
+    {
+        Guard.AgainstNullOrEmpty(newPageType, nameof(newPageType));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxPageTypeLength=50
+        Guard.AgainstLength(newPageType, 50, nameof(newPageType));
+        PageType = newPageType;
+        LastModified = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - SitemapEntryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new SitemapEntryUpdatedEvent(Id, Url));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Update entity ID
+    public void UpdateEntityId(Guid? newEntityId)
+    {
+        EntityId = newEntityId;
+        LastModified = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - SitemapEntryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new SitemapEntryUpdatedEvent(Id, Url));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update sitemap settings
@@ -153,6 +193,29 @@ public class SitemapEntry : BaseEntity, IAggregateRoot
         
         // ✅ BOLUM 1.5: Domain Events - SitemapEntryDeletedEvent yayınla (ÖNERİLİR)
         AddDomainEvent(new SitemapEntryDeletedEvent(Id, Url));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Restore deleted sitemap entry
+    public void Restore()
+    {
+        if (!IsDeleted)
+            return;
+
+        IsDeleted = false;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - SitemapEntryRestoredEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new SitemapEntryRestoredEvent(Id, Url));
+    }
+
+    // ✅ BOLUM 1.3: URL Validation Helper Method
+    private static bool IsValidUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        return Uri.TryCreate(url, UriKind.Absolute, out var result) &&
+               (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
     }
 }
 

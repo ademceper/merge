@@ -40,6 +40,12 @@ public class BlogPostView : BaseEntity
     {
         Guard.AgainstDefault(blogPostId, nameof(blogPostId));
         Guard.AgainstNegative(viewDurationSeconds, nameof(viewDurationSeconds));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxIpAddressLength=45, MaxUserAgentLength=500
+        if (!string.IsNullOrEmpty(ipAddress))
+            Guard.AgainstLength(ipAddress, 45, nameof(ipAddress));
+        if (!string.IsNullOrEmpty(userAgent))
+            Guard.AgainstLength(userAgent, 500, nameof(userAgent));
 
         var view = new BlogPostView
         {
@@ -71,6 +77,16 @@ public class BlogPostView : BaseEntity
             return;
 
         IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Restore deleted view
+    public void Restore()
+    {
+        if (!IsDeleted)
+            return;
+
+        IsDeleted = false;
         UpdatedAt = DateTime.UtcNow;
     }
 }

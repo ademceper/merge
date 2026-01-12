@@ -81,9 +81,33 @@ public class BlogPost : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(excerpt, nameof(excerpt));
         Guard.AgainstNullOrEmpty(content, nameof(content));
         Guard.AgainstNegative(readingTimeMinutes, nameof(readingTimeMinutes));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxBlogPostTitleLength=200, MaxBlogPostExcerptLength=500, MaxBlogPostContentLength=50000
+        Guard.AgainstLength(title, 200, nameof(title));
+        Guard.AgainstLength(excerpt, 500, nameof(excerpt));
+        Guard.AgainstLength(content, 50000, nameof(content));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxMetaTitleLength=60, MaxMetaDescriptionLength=160, MaxMetaKeywordsLength=255
+        if (metaTitle != null)
+            Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
+        if (metaDescription != null)
+            Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
+        if (metaKeywords != null)
+            Guard.AgainstLength(metaKeywords, 255, nameof(metaKeywords));
 
         // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
         var finalSlug = slug != null ? Slug.FromString(slug) : Slug.FromString(title);
+
+        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
+        if (!string.IsNullOrEmpty(featuredImageUrl) && !IsValidUrl(featuredImageUrl))
+        {
+            throw new DomainException("Geçerli bir featured image URL giriniz.");
+        }
+
+        if (!string.IsNullOrEmpty(ogImageUrl) && !IsValidUrl(ogImageUrl))
+        {
+            throw new DomainException("Geçerli bir Open Graph image URL giriniz.");
+        }
 
         var post = new BlogPost
         {
@@ -119,6 +143,9 @@ public class BlogPost : BaseEntity, IAggregateRoot
     public void UpdateTitle(string newTitle)
     {
         Guard.AgainstNullOrEmpty(newTitle, nameof(newTitle));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxBlogPostTitleLength=200
+        Guard.AgainstLength(newTitle, 200, nameof(newTitle));
         Title = newTitle;
         // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
         Slug = Slug.FromString(newTitle);
@@ -128,10 +155,25 @@ public class BlogPost : BaseEntity, IAggregateRoot
         AddDomainEvent(new BlogPostUpdatedEvent(Id, newTitle, Slug.Value));
     }
 
+    // ✅ BOLUM 1.1: Domain Logic - Update slug (manual slug update)
+    public void UpdateSlug(string newSlug)
+    {
+        Guard.AgainstNullOrEmpty(newSlug, nameof(newSlug));
+        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
+        Slug = Slug.FromString(newSlug);
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogPostUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogPostUpdatedEvent(Id, Title, Slug.Value));
+    }
+
     // ✅ BOLUM 1.1: Domain Logic - Update excerpt
     public void UpdateExcerpt(string newExcerpt)
     {
         Guard.AgainstNullOrEmpty(newExcerpt, nameof(newExcerpt));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxBlogPostExcerptLength=500
+        Guard.AgainstLength(newExcerpt, 500, nameof(newExcerpt));
         Excerpt = newExcerpt;
         UpdatedAt = DateTime.UtcNow;
         
@@ -143,6 +185,9 @@ public class BlogPost : BaseEntity, IAggregateRoot
     public void UpdateContent(string newContent)
     {
         Guard.AgainstNullOrEmpty(newContent, nameof(newContent));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxBlogPostContentLength=50000
+        Guard.AgainstLength(newContent, 50000, nameof(newContent));
         Content = newContent;
         UpdatedAt = DateTime.UtcNow;
         
@@ -153,6 +198,12 @@ public class BlogPost : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Logic - Update featured image
     public void UpdateFeaturedImage(string? newFeaturedImageUrl)
     {
+        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
+        if (!string.IsNullOrEmpty(newFeaturedImageUrl) && !IsValidUrl(newFeaturedImageUrl))
+        {
+            throw new DomainException("Geçerli bir featured image URL giriniz.");
+        }
+        
         FeaturedImageUrl = newFeaturedImageUrl;
         UpdatedAt = DateTime.UtcNow;
         
@@ -266,6 +317,21 @@ public class BlogPost : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Logic - Update meta information
     public void UpdateMetaInformation(string? metaTitle, string? metaDescription, string? metaKeywords, string? ogImageUrl)
     {
+        // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
+        if (!string.IsNullOrEmpty(ogImageUrl) && !IsValidUrl(ogImageUrl))
+        {
+            throw new DomainException("Geçerli bir Open Graph image URL giriniz.");
+        }
+        
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxMetaTitleLength=60, MaxMetaDescriptionLength=160, MaxMetaKeywordsLength=255
+        if (metaTitle != null)
+            Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
+        if (metaDescription != null)
+            Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
+        if (metaKeywords != null)
+            Guard.AgainstLength(metaKeywords, 255, nameof(metaKeywords));
+        
         MetaTitle = metaTitle;
         MetaDescription = metaDescription;
         MetaKeywords = metaKeywords;
@@ -356,5 +422,27 @@ public class BlogPost : BaseEntity, IAggregateRoot
         AddDomainEvent(new BlogPostDeletedEvent(Id, Title));
     }
 
+    // ✅ BOLUM 1.1: Domain Logic - Restore deleted post
+    public void Restore()
+    {
+        if (!IsDeleted)
+            return;
+
+        IsDeleted = false;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogPostRestoredEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogPostRestoredEvent(Id, Title, Slug.Value));
+    }
+
+    // ✅ BOLUM 1.3: URL Validation Helper Method
+    private static bool IsValidUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        return Uri.TryCreate(url, UriKind.Absolute, out var result) &&
+               (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
+    }
 }
 
