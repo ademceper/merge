@@ -166,6 +166,22 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
+    // ✅ BOLUM 1.1: Domain Method - Record view (creates KnowledgeBaseView and increments count)
+    public KnowledgeBaseView RecordView(Guid? userId = null, string? ipAddress = null, string? userAgent = null)
+    {
+        ViewCount++;
+        UpdatedAt = DateTime.UtcNow;
+
+        var view = KnowledgeBaseView.Create(
+            Id,
+            userId,
+            ipAddress,
+            userAgent,
+            0);
+
+        return view;
+    }
+
     // ✅ BOLUM 1.1: Domain Method - Mark as helpful
     public void MarkAsHelpful()
     {
@@ -211,6 +227,19 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
             PublishedAt = null; // Clear published date if not published
         }
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
+    public void MarkAsDeleted()
+    {
+        if (IsDeleted)
+            throw new DomainException("Makale zaten silinmiş");
+
+        IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseArticleDeletedEvent
+        AddDomainEvent(new KnowledgeBaseArticleDeletedEvent(Id, Title, CategoryId));
     }
 
     // ✅ BOLUM 1.4: IAggregateRoot interface implementation

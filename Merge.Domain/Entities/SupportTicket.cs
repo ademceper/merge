@@ -251,6 +251,19 @@ public class SupportTicket : BaseEntity, IAggregateRoot
             Status.ToString()));
     }
 
+    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
+    public void MarkAsDeleted()
+    {
+        if (IsDeleted)
+            throw new DomainException("Bilet zaten silinmiş");
+
+        IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - SupportTicketDeletedEvent
+        AddDomainEvent(new SupportTicketDeletedEvent(Id, TicketNumber, UserId));
+    }
+
     // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {

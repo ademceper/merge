@@ -395,6 +395,208 @@ public static class HateoasHelper
             _links = links
         };
     }
+
+    /// <summary>
+    /// Creates HATEOAS links for a support ticket resource
+    /// </summary>
+    public static Dictionary<string, LinkDto> CreateSupportTicketLinks(IUrlHelper urlHelper, Guid ticketId, string version = "1.0")
+    {
+        var links = new Dictionary<string, LinkDto>
+        {
+            ["self"] = new LinkDto
+            {
+                Href = urlHelper.Link("GetTicket", new { version, id = ticketId }) ?? $"/api/v{version}/support/tickets/{ticketId}",
+                Method = "GET"
+            },
+            ["update"] = new LinkDto
+            {
+                Href = urlHelper.Link("UpdateTicket", new { version, id = ticketId }) ?? $"/api/v{version}/support/tickets/{ticketId}",
+                Method = "PUT"
+            },
+            ["assign"] = new LinkDto
+            {
+                Href = urlHelper.Link("AssignTicket", new { version, id = ticketId }) ?? $"/api/v{version}/support/tickets/{ticketId}/assign",
+                Method = "POST"
+            },
+            ["close"] = new LinkDto
+            {
+                Href = urlHelper.Link("CloseTicket", new { version, id = ticketId }) ?? $"/api/v{version}/support/tickets/{ticketId}/close",
+                Method = "POST"
+            },
+            ["reopen"] = new LinkDto
+            {
+                Href = urlHelper.Link("ReopenTicket", new { version, id = ticketId }) ?? $"/api/v{version}/support/tickets/{ticketId}/reopen",
+                Method = "POST"
+            },
+            ["messages"] = new LinkDto
+            {
+                Href = urlHelper.Link("GetTicketMessages", new { version, id = ticketId }) ?? $"/api/v{version}/support/tickets/{ticketId}/messages",
+                Method = "GET"
+            },
+            ["addMessage"] = new LinkDto
+            {
+                Href = urlHelper.Link("AddMessage", new { version }) ?? $"/api/v{version}/support/tickets/messages",
+                Method = "POST"
+            }
+        };
+
+        return links;
+    }
+
+    /// <summary>
+    /// Creates HATEOAS links for a live chat session resource
+    /// </summary>
+    public static Dictionary<string, LinkDto> CreateLiveChatSessionLinks(IUrlHelper urlHelper, Guid sessionId, string version = "1.0")
+    {
+        var links = new Dictionary<string, LinkDto>
+        {
+            ["self"] = new LinkDto
+            {
+                Href = urlHelper.Link("GetSessionById", new { version, id = sessionId }) ?? $"/api/v{version}/support/live-chat/sessions/{sessionId}",
+                Method = "GET"
+            },
+            ["assignAgent"] = new LinkDto
+            {
+                Href = urlHelper.Link("AssignAgent", new { version, sessionId }) ?? $"/api/v{version}/support/live-chat/sessions/{sessionId}/assign-agent",
+                Method = "POST"
+            },
+            ["close"] = new LinkDto
+            {
+                Href = urlHelper.Link("CloseSession", new { version, sessionId }) ?? $"/api/v{version}/support/live-chat/sessions/{sessionId}/close",
+                Method = "POST"
+            },
+            ["messages"] = new LinkDto
+            {
+                Href = urlHelper.Link("GetSessionMessages", new { version, sessionId }) ?? $"/api/v{version}/support/live-chat/sessions/{sessionId}/messages",
+                Method = "GET"
+            },
+            ["sendMessage"] = new LinkDto
+            {
+                Href = urlHelper.Link("SendMessage", new { version, sessionId }) ?? $"/api/v{version}/support/live-chat/sessions/{sessionId}/messages",
+                Method = "POST"
+            },
+            ["markRead"] = new LinkDto
+            {
+                Href = urlHelper.Link("MarkMessagesAsRead", new { version, sessionId }) ?? $"/api/v{version}/support/live-chat/sessions/{sessionId}/messages/mark-read",
+                Method = "POST"
+            }
+        };
+
+        return links;
+    }
+
+    /// <summary>
+    /// Creates HATEOAS links for a knowledge base article resource
+    /// </summary>
+    public static Dictionary<string, LinkDto> CreateKnowledgeBaseArticleLinks(IUrlHelper urlHelper, Guid articleId, string version = "1.0")
+    {
+        var links = new Dictionary<string, LinkDto>
+        {
+            ["self"] = new LinkDto
+            {
+                Href = urlHelper.Link("GetArticle", new { version, id = articleId }) ?? $"/api/v{version}/support/knowledge-base/articles/{articleId}",
+                Method = "GET"
+            },
+            ["update"] = new LinkDto
+            {
+                Href = urlHelper.Link("UpdateArticle", new { version, id = articleId }) ?? $"/api/v{version}/support/knowledge-base/articles/{articleId}",
+                Method = "PUT"
+            },
+            ["delete"] = new LinkDto
+            {
+                Href = urlHelper.Link("DeleteArticle", new { version, id = articleId }) ?? $"/api/v{version}/support/knowledge-base/articles/{articleId}",
+                Method = "DELETE"
+            },
+            ["publish"] = new LinkDto
+            {
+                Href = urlHelper.Link("PublishArticle", new { version, id = articleId }) ?? $"/api/v{version}/support/knowledge-base/articles/{articleId}/publish",
+                Method = "POST"
+            }
+        };
+
+        return links;
+    }
+
+    /// <summary>
+    /// Creates HATEOAS links for a FAQ resource
+    /// </summary>
+    public static Dictionary<string, LinkDto> CreateFaqLinks(IUrlHelper urlHelper, Guid faqId, string version = "1.0")
+    {
+        var links = new Dictionary<string, LinkDto>
+        {
+            ["self"] = new LinkDto
+            {
+                Href = urlHelper.Link("GetById", new { version, id = faqId }) ?? $"/api/v{version}/support/faqs/{faqId}",
+                Method = "GET"
+            },
+            ["update"] = new LinkDto
+            {
+                Href = urlHelper.Link("Update", new { version, id = faqId }) ?? $"/api/v{version}/support/faqs/{faqId}",
+                Method = "PUT"
+            },
+            ["delete"] = new LinkDto
+            {
+                Href = urlHelper.Link("Delete", new { version, id = faqId }) ?? $"/api/v{version}/support/faqs/{faqId}",
+                Method = "DELETE"
+            }
+        };
+
+        return links;
+    }
+
+    /// <summary>
+    /// Creates HATEOAS links for a customer communication resource
+    /// </summary>
+    public static Dictionary<string, LinkDto> CreateCustomerCommunicationLinks(IUrlHelper urlHelper, Guid communicationId, string version = "1.0")
+    {
+        var links = new Dictionary<string, LinkDto>
+        {
+            ["self"] = new LinkDto
+            {
+                Href = urlHelper.Link("GetCommunication", new { version, id = communicationId }) ?? $"/api/v{version}/support/communications/{communicationId}",
+                Method = "GET"
+            },
+            ["updateStatus"] = new LinkDto
+            {
+                Href = urlHelper.Link("UpdateStatus", new { version, id = communicationId }) ?? $"/api/v{version}/support/communications/{communicationId}/status",
+                Method = "PUT"
+            }
+        };
+
+        return links;
+    }
+
+    /// <summary>
+    /// Creates HATEOAS links for a knowledge base category resource
+    /// </summary>
+    public static Dictionary<string, LinkDto> CreateKnowledgeBaseCategoryLinks(IUrlHelper urlHelper, Guid categoryId, string version = "1.0")
+    {
+        var links = new Dictionary<string, LinkDto>
+        {
+            ["self"] = new LinkDto
+            {
+                Href = urlHelper.Link("GetCategory", new { version, id = categoryId }) ?? $"/api/v{version}/support/knowledge-base/categories/{categoryId}",
+                Method = "GET"
+            },
+            ["update"] = new LinkDto
+            {
+                Href = urlHelper.Link("UpdateCategory", new { version, id = categoryId }) ?? $"/api/v{version}/support/knowledge-base/categories/{categoryId}",
+                Method = "PUT"
+            },
+            ["delete"] = new LinkDto
+            {
+                Href = urlHelper.Link("DeleteCategory", new { version, id = categoryId }) ?? $"/api/v{version}/support/knowledge-base/categories/{categoryId}",
+                Method = "DELETE"
+            },
+            ["articles"] = new LinkDto
+            {
+                Href = $"/api/v{version}/support/knowledge-base/articles?categoryId={categoryId}",
+                Method = "GET"
+            }
+        };
+
+        return links;
+    }
 }
 
 /// <summary>

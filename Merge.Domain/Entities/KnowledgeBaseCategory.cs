@@ -135,6 +135,24 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
+    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
+    public void MarkAsDeleted()
+    {
+        if (IsDeleted)
+            throw new DomainException("Kategori zaten silinmiş");
+
+        // Check if category has active articles
+        if (_articles.Any(a => !a.IsDeleted))
+            throw new DomainException("Aktif makaleleri olan kategori silinemez");
+
+        IsDeleted = true;
+        IsActive = false;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseCategoryDeletedEvent
+        AddDomainEvent(new KnowledgeBaseCategoryDeletedEvent(Id, Name, Slug, ParentCategoryId));
+    }
+
     // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {

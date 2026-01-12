@@ -1,17 +1,25 @@
+using System.Text.Json.Serialization;
+
 namespace Merge.Application.DTOs.Support;
 
-public class KnowledgeBaseCategoryDto
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public Guid? ParentCategoryId { get; set; }
-    public string? ParentCategoryName { get; set; }
-    public int DisplayOrder { get; set; }
-    public bool IsActive { get; set; }
-    public string? IconUrl { get; set; }
-    public int ArticleCount { get; set; }
-    public List<KnowledgeBaseCategoryDto> SubCategories { get; set; } = new();
-    public DateTime CreatedAt { get; set; }
-}
+/// <summary>
+/// Knowledge Base Category DTO with HATEOAS links
+/// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+/// </summary>
+public record KnowledgeBaseCategoryDto(
+    Guid Id,
+    string Name,
+    string Slug,
+    string? Description,
+    Guid? ParentCategoryId,
+    string? ParentCategoryName,
+    int DisplayOrder,
+    bool IsActive,
+    string? IconUrl,
+    int ArticleCount,
+    IReadOnlyList<KnowledgeBaseCategoryDto> SubCategories,
+    DateTime CreatedAt,
+    // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+    [property: JsonPropertyName("_links")]
+    Dictionary<string, object>? Links = null
+);

@@ -151,6 +151,19 @@ public class CustomerCommunication : BaseEntity, IAggregateRoot
         UpdateStatus(CommunicationStatus.Failed);
     }
 
+    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
+    public void MarkAsDeleted()
+    {
+        if (IsDeleted)
+            throw new DomainException("İletişim kaydı zaten silinmiş");
+
+        IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - CustomerCommunicationDeletedEvent
+        AddDomainEvent(new CustomerCommunicationDeletedEvent(Id, UserId, CommunicationType, Channel));
+    }
+
     // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {

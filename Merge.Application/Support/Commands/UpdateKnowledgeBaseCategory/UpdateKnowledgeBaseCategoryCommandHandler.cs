@@ -1,0 +1,122 @@
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using AutoMapper;
+using Merge.Application.DTOs.Support;
+using Merge.Application.Interfaces;
+using Merge.Application.Exceptions;
+using Merge.Application.Configuration;
+using Merge.Domain.Entities;
+
+namespace Merge.Application.Support.Commands.UpdateKnowledgeBaseCategory;
+
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+public class UpdateKnowledgeBaseCategoryCommandHandler : IRequestHandler<UpdateKnowledgeBaseCategoryCommand, KnowledgeBaseCategoryDto?>
+{
+    private readonly IDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
+    private readonly ILogger<UpdateKnowledgeBaseCategoryCommandHandler> _logger;
+    private readonly SupportSettings _settings;
+
+    public UpdateKnowledgeBaseCategoryCommandHandler(
+        IDbContext context,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        ILogger<UpdateKnowledgeBaseCategoryCommandHandler> logger,
+        IOptions<SupportSettings> settings)
+    {
+        _context = context;
+        _unitOfWork = unitOfWork;
+        _mapper = mapper;
+        _logger = logger;
+        _settings = settings.Value;
+    }
+
+    public async Task<KnowledgeBaseCategoryDto?> Handle(UpdateKnowledgeBaseCategoryCommand request, CancellationToken cancellationToken)
+    {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+        _logger.LogInformation("Updating knowledge base category {CategoryId}", request.CategoryId);
+
+        var category = await _context.Set<KnowledgeBaseCategory>()
+            .FirstOrDefaultAsync(c => c.Id == request.CategoryId, cancellationToken);
+
+        if (category == null)
+        {
+            _logger.LogWarning("Knowledge base category {CategoryId} not found for update", request.CategoryId);
+            throw new NotFoundException("Bilgi bankası kategorisi", request.CategoryId);
+        }
+
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        if (!string.IsNullOrEmpty(request.Name))
+        {
+            var newSlug = GenerateSlug(request.Name);
+            category.UpdateName(request.Name, newSlug);
+        }
+        if (request.Description != null)
+        {
+            category.UpdateDescription(request.Description);
+        }
+        if (request.ParentCategoryId.HasValue)
+        {
+            category.UpdateParentCategory(request.ParentCategoryId.Value);
+        }
+        if (request.DisplayOrder.HasValue)
+        {
+            category.UpdateDisplayOrder(request.DisplayOrder.Value);
+        }
+        if (request.IsActive.HasValue)
+        {
+            category.SetActive(request.IsActive.Value);
+        }
+        if (request.IconUrl != null)
+        {
+            category.UpdateIconUrl(request.IconUrl);
+        }
+
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Knowledge base category {CategoryId} updated successfully", request.CategoryId);
+
+        // ✅ PERFORMANCE: Reload with includes for mapping
+        category = await _context.Set<KnowledgeBaseCategory>()
+            .AsNoTracking()
+            .Include(c => c.ParentCategory)
+            .FirstOrDefaultAsync(c => c.Id == category.Id, cancellationToken);
+
+        // ✅ ARCHITECTURE: AutoMapper kullan
+        return _mapper.Map<KnowledgeBaseCategoryDto>(category!);
+    }
+
+    private string GenerateSlug(string name)
+    {
+        var slug = name.ToLowerInvariant()
+            .Replace(" ", "-")
+            .Replace("ğ", "g")
+            .Replace("ü", "u")
+            .Replace("ş", "s")
+            .Replace("ı", "i")
+            .Replace("ö", "o")
+            .Replace("ç", "c")
+            .Replace("Ğ", "g")
+            .Replace("Ü", "u")
+            .Replace("Ş", "s")
+            .Replace("İ", "i")
+            .Replace("Ö", "o")
+            .Replace("Ç", "c");
+
+        slug = System.Text.RegularExpressions.Regex.Replace(slug, @"[^a-z0-9\-]", "");
+        slug = System.Text.RegularExpressions.Regex.Replace(slug, @"-+", "-");
+        slug = slug.Trim('-');
+
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
+        if (slug.Length > _settings.MaxCategorySlugLength)
+        {
+            slug = slug.Substring(0, _settings.MaxCategorySlugLength);
+        }
+
+        return slug;
+    }
+}

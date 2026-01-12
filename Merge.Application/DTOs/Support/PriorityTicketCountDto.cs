@@ -1,8 +1,10 @@
 namespace Merge.Application.DTOs.Support;
 
-public class PriorityTicketCountDto
-{
-    public string Priority { get; set; } = string.Empty;
-    public int Count { get; set; }
-    public decimal Percentage { get; set; }
-}
+/// <summary>
+/// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+/// </summary>
+public record PriorityTicketCountDto(
+    string Priority,
+    int Count,
+    decimal Percentage
+);

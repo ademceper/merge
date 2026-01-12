@@ -167,4 +167,115 @@ public class SupportSettings
     /// Live chat message için maksimum content uzunluğu (alias for MaxChatMessageLength)
     /// </summary>
     public int MaxLiveChatMessageLength { get; set; } = 10000;
+
+    // Validator için minimum/maksimum değerler
+    /// <summary>
+    /// Minimum mesaj içeriği uzunluğu
+    /// </summary>
+    public int MinMessageContentLength { get; set; } = 1;
+
+    /// <summary>
+    /// Minimum soru uzunluğu (FAQ)
+    /// </summary>
+    public int MinFaqQuestionLength { get; set; } = 5;
+
+    /// <summary>
+    /// Minimum cevap uzunluğu (FAQ)
+    /// </summary>
+    public int MinFaqAnswerLength { get; set; } = 5;
+
+    /// <summary>
+    /// Minimum kategori adı uzunluğu
+    /// </summary>
+    public int MinCategoryNameLength { get; set; } = 2;
+
+    /// <summary>
+    /// Minimum başlık uzunluğu (Article)
+    /// </summary>
+    public int MinArticleTitleLength { get; set; } = 2;
+
+    /// <summary>
+    /// Minimum içerik uzunluğu (Article)
+    /// </summary>
+    public int MinArticleContentLength { get; set; } = 10;
+
+    /// <summary>
+    /// Minimum konu uzunluğu (Ticket)
+    /// </summary>
+    public int MinTicketSubjectLength { get; set; } = 5;
+
+    /// <summary>
+    /// Minimum açıklama uzunluğu (Ticket)
+    /// </summary>
+    public int MinTicketDescriptionLength { get; set; } = 10;
+
+    /// <summary>
+    /// Minimum misafir adı uzunluğu (Live Chat)
+    /// </summary>
+    public int MinGuestNameLength { get; set; } = 2;
+
+    /// <summary>
+    /// Maksimum misafir adı uzunluğu (Live Chat)
+    /// </summary>
+    public int MaxGuestNameLength { get; set; } = 100;
+
+    /// <summary>
+    /// Maksimum e-posta adresi uzunluğu
+    /// </summary>
+    public int MaxEmailLength { get; set; } = 200;
+
+    /// <summary>
+    /// Maksimum telefon numarası uzunluğu
+    /// </summary>
+    public int MaxPhoneNumberLength { get; set; } = 20;
+
+    /// <summary>
+    /// Maksimum departman uzunluğu
+    /// </summary>
+    public int MaxDepartmentLength { get; set; } = 50;
+
+    /// <summary>
+    /// Maksimum iletişim tipi uzunluğu
+    /// </summary>
+    public int MaxCommunicationTypeLength { get; set; } = 100;
+
+    /// <summary>
+    /// Maksimum kanal uzunluğu
+    /// </summary>
+    public int MaxChannelLength { get; set; } = 50;
+
+    /// <summary>
+    /// Maksimum mesaj tipi uzunluğu
+    /// </summary>
+    public int MaxMessageTypeLength { get; set; } = 50;
+
+    /// <summary>
+    /// Maksimum kategori enum uzunluğu
+    /// </summary>
+    public int MaxCategoryEnumLength { get; set; } = 50;
+
+    /// <summary>
+    /// Maksimum öncelik enum uzunluğu
+    /// </summary>
+    public int MaxPriorityEnumLength { get; set; } = 20;
+
+    /// <summary>
+    /// Maksimum IP adresi uzunluğu
+    /// </summary>
+    public int MaxIpAddressLength { get; set; } = 45;
+
+    /// <summary>
+    /// Maksimum User Agent uzunluğu
+    /// </summary>
+    public int MaxUserAgentLength { get; set; } = 500;
+
+    /// <summary>
+    /// Maksimum Icon URL uzunluğu
+    /// </summary>
+    public int MaxIconUrlLength { get; set; } = 500;
+
+    /// <summary>
+    /// Minimum görüntüleme sırası değeri
+    /// </summary>
+    public int MinDisplayOrder { get; set; } = 0;
 }

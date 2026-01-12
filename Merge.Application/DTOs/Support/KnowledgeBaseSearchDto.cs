@@ -1,10 +1,12 @@
 namespace Merge.Application.DTOs.Support;
 
-public class KnowledgeBaseSearchDto
-{
-    public string Query { get; set; } = string.Empty;
-    public Guid? CategoryId { get; set; }
-    public bool FeaturedOnly { get; set; } = false;
-    public int Page { get; set; } = 1;
-    public int PageSize { get; set; } = 20;
-}
+/// <summary>
+/// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+/// </summary>
+public record KnowledgeBaseSearchDto(
+    string Query,
+    Guid? CategoryId,
+    bool FeaturedOnly = false,
+    int Page = 1,
+    int PageSize = 20
+);

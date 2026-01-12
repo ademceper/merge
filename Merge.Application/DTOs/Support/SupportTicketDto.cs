@@ -1,29 +1,36 @@
-using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+
 namespace Merge.Application.DTOs.Support;
 
-public class SupportTicketDto
-{
-    public Guid Id { get; set; }
-    public string TicketNumber { get; set; } = string.Empty;
-    public Guid UserId { get; set; }
-    public string UserName { get; set; } = string.Empty;
-    public string UserEmail { get; set; } = string.Empty;
-    public string Category { get; set; } = string.Empty;
-    public string Priority { get; set; } = string.Empty;
-    public string Status { get; set; } = string.Empty;
-    public string Subject { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public Guid? OrderId { get; set; }
-    public string? OrderNumber { get; set; }
-    public Guid? ProductId { get; set; }
-    public string? ProductName { get; set; }
-    public Guid? AssignedToId { get; set; }
-    public string? AssignedToName { get; set; }
-    public DateTime? ResolvedAt { get; set; }
-    public DateTime? ClosedAt { get; set; }
-    public int ResponseCount { get; set; }
-    public DateTime? LastResponseAt { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public List<TicketMessageDto> Messages { get; set; } = new();
-    public List<TicketAttachmentDto> Attachments { get; set; } = new();
-}
+/// <summary>
+/// Support Ticket DTO with HATEOAS links
+/// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+/// </summary>
+public record SupportTicketDto(
+    Guid Id,
+    string TicketNumber,
+    Guid UserId,
+    string UserName,
+    string UserEmail,
+    string Category,
+    string Priority,
+    string Status,
+    string Subject,
+    string Description,
+    Guid? OrderId,
+    string? OrderNumber,
+    Guid? ProductId,
+    string? ProductName,
+    Guid? AssignedToId,
+    string? AssignedToName,
+    DateTime? ResolvedAt,
+    DateTime? ClosedAt,
+    int ResponseCount,
+    DateTime? LastResponseAt,
+    DateTime CreatedAt,
+    IReadOnlyList<TicketMessageDto> Messages,
+    IReadOnlyList<TicketAttachmentDto> Attachments,
+    // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+    [property: JsonPropertyName("_links")]
+    Dictionary<string, object>? Links = null
+);

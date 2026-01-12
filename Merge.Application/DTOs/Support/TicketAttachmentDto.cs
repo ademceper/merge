@@ -1,12 +1,13 @@
-using System.ComponentModel.DataAnnotations;
 namespace Merge.Application.DTOs.Support;
 
-public class TicketAttachmentDto
-{
-    public Guid Id { get; set; }
-    public string FileName { get; set; } = string.Empty;
-    public string FilePath { get; set; } = string.Empty;
-    public string FileType { get; set; } = string.Empty;
-    public long FileSize { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
+/// <summary>
+/// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+/// </summary>
+public record TicketAttachmentDto(
+    Guid Id,
+    string FileName,
+    string FilePath,
+    string FileType,
+    long FileSize,
+    DateTime CreatedAt
+);

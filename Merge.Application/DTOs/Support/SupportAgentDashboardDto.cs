@@ -1,43 +1,38 @@
 namespace Merge.Application.DTOs.Support;
 
-public class SupportAgentDashboardDto
-{
-    public Guid AgentId { get; set; }
-    public string AgentName { get; set; } = string.Empty;
-    
+/// <summary>
+/// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+/// </summary>
+public record SupportAgentDashboardDto(
+    Guid AgentId,
+    string AgentName,
     // Overview Stats
-    public int TotalTickets { get; set; }
-    public int OpenTickets { get; set; }
-    public int InProgressTickets { get; set; }
-    public int ResolvedTickets { get; set; }
-    public int ClosedTickets { get; set; }
-    public int UnassignedTickets { get; set; }
-    
+    int TotalTickets,
+    int OpenTickets,
+    int InProgressTickets,
+    int ResolvedTickets,
+    int ClosedTickets,
+    int UnassignedTickets,
     // Performance Metrics
-    public decimal AverageResponseTime { get; set; } // Hours
-    public decimal AverageResolutionTime { get; set; } // Hours
-    public int TicketsResolvedToday { get; set; }
-    public int TicketsResolvedThisWeek { get; set; }
-    public int TicketsResolvedThisMonth { get; set; }
-    public decimal ResolutionRate { get; set; } // Percentage
-    public decimal CustomerSatisfactionScore { get; set; } // 1-5
-    
+    decimal AverageResponseTime, // Hours
+    decimal AverageResolutionTime, // Hours
+    int TicketsResolvedToday,
+    int TicketsResolvedThisWeek,
+    int TicketsResolvedThisMonth,
+    decimal ResolutionRate, // Percentage
+    decimal CustomerSatisfactionScore, // 1-5
     // Workload Metrics
-    public int ActiveTickets { get; set; }
-    public int OverdueTickets { get; set; }
-    public int HighPriorityTickets { get; set; }
-    public int UrgentTickets { get; set; }
-    
+    int ActiveTickets,
+    int OverdueTickets,
+    int HighPriorityTickets,
+    int UrgentTickets,
     // Category Breakdown
-    public List<CategoryTicketCountDto> TicketsByCategory { get; set; } = new();
-    
+    IReadOnlyList<CategoryTicketCountDto> TicketsByCategory,
     // Priority Breakdown
-    public List<PriorityTicketCountDto> TicketsByPriority { get; set; } = new();
-    
+    IReadOnlyList<PriorityTicketCountDto> TicketsByPriority,
     // Time-based Trends
-    public List<TicketTrendDto> TicketTrends { get; set; } = new();
-    
+    IReadOnlyList<TicketTrendDto> TicketTrends,
     // Recent Activity
-    public List<SupportTicketDto> RecentTickets { get; set; } = new();
-    public List<SupportTicketDto> UrgentTicketsList { get; set; } = new();
-}
+    IReadOnlyList<SupportTicketDto> RecentTickets,
+    IReadOnlyList<SupportTicketDto> UrgentTicketsList
+);

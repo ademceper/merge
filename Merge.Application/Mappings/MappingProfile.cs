@@ -544,9 +544,37 @@ public class MappingProfile : Profile
             });
 
         // FAQ mappings
-        CreateMap<FAQ, FaqDto>().ReverseMap();
-        CreateMap<CreateFaqDto, FAQ>();
-        CreateMap<UpdateFaqDto, FAQ>();
+        // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping
+        CreateMap<FAQ, FaqDto>()
+            .ConvertUsing(src => new FaqDto(
+                src.Id,
+                src.Question,
+                src.Answer,
+                src.Category,
+                src.SortOrder,
+                src.ViewCount,
+                src.IsPublished,
+                null // Links will be set in controller
+            ));
+        
+        CreateMap<FaqDto, FAQ>()
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.RowVersion, opt => opt.Ignore());
+        
+        CreateMap<CreateFaqDto, FAQ>()
+            .ForMember(dest => dest.Id, opt => opt.Ignore())
+            .ForMember(dest => dest.ViewCount, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.RowVersion, opt => opt.Ignore());
+        
+        CreateMap<UpdateFaqDto, FAQ>()
+            .ForMember(dest => dest.Id, opt => opt.Ignore())
+            .ForMember(dest => dest.ViewCount, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.RowVersion, opt => opt.Ignore());
 
         // Banner mappings
         CreateMap<Banner, BannerDto>().ReverseMap();
@@ -1705,57 +1733,226 @@ public class MappingProfile : Profile
                 src.Limit.HasValue ? src.Limit.Value - src.UsageCount : (int?)null));
 
         // Support Domain Mappings
+        // ✅ BOLUM 7.1.5: Records - ConvertUsing ile record mapping (immutable DTOs)
         CreateMap<SupportTicket, SupportTicketDto>()
-            .ForMember(dest => dest.Category, opt => opt.MapFrom(src => src.Category.ToString()))
-            .ForMember(dest => dest.Priority, opt => opt.MapFrom(src => src.Priority.ToString()))
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src =>
-                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : "Unknown"))
-            .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User != null ? src.User.Email : string.Empty))
-            .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => src.Order != null ? src.Order.OrderNumber : null))
-            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : null))
-            .ForMember(dest => dest.AssignedToName, opt => opt.MapFrom(src =>
-                src.AssignedTo != null ? $"{src.AssignedTo.FirstName} {src.AssignedTo.LastName}" : null))
-            .ForMember(dest => dest.Messages, opt => opt.Ignore()) // Will be set in SupportTicketService after batch loading
-            .ForMember(dest => dest.Attachments, opt => opt.Ignore()); // Will be set in SupportTicketService after batch loading
+            .ConvertUsing((src, context) =>
+            {
+                var messages = src.Messages != null && src.Messages.Any()
+                    ? src.Messages.Select(m => new TicketMessageDto(
+                        m.Id,
+                        m.TicketId,
+                        m.UserId,
+                        m.User != null ? $"{m.User.FirstName} {m.User.LastName}" : "Unknown",
+                        m.Message,
+                        m.IsStaffResponse,
+                        m.IsInternal,
+                        m.CreatedAt,
+                        m.Attachments != null && m.Attachments.Any()
+                            ? m.Attachments.Select(a => new TicketAttachmentDto(
+                                a.Id,
+                                a.FileName,
+                                a.FilePath,
+                                a.FileType,
+                                a.FileSize,
+                                a.CreatedAt
+                            )).ToList().AsReadOnly()
+                            : Array.Empty<TicketAttachmentDto>().AsReadOnly()
+                    )).ToList().AsReadOnly()
+                    : Array.Empty<TicketMessageDto>().AsReadOnly();
+                
+                var attachments = src.Attachments != null && src.Attachments.Any()
+                    ? src.Attachments.Select(a => new TicketAttachmentDto(
+                        a.Id,
+                        a.FileName,
+                        a.FilePath,
+                        a.FileType,
+                        a.FileSize,
+                        a.CreatedAt
+                    )).ToList().AsReadOnly()
+                    : Array.Empty<TicketAttachmentDto>().AsReadOnly();
+
+                return new SupportTicketDto(
+                    src.Id,
+                    src.TicketNumber,
+                    src.UserId,
+                    src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : "Unknown",
+                    src.User != null ? src.User.Email ?? string.Empty : string.Empty,
+                    src.Category.ToString(),
+                    src.Priority.ToString(),
+                    src.Status.ToString(),
+                    src.Subject,
+                    src.Description,
+                    src.OrderId,
+                    src.Order != null ? src.Order.OrderNumber : null,
+                    src.ProductId,
+                    src.Product != null ? src.Product.Name : null,
+                    src.AssignedToId,
+                    src.AssignedTo != null ? $"{src.AssignedTo.FirstName} {src.AssignedTo.LastName}" : null,
+                    src.ResolvedAt,
+                    src.ClosedAt,
+                    src.Messages != null ? src.Messages.Count : 0,
+                    src.Messages != null && src.Messages.Any() ? src.Messages.Max(m => m.CreatedAt) : null,
+                    src.CreatedAt,
+                    messages,
+                    attachments,
+                    null // Links will be set in controller
+                );
+            });
 
         CreateMap<TicketMessage, TicketMessageDto>()
-            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src =>
-                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : "Unknown"))
-            .ForMember(dest => dest.Attachments, opt => opt.Ignore()); // Will be set in SupportTicketService after batch loading
+            .ConvertUsing((src, context) =>
+            {
+                var attachments = src.Attachments != null && src.Attachments.Any()
+                    ? src.Attachments.Select(a => new TicketAttachmentDto(
+                        a.Id,
+                        a.FileName,
+                        a.FilePath,
+                        a.FileType,
+                        a.FileSize,
+                        a.CreatedAt
+                    )).ToList().AsReadOnly()
+                    : Array.Empty<TicketAttachmentDto>().AsReadOnly();
 
-        CreateMap<TicketAttachment, TicketAttachmentDto>();
+                return new TicketMessageDto(
+                    src.Id,
+                    src.TicketId,
+                    src.UserId,
+                    src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : "Unknown",
+                    src.Message,
+                    src.IsStaffResponse,
+                    src.IsInternal,
+                    src.CreatedAt,
+                    attachments
+                );
+            });
+
+        CreateMap<TicketAttachment, TicketAttachmentDto>()
+            .ConvertUsing(src => new TicketAttachmentDto(
+                src.Id,
+                src.FileName,
+                src.FilePath,
+                src.FileType,
+                src.FileSize,
+                src.CreatedAt
+            ));
 
         CreateMap<CustomerCommunication, CustomerCommunicationDto>()
-            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src =>
-                src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty))
-            .ForMember(dest => dest.SentByName, opt => opt.MapFrom(src =>
-                src.SentBy != null ? $"{src.SentBy.FirstName} {src.SentBy.LastName}" : null))
-            .ForMember(dest => dest.Metadata, opt => opt.Ignore()) // Will be set in AfterMap
-            .AfterMap((src, dest) =>
+            .ConvertUsing((src, context) =>
             {
-                // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
-                dest.Metadata = !string.IsNullOrEmpty(src.Metadata)
-                    ? JsonSerializer.Deserialize<CustomerCommunicationSettingsDto>(src.Metadata)
-                    : null;
+                CustomerCommunicationSettingsDto? metadata = null;
+                if (!string.IsNullOrEmpty(src.Metadata))
+                {
+                    try
+                    {
+                        metadata = JsonSerializer.Deserialize<CustomerCommunicationSettingsDto>(src.Metadata);
+                    }
+                    catch
+                    {
+                        // ✅ ERROR HANDLING: JSON deserialize hatası - null bırak
+                    }
+                }
+
+                return new CustomerCommunicationDto(
+                    src.Id,
+                    src.UserId,
+                    src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty,
+                    src.CommunicationType,
+                    src.Channel,
+                    src.Subject,
+                    src.Content,
+                    src.Direction,
+                    src.RelatedEntityId,
+                    src.RelatedEntityType,
+                    src.SentByUserId,
+                    src.SentBy != null ? $"{src.SentBy.FirstName} {src.SentBy.LastName}" : null,
+                    src.RecipientEmail,
+                    src.RecipientPhone,
+                    src.Status.ToString(),
+                    src.SentAt,
+                    src.DeliveredAt,
+                    src.ReadAt,
+                    src.ErrorMessage,
+                    metadata,
+                    src.CreatedAt,
+                    null // Links will be set in controller
+                );
             });
 
         CreateMap<KnowledgeBaseArticle, KnowledgeBaseArticleDto>()
-            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : null))
-            .ForMember(dest => dest.AuthorName, opt => opt.MapFrom(src =>
-                src.Author != null ? $"{src.Author.FirstName} {src.Author.LastName}" : null))
-            .ForMember(dest => dest.Tags, opt => opt.Ignore()) // Will be set in AfterMap
-            .AfterMap((src, dest) =>
+            .ConvertUsing((src, context) =>
             {
-                dest.Tags = !string.IsNullOrEmpty(src.Tags)
-                    ? src.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
-                    : new List<string>();
+                var tags = !string.IsNullOrEmpty(src.Tags)
+                    ? src.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList().AsReadOnly()
+                    : Array.Empty<string>().AsReadOnly();
+
+                return new KnowledgeBaseArticleDto(
+                    src.Id,
+                    src.Title,
+                    src.Slug,
+                    src.Content,
+                    src.Excerpt,
+                    src.CategoryId,
+                    src.Category != null ? src.Category.Name : null,
+                    src.Status.ToString(),
+                    src.ViewCount,
+                    src.HelpfulCount,
+                    src.NotHelpfulCount,
+                    src.IsFeatured,
+                    src.DisplayOrder,
+                    tags,
+                    src.AuthorId,
+                    src.Author != null ? $"{src.Author.FirstName} {src.Author.LastName}" : null,
+                    src.PublishedAt,
+                    src.CreatedAt,
+                    src.UpdatedAt,
+                    null // Links will be set in controller
+                );
             });
 
         CreateMap<KnowledgeBaseCategory, KnowledgeBaseCategoryDto>()
-            .ForMember(dest => dest.ParentCategoryName, opt => opt.MapFrom(src => src.ParentCategory != null ? src.ParentCategory.Name : null))
-            .ForMember(dest => dest.ArticleCount, opt => opt.Ignore()) // Will be set in KnowledgeBaseService after batch loading
-            .ForMember(dest => dest.SubCategories, opt => opt.Ignore()); // Will be set in KnowledgeBaseService recursively
+            .ConvertUsing((src, context) =>
+            {
+                // Recursive mapping için helper method kullanıyoruz
+                IReadOnlyList<KnowledgeBaseCategoryDto> MapSubCategories(KnowledgeBaseCategory category)
+                {
+                    if (category.SubCategories == null || !category.SubCategories.Any())
+                        return Array.Empty<KnowledgeBaseCategoryDto>().AsReadOnly();
+
+                    return category.SubCategories.Select(sc => new KnowledgeBaseCategoryDto(
+                        sc.Id,
+                        sc.Name,
+                        sc.Slug,
+                        sc.Description,
+                        sc.ParentCategoryId,
+                        sc.ParentCategory != null ? sc.ParentCategory.Name : null,
+                        sc.DisplayOrder,
+                        sc.IsActive,
+                        sc.IconUrl,
+                        0, // ArticleCount will be set in handler
+                        MapSubCategories(sc), // Recursive
+                        sc.CreatedAt,
+                        null // Links will be set in controller
+                    )).ToList().AsReadOnly();
+                }
+
+                var subCategories = MapSubCategories(src);
+
+                return new KnowledgeBaseCategoryDto(
+                    src.Id,
+                    src.Name,
+                    src.Slug,
+                    src.Description,
+                    src.ParentCategoryId,
+                    src.ParentCategory != null ? src.ParentCategory.Name : null,
+                    src.DisplayOrder,
+                    src.IsActive,
+                    src.IconUrl,
+                    0, // ArticleCount will be set in handler
+                    subCategories,
+                    src.CreatedAt,
+                    null // Links will be set in controller
+                );
+            });
 
         CreateMap<LiveChatSession, LiveChatSessionDto>()
             .ForMember(dest => dest.UserName, opt => opt.MapFrom(src =>

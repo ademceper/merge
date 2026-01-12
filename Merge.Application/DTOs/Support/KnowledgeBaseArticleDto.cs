@@ -1,24 +1,32 @@
+using System.Text.Json.Serialization;
+
 namespace Merge.Application.DTOs.Support;
 
-public class KnowledgeBaseArticleDto
-{
-    public Guid Id { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public string Content { get; set; } = string.Empty;
-    public string? Excerpt { get; set; }
-    public Guid? CategoryId { get; set; }
-    public string? CategoryName { get; set; }
-    public string Status { get; set; } = string.Empty;
-    public int ViewCount { get; set; }
-    public int HelpfulCount { get; set; }
-    public int NotHelpfulCount { get; set; }
-    public bool IsFeatured { get; set; }
-    public int DisplayOrder { get; set; }
-    public List<string> Tags { get; set; } = new();
-    public Guid? AuthorId { get; set; }
-    public string? AuthorName { get; set; }
-    public DateTime? PublishedAt { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime? UpdatedAt { get; set; }
-}
+/// <summary>
+/// Knowledge Base Article DTO with HATEOAS links
+/// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+/// </summary>
+public record KnowledgeBaseArticleDto(
+    Guid Id,
+    string Title,
+    string Slug,
+    string Content,
+    string? Excerpt,
+    Guid? CategoryId,
+    string? CategoryName,
+    string Status,
+    int ViewCount,
+    int HelpfulCount,
+    int NotHelpfulCount,
+    bool IsFeatured,
+    int DisplayOrder,
+    IReadOnlyList<string> Tags,
+    Guid? AuthorId,
+    string? AuthorName,
+    DateTime? PublishedAt,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt,
+    // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
+    [property: JsonPropertyName("_links")]
+    Dictionary<string, object>? Links = null
+);

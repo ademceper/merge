@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Merge.Application.Exceptions;
+using Merge.Domain.Exceptions;
 
 namespace Merge.API.Middleware;
 
@@ -91,6 +92,18 @@ public class GlobalExceptionHandlerMiddleware
                 problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
                 
                 context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+                break;
+                
+            case DomainException domainEx:
+                problemDetails.Type = "https://api.merge.com/errors/domain-error";
+                problemDetails.Title = "Domain Error";
+                problemDetails.Status = (int)HttpStatusCode.BadRequest;
+                problemDetails.Instance = context.Request.Path;
+                problemDetails.Detail = domainEx.Message;
+                problemDetails.Extensions["traceId"] = traceId;
+                problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
+                
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 break;
                 
             case NotFoundException:

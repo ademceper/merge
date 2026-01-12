@@ -1,8 +1,12 @@
 using System.ComponentModel.DataAnnotations;
+
 namespace Merge.Application.DTOs.Support;
 
-public class AssignTicketDto
+/// <summary>
+/// ✅ BOLUM 7.1.5: Records - DTO'lar record olmalı (ZORUNLU)
+/// </summary>
+public record AssignTicketDto
 {
     [Required]
-    public Guid AssignedToId { get; set; }
+    public Guid AssignedToId { get; init; }
 }

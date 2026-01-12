@@ -31,7 +31,7 @@ using Merge.Application.Interfaces.ShippingProviders;
 using Merge.Application.Interfaces.SmsProviders;
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - ISubscriptionService kaldırıldı
 // using Merge.Application.Interfaces.Subscription; // REMOVED - CQRS pattern'e geçildi
-using Merge.Application.Interfaces.Support;
+// using Merge.Application.Interfaces.Support; // REMOVED - CQRS pattern'e geçildi
 using Merge.Application.Interfaces.User;
 using Merge.Application.Services;
 using Merge.Application.Services.Content;
@@ -385,7 +385,8 @@ builder.Services.AddScoped<ISellerDashboardService, Merge.Application.Services.S
 #pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek
 builder.Services.AddScoped<IEmailVerificationService, Merge.Application.Services.Identity.EmailVerificationService>();
 builder.Services.AddScoped<ISavedCartService, Merge.Application.Services.Cart.SavedCartService>();
-builder.Services.AddScoped<IFaqService, Merge.Application.Services.Support.FaqService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<IFaqService, Merge.Application.Services.Support.FaqService>();
 builder.Services.AddScoped<IBannerService, BannerService>();
 // ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
 // builder.Services.AddScoped<IGiftCardService, Merge.Application.Services.Marketing.GiftCardService>();
@@ -424,15 +425,18 @@ builder.Services.AddScoped<IProductComparisonService, Merge.Application.Services
 builder.Services.AddScoped<ISizeGuideService, Merge.Application.Services.Product.SizeGuideService>();
 // ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
 // builder.Services.AddScoped<IReviewHelpfulnessService, Merge.Application.Services.Review.ReviewHelpfulnessService>();
-builder.Services.AddScoped<ISupportTicketService, Merge.Application.Services.Support.SupportTicketService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<ISupportTicketService, Merge.Application.Services.Support.SupportTicketService>();
 // ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
 // builder.Services.AddScoped<ITrustBadgeService, Merge.Application.Services.Review.TrustBadgeService>();
-builder.Services.AddScoped<IKnowledgeBaseService, Merge.Application.Services.Support.KnowledgeBaseService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<IKnowledgeBaseService, Merge.Application.Services.Support.KnowledgeBaseService>();
 #pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek
 builder.Services.AddScoped<IPolicyService, PolicyService>();
 #pragma warning restore CS0618 // Type or member is obsolete
 builder.Services.AddScoped<INotificationPreferenceService, Merge.Application.Services.Notification.NotificationPreferenceService>();
-builder.Services.AddScoped<ICustomerCommunicationService, Merge.Application.Services.Support.CustomerCommunicationService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<ICustomerCommunicationService, Merge.Application.Services.Support.CustomerCommunicationService>();
 builder.Services.AddScoped<ISellerFinanceService, Merge.Application.Services.Seller.SellerFinanceService>();
 builder.Services.AddScoped<IStoreService, Merge.Application.Services.Seller.StoreService>();
 builder.Services.AddScoped<IProductTemplateService, Merge.Application.Services.Product.ProductTemplateService>();
@@ -454,7 +458,8 @@ builder.Services.AddScoped<IProductQuestionService, Merge.Application.Services.P
 builder.Services.AddScoped<ISellerCommissionService, Merge.Application.Services.Seller.SellerCommissionService>();
 builder.Services.AddScoped<ICMSService, Merge.Application.Services.Content.CMSService>();
 builder.Services.AddScoped<ILandingPageService, Merge.Application.Services.Content.LandingPageService>();
-builder.Services.AddScoped<Merge.Application.Interfaces.Support.ILiveChatService, Merge.Application.Services.Support.LiveChatService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<Merge.Application.Interfaces.Support.ILiveChatService, Merge.Application.Services.Support.LiveChatService>();
 builder.Services.AddScoped<IFraudDetectionService, Merge.Application.Services.ML.FraudDetectionService>();
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Security domain service'leri kaldırıldı, handler'lar kullanılıyor
 // Security domain artık MediatR handler'ları kullanıyor, service registration'ları kaldırıldı

@@ -110,6 +110,19 @@ public class FAQ : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
+    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
+    public void MarkAsDeleted()
+    {
+        if (IsDeleted)
+            throw new DomainException("FAQ zaten silinmiş");
+
+        IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FaqDeletedEvent
+        AddDomainEvent(new FaqDeletedEvent(Id, Question, Category));
+    }
+
     // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {

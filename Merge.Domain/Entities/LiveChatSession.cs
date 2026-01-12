@@ -167,6 +167,24 @@ public class LiveChatSession : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
+    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
+    public void MarkAsDeleted()
+    {
+        if (IsDeleted)
+            throw new DomainException("Chat session zaten silinmiş");
+
+        IsDeleted = true;
+        if (Status != ChatSessionStatus.Closed)
+        {
+            Status = ChatSessionStatus.Closed;
+            ResolvedAt = DateTime.UtcNow;
+        }
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - LiveChatSessionDeletedEvent
+        AddDomainEvent(new LiveChatSessionDeletedEvent(Id, SessionId, UserId, AgentId));
+    }
+
     // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
