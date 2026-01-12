@@ -40,7 +40,8 @@ public class ActivateUserCommandHandler : IRequestHandler<ActivateUserCommand, b
             return false;
         }
 
-        user.EmailConfirmed = true;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        user.Activate();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         
         _logger.LogInformation("User activated successfully. UserId: {UserId}", request.UserId);

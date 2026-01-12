@@ -160,5 +160,31 @@ public class User : IdentityUser<Guid>, IAggregateRoot
         // ✅ BOLUM 1.5: Domain Events - UserEmailConfirmedEvent
         AddDomainEvent(new UserEmailConfirmedEvent(Id, Email ?? string.Empty));
     }
+
+    // ✅ BOLUM 1.1: Domain Method - Activate user (set EmailConfirmed = true)
+    public void Activate()
+    {
+        if (EmailConfirmed)
+            throw new DomainException("User is already activated");
+
+        EmailConfirmed = true;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - UserActivatedEvent
+        AddDomainEvent(new UserActivatedEvent(Id, Email ?? string.Empty));
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Deactivate user (set EmailConfirmed = false)
+    public void Deactivate()
+    {
+        if (!EmailConfirmed)
+            throw new DomainException("User is already deactivated");
+
+        EmailConfirmed = false;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - UserDeactivatedEvent
+        AddDomainEvent(new UserDeactivatedEvent(Id, Email ?? string.Empty));
+    }
 }
 

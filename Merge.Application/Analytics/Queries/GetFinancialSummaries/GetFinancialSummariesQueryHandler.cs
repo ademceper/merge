@@ -72,6 +72,8 @@ public class GetFinancialSummariesQueryHandler : IRequestHandler<GetFinancialSum
             var profitPercentage = _settings.DefaultProfitPercentage;
             var profitMargin = (int)(profitPercentage * 100);
             
+            // ✅ BOLUM 1.2: Enum kullanımı (string 'Paid' YASAK) - PaymentStatus.Completed kullan
+            var paymentStatusValue = (int)PaymentStatus.Completed;
             summaries = await _context.Database
                 .SqlQueryRaw<FinancialSummaryDto>(@"
                     SELECT 
@@ -82,12 +84,12 @@ public class GetFinancialSummariesQueryHandler : IRequestHandler<GetFinancialSum
                         {4} AS ""ProfitMargin"",
                         COUNT(*) AS ""TotalOrders""
                     FROM ""Orders""
-                    WHERE ""PaymentStatus"" = 'Paid'
+                    WHERE ""PaymentStatus"" = {5}
                       AND ""CreatedAt"" >= {0}
                       AND ""CreatedAt"" <= {1}
                     GROUP BY DATE_TRUNC('week', ""CreatedAt"")
                     ORDER BY ""Period""
-                ", request.StartDate, request.EndDate, costPercentage, profitPercentage, profitMargin)
+                ", request.StartDate, request.EndDate, costPercentage, profitPercentage, profitMargin, paymentStatusValue)
                 .ToListAsync(cancellationToken);
         }
         else if (request.Period == "monthly")

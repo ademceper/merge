@@ -1,5 +1,4 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;

@@ -1,6 +1,5 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Enums;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using System.ComponentModel.DataAnnotations;
@@ -11,11 +10,12 @@ namespace Merge.Domain.Modules.Analytics;
 /// <summary>
 /// DataWarehouse Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot gerekli
 /// BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class DataWarehouse : BaseEntity
+public class DataWarehouse : BaseAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;

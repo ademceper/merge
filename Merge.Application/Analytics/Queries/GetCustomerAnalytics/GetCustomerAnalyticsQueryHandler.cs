@@ -121,20 +121,101 @@ public class GetCustomerAnalyticsQueryHandler : IRequestHandler<GetCustomerAnaly
             .ToListAsync(cancellationToken);
     }
 
-    private Task<List<CustomerSegmentDto>> GetCustomerSegmentsAsync(CancellationToken cancellationToken)
+    private async Task<List<CustomerSegmentDto>> GetCustomerSegmentsAsync(CancellationToken cancellationToken)
     {
-        // Simplified segmentation - can be enhanced
-        // ✅ ARCHITECTURE: .cursorrules'a göre manuel mapping YASAK, AutoMapper kullanıyoruz
-        var segmentsData = new[]
-        {
-            new { Segment = "VIP", CustomerCount = 0, TotalRevenue = 0m, AverageOrderValue = 0m },
-            new { Segment = "Active", CustomerCount = 0, TotalRevenue = 0m, AverageOrderValue = 0m },
-            new { Segment = "New", CustomerCount = 0, TotalRevenue = 0m, AverageOrderValue = 0m }
-        };
+        // ✅ PERFORMANCE: Database'de customer segmentation yap (memory'de değil)
+        // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
+        
+        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
+        var vipThreshold = _settings.VipCustomerThreshold ?? 10000m;
+        var activeDaysThreshold = _settings.ActiveCustomerDaysThreshold ?? 90;
+        var newCustomerDays = _settings.NewCustomerDaysThreshold ?? 30;
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        var segments = _mapper.Map<List<CustomerSegmentDto>>(segmentsData);
-        return Task.FromResult(segments);
+        var now = DateTime.UtcNow;
+        var activeDateThreshold = now.AddDays(-activeDaysThreshold);
+        var newCustomerDateThreshold = now.AddDays(-newCustomerDays);
+
+        // VIP Customers - Toplam harcaması threshold'dan fazla olanlar
+        var vipCustomers = await _context.Set<OrderEntity>()
+            .AsNoTracking()
+            .GroupBy(o => o.UserId)
+            .Select(g => new
+            {
+                UserId = g.Key,
+                TotalRevenue = g.Sum(o => o.TotalAmount)
+            })
+            .Where(x => x.TotalRevenue >= vipThreshold)
+            .Select(x => x.UserId)
+            .ToListAsync(cancellationToken);
+
+        var vipCount = vipCustomers.Count;
+        var vipOrdersQuery = vipCount > 0
+            ? _context.Set<OrderEntity>()
+                .AsNoTracking()
+                .Where(o => vipCustomers.Contains(o.UserId))
+            : _context.Set<OrderEntity>().AsNoTracking().Where(o => false);
+
+        var vipRevenue = vipCount > 0
+            ? await vipOrdersQuery.SumAsync(o => o.TotalAmount, cancellationToken)
+            : 0m;
+        var vipOrderCount = vipCount > 0
+            ? await vipOrdersQuery.CountAsync(cancellationToken)
+            : 0;
+        var vipAvgOrderValue = vipOrderCount > 0 ? vipRevenue / vipOrderCount : 0m;
+
+        // Active Customers - Son X gün içinde sipariş verenler
+        var activeCustomers = await _context.Set<OrderEntity>()
+            .AsNoTracking()
+            .Where(o => o.CreatedAt >= activeDateThreshold)
+            .Select(o => o.UserId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var activeCount = activeCustomers.Count;
+        var activeOrdersQuery = activeCount > 0
+            ? _context.Set<OrderEntity>()
+                .AsNoTracking()
+                .Where(o => activeCustomers.Contains(o.UserId) && o.CreatedAt >= activeDateThreshold)
+            : _context.Set<OrderEntity>().AsNoTracking().Where(o => false);
+
+        var activeRevenue = activeCount > 0
+            ? await activeOrdersQuery.SumAsync(o => o.TotalAmount, cancellationToken)
+            : 0m;
+        var activeOrderCount = activeCount > 0
+            ? await activeOrdersQuery.CountAsync(cancellationToken)
+            : 0;
+        var activeAvgOrderValue = activeOrderCount > 0 ? activeRevenue / activeOrderCount : 0m;
+
+        // New Customers - Son X gün içinde kayıt olanlar
+        var newCustomers = await _context.Users
+            .AsNoTracking()
+            .Where(u => u.CreatedAt >= newCustomerDateThreshold)
+            .Select(u => u.Id)
+            .ToListAsync(cancellationToken);
+
+        var newCount = newCustomers.Count;
+        var newOrdersQuery = newCount > 0
+            ? _context.Set<OrderEntity>()
+                .AsNoTracking()
+                .Where(o => newCustomers.Contains(o.UserId))
+            : _context.Set<OrderEntity>().AsNoTracking().Where(o => false);
+
+        var newRevenue = newCount > 0
+            ? await newOrdersQuery.SumAsync(o => o.TotalAmount, cancellationToken)
+            : 0m;
+        var newOrderCount = newCount > 0
+            ? await newOrdersQuery.CountAsync(cancellationToken)
+            : 0;
+        var newAvgOrderValue = newOrderCount > 0 ? newRevenue / newOrderCount : 0m;
+
+        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
+        return new List<CustomerSegmentDto>
+        {
+            new CustomerSegmentDto("VIP", vipCount, vipRevenue, vipAvgOrderValue),
+            new CustomerSegmentDto("Active", activeCount, activeRevenue, activeAvgOrderValue),
+            new CustomerSegmentDto("New", newCount, newRevenue, newAvgOrderValue)
+        };
     }
 }
 

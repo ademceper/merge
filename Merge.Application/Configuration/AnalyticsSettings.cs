@@ -88,5 +88,20 @@ public class AnalyticsSettings
     /// Maximum number of low stock alerts to return in overview (default: 5)
     /// </summary>
     public int MaxLowStockAlertsInOverview { get; set; } = 5;
+
+    /// <summary>
+    /// VIP customer threshold - minimum total revenue to be considered VIP (default: 10000)
+    /// </summary>
+    public decimal? VipCustomerThreshold { get; set; } = 10000m;
+
+    /// <summary>
+    /// Active customer days threshold - customers who ordered in last X days (default: 90)
+    /// </summary>
+    public int? ActiveCustomerDaysThreshold { get; set; } = 90;
+
+    /// <summary>
+    /// New customer days threshold - customers registered in last X days (default: 30)
+    /// </summary>
+    public int? NewCustomerDaysThreshold { get; set; } = 30;
 }
 

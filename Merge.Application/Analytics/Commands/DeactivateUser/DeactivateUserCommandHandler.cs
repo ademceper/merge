@@ -40,7 +40,8 @@ public class DeactivateUserCommandHandler : IRequestHandler<DeactivateUserComman
             return false;
         }
 
-        user.EmailConfirmed = false;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        user.Deactivate();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         
         _logger.LogInformation("User deactivated successfully. UserId: {UserId}", request.UserId);

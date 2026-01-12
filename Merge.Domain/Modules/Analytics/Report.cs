@@ -1,6 +1,5 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Enums;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
 using Merge.Domain.SharedKernel.DomainEvents;
 using System.ComponentModel.DataAnnotations;
@@ -152,6 +151,12 @@ public class Report : BaseAggregateRoot
     {
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ReportDeletedEvent yayınla
+        AddDomainEvent(new ReportDeletedEvent(
+            Id,
+            GeneratedBy,
+            Type.ToString()));
     }
 }
 
