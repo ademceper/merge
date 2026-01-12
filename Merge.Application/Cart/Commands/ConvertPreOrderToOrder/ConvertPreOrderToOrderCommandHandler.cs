@@ -6,7 +6,13 @@ using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
-using AddressEntity = Merge.Domain.Entities.Address;
+using AddressEntity = Merge.Domain.Modules.Identity.Address;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.ConvertPreOrderToOrder;
 
@@ -59,9 +65,9 @@ public class ConvertPreOrderToOrderCommandHandler : IRequestHandler<ConvertPreOr
                 throw new BusinessException("Sipariş oluşturmak için adres bilgisi gereklidir.");
             }
 
-            var order = Merge.Domain.Entities.Order.Create(preOrder.UserId, address.Id, address);
+            var order = Merge.Domain.Modules.Ordering.Order.Create(preOrder.UserId, address.Id, address);
 
-            var product = await _context.Set<Merge.Domain.Entities.Product>()
+            var product = await _context.Set<Merge.Domain.Modules.Catalog.Product>()
                 .FirstOrDefaultAsync(p => p.Id == preOrder.ProductId, cancellationToken);
 
             if (product == null)
@@ -77,7 +83,7 @@ public class ConvertPreOrderToOrderCommandHandler : IRequestHandler<ConvertPreOr
             var tax = new Money(0);
             order.SetTax(tax);
 
-            await _context.Set<Merge.Domain.Entities.Order>().AddAsync(order, cancellationToken);
+            await _context.Set<Merge.Domain.Modules.Ordering.Order>().AddAsync(order, cancellationToken);
 
             preOrder.ConvertToOrder(order.Id);
 

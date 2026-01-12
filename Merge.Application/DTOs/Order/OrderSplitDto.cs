@@ -1,4 +1,6 @@
 using Merge.Application.DTOs.User;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.DTOs.Order;
 

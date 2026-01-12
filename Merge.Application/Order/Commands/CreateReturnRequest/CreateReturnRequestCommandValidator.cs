@@ -1,5 +1,6 @@
 using FluentValidation;
 using Merge.Application.Order.Commands.CreateReturnRequest;
+using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Commands.CreateReturnRequest;
 

@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using Merge.Domain.Modules.Content;
+using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.DTOs.B2B;
 

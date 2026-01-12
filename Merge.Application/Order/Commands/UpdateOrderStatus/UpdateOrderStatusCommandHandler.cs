@@ -5,7 +5,14 @@ using AutoMapper;
 using Merge.Application.DTOs.Order;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
-using OrderEntity = Merge.Domain.Entities.Order;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
+using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Commands.UpdateOrderStatus;
 

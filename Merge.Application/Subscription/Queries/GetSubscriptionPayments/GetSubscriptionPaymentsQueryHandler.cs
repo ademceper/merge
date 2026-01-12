@@ -5,6 +5,10 @@ using AutoMapper;
 using Merge.Application.DTOs.Subscription;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Payment;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Subscription.Queries.GetSubscriptionPayments;
 

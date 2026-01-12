@@ -4,6 +4,10 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.DeleteSEOSettings;
 
@@ -11,7 +15,7 @@ namespace Merge.Application.Content.Commands.DeleteSEOSettings;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteSEOSettingsCommandHandler : IRequestHandler<DeleteSEOSettingsCommand, bool>
 {
-    private readonly IRepository<SEOSettings> _seoSettingsRepository;
+    private readonly Merge.Application.Interfaces.IRepository<SEOSettings> _seoSettingsRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -19,7 +23,7 @@ public class DeleteSEOSettingsCommandHandler : IRequestHandler<DeleteSEOSettings
     private const string CACHE_KEY_SEO_SETTINGS = "seo_settings_";
 
     public DeleteSEOSettingsCommandHandler(
-        IRepository<SEOSettings> seoSettingsRepository,
+        Merge.Application.Interfaces.IRepository<SEOSettings> seoSettingsRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,

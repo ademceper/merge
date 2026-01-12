@@ -1,6 +1,8 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Merge.Domain.Common.DomainEvents;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.ValueObjects;
+using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Review.EventHandlers;
 

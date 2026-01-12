@@ -7,6 +7,12 @@ using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using AutoMapper;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.CreatePreOrder;
 
@@ -36,7 +42,7 @@ public class CreatePreOrderCommandHandler : IRequestHandler<CreatePreOrderComman
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var product = await _context.Set<Merge.Domain.Entities.Product>()
+            var product = await _context.Set<Merge.Domain.Modules.Catalog.Product>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 

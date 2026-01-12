@@ -1,4 +1,5 @@
 using FluentValidation;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Governance.Queries.CompareChanges;
 
@@ -11,4 +12,3 @@ public class CompareChangesQueryValidator : AbstractValidator<CompareChangesQuer
             .NotEmpty().WithMessage("Audit log ID gereklidir");
     }
 }
-

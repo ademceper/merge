@@ -1,3 +1,4 @@
+using Merge.Domain.Modules.Marketplace;
 namespace Merge.Application.Configuration;
 
 /// <summary>

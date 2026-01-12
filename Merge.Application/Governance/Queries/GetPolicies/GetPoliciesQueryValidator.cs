@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
+using Merge.Domain.Modules.Content;
 
 namespace Merge.Application.Governance.Queries.GetPolicies;
 

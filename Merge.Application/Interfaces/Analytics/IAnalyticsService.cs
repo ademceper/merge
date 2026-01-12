@@ -1,6 +1,9 @@
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Review;
 using Merge.Application.Common;
+using Merge.Domain.Modules.Analytics;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Inventory;
 
 namespace Merge.Application.Interfaces.Analytics;
 

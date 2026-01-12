@@ -3,6 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using AutoMapper;
 using Merge.Application.DTOs.Marketing;
 using Merge.Application.Interfaces;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Marketing;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetCampaignAnalytics;
 
@@ -21,7 +25,7 @@ public class GetCampaignAnalyticsQueryHandler : IRequestHandler<GetCampaignAnaly
     public async Task<EmailCampaignAnalyticsDto?> Handle(GetCampaignAnalyticsQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        var campaign = await _context.Set<Merge.Domain.Entities.EmailCampaign>()
+        var campaign = await _context.Set<Merge.Domain.Modules.Marketing.EmailCampaign>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == request.CampaignId, cancellationToken);
 

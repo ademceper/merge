@@ -5,6 +5,11 @@ using AutoMapper;
 using Merge.Application.DTOs.Security;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Governance.Queries.GetUserAuditHistory;
 
@@ -53,4 +58,3 @@ public class GetUserAuditHistoryQueryHandler : IRequestHandler<GetUserAuditHisto
         return result;
     }
 }
-

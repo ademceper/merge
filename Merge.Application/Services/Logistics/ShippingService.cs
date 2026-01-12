@@ -2,7 +2,7 @@ using AutoMapper;
 using MediatR;
 using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces.User;
-using OrderEntity = Merge.Domain.Entities.Order;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.Logistics;
 using Merge.Application.Exceptions;
@@ -13,14 +13,20 @@ using Merge.Application.Interfaces;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Notification.Commands.CreateNotification;
 using Microsoft.Extensions.Logging;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Logistics;
 
 public class ShippingService : IShippingService
 {
-    private readonly IRepository<Shipping> _shippingRepository;
-    private readonly IRepository<OrderEntity> _orderRepository;
+    private readonly Merge.Application.Interfaces.IRepository<Shipping> _shippingRepository;
+    private readonly Merge.Application.Interfaces.IRepository<OrderEntity> _orderRepository;
     private readonly IEmailService? _emailService;
     private readonly IMediator _mediator;
     private readonly IDbContext _context;
@@ -29,8 +35,8 @@ public class ShippingService : IShippingService
     private readonly ILogger<ShippingService> _logger;
 
     public ShippingService(
-        IRepository<Shipping> shippingRepository,
-        IRepository<OrderEntity> orderRepository,
+        Merge.Application.Interfaces.IRepository<Shipping> shippingRepository,
+        Merge.Application.Interfaces.IRepository<OrderEntity> orderRepository,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,

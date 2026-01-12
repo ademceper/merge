@@ -5,6 +5,14 @@ using Merge.Application.DTOs.Cart;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
 using AutoMapper;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Queries.GetAbandonedCartById;
 
@@ -30,7 +38,7 @@ public class GetAbandonedCartByIdQueryHandler : IRequestHandler<GetAbandonedCart
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
-        var cart = await _context.Set<Merge.Domain.Entities.Cart>()
+        var cart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .AsNoTracking()
             .Include(c => c.User)
             .Include(c => c.CartItems)

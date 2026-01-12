@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Configuration;
-using NotificationEntity = Merge.Domain.Entities.Notification;
+using NotificationEntity = Merge.Domain.Modules.Notifications.Notification;
 using Merge.Application.Services.Notification;
 using Microsoft.Extensions.Logging;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Services.Notification;
 

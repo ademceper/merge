@@ -2,9 +2,9 @@ using AutoMapper;
 using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
-using UserEntity = Merge.Domain.Entities.User;
-using OrderEntity = Merge.Domain.Entities.Order;
-using ProductEntity = Merge.Domain.Entities.Product;
+using UserEntity = Merge.Domain.Modules.Identity.User;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -16,6 +16,15 @@ using Merge.Domain.Enums;
 using Merge.Application.DTOs.Seller;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Common;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Marketplace;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
@@ -23,7 +32,7 @@ namespace Merge.Application.Services.Seller;
 
 public class SellerOnboardingService : ISellerOnboardingService
 {
-    private readonly IRepository<SellerApplication> _applicationRepository;
+    private readonly Merge.Application.Interfaces.IRepository<SellerApplication> _applicationRepository;
     private readonly UserManager<UserEntity> _userManager;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
@@ -34,7 +43,7 @@ public class SellerOnboardingService : ISellerOnboardingService
     private readonly PaginationSettings _paginationSettings;
 
     public SellerOnboardingService(
-        IRepository<SellerApplication> applicationRepository,
+        Merge.Application.Interfaces.IRepository<SellerApplication> applicationRepository,
         UserManager<UserEntity> userManager,
         IDbContext context,
         IMapper mapper,

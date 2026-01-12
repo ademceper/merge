@@ -6,6 +6,10 @@ using Merge.Application.Interfaces;
 using Merge.Application.DTOs.Notification;
 using Merge.Domain.Entities;
 using System.Text.Json;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Notifications;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Notification.Commands.CreateTemplate;
 

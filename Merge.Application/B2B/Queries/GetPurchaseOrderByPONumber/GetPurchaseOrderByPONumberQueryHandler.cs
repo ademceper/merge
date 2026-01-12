@@ -5,6 +5,13 @@ using Merge.Application.DTOs.B2B;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
 using AutoMapper;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.Modules.Payment;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Queries.GetPurchaseOrderByPONumber;
 

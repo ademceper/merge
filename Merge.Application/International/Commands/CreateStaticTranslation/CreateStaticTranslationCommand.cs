@@ -1,5 +1,6 @@
 using MediatR;
 using Merge.Application.DTOs.International;
+using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.International.Commands.CreateStaticTranslation;
 

@@ -1,12 +1,18 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using OrderEntity = Merge.Domain.Entities.Order;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using Merge.Application.Interfaces.Logistics;
 using Merge.Domain.Entities;
 using Merge.Application.Interfaces;
 using System.Text.Json;
 using Merge.Application.DTOs.Logistics;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Inventory;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Logistics;

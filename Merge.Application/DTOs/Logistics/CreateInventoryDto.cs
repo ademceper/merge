@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Merge.Domain.Modules.Inventory;
 
 namespace Merge.Application.DTOs.Logistics;
 

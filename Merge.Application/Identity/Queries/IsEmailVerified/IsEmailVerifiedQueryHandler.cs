@@ -2,7 +2,9 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Merge.Domain.Entities;
-using UserEntity = Merge.Domain.Entities.User;
+using UserEntity = Merge.Domain.Modules.Identity.User;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Identity.Queries.IsEmailVerified;
 

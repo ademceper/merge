@@ -12,10 +12,17 @@ using Merge.Application.Marketing.Commands.ValidateCoupon;
 using Merge.Application.Marketing.Queries.GetCouponByCode;
 using Merge.Domain.Entities;
 using Merge.Domain.ValueObjects;
-using Merge.Domain.Common.DomainEvents;
-using OrderEntity = Merge.Domain.Entities.Order;
-using CartEntity = Merge.Domain.Entities.Cart;
-using AddressEntity = Merge.Domain.Entities.Address;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
+using CartEntity = Merge.Domain.Modules.Ordering.Cart;
+using AddressEntity = Merge.Domain.Modules.Identity.Address;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using Merge.Domain.SharedKernel.DomainEvents;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Commands.CreateOrderFromCart;
 

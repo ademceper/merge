@@ -1,4 +1,5 @@
 using MediatR;
+using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Analytics.Commands.ChangeUserRole;
 

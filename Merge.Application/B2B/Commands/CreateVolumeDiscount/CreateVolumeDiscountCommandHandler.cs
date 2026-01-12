@@ -6,9 +6,15 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using AutoMapper;
-using ProductEntity = Merge.Domain.Entities.Product;
-using CategoryEntity = Merge.Domain.Entities.Category;
-using OrganizationEntity = Merge.Domain.Entities.Organization;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
+using CategoryEntity = Merge.Domain.Modules.Catalog.Category;
+using OrganizationEntity = Merge.Domain.Modules.Identity.Organization;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Payment;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Commands.CreateVolumeDiscount;
 

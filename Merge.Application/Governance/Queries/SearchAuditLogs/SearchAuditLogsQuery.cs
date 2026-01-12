@@ -1,6 +1,7 @@
 using MediatR;
 using Merge.Application.Common;
 using Merge.Application.DTOs.Security;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Governance.Queries.SearchAuditLogs;
 
@@ -21,4 +22,3 @@ public record SearchAuditLogsQuery(
     int PageNumber = 1,
     int PageSize = 50
 ) : IRequest<PagedResult<AuditLogDto>>;
-

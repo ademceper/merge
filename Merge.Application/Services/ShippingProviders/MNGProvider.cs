@@ -4,6 +4,8 @@ using Merge.Application.Interfaces.ShippingProviders;
 using Merge.Application.Exceptions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Services.ShippingProviders;
 

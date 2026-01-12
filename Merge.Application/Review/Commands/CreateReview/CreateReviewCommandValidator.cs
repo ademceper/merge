@@ -1,4 +1,6 @@
 using FluentValidation;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Review.Commands.CreateReview;
 

@@ -3,7 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Merge.Application.DTOs.Order;
 using Merge.Application.Interfaces;
 using Merge.Domain.Enums;
-using OrderEntity = Merge.Domain.Entities.Order;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Queries.GetOrderStatistics;
 

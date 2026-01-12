@@ -1,4 +1,5 @@
 using FluentValidation;
+using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Notification.Commands.MarkAllAsRead;
 

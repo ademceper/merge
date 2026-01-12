@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Merge.Domain.Enums;
 
 namespace Merge.Application.DTOs.Security;
 

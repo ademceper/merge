@@ -4,6 +4,10 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.SetHomePageCMSPage;
 
@@ -11,7 +15,7 @@ namespace Merge.Application.Content.Commands.SetHomePageCMSPage;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class SetHomePageCMSPageCommandHandler : IRequestHandler<SetHomePageCMSPageCommand, bool>
 {
-    private readonly IRepository<CMSPage> _cmsPageRepository;
+    private readonly Merge.Application.Interfaces.IRepository<CMSPage> _cmsPageRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -22,7 +26,7 @@ public class SetHomePageCMSPageCommandHandler : IRequestHandler<SetHomePageCMSPa
     private const string CACHE_KEY_ALL_PAGES_PAGED = "cms_pages_all_paged";
 
     public SetHomePageCMSPageCommandHandler(
-        IRepository<CMSPage> cmsPageRepository,
+        Merge.Application.Interfaces.IRepository<CMSPage> cmsPageRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,

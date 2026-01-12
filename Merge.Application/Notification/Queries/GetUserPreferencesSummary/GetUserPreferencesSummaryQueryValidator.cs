@@ -1,4 +1,6 @@
 using FluentValidation;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Notification.Queries.GetUserPreferencesSummary;
 

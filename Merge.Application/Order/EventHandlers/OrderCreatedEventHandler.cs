@@ -1,12 +1,18 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
-using Merge.Domain.Common.DomainEvents;
 using Merge.Domain.Enums;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.Interfaces;
 using Merge.Application.DTOs.Notification;
-using OrderEntity = Merge.Domain.Entities.Order;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using Merge.Domain.SharedKernel.DomainEvents;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.EventHandlers;
 

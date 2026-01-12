@@ -6,6 +6,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Merge.Application.DTOs.Product;
 using Merge.Application.DTOs.Search;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
 
 
 namespace Merge.Application.Services.Search;

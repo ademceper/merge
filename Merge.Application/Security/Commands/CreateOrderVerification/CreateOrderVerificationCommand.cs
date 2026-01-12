@@ -1,5 +1,6 @@
 using MediatR;
 using Merge.Application.DTOs.Security;
+using Merge.Domain.Enums;
 
 namespace Merge.Application.Security.Commands.CreateOrderVerification;
 

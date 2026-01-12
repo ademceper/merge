@@ -5,6 +5,11 @@ using AutoMapper;
 using Merge.Application.DTOs.Support;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Support;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.CreateFaq;
 

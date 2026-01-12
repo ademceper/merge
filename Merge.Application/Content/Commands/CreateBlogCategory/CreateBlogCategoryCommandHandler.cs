@@ -6,7 +6,12 @@ using Merge.Application.DTOs.Content;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Domain.Common.DomainEvents;
+using Merge.Domain.SharedKernel.DomainEvents;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.CreateBlogCategory;
 
@@ -14,7 +19,7 @@ namespace Merge.Application.Content.Commands.CreateBlogCategory;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateBlogCategoryCommandHandler : IRequestHandler<CreateBlogCategoryCommand, BlogCategoryDto>
 {
-    private readonly IRepository<BlogCategory> _categoryRepository;
+    private readonly Merge.Application.Interfaces.IRepository<BlogCategory> _categoryRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -24,7 +29,7 @@ public class CreateBlogCategoryCommandHandler : IRequestHandler<CreateBlogCatego
     private const string CACHE_KEY_ACTIVE_CATEGORIES = "blog_categories_active";
 
     public CreateBlogCategoryCommandHandler(
-        IRepository<BlogCategory> categoryRepository,
+        Merge.Application.Interfaces.IRepository<BlogCategory> categoryRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,

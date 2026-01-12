@@ -8,6 +8,11 @@ using Merge.Application.Exceptions;
 using Merge.Application.Notification.Commands.CreateNotification;
 using Merge.Domain.Entities;
 using System.Text.Json;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.Modules.Payment;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Notification.Commands.CreateNotificationFromTemplate;
 

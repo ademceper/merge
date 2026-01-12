@@ -1,5 +1,7 @@
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.ValueObjects;
 namespace Merge.Application.DTOs.Seller;
 
 // ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)

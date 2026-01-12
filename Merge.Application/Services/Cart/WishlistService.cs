@@ -1,30 +1,35 @@
 using AutoMapper;
-using CartEntity = Merge.Domain.Entities.Cart;
+using CartEntity = Merge.Domain.Modules.Ordering.Cart;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.Cart;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using ProductEntity = Merge.Domain.Entities.Product;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Common;
 using Microsoft.Extensions.Logging;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Cart;
 
 public class WishlistService : IWishlistService
 {
-    private readonly IRepository<Wishlist> _wishlistRepository;
-    private readonly IRepository<ProductEntity> _productRepository;
+    private readonly Merge.Application.Interfaces.IRepository<Wishlist> _wishlistRepository;
+    private readonly Merge.Application.Interfaces.IRepository<ProductEntity> _productRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<WishlistService> _logger;
 
     public WishlistService(
-        IRepository<Wishlist> wishlistRepository,
-        IRepository<ProductEntity> productRepository,
+        Merge.Application.Interfaces.IRepository<Wishlist> wishlistRepository,
+        Merge.Application.Interfaces.IRepository<ProductEntity> productRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,

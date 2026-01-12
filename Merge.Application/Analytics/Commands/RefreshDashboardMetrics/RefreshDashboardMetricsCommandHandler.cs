@@ -5,7 +5,12 @@ using Microsoft.Extensions.Options;
 using Merge.Application.Interfaces;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
-using OrderEntity = Merge.Domain.Entities.Order;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Analytics;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Commands.RefreshDashboardMetrics;
 

@@ -1,4 +1,5 @@
 using FluentValidation;
+using Merge.Domain.Modules.Marketplace;
 
 namespace Merge.Application.Seller.Commands.SuspendStore;
 

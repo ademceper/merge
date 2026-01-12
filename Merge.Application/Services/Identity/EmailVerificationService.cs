@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Merge.Application.Services.Notification;
-using UserEntity = Merge.Domain.Entities.User;
+using UserEntity = Merge.Domain.Modules.Identity.User;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Identity;
@@ -10,6 +10,13 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Services.Identity;
 
@@ -18,7 +25,7 @@ namespace Merge.Application.Services.Identity;
 [Obsolete("Use MediatR Commands/Queries instead. This service will be removed in a future version.")]
 public class EmailVerificationService : IEmailVerificationService
 {
-    private readonly IRepository<EmailVerification> _emailVerificationRepository;
+    private readonly Merge.Application.Interfaces.IRepository<EmailVerification> _emailVerificationRepository;
     private readonly UserManager<UserEntity> _userManager;
     private readonly IEmailService? _emailService;
     private readonly IDbContext _context;
@@ -27,7 +34,7 @@ public class EmailVerificationService : IEmailVerificationService
     private readonly EmailSettings _emailSettings;
 
     public EmailVerificationService(
-        IRepository<EmailVerification> emailVerificationRepository,
+        Merge.Application.Interfaces.IRepository<EmailVerification> emailVerificationRepository,
         UserManager<UserEntity> userManager,
         IDbContext context,
         IUnitOfWork unitOfWork,

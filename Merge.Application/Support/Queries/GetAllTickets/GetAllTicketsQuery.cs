@@ -1,6 +1,7 @@
 using MediatR;
 using Merge.Application.DTOs.Support;
 using Merge.Application.Common;
+using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Support.Queries.GetAllTickets;
 

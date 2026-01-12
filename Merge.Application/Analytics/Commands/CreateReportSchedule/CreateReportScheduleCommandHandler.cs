@@ -7,6 +7,10 @@ using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using AutoMapper;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Analytics;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Commands.CreateReportSchedule;
 

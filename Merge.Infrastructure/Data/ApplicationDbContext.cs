@@ -3,169 +3,181 @@ using Microsoft.EntityFrameworkCore;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Application.Interfaces;
-using UserEntity = Merge.Domain.Entities.User;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.Modules.Payment;
+using Merge.Domain.Modules.Marketplace;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.Modules.Inventory;
+using Merge.Domain.Modules.Support;
+using Merge.Domain.Modules.Content;
+using Merge.Domain.Modules.Analytics;
+using UserEntity = Merge.Domain.Modules.Identity.User;
 using System.Linq.Expressions;
 using System.Reflection;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Infrastructure.Data;
 
 // ✅ BOLUM 1.1: ApplicationDbContext IDbContext interface'ini implement ediyor
-public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.Application.Interfaces.IDbContext
+public class ApplicationDbContext : IdentityDbContext<Merge.Domain.Modules.Identity.User, Merge.Domain.Modules.Identity.Role, Guid>, Merge.Application.Interfaces.IDbContext
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {
     }
 
     // ✅ Explicit implementation of IDbContext interface members to match interface signature
-    DbSet<UserEntity> Merge.Application.Interfaces.IDbContext.Users => base.Users;
-    DbSet<Role> Merge.Application.Interfaces.IDbContext.Roles => base.Roles;
+    DbSet<Merge.Domain.Modules.Identity.User> Merge.Application.Interfaces.IDbContext.Users => base.Users;
+    DbSet<Merge.Domain.Modules.Identity.Role> Merge.Application.Interfaces.IDbContext.Roles => base.Roles;
     DbSet<Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>> Merge.Application.Interfaces.IDbContext.UserRoles => base.UserRoles;
     
     // ✅ Explicit implementation of Set<TEntity>() to match interface constraint
     // Note: Constraint is inherited from interface, cannot be specified here
     DbSet<TEntity> Merge.Application.Interfaces.IDbContext.Set<TEntity>() => base.Set<TEntity>();
-    public DbSet<Category> Categories { get; set; }
-    public DbSet<Product> Products { get; set; }
-    public DbSet<ProductVariant> ProductVariants { get; set; }
-    public DbSet<Address> Addresses { get; set; }
-    public DbSet<Cart> Carts { get; set; }
-    public DbSet<CartItem> CartItems { get; set; }
-    public DbSet<Order> Orders { get; set; }
-    public DbSet<OrderItem> OrderItems { get; set; }
-    public DbSet<OrderSplit> OrderSplits { get; set; }
-    public DbSet<OrderSplitItem> OrderSplitItems { get; set; }
-    public DbSet<Review> Reviews { get; set; }
-    public DbSet<Wishlist> Wishlists { get; set; }
-    public DbSet<Coupon> Coupons { get; set; }
-    public DbSet<CouponUsage> CouponUsages { get; set; }
-    public DbSet<Payment> Payments { get; set; }
-    public DbSet<Shipping> Shippings { get; set; }
-    public DbSet<ReturnRequest> ReturnRequests { get; set; }
-    public DbSet<Notification> Notifications { get; set; }
-    public DbSet<NotificationTemplate> NotificationTemplates { get; set; }
-    public DbSet<FlashSale> FlashSales { get; set; }
-    public DbSet<FlashSaleProduct> FlashSaleProducts { get; set; }
-    public DbSet<ProductBundle> ProductBundles { get; set; }
-    public DbSet<BundleItem> BundleItems { get; set; }
-    public DbSet<RecentlyViewedProduct> RecentlyViewedProducts { get; set; }
-    public DbSet<Invoice> Invoices { get; set; }
-    public DbSet<SellerProfile> SellerProfiles { get; set; }
-    public DbSet<SavedCartItem> SavedCartItems { get; set; }
-    public DbSet<EmailVerification> EmailVerifications { get; set; }
-    public DbSet<FAQ> FAQs { get; set; }
-    public DbSet<Banner> Banners { get; set; }
-    public DbSet<GiftCard> GiftCards { get; set; }
-    public DbSet<GiftCardTransaction> GiftCardTransactions { get; set; }
-    public DbSet<Warehouse> Warehouses { get; set; }
-    public DbSet<Inventory> Inventories { get; set; }
-    public DbSet<StockMovement> StockMovements { get; set; }
-    public DbSet<TwoFactorAuth> TwoFactorAuths { get; set; }
-    public DbSet<TwoFactorCode> TwoFactorCodes { get; set; }
-    public DbSet<SellerApplication> SellerApplications { get; set; }
-    public DbSet<SellerDocument> SellerDocuments { get; set; }
-    public DbSet<SearchHistory> SearchHistories { get; set; }
-    public DbSet<PopularSearch> PopularSearches { get; set; }
-    public DbSet<AbandonedCartEmail> AbandonedCartEmails { get; set; }
-    public DbSet<UserActivityLog> UserActivityLogs { get; set; }
-    public DbSet<AuditLog> AuditLogs { get; set; }
-    public DbSet<Currency> Currencies { get; set; }
-    public DbSet<ExchangeRateHistory> ExchangeRateHistories { get; set; }
-    public DbSet<UserCurrencyPreference> UserCurrencyPreferences { get; set; }
-    public DbSet<Language> Languages { get; set; }
-    public DbSet<ProductTranslation> ProductTranslations { get; set; }
-    public DbSet<CategoryTranslation> CategoryTranslations { get; set; }
-    public DbSet<UserLanguagePreference> UserLanguagePreferences { get; set; }
-    public DbSet<StaticTranslation> StaticTranslations { get; set; }
-    public DbSet<LoyaltyAccount> LoyaltyAccounts { get; set; }
-    public DbSet<LoyaltyTransaction> LoyaltyTransactions { get; set; }
-    public DbSet<LoyaltyTier> LoyaltyTiers { get; set; }
-    public DbSet<LoyaltyRule> LoyaltyRules { get; set; }
-    public DbSet<ReferralCode> ReferralCodes { get; set; }
-    public DbSet<Referral> Referrals { get; set; }
-    public DbSet<ReviewMedia> ReviewMedias { get; set; }
-    public DbSet<SharedWishlist> SharedWishlists { get; set; }
-    public DbSet<SharedWishlistItem> SharedWishlistItems { get; set; }
-    public DbSet<EmailCampaign> EmailCampaigns { get; set; }
-    public DbSet<EmailTemplate> EmailTemplates { get; set; }
-    public DbSet<EmailSubscriber> EmailSubscribers { get; set; }
-    public DbSet<EmailCampaignRecipient> EmailCampaignRecipients { get; set; }
-    public DbSet<EmailAutomation> EmailAutomations { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.Category> Categories { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.Product> Products { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.ProductVariant> ProductVariants { get; set; }
+    public DbSet<Merge.Domain.Modules.Identity.Address> Addresses { get; set; }
+    public DbSet<Merge.Domain.Modules.Ordering.Cart> Carts { get; set; }
+    public DbSet<Merge.Domain.Modules.Ordering.CartItem> CartItems { get; set; }
+    public DbSet<Merge.Domain.Modules.Ordering.Order> Orders { get; set; }
+    public DbSet<Merge.Domain.Modules.Ordering.OrderItem> OrderItems { get; set; }
+    public DbSet<Merge.Domain.Modules.Ordering.OrderSplit> OrderSplits { get; set; }
+    public DbSet<Merge.Domain.Modules.Ordering.OrderSplitItem> OrderSplitItems { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.Review> Reviews { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.Wishlist> Wishlists { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.Coupon> Coupons { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.CouponUsage> CouponUsages { get; set; }
+    public DbSet<Merge.Domain.Modules.Payment.Payment> Payments { get; set; }
+    public DbSet<Merge.Domain.Modules.Ordering.Shipping> Shippings { get; set; }
+    public DbSet<Merge.Domain.Modules.Ordering.ReturnRequest> ReturnRequests { get; set; }
+    public DbSet<Merge.Domain.Modules.Notifications.Notification> Notifications { get; set; }
+    public DbSet<Merge.Domain.Modules.Notifications.NotificationTemplate> NotificationTemplates { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.FlashSale> FlashSales { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.FlashSaleProduct> FlashSaleProducts { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.ProductBundle> ProductBundles { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.BundleItem> BundleItems { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.RecentlyViewedProduct> RecentlyViewedProducts { get; set; }
+    public DbSet<Merge.Domain.Modules.Ordering.Invoice> Invoices { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketplace.SellerProfile> SellerProfiles { get; set; }
+    public DbSet<Merge.Domain.Modules.Ordering.SavedCartItem> SavedCartItems { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.EmailVerification> EmailVerifications { get; set; }
+    public DbSet<Merge.Domain.Modules.Support.FAQ> FAQs { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.Banner> Banners { get; set; }
+    public DbSet<Merge.Domain.Modules.Payment.GiftCard> GiftCards { get; set; }
+    public DbSet<Merge.Domain.Modules.Payment.GiftCardTransaction> GiftCardTransactions { get; set; }
+    public DbSet<Merge.Domain.Modules.Inventory.Warehouse> Warehouses { get; set; }
+    public DbSet<Merge.Domain.Modules.Inventory.Inventory> Inventories { get; set; }
+    public DbSet<Merge.Domain.Modules.Inventory.StockMovement> StockMovements { get; set; }
+    public DbSet<Merge.Domain.Modules.Identity.TwoFactorAuth> TwoFactorAuths { get; set; }
+    public DbSet<Merge.Domain.Modules.Identity.TwoFactorCode> TwoFactorCodes { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketplace.SellerApplication> SellerApplications { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketplace.SellerDocument> SellerDocuments { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.SearchHistory> SearchHistories { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.PopularSearch> PopularSearches { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.AbandonedCartEmail> AbandonedCartEmails { get; set; }
+    public DbSet<Merge.Domain.Modules.Identity.UserActivityLog> UserActivityLogs { get; set; }
+    public DbSet<Merge.Domain.SharedKernel.AuditLog> AuditLogs { get; set; }
+    public DbSet<Merge.Domain.Modules.Payment.Currency> Currencies { get; set; }
+    public DbSet<Merge.Domain.Modules.Analytics.ExchangeRateHistory> ExchangeRateHistories { get; set; }
+    public DbSet<Merge.Domain.Modules.Identity.UserCurrencyPreference> UserCurrencyPreferences { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.Language> Languages { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.ProductTranslation> ProductTranslations { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.CategoryTranslation> CategoryTranslations { get; set; }
+    public DbSet<Merge.Domain.Modules.Identity.UserLanguagePreference> UserLanguagePreferences { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.StaticTranslation> StaticTranslations { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.LoyaltyAccount> LoyaltyAccounts { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.LoyaltyTransaction> LoyaltyTransactions { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.LoyaltyTier> LoyaltyTiers { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.LoyaltyRule> LoyaltyRules { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.ReferralCode> ReferralCodes { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.Referral> Referrals { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.ReviewMedia> ReviewMedias { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.SharedWishlist> SharedWishlists { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.SharedWishlistItem> SharedWishlistItems { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.EmailCampaign> EmailCampaigns { get; set; }
+    public DbSet<Merge.Domain.Modules.Notifications.EmailTemplate> EmailTemplates { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.EmailSubscriber> EmailSubscribers { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.EmailCampaignRecipient> EmailCampaignRecipients { get; set; }
+    public DbSet<Merge.Domain.Modules.Notifications.EmailAutomation> EmailAutomations { get; set; }
     public DbSet<Report> Reports { get; set; }
     public DbSet<ReportSchedule> ReportSchedules { get; set; }
     public DbSet<DashboardMetric> DashboardMetrics { get; set; }
-    public DbSet<ProductComparison> ProductComparisons { get; set; }
-    public DbSet<ProductComparisonItem> ProductComparisonItems { get; set; }
-    public DbSet<PreOrder> PreOrders { get; set; }
-    public DbSet<PreOrderCampaign> PreOrderCampaigns { get; set; }
-    public DbSet<SizeGuide> SizeGuides { get; set; }
-    public DbSet<SizeGuideEntry> SizeGuideEntries { get; set; }
-    public DbSet<ProductSizeGuide> ProductSizeGuides { get; set; }
-    public DbSet<VirtualTryOn> VirtualTryOns { get; set; }
-    public DbSet<ReviewHelpfulness> ReviewHelpfulnesses { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.ProductComparison> ProductComparisons { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.ProductComparisonItem> ProductComparisonItems { get; set; }
+    public DbSet<Merge.Domain.Modules.Ordering.PreOrder> PreOrders { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.PreOrderCampaign> PreOrderCampaigns { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.SizeGuide> SizeGuides { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.SizeGuideEntry> SizeGuideEntries { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.ProductSizeGuide> ProductSizeGuides { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.VirtualTryOn> VirtualTryOns { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.ReviewHelpfulness> ReviewHelpfulnesses { get; set; }
     public DbSet<SupportTicket> SupportTickets { get; set; }
     public DbSet<TicketMessage> TicketMessages { get; set; }
     public DbSet<TicketAttachment> TicketAttachments { get; set; }
-    public DbSet<ProductQuestion> ProductQuestions { get; set; }
-    public DbSet<ProductAnswer> ProductAnswers { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.ProductQuestion> ProductQuestions { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.ProductAnswer> ProductAnswers { get; set; }
     public DbSet<QuestionHelpfulness> QuestionHelpfulnesses { get; set; }
     public DbSet<AnswerHelpfulness> AnswerHelpfulnesses { get; set; }
-    public DbSet<SellerCommission> SellerCommissions { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketplace.SellerCommission> SellerCommissions { get; set; }
     public DbSet<CommissionTier> CommissionTiers { get; set; }
-    public DbSet<SellerCommissionSettings> SellerCommissionSettings { get; set; }
-    public DbSet<CommissionPayout> CommissionPayouts { get; set; }
-    public DbSet<CommissionPayoutItem> CommissionPayoutItems { get; set; }
-    public DbSet<UserPreference> UserPreferences { get; set; }
-    public DbSet<TrustBadge> TrustBadges { get; set; }
-    public DbSet<SellerTrustBadge> SellerTrustBadges { get; set; }
-    public DbSet<ProductTrustBadge> ProductTrustBadges { get; set; }
-    public DbSet<KnowledgeBaseArticle> KnowledgeBaseArticles { get; set; }
-    public DbSet<KnowledgeBaseCategory> KnowledgeBaseCategories { get; set; }
-    public DbSet<KnowledgeBaseView> KnowledgeBaseViews { get; set; }
-    public DbSet<Policy> Policies { get; set; }
-    public DbSet<PolicyAcceptance> PolicyAcceptances { get; set; }
-    public DbSet<NotificationPreference> NotificationPreferences { get; set; }
-    public DbSet<CustomerCommunication> CustomerCommunications { get; set; }
-    public DbSet<SellerTransaction> SellerTransactions { get; set; }
-    public DbSet<SellerInvoice> SellerInvoices { get; set; }
-    public DbSet<Store> Stores { get; set; }
-    public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
-    public DbSet<UserSubscription> UserSubscriptions { get; set; }
-    public DbSet<SubscriptionPayment> SubscriptionPayments { get; set; }
-    public DbSet<SubscriptionUsage> SubscriptionUsages { get; set; }
-    public DbSet<BlogCategory> BlogCategories { get; set; }
-    public DbSet<BlogPost> BlogPosts { get; set; }
-    public DbSet<BlogComment> BlogComments { get; set; }
-    public DbSet<BlogPostView> BlogPostViews { get; set; }
-    public DbSet<SEOSettings> SEOSettings { get; set; }
-    public DbSet<SitemapEntry> SitemapEntries { get; set; }
-    public DbSet<CMSPage> CMSPages { get; set; }
-    public DbSet<LandingPage> LandingPages { get; set; }
-    public DbSet<LiveChatSession> LiveChatSessions { get; set; }
-    public DbSet<LiveChatMessage> LiveChatMessages { get; set; }
-    public DbSet<FraudDetectionRule> FraudDetectionRules { get; set; }
-    public DbSet<FraudAlert> FraudAlerts { get; set; }
-    public DbSet<OAuthProvider> OAuthProviders { get; set; }
-    public DbSet<OAuthAccount> OAuthAccounts { get; set; }
-    public DbSet<PushNotificationDevice> PushNotificationDevices { get; set; }
-    public DbSet<LiveStream> LiveStreams { get; set; }
-    public DbSet<LiveStreamProduct> LiveStreamProducts { get; set; }
-    public DbSet<LiveStreamViewer> LiveStreamViewers { get; set; }
-    public DbSet<LiveStreamOrder> LiveStreamOrders { get; set; }
-    public DbSet<PageBuilder> PageBuilders { get; set; }
-    public DbSet<DataWarehouse> DataWarehouses { get; set; }
-    public DbSet<ETLProcess> ETLProcesses { get; set; }
-    public DbSet<DataPipeline> DataPipelines { get; set; }
-    public DbSet<DataQualityRule> DataQualityRules { get; set; }
-    public DbSet<DataQualityCheck> DataQualityChecks { get; set; }
-    public DbSet<PushNotification> PushNotifications { get; set; }
-    public DbSet<InternationalShipping> InternationalShippings { get; set; }
-    public DbSet<TaxRule> TaxRules { get; set; }
-    public DbSet<CustomsDeclaration> CustomsDeclarations { get; set; }
-    public DbSet<OrderVerification> OrderVerifications { get; set; }
-    public DbSet<PaymentFraudPrevention> PaymentFraudPreventions { get; set; }
-    public DbSet<AccountSecurityEvent> AccountSecurityEvents { get; set; }
-    public DbSet<SecurityAlert> SecurityAlerts { get; set; }
-    public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketplace.SellerCommissionSettings> SellerCommissionSettings { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketplace.CommissionPayout> CommissionPayouts { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketplace.CommissionPayoutItem> CommissionPayoutItems { get; set; }
+    public DbSet<Merge.Domain.Modules.Identity.UserPreference> UserPreferences { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketplace.TrustBadge> TrustBadges { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketplace.SellerTrustBadge> SellerTrustBadges { get; set; }
+    public DbSet<Merge.Domain.Modules.Catalog.ProductTrustBadge> ProductTrustBadges { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.KnowledgeBaseArticle> KnowledgeBaseArticles { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.KnowledgeBaseCategory> KnowledgeBaseCategories { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.KnowledgeBaseView> KnowledgeBaseViews { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.Policy> Policies { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.PolicyAcceptance> PolicyAcceptances { get; set; }
+    public DbSet<Merge.Domain.Modules.Notifications.NotificationPreference> NotificationPreferences { get; set; }
+    public DbSet<Merge.Domain.Modules.Support.CustomerCommunication> CustomerCommunications { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketplace.SellerTransaction> SellerTransactions { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketplace.SellerInvoice> SellerInvoices { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketplace.Store> Stores { get; set; }
+    public DbSet<Merge.Domain.Modules.Payment.SubscriptionPlan> SubscriptionPlans { get; set; }
+    public DbSet<Merge.Domain.Modules.Payment.UserSubscription> UserSubscriptions { get; set; }
+    public DbSet<Merge.Domain.Modules.Payment.SubscriptionPayment> SubscriptionPayments { get; set; }
+    public DbSet<Merge.Domain.Modules.Payment.SubscriptionUsage> SubscriptionUsages { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.BlogCategory> BlogCategories { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.BlogPost> BlogPosts { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.BlogComment> BlogComments { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.BlogPostView> BlogPostViews { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.SEOSettings> SEOSettings { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.SitemapEntry> SitemapEntries { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.CMSPage> CMSPages { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.LandingPage> LandingPages { get; set; }
+    public DbSet<Merge.Domain.Modules.Support.LiveChatSession> LiveChatSessions { get; set; }
+    public DbSet<Merge.Domain.Modules.Support.LiveChatMessage> LiveChatMessages { get; set; }
+    public DbSet<Merge.Domain.Modules.Payment.FraudDetectionRule> FraudDetectionRules { get; set; }
+    public DbSet<Merge.Domain.Modules.Payment.FraudAlert> FraudAlerts { get; set; }
+    public DbSet<Merge.Domain.Modules.Identity.OAuthProvider> OAuthProviders { get; set; }
+    public DbSet<Merge.Domain.Modules.Identity.OAuthAccount> OAuthAccounts { get; set; }
+    public DbSet<Merge.Domain.Modules.Notifications.PushNotificationDevice> PushNotificationDevices { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.LiveStream> LiveStreams { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.LiveStreamProduct> LiveStreamProducts { get; set; }
+    public DbSet<Merge.Domain.Modules.Marketing.LiveStreamViewer> LiveStreamViewers { get; set; }
+    public DbSet<Merge.Domain.Modules.Ordering.LiveStreamOrder> LiveStreamOrders { get; set; }
+    public DbSet<Merge.Domain.Modules.Content.PageBuilder> PageBuilders { get; set; }
+    public DbSet<Merge.Domain.Modules.Analytics.DataWarehouse> DataWarehouses { get; set; }
+    public DbSet<Merge.Domain.Modules.Analytics.ETLProcess> ETLProcesses { get; set; }
+    public DbSet<Merge.Domain.Modules.Analytics.DataPipeline> DataPipelines { get; set; }
+    public DbSet<Merge.Domain.Modules.Analytics.DataQualityRule> DataQualityRules { get; set; }
+    public DbSet<Merge.Domain.Modules.Analytics.DataQualityCheck> DataQualityChecks { get; set; }
+    public DbSet<Merge.Domain.Modules.Notifications.PushNotification> PushNotifications { get; set; }
+    public DbSet<Merge.Domain.Modules.Ordering.InternationalShipping> InternationalShippings { get; set; }
+    public DbSet<Merge.Domain.Modules.Payment.TaxRule> TaxRules { get; set; }
+    public DbSet<Merge.Domain.Modules.Ordering.CustomsDeclaration> CustomsDeclarations { get; set; }
+    public DbSet<Merge.Domain.Modules.Ordering.OrderVerification> OrderVerifications { get; set; }
+    public DbSet<Merge.Domain.Modules.Payment.PaymentFraudPrevention> PaymentFraudPreventions { get; set; }
+    public DbSet<Merge.Domain.Modules.Identity.AccountSecurityEvent> AccountSecurityEvents { get; set; }
+    public DbSet<Merge.Domain.Modules.Identity.SecurityAlert> SecurityAlerts { get; set; }
+    public DbSet<Merge.Domain.Modules.Identity.RefreshToken> RefreshTokens { get; set; }
     // ✅ BOLUM 3.0: Outbox pattern (dual-write sorunu çözümü)
     public DbSet<OutboxMessage> OutboxMessages { get; set; }
 
@@ -2779,4 +2791,3 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.A
         modelBuilder.Entity<User>().HasQueryFilter(u => !u.IsDeleted);
     }
 }
-

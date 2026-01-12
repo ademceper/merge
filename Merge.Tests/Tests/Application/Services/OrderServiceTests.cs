@@ -13,11 +13,15 @@ using Merge.Application.Interfaces.Cart;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.Services.Order;
-using Merge.Domain.Entities;
+
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
-using OrderEntity = Merge.Domain.Entities.Order;
-using AddressEntity = Merge.Domain.Entities.Address;
+
+
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Tests.Tests.Application.Services;
 
@@ -28,7 +32,7 @@ namespace Merge.Tests.Tests.Application.Services;
 /// </summary>
 public class OrderServiceTests
 {
-    private readonly Mock<IRepository<OrderEntity>> _orderRepositoryMock;
+    private readonly Mock<IRepository<Merge.Domain.Modules.Ordering.Order>> _orderRepositoryMock;
     private readonly Mock<IRepository<OrderItem>> _orderItemRepositoryMock;
     private readonly Mock<ICartService> _cartServiceMock;
     private readonly Mock<IDbContext> _dbContextMock;
@@ -41,7 +45,7 @@ public class OrderServiceTests
 
     public OrderServiceTests()
     {
-        _orderRepositoryMock = new Mock<IRepository<OrderEntity>>();
+        _orderRepositoryMock = new Mock<IRepository<Merge.Domain.Modules.Ordering.Order>>();
         _orderItemRepositoryMock = new Mock<IRepository<OrderItem>>();
         _cartServiceMock = new Mock<ICartService>();
         _dbContextMock = new Mock<IDbContext>();
@@ -79,8 +83,8 @@ public class OrderServiceTests
         var expectedOrder = CreateTestOrder(orderId, userId);
         var expectedDto = CreateTestOrderDto(orderId, userId);
 
-        SetupMockDbSet(new List<OrderEntity> { expectedOrder });
-        _mapperMock.Setup(m => m.Map<OrderDto>(It.IsAny<OrderEntity>()))
+        SetupMockDbSet(new List<Merge.Domain.Modules.Ordering.Order> { expectedOrder });
+        _mapperMock.Setup(m => m.Map<OrderDto>(It.IsAny<Merge.Domain.Modules.Ordering.Order>()))
             .Returns(expectedDto);
 
         // Act
@@ -97,7 +101,7 @@ public class OrderServiceTests
     {
         // Arrange
         var orderId = Guid.NewGuid();
-        SetupMockDbSet(new List<OrderEntity>());
+        SetupMockDbSet(new List<Merge.Domain.Modules.Ordering.Order>());
 
         // Act
         var result = await _orderService.GetByIdAsync(orderId);
@@ -115,7 +119,7 @@ public class OrderServiceTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        var orders = new List<OrderEntity>
+        var orders = new List<Merge.Domain.Modules.Ordering.Order>
         {
             CreateTestOrder(Guid.NewGuid(), userId),
             CreateTestOrder(Guid.NewGuid(), userId)
@@ -123,7 +127,7 @@ public class OrderServiceTests
         var expectedDtos = orders.Select(o => CreateTestOrderDto(o.Id, userId)).ToList();
 
         SetupMockDbSet(orders);
-        _mapperMock.Setup(m => m.Map<IEnumerable<OrderDto>>(It.IsAny<IEnumerable<OrderEntity>>()))
+        _mapperMock.Setup(m => m.Map<IEnumerable<OrderDto>>(It.IsAny<IEnumerable<Merge.Domain.Modules.Ordering.Order>>()))
             .Returns(expectedDtos);
 
         // Act
@@ -139,8 +143,8 @@ public class OrderServiceTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        SetupMockDbSet(new List<OrderEntity>());
-        _mapperMock.Setup(m => m.Map<IEnumerable<OrderDto>>(It.IsAny<IEnumerable<OrderEntity>>()))
+        SetupMockDbSet(new List<Merge.Domain.Modules.Ordering.Order>());
+        _mapperMock.Setup(m => m.Map<IEnumerable<OrderDto>>(It.IsAny<IEnumerable<Merge.Domain.Modules.Ordering.Order>>()))
             .Returns(new List<OrderDto>());
 
         // Act
@@ -171,12 +175,12 @@ public class OrderServiceTests
 
         _orderRepositoryMock.Setup(r => r.GetByIdAsync(orderId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(order);
-        _orderRepositoryMock.Setup(r => r.UpdateAsync(It.IsAny<OrderEntity>(), It.IsAny<CancellationToken>()))
+        _orderRepositoryMock.Setup(r => r.UpdateAsync(It.IsAny<Merge.Domain.Modules.Ordering.Order>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         _unitOfWorkMock.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
-        SetupMockDbSet(new List<OrderEntity> { order });
-        _mapperMock.Setup(m => m.Map<OrderDto>(It.IsAny<OrderEntity>()))
+        SetupMockDbSet(new List<Merge.Domain.Modules.Ordering.Order> { order });
+        _mapperMock.Setup(m => m.Map<OrderDto>(It.IsAny<Merge.Domain.Modules.Ordering.Order>()))
             .Returns(updatedDto);
 
         // Act
@@ -185,7 +189,7 @@ public class OrderServiceTests
         // Assert
         result.Should().NotBeNull();
         result.Status.Should().Be(OrderStatus.Processing.ToString());
-        _orderRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<OrderEntity>(), It.IsAny<CancellationToken>()), Times.Once);
+        _orderRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Merge.Domain.Modules.Ordering.Order>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -194,7 +198,7 @@ public class OrderServiceTests
         // Arrange
         var orderId = Guid.NewGuid();
         _orderRepositoryMock.Setup(r => r.GetByIdAsync(orderId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((OrderEntity?)null);
+            .ReturnsAsync((Merge.Domain.Modules.Ordering.Order?)null);
 
         // Act
         var act = async () => await _orderService.UpdateOrderStatusAsync(orderId, OrderStatus.Processing);
@@ -217,14 +221,14 @@ public class OrderServiceTests
         var product = CreateTestProduct();
         order.AddItem(product, 2);
 
-        var orderList = new List<OrderEntity> { order };
+        var orderList = new List<Merge.Domain.Modules.Ordering.Order> { order };
         SetupMockDbSetWithTracking(orderList);
 
         _unitOfWorkMock.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         _unitOfWorkMock.Setup(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        _orderRepositoryMock.Setup(r => r.UpdateAsync(It.IsAny<OrderEntity>(), It.IsAny<CancellationToken>()))
+        _orderRepositoryMock.Setup(r => r.UpdateAsync(It.IsAny<Merge.Domain.Modules.Ordering.Order>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -240,7 +244,7 @@ public class OrderServiceTests
     {
         // Arrange
         var orderId = Guid.NewGuid();
-        SetupMockDbSet(new List<OrderEntity>());
+        SetupMockDbSet(new List<Merge.Domain.Modules.Ordering.Order>());
 
         // Act
         var result = await _orderService.CancelOrderAsync(orderId);
@@ -262,7 +266,7 @@ public class OrderServiceTests
         order.Ship();
         order.Deliver();
 
-        SetupMockDbSetWithTracking(new List<OrderEntity> { order });
+        SetupMockDbSetWithTracking(new List<Merge.Domain.Modules.Ordering.Order> { order });
 
         // Act
         var act = async () => await _orderService.CancelOrderAsync(orderId);
@@ -284,7 +288,7 @@ public class OrderServiceTests
         order.Confirm();
         order.Ship();
 
-        SetupMockDbSetWithTracking(new List<OrderEntity> { order });
+        SetupMockDbSetWithTracking(new List<Merge.Domain.Modules.Ordering.Order> { order });
 
         // Act
         var act = async () => await _orderService.CancelOrderAsync(orderId);
@@ -303,14 +307,14 @@ public class OrderServiceTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        var orders = new List<OrderEntity>
+        var orders = new List<Merge.Domain.Modules.Ordering.Order>
         {
             CreateTestOrder(Guid.NewGuid(), userId)
         };
         var orderDtos = orders.Select(o => CreateTestOrderDto(o.Id, userId)).ToList();
 
         SetupMockDbSet(orders);
-        _mapperMock.Setup(m => m.Map<List<OrderDto>>(It.IsAny<IEnumerable<OrderEntity>>()))
+        _mapperMock.Setup(m => m.Map<List<OrderDto>>(It.IsAny<IEnumerable<Merge.Domain.Modules.Ordering.Order>>()))
             .Returns(orderDtos);
 
         var exportDto = new OrderExportDto
@@ -336,14 +340,14 @@ public class OrderServiceTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        var orders = new List<OrderEntity>
+        var orders = new List<Merge.Domain.Modules.Ordering.Order>
         {
             CreateTestOrder(Guid.NewGuid(), userId)
         };
         var orderDtos = orders.Select(o => CreateTestOrderDto(o.Id, userId)).ToList();
 
         SetupMockDbSet(orders);
-        _mapperMock.Setup(m => m.Map<List<OrderDto>>(It.IsAny<IEnumerable<OrderEntity>>()))
+        _mapperMock.Setup(m => m.Map<List<OrderDto>>(It.IsAny<IEnumerable<Merge.Domain.Modules.Ordering.Order>>()))
             .Returns(orderDtos);
 
         var exportDto = new OrderExportDto
@@ -367,10 +371,10 @@ public class OrderServiceTests
 
     #region Helper Methods
 
-    private static OrderEntity CreateTestOrder(Guid orderId, Guid userId)
+    private static Merge.Domain.Modules.Ordering.Order CreateTestOrder(Guid orderId, Guid userId)
     {
         var addressId = Guid.NewGuid();
-        var address = AddressEntity.Create(
+        var address = Merge.Domain.Modules.Identity.Address.Create(
             userId: userId,
             title: "Home",
             firstName: "John",
@@ -383,10 +387,10 @@ public class OrderServiceTests
             country: "Turkey"
         );
 
-        var order = OrderEntity.Create(userId, addressId, address);
+        var order = Merge.Domain.Modules.Ordering.Order.Create(userId, addressId, address);
 
         // Use reflection to set the Id since it's set in the factory method
-        var idProperty = typeof(OrderEntity).GetProperty("Id");
+        var idProperty = typeof(Merge.Domain.Modules.Ordering.Order).GetProperty("Id");
         if (idProperty != null && idProperty.CanWrite)
         {
             idProperty.SetValue(order, orderId);
@@ -445,44 +449,44 @@ public class OrderServiceTests
         };
     }
 
-    private void SetupMockDbSet(List<OrderEntity> orders)
+    private void SetupMockDbSet(List<Merge.Domain.Modules.Ordering.Order> orders)
     {
         var mockDbSet = CreateMockDbSet(orders);
-        _dbContextMock.Setup(c => c.Set<OrderEntity>())
+        _dbContextMock.Setup(c => c.Set<Merge.Domain.Modules.Ordering.Order>())
             .Returns(mockDbSet.Object);
     }
 
-    private void SetupMockDbSetWithTracking(List<OrderEntity> orders)
+    private void SetupMockDbSetWithTracking(List<Merge.Domain.Modules.Ordering.Order> orders)
     {
         var mockDbSet = CreateMockDbSet(orders, trackChanges: true);
-        _dbContextMock.Setup(c => c.Set<OrderEntity>())
+        _dbContextMock.Setup(c => c.Set<Merge.Domain.Modules.Ordering.Order>())
             .Returns(mockDbSet.Object);
     }
 
-    private static Mock<DbSet<OrderEntity>> CreateMockDbSet(List<OrderEntity> data, bool trackChanges = false)
+    private static Mock<DbSet<Merge.Domain.Modules.Ordering.Order>> CreateMockDbSet(List<Merge.Domain.Modules.Ordering.Order> data, bool trackChanges = false)
     {
         var queryable = data.AsQueryable();
-        var mockSet = new Mock<DbSet<OrderEntity>>();
+        var mockSet = new Mock<DbSet<Merge.Domain.Modules.Ordering.Order>>();
 
-        mockSet.As<IQueryable<OrderEntity>>()
+        mockSet.As<IQueryable<Merge.Domain.Modules.Ordering.Order>>()
             .Setup(m => m.Provider)
-            .Returns(new TestAsyncQueryProvider<OrderEntity>(queryable.Provider));
+            .Returns(new TestAsyncQueryProvider<Merge.Domain.Modules.Ordering.Order>(queryable.Provider));
 
-        mockSet.As<IQueryable<OrderEntity>>()
+        mockSet.As<IQueryable<Merge.Domain.Modules.Ordering.Order>>()
             .Setup(m => m.Expression)
             .Returns(queryable.Expression);
 
-        mockSet.As<IQueryable<OrderEntity>>()
+        mockSet.As<IQueryable<Merge.Domain.Modules.Ordering.Order>>()
             .Setup(m => m.ElementType)
             .Returns(queryable.ElementType);
 
-        mockSet.As<IQueryable<OrderEntity>>()
+        mockSet.As<IQueryable<Merge.Domain.Modules.Ordering.Order>>()
             .Setup(m => m.GetEnumerator())
             .Returns(() => queryable.GetEnumerator());
 
-        mockSet.As<IAsyncEnumerable<OrderEntity>>()
+        mockSet.As<IAsyncEnumerable<Merge.Domain.Modules.Ordering.Order>>()
             .Setup(m => m.GetAsyncEnumerator(It.IsAny<CancellationToken>()))
-            .Returns(new TestAsyncEnumerator<OrderEntity>(queryable.GetEnumerator()));
+            .Returns(new TestAsyncEnumerator<Merge.Domain.Modules.Ordering.Order>(queryable.GetEnumerator()));
 
         return mockSet;
     }

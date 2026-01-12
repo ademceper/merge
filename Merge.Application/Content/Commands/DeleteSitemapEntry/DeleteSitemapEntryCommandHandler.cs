@@ -4,6 +4,10 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.DeleteSitemapEntry;
 
@@ -11,7 +15,7 @@ namespace Merge.Application.Content.Commands.DeleteSitemapEntry;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteSitemapEntryCommandHandler : IRequestHandler<DeleteSitemapEntryCommand, bool>
 {
-    private readonly IRepository<SitemapEntry> _sitemapEntryRepository;
+    private readonly Merge.Application.Interfaces.IRepository<SitemapEntry> _sitemapEntryRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
     private readonly ILogger<DeleteSitemapEntryCommandHandler> _logger;
@@ -19,7 +23,7 @@ public class DeleteSitemapEntryCommandHandler : IRequestHandler<DeleteSitemapEnt
     private const string CACHE_KEY_SITEMAP_XML = "sitemap_xml";
 
     public DeleteSitemapEntryCommandHandler(
-        IRepository<SitemapEntry> sitemapEntryRepository,
+        Merge.Application.Interfaces.IRepository<SitemapEntry> sitemapEntryRepository,
         IUnitOfWork unitOfWork,
         ICacheService cache,
         ILogger<DeleteSitemapEntryCommandHandler> logger)

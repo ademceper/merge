@@ -1,9 +1,9 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using OrderEntity = Merge.Domain.Entities.Order;
-using ProductEntity = Merge.Domain.Entities.Product;
-using AddressEntity = Merge.Domain.Entities.Address;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
+using AddressEntity = Merge.Domain.Modules.Identity.Address;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Order;
@@ -13,6 +13,12 @@ using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
 using Merge.Application.DTOs.Order;
 using Merge.Application.DTOs.User;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Order;
@@ -115,7 +121,7 @@ public class OrderSplitService : IOrderSplitService
             var splitOrder = OrderEntity.Create(originalOrder.UserId, addressId, address);
             
             // Split order için özel ayarlar
-            // Not: Merge.Domain.Entities.Order.Create factory method OrderNumber'ı otomatik oluşturuyor
+            // Not: Merge.Domain.Modules.Ordering.Order.Create factory method OrderNumber'ı otomatik oluşturuyor
             // Split order için özel order number gerekiyorsa, Order entity'sine SetOrderNumber method'u eklenebilir
             // Şimdilik factory method'un oluşturduğu order number kullanılıyor
 

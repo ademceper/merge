@@ -4,6 +4,10 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Catalog.Commands.DeleteCategory;
 
@@ -11,7 +15,7 @@ namespace Merge.Application.Catalog.Commands.DeleteCategory;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategoryCommand, bool>
 {
-    private readonly IRepository<Category> _categoryRepository;
+    private readonly Merge.Application.Interfaces.IRepository<Category> _categoryRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -22,7 +26,7 @@ public class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategoryComman
     private const string CACHE_KEY_MAIN_CATEGORIES_PAGED = "categories_main_paged";
 
     public DeleteCategoryCommandHandler(
-        IRepository<Category> categoryRepository,
+        Merge.Application.Interfaces.IRepository<Category> categoryRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,
@@ -61,7 +65,7 @@ public class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategoryComman
             }
 
             // Check for associated products
-            var hasProducts = await _context.Set<Merge.Domain.Entities.Product>()
+            var hasProducts = await _context.Set<Merge.Domain.Modules.Catalog.Product>()
                 .AsNoTracking()
                 .AnyAsync(p => p.CategoryId == request.Id && !p.IsDeleted, cancellationToken);
 

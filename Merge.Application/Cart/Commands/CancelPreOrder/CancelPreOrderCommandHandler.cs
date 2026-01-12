@@ -4,6 +4,11 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Enums;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.CancelPreOrder;
 
@@ -30,7 +35,7 @@ public class CancelPreOrderCommandHandler : IRequestHandler<CancelPreOrderComman
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var preOrder = await _context.Set<Domain.Entities.PreOrder>()
+            var preOrder = await _context.Set<Merge.Domain.Modules.Ordering.PreOrder>()
                 .FirstOrDefaultAsync(po => po.Id == request.PreOrderId && po.UserId == request.UserId, cancellationToken);
 
             if (preOrder == null) return false;
@@ -42,7 +47,7 @@ public class CancelPreOrderCommandHandler : IRequestHandler<CancelPreOrderComman
 
             preOrder.Cancel();
 
-            var campaign = await _context.Set<Domain.Entities.PreOrderCampaign>()
+            var campaign = await _context.Set<Merge.Domain.Modules.Marketing.PreOrderCampaign>()
                 .FirstOrDefaultAsync(c => c.ProductId == preOrder.ProductId, cancellationToken);
 
             if (campaign != null)

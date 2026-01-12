@@ -1,3 +1,5 @@
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Marketing;
 namespace Merge.Domain.Enums;
 
 /// <summary>

@@ -1,4 +1,5 @@
 using FluentValidation;
+using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Review.Commands.MarkReviewHelpfulness;
 

@@ -1,6 +1,6 @@
 using AutoMapper;
-using PaymentEntity = Merge.Domain.Entities.Payment;
-using OrderEntity = Merge.Domain.Entities.Order;
+using PaymentEntity = Merge.Domain.Modules.Payment.Payment;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -15,14 +15,22 @@ using Merge.Domain.Enums;
 using Merge.Application.DTOs.Order;
 using Merge.Application.DTOs.Payment;
 using Merge.Application.DTOs.User;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.Modules.Payment;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Payment;
 
 public class InvoiceService : IInvoiceService
 {
-    private readonly IRepository<Invoice> _invoiceRepository;
-    private readonly IRepository<OrderEntity> _orderRepository;
+    private readonly Merge.Application.Interfaces.IRepository<Invoice> _invoiceRepository;
+    private readonly Merge.Application.Interfaces.IRepository<OrderEntity> _orderRepository;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
@@ -30,8 +38,8 @@ public class InvoiceService : IInvoiceService
     private readonly PaymentSettings _paymentSettings;
 
     public InvoiceService(
-        IRepository<Invoice> invoiceRepository,
-        IRepository<OrderEntity> orderRepository,
+        Merge.Application.Interfaces.IRepository<Invoice> invoiceRepository,
+        Merge.Application.Interfaces.IRepository<OrderEntity> orderRepository,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,

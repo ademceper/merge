@@ -1,11 +1,16 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
-using UserEntity = Merge.Domain.Entities.User;
+using UserEntity = Merge.Domain.Modules.Identity.User;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Domain.Entities;
 using Merge.Application.DTOs.User;
 using Microsoft.Extensions.Logging;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Notifications;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.User;
@@ -44,10 +49,7 @@ public class UserPreferenceService : IUserPreferenceService
             _logger.LogInformation("No preferences found for user: {UserId}, creating default preferences", userId);
 
             // Create default preferences
-            preferences = new UserPreference
-            {
-                UserId = userId
-            };
+            preferences = UserPreference.Create(userId);
 
             await _context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -68,45 +70,38 @@ public class UserPreferenceService : IUserPreferenceService
 
         if (preferences == null)
         {
-            preferences = new UserPreference
-            {
-                UserId = userId
-            };
+            preferences = UserPreference.Create(userId);
             await _context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
         }
 
-        // Display Preferences
-        if (dto.Theme != null) preferences.Theme = dto.Theme;
-        if (dto.DefaultLanguage != null) preferences.DefaultLanguage = dto.DefaultLanguage;
-        if (dto.DefaultCurrency != null) preferences.DefaultCurrency = dto.DefaultCurrency;
-        if (dto.ItemsPerPage.HasValue) preferences.ItemsPerPage = dto.ItemsPerPage.Value;
-        if (dto.DateFormat != null) preferences.DateFormat = dto.DateFormat;
-        if (dto.TimeFormat != null) preferences.TimeFormat = dto.TimeFormat;
-
-        // Notification Preferences
-        if (dto.EmailNotifications.HasValue) preferences.EmailNotifications = dto.EmailNotifications.Value;
-        if (dto.SmsNotifications.HasValue) preferences.SmsNotifications = dto.SmsNotifications.Value;
-        if (dto.PushNotifications.HasValue) preferences.PushNotifications = dto.PushNotifications.Value;
-        if (dto.OrderUpdates.HasValue) preferences.OrderUpdates = dto.OrderUpdates.Value;
-        if (dto.PromotionalEmails.HasValue) preferences.PromotionalEmails = dto.PromotionalEmails.Value;
-        if (dto.ProductRecommendations.HasValue) preferences.ProductRecommendations = dto.ProductRecommendations.Value;
-        if (dto.ReviewReminders.HasValue) preferences.ReviewReminders = dto.ReviewReminders.Value;
-        if (dto.WishlistPriceAlerts.HasValue) preferences.WishlistPriceAlerts = dto.WishlistPriceAlerts.Value;
-        if (dto.NewsletterSubscription.HasValue) preferences.NewsletterSubscription = dto.NewsletterSubscription.Value;
-
-        // Privacy Preferences
-        if (dto.ShowProfilePublicly.HasValue) preferences.ShowProfilePublicly = dto.ShowProfilePublicly.Value;
-        if (dto.ShowPurchaseHistory.HasValue) preferences.ShowPurchaseHistory = dto.ShowPurchaseHistory.Value;
-        if (dto.AllowPersonalization.HasValue) preferences.AllowPersonalization = dto.AllowPersonalization.Value;
-        if (dto.AllowDataCollection.HasValue) preferences.AllowDataCollection = dto.AllowDataCollection.Value;
-        if (dto.AllowThirdPartySharing.HasValue) preferences.AllowThirdPartySharing = dto.AllowThirdPartySharing.Value;
-
-        // Shopping Preferences
-        if (dto.DefaultShippingAddress != null) preferences.DefaultShippingAddress = dto.DefaultShippingAddress;
-        if (dto.DefaultPaymentMethod != null) preferences.DefaultPaymentMethod = dto.DefaultPaymentMethod;
-        if (dto.AutoApplyCoupons.HasValue) preferences.AutoApplyCoupons = dto.AutoApplyCoupons.Value;
-        if (dto.SaveCartOnLogout.HasValue) preferences.SaveCartOnLogout = dto.SaveCartOnLogout.Value;
-        if (dto.ShowOutOfStockItems.HasValue) preferences.ShowOutOfStockItems = dto.ShowOutOfStockItems.Value;
+        // ✅ BOLUM 1.1: Domain Method use (Encapsulation)
+        preferences.UpdatePreferences(
+            theme: dto.Theme,
+            defaultLanguage: dto.DefaultLanguage,
+            defaultCurrency: dto.DefaultCurrency,
+            itemsPerPage: dto.ItemsPerPage,
+            dateFormat: dto.DateFormat,
+            timeFormat: dto.TimeFormat,
+            emailNotifications: dto.EmailNotifications,
+            smsNotifications: dto.SmsNotifications,
+            pushNotifications: dto.PushNotifications,
+            orderUpdates: dto.OrderUpdates,
+            promotionalEmails: dto.PromotionalEmails,
+            productRecommendations: dto.ProductRecommendations,
+            reviewReminders: dto.ReviewReminders,
+            wishlistPriceAlerts: dto.WishlistPriceAlerts,
+            newsletterSubscription: dto.NewsletterSubscription,
+            showProfilePublicly: dto.ShowProfilePublicly,
+            showPurchaseHistory: dto.ShowPurchaseHistory,
+            allowPersonalization: dto.AllowPersonalization,
+            allowDataCollection: dto.AllowDataCollection,
+            allowThirdPartySharing: dto.AllowThirdPartySharing,
+            defaultShippingAddress: dto.DefaultShippingAddress,
+            defaultPaymentMethod: dto.DefaultPaymentMethod,
+            autoApplyCoupons: dto.AutoApplyCoupons,
+            saveCartOnLogout: dto.SaveCartOnLogout,
+            showOutOfStockItems: dto.ShowOutOfStockItems
+        );
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -123,43 +118,13 @@ public class UserPreferenceService : IUserPreferenceService
 
         if (preferences == null)
         {
-            preferences = new UserPreference
-            {
-                UserId = userId
-            };
+            preferences = UserPreference.Create(userId);
             await _context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
         }
         else
         {
             // Reset to defaults
-            preferences.Theme = "Light";
-            preferences.DefaultLanguage = "tr-TR";
-            preferences.DefaultCurrency = "TRY";
-            preferences.ItemsPerPage = 20;
-            preferences.DateFormat = "dd/MM/yyyy";
-            preferences.TimeFormat = "24h";
-
-            preferences.EmailNotifications = true;
-            preferences.SmsNotifications = false;
-            preferences.PushNotifications = true;
-            preferences.OrderUpdates = true;
-            preferences.PromotionalEmails = true;
-            preferences.ProductRecommendations = true;
-            preferences.ReviewReminders = true;
-            preferences.WishlistPriceAlerts = true;
-            preferences.NewsletterSubscription = false;
-
-            preferences.ShowProfilePublicly = false;
-            preferences.ShowPurchaseHistory = false;
-            preferences.AllowPersonalization = true;
-            preferences.AllowDataCollection = true;
-            preferences.AllowThirdPartySharing = false;
-
-            preferences.DefaultShippingAddress = string.Empty;
-            preferences.DefaultPaymentMethod = string.Empty;
-            preferences.AutoApplyCoupons = true;
-            preferences.SaveCartOnLogout = true;
-            preferences.ShowOutOfStockItems = false;
+            preferences.ResetToDefaults();
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);

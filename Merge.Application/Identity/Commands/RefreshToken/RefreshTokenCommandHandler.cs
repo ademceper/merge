@@ -16,8 +16,13 @@ using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
-using UserEntity = Merge.Domain.Entities.User;
-using RefreshTokenEntity = Merge.Domain.Entities.RefreshToken;
+using UserEntity = Merge.Domain.Modules.Identity.User;
+using RefreshTokenEntity = Merge.Domain.Modules.Identity.RefreshToken;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Identity.Commands.RefreshToken;
 
@@ -112,6 +117,8 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
     {
         var randomBytes = new byte[64];
         using var rng = RandomNumberGenerator.Create();
+
+
         rng.GetBytes(randomBytes);
 
         var plainToken = Convert.ToBase64String(randomBytes);

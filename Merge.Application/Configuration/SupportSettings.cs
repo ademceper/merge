@@ -1,3 +1,5 @@
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Support;
 namespace Merge.Application.Configuration;
 
 /// <summary>

@@ -1,7 +1,11 @@
 using FluentAssertions;
-using Merge.Domain.Entities;
+
 using Merge.Domain.Exceptions;
 using Merge.Domain.ValueObjects;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Tests.Domain;
 
@@ -64,4 +68,3 @@ public class ProductTests
         product.StockQuantity.Should().Be(7);
     }
 }
-

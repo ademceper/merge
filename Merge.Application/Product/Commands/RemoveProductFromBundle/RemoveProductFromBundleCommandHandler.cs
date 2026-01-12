@@ -3,6 +3,10 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.RemoveProductFromBundle;
 
@@ -10,8 +14,8 @@ namespace Merge.Application.Product.Commands.RemoveProductFromBundle;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class RemoveProductFromBundleCommandHandler : IRequestHandler<RemoveProductFromBundleCommand, bool>
 {
-    private readonly IRepository<ProductBundle> _bundleRepository;
-    private readonly IRepository<BundleItem> _bundleItemRepository;
+    private readonly Merge.Application.Interfaces.IRepository<ProductBundle> _bundleRepository;
+    private readonly Merge.Application.Interfaces.IRepository<BundleItem> _bundleItemRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -21,8 +25,8 @@ public class RemoveProductFromBundleCommandHandler : IRequestHandler<RemoveProdu
     private const string CACHE_KEY_ACTIVE_BUNDLES = "bundles_active";
 
     public RemoveProductFromBundleCommandHandler(
-        IRepository<ProductBundle> bundleRepository,
-        IRepository<BundleItem> bundleItemRepository,
+        Merge.Application.Interfaces.IRepository<ProductBundle> bundleRepository,
+        Merge.Application.Interfaces.IRepository<BundleItem> bundleItemRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,

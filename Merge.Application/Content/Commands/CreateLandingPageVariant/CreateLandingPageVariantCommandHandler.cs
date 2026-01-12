@@ -7,6 +7,10 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.CreateLandingPageVariant;
 
@@ -14,7 +18,7 @@ namespace Merge.Application.Content.Commands.CreateLandingPageVariant;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateLandingPageVariantCommandHandler : IRequestHandler<CreateLandingPageVariantCommand, LandingPageDto>
 {
-    private readonly IRepository<LandingPage> _landingPageRepository;
+    private readonly Merge.Application.Interfaces.IRepository<LandingPage> _landingPageRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -24,7 +28,7 @@ public class CreateLandingPageVariantCommandHandler : IRequestHandler<CreateLand
     private const string CACHE_KEY_ACTIVE_PAGES = "landing_pages_active";
 
     public CreateLandingPageVariantCommandHandler(
-        IRepository<LandingPage> landingPageRepository,
+        Merge.Application.Interfaces.IRepository<LandingPage> landingPageRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,

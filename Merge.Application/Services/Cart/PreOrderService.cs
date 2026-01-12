@@ -9,12 +9,20 @@ using Merge.Application.Common;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
-using CartEntity = Merge.Domain.Entities.Cart;
-using OrderEntity = Merge.Domain.Entities.Order;
-using ProductEntity = Merge.Domain.Entities.Product;
-using AddressEntity = Merge.Domain.Entities.Address;
+using CartEntity = Merge.Domain.Modules.Ordering.Cart;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
+using AddressEntity = Merge.Domain.Modules.Identity.Address;
 using Merge.Application.DTOs.Cart;
 using AutoMapper;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Cart;

@@ -1,3 +1,4 @@
+using Merge.Domain.ValueObjects;
 namespace Merge.Application.DTOs.International;
 
 // ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan

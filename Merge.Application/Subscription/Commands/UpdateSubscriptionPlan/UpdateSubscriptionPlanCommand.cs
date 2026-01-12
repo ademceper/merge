@@ -1,6 +1,7 @@
 using MediatR;
 using Merge.Application.DTOs.Subscription;
 using Merge.Domain.Enums;
+using Merge.Domain.Modules.Payment;
 
 namespace Merge.Application.Subscription.Commands.UpdateSubscriptionPlan;
 

@@ -1,4 +1,6 @@
 using FluentValidation;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Cart.Commands.TrackEmailOpen;
 

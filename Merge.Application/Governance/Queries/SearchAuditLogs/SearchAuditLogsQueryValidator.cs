@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Governance.Queries.SearchAuditLogs;
 
@@ -52,4 +53,3 @@ public class SearchAuditLogsQueryValidator : AbstractValidator<SearchAuditLogsQu
             .When(x => x.StartDate.HasValue && x.EndDate.HasValue);
     }
 }
-

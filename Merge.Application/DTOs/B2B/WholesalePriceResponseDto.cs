@@ -1,3 +1,4 @@
+using Merge.Domain.Modules.Payment;
 namespace Merge.Application.DTOs.B2B;
 
 /// <summary>

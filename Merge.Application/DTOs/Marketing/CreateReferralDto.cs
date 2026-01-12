@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Merge.Domain.Modules.Marketing;
 
 namespace Merge.Application.DTOs.Marketing;
 

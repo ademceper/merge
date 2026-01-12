@@ -1,3 +1,5 @@
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Notifications;
 namespace Merge.Application.DTOs.User;
 
 public class UserPreferenceDto

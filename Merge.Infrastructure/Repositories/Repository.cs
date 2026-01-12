@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Merge.Domain.Entities;
+using Merge.Domain.SharedKernel;
 using Merge.Domain.Specifications;
 using Merge.Application.Interfaces;
 using Merge.Infrastructure.Data;

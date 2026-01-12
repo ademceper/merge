@@ -1,4 +1,5 @@
 using FluentValidation;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Identity.Commands.Login;
 

@@ -9,8 +9,13 @@ using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using OrderEntity = Merge.Domain.Entities.Order;
-using OrderItemEntity = Merge.Domain.Entities.OrderItem;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
+using OrderItemEntity = Merge.Domain.Modules.Ordering.OrderItem;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Security.Commands.CreateOrderVerification;
 

@@ -1,6 +1,7 @@
 using Merge.Application.Common;
 using Merge.Application.DTOs.Order;
 using Merge.Domain.Enums;
+using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Interfaces.Order;
 

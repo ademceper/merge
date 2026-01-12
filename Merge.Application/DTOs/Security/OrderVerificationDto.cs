@@ -1,3 +1,4 @@
+using Merge.Domain.Enums;
 namespace Merge.Application.DTOs.Security;
 
 public class OrderVerificationDto

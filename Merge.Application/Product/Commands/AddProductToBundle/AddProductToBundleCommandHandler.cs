@@ -4,7 +4,11 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using ProductEntity = Merge.Domain.Entities.Product;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.AddProductToBundle;
 
@@ -12,9 +16,9 @@ namespace Merge.Application.Product.Commands.AddProductToBundle;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class AddProductToBundleCommandHandler : IRequestHandler<AddProductToBundleCommand, bool>
 {
-    private readonly IRepository<ProductBundle> _bundleRepository;
-    private readonly IRepository<BundleItem> _bundleItemRepository;
-    private readonly IRepository<ProductEntity> _productRepository;
+    private readonly Merge.Application.Interfaces.IRepository<ProductBundle> _bundleRepository;
+    private readonly Merge.Application.Interfaces.IRepository<BundleItem> _bundleItemRepository;
+    private readonly Merge.Application.Interfaces.IRepository<ProductEntity> _productRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -24,9 +28,9 @@ public class AddProductToBundleCommandHandler : IRequestHandler<AddProductToBund
     private const string CACHE_KEY_ACTIVE_BUNDLES = "bundles_active";
 
     public AddProductToBundleCommandHandler(
-        IRepository<ProductBundle> bundleRepository,
-        IRepository<BundleItem> bundleItemRepository,
-        IRepository<ProductEntity> productRepository,
+        Merge.Application.Interfaces.IRepository<ProductBundle> bundleRepository,
+        Merge.Application.Interfaces.IRepository<BundleItem> bundleItemRepository,
+        Merge.Application.Interfaces.IRepository<ProductEntity> productRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,

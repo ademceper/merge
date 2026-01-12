@@ -3,6 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Domain.Enums;
+using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.RecordEmailClick;
 
@@ -30,7 +36,7 @@ public class RecordEmailClickCommandHandler : IRequestHandler<RecordEmailClickCo
             "Email tıklaması kaydediliyor. CampaignId: {CampaignId}, SubscriberId: {SubscriberId}",
             request.CampaignId, request.SubscriberId);
 
-        var recipient = await _context.Set<Merge.Domain.Entities.EmailCampaignRecipient>()
+        var recipient = await _context.Set<Merge.Domain.Modules.Marketing.EmailCampaignRecipient>()
             .FirstOrDefaultAsync(r => r.CampaignId == request.CampaignId && r.SubscriberId == request.SubscriberId, cancellationToken);
 
         if (recipient == null)
@@ -48,7 +54,7 @@ public class RecordEmailClickCommandHandler : IRequestHandler<RecordEmailClickCo
         if (wasFirstClick)
         {
             // ✅ PERFORMANCE: Batch load campaign and subscriber (N+1 fix)
-            var campaign = await _context.Set<Merge.Domain.Entities.EmailCampaign>()
+            var campaign = await _context.Set<Merge.Domain.Modules.Marketing.EmailCampaign>()
                 .FirstOrDefaultAsync(c => c.Id == request.CampaignId, cancellationToken);
 
             if (campaign != null)
@@ -65,7 +71,7 @@ public class RecordEmailClickCommandHandler : IRequestHandler<RecordEmailClickCo
                 );
             }
 
-            var subscriber = await _context.Set<Merge.Domain.Entities.EmailSubscriber>()
+            var subscriber = await _context.Set<Merge.Domain.Modules.Marketing.EmailSubscriber>()
                 .FirstOrDefaultAsync(s => s.Id == request.SubscriberId, cancellationToken);
 
             if (subscriber != null)

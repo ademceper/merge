@@ -1,8 +1,11 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Merge.Domain.Common.DomainEvents;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.DTOs.Notification;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.Modules.Payment;
+using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Subscription.EventHandlers;
 

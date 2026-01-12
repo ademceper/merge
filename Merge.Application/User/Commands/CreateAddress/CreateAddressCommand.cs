@@ -1,5 +1,7 @@
 using MediatR;
 using Merge.Application.DTOs.User;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.User.Commands.CreateAddress;
 

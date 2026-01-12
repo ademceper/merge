@@ -1,4 +1,6 @@
 using System.Text.Json.Serialization;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Support;
 
 namespace Merge.Application.DTOs.Support;
 

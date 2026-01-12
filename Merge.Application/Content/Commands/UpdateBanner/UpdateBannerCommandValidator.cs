@@ -1,4 +1,5 @@
 using FluentValidation;
+using Merge.Domain.Modules.Content;
 
 namespace Merge.Application.Content.Commands.UpdateBanner;
 

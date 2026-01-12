@@ -6,6 +6,10 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Commands.UpdateProductBundle;
 
@@ -13,7 +17,7 @@ namespace Merge.Application.Product.Commands.UpdateProductBundle;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateProductBundleCommandHandler : IRequestHandler<UpdateProductBundleCommand, ProductBundleDto>
 {
-    private readonly IRepository<ProductBundle> _bundleRepository;
+    private readonly Merge.Application.Interfaces.IRepository<ProductBundle> _bundleRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -24,7 +28,7 @@ public class UpdateProductBundleCommandHandler : IRequestHandler<UpdateProductBu
     private const string CACHE_KEY_ACTIVE_BUNDLES = "bundles_active";
 
     public UpdateProductBundleCommandHandler(
-        IRepository<ProductBundle> bundleRepository,
+        Merge.Application.Interfaces.IRepository<ProductBundle> bundleRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,

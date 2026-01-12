@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.DTOs.Auth;
 

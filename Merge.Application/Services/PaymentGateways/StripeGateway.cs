@@ -3,6 +3,8 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.PaymentGateways;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Payment;
 
 namespace Merge.Application.Services.PaymentGateways;
 

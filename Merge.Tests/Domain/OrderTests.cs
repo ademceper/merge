@@ -1,9 +1,13 @@
 using FluentAssertions;
-using Merge.Domain.Entities;
+
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
 using Merge.Domain.ValueObjects;
-using AddressEntity = Merge.Domain.Entities.Address;
+
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Tests.Domain;
 
@@ -16,7 +20,7 @@ public class OrderTests
         // Arrange
         var userId = Guid.NewGuid();
         var addressId = Guid.NewGuid();
-        var address = AddressEntity.Create(
+        var address = Merge.Domain.Modules.Identity.Address.Create(
             userId: userId,
             title: "Home",
             firstName: "Test",
@@ -44,7 +48,7 @@ public class OrderTests
     {
         // Arrange
         var addressId = Guid.NewGuid();
-        var address = AddressEntity.Create(
+        var address = Merge.Domain.Modules.Identity.Address.Create(
             userId: Guid.NewGuid(),
             title: "Home",
             firstName: "Test",
@@ -84,7 +88,7 @@ public class OrderTests
     {
         // Arrange
         var addressId = Guid.NewGuid();
-        var address = AddressEntity.Create(
+        var address = Merge.Domain.Modules.Identity.Address.Create(
             userId: Guid.NewGuid(),
             title: "Home",
             firstName: "Test",
@@ -101,4 +105,3 @@ public class OrderTests
         Assert.ThrowsAny<Exception>(() => order.TransitionTo(OrderStatus.Delivered));
     }
 }
-

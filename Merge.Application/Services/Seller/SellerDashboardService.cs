@@ -1,7 +1,7 @@
 using AutoMapper;
-using UserEntity = Merge.Domain.Entities.User;
-using OrderEntity = Merge.Domain.Entities.Order;
-using ProductEntity = Merge.Domain.Entities.Product;
+using UserEntity = Merge.Domain.Modules.Identity.User;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -11,12 +11,20 @@ using Merge.Application.Interfaces.Seller;
 using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
-using ReviewEntity = Merge.Domain.Entities.Review;
+using ReviewEntity = Merge.Domain.Modules.Catalog.Review;
 using Merge.Domain.Enums;
 using Merge.Application.DTOs.Order;
 using Merge.Application.DTOs.Product;
 using Merge.Application.DTOs.Seller;
 using Merge.Application.Common;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Marketplace;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
@@ -24,9 +32,9 @@ namespace Merge.Application.Services.Seller;
 
 public class SellerDashboardService : ISellerDashboardService
 {
-    private readonly IRepository<SellerProfile> _sellerProfileRepository;
-    private readonly IRepository<ProductEntity> _productRepository;
-    private readonly IRepository<OrderEntity> _orderRepository;
+    private readonly Merge.Application.Interfaces.IRepository<SellerProfile> _sellerProfileRepository;
+    private readonly Merge.Application.Interfaces.IRepository<ProductEntity> _productRepository;
+    private readonly Merge.Application.Interfaces.IRepository<OrderEntity> _orderRepository;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<SellerDashboardService> _logger;
@@ -34,9 +42,9 @@ public class SellerDashboardService : ISellerDashboardService
     private readonly PaginationSettings _paginationSettings;
 
     public SellerDashboardService(
-        IRepository<SellerProfile> sellerProfileRepository,
-        IRepository<ProductEntity> productRepository,
-        IRepository<OrderEntity> orderRepository,
+        Merge.Application.Interfaces.IRepository<SellerProfile> sellerProfileRepository,
+        Merge.Application.Interfaces.IRepository<ProductEntity> productRepository,
+        Merge.Application.Interfaces.IRepository<OrderEntity> orderRepository,
         IDbContext context,
         IMapper mapper,
         ILogger<SellerDashboardService> logger,

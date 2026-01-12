@@ -1,5 +1,7 @@
 using MediatR;
 using Merge.Application.DTOs.Product;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Product.Commands.UpdateProduct;
 

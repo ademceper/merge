@@ -5,6 +5,11 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.UpdateLandingPage;
 
@@ -12,7 +17,7 @@ namespace Merge.Application.Content.Commands.UpdateLandingPage;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateLandingPageCommandHandler : IRequestHandler<UpdateLandingPageCommand, bool>
 {
-    private readonly IRepository<LandingPage> _landingPageRepository;
+    private readonly Merge.Application.Interfaces.IRepository<LandingPage> _landingPageRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -21,7 +26,7 @@ public class UpdateLandingPageCommandHandler : IRequestHandler<UpdateLandingPage
     private const string CACHE_KEY_ACTIVE_PAGES = "landing_pages_active";
 
     public UpdateLandingPageCommandHandler(
-        IRepository<LandingPage> landingPageRepository,
+        Merge.Application.Interfaces.IRepository<LandingPage> landingPageRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,

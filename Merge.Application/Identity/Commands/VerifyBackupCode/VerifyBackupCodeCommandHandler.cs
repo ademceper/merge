@@ -3,6 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Identity.Commands.VerifyBackupCode;
 
@@ -10,13 +14,13 @@ namespace Merge.Application.Identity.Commands.VerifyBackupCode;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
 public class VerifyBackupCodeCommandHandler : IRequestHandler<VerifyBackupCodeCommand, bool>
 {
-    private readonly IRepository<TwoFactorAuth> _twoFactorRepository;
+    private readonly Merge.Application.Interfaces.IRepository<TwoFactorAuth> _twoFactorRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<VerifyBackupCodeCommandHandler> _logger;
 
     public VerifyBackupCodeCommandHandler(
-        IRepository<TwoFactorAuth> twoFactorRepository,
+        Merge.Application.Interfaces.IRepository<TwoFactorAuth> twoFactorRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ILogger<VerifyBackupCodeCommandHandler> logger)

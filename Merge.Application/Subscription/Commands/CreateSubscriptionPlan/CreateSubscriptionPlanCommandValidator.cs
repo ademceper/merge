@@ -1,5 +1,6 @@
 using FluentValidation;
 using Merge.Domain.Enums;
+using Merge.Domain.Modules.Payment;
 
 namespace Merge.Application.Subscription.Commands.CreateSubscriptionPlan;
 

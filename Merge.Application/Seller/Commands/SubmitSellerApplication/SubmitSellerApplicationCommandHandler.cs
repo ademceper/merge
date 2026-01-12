@@ -10,14 +10,21 @@ using Merge.Application.Exceptions;
 using Merge.Application.Services.Notification;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using UserEntity = Merge.Domain.Entities.User;
+using UserEntity = Merge.Domain.Modules.Identity.User;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Marketplace;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Commands.SubmitSellerApplication;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class SubmitSellerApplicationCommandHandler : IRequestHandler<SubmitSellerApplicationCommand, SellerApplicationDto>
 {
-    private readonly IRepository<SellerApplication> _applicationRepository;
+    private readonly Merge.Application.Interfaces.IRepository<SellerApplication> _applicationRepository;
     private readonly UserManager<UserEntity> _userManager;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
@@ -26,7 +33,7 @@ public class SubmitSellerApplicationCommandHandler : IRequestHandler<SubmitSelle
     private readonly ILogger<SubmitSellerApplicationCommandHandler> _logger;
 
     public SubmitSellerApplicationCommandHandler(
-        IRepository<SellerApplication> applicationRepository,
+        Merge.Application.Interfaces.IRepository<SellerApplication> applicationRepository,
         UserManager<UserEntity> userManager,
         IDbContext context,
         IUnitOfWork unitOfWork,

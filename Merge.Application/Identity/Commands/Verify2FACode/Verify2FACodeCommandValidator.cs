@@ -1,4 +1,5 @@
 using FluentValidation;
+using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Identity.Commands.Verify2FACode;
 

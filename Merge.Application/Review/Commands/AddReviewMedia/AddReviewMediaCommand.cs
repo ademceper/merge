@@ -1,5 +1,6 @@
 using MediatR;
 using Merge.Application.DTOs.Marketing;
+using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Review.Commands.AddReviewMedia;
 

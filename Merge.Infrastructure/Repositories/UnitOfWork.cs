@@ -1,13 +1,15 @@
 using Microsoft.EntityFrameworkCore.Storage;
-using Merge.Domain.Common;
+using Merge.Domain.SharedKernel;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.SharedKernel;
 using Merge.Application.Interfaces;
 using Merge.Infrastructure.Data;
 
 namespace Merge.Infrastructure.Repositories;
 
 // ✅ BOLUM 1.1: UnitOfWork Application katmanındaki IUnitOfWork interface'ini implement ediyor
-public class UnitOfWork : IUnitOfWork
+public class UnitOfWork : Merge.Application.Interfaces.IUnitOfWork
 {
     private readonly ApplicationDbContext _context;
     private readonly IDomainEventDispatcher? _domainEventDispatcher;

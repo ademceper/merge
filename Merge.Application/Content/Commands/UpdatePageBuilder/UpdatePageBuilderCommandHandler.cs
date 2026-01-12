@@ -4,13 +4,18 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.UpdatePageBuilder;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UpdatePageBuilderCommandHandler : IRequestHandler<UpdatePageBuilderCommand, bool>
 {
-    private readonly IRepository<PageBuilder> _pageBuilderRepository;
+    private readonly Merge.Application.Interfaces.IRepository<PageBuilder> _pageBuilderRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -19,7 +24,7 @@ public class UpdatePageBuilderCommandHandler : IRequestHandler<UpdatePageBuilder
     private const string CACHE_KEY_ACTIVE_PAGES = "page_builders_active";
 
     public UpdatePageBuilderCommandHandler(
-        IRepository<PageBuilder> pageBuilderRepository,
+        Merge.Application.Interfaces.IRepository<PageBuilder> pageBuilderRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,

@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Merge.Domain.Interfaces;
 
 namespace Merge.Application.International.Commands.SyncExchangeRates;
 

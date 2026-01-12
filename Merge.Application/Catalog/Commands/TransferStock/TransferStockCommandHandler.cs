@@ -5,7 +5,13 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using ProductEntity = Merge.Domain.Entities.Product;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Inventory;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Catalog.Commands.TransferStock;
 
@@ -15,7 +21,7 @@ public class TransferStockCommandHandler : IRequestHandler<TransferStockCommand,
 {
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IRepository<Inventory> _inventoryRepository;
+    private readonly Merge.Application.Interfaces.IRepository<Inventory> _inventoryRepository;
     private readonly ICacheService _cache;
     private readonly ILogger<TransferStockCommandHandler> _logger;
     private const string CACHE_KEY_INVENTORY_BY_PRODUCT_WAREHOUSE = "inventory_product_warehouse_";
@@ -23,7 +29,7 @@ public class TransferStockCommandHandler : IRequestHandler<TransferStockCommand,
     public TransferStockCommandHandler(
         IDbContext context,
         IUnitOfWork unitOfWork,
-        IRepository<Inventory> inventoryRepository,
+        Merge.Application.Interfaces.IRepository<Inventory> inventoryRepository,
         ICacheService cache,
         ILogger<TransferStockCommandHandler> logger)
     {

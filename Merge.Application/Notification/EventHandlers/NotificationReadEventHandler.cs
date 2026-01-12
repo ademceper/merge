@@ -1,6 +1,8 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Merge.Domain.Common.DomainEvents;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Notification.EventHandlers;
 

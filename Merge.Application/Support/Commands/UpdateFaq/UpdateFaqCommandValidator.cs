@@ -1,6 +1,8 @@
 using FluentValidation;
 using Merge.Application.Configuration;
 using Microsoft.Extensions.Options;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Support;
 
 namespace Merge.Application.Support.Commands.UpdateFaq;
 

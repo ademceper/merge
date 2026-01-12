@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Merge.Domain.Modules.Content;
 
 namespace Merge.Application.DTOs.Governance;
 

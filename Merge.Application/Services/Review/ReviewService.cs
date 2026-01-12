@@ -1,7 +1,7 @@
 using AutoMapper;
-using UserEntity = Merge.Domain.Entities.User;
-using ReviewEntity = Merge.Domain.Entities.Review;
-using ProductEntity = Merge.Domain.Entities.Product;
+using UserEntity = Merge.Domain.Modules.Identity.User;
+using ReviewEntity = Merge.Domain.Modules.Catalog.Review;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
@@ -13,22 +13,28 @@ using Merge.Domain.ValueObjects;
 using Merge.Application.DTOs.Review;
 using Merge.Application.Common;
 using Microsoft.Extensions.Logging;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Review;
 
 public class ReviewService : IReviewService
 {
-    private readonly IRepository<ReviewEntity> _reviewRepository;
-    private readonly IRepository<ProductEntity> _productRepository;
+    private readonly Merge.Application.Interfaces.IRepository<ReviewEntity> _reviewRepository;
+    private readonly Merge.Application.Interfaces.IRepository<ProductEntity> _productRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<ReviewService> _logger;
 
     public ReviewService(
-        IRepository<ReviewEntity> reviewRepository,
-        IRepository<ProductEntity> productRepository,
+        Merge.Application.Interfaces.IRepository<ReviewEntity> reviewRepository,
+        Merge.Application.Interfaces.IRepository<ProductEntity> productRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,

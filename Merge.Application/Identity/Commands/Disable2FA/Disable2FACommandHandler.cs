@@ -7,8 +7,12 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Application.Identity.Commands.Verify2FACode;
 using Merge.Domain.Entities;
-using Merge.Domain.Common.DomainEvents;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Enums;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Identity.Commands.Disable2FA;
 
@@ -16,14 +20,14 @@ namespace Merge.Application.Identity.Commands.Disable2FA;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
 public class Disable2FACommandHandler : IRequestHandler<Disable2FACommand, Unit>
 {
-    private readonly IRepository<TwoFactorAuth> _twoFactorRepository;
+    private readonly Merge.Application.Interfaces.IRepository<TwoFactorAuth> _twoFactorRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMediator _mediator;
     private readonly ILogger<Disable2FACommandHandler> _logger;
 
     public Disable2FACommandHandler(
-        IRepository<TwoFactorAuth> twoFactorRepository,
+        Merge.Application.Interfaces.IRepository<TwoFactorAuth> twoFactorRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         IMediator mediator,

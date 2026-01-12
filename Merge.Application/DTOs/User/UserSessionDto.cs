@@ -1,3 +1,4 @@
+using Merge.Domain.Modules.Identity;
 namespace Merge.Application.DTOs.User;
 
 public class UserSessionDto

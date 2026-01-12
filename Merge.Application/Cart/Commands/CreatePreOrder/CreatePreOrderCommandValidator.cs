@@ -1,5 +1,6 @@
 using FluentValidation;
 using Merge.Application.Configuration;
+using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Commands.CreatePreOrder;
 

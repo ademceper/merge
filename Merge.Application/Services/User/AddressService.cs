@@ -1,5 +1,5 @@
 using AutoMapper;
-using UserEntity = Merge.Domain.Entities.User;
+using UserEntity = Merge.Domain.Modules.Identity.User;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Exceptions;
@@ -7,20 +7,26 @@ using Merge.Domain.Entities;
 using Merge.Application.Interfaces;
 using Merge.Application.DTOs.User;
 using Microsoft.Extensions.Logging;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using Address = Merge.Domain.Modules.Identity.Address;
 
 
 namespace Merge.Application.Services.User;
 
 public class AddressService : IAddressService
 {
-    private readonly IRepository<Address> _addressRepository;
+    private readonly Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Identity.Address> _addressRepository;
     private readonly IDbContext _context; // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<AddressService> _logger;
 
     public AddressService(
-        IRepository<Address> addressRepository,
+        Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Identity.Address> addressRepository,
         IDbContext context, // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)
         IMapper mapper,
         IUnitOfWork unitOfWork,
@@ -38,7 +44,7 @@ public class AddressService : IAddressService
     {
         _logger.LogInformation("Retrieving address with ID: {AddressId}", id);
 
-        var address = await _context.Set<Address>()
+        var address = await _context.Set<Merge.Domain.Modules.Identity.Address>()
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
@@ -56,7 +62,7 @@ public class AddressService : IAddressService
     {
         _logger.LogInformation("Retrieving addresses for user ID: {UserId}", userId);
 
-        var addresses = await _context.Set<Address>()
+        var addresses = await _context.Set<Merge.Domain.Modules.Identity.Address>()
             .AsNoTracking()
             .Where(a => a.UserId == userId)
             .OrderByDescending(a => a.IsDefault)
@@ -92,7 +98,7 @@ public class AddressService : IAddressService
         if (dto.IsDefault)
         {
             // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-            var existingDefaults = await _context.Set<Address>()
+            var existingDefaults = await _context.Set<Merge.Domain.Modules.Identity.Address>()
                 .Where(a => a.UserId == dto.UserId && a.IsDefault)
                 .ToListAsync(cancellationToken);
 
@@ -108,7 +114,7 @@ public class AddressService : IAddressService
         }
 
         // ✅ BOLUM 11.0: Rich Domain Model - Factory method kullan
-        var address = Address.Create(
+        var address = Merge.Domain.Modules.Identity.Address.Create(
             userId: dto.UserId,
             title: dto.Title ?? string.Empty,
             firstName: dto.FirstName,
@@ -161,7 +167,7 @@ public class AddressService : IAddressService
         if (dto.IsDefault && !address.IsDefault)
         {
             // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-            var existingDefaults = await _context.Set<Address>()
+            var existingDefaults = await _context.Set<Merge.Domain.Modules.Identity.Address>()
                 .Where(a => a.UserId == address.UserId && a.Id != id && a.IsDefault)
                 .ToListAsync(cancellationToken);
 
@@ -232,7 +238,7 @@ public class AddressService : IAddressService
     {
         _logger.LogInformation("Setting address {AddressId} as default for user {UserId}", id, userId);
 
-        var address = await _context.Set<Address>()
+        var address = await _context.Set<Merge.Domain.Modules.Identity.Address>()
             .FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId, cancellationToken);
 
         if (address == null)
@@ -243,7 +249,7 @@ public class AddressService : IAddressService
 
         // Diğer adreslerin default'unu kaldır
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-        var existingDefaults = await _context.Set<Address>()
+        var existingDefaults = await _context.Set<Merge.Domain.Modules.Identity.Address>()
             .Where(a => a.UserId == userId && a.Id != id && a.IsDefault)
             .ToListAsync(cancellationToken);
 

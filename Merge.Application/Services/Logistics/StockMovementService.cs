@@ -1,5 +1,5 @@
 using AutoMapper;
-using OrderEntity = Merge.Domain.Entities.Order;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.User;
@@ -9,20 +9,27 @@ using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Common;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Inventory;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Logistics;
 
 public class StockMovementService : IStockMovementService
 {
-    private readonly IRepository<StockMovement> _stockMovementRepository;
+    private readonly Merge.Application.Interfaces.IRepository<StockMovement> _stockMovementRepository;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<StockMovementService> _logger;
 
     public StockMovementService(
-        IRepository<StockMovement> stockMovementRepository,
+        Merge.Application.Interfaces.IRepository<StockMovement> stockMovementRepository,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,

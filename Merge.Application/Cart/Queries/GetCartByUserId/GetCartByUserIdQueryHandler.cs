@@ -5,6 +5,11 @@ using Merge.Application.DTOs.Cart;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
 using AutoMapper;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Queries.GetCartByUserId;
 
@@ -35,7 +40,7 @@ public class GetCartByUserIdQueryHandler : IRequestHandler<GetCartByUserIdQuery,
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !ci.IsDeleted check (Global Query Filter handles it)
-        var cart = await _context.Set<Merge.Domain.Entities.Cart>()
+        var cart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .AsNoTracking()
             .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.Product)
@@ -44,15 +49,15 @@ public class GetCartByUserIdQueryHandler : IRequestHandler<GetCartByUserIdQuery,
         if (cart == null)
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
-            var newCart = Merge.Domain.Entities.Cart.Create(request.UserId);
-            await _context.Set<Merge.Domain.Entities.Cart>().AddAsync(newCart, cancellationToken);
+            var newCart = Merge.Domain.Modules.Ordering.Cart.Create(request.UserId);
+            await _context.Set<Merge.Domain.Modules.Ordering.Cart>().AddAsync(newCart, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Created new cart for user {UserId}, CartId: {CartId}",
                 request.UserId, newCart.Id);
 
             // Reload with Include for AutoMapper
-            newCart = await _context.Set<Merge.Domain.Entities.Cart>()
+            newCart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
                 .AsNoTracking()
                 .Include(c => c.CartItems)
                     .ThenInclude(ci => ci.Product)

@@ -6,6 +6,10 @@ using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using static Merge.Application.DTOs.B2B.B2BUserSettingsDto;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.B2B.Commands.UpdateB2BUser;
 

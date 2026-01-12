@@ -1,4 +1,5 @@
 using Merge.Application.DTOs.Notification;
+using Merge.Domain.Modules.Notifications;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Notification;

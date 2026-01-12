@@ -1,5 +1,5 @@
 using AutoMapper;
-using OrderEntity = Merge.Domain.Entities.Order;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
@@ -8,19 +8,25 @@ using Merge.Application.Interfaces.Order;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Application.DTOs.Order;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Order;
 
 public class OrderFilterService : IOrderFilterService
 {
-    private readonly IRepository<OrderEntity> _orderRepository;
+    private readonly Merge.Application.Interfaces.IRepository<OrderEntity> _orderRepository;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<OrderFilterService> _logger;
 
     public OrderFilterService(
-        IRepository<OrderEntity> orderRepository,
+        Merge.Application.Interfaces.IRepository<OrderEntity> orderRepository,
         IDbContext context,
         IMapper mapper,
         ILogger<OrderFilterService> logger)

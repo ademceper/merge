@@ -1,5 +1,6 @@
+using Merge.Domain.SharedKernel;
 using Microsoft.Extensions.Logging;
-using Merge.Domain.Common;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Infrastructure.Common;
 

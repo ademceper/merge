@@ -1,5 +1,6 @@
 using Merge.Application.DTOs.Security;
 using Merge.Application.Common;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Interfaces.Governance;
 

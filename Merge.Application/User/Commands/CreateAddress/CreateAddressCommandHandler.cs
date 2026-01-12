@@ -5,9 +5,16 @@ using AutoMapper;
 using Merge.Application.DTOs.User;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.User.Commands.CreateAddress;
 
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateAddressCommandHandler : IRequestHandler<CreateAddressCommand, AddressDto>
 {
     private readonly IDbContext _context;
@@ -34,7 +41,7 @@ public class CreateAddressCommandHandler : IRequestHandler<CreateAddressCommand,
         // Eger default olarak isaretleniyorsa, diger adreslerin default'unu kaldir
         if (request.IsDefault)
         {
-            var existingDefaults = await _context.Set<Address>()
+            var existingDefaults = await _context.Set<Merge.Domain.Modules.Identity.Address>()
                 .Where(a => a.UserId == request.UserId && a.IsDefault)
                 .ToListAsync(cancellationToken);
 
@@ -49,7 +56,7 @@ public class CreateAddressCommandHandler : IRequestHandler<CreateAddressCommand,
             }
         }
 
-        var address = Address.Create(
+        var address = Merge.Domain.Modules.Identity.Address.Create(
             userId: request.UserId,
             title: request.Title,
             firstName: request.FirstName,
@@ -63,7 +70,7 @@ public class CreateAddressCommandHandler : IRequestHandler<CreateAddressCommand,
             addressLine2: request.AddressLine2,
             isDefault: request.IsDefault);
 
-        await _context.Set<Address>().AddAsync(address, cancellationToken);
+        await _context.Set<Merge.Domain.Modules.Identity.Address>().AddAsync(address, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Address created successfully with ID: {AddressId}", address.Id);

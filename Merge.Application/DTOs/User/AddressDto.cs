@@ -1,3 +1,5 @@
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.ValueObjects;
 namespace Merge.Application.DTOs.User;
 
 public class AddressDto

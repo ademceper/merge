@@ -8,6 +8,11 @@ using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using System.Text;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.CreateCMSPage;
 
@@ -15,7 +20,7 @@ namespace Merge.Application.Content.Commands.CreateCMSPage;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateCMSPageCommandHandler : IRequestHandler<CreateCMSPageCommand, CMSPageDto>
 {
-    private readonly IRepository<CMSPage> _cmsPageRepository;
+    private readonly Merge.Application.Interfaces.IRepository<CMSPage> _cmsPageRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -28,7 +33,7 @@ public class CreateCMSPageCommandHandler : IRequestHandler<CreateCMSPageCommand,
     private const string CACHE_KEY_ALL_PAGES_PAGED = "cms_pages_all_paged";
 
     public CreateCMSPageCommandHandler(
-        IRepository<CMSPage> cmsPageRepository,
+        Merge.Application.Interfaces.IRepository<CMSPage> cmsPageRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,

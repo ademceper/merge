@@ -7,7 +7,13 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Domain.Common.DomainEvents;
+using Merge.Domain.SharedKernel.DomainEvents;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Content;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.CreateBlogPost;
 
@@ -15,7 +21,7 @@ namespace Merge.Application.Content.Commands.CreateBlogPost;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateBlogPostCommandHandler : IRequestHandler<CreateBlogPostCommand, BlogPostDto>
 {
-    private readonly IRepository<BlogPost> _postRepository;
+    private readonly Merge.Application.Interfaces.IRepository<BlogPost> _postRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -26,7 +32,7 @@ public class CreateBlogPostCommandHandler : IRequestHandler<CreateBlogPostComman
     private const string CACHE_KEY_RECENT_POSTS = "blog_posts_recent";
 
     public CreateBlogPostCommandHandler(
-        IRepository<BlogPost> postRepository,
+        Merge.Application.Interfaces.IRepository<BlogPost> postRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,

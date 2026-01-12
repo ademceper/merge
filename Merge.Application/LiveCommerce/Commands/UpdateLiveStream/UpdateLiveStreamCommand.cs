@@ -1,5 +1,6 @@
 using MediatR;
 using Merge.Application.DTOs.LiveCommerce;
+using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.LiveCommerce.Commands.UpdateLiveStream;
 

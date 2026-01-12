@@ -6,6 +6,10 @@ using Merge.Application.DTOs.Content;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.CreateOrUpdateSEOSettings;
 
@@ -13,7 +17,7 @@ namespace Merge.Application.Content.Commands.CreateOrUpdateSEOSettings;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateOrUpdateSEOSettingsCommandHandler : IRequestHandler<CreateOrUpdateSEOSettingsCommand, SEOSettingsDto>
 {
-    private readonly IRepository<SEOSettings> _seoSettingsRepository;
+    private readonly Merge.Application.Interfaces.IRepository<SEOSettings> _seoSettingsRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -22,7 +26,7 @@ public class CreateOrUpdateSEOSettingsCommandHandler : IRequestHandler<CreateOrU
     private const string CACHE_KEY_SEO_SETTINGS = "seo_settings_";
 
     public CreateOrUpdateSEOSettingsCommandHandler(
-        IRepository<SEOSettings> seoSettingsRepository,
+        Merge.Application.Interfaces.IRepository<SEOSettings> seoSettingsRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,

@@ -1,24 +1,38 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.User;
+using Microsoft.Extensions.Options;
+using Merge.Application.Configuration;
 using Merge.Application.DTOs.User;
+using Merge.Application.User.Commands.DeleteOldActivities;
+using Merge.Application.User.Commands.LogActivity;
+using Merge.Application.User.Queries.GetActivityById;
+using Merge.Application.User.Queries.GetActivityStats;
+using Merge.Application.User.Queries.GetMostViewedProducts;
+using Merge.Application.User.Queries.GetUserActivities;
+using Merge.Application.User.Queries.GetUserSessions;
+using Merge.Application.User.Queries.SearchActivities;
 using Merge.API.Middleware;
 
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
 // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
 // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
 namespace Merge.API.Controllers.User;
 
 [ApiController]
-[Route("api/user/activities")]
+[Route("api/v{version:apiVersion}/user/activities")]
 public class ActivitiesController : BaseController
 {
-    private readonly IUserActivityService _activityService;
+    private readonly IMediator _mediator;
+    private readonly UserSettings _userSettings;
 
-    public ActivitiesController(IUserActivityService activityService)
+    public ActivitiesController(IMediator mediator, IOptions<UserSettings> userSettings)
     {
-        _activityService = activityService;
+        _mediator = mediator;
+        _userSettings = userSettings.Value;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -47,7 +61,20 @@ public class ActivitiesController : BaseController
             }
         }
 
-        await _activityService.LogActivityAsync(activityDto, ipAddress, userAgent, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new LogActivityCommand(
+            activityDto.UserId,
+            activityDto.ActivityType,
+            activityDto.EntityType,
+            activityDto.EntityId,
+            activityDto.Description,
+            ipAddress,
+            userAgent,
+            activityDto.Metadata,
+            activityDto.DurationMs,
+            activityDto.WasSuccessful,
+            activityDto.ErrorMessage);
+        await _mediator.Send(command, cancellationToken);
         return Ok();
     }
 
@@ -67,7 +94,9 @@ public class ActivitiesController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var activity = await _activityService.GetActivityByIdAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetActivityByIdQuery(id);
+        var activity = await _mediator.Send(query, cancellationToken);
         if (activity == null)
         {
             return NotFound();
@@ -91,11 +120,14 @@ public class ActivitiesController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - days parametresi ile sınırlı
-        if (days > 365) days = 365; // Max 1 yıl
-        if (days < 1) days = 1;
+        // ✅ BOLUM 12.0: Magic numbers configuration'dan alınıyor
+        if (days > _userSettings.Activity.MaxDays) days = _userSettings.Activity.MaxDays;
+        if (days < 1) days = _userSettings.Activity.DefaultDays;
 
         var userId = GetUserId();
-        var activities = await _activityService.GetUserActivitiesAsync(userId, days, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetUserActivitiesQuery(userId, days);
+        var activities = await _mediator.Send(query, cancellationToken);
         return Ok(activities);
     }
 
@@ -117,10 +149,13 @@ public class ActivitiesController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - days parametresi ile sınırlı
-        if (days > 365) days = 365; // Max 1 yıl
-        if (days < 1) days = 1;
+        // ✅ BOLUM 12.0: Magic numbers configuration'dan alınıyor
+        if (days > _userSettings.Activity.MaxDays) days = _userSettings.Activity.MaxDays;
+        if (days < 1) days = _userSettings.Activity.DefaultDays;
 
-        var activities = await _activityService.GetUserActivitiesAsync(userId, days, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetUserActivitiesQuery(userId, days);
+        var activities = await _mediator.Send(query, cancellationToken);
         return Ok(activities);
     }
 
@@ -142,11 +177,12 @@ public class ActivitiesController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (filter.PageSize > 100) filter.PageSize = 100;
-        if (filter.PageSize < 1) filter.PageSize = 20;
-        if (filter.PageNumber < 1) filter.PageNumber = 1;
+        // ✅ BOLUM 12.0: Magic numbers configuration'dan alınıyor (PaginationSettings)
+        // Note: Validation QueryHandler içinde yapılıyor
 
-        var activities = await _activityService.GetActivitiesAsync(filter, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new SearchActivitiesQuery(filter);
+        var activities = await _mediator.Send(query, cancellationToken);
         return Ok(activities);
     }
 
@@ -166,10 +202,12 @@ public class ActivitiesController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - days parametresi ile sınırlı
-        if (days > 365) days = 365; // Max 1 yıl
-        if (days < 1) days = 1;
+        // ✅ BOLUM 12.0: Magic numbers configuration'dan alınıyor
+        // Note: Validation QueryHandler içinde yapılıyor
 
-        var stats = await _activityService.GetActivityStatsAsync(days, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetActivityStatsQuery(days);
+        var stats = await _mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 
@@ -191,10 +229,12 @@ public class ActivitiesController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - days parametresi ile sınırlı
-        if (days > 90) days = 90; // Max 3 ay
-        if (days < 1) days = 1;
+        // ✅ BOLUM 12.0: Magic numbers configuration'dan alınıyor
+        // Note: Validation QueryHandler içinde yapılıyor
 
-        var sessions = await _activityService.GetUserSessionsAsync(userId, days, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetUserSessionsQuery(userId, days);
+        var sessions = await _mediator.Send(query, cancellationToken);
         return Ok(sessions);
     }
 
@@ -214,11 +254,13 @@ public class ActivitiesController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - days parametresi ile sınırlı
-        if (days > 90) days = 90; // Max 3 ay
-        if (days < 1) days = 1;
+        // ✅ BOLUM 12.0: Magic numbers configuration'dan alınıyor
+        // Note: Validation QueryHandler içinde yapılıyor
 
         var userId = GetUserId();
-        var sessions = await _activityService.GetUserSessionsAsync(userId, days, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetUserSessionsQuery(userId, days);
+        var sessions = await _mediator.Send(query, cancellationToken);
         return Ok(sessions);
     }
 
@@ -239,12 +281,12 @@ public class ActivitiesController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (days > 365) days = 365; // Max 1 yıl
-        if (days < 1) days = 1;
-        if (topN > 100) topN = 100; // Max 100
-        if (topN < 1) topN = 10;
+        // ✅ BOLUM 12.0: Magic numbers configuration'dan alınıyor
+        // Note: Validation QueryHandler içinde yapılıyor
 
-        var products = await _activityService.GetMostViewedProductsAsync(days, topN, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetMostViewedProductsQuery(days, topN);
+        var products = await _mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
@@ -264,10 +306,12 @@ public class ActivitiesController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        if (daysToKeep < 30) daysToKeep = 30; // Min 30 gün
-        if (daysToKeep > 365) daysToKeep = 365; // Max 1 yıl
+        // ✅ BOLUM 12.0: Magic numbers configuration'dan alınıyor
+        // Note: Validation CommandHandler içinde yapılıyor
 
-        await _activityService.DeleteOldActivitiesAsync(daysToKeep, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new DeleteOldActivitiesCommand(daysToKeep);
+        await _mediator.Send(command, cancellationToken);
         return Ok(new { message = $"Activities older than {daysToKeep} days deleted successfully" });
     }
 }

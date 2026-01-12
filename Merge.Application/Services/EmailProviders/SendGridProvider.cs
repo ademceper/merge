@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.EmailProviders;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Services.EmailProviders;
 

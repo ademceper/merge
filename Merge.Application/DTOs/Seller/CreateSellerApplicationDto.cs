@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.DTOs.Seller;
 

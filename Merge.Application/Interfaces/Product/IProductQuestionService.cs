@@ -1,5 +1,6 @@
 using Merge.Application.DTOs.Product;
 using Merge.Application.Common;
+using Merge.Domain.Modules.Catalog;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 3.4: Pagination (ZORUNLU)

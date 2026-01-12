@@ -1,6 +1,7 @@
 using Merge.Application.DTOs.Cart;
 using Merge.Application.Common;
 using Merge.Domain.Enums;
+using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Interfaces.Cart;
 

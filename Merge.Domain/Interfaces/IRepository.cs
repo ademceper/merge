@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using Merge.Domain.Entities;
 using Merge.Domain.Specifications;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.Interfaces;
 

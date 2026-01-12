@@ -1,6 +1,6 @@
 using AutoMapper;
-using PaymentEntity = Merge.Domain.Entities.Payment;
-using OrderEntity = Merge.Domain.Entities.Order;
+using PaymentEntity = Merge.Domain.Modules.Payment.Payment;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
@@ -10,22 +10,27 @@ using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
 using Merge.Application.DTOs.Payment;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.Modules.Payment;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Payment;
 
 public class PaymentService : IPaymentService
 {
-    private readonly IRepository<PaymentEntity> _paymentRepository;
-    private readonly IRepository<OrderEntity> _orderRepository;
+    private readonly Merge.Application.Interfaces.IRepository<PaymentEntity> _paymentRepository;
+    private readonly Merge.Application.Interfaces.IRepository<OrderEntity> _orderRepository;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<PaymentService> _logger;
 
     public PaymentService(
-        IRepository<PaymentEntity> paymentRepository,
-        IRepository<OrderEntity> orderRepository,
+        Merge.Application.Interfaces.IRepository<PaymentEntity> paymentRepository,
+        Merge.Application.Interfaces.IRepository<OrderEntity> orderRepository,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,

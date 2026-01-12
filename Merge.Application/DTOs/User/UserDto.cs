@@ -1,3 +1,5 @@
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.ValueObjects;
 namespace Merge.Application.DTOs.User;
 
 // ✅ BOLUM 4.2: Record DTOs (ZORUNLU) - Immutability için record kullan

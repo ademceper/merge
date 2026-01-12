@@ -7,20 +7,24 @@ using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Application.DTOs.Marketing;
 using Merge.Application.Common;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Content;
 
 public class BannerService : IBannerService
 {
-    private readonly IRepository<Banner> _bannerRepository;
+    private readonly Merge.Application.Interfaces.IRepository<Banner> _bannerRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<BannerService> _logger;
 
     public BannerService(
-        IRepository<Banner> bannerRepository,
+        Merge.Application.Interfaces.IRepository<Banner> bannerRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,

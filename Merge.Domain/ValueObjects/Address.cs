@@ -1,4 +1,5 @@
 using Merge.Domain.Exceptions;
+using Merge.Domain.Modules.Identity;
 
 namespace Merge.Domain.ValueObjects;
 

@@ -1,5 +1,6 @@
 using MediatR;
 using Merge.Application.DTOs.Support;
+using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Support.Commands.CreateFaq;
 

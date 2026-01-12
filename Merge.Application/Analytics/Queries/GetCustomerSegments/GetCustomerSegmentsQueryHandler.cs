@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Merge.Application.DTOs.Analytics;
 using AutoMapper;
+using Merge.Domain.Interfaces;
 
 namespace Merge.Application.Analytics.Queries.GetCustomerSegments;
 

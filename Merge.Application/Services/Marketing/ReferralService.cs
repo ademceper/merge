@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MediatR;
-using ProductEntity = Merge.Domain.Entities.Product;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces;
 using Merge.Application.Marketing.Commands.AddPoints;
@@ -13,6 +13,13 @@ using Merge.Application.DTOs.Marketing;
 using Merge.Application.Configuration;
 using Merge.Application.Common;
 using Merge.Application.Interfaces.Marketing;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Marketing;

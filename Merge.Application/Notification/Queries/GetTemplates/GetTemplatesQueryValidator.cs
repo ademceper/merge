@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
+using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Notification.Queries.GetTemplates;
 

@@ -6,6 +6,11 @@ using Merge.Application.DTOs.Content;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Queries.GetPageBuilderBySlug;
 
@@ -13,7 +18,7 @@ namespace Merge.Application.Content.Queries.GetPageBuilderBySlug;
 public class GetPageBuilderBySlugQueryHandler : IRequestHandler<GetPageBuilderBySlugQuery, PageBuilderDto?>
 {
     private readonly IDbContext _context;
-    private readonly IRepository<PageBuilder> _pageBuilderRepository;
+    private readonly Merge.Application.Interfaces.IRepository<PageBuilder> _pageBuilderRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<GetPageBuilderBySlugQueryHandler> _logger;
@@ -23,7 +28,7 @@ public class GetPageBuilderBySlugQueryHandler : IRequestHandler<GetPageBuilderBy
 
     public GetPageBuilderBySlugQueryHandler(
         IDbContext context,
-        IRepository<PageBuilder> pageBuilderRepository,
+        Merge.Application.Interfaces.IRepository<PageBuilder> pageBuilderRepository,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<GetPageBuilderBySlugQueryHandler> logger,

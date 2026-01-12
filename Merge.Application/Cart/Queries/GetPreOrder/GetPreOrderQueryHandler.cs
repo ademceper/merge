@@ -4,6 +4,11 @@ using Merge.Application.DTOs.Cart;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
 using AutoMapper;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Queries.GetPreOrder;
 

@@ -1,9 +1,13 @@
 using FluentAssertions;
-using Merge.Domain.Entities;
+
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
 using Merge.Domain.ValueObjects;
-using AddressEntity = Merge.Domain.Entities.Address;
+
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Tests.Tests.Domain.Entities;
 
@@ -467,9 +471,9 @@ public class OrderTests
 
     #region Helper Methods
 
-    private static AddressEntity CreateTestAddress(Guid addressId, Guid userId)
+    private static Merge.Domain.Modules.Identity.Address CreateTestAddress(Guid addressId, Guid userId)
     {
-        return AddressEntity.Create(
+        return Merge.Domain.Modules.Identity.Address.Create(
             userId: userId,
             title: "Home",
             firstName: "John",

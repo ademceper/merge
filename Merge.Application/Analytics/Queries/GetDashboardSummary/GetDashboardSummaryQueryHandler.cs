@@ -7,7 +7,12 @@ using Merge.Application.Interfaces;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using OrderEntity = Merge.Domain.Entities.Order;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetDashboardSummary;
 
@@ -80,7 +85,7 @@ public class GetDashboardSummaryQueryHandler : IRequestHandler<GetDashboardSumma
             .CountAsync(o => o.Status == OrderStatus.Pending, cancellationToken);
 
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var lowStockProducts = await _context.Set<Merge.Domain.Entities.Product>()
+        var lowStockProducts = await _context.Set<Merge.Domain.Modules.Catalog.Product>()
             .AsNoTracking()
             .CountAsync(p => p.StockQuantity < _settings.LowStockThreshold, cancellationToken);
 

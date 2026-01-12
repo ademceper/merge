@@ -1,32 +1,37 @@
 using AutoMapper;
-using OrderEntity = Merge.Domain.Entities.Order;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.Cart;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using CartEntity = Merge.Domain.Entities.Cart;
-using ProductEntity = Merge.Domain.Entities.Product;
+using CartEntity = Merge.Domain.Modules.Ordering.Cart;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Merge.Application.DTOs.Cart;
 using Microsoft.Extensions.Logging;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Cart;
 
 public class CartService : ICartService
 {
-    private readonly IRepository<CartEntity> _cartRepository;
-    private readonly IRepository<CartItem> _cartItemRepository;
-    private readonly IRepository<ProductEntity> _productRepository;
+    private readonly Merge.Application.Interfaces.IRepository<CartEntity> _cartRepository;
+    private readonly Merge.Application.Interfaces.IRepository<CartItem> _cartItemRepository;
+    private readonly Merge.Application.Interfaces.IRepository<ProductEntity> _productRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<CartService> _logger;
 
     public CartService(
-        IRepository<CartEntity> cartRepository,
-        IRepository<CartItem> cartItemRepository,
-        IRepository<ProductEntity> productRepository,
+        Merge.Application.Interfaces.IRepository<CartEntity> cartRepository,
+        Merge.Application.Interfaces.IRepository<CartItem> cartItemRepository,
+        Merge.Application.Interfaces.IRepository<ProductEntity> productRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,

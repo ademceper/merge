@@ -7,6 +7,10 @@ using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
 using Merge.Domain.ValueObjects;
 using System.Text.Json;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Marketing;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.SubscribeEmail;
 

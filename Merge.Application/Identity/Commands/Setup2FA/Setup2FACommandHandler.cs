@@ -10,6 +10,11 @@ using Merge.Application.Identity.Commands.SendVerificationCode;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Identity.Commands.Setup2FA;
 
@@ -18,7 +23,7 @@ namespace Merge.Application.Identity.Commands.Setup2FA;
 // ✅ BOLUM 12.1: Magic Number Sorunu - Configuration kullanımı
 public class Setup2FACommandHandler : IRequestHandler<Setup2FACommand, TwoFactorSetupResponseDto>
 {
-    private readonly IRepository<TwoFactorAuth> _twoFactorRepository;
+    private readonly Merge.Application.Interfaces.IRepository<TwoFactorAuth> _twoFactorRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMediator _mediator;
@@ -27,7 +32,7 @@ public class Setup2FACommandHandler : IRequestHandler<Setup2FACommand, TwoFactor
     private readonly ILogger<Setup2FACommandHandler> _logger;
 
     public Setup2FACommandHandler(
-        IRepository<TwoFactorAuth> twoFactorRepository,
+        Merge.Application.Interfaces.IRepository<TwoFactorAuth> twoFactorRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         IMediator mediator,
@@ -177,6 +182,7 @@ public class Setup2FACommandHandler : IRequestHandler<Setup2FACommand, TwoFactor
     {
         var bytes = new byte[4];
         using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create())
+
         {
             rng.GetBytes(bytes);
         }

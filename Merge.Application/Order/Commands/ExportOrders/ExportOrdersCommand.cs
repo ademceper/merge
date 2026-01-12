@@ -1,5 +1,7 @@
 using MediatR;
 using Merge.Application.DTOs.Order;
+using Merge.Domain.Enums;
+using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Commands.ExportOrders;
 

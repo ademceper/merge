@@ -6,6 +6,11 @@ using Merge.Application.DTOs.Content;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Queries.GetLandingPageBySlug;
 
@@ -14,7 +19,7 @@ namespace Merge.Application.Content.Queries.GetLandingPageBySlug;
 public class GetLandingPageBySlugQueryHandler : IRequestHandler<GetLandingPageBySlugQuery, LandingPageDto?>
 {
     private readonly IDbContext _context;
-    private readonly IRepository<LandingPage> _landingPageRepository;
+    private readonly Merge.Application.Interfaces.IRepository<LandingPage> _landingPageRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<GetLandingPageBySlugQueryHandler> _logger;
@@ -24,7 +29,7 @@ public class GetLandingPageBySlugQueryHandler : IRequestHandler<GetLandingPageBy
 
     public GetLandingPageBySlugQueryHandler(
         IDbContext context,
-        IRepository<LandingPage> landingPageRepository,
+        Merge.Application.Interfaces.IRepository<LandingPage> landingPageRepository,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<GetLandingPageBySlugQueryHandler> logger,

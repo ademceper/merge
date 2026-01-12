@@ -2,8 +2,8 @@ using AutoMapper;
 using MediatR;
 using Merge.Application.Services.Notification;
 using Merge.Application.Interfaces.User;
-using OrderEntity = Merge.Domain.Entities.Order;
-using AddressEntity = Merge.Domain.Entities.Address;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
+using AddressEntity = Merge.Domain.Modules.Identity.Address;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
@@ -11,7 +11,7 @@ using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
 using Merge.Application.Interfaces;
 using Merge.Application.Services;
-using CartEntity = Merge.Domain.Entities.Cart;
+using CartEntity = Merge.Domain.Modules.Ordering.Cart;
 using Merge.Application.Interfaces.Cart;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.Interfaces.Order;
@@ -22,14 +22,22 @@ using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
 using Merge.Application.Marketing.Commands.ValidateCoupon;
 using Merge.Application.Marketing.Queries.GetCouponByCode;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Order;
 
 public class OrderService : IOrderService
 {
-    private readonly IRepository<OrderEntity> _orderRepository;
-    private readonly IRepository<OrderItem> _orderItemRepository;
+    private readonly Merge.Application.Interfaces.IRepository<OrderEntity> _orderRepository;
+    private readonly Merge.Application.Interfaces.IRepository<OrderItem> _orderItemRepository;
     private readonly ICartService _cartService;
     private readonly IMediator _mediator;
     private readonly IEmailService? _emailService;
@@ -42,8 +50,8 @@ public class OrderService : IOrderService
     private readonly OrderSettings _orderSettings;
 
     public OrderService(
-        IRepository<OrderEntity> orderRepository,
-        IRepository<OrderItem> orderItemRepository,
+        Merge.Application.Interfaces.IRepository<OrderEntity> orderRepository,
+        Merge.Application.Interfaces.IRepository<OrderItem> orderItemRepository,
         ICartService cartService,
         IMediator mediator,
         IDbContext context, // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)

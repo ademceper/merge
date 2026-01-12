@@ -1,5 +1,5 @@
 using AutoMapper;
-using CartEntity = Merge.Domain.Entities.Cart;
+using CartEntity = Merge.Domain.Modules.Ordering.Cart;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
@@ -7,15 +7,20 @@ using Merge.Application.Interfaces.Cart;
 using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Domain.Entities;
-using ProductEntity = Merge.Domain.Entities.Product;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Merge.Application.DTOs.Cart;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Services.Cart;
 
 public class SavedCartService : ISavedCartService
 {
-    private readonly IRepository<SavedCartItem> _savedCartItemRepository;
-    private readonly IRepository<ProductEntity> _productRepository;
+    private readonly Merge.Application.Interfaces.IRepository<SavedCartItem> _savedCartItemRepository;
+    private readonly Merge.Application.Interfaces.IRepository<ProductEntity> _productRepository;
     private readonly ICartService _cartService;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
@@ -23,8 +28,8 @@ public class SavedCartService : ISavedCartService
     private readonly ILogger<SavedCartService> _logger;
 
     public SavedCartService(
-        IRepository<SavedCartItem> savedCartItemRepository,
-        IRepository<ProductEntity> productRepository,
+        Merge.Application.Interfaces.IRepository<SavedCartItem> savedCartItemRepository,
+        Merge.Application.Interfaces.IRepository<ProductEntity> productRepository,
         ICartService cartService,
         IDbContext context,
         IMapper mapper,

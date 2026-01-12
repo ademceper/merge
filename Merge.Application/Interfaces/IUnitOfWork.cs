@@ -1,3 +1,4 @@
+using Merge.Domain.Interfaces;
 namespace Merge.Application.Interfaces;
 
 // ✅ BOLUM 1.1: Interface'ler Application katmanında olmalı (Clean Architecture)

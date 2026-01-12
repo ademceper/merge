@@ -1,13 +1,18 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using NotificationEntity = Merge.Domain.Entities.Notification;
+using NotificationEntity = Merge.Domain.Modules.Notifications.Notification;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using System.Text.Json;
 using Merge.Application.DTOs.Notification;
+using Merge.Domain.Enums;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Notifications;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Notification;

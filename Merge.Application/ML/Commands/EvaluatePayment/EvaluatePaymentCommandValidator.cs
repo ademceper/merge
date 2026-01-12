@@ -1,4 +1,5 @@
 using FluentValidation;
+using Merge.Domain.Modules.Payment;
 
 namespace Merge.Application.ML.Commands.EvaluatePayment;
 

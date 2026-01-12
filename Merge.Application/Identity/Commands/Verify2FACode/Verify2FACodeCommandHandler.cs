@@ -8,6 +8,10 @@ using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Identity.Commands.Verify2FACode;
 
@@ -16,16 +20,16 @@ namespace Merge.Application.Identity.Commands.Verify2FACode;
 // ✅ BOLUM 12.1: Magic Number Sorunu - Configuration kullanımı
 public class Verify2FACodeCommandHandler : IRequestHandler<Verify2FACodeCommand, bool>
 {
-    private readonly IRepository<TwoFactorAuth> _twoFactorRepository;
-    private readonly IRepository<TwoFactorCode> _codeRepository;
+    private readonly Merge.Application.Interfaces.IRepository<TwoFactorAuth> _twoFactorRepository;
+    private readonly Merge.Application.Interfaces.IRepository<TwoFactorCode> _codeRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly TwoFactorAuthSettings _twoFactorSettings;
     private readonly ILogger<Verify2FACodeCommandHandler> _logger;
 
     public Verify2FACodeCommandHandler(
-        IRepository<TwoFactorAuth> twoFactorRepository,
-        IRepository<TwoFactorCode> codeRepository,
+        Merge.Application.Interfaces.IRepository<TwoFactorAuth> twoFactorRepository,
+        Merge.Application.Interfaces.IRepository<TwoFactorCode> codeRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         IOptions<TwoFactorAuthSettings> twoFactorSettings,
@@ -151,6 +155,8 @@ public class Verify2FACodeCommandHandler : IRequestHandler<Verify2FACodeCommand,
         }
 
         using var hmac = new HMACSHA1(keyBytes);
+
+
         var hash = hmac.ComputeHash(timeBytes);
 
         var offset = hash[hash.Length - 1] & 0x0F;

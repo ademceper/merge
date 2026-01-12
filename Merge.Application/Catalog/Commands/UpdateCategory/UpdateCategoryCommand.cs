@@ -1,5 +1,6 @@
 using MediatR;
 using Merge.Application.DTOs.Catalog;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Catalog.Commands.UpdateCategory;
 

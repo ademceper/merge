@@ -11,6 +11,13 @@ using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Application.DTOs.Identity;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Marketplace;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Services.Identity;
 
@@ -19,8 +26,8 @@ namespace Merge.Application.Services.Identity;
 [Obsolete("Use MediatR Commands/Queries instead. This service will be removed in a future version.")]
 public class TwoFactorAuthService : ITwoFactorAuthService
 {
-    private readonly IRepository<TwoFactorAuth> _twoFactorRepository;
-    private readonly IRepository<TwoFactorCode> _codeRepository;
+    private readonly Merge.Application.Interfaces.IRepository<TwoFactorAuth> _twoFactorRepository;
+    private readonly Merge.Application.Interfaces.IRepository<TwoFactorCode> _codeRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
@@ -29,8 +36,8 @@ public class TwoFactorAuthService : ITwoFactorAuthService
     private readonly ILogger<TwoFactorAuthService> _logger;
 
     public TwoFactorAuthService(
-        IRepository<TwoFactorAuth> twoFactorRepository,
-        IRepository<TwoFactorCode> codeRepository,
+        Merge.Application.Interfaces.IRepository<TwoFactorAuth> twoFactorRepository,
+        Merge.Application.Interfaces.IRepository<TwoFactorCode> codeRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         IEmailService emailService,
@@ -492,6 +499,8 @@ public class TwoFactorAuthService : ITwoFactorAuthService
         }
 
         using var hmac = new HMACSHA1(keyBytes);
+
+
         var hash = hmac.ComputeHash(timeBytes);
 
         var offset = hash[hash.Length - 1] & 0x0F;

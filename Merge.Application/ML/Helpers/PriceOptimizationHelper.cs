@@ -1,9 +1,11 @@
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
-using Merge.Domain.Common;
 using Merge.Application.DTOs.Analytics;
-using ProductEntity = Merge.Domain.Entities.Product;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.SharedKernel;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.ML.Helpers;
 

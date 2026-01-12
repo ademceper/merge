@@ -7,8 +7,13 @@ using Merge.Application.DTOs.Review;
 using Merge.Application.Interfaces;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
-using ReviewEntity = Merge.Domain.Entities.Review;
+using ReviewEntity = Merge.Domain.Modules.Catalog.Review;
 using AutoMapper;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetPendingReviews;
 

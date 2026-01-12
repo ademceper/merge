@@ -1,8 +1,8 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using PaymentEntity = Merge.Domain.Entities.Payment;
-using OrderEntity = Merge.Domain.Entities.Order;
+using PaymentEntity = Merge.Domain.Modules.Payment.Payment;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Payment;
@@ -10,6 +10,12 @@ using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using System.Text.Json;
 using Merge.Application.DTOs.Payment;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.Modules.Payment;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Payment;

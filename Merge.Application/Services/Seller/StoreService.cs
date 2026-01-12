@@ -2,21 +2,29 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using UserEntity = Merge.Domain.Entities.User;
-using OrderEntity = Merge.Domain.Entities.Order;
-using ProductEntity = Merge.Domain.Entities.Product;
+using UserEntity = Merge.Domain.Modules.Identity.User;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Seller;
 using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
-using ReviewEntity = Merge.Domain.Entities.Review;
+using ReviewEntity = Merge.Domain.Modules.Catalog.Review;
 using Merge.Domain.Enums;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Merge.Application.DTOs.Seller;
 using Merge.Application.Common;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Marketplace;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)

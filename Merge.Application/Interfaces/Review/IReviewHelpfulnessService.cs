@@ -1,4 +1,5 @@
 using Merge.Application.DTOs.Review;
+using Merge.Domain.Modules.Catalog;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Review;

@@ -7,13 +7,18 @@ using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Application.DTOs.Catalog;
 using Merge.Application.Common;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Catalog;
 
 public class CategoryService : ICategoryService
 {
-    private readonly IRepository<Category> _categoryRepository;
+    private readonly Merge.Application.Interfaces.IRepository<Category> _categoryRepository;
     private readonly IDbContext _context; // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
@@ -24,7 +29,7 @@ public class CategoryService : ICategoryService
     private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromHours(1);
 
     public CategoryService(
-        IRepository<Category> categoryRepository,
+        Merge.Application.Interfaces.IRepository<Category> categoryRepository,
         IDbContext context, // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)
         IUnitOfWork unitOfWork,
         IMapper mapper,

@@ -4,6 +4,11 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.UpdateBlogCategory;
 
@@ -11,7 +16,7 @@ namespace Merge.Application.Content.Commands.UpdateBlogCategory;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateBlogCategoryCommandHandler : IRequestHandler<UpdateBlogCategoryCommand, bool>
 {
-    private readonly IRepository<BlogCategory> _categoryRepository;
+    private readonly Merge.Application.Interfaces.IRepository<BlogCategory> _categoryRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
     private readonly ILogger<UpdateBlogCategoryCommandHandler> _logger;
@@ -19,7 +24,7 @@ public class UpdateBlogCategoryCommandHandler : IRequestHandler<UpdateBlogCatego
     private const string CACHE_KEY_ACTIVE_CATEGORIES = "blog_categories_active";
 
     public UpdateBlogCategoryCommandHandler(
-        IRepository<BlogCategory> categoryRepository,
+        Merge.Application.Interfaces.IRepository<BlogCategory> categoryRepository,
         IUnitOfWork unitOfWork,
         ICacheService cache,
         ILogger<UpdateBlogCategoryCommandHandler> logger)

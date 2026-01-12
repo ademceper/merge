@@ -1,7 +1,9 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Merge.Domain.Common.DomainEvents;
 using Merge.Application.Marketing.Commands.AddPoints;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Marketing.EventHandlers;
 

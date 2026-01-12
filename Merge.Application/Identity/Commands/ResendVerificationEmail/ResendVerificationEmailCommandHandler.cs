@@ -9,7 +9,14 @@ using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
 using Merge.Application.Services.Notification;
 using Merge.Domain.Entities;
-using UserEntity = Merge.Domain.Entities.User;
+using UserEntity = Merge.Domain.Modules.Identity.User;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Identity.Commands.ResendVerificationEmail;
 
@@ -17,7 +24,7 @@ namespace Merge.Application.Identity.Commands.ResendVerificationEmail;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
 public class ResendVerificationEmailCommandHandler : IRequestHandler<ResendVerificationEmailCommand, Unit>
 {
-    private readonly IRepository<EmailVerification> _emailVerificationRepository;
+    private readonly Merge.Application.Interfaces.IRepository<EmailVerification> _emailVerificationRepository;
     private readonly UserManager<UserEntity> _userManager;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
@@ -26,7 +33,7 @@ public class ResendVerificationEmailCommandHandler : IRequestHandler<ResendVerif
     private readonly EmailSettings _emailSettings;
 
     public ResendVerificationEmailCommandHandler(
-        IRepository<EmailVerification> emailVerificationRepository,
+        Merge.Application.Interfaces.IRepository<EmailVerification> emailVerificationRepository,
         UserManager<UserEntity> userManager,
         IDbContext context,
         IUnitOfWork unitOfWork,

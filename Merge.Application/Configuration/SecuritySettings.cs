@@ -1,3 +1,5 @@
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.Modules.Payment;
 namespace Merge.Application.Configuration;
 
 /// <summary>

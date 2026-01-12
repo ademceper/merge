@@ -6,6 +6,10 @@ using Merge.Application.DTOs.Content;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Queries.GetPageBuilderById;
 
@@ -13,7 +17,7 @@ namespace Merge.Application.Content.Queries.GetPageBuilderById;
 public class GetPageBuilderByIdQueryHandler : IRequestHandler<GetPageBuilderByIdQuery, PageBuilderDto?>
 {
     private readonly IDbContext _context;
-    private readonly IRepository<PageBuilder> _pageBuilderRepository;
+    private readonly Merge.Application.Interfaces.IRepository<PageBuilder> _pageBuilderRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<GetPageBuilderByIdQueryHandler> _logger;
@@ -23,7 +27,7 @@ public class GetPageBuilderByIdQueryHandler : IRequestHandler<GetPageBuilderById
 
     public GetPageBuilderByIdQueryHandler(
         IDbContext context,
-        IRepository<PageBuilder> pageBuilderRepository,
+        Merge.Application.Interfaces.IRepository<PageBuilder> pageBuilderRepository,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<GetPageBuilderByIdQueryHandler> logger,

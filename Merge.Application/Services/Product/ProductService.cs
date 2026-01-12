@@ -1,7 +1,7 @@
 using AutoMapper;
-using UserEntity = Merge.Domain.Entities.User;
-using ReviewEntity = Merge.Domain.Entities.Review;
-using ProductEntity = Merge.Domain.Entities.Product;
+using UserEntity = Merge.Domain.Modules.Identity.User;
+using ReviewEntity = Merge.Domain.Modules.Catalog.Review;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
@@ -14,13 +14,18 @@ using Merge.Application.DTOs.Product;
 using Merge.Application.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Product;
 
 public class ProductService : IProductService
 {
-    private readonly IRepository<ProductEntity> _productRepository;
+    private readonly Merge.Application.Interfaces.IRepository<ProductEntity> _productRepository;
     private readonly IDbContext _context; // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
@@ -28,7 +33,7 @@ public class ProductService : IProductService
     private readonly PaginationSettings _paginationSettings;
 
     public ProductService(
-        IRepository<ProductEntity> productRepository,
+        Merge.Application.Interfaces.IRepository<ProductEntity> productRepository,
         IDbContext context, // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)
         IUnitOfWork unitOfWork,
         IMapper mapper,

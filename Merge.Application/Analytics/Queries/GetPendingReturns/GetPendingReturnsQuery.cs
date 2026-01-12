@@ -1,6 +1,7 @@
 using MediatR;
 using Merge.Application.Common;
 using Merge.Application.DTOs.Order;
+using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Analytics.Queries.GetPendingReturns;
 

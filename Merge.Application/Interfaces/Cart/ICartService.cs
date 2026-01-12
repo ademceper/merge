@@ -1,4 +1,5 @@
 using Merge.Application.DTOs.Cart;
+using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Interfaces.Cart;
 

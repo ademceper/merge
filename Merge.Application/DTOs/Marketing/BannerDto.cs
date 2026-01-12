@@ -1,3 +1,4 @@
+using Merge.Domain.Modules.Content;
 namespace Merge.Application.DTOs.Marketing;
 
 /// <summary>

@@ -5,9 +5,16 @@ using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Search;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
-using OrderEntity = Merge.Domain.Entities.Order;
-using ProductEntity = Merge.Domain.Entities.Product;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Merge.Application.DTOs.Product;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Search;
@@ -200,7 +207,7 @@ public class ProductRecommendationService : IProductRecommendationService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !rv.IsDeleted (Global Query Filter)
         // Get recently viewed products
-        var recentlyViewed = await _context.Set<Domain.Entities.RecentlyViewedProduct>()
+        var recentlyViewed = await _context.Set<Merge.Domain.Modules.Catalog.RecentlyViewedProduct>()
             .AsNoTracking()
             .Include(rv => rv.Product)
                 .ThenInclude(p => p.Category)

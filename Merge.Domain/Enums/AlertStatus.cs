@@ -1,3 +1,5 @@
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Payment;
 namespace Merge.Domain.Enums;
 
 /// <summary>

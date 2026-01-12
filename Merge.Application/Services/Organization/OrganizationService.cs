@@ -7,14 +7,19 @@ using Merge.Application.Interfaces.Organization;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Domain.Common;
-using Merge.Domain.Common.DomainEvents;
+using Merge.Domain.SharedKernel;
 using Merge.Application.Configuration;
 using System.Text.Json;
-using OrganizationEntity = Merge.Domain.Entities.Organization;
-using UserEntity = Merge.Domain.Entities.User;
+using OrganizationEntity = Merge.Domain.Modules.Identity.Organization;
+using UserEntity = Merge.Domain.Modules.Identity.User;
 using Merge.Application.DTOs.Organization;
 using Merge.Application.Common;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using Merge.Domain.SharedKernel.DomainEvents;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Organization;

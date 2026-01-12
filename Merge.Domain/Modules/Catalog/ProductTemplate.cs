@@ -1,0 +1,215 @@
+using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
+using Merge.Domain.Exceptions;
+
+namespace Merge.Domain.Modules.Catalog;
+
+/// <summary>
+/// ProductTemplate Entity - Rich Domain Model implementation
+/// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU)
+/// BOLUM 1.5: Domain Events (ZORUNLU)
+/// </summary>
+public class ProductTemplate : BaseEntity, IAggregateRoot
+{
+    // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
+    private string _name = string.Empty;
+    public string Name 
+    { 
+        get => _name; 
+        private set 
+        {
+            Guard.AgainstNullOrEmpty(value, nameof(Name));
+            if (value.Length < 2)
+            {
+                throw new DomainException("Şablon adı en az 2 karakter olmalıdır");
+            }
+            if (value.Length > 200)
+            {
+                throw new DomainException("Şablon adı en fazla 200 karakter olabilir");
+            }
+            _name = value;
+        } 
+    }
+    
+    public string Description { get; private set; } = string.Empty;
+    public Guid CategoryId { get; private set; }
+    public string? Brand { get; private set; }
+    public string? DefaultSKUPrefix { get; private set; }
+    
+    private decimal? _defaultPrice;
+    public decimal? DefaultPrice 
+    { 
+        get => _defaultPrice; 
+        private set 
+        {
+            if (value.HasValue)
+            {
+                Guard.AgainstNegativeOrZero(value.Value, nameof(DefaultPrice));
+            }
+            _defaultPrice = value;
+        } 
+    }
+    
+    private int? _defaultStockQuantity;
+    public int? DefaultStockQuantity 
+    { 
+        get => _defaultStockQuantity; 
+        private set 
+        {
+            if (value.HasValue)
+            {
+                Guard.AgainstNegative(value.Value, nameof(DefaultStockQuantity));
+            }
+            _defaultStockQuantity = value;
+        } 
+    }
+    
+    public string? DefaultImageUrl { get; private set; }
+    public string? Specifications { get; private set; } // JSON for default specifications
+    public string? Attributes { get; private set; } // JSON for default attributes
+    public bool IsActive { get; private set; } = true;
+    
+    private int _usageCount = 0;
+    public int UsageCount 
+    { 
+        get => _usageCount; 
+        private set 
+        {
+            Guard.AgainstNegative(value, nameof(UsageCount));
+            _usageCount = value;
+        } 
+    }
+    
+    // Navigation properties
+    public Category Category { get; private set; } = null!;
+    
+    // ✅ BOLUM 1.1: Factory Method - Private constructor
+    private ProductTemplate() { }
+    
+    // ✅ BOLUM 1.1: Factory Method with validation
+    public static ProductTemplate Create(
+        string name,
+        string description,
+        Guid categoryId,
+        string? brand = null,
+        string? defaultSKUPrefix = null,
+        decimal? defaultPrice = null,
+        int? defaultStockQuantity = null,
+        string? defaultImageUrl = null,
+        string? specifications = null,
+        string? attributes = null,
+        bool isActive = true)
+    {
+        Guard.AgainstNullOrEmpty(name, nameof(name));
+        Guard.AgainstDefault(categoryId, nameof(categoryId));
+        
+        if (name.Length < 2)
+        {
+            throw new DomainException("Şablon adı en az 2 karakter olmalıdır");
+        }
+        if (name.Length > 200)
+        {
+            throw new DomainException("Şablon adı en fazla 200 karakter olabilir");
+        }
+        
+        var template = new ProductTemplate
+        {
+            Id = Guid.NewGuid(),
+            _name = name,
+            Description = description ?? string.Empty,
+            CategoryId = categoryId,
+            Brand = brand,
+            DefaultSKUPrefix = defaultSKUPrefix,
+            _defaultPrice = defaultPrice,
+            _defaultStockQuantity = defaultStockQuantity,
+            DefaultImageUrl = defaultImageUrl,
+            Specifications = specifications,
+            Attributes = attributes,
+            IsActive = isActive,
+            CreatedAt = DateTime.UtcNow
+        };
+        
+        // ✅ BOLUM 1.5: Domain Events
+        template.AddDomainEvent(new ProductTemplateCreatedEvent(template.Id, name, categoryId));
+        
+        return template;
+    }
+    
+    // ✅ BOLUM 1.1: Domain Logic - Update
+    public void Update(
+        string? name = null,
+        string? description = null,
+        Guid? categoryId = null,
+        string? brand = null,
+        string? defaultSKUPrefix = null,
+        decimal? defaultPrice = null,
+        int? defaultStockQuantity = null,
+        string? defaultImageUrl = null,
+        string? specifications = null,
+        string? attributes = null,
+        bool? isActive = null)
+    {
+        if (!string.IsNullOrEmpty(name)) Name = name;
+        if (description != null) Description = description;
+        if (categoryId.HasValue) CategoryId = categoryId.Value;
+        if (brand != null) Brand = brand;
+        if (defaultSKUPrefix != null) DefaultSKUPrefix = defaultSKUPrefix;
+        if (defaultPrice.HasValue) DefaultPrice = defaultPrice;
+        if (defaultStockQuantity.HasValue) DefaultStockQuantity = defaultStockQuantity;
+        if (defaultImageUrl != null) DefaultImageUrl = defaultImageUrl;
+        if (specifications != null) Specifications = specifications;
+        if (attributes != null) Attributes = attributes;
+        if (isActive.HasValue) IsActive = isActive.Value;
+        
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events
+        AddDomainEvent(new ProductTemplateUpdatedEvent(Id, Name));
+    }
+    
+    // ✅ BOLUM 1.1: Domain Logic - Increment usage count
+    public void IncrementUsageCount()
+    {
+        _usageCount++;
+        UpdatedAt = DateTime.UtcNow;
+    }
+    
+    // ✅ BOLUM 1.1: Domain Logic - Activate
+    public void Activate()
+    {
+        if (IsActive) return;
+        
+        IsActive = true;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductTemplateUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new ProductTemplateUpdatedEvent(Id, Name));
+    }
+    
+    // ✅ BOLUM 1.1: Domain Logic - Deactivate
+    public void Deactivate()
+    {
+        if (!IsActive) return;
+        
+        IsActive = false;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductTemplateUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new ProductTemplateUpdatedEvent(Id, Name));
+    }
+    
+    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
+    public void MarkAsDeleted()
+    {
+        if (IsDeleted) return;
+        
+        IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events
+        AddDomainEvent(new ProductTemplateDeletedEvent(Id, Name));
+    }
+}
+

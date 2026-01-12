@@ -2,6 +2,10 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.PayPreOrderDeposit;
 
@@ -22,7 +26,7 @@ public class PayPreOrderDepositCommandHandler : IRequestHandler<PayPreOrderDepos
 
     public async Task<bool> Handle(PayPreOrderDepositCommand request, CancellationToken cancellationToken)
     {
-        var preOrder = await _context.Set<Domain.Entities.PreOrder>()
+        var preOrder = await _context.Set<Merge.Domain.Modules.Ordering.PreOrder>()
             .FirstOrDefaultAsync(po => po.Id == request.PreOrderId && po.UserId == request.UserId, cancellationToken);
 
         if (preOrder == null) return false;

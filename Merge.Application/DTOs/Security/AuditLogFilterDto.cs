@@ -1,3 +1,4 @@
+using Merge.Domain.SharedKernel;
 namespace Merge.Application.DTOs.Security;
 
 public class AuditLogFilterDto

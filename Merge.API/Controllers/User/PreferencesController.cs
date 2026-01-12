@@ -1,25 +1,30 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Merge.Application.Interfaces.User;
 using Merge.Application.DTOs.User;
+using Merge.Application.User.Commands.ResetUserPreference;
+using Merge.Application.User.Commands.UpdateUserPreference;
+using Merge.Application.User.Queries.GetUserPreference;
 using Merge.API.Middleware;
 
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
 // ✅ BOLUM 3.2: IDOR koruması (ZORUNLU) - Kullanıcı sadece kendi tercihlerine erişebilir
 // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
 namespace Merge.API.Controllers.User;
 
 [ApiController]
-[Route("api/user/preferences")]
+[Route("api/v{version:apiVersion}/user/preferences")]
 [Authorize]
 public class PreferencesController : BaseController
 {
-    private readonly IUserPreferenceService _preferenceService;
+    private readonly IMediator _mediator;
 
-    public PreferencesController(IUserPreferenceService preferenceService)
+    public PreferencesController(IMediator mediator)
     {
-        _preferenceService = preferenceService;
+        _mediator = mediator;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -39,7 +44,9 @@ public class PreferencesController : BaseController
             return Unauthorized();
         }
 
-        var preferences = await _preferenceService.GetUserPreferencesAsync(userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetUserPreferenceQuery(userId);
+        var preferences = await _mediator.Send(query, cancellationToken);
         return Ok(preferences);
     }
 
@@ -66,7 +73,35 @@ public class PreferencesController : BaseController
             return Unauthorized();
         }
 
-        var preferences = await _preferenceService.UpdateUserPreferencesAsync(userId, dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new UpdateUserPreferenceCommand(
+            userId,
+            dto.Theme,
+            dto.DefaultLanguage,
+            dto.DefaultCurrency,
+            dto.ItemsPerPage,
+            dto.DateFormat,
+            dto.TimeFormat,
+            dto.EmailNotifications,
+            dto.SmsNotifications,
+            dto.PushNotifications,
+            dto.OrderUpdates,
+            dto.PromotionalEmails,
+            dto.ProductRecommendations,
+            dto.ReviewReminders,
+            dto.WishlistPriceAlerts,
+            dto.NewsletterSubscription,
+            dto.ShowProfilePublicly,
+            dto.ShowPurchaseHistory,
+            dto.AllowPersonalization,
+            dto.AllowDataCollection,
+            dto.AllowThirdPartySharing,
+            dto.DefaultShippingAddress,
+            dto.DefaultPaymentMethod,
+            dto.AutoApplyCoupons,
+            dto.SaveCartOnLogout,
+            dto.ShowOutOfStockItems);
+        var preferences = await _mediator.Send(command, cancellationToken);
         return Ok(preferences);
     }
 
@@ -87,7 +122,9 @@ public class PreferencesController : BaseController
             return Unauthorized();
         }
 
-        var preferences = await _preferenceService.ResetToDefaultsAsync(userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new ResetUserPreferenceCommand(userId);
+        var preferences = await _mediator.Send(command, cancellationToken);
         return Ok(preferences);
     }
 }

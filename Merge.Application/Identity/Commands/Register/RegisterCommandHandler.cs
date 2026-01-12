@@ -15,9 +15,14 @@ using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
-using Merge.Domain.Common.DomainEvents;
-using UserEntity = Merge.Domain.Entities.User;
-using RefreshTokenEntity = Merge.Domain.Entities.RefreshToken;
+using UserEntity = Merge.Domain.Modules.Identity.User;
+using RefreshTokenEntity = Merge.Domain.Modules.Identity.RefreshToken;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using Merge.Domain.SharedKernel.DomainEvents;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Identity.Commands.Register;
 
@@ -63,15 +68,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, AuthRespo
             throw new BusinessException("Bu email adresi zaten kullanılıyor.");
         }
 
-        var user = new UserEntity
-        {
-            FirstName = request.FirstName,
-            LastName = request.LastName,
-            Email = request.Email,
-            UserName = request.Email,
-            PhoneNumber = request.PhoneNumber,
-            EmailConfirmed = false
-        };
+        var user = UserEntity.Create(request.FirstName, request.LastName, request.Email, request.PhoneNumber);
 
         var result = await _userManager.CreateAsync(user, request.Password);
         if (!result.Succeeded)
@@ -138,6 +135,8 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, AuthRespo
     {
         var randomBytes = new byte[64];
         using var rng = RandomNumberGenerator.Create();
+
+
         rng.GetBytes(randomBytes);
 
         var plainToken = Convert.ToBase64String(randomBytes);

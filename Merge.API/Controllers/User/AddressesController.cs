@@ -1,29 +1,33 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Merge.Application.Interfaces.User;
 using Merge.Application.DTOs.User;
-using Merge.Infrastructure.Data;
+using Merge.Application.User.Commands.CreateAddress;
+using Merge.Application.User.Commands.DeleteAddress;
+using Merge.Application.User.Commands.SetDefaultAddress;
+using Merge.Application.User.Commands.UpdateAddress;
+using Merge.Application.User.Queries.GetAddressById;
+using Merge.Application.User.Queries.GetAddressesByUserId;
 using Merge.API.Middleware;
 
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 3.1: ProducesResponseType (ZORUNLU)
 // ✅ BOLUM 3.2: IDOR koruması (ZORUNLU)
 // ✅ BOLUM 3.3: Rate Limiting (ZORUNLU)
+// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
 namespace Merge.API.Controllers.User;
 
 [ApiController]
-[Route("api/user/addresses")]
+[Route("api/v{version:apiVersion}/user/addresses")]
 [Authorize]
 public class AddressesController : BaseController
 {
-    private readonly IAddressService _addressService;
-    private readonly ApplicationDbContext _context;
+    private readonly IMediator _mediator;
 
-    public AddressesController(IAddressService addressService, ApplicationDbContext context)
+    public AddressesController(IMediator mediator)
     {
-        _addressService = addressService;
-        _context = context;
+        _mediator = mediator;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -38,8 +42,10 @@ public class AddressesController : BaseController
     public async Task<ActionResult<IEnumerable<AddressDto>>> GetMyAddresses(CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
-        var addresses = await _addressService.GetByUserIdAsync(userId, cancellationToken);
+        var query = new GetAddressesByUserIdQuery(userId);
+        var addresses = await _mediator.Send(query, cancellationToken);
         return Ok(addresses);
     }
 
@@ -57,25 +63,17 @@ public class AddressesController : BaseController
     public async Task<ActionResult<AddressDto>> GetById(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR koruması - Kullanıcı sadece kendi adreslerine erişebilmeli
+        // ✅ BOLUM 3.2: IDOR koruması - Handler'da kontrol ediliyor
         var userId = GetUserId();
+        var isAdminOrManager = User.IsInRole("Admin") || User.IsInRole("Manager");
         
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        var addressEntity = await _context.Addresses
-            .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
-        
-        if (addressEntity == null)
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var query = new GetAddressByIdQuery(id, userId, isAdminOrManager);
+        var address = await _mediator.Send(query, cancellationToken);
+        if (address == null)
         {
             return NotFound();
         }
-        
-        if (addressEntity.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
-        {
-            return Forbid();
-        }
-        
-        var address = await _addressService.GetByIdAsync(id, cancellationToken);
         return Ok(address);
     }
 
@@ -95,8 +93,21 @@ public class AddressesController : BaseController
         if (validationResult != null) return validationResult;
 
         var userId = GetUserId();
-        dto.UserId = userId;
-        var address = await _addressService.CreateAsync(dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        var command = new CreateAddressCommand(
+            userId,
+            dto.Title,
+            dto.FirstName,
+            dto.LastName,
+            dto.PhoneNumber,
+            dto.AddressLine1,
+            dto.AddressLine2,
+            dto.City,
+            dto.District,
+            dto.PostalCode,
+            dto.Country,
+            dto.IsDefault);
+        var address = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = address.Id }, address);
     }
 
@@ -119,24 +130,26 @@ public class AddressesController : BaseController
         if (validationResult != null) return validationResult;
 
         var userId = GetUserId();
-        
-        // ✅ BOLUM 3.2: IDOR koruması - Kullanıcı sadece kendi adreslerini güncelleyebilmeli
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        var addressEntity = await _context.Addresses
-            .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
-        
-        if (addressEntity == null)
-        {
-            return NotFound();
-        }
-        
-        if (addressEntity.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
-        {
-            return Forbid();
-        }
+        var isAdminOrManager = User.IsInRole("Admin") || User.IsInRole("Manager");
 
-        var updatedAddress = await _addressService.UpdateAsync(id, dto, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.2: IDOR koruması - Handler'da kontrol ediliyor
+        var command = new UpdateAddressCommand(
+            id,
+            userId,
+            isAdminOrManager,
+            dto.Title,
+            dto.FirstName,
+            dto.LastName,
+            dto.PhoneNumber,
+            dto.AddressLine1,
+            dto.AddressLine2,
+            dto.City,
+            dto.District,
+            dto.PostalCode,
+            dto.Country,
+            dto.IsDefault);
+        var updatedAddress = await _mediator.Send(command, cancellationToken);
         return Ok(updatedAddress);
     }
 
@@ -155,24 +168,12 @@ public class AddressesController : BaseController
     {
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var userId = GetUserId();
+        var isAdminOrManager = User.IsInRole("Admin") || User.IsInRole("Manager");
         
-        // ✅ BOLUM 3.2: IDOR koruması - Kullanıcı sadece kendi adreslerini silebilmeli
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        var addressEntity = await _context.Addresses
-            .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
-        
-        if (addressEntity == null)
-        {
-            return NotFound();
-        }
-        
-        if (addressEntity.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
-        {
-            return Forbid();
-        }
-        
-        var result = await _addressService.DeleteAsync(id, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.2: IDOR koruması - Handler'da kontrol ediliyor
+        var command = new DeleteAddressCommand(id, userId, isAdminOrManager);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -196,23 +197,10 @@ public class AddressesController : BaseController
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var userId = GetUserId();
         
-        // ✅ BOLUM 3.2: IDOR koruması - Kullanıcı sadece kendi adreslerini varsayılan yapabilir
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        var addressEntity = await _context.Addresses
-            .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
-        
-        if (addressEntity == null)
-        {
-            return NotFound();
-        }
-        
-        if (addressEntity.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
-        {
-            return Forbid();
-        }
-        
-        var result = await _addressService.SetDefaultAsync(id, userId, cancellationToken);
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 3.2: IDOR koruması - Handler'da kontrol ediliyor (SetDefaultAddressCommand zaten userId alıyor)
+        var command = new SetDefaultAddressCommand(id, userId);
+        var result = await _mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();

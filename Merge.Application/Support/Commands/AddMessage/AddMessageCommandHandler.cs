@@ -10,6 +10,13 @@ using Merge.Application.Configuration;
 using Merge.Application.Services.Notification;
 using Merge.Domain.Entities;
 using Microsoft.Extensions.Options;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.Modules.Support;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Support.Commands.AddMessage;
 

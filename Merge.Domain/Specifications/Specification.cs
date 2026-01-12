@@ -1,4 +1,6 @@
 using System.Linq.Expressions;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Domain.Specifications;
 

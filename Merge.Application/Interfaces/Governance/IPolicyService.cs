@@ -1,5 +1,6 @@
 using Merge.Application.DTOs.Governance;
 using Merge.Application.Common;
+using Merge.Domain.Modules.Content;
 
 namespace Merge.Application.Interfaces.Governance;
 

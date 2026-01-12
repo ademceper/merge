@@ -6,6 +6,11 @@ using Merge.Application.DTOs.Catalog;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Catalog.Commands.CreateCategory;
 
@@ -13,7 +18,7 @@ namespace Merge.Application.Catalog.Commands.CreateCategory;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateCategoryCommandHandler : IRequestHandler<CreateCategoryCommand, CategoryDto>
 {
-    private readonly IRepository<Category> _categoryRepository;
+    private readonly Merge.Application.Interfaces.IRepository<Category> _categoryRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -25,7 +30,7 @@ public class CreateCategoryCommandHandler : IRequestHandler<CreateCategoryComman
     private const string CACHE_KEY_MAIN_CATEGORIES_PAGED = "categories_main_paged";
 
     public CreateCategoryCommandHandler(
-        IRepository<Category> categoryRepository,
+        Merge.Application.Interfaces.IRepository<Category> categoryRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,

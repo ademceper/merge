@@ -1,4 +1,5 @@
 using FluentValidation;
+using Merge.Domain.Enums;
 
 namespace Merge.Application.Content.Commands.UpdateBlogPost;
 

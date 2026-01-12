@@ -11,6 +11,10 @@ using Merge.Domain.Enums;
 using Merge.Application.Seller.Queries.GetSellerBalance;
 using Merge.Application.Seller.Queries.GetSellerTransactions;
 using Merge.Application.Seller.Queries.GetSellerInvoices;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Marketplace;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Queries.GetSellerFinanceSummary;
 

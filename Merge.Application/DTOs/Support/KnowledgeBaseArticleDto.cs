@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.DTOs.Support;
 

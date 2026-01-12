@@ -9,6 +9,12 @@ using Merge.Application.Configuration;
 using Merge.Application.Services.Notification;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Identity.Commands.SendVerificationCode;
 
@@ -17,7 +23,7 @@ namespace Merge.Application.Identity.Commands.SendVerificationCode;
 // ✅ BOLUM 12.1: Magic Number Sorunu - Configuration kullanımı
 public class SendVerificationCodeCommandHandler : IRequestHandler<SendVerificationCodeCommand, Unit>
 {
-    private readonly IRepository<TwoFactorCode> _codeRepository;
+    private readonly Merge.Application.Interfaces.IRepository<TwoFactorCode> _codeRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly TwoFactorAuthSettings _twoFactorSettings;
@@ -26,7 +32,7 @@ public class SendVerificationCodeCommandHandler : IRequestHandler<SendVerificati
     private readonly ILogger<SendVerificationCodeCommandHandler> _logger;
 
     public SendVerificationCodeCommandHandler(
-        IRepository<TwoFactorCode> codeRepository,
+        Merge.Application.Interfaces.IRepository<TwoFactorCode> codeRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         IOptions<TwoFactorAuthSettings> twoFactorSettings,
@@ -109,6 +115,7 @@ public class SendVerificationCodeCommandHandler : IRequestHandler<SendVerificati
     {
         var bytes = new byte[4];
         using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create())
+
         {
             rng.GetBytes(bytes);
         }

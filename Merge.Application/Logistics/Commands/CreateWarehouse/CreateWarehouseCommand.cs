@@ -1,5 +1,6 @@
 using MediatR;
 using Merge.Application.DTOs.Logistics;
+using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Logistics.Commands.CreateWarehouse;
 

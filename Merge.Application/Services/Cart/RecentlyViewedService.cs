@@ -1,6 +1,6 @@
 using AutoMapper;
-using CartEntity = Merge.Domain.Entities.Cart;
-using ProductEntity = Merge.Domain.Entities.Product;
+using CartEntity = Merge.Domain.Modules.Ordering.Cart;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -11,13 +11,19 @@ using Merge.Application.Common;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Application.DTOs.Product;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Cart;
 
 public class RecentlyViewedService : IRecentlyViewedService
 {
-    private readonly IRepository<RecentlyViewedProduct> _recentlyViewedRepository;
+    private readonly Merge.Application.Interfaces.IRepository<RecentlyViewedProduct> _recentlyViewedRepository;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
@@ -25,7 +31,7 @@ public class RecentlyViewedService : IRecentlyViewedService
     private readonly CartSettings _cartSettings;
 
     public RecentlyViewedService(
-        IRepository<RecentlyViewedProduct> recentlyViewedRepository,
+        Merge.Application.Interfaces.IRepository<RecentlyViewedProduct> recentlyViewedRepository,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,

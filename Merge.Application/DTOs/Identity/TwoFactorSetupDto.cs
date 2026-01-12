@@ -1,4 +1,5 @@
 using Merge.Domain.Enums;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.DTOs.Identity;
 

@@ -1,4 +1,5 @@
 using Merge.Application.DTOs.Payment;
+using Merge.Domain.Modules.Payment;
 
 namespace Merge.Application.Interfaces.Payment;
 

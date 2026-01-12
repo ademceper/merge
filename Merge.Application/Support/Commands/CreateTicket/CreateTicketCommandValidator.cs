@@ -1,6 +1,7 @@
 using FluentValidation;
 using Merge.Application.Configuration;
 using Microsoft.Extensions.Options;
+using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Support.Commands.CreateTicket;
 

@@ -1,3 +1,6 @@
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.Modules.Payment;
 namespace Merge.Domain.Enums;
 
 /// <summary>

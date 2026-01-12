@@ -1,4 +1,6 @@
 using Merge.Domain.Enums;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.DTOs.Cart;
 

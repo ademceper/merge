@@ -5,6 +5,12 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.DTOs.Marketing;
 using Merge.Application.Interfaces;
 using System.Text.Json;
+using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.UpdateEmailSubscriber;
 
@@ -31,7 +37,7 @@ public class UpdateEmailSubscriberCommandHandler : IRequestHandler<UpdateEmailSu
     public async Task<EmailSubscriberDto> Handle(UpdateEmailSubscriberCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var subscriber = await _context.Set<Merge.Domain.Entities.EmailSubscriber>()
+        var subscriber = await _context.Set<Merge.Domain.Modules.Marketing.EmailSubscriber>()
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 
         if (subscriber == null)
@@ -60,7 +66,7 @@ public class UpdateEmailSubscriberCommandHandler : IRequestHandler<UpdateEmailSu
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-        var updatedSubscriber = await _context.Set<Merge.Domain.Entities.EmailSubscriber>()
+        var updatedSubscriber = await _context.Set<Merge.Domain.Modules.Marketing.EmailSubscriber>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 

@@ -4,6 +4,10 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.TrackLandingPageConversion;
 
@@ -11,12 +15,12 @@ namespace Merge.Application.Content.Commands.TrackLandingPageConversion;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class TrackLandingPageConversionCommandHandler : IRequestHandler<TrackLandingPageConversionCommand, bool>
 {
-    private readonly IRepository<LandingPage> _landingPageRepository;
+    private readonly Merge.Application.Interfaces.IRepository<LandingPage> _landingPageRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<TrackLandingPageConversionCommandHandler> _logger;
 
     public TrackLandingPageConversionCommandHandler(
-        IRepository<LandingPage> landingPageRepository,
+        Merge.Application.Interfaces.IRepository<LandingPage> landingPageRepository,
         IUnitOfWork unitOfWork,
         ILogger<TrackLandingPageConversionCommandHandler> logger)
     {

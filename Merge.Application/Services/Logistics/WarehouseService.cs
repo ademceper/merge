@@ -1,5 +1,5 @@
 using AutoMapper;
-using OrderEntity = Merge.Domain.Entities.Order;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces.Logistics;
@@ -8,20 +8,26 @@ using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Application.Interfaces;
 using Merge.Application.DTOs.Logistics;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Inventory;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Logistics;
 
 public class WarehouseService : IWarehouseService
 {
-    private readonly IRepository<Warehouse> _warehouseRepository;
+    private readonly Merge.Application.Interfaces.IRepository<Warehouse> _warehouseRepository;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<WarehouseService> _logger;
 
     public WarehouseService(
-        IRepository<Warehouse> warehouseRepository,
+        Merge.Application.Interfaces.IRepository<Warehouse> warehouseRepository,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,

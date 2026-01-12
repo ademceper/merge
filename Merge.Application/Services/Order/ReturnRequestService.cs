@@ -1,5 +1,5 @@
 using AutoMapper;
-using OrderEntity = Merge.Domain.Entities.Order;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
@@ -9,22 +9,28 @@ using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Application.DTOs.Order;
 using Merge.Application.Common;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.Modules.Payment;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Order;
 
 public class ReturnRequestService : IReturnRequestService
 {
-    private readonly IRepository<ReturnRequest> _returnRequestRepository;
-    private readonly IRepository<OrderEntity> _orderRepository;
+    private readonly Merge.Application.Interfaces.IRepository<ReturnRequest> _returnRequestRepository;
+    private readonly Merge.Application.Interfaces.IRepository<OrderEntity> _orderRepository;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<ReturnRequestService> _logger;
 
     public ReturnRequestService(
-        IRepository<ReturnRequest> returnRequestRepository,
-        IRepository<OrderEntity> orderRepository,
+        Merge.Application.Interfaces.IRepository<ReturnRequest> returnRequestRepository,
+        Merge.Application.Interfaces.IRepository<OrderEntity> orderRepository,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,

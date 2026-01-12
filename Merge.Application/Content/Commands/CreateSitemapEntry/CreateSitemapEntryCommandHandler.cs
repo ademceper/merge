@@ -6,6 +6,10 @@ using Merge.Application.DTOs.Content;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.CreateSitemapEntry;
 
@@ -13,7 +17,7 @@ namespace Merge.Application.Content.Commands.CreateSitemapEntry;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateSitemapEntryCommandHandler : IRequestHandler<CreateSitemapEntryCommand, SitemapEntryDto>
 {
-    private readonly IRepository<SitemapEntry> _sitemapEntryRepository;
+    private readonly Merge.Application.Interfaces.IRepository<SitemapEntry> _sitemapEntryRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -23,7 +27,7 @@ public class CreateSitemapEntryCommandHandler : IRequestHandler<CreateSitemapEnt
     private const string CACHE_KEY_SITEMAP_XML = "sitemap_xml";
 
     public CreateSitemapEntryCommandHandler(
-        IRepository<SitemapEntry> sitemapEntryRepository,
+        Merge.Application.Interfaces.IRepository<SitemapEntry> sitemapEntryRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,

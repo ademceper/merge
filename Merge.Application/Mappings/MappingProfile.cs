@@ -25,9 +25,22 @@ using Merge.Application.DTOs.Organization;
 using Merge.Application.DTOs.Search;
 using Merge.Application.DTOs.Subscription;
 using System.Text.Json;
-using OrganizationEntity = Merge.Domain.Entities.Organization;
-using ReviewEntity = Merge.Domain.Entities.Review;
-using ProductEntity = Merge.Domain.Entities.Product;
+using OrganizationEntity = Merge.Domain.Modules.Identity.Organization;
+using ReviewEntity = Merge.Domain.Modules.Catalog.Review;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
+using Merge.Domain.Modules.Analytics;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Content;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Inventory;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.Modules.Marketplace;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.Modules.Payment;
+using Merge.Domain.Modules.Support;
+using Merge.Domain.ValueObjects;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Mappings;
 
@@ -36,7 +49,7 @@ public class MappingProfile : Profile
     public MappingProfile()
     {
         // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
-        CreateMap<Merge.Domain.Entities.Product, ProductDto>()
+        CreateMap<Merge.Domain.Modules.Catalog.Product, ProductDto>()
             .ConstructUsing(src => new ProductDto(
                 src.Id,
                 src.Name,
@@ -58,7 +71,7 @@ public class MappingProfile : Profile
             ));
 
         // ProductDto → Product mapping (Create/Update için)
-        CreateMap<ProductDto, Merge.Domain.Entities.Product>()
+        CreateMap<ProductDto, Merge.Domain.Modules.Catalog.Product>()
             .ForMember(dest => dest.Category, opt => opt.Ignore())
             .ForMember(dest => dest.OrderItems, opt => opt.Ignore())
             .ForMember(dest => dest.CartItems, opt => opt.Ignore())
@@ -99,7 +112,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Products, opt => opt.Ignore());
 
         // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
-        CreateMap<Merge.Domain.Entities.User, UserDto>()
+        CreateMap<Merge.Domain.Modules.Identity.User, UserDto>()
             .ConstructUsing(src => new UserDto(
                 src.Id,
                 src.FirstName,
@@ -108,8 +121,8 @@ public class MappingProfile : Profile
                 src.PhoneNumber ?? string.Empty,
                 string.Empty)); // Role handler'da set edilecek
 
-        CreateMap<Address, AddressDto>();
-        CreateMap<AddressDto, Address>()
+        CreateMap<Merge.Domain.Modules.Identity.Address, AddressDto>();
+        CreateMap<AddressDto, Merge.Domain.Modules.Identity.Address>()
             .ForMember(dest => dest.User, opt => opt.Ignore())
             .ForMember(dest => dest.Orders, opt => opt.Ignore());
 
@@ -133,7 +146,7 @@ public class MappingProfile : Profile
                 src.Quantity * src.Price
             ));
 
-        CreateMap<Merge.Domain.Entities.Cart, CartDto>()
+        CreateMap<Merge.Domain.Modules.Ordering.Cart, CartDto>()
             .ConstructUsing(src => new CartDto(
                 src.Id,
                 src.UserId,
@@ -169,7 +182,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.UnitPrice))
             .ForMember(dest => dest.TotalPrice, opt => opt.MapFrom(src => src.TotalPrice));
 
-        CreateMap<Merge.Domain.Entities.Order, OrderDto>()
+        CreateMap<Merge.Domain.Modules.Ordering.Order, OrderDto>()
             .ForMember(dest => dest.OrderItems, opt => opt.MapFrom(src => src.OrderItems));
 
         CreateMap<Wishlist, ProductDto>()
@@ -190,7 +203,7 @@ public class MappingProfile : Profile
         // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
         // ✅ FIX: Notification namespace conflict - using alias
-        CreateMap<Merge.Domain.Entities.Notification, NotificationDto>()
+        CreateMap<Merge.Domain.Modules.Notifications.Notification, NotificationDto>()
             .ConstructUsing(src => new NotificationDto(
                 src.Id,
                 src.UserId,
@@ -247,9 +260,9 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => src.Order != null ? src.Order.OrderNumber : string.Empty));
         CreateMap<CreateReturnRequestDto, ReturnRequest>();
 
-        CreateMap<Merge.Domain.Entities.Payment, PaymentDto>()
+        CreateMap<Merge.Domain.Modules.Payment.Payment, PaymentDto>()
             .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => src.Order != null ? src.Order.OrderNumber : string.Empty));
-        CreateMap<CreatePaymentDto, Merge.Domain.Entities.Payment>();
+        CreateMap<CreatePaymentDto, Merge.Domain.Modules.Payment.Payment>();
 
         // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         CreateMap<Shipping, ShippingDto>()
@@ -269,8 +282,8 @@ public class MappingProfile : Profile
             ));
         CreateMap<CreateShippingDto, Shipping>();
 
-        CreateMap<CreateAddressDto, Address>();
-        CreateMap<UpdateAddressDto, Address>();
+        CreateMap<CreateAddressDto, Merge.Domain.Modules.Identity.Address>();
+        CreateMap<UpdateAddressDto, Merge.Domain.Modules.Identity.Address>();
 
         // FlashSale mappings
         CreateMap<FlashSale, FlashSaleDto>()
@@ -482,7 +495,7 @@ public class MappingProfile : Profile
 
         // Product → ComparisonProductDto mapping
         // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
-        CreateMap<Merge.Domain.Entities.Product, ComparisonProductDto>()
+        CreateMap<Merge.Domain.Modules.Catalog.Product, ComparisonProductDto>()
             .ConstructUsing(src => new ComparisonProductDto(
                 src.Id, // ProductId
                 src.Name,
@@ -502,13 +515,13 @@ public class MappingProfile : Profile
 
         // Search domain mappings
         // Product → ProductSuggestionDto mapping
-        CreateMap<Merge.Domain.Entities.Product, ProductSuggestionDto>()
+        CreateMap<Merge.Domain.Modules.Catalog.Product, ProductSuggestionDto>()
             .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : string.Empty))
             .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.DiscountPrice ?? src.Price));
 
         // Product → ProductRecommendationDto mapping
         // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
-        CreateMap<Merge.Domain.Entities.Product, ProductRecommendationDto>()
+        CreateMap<Merge.Domain.Modules.Catalog.Product, ProductRecommendationDto>()
             .ConstructUsing(src => new ProductRecommendationDto(
                 src.Id, // ProductId
                 src.Name,
@@ -908,7 +921,7 @@ public class MappingProfile : Profile
             ));
 
         // Cart -> AbandonedCartDto mapping (complex mapping with computed properties)
-        CreateMap<Merge.Domain.Entities.Cart, AbandonedCartDto>()
+        CreateMap<Merge.Domain.Modules.Ordering.Cart, AbandonedCartDto>()
             .ForMember(dest => dest.CartId, opt => opt.MapFrom(src => src.Id))
             .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User != null ? src.User.Email : string.Empty))
             .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => 
@@ -1973,4 +1986,3 @@ public class MappingProfile : Profile
                 src.Sender != null ? $"{src.Sender.FirstName} {src.Sender.LastName}" : null));
     }
 }
-

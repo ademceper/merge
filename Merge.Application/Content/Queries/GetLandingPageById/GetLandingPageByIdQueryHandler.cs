@@ -6,6 +6,10 @@ using Merge.Application.DTOs.Content;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Queries.GetLandingPageById;
 
@@ -14,7 +18,7 @@ namespace Merge.Application.Content.Queries.GetLandingPageById;
 public class GetLandingPageByIdQueryHandler : IRequestHandler<GetLandingPageByIdQuery, LandingPageDto?>
 {
     private readonly IDbContext _context;
-    private readonly IRepository<LandingPage> _landingPageRepository;
+    private readonly Merge.Application.Interfaces.IRepository<LandingPage> _landingPageRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<GetLandingPageByIdQueryHandler> _logger;
@@ -24,7 +28,7 @@ public class GetLandingPageByIdQueryHandler : IRequestHandler<GetLandingPageById
 
     public GetLandingPageByIdQueryHandler(
         IDbContext context,
-        IRepository<LandingPage> landingPageRepository,
+        Merge.Application.Interfaces.IRepository<LandingPage> landingPageRepository,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<GetLandingPageByIdQueryHandler> logger,

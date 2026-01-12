@@ -8,6 +8,14 @@ using Merge.Application.Interfaces;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using AutoMapper;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Queries.GetAbandonedCarts;
 
@@ -45,7 +53,7 @@ public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQu
         // ✅ PERFORMANCE: Database'de tüm hesaplamaları yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         // Step 1: Get abandoned cart IDs (carts with items, updated in date range)
-        var abandonedCartIds = await _context.Set<Merge.Domain.Entities.Cart>()
+        var abandonedCartIds = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .AsNoTracking()
             .Where(c => c.CartItems.Any() &&
                        c.UpdatedAt >= minDate &&
@@ -65,7 +73,7 @@ public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQu
         }
 
         // Step 2: Get user IDs for these carts
-        var userIds = await _context.Set<Merge.Domain.Entities.Cart>()
+        var userIds = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .AsNoTracking()
             .Where(c => abandonedCartIds.Contains(c.Id))
             .Select(c => c.UserId)
@@ -73,7 +81,7 @@ public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQu
             .ToListAsync(cancellationToken);
 
         // Step 3: Filter out carts that have been converted to orders
-        var userIdsWithOrders = await _context.Set<Merge.Domain.Entities.Order>()
+        var userIdsWithOrders = await _context.Set<Merge.Domain.Modules.Ordering.Order>()
             .AsNoTracking()
             .Where(o => userIds.Contains(o.UserId))
             .Select(o => o.UserId)
@@ -81,7 +89,7 @@ public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQu
             .ToListAsync(cancellationToken);
 
         // Step 4: Get final abandoned cart IDs (excluding those converted to orders)
-        var finalAbandonedCartIds = await _context.Set<Merge.Domain.Entities.Cart>()
+        var finalAbandonedCartIds = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .AsNoTracking()
             .Where(c => abandonedCartIds.Contains(c.Id) && 
                        !userIdsWithOrders.Contains(c.UserId))
@@ -103,7 +111,7 @@ public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQu
         var totalCount = finalAbandonedCartIds.Count;
 
         // Step 5: Get cart data with computed properties from database
-        var cartsData = await _context.Set<Merge.Domain.Entities.Cart>()
+        var cartsData = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .AsNoTracking()
             .Where(c => finalAbandonedCartIds.Contains(c.Id))
             .Select(c => new

@@ -1,3 +1,4 @@
+using Merge.Domain.Modules.Analytics;
 namespace Merge.Domain.Enums;
 
 /// <summary>

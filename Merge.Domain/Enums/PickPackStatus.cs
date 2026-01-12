@@ -1,3 +1,4 @@
+using Merge.Domain.Modules.Inventory;
 namespace Merge.Domain.Enums;
 
 /// <summary>

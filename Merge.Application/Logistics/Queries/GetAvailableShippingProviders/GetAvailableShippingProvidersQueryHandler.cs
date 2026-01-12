@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Merge.Application.DTOs.Logistics;
+using Merge.Domain.Interfaces;
 
 namespace Merge.Application.Logistics.Queries.GetAvailableShippingProviders;
 

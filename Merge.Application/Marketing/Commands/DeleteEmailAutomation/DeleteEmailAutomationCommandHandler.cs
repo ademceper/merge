@@ -2,6 +2,12 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
+using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.DeleteEmailAutomation;
 
@@ -25,7 +31,7 @@ public class DeleteEmailAutomationCommandHandler : IRequestHandler<DeleteEmailAu
     public async Task<bool> Handle(DeleteEmailAutomationCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-        var automation = await _context.Set<Merge.Domain.Entities.EmailAutomation>()
+        var automation = await _context.Set<Merge.Domain.Modules.Notifications.EmailAutomation>()
             .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
 
         if (automation == null)

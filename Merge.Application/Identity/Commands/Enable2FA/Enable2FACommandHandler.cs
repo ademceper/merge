@@ -10,7 +10,11 @@ using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using Merge.Domain.Common.DomainEvents;
+using Merge.Domain.SharedKernel.DomainEvents;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Identity.Commands.Enable2FA;
 
@@ -18,16 +22,16 @@ namespace Merge.Application.Identity.Commands.Enable2FA;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
 public class Enable2FACommandHandler : IRequestHandler<Enable2FACommand, Unit>
 {
-    private readonly IRepository<TwoFactorAuth> _twoFactorRepository;
-    private readonly IRepository<TwoFactorCode> _codeRepository;
+    private readonly Merge.Application.Interfaces.IRepository<TwoFactorAuth> _twoFactorRepository;
+    private readonly Merge.Application.Interfaces.IRepository<TwoFactorCode> _codeRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly TwoFactorAuthSettings _twoFactorSettings;
     private readonly ILogger<Enable2FACommandHandler> _logger;
 
     public Enable2FACommandHandler(
-        IRepository<TwoFactorAuth> twoFactorRepository,
-        IRepository<TwoFactorCode> codeRepository,
+        Merge.Application.Interfaces.IRepository<TwoFactorAuth> twoFactorRepository,
+        Merge.Application.Interfaces.IRepository<TwoFactorCode> codeRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         IOptions<TwoFactorAuthSettings> twoFactorSettings,
@@ -142,6 +146,8 @@ public class Enable2FACommandHandler : IRequestHandler<Enable2FACommand, Unit>
         }
 
         using var hmac = new HMACSHA1(keyBytes);
+
+
         var hash = hmac.ComputeHash(timeBytes);
 
         var offset = hash[hash.Length - 1] & 0x0F;

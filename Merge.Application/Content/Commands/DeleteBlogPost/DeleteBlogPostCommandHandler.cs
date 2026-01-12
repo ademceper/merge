@@ -4,6 +4,12 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Content;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.DeleteBlogPost;
 
@@ -11,7 +17,7 @@ namespace Merge.Application.Content.Commands.DeleteBlogPost;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteBlogPostCommandHandler : IRequestHandler<DeleteBlogPostCommand, bool>
 {
-    private readonly IRepository<BlogPost> _postRepository;
+    private readonly Merge.Application.Interfaces.IRepository<BlogPost> _postRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
     private readonly ILogger<DeleteBlogPostCommandHandler> _logger;
@@ -20,7 +26,7 @@ public class DeleteBlogPostCommandHandler : IRequestHandler<DeleteBlogPostComman
     private const string CACHE_KEY_RECENT_POSTS = "blog_posts_recent";
 
     public DeleteBlogPostCommandHandler(
-        IRepository<BlogPost> postRepository,
+        Merge.Application.Interfaces.IRepository<BlogPost> postRepository,
         IUnitOfWork unitOfWork,
         ICacheService cache,
         ILogger<DeleteBlogPostCommandHandler> logger)

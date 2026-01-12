@@ -1,3 +1,4 @@
+using Merge.Domain.Modules.Ordering;
 namespace Merge.Domain.Enums;
 
 /// <summary>

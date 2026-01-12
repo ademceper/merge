@@ -1,7 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using UserEntity = Merge.Domain.Entities.User;
+using UserEntity = Merge.Domain.Modules.Identity.User;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Product;
@@ -9,9 +9,15 @@ using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Domain.Entities;
 using System.Text.Json;
-using ProductEntity = Merge.Domain.Entities.Product;
-using ReviewEntity = Merge.Domain.Entities.Review;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
+using ReviewEntity = Merge.Domain.Modules.Catalog.Review;
 using Merge.Application.DTOs.Product;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Product;

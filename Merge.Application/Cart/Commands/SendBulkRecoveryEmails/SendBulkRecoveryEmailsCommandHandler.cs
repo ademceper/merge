@@ -6,6 +6,8 @@ using Merge.Application.Cart.Commands.SendRecoveryEmail;
 using Merge.Application.Configuration;
 using Merge.Application.DTOs.Cart;
 using Merge.Domain.Enums;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Commands.SendBulkRecoveryEmails;
 

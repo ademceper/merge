@@ -1,3 +1,6 @@
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.ValueObjects;
 namespace Merge.Application.DTOs.Seller;
 
 // ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)

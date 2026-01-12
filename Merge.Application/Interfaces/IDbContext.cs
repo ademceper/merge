@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Merge.Domain.Entities;
-using UserEntity = Merge.Domain.Entities.User;
-using RoleEntity = Merge.Domain.Entities.Role;
+using UserEntity = Merge.Domain.Modules.Identity.User;
+using RoleEntity = Merge.Domain.Modules.Identity.Role;
 using UserRole = Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Interfaces;
 

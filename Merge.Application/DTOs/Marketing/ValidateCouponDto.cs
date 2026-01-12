@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.DTOs.Marketing;
 

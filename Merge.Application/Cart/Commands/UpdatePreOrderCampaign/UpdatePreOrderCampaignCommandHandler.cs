@@ -1,6 +1,11 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Marketing;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.UpdatePreOrderCampaign;
 
@@ -21,7 +26,7 @@ public class UpdatePreOrderCampaignCommandHandler : IRequestHandler<UpdatePreOrd
 
     public async Task<bool> Handle(UpdatePreOrderCampaignCommand request, CancellationToken cancellationToken)
     {
-        var campaign = await _context.Set<Domain.Entities.PreOrderCampaign>()
+        var campaign = await _context.Set<Merge.Domain.Modules.Marketing.PreOrderCampaign>()
             .FirstOrDefaultAsync(c => c.Id == request.CampaignId, cancellationToken);
 
         if (campaign == null) return false;

@@ -5,6 +5,10 @@ using Merge.Application.DTOs.Security;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
 using System.Text.Json;
+using Merge.Domain.Interfaces;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Governance.Queries.CompareChanges;
 
@@ -77,4 +81,3 @@ public class CompareChangesQueryHandler : IRequestHandler<CompareChangesQuery, I
         }
     }
 }
-

@@ -1,5 +1,6 @@
 using MediatR;
 using Merge.Application.DTOs.Seller;
+using Merge.Domain.Modules.Payment;
 
 namespace Merge.Application.Seller.Commands.UpdateSellerCommissionSettings;
 

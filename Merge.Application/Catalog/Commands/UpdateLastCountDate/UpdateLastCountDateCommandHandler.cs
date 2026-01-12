@@ -4,7 +4,14 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using ProductEntity = Merge.Domain.Entities.Product;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Inventory;
+using Merge.Domain.Modules.Marketplace;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Catalog.Commands.UpdateLastCountDate;
 
@@ -14,7 +21,7 @@ public class UpdateLastCountDateCommandHandler : IRequestHandler<UpdateLastCount
 {
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IRepository<Inventory> _inventoryRepository;
+    private readonly Merge.Application.Interfaces.IRepository<Inventory> _inventoryRepository;
     private readonly ICacheService _cache;
     private readonly ILogger<UpdateLastCountDateCommandHandler> _logger;
     private const string CACHE_KEY_INVENTORY_BY_ID = "inventory_";
@@ -23,7 +30,7 @@ public class UpdateLastCountDateCommandHandler : IRequestHandler<UpdateLastCount
     public UpdateLastCountDateCommandHandler(
         IDbContext context,
         IUnitOfWork unitOfWork,
-        IRepository<Inventory> inventoryRepository,
+        Merge.Application.Interfaces.IRepository<Inventory> inventoryRepository,
         ICacheService cache,
         ILogger<UpdateLastCountDateCommandHandler> logger)
     {

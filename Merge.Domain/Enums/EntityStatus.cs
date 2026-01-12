@@ -1,3 +1,5 @@
+using Merge.Domain.Modules.Marketplace;
+using Merge.Domain.Modules.Identity;
 namespace Merge.Domain.Enums;
 
 /// <summary>

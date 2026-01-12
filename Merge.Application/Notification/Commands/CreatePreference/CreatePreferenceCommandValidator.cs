@@ -1,4 +1,6 @@
 using FluentValidation;
+using Merge.Domain.Enums;
+using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Notification.Commands.CreatePreference;
 

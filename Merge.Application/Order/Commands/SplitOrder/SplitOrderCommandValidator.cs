@@ -1,5 +1,6 @@
 using FluentValidation;
 using Merge.Application.Order.Commands.SplitOrder;
+using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Commands.SplitOrder;
 

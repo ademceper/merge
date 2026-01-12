@@ -1,5 +1,6 @@
 using Merge.Application.Common;
 using Merge.Application.DTOs.Notification;
+using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.Interfaces.Notification;
 

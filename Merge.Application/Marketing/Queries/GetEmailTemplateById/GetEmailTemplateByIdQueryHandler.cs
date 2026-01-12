@@ -3,6 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using AutoMapper;
 using Merge.Application.DTOs.Marketing;
 using Merge.Application.Interfaces;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Notifications;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetEmailTemplateById;
 
@@ -21,7 +25,7 @@ public class GetEmailTemplateByIdQueryHandler : IRequestHandler<GetEmailTemplate
     public async Task<EmailTemplateDto?> Handle(GetEmailTemplateByIdQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        var template = await _context.Set<Merge.Domain.Entities.EmailTemplate>()
+        var template = await _context.Set<Merge.Domain.Modules.Notifications.EmailTemplate>()
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
 

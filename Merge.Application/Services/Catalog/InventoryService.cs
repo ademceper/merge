@@ -7,25 +7,32 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using ProductEntity = Merge.Domain.Entities.Product;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Common;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Inventory;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Catalog;
 
 public class InventoryService : IInventoryService
 {
-    private readonly IRepository<Inventory> _inventoryRepository;
-    private readonly IRepository<StockMovement> _stockMovementRepository;
+    private readonly Merge.Application.Interfaces.IRepository<Inventory> _inventoryRepository;
+    private readonly Merge.Application.Interfaces.IRepository<StockMovement> _stockMovementRepository;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<InventoryService> _logger;
 
     public InventoryService(
-        IRepository<Inventory> inventoryRepository,
-        IRepository<StockMovement> stockMovementRepository,
+        Merge.Application.Interfaces.IRepository<Inventory> inventoryRepository,
+        Merge.Application.Interfaces.IRepository<StockMovement> stockMovementRepository,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,

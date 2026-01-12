@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.DTOs.Catalog;
 

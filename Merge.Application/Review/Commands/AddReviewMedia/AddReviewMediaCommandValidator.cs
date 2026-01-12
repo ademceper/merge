@@ -1,4 +1,6 @@
 using FluentValidation;
+using Merge.Domain.Enums;
+using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Review.Commands.AddReviewMedia;
 

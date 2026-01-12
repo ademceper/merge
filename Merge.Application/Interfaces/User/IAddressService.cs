@@ -1,4 +1,5 @@
 using Merge.Application.DTOs.User;
+using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Interfaces.User;
 

@@ -7,7 +7,13 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
-using ProductEntity = Merge.Domain.Entities.Product;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Inventory;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Catalog.Commands.AdjustStock;
 
@@ -17,7 +23,7 @@ public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, Inv
 {
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IRepository<Inventory> _inventoryRepository;
+    private readonly Merge.Application.Interfaces.IRepository<Inventory> _inventoryRepository;
     private readonly ICacheService _cache;
     private readonly IMapper _mapper;
     private readonly ILogger<AdjustStockCommandHandler> _logger;
@@ -27,7 +33,7 @@ public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, Inv
     public AdjustStockCommandHandler(
         IDbContext context,
         IUnitOfWork unitOfWork,
-        IRepository<Inventory> inventoryRepository,
+        Merge.Application.Interfaces.IRepository<Inventory> inventoryRepository,
         ICacheService cache,
         IMapper mapper,
         ILogger<AdjustStockCommandHandler> logger)

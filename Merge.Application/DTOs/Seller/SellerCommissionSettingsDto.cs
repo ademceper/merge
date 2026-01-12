@@ -1,3 +1,4 @@
+using Merge.Domain.Modules.Payment;
 namespace Merge.Application.DTOs.Seller;
 
 // ✅ BOLUM 7.1.5: Records - DTO'lar record olarak tanımlanmalı (ZORUNLU)

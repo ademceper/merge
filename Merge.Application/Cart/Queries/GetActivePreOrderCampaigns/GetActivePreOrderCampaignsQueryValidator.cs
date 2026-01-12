@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
+using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Queries.GetActivePreOrderCampaigns;
 

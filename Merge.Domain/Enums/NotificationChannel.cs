@@ -1,3 +1,5 @@
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.ValueObjects;
 namespace Merge.Domain.Enums;
 
 /// <summary>

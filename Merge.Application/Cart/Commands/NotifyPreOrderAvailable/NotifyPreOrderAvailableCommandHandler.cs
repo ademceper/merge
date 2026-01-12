@@ -2,6 +2,14 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces;
 using Merge.Application.Services.Notification;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Notifications;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.NotifyPreOrderAvailable;
 
@@ -25,7 +33,7 @@ public class NotifyPreOrderAvailableCommandHandler : IRequestHandler<NotifyPreOr
 
     public async Task Handle(NotifyPreOrderAvailableCommand request, CancellationToken cancellationToken)
     {
-        var preOrder = await _context.Set<Domain.Entities.PreOrder>()
+        var preOrder = await _context.Set<Merge.Domain.Modules.Ordering.PreOrder>()
             .Include(po => po.Product)
             .Include(po => po.User)
             .FirstOrDefaultAsync(po => po.Id == request.PreOrderId, cancellationToken);

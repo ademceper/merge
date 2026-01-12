@@ -7,8 +7,13 @@ using Merge.Application.DTOs.Content;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using System.Text.Json;
-using OrderEntity = Merge.Domain.Entities.Order;
-using PaymentEntity = Merge.Domain.Entities.Payment;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
+using PaymentEntity = Merge.Domain.Modules.Payment.Payment;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.Modules.Payment;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.ML.Helpers;
 

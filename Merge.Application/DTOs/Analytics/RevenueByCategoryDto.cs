@@ -1,3 +1,4 @@
+using Merge.Domain.ValueObjects;
 namespace Merge.Application.DTOs.Analytics;
 
 // ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)

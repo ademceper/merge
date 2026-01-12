@@ -1,6 +1,7 @@
 using MediatR;
 using Merge.Application.DTOs.Payment;
 using Merge.Application.Common;
+using Merge.Domain.Modules.Payment;
 
 namespace Merge.Application.Payment.Queries.GetInvoicesByUserId;
 

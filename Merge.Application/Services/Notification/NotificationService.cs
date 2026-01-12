@@ -1,5 +1,5 @@
 using AutoMapper;
-using NotificationEntity = Merge.Domain.Entities.Notification;
+using NotificationEntity = Merge.Domain.Modules.Notifications.Notification;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -10,13 +10,17 @@ using Merge.Application.DTOs.Notification;
 using Merge.Application.Common;
 using Merge.Application.Configuration;
 using System.Linq;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Notifications;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 
 namespace Merge.Application.Services.Notification;
 
 public class NotificationService : INotificationService
 {
-    private readonly IRepository<NotificationEntity> _notificationRepository;
+    private readonly Merge.Application.Interfaces.IRepository<NotificationEntity> _notificationRepository;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
@@ -24,7 +28,7 @@ public class NotificationService : INotificationService
     private readonly PaginationSettings _paginationSettings;
 
     public NotificationService(
-        IRepository<NotificationEntity> notificationRepository,
+        Merge.Application.Interfaces.IRepository<NotificationEntity> notificationRepository,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,

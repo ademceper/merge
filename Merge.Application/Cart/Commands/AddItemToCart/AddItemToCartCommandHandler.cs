@@ -6,7 +6,12 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using AutoMapper;
-using CartEntity = Merge.Domain.Entities.Cart;
+using CartEntity = Merge.Domain.Modules.Ordering.Cart;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.AddItemToCart;
 
@@ -57,7 +62,7 @@ public class AddItemToCartCommandHandler : IRequestHandler<AddItemToCartCommand,
             }
 
             // ✅ PERFORMANCE: AsNoTracking for read-only product query
-            var product = await _context.Set<Merge.Domain.Entities.Product>()
+            var product = await _context.Set<Merge.Domain.Modules.Catalog.Product>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
             

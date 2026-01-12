@@ -1,4 +1,6 @@
 using FluentValidation;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Product.Queries.GetUserComparisons;
 

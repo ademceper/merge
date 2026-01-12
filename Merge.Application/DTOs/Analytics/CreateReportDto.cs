@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using Merge.Domain.Enums;
+using Merge.Domain.Modules.Analytics;
 
 namespace Merge.Application.DTOs.Analytics;
 

@@ -4,6 +4,9 @@ using Merge.Application.DTOs.Product;
 using Merge.Application.DTOs.Review;
 using Merge.Application.DTOs.User;
 using Merge.Application.Common;
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Interfaces.Analytics;
 

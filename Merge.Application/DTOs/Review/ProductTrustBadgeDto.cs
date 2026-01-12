@@ -1,3 +1,5 @@
+using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Marketplace;
 namespace Merge.Application.DTOs.Review;
 
 public class ProductTrustBadgeDto

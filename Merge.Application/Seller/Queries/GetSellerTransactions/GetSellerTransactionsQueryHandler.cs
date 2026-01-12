@@ -8,6 +8,10 @@ using Merge.Application.DTOs.Seller;
 using Merge.Application.Interfaces;
 using Merge.Application.Configuration;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Marketplace;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Seller.Queries.GetSellerTransactions;
 

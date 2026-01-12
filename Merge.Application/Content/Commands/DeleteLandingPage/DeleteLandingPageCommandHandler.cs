@@ -4,6 +4,11 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.DeleteLandingPage;
 
@@ -11,7 +16,7 @@ namespace Merge.Application.Content.Commands.DeleteLandingPage;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteLandingPageCommandHandler : IRequestHandler<DeleteLandingPageCommand, bool>
 {
-    private readonly IRepository<LandingPage> _landingPageRepository;
+    private readonly Merge.Application.Interfaces.IRepository<LandingPage> _landingPageRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
     private readonly ILogger<DeleteLandingPageCommandHandler> _logger;
@@ -19,7 +24,7 @@ public class DeleteLandingPageCommandHandler : IRequestHandler<DeleteLandingPage
     private const string CACHE_KEY_ACTIVE_PAGES = "landing_pages_active";
 
     public DeleteLandingPageCommandHandler(
-        IRepository<LandingPage> landingPageRepository,
+        Merge.Application.Interfaces.IRepository<LandingPage> landingPageRepository,
         IUnitOfWork unitOfWork,
         ICacheService cache,
         ILogger<DeleteLandingPageCommandHandler> logger)

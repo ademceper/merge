@@ -1,5 +1,6 @@
 using MediatR;
 using Merge.Application.DTOs.Governance;
+using Merge.Domain.Modules.Content;
 
 namespace Merge.Application.Governance.Commands.CreatePolicy;
 

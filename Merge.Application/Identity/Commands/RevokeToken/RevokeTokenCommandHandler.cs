@@ -5,7 +5,11 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Domain.Entities;
-using RefreshTokenEntity = Merge.Domain.Entities.RefreshToken;
+using RefreshTokenEntity = Merge.Domain.Modules.Identity.RefreshToken;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Identity.Commands.RevokeToken;
 

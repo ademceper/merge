@@ -3,6 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using Merge.Domain.SharedKernel.DomainEvents;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.RemoveCartItem;
 
@@ -39,7 +44,7 @@ public class RemoveCartItemCommandHandler : IRequestHandler<RemoveCartItemComman
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         // Cart entity'sinin RemoveItem method'unu kullan
-        var cart = await _context.Set<Merge.Domain.Entities.Cart>()
+        var cart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .Include(c => c.CartItems)
             .FirstOrDefaultAsync(c => c.Id == cartItem.CartId, cancellationToken);
 

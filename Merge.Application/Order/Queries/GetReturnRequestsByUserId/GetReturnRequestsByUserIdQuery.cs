@@ -1,6 +1,7 @@
 using MediatR;
 using Merge.Application.DTOs.Order;
 using Merge.Application.Common;
+using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Order.Queries.GetReturnRequestsByUserId;
 

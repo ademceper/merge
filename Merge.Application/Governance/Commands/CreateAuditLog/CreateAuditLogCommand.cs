@@ -1,4 +1,5 @@
 using MediatR;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Governance.Commands.CreateAuditLog;
 
@@ -22,4 +23,3 @@ public record CreateAuditLogCommand(
     string IpAddress, // Controller'dan set edilecek
     string UserAgent // Controller'dan set edilecek
 ) : IRequest;
-

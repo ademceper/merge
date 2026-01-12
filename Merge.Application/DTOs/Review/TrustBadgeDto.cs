@@ -1,3 +1,4 @@
+using Merge.Domain.Modules.Catalog;
 namespace Merge.Application.DTOs.Review;
 
 public class TrustBadgeDto

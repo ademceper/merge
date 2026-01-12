@@ -1,4 +1,5 @@
 using Merge.Application.DTOs.Order;
+using Merge.Domain.Modules.Ordering;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 namespace Merge.Application.Interfaces.Order;

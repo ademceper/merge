@@ -1,5 +1,6 @@
 using MediatR;
 using Merge.Application.DTOs.Auth;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Identity.Commands.Register;
 

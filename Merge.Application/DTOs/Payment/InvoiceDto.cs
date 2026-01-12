@@ -1,6 +1,9 @@
 using Merge.Application.DTOs.User;
 using Merge.Application.DTOs.Order;
 using Merge.Domain.Enums;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Ordering;
+using Merge.Domain.Modules.Payment;
 
 namespace Merge.Application.DTOs.Payment;
 

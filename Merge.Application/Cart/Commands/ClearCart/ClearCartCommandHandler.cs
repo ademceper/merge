@@ -3,6 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Ordering;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using Merge.Domain.SharedKernel.DomainEvents;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Commands.ClearCart;
 
@@ -27,7 +32,7 @@ public class ClearCartCommandHandler : IRequestHandler<ClearCartCommand, bool>
     public async Task<bool> Handle(ClearCartCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Removed manual !ci.IsDeleted check (Global Query Filter)
-        var cart = await _context.Set<Merge.Domain.Entities.Cart>()
+        var cart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .Include(c => c.CartItems)
             .FirstOrDefaultAsync(c => c.UserId == request.UserId, cancellationToken);
 

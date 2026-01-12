@@ -45,6 +45,8 @@ using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Repositories;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Entities;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.SharedKernel;
 using Merge.API.Middleware;
 using Merge.Application.Interfaces;
 
@@ -112,6 +114,8 @@ builder.Services.Configure<Merge.Application.Configuration.ServiceSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.ServiceSettings.SectionName));
 builder.Services.Configure<Merge.Application.Configuration.SearchSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.SearchSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.UserSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.UserSettings.SectionName));
 
 // Add services to the container
 // ✅ BOLUM 4.0: API Versioning (ZORUNLU)
@@ -323,7 +327,7 @@ builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompress
 });
 
 // Identity configuration
-builder.Services.AddIdentity<User, Role>(options =>
+builder.Services.AddIdentity<Merge.Domain.Modules.Identity.User, Merge.Domain.Modules.Identity.Role>(options =>
 {
     // ✅ SECURITY: Güçlü password policy (BOLUM 5.3)
     options.Password.RequireDigit = true;
@@ -346,7 +350,7 @@ builder.Services.AddIdentity<User, Role>(options =>
 
 // Repository pattern
 // ✅ BOLUM 1.5: Domain Events publish mekanizması (ZORUNLU)
-builder.Services.AddScoped<Merge.Domain.Common.IDomainEventDispatcher, Merge.Infrastructure.Common.DomainEventDispatcher>();
+builder.Services.AddScoped<Merge.Domain.SharedKernel.IDomainEventDispatcher, Merge.Infrastructure.Common.DomainEventDispatcher>();
 
 // ✅ BOLUM 1.1: Clean Architecture - Application.Interfaces'den IRepository ve IUnitOfWork kullan
 builder.Services.AddScoped(typeof(Merge.Application.Interfaces.IRepository<>), typeof(Repository<>));
@@ -370,7 +374,8 @@ builder.Services.AddScoped<IReturnRequestService, Merge.Application.Services.Ord
 builder.Services.AddScoped<IPaymentService, Merge.Application.Services.Payment.PaymentService>();
 // ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
 // builder.Services.AddScoped<IShippingService, Merge.Application.Services.Logistics.ShippingService>();
-builder.Services.AddScoped<IAddressService, Merge.Application.Services.User.AddressService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<IAddressService, Merge.Application.Services.User.AddressService>();
 // FileUploadService - implement edilmediği için şimdilik yorum satırı
 // builder.Services.AddScoped<IFileUploadService, Merge.Application.Services.Common.FileUploadService>();
 // ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
@@ -404,7 +409,8 @@ builder.Services.AddScoped<ISellerOnboardingService, Merge.Application.Services.
 // builder.Services.AddScoped<IProductRecommendationService, Merge.Application.Services.Search.ProductRecommendationService>();
 // builder.Services.AddScoped<ISearchSuggestionService, Merge.Application.Services.Search.SearchSuggestionService>();
 builder.Services.AddScoped<IAbandonedCartService, Merge.Application.Services.Cart.AbandonedCartService>();
-builder.Services.AddScoped<IUserActivityService, Merge.Application.Services.User.UserActivityService>();
+// ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor
+// builder.Services.AddScoped<IUserActivityService, Merge.Application.Services.User.UserActivityService>();
 #pragma warning disable CS0618 // Type or member is obsolete - Servisler hala kullanılıyor, gelecekte MediatR'a geçilecek
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 // ✅ BOLUM 2.0: Service layer kaldırıldı, MediatR + CQRS pattern kullanılıyor

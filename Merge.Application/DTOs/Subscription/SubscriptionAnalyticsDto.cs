@@ -1,3 +1,4 @@
+using Merge.Domain.ValueObjects;
 namespace Merge.Application.DTOs.Subscription;
 
 public class SubscriptionAnalyticsDto

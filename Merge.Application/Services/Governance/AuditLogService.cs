@@ -9,6 +9,11 @@ using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using System.Text.Json;
 using Merge.Application.DTOs.Security;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using Merge.Domain.SharedKernel;
 
 
 namespace Merge.Application.Services.Governance;

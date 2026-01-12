@@ -1,5 +1,6 @@
 using MediatR;
 using Merge.Application.DTOs.Payment;
+using Merge.Domain.Modules.Payment;
 
 namespace Merge.Application.Payment.Commands.RefundPayment;
 

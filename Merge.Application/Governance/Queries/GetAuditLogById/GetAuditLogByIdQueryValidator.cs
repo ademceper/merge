@@ -1,4 +1,5 @@
 using FluentValidation;
+using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Governance.Queries.GetAuditLogById;
 
@@ -11,4 +12,3 @@ public class GetAuditLogByIdQueryValidator : AbstractValidator<GetAuditLogByIdQu
             .NotEmpty().WithMessage("Audit log ID gereklidir");
     }
 }
-

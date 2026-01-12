@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.Modules.Notifications;
 
 namespace Merge.Application.DTOs.User;
 

@@ -1,3 +1,4 @@
+using Merge.Domain.Modules.Catalog;
 namespace Merge.Application.DTOs.Analytics;
 
 // ✅ BOLUM 7.1: Records kullanımı (immutable DTOs) (ZORUNLU)

@@ -11,11 +11,17 @@ using Merge.Application.DTOs.Auth;
 using Merge.Application.Interfaces.Identity;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using UserEntity = Merge.Domain.Entities.User;
+using UserEntity = Merge.Domain.Modules.Identity.User;
 using Merge.Application.DTOs.User;
 using Merge.Application.Common;
 using Merge.Application.Interfaces;
 using Microsoft.Extensions.Logging;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Identity;
+using Merge.Domain.ValueObjects;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+
 
 
 namespace Merge.Application.Services.Identity;
@@ -79,15 +85,11 @@ public class AuthService : IAuthService
             throw new BusinessException("Bu email adresi zaten kullanılıyor.");
         }
 
-        var user = new UserEntity
-        {
-            FirstName = registerDto.FirstName,
-            LastName = registerDto.LastName,
-            Email = registerDto.Email,
-            UserName = registerDto.Email,
-            PhoneNumber = registerDto.PhoneNumber,
-            EmailConfirmed = false
-        };
+        var user = UserEntity.Create(
+            registerDto.FirstName, 
+            registerDto.LastName, 
+            registerDto.Email, 
+            registerDto.PhoneNumber);
 
         var result = await _userManager.CreateAsync(user, registerDto.Password);
         if (!result.Succeeded)
@@ -284,6 +286,8 @@ public class AuthService : IAuthService
     {
         var randomBytes = new byte[64];
         using var rng = RandomNumberGenerator.Create();
+
+
         rng.GetBytes(randomBytes);
         
         var plainToken = Convert.ToBase64String(randomBytes);

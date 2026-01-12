@@ -4,6 +4,10 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
+using Merge.Domain.Interfaces;
+using Merge.Domain.Modules.Content;
+using IDbContext = Merge.Application.Interfaces.IDbContext;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.ApproveBlogComment;
 
@@ -11,14 +15,14 @@ namespace Merge.Application.Content.Commands.ApproveBlogComment;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class ApproveBlogCommentCommandHandler : IRequestHandler<ApproveBlogCommentCommand, bool>
 {
-    private readonly IRepository<BlogComment> _commentRepository;
+    private readonly Merge.Application.Interfaces.IRepository<BlogComment> _commentRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
     private readonly ILogger<ApproveBlogCommentCommandHandler> _logger;
     private const string CACHE_KEY_POST_COMMENTS = "blog_post_comments_";
 
     public ApproveBlogCommentCommandHandler(
-        IRepository<BlogComment> commentRepository,
+        Merge.Application.Interfaces.IRepository<BlogComment> commentRepository,
         IUnitOfWork unitOfWork,
         ICacheService cache,
         ILogger<ApproveBlogCommentCommandHandler> logger)

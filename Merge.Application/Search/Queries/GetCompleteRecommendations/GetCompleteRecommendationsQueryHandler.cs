@@ -5,6 +5,7 @@ using Merge.Application.Search.Queries.GetPersonalizedRecommendations;
 using Merge.Application.Search.Queries.GetBasedOnViewHistory;
 using Merge.Application.Search.Queries.GetTrendingProducts;
 using Merge.Application.Search.Queries.GetBestSellers;
+using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.Search.Queries.GetCompleteRecommendations;
 

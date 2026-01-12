@@ -1,6 +1,7 @@
 using FluentValidation;
 using Merge.Application.Configuration;
 using Microsoft.Extensions.Options;
+using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Support.Commands.RecordKnowledgeBaseArticleView;
 
