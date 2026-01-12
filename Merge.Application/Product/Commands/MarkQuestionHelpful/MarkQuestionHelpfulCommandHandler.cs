@@ -48,11 +48,10 @@ public class MarkQuestionHelpfulCommandHandler : IRequestHandler<MarkQuestionHel
                 return; // Already marked
             }
 
-            var helpfulness = new QuestionHelpfulness
-            {
-                QuestionId = request.QuestionId,
-                UserId = request.UserId
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var helpfulness = QuestionHelpfulness.Create(
+                request.QuestionId,
+                request.UserId);
 
             await _context.Set<QuestionHelpfulness>().AddAsync(helpfulness, cancellationToken);
 

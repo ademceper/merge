@@ -56,11 +56,11 @@ public class BlogService : IBlogService
         {
             throw new ArgumentException("Invalid DTO type", nameof(dtoObj));
         }
-        var slug = BlogCategory.GenerateSlug(dto.Name);
+        var slugValue = Slug.FromString(dto.Name).Value;
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
-        if (await _context.Set<BlogCategory>().AnyAsync(c => c.Slug == slug, cancellationToken))
+        if (await _context.Set<BlogCategory>().AnyAsync(c => c.Slug.Value == slugValue, cancellationToken))
         {
-            slug = $"{slug}-{DateTime.UtcNow.Ticks}";
+            slugValue = $"{slugValue}-{DateTime.UtcNow.Ticks}";
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
@@ -71,7 +71,7 @@ public class BlogService : IBlogService
             dto.ImageUrl,
             dto.DisplayOrder,
             dto.IsActive,
-            slug);
+            slugValue);
 
         await _context.Set<BlogCategory>().AddAsync(category, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -215,11 +215,11 @@ public class BlogService : IBlogService
                 throw new NotFoundException("Kategori", dto.CategoryId);
             }
 
-            var slug = BlogPost.GenerateSlug(dto.Title);
+            var slugValue = Slug.FromString(dto.Title).Value;
             // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-            if (await _context.Set<BlogPost>().AnyAsync(p => p.Slug == slug, cancellationToken))
+            if (await _context.Set<BlogPost>().AnyAsync(p => p.Slug.Value == slugValue, cancellationToken))
             {
-                slug = $"{slug}-{DateTime.UtcNow.Ticks}";
+                slugValue = $"{slugValue}-{DateTime.UtcNow.Ticks}";
             }
 
             var readingTime = CalculateReadingTime(dto.Content);
@@ -243,7 +243,7 @@ public class BlogService : IBlogService
                 dto.MetaKeywords,
                 dto.OgImageUrl,
                 readingTime,
-                slug); // Pass unique slug
+                slugValue); // Pass unique slug
 
             await _context.Set<BlogPost>().AddAsync(post, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);

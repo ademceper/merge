@@ -60,7 +60,7 @@ public class MappingProfile : Profile
                 src.StockQuantity,
                 src.Brand,
                 src.ImageUrl,
-                src.ImageUrls.AsReadOnly(),
+                src.ImageUrls, // Already IReadOnlyList<string>
                 src.Rating,
                 src.ReviewCount,
                 src.IsActive,

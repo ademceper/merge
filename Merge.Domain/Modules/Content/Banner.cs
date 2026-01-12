@@ -1,8 +1,7 @@
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Ordering;
 
@@ -104,6 +103,9 @@ public class Banner : BaseEntity, IAggregateRoot
     {
         Description = newDescription;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BannerUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BannerUpdatedEvent(Id, Title, Position));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update image URL
@@ -112,6 +114,9 @@ public class Banner : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(newImageUrl, nameof(newImageUrl));
         ImageUrl = newImageUrl;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BannerUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BannerUpdatedEvent(Id, Title, Position));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update link URL
@@ -119,6 +124,9 @@ public class Banner : BaseEntity, IAggregateRoot
     {
         LinkUrl = newLinkUrl;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BannerUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BannerUpdatedEvent(Id, Title, Position));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update position
@@ -138,6 +146,9 @@ public class Banner : BaseEntity, IAggregateRoot
         Guard.AgainstNegative(newSortOrder, nameof(newSortOrder));
         SortOrder = newSortOrder;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BannerUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BannerUpdatedEvent(Id, Title, Position));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Activate banner
@@ -148,6 +159,9 @@ public class Banner : BaseEntity, IAggregateRoot
 
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BannerActivatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BannerActivatedEvent(Id, Title, Position));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Deactivate banner
@@ -158,6 +172,9 @@ public class Banner : BaseEntity, IAggregateRoot
 
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BannerDeactivatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BannerDeactivatedEvent(Id, Title, Position));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update date range
@@ -171,6 +188,9 @@ public class Banner : BaseEntity, IAggregateRoot
         StartDate = startDate;
         EndDate = endDate;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BannerUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BannerUpdatedEvent(Id, Title, Position));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update category
@@ -178,6 +198,9 @@ public class Banner : BaseEntity, IAggregateRoot
     {
         CategoryId = categoryId;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BannerUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BannerUpdatedEvent(Id, Title, Position));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update product
@@ -185,6 +208,9 @@ public class Banner : BaseEntity, IAggregateRoot
     {
         ProductId = productId;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BannerUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BannerUpdatedEvent(Id, Title, Position));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Check if banner is available
@@ -206,6 +232,9 @@ public class Banner : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
+        if (IsDeleted)
+            return;
+
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         

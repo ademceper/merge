@@ -1,7 +1,7 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Content;
 
@@ -23,6 +23,10 @@ public class Language : BaseEntity, IAggregateRoot
     public bool IsRTL { get; private set; } = false; // Right-to-left (Arabic, Hebrew)
     public string FlagIcon { get; private set; } = string.Empty; // URL or emoji flag
 
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
+
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Language() { }
 
@@ -39,9 +43,9 @@ public class Language : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(code, nameof(code));
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNullOrEmpty(nativeName, nameof(nativeName));
-
-        if (code.Length < 2 || code.Length > 10)
-            throw new DomainException("Language code must be between 2 and 10 characters");
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MinLanguageCodeLength=2, MaxLanguageCodeLength=10
+        Guard.AgainstOutOfRange(code.Length, 2, 10, nameof(code));
 
         var language = new Language
         {
@@ -53,7 +57,8 @@ public class Language : BaseEntity, IAggregateRoot
             IsActive = isActive,
             IsRTL = isRTL,
             FlagIcon = flagIcon,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
         // ✅ BOLUM 1.5: Domain Events - LanguageCreatedEvent
@@ -99,6 +104,9 @@ public class Language : BaseEntity, IAggregateRoot
 
         IsDefault = false;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - LanguageUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new LanguageUpdatedEvent(Id, Code, Name));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Activate language
@@ -155,6 +163,9 @@ public class Language : BaseEntity, IAggregateRoot
 
         IsDeleted = false;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - LanguageRestoredEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new LanguageRestoredEvent(Id, Code));
     }
 }
 

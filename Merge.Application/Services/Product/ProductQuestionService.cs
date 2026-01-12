@@ -397,11 +397,8 @@ public class ProductQuestionService : IProductQuestionService
 
         if (existing != null) return; // Already marked
 
-        var vote = new QuestionHelpfulness
-        {
-            QuestionId = questionId,
-            UserId = userId
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var vote = QuestionHelpfulness.Create(questionId, userId);
 
         await _context.Set<QuestionHelpfulness>().AddAsync(vote, cancellationToken);
 
@@ -451,11 +448,8 @@ public class ProductQuestionService : IProductQuestionService
 
         if (existing != null) return; // Already marked
 
-        var vote = new AnswerHelpfulness
-        {
-            AnswerId = answerId,
-            UserId = userId
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var vote = AnswerHelpfulness.Create(answerId, userId);
 
         await _context.Set<AnswerHelpfulness>().AddAsync(vote, cancellationToken);
 

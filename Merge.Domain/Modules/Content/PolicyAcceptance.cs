@@ -1,7 +1,6 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
+using Merge.Domain.Exceptions;
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Modules.Identity;
 
@@ -73,9 +72,7 @@ public class PolicyAcceptance : BaseEntity, IAggregateRoot
     public void Revoke()
     {
         if (!IsActive)
-        {
-            throw new DomainException("Policy acceptance zaten iptal edilmiş.");
-        }
+            return;
 
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
@@ -87,7 +84,13 @@ public class PolicyAcceptance : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
+        if (IsDeleted)
+            return;
+
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - PolicyAcceptanceDeletedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new PolicyAcceptanceDeletedEvent(Id, PolicyId, UserId));
     }
 }

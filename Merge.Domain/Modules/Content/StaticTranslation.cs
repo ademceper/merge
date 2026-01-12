@@ -1,18 +1,17 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
+using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Exceptions;
-using Merge.Domain.Modules.Catalog;
-using Merge.Domain.Modules.Notifications;
-using Merge.Domain.ValueObjects;
 
 namespace Merge.Domain.Modules.Content;
 
 /// <summary>
-/// StaticTranslation Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// StaticTranslation Entity - Rich Domain Model implementation
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
-/// Her entity dosyasında SADECE 1 class olmalı
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'leri olduğu için IAggregateRoot
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// </summary>
-public class StaticTranslation : BaseEntity
+public class StaticTranslation : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Key { get; private set; } = string.Empty; // e.g., "button.add_to_cart", "header.welcome"
@@ -20,6 +19,10 @@ public class StaticTranslation : BaseEntity
     public string LanguageCode { get; private set; } = string.Empty;
     public string Value { get; private set; } = string.Empty;
     public string Category { get; private set; } = string.Empty; // UI, Email, Notification, etc.
+
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public Language Language { get; private set; } = null!;
@@ -41,7 +44,7 @@ public class StaticTranslation : BaseEntity
         Guard.AgainstNullOrEmpty(value, nameof(value));
         Guard.AgainstNullOrEmpty(category, nameof(category));
 
-        return new StaticTranslation
+        var translation = new StaticTranslation
         {
             Id = Guid.NewGuid(),
             Key = key,
@@ -49,8 +52,14 @@ public class StaticTranslation : BaseEntity
             LanguageCode = languageCode.ToLowerInvariant(),
             Value = value,
             Category = category,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events - StaticTranslationCreatedEvent yayınla (ÖNERİLİR)
+        translation.AddDomainEvent(new StaticTranslationCreatedEvent(translation.Id, key, languageCode, category));
+
+        return translation;
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update translation value
@@ -60,6 +69,9 @@ public class StaticTranslation : BaseEntity
 
         Value = value;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - StaticTranslationUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new StaticTranslationUpdatedEvent(Id, Key, LanguageCode));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update translation
@@ -71,6 +83,9 @@ public class StaticTranslation : BaseEntity
         Value = value;
         Category = category;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - StaticTranslationUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new StaticTranslationUpdatedEvent(Id, Key, LanguageCode));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
@@ -81,6 +96,9 @@ public class StaticTranslation : BaseEntity
 
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - StaticTranslationDeletedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new StaticTranslationDeletedEvent(Id, Key, LanguageCode));
     }
 }
 

@@ -1,8 +1,7 @@
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel.DomainEvents;
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Modules.Identity;
 
@@ -35,7 +34,10 @@ public class Policy : BaseEntity, IAggregateRoot
     
     // Navigation properties
     public User? CreatedBy { get; private set; }
-    public ICollection<PolicyAcceptance> Acceptances { get; private set; } = new List<PolicyAcceptance>();
+    
+    // ✅ BOLUM 1.1: Encapsulated collection - Read-only access
+    private readonly List<PolicyAcceptance> _acceptances = new();
+    public IReadOnlyCollection<PolicyAcceptance> Acceptances => _acceptances.AsReadOnly();
 
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Policy() { }
@@ -59,11 +61,9 @@ public class Policy : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(content, nameof(content));
         Guard.AgainstNullOrEmpty(version, nameof(version));
         Guard.AgainstNullOrEmpty(language, nameof(language));
-
-        if (content.Length < 10)
-        {
-            throw new DomainException("Policy içeriği en az 10 karakter olmalıdır.");
-        }
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MinPolicyContentLength=10
+        Guard.AgainstOutOfRange(content.Length, 10, int.MaxValue, nameof(content));
 
         if (effectiveDate.HasValue && expiryDate.HasValue && effectiveDate.Value >= expiryDate.Value)
         {
@@ -109,11 +109,9 @@ public class Policy : BaseEntity, IAggregateRoot
     public void UpdateContent(string newContent)
     {
         Guard.AgainstNullOrEmpty(newContent, nameof(newContent));
-        
-        if (newContent.Length < 10)
-        {
-            throw new DomainException("Policy içeriği en az 10 karakter olmalıdır.");
-        }
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MinPolicyContentLength=10
+        Guard.AgainstOutOfRange(newContent.Length, 10, int.MaxValue, nameof(newContent));
 
         Content = newContent;
         UpdatedAt = DateTime.UtcNow;
@@ -138,6 +136,9 @@ public class Policy : BaseEntity, IAggregateRoot
     {
         ChangeLog = newChangeLog;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - PolicyUpdatedEvent yayınla
+        AddDomainEvent(new PolicyUpdatedEvent(Id, PolicyType, Version));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update effective date
@@ -150,6 +151,9 @@ public class Policy : BaseEntity, IAggregateRoot
 
         EffectiveDate = newEffectiveDate;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - PolicyUpdatedEvent yayınla
+        AddDomainEvent(new PolicyUpdatedEvent(Id, PolicyType, Version));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update expiry date
@@ -162,11 +166,17 @@ public class Policy : BaseEntity, IAggregateRoot
 
         ExpiryDate = newExpiryDate;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - PolicyUpdatedEvent yayınla
+        AddDomainEvent(new PolicyUpdatedEvent(Id, PolicyType, Version));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Activate
     public void Activate()
     {
+        if (IsActive)
+            return;
+
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
         
@@ -177,6 +187,9 @@ public class Policy : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Method - Deactivate
     public void Deactivate()
     {
+        if (!IsActive)
+            return;
+
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
         
@@ -189,6 +202,9 @@ public class Policy : BaseEntity, IAggregateRoot
     {
         RequiresAcceptance = requiresAcceptance;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - PolicyUpdatedEvent yayınla
+        AddDomainEvent(new PolicyUpdatedEvent(Id, PolicyType, Version));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update created by user ID
@@ -196,11 +212,17 @@ public class Policy : BaseEntity, IAggregateRoot
     {
         CreatedByUserId = createdByUserId;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - PolicyUpdatedEvent yayınla
+        AddDomainEvent(new PolicyUpdatedEvent(Id, PolicyType, Version));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
+        if (IsDeleted)
+            return;
+
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         

@@ -1,8 +1,7 @@
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Domain.Modules.Content;
@@ -42,11 +41,9 @@ public class SitemapEntry : BaseEntity, IAggregateRoot
     {
         Guard.AgainstNullOrEmpty(url, nameof(url));
         Guard.AgainstNullOrEmpty(pageType, nameof(pageType));
-        
-        if (priority < 0 || priority > 1)
-        {
-            throw new DomainException("Priority 0.0 ile 1.0 arasında olmalıdır.");
-        }
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MinSitemapPriority=0.0, MaxSitemapPriority=1.0
+        Guard.AgainstOutOfRange(priority, 0m, 1m, nameof(priority));
 
         var validChangeFrequencies = new[] { "always", "hourly", "daily", "weekly", "monthly", "yearly", "never" };
         if (!validChangeFrequencies.Contains(changeFrequency.ToLowerInvariant()))
@@ -89,10 +86,9 @@ public class SitemapEntry : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Logic - Update sitemap settings
     public void UpdateSitemapSettings(string changeFrequency, decimal priority)
     {
-        if (priority < 0 || priority > 1)
-        {
-            throw new DomainException("Priority 0.0 ile 1.0 arasında olmalıdır.");
-        }
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MinSitemapPriority=0.0, MaxSitemapPriority=1.0
+        Guard.AgainstOutOfRange(priority, 0m, 1m, nameof(priority));
 
         var validChangeFrequencies = new[] { "always", "hourly", "daily", "weekly", "monthly", "yearly", "never" };
         if (!validChangeFrequencies.Contains(changeFrequency.ToLowerInvariant()))
@@ -104,27 +100,36 @@ public class SitemapEntry : BaseEntity, IAggregateRoot
         Priority = priority;
         LastModified = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - SitemapEntryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new SitemapEntryUpdatedEvent(Id, Url));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Activate
     public void Activate()
     {
-        if (!IsActive)
-        {
-            IsActive = true;
-            LastModified = DateTime.UtcNow;
-            UpdatedAt = DateTime.UtcNow;
-        }
+        if (IsActive)
+            return;
+
+        IsActive = true;
+        LastModified = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - SitemapEntryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new SitemapEntryUpdatedEvent(Id, Url));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Deactivate
     public void Deactivate()
     {
-        if (IsActive)
-        {
-            IsActive = false;
-            UpdatedAt = DateTime.UtcNow;
-        }
+        if (!IsActive)
+            return;
+
+        IsActive = false;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - SitemapEntryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new SitemapEntryUpdatedEvent(Id, Url));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update last modified
@@ -132,13 +137,22 @@ public class SitemapEntry : BaseEntity, IAggregateRoot
     {
         LastModified = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - SitemapEntryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new SitemapEntryUpdatedEvent(Id, Url));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
+        if (IsDeleted)
+            return;
+
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - SitemapEntryDeletedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new SitemapEntryDeletedEvent(Id, Url));
     }
 }
 

@@ -48,11 +48,10 @@ public class MarkAnswerHelpfulCommandHandler : IRequestHandler<MarkAnswerHelpful
                 return; // Already marked
             }
 
-            var helpfulness = new AnswerHelpfulness
-            {
-                AnswerId = request.AnswerId,
-                UserId = request.UserId
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var helpfulness = AnswerHelpfulness.Create(
+                request.AnswerId,
+                request.UserId);
 
             await _context.Set<AnswerHelpfulness>().AddAsync(helpfulness, cancellationToken);
 

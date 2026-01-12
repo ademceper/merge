@@ -1,9 +1,8 @@
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.ValueObjects;
@@ -20,7 +19,8 @@ public class PageBuilder : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
-    public string Slug { get; private set; } = string.Empty;
+    // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı (ZORUNLU)
+    public Slug Slug { get; private set; } = null!;
     public string Title { get; private set; } = string.Empty;
     public string Content { get; private set; } = string.Empty; // JSON content for page builder
     public string? Template { get; private set; } // Template identifier
@@ -62,7 +62,8 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(title, nameof(title));
         Guard.AgainstNullOrEmpty(content, nameof(content));
 
-        var finalSlug = slug ?? GenerateSlug(name);
+        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
+        var finalSlug = slug != null ? Slug.FromString(slug) : Slug.FromString(name);
 
         var pageBuilder = new PageBuilder
         {
@@ -89,7 +90,7 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         pageBuilder.AddDomainEvent(new PageBuilderCreatedEvent(
             pageBuilder.Id,
             pageBuilder.Name,
-            pageBuilder.Slug,
+            pageBuilder.Slug.Value,
             pageBuilder.AuthorId ?? Guid.Empty));
 
         return pageBuilder;
@@ -101,15 +102,16 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Name = name;
         UpdatedAt = DateTime.UtcNow;
-        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug));
+        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug.Value));
     }
 
     public void UpdateSlug(string slug)
     {
         Guard.AgainstNullOrEmpty(slug, nameof(slug));
-        Slug = slug;
+        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
+        Slug = Slug.FromString(slug);
         UpdatedAt = DateTime.UtcNow;
-        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug));
+        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug.Value));
     }
 
     public void UpdateTitle(string title)
@@ -117,7 +119,7 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(title, nameof(title));
         Title = title;
         UpdatedAt = DateTime.UtcNow;
-        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug));
+        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug.Value));
     }
 
     public void UpdateContent(string content)
@@ -125,14 +127,14 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(content, nameof(content));
         Content = content;
         UpdatedAt = DateTime.UtcNow;
-        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug));
+        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug.Value));
     }
 
     public void UpdateTemplate(string? template)
     {
         Template = template;
         UpdatedAt = DateTime.UtcNow;
-        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug));
+        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug.Value));
     }
 
     public void UpdateStatus(ContentStatus status)
@@ -146,16 +148,16 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         {
             PublishedAt = DateTime.UtcNow;
             IsActive = true;
-            AddDomainEvent(new PageBuilderPublishedEvent(Id, Name, Slug, AuthorId ?? Guid.Empty));
+            AddDomainEvent(new PageBuilderPublishedEvent(Id, Name, Slug.Value, AuthorId ?? Guid.Empty));
         }
         else if (status == ContentStatus.Draft)
         {
             IsActive = false;
-            AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug));
+            AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug.Value));
         }
         else
         {
-            AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug));
+            AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug.Value));
         }
     }
 
@@ -163,14 +165,14 @@ public class PageBuilder : BaseEntity, IAggregateRoot
     {
         PageType = pageType;
         UpdatedAt = DateTime.UtcNow;
-        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug));
+        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug.Value));
     }
 
     public void UpdateRelatedEntity(Guid? relatedEntityId)
     {
         RelatedEntityId = relatedEntityId;
         UpdatedAt = DateTime.UtcNow;
-        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug));
+        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug.Value));
     }
 
     public void UpdateMetaInformation(string? metaTitle, string? metaDescription, string? ogImageUrl)
@@ -179,7 +181,7 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         MetaDescription = metaDescription;
         OgImageUrl = ogImageUrl;
         UpdatedAt = DateTime.UtcNow;
-        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug));
+        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug.Value));
     }
 
     public void Activate()
@@ -187,7 +189,7 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         if (IsActive) return;
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
-        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug));
+        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug.Value));
     }
 
     public void Deactivate()
@@ -195,7 +197,7 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         if (!IsActive) return;
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
-        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug));
+        AddDomainEvent(new PageBuilderUpdatedEvent(Id, Name, Slug.Value));
     }
 
     public void Publish()
@@ -207,7 +209,7 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
 
-        AddDomainEvent(new PageBuilderPublishedEvent(Id, Name, Slug, AuthorId ?? Guid.Empty));
+        AddDomainEvent(new PageBuilderPublishedEvent(Id, Name, Slug.Value, AuthorId ?? Guid.Empty));
     }
 
     public void Unpublish()
@@ -218,13 +220,16 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
-        AddDomainEvent(new PageBuilderUnpublishedEvent(Id, Name, Slug));
+        AddDomainEvent(new PageBuilderUnpublishedEvent(Id, Name, Slug.Value));
     }
 
     public void IncrementViewCount()
     {
         ViewCount++;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - PageBuilderViewedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new PageBuilderViewedEvent(Id, Name, ViewCount));
     }
 
     public void MarkAsDeleted()
@@ -232,32 +237,7 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         if (IsDeleted) return;
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
-        AddDomainEvent(new PageBuilderDeletedEvent(Id, Name, Slug));
+        AddDomainEvent(new PageBuilderDeletedEvent(Id, Name, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Helper method for slug generation
-    private static string GenerateSlug(string name)
-    {
-        var slug = name.ToLowerInvariant()
-            .Replace("ğ", "g")
-            .Replace("ü", "u")
-            .Replace("ş", "s")
-            .Replace("ı", "i")
-            .Replace("ö", "o")
-            .Replace("ç", "c")
-            .Replace(" ", "-")
-            .Replace(".", "")
-            .Replace(",", "")
-            .Replace("!", "")
-            .Replace("?", "")
-            .Replace(":", "")
-            .Replace(";", "");
-
-        while (slug.Contains("--"))
-        {
-            slug = slug.Replace("--", "-");
-        }
-
-        return slug.Trim('-');
-    }
 }

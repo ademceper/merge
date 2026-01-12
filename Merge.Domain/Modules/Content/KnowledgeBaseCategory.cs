@@ -1,5 +1,4 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using System.ComponentModel.DataAnnotations;
@@ -18,7 +17,8 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
-    public string Slug { get; private set; } = string.Empty;
+    // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı (ZORUNLU)
+    public Slug Slug { get; private set; } = null!;
     public string? Description { get; private set; }
     public Guid? ParentCategoryId { get; private set; }
     public int DisplayOrder { get; private set; } = 0;
@@ -55,7 +55,8 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNullOrEmpty(slug, nameof(slug));
         Guard.AgainstLength(name, 100, nameof(name));
-        Guard.AgainstLength(slug, 100, nameof(slug));
+        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
+        var slugValueObject = Slug.FromString(slug);
         if (description != null)
             Guard.AgainstLength(description, 1000, nameof(description));
 
@@ -63,20 +64,21 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
         {
             Id = Guid.NewGuid(),
             Name = name,
-            Slug = slug,
+            Slug = slugValueObject,
             Description = description,
             ParentCategoryId = parentCategoryId,
             DisplayOrder = displayOrder,
             IsActive = isActive,
             IconUrl = iconUrl,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
         // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseCategoryCreatedEvent
         category.AddDomainEvent(new KnowledgeBaseCategoryCreatedEvent(
             category.Id,
             category.Name,
-            category.Slug,
+            category.Slug.Value,
             parentCategoryId));
 
         return category;
@@ -88,11 +90,15 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNullOrEmpty(slug, nameof(slug));
         Guard.AgainstLength(name, 100, nameof(name));
-        Guard.AgainstLength(slug, 100, nameof(slug));
+        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
+        var slugValueObject = Slug.FromString(slug);
 
         Name = name;
-        Slug = slug;
+        Slug = slugValueObject;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseCategoryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new KnowledgeBaseCategoryUpdatedEvent(Id, name, slugValueObject.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update description
@@ -103,13 +109,44 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
 
         Description = description;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseCategoryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new KnowledgeBaseCategoryUpdatedEvent(Id, Name, Slug.Value));
     }
 
-    // ✅ BOLUM 1.1: Domain Method - Activate/Deactivate
+    // ✅ BOLUM 1.1: Domain Method - Activate
+    public void Activate()
+    {
+        if (IsActive)
+            return;
+
+        IsActive = true;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseCategoryActivatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new KnowledgeBaseCategoryActivatedEvent(Id, Name, Slug.Value));
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Deactivate
+    public void Deactivate()
+    {
+        if (!IsActive)
+            return;
+
+        IsActive = false;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseCategoryDeactivatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new KnowledgeBaseCategoryDeactivatedEvent(Id, Name, Slug.Value));
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Set active state (convenience method)
     public void SetActive(bool isActive)
     {
-        IsActive = isActive;
-        UpdatedAt = DateTime.UtcNow;
+        if (isActive)
+            Activate();
+        else
+            Deactivate();
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update display order
@@ -117,6 +154,9 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
     {
         DisplayOrder = displayOrder;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseCategoryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new KnowledgeBaseCategoryUpdatedEvent(Id, Name, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update parent category
@@ -128,6 +168,9 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
 
         ParentCategoryId = parentCategoryId;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseCategoryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new KnowledgeBaseCategoryUpdatedEvent(Id, Name, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update icon URL
@@ -135,13 +178,16 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
     {
         IconUrl = iconUrl;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseCategoryUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new KnowledgeBaseCategoryUpdatedEvent(Id, Name, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
         if (IsDeleted)
-            throw new DomainException("Kategori zaten silinmiş");
+            return;
 
         // Check if category has active articles
         if (_articles.Any(a => !a.IsDeleted))
@@ -152,13 +198,7 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
 
         // ✅ BOLUM 1.5: Domain Events - KnowledgeBaseCategoryDeletedEvent
-        AddDomainEvent(new KnowledgeBaseCategoryDeletedEvent(Id, Name, Slug, ParentCategoryId));
-    }
-
-    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
-    public new void AddDomainEvent(IDomainEvent domainEvent)
-    {
-        base.AddDomainEvent(domainEvent);
+        AddDomainEvent(new KnowledgeBaseCategoryDeletedEvent(Id, Name, Slug.Value, ParentCategoryId));
     }
 }
 

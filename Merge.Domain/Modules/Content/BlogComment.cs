@@ -1,9 +1,9 @@
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Modules.Identity;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Domain.Modules.Content;
 
@@ -33,7 +33,10 @@ public class BlogComment : BaseEntity, IAggregateRoot
     public BlogPost BlogPost { get; private set; } = null!;
     public User? User { get; private set; }
     public BlogComment? ParentComment { get; private set; }
-    public ICollection<BlogComment> Replies { get; private set; } = new List<BlogComment>();
+    
+    // ✅ BOLUM 1.1: Encapsulated collection - Read-only access
+    private readonly List<BlogComment> _replies = new();
+    public IReadOnlyCollection<BlogComment> Replies => _replies.AsReadOnly();
 
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private BlogComment() { }
@@ -50,12 +53,9 @@ public class BlogComment : BaseEntity, IAggregateRoot
     {
         Guard.AgainstDefault(blogPostId, nameof(blogPostId));
         Guard.AgainstNullOrEmpty(content, nameof(content));
-        Guard.AgainstNegative(content.Length, nameof(content));
-        
-        if (content.Length > 2000)
-        {
-            throw new DomainException("Yorum içeriği en fazla 2000 karakter olabilir.");
-        }
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxCommentContentLength=2000
+        Guard.AgainstLength(content, 2000, nameof(content));
 
         // Guest comment validation
         if (!userId.HasValue)
@@ -63,7 +63,12 @@ public class BlogComment : BaseEntity, IAggregateRoot
             Guard.AgainstNullOrEmpty(authorName, nameof(authorName));
             Guard.AgainstNullOrEmpty(authorEmail, nameof(authorEmail));
             
-            if (authorEmail != null && !authorEmail.Contains("@"))
+            // ✅ BOLUM 1.3: Value Objects - Email validation using Email Value Object
+            try
+            {
+                var email = new Email(authorEmail!);
+            }
+            catch (ArgumentException)
             {
                 throw new DomainException("Geçerli bir e-posta adresi giriniz.");
             }
@@ -93,14 +98,15 @@ public class BlogComment : BaseEntity, IAggregateRoot
     public void UpdateContent(string newContent)
     {
         Guard.AgainstNullOrEmpty(newContent, nameof(newContent));
-        
-        if (newContent.Length > 2000)
-        {
-            throw new DomainException("Yorum içeriği en fazla 2000 karakter olabilir.");
-        }
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değeri: MaxCommentContentLength=2000
+        Guard.AgainstLength(newContent, 2000, nameof(newContent));
 
         Content = newContent;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogCommentUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogCommentUpdatedEvent(Id, BlogPostId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Approve comment
@@ -116,11 +122,27 @@ public class BlogComment : BaseEntity, IAggregateRoot
         AddDomainEvent(new BlogCommentApprovedEvent(Id, BlogPostId));
     }
 
+    // ✅ BOLUM 1.1: Domain Logic - Disapprove comment
+    public void Disapprove()
+    {
+        if (!IsApproved)
+            return;
+
+        IsApproved = false;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogCommentDisapprovedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogCommentDisapprovedEvent(Id, BlogPostId));
+    }
+
     // ✅ BOLUM 1.1: Domain Logic - Increment like count
     public void IncrementLikeCount()
     {
         LikeCount++;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogCommentLikedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogCommentLikedEvent(Id, BlogPostId, LikeCount));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Decrement like count
@@ -130,12 +152,18 @@ public class BlogComment : BaseEntity, IAggregateRoot
         {
             LikeCount--;
             UpdatedAt = DateTime.UtcNow;
+            
+            // ✅ BOLUM 1.5: Domain Events - BlogCommentUnlikedEvent yayınla (ÖNERİLİR)
+            AddDomainEvent(new BlogCommentUnlikedEvent(Id, BlogPostId, LikeCount));
         }
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
+        if (IsDeleted)
+            return;
+
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         

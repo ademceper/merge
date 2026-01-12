@@ -1,5 +1,4 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Modules.Identity;
@@ -51,7 +50,8 @@ public class KnowledgeBaseView : BaseEntity
             IpAddress = ipAddress ?? string.Empty,
             UserAgent = userAgent ?? string.Empty,
             ViewDuration = viewDuration,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
     }
 
@@ -60,6 +60,16 @@ public class KnowledgeBaseView : BaseEntity
     {
         Guard.AgainstNegative(duration, nameof(duration));
         ViewDuration = duration;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
+    public void MarkAsDeleted()
+    {
+        if (IsDeleted)
+            return;
+
+        IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
     }
 }

@@ -1,9 +1,8 @@
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.ValueObjects;
 
@@ -19,7 +18,8 @@ public class CMSPage : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Title { get; private set; } = string.Empty;
-    public string Slug { get; private set; } = string.Empty;
+    // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı (ZORUNLU)
+    public Slug Slug { get; private set; } = null!;
     public string Content { get; private set; } = string.Empty; // HTML/Markdown content
     public string? Excerpt { get; private set; }
     public string PageType { get; private set; } = "Page"; // Page, Landing, Custom
@@ -44,7 +44,10 @@ public class CMSPage : BaseEntity, IAggregateRoot
 
     // Navigation properties
     public CMSPage? ParentPage { get; private set; }
-    public ICollection<CMSPage> ChildPages { get; private set; } = new List<CMSPage>();
+    
+    // ✅ BOLUM 1.1: Encapsulated collection - Read-only access
+    private readonly List<CMSPage> _childPages = new();
+    public IReadOnlyCollection<CMSPage> ChildPages => _childPages.AsReadOnly();
 
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private CMSPage() { }
@@ -76,7 +79,8 @@ public class CMSPage : BaseEntity, IAggregateRoot
             throw new DomainException("Geçersiz parent page ID.");
         }
 
-        var slug = GenerateSlug(title);
+        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
+        var slug = Slug.FromString(title);
 
         var page = new CMSPage
         {
@@ -103,7 +107,7 @@ public class CMSPage : BaseEntity, IAggregateRoot
         };
 
         // ✅ BOLUM 1.5: Domain Events - CMSPageCreatedEvent yayınla (ÖNERİLİR)
-        page.AddDomainEvent(new CMSPageCreatedEvent(page.Id, title, slug, authorId));
+        page.AddDomainEvent(new CMSPageCreatedEvent(page.Id, title, slug.Value, authorId));
 
         return page;
     }
@@ -113,11 +117,12 @@ public class CMSPage : BaseEntity, IAggregateRoot
     {
         Guard.AgainstNullOrEmpty(newTitle, nameof(newTitle));
         Title = newTitle;
-        Slug = GenerateSlug(newTitle);
+        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
+        Slug = Slug.FromString(newTitle);
         UpdatedAt = DateTime.UtcNow;
         
         // ✅ BOLUM 1.5: Domain Events - CMSPageUpdatedEvent yayınla (ÖNERİLİR)
-        AddDomainEvent(new CMSPageUpdatedEvent(Id, newTitle, Slug));
+        AddDomainEvent(new CMSPageUpdatedEvent(Id, newTitle, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update content
@@ -126,6 +131,9 @@ public class CMSPage : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(newContent, nameof(newContent));
         Content = newContent;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CMSPageUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CMSPageUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update excerpt
@@ -133,6 +141,9 @@ public class CMSPage : BaseEntity, IAggregateRoot
     {
         Excerpt = newExcerpt;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CMSPageUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CMSPageUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update page type
@@ -141,6 +152,9 @@ public class CMSPage : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(newPageType, nameof(newPageType));
         PageType = newPageType;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CMSPageUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CMSPageUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update status
@@ -151,7 +165,12 @@ public class CMSPage : BaseEntity, IAggregateRoot
         {
             PublishedAt = DateTime.UtcNow;
             // ✅ BOLUM 1.5: Domain Events - CMSPagePublishedEvent yayınla (ÖNERİLİR)
-            AddDomainEvent(new CMSPagePublishedEvent(Id, Title, Slug));
+            AddDomainEvent(new CMSPagePublishedEvent(Id, Title, Slug.Value));
+        }
+        else
+        {
+            // ✅ BOLUM 1.5: Domain Events - CMSPageUpdatedEvent yayınla (ÖNERİLİR)
+            AddDomainEvent(new CMSPageUpdatedEvent(Id, Title, Slug.Value));
         }
         UpdatedAt = DateTime.UtcNow;
     }
@@ -167,7 +186,21 @@ public class CMSPage : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
         
         // ✅ BOLUM 1.5: Domain Events - CMSPagePublishedEvent yayınla (ÖNERİLİR)
-        AddDomainEvent(new CMSPagePublishedEvent(Id, Title, Slug));
+        AddDomainEvent(new CMSPagePublishedEvent(Id, Title, Slug.Value));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Unpublish page
+    public void Unpublish()
+    {
+        if (Status == ContentStatus.Draft)
+            return;
+
+        Status = ContentStatus.Draft;
+        PublishedAt = null;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CMSPageUnpublishedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CMSPageUnpublishedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update template
@@ -175,6 +208,9 @@ public class CMSPage : BaseEntity, IAggregateRoot
     {
         Template = newTemplate;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CMSPageUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CMSPageUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update meta information
@@ -184,6 +220,9 @@ public class CMSPage : BaseEntity, IAggregateRoot
         MetaDescription = metaDescription;
         MetaKeywords = metaKeywords;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CMSPageUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CMSPageUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Set as home page
@@ -194,6 +233,9 @@ public class CMSPage : BaseEntity, IAggregateRoot
 
         IsHomePage = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CMSPageUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CMSPageUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Unset as home page
@@ -204,6 +246,9 @@ public class CMSPage : BaseEntity, IAggregateRoot
 
         IsHomePage = false;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CMSPageUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CMSPageUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update display order
@@ -212,6 +257,9 @@ public class CMSPage : BaseEntity, IAggregateRoot
         Guard.AgainstNegative(newDisplayOrder, nameof(newDisplayOrder));
         DisplayOrder = newDisplayOrder;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CMSPageUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CMSPageUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update show in menu
@@ -219,6 +267,9 @@ public class CMSPage : BaseEntity, IAggregateRoot
     {
         ShowInMenu = showInMenu;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CMSPageUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CMSPageUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update menu title
@@ -226,6 +277,9 @@ public class CMSPage : BaseEntity, IAggregateRoot
     {
         MenuTitle = newMenuTitle;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CMSPageUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CMSPageUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update parent page
@@ -237,6 +291,9 @@ public class CMSPage : BaseEntity, IAggregateRoot
         }
         ParentPageId = parentPageId;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CMSPageUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CMSPageUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Increment view count
@@ -244,11 +301,17 @@ public class CMSPage : BaseEntity, IAggregateRoot
     {
         ViewCount++;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CMSPageViewedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new CMSPageViewedEvent(Id, Title, ViewCount));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
+        if (IsDeleted)
+            return;
+
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
@@ -256,31 +319,6 @@ public class CMSPage : BaseEntity, IAggregateRoot
         AddDomainEvent(new CMSPageDeletedEvent(Id, Title));
     }
 
-    // ✅ BOLUM 1.3: Slug generation helper
-    private static string GenerateSlug(string title)
-    {
-        var slug = title.ToLowerInvariant()
-            .Replace("ğ", "g")
-            .Replace("ü", "u")
-            .Replace("ş", "s")
-            .Replace("ı", "i")
-            .Replace("ö", "o")
-            .Replace("ç", "c")
-            .Replace(" ", "-")
-            .Replace(".", "")
-            .Replace(",", "")
-            .Replace("!", "")
-            .Replace("?", "")
-            .Replace(":", "")
-            .Replace(";", "");
-
-        while (slug.Contains("--"))
-        {
-            slug = slug.Replace("--", "-");
-        }
-
-        return slug.Trim('-');
-    }
 }
 
 

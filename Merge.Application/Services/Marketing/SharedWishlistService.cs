@@ -27,25 +27,24 @@ public class SharedWishlistService : ISharedWishlistService
 
     public async Task<SharedWishlistDto> CreateSharedWishlistAsync(Guid userId, CreateSharedWishlistDto dto)
     {
-        var wishlist = new SharedWishlist
-        {
-            UserId = userId,
-            ShareCode = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
-            Name = dto.Name,
-            Description = dto.Description,
-            IsPublic = dto.IsPublic
-        };
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        var wishlist = SharedWishlist.Create(
+            userId,
+            dto.Name,
+            dto.Description,
+            dto.IsPublic);
+
+        wishlist.GenerateShareCode();
 
         await _context.Set<SharedWishlist>().AddAsync(wishlist);
         await _unitOfWork.SaveChangesAsync();
 
         foreach (var productId in dto.ProductIds)
         {
-            var item = new SharedWishlistItem
-            {
-                SharedWishlistId = wishlist.Id,
-                ProductId = productId
-            };
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+            var item = SharedWishlistItem.Create(
+                wishlist.Id,
+                productId);
             await _context.Set<SharedWishlistItem>().AddAsync(item);
         }
 
@@ -77,7 +76,8 @@ public class SharedWishlistService : ISharedWishlistService
         if (wishlist == null)
             return null;
 
-        wishlist.ViewCount++;
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        wishlist.IncrementViewCount();
         await _unitOfWork.SaveChangesAsync();
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
@@ -154,9 +154,8 @@ public class SharedWishlistService : ISharedWishlistService
             .FirstOrDefaultAsync(i => i.Id == itemId);
         if (item != null)
         {
-            item.IsPurchased = true;
-            item.PurchasedBy = purchasedBy;
-            item.PurchasedAt = DateTime.UtcNow;
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            item.MarkAsPurchased(purchasedBy);
             await _unitOfWork.SaveChangesAsync();
         }
     }

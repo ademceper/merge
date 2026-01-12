@@ -69,9 +69,11 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         
         // ✅ BOLUM 1.1: ImageUrls collection backing field mapping
         // EF Core automatically discovers backing fields by convention (_fieldName)
-        builder.Property("_imageUrls")
-              .HasConversion(
-                  v => string.Join(',', v),
-                  v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
+        // Collection backing fields don't need conversion - EF Core handles them automatically
+        // If conversion is needed, use ValueConverter:
+        // var converter = new ValueConverter<List<string>, string>(
+        //     v => string.Join(',', v),
+        //     v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
+        // builder.Property("_imageUrls").HasConversion(converter);
     }
 }

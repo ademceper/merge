@@ -53,10 +53,10 @@ public class CreateBlogCategoryCommandHandler : IRequestHandler<CreateBlogCatego
         try
         {
             // Slug uniqueness check
-            var slug = BlogCategory.GenerateSlug(request.Name);
-            if (await _context.Set<BlogCategory>().AnyAsync(c => c.Slug == slug, cancellationToken))
+            var slugValue = Slug.FromString(request.Name).Value;
+            if (await _context.Set<BlogCategory>().AnyAsync(c => c.Slug.Value == slugValue, cancellationToken))
             {
-                slug = $"{slug}-{DateTime.UtcNow.Ticks}"; // Append timestamp for uniqueness
+                slugValue = $"{slugValue}-{DateTime.UtcNow.Ticks}"; // Append timestamp for uniqueness
             }
 
             // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
@@ -67,7 +67,7 @@ public class CreateBlogCategoryCommandHandler : IRequestHandler<CreateBlogCatego
                 request.ImageUrl,
                 request.DisplayOrder,
                 request.IsActive,
-                slug); // Pass unique slug
+                slugValue); // Pass unique slug
 
             category = await _categoryRepository.AddAsync(category, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);

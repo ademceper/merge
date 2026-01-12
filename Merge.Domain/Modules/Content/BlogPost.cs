@@ -1,9 +1,8 @@
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.ValueObjects;
@@ -24,7 +23,8 @@ public class BlogPost : BaseEntity, IAggregateRoot
     public Guid AuthorId { get; private set; }
     public User Author { get; private set; } = null!;
     public string Title { get; private set; } = string.Empty;
-    public string Slug { get; private set; } = string.Empty;
+    // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı (ZORUNLU)
+    public Slug Slug { get; private set; } = null!;
     public string Excerpt { get; private set; } = string.Empty; // Short summary
     public string Content { get; private set; } = string.Empty; // Full content (HTML/Markdown)
     public string? FeaturedImageUrl { get; private set; }
@@ -46,9 +46,12 @@ public class BlogPost : BaseEntity, IAggregateRoot
     [Timestamp]
     public byte[]? RowVersion { get; set; }
     
-    // Navigation properties
-    public ICollection<BlogComment> Comments { get; private set; } = new List<BlogComment>();
-    public ICollection<BlogPostView> Views { get; private set; } = new List<BlogPostView>();
+    // ✅ BOLUM 1.1: Encapsulated collection - Read-only access
+    private readonly List<BlogComment> _comments = new();
+    public IReadOnlyCollection<BlogComment> Comments => _comments.AsReadOnly();
+    
+    private readonly List<BlogPostView> _views = new();
+    public IReadOnlyCollection<BlogPostView> Views => _views.AsReadOnly();
 
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private BlogPost() { }
@@ -79,7 +82,8 @@ public class BlogPost : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(content, nameof(content));
         Guard.AgainstNegative(readingTimeMinutes, nameof(readingTimeMinutes));
 
-        var finalSlug = slug ?? GenerateSlug(title);
+        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
+        var finalSlug = slug != null ? Slug.FromString(slug) : Slug.FromString(title);
 
         var post = new BlogPost
         {
@@ -106,7 +110,7 @@ public class BlogPost : BaseEntity, IAggregateRoot
         };
 
         // ✅ BOLUM 1.5: Domain Events - BlogPostCreatedEvent yayınla (ÖNERİLİR)
-        post.AddDomainEvent(new BlogPostCreatedEvent(post.Id, title, finalSlug, authorId, categoryId));
+        post.AddDomainEvent(new BlogPostCreatedEvent(post.Id, title, finalSlug.Value, authorId, categoryId));
 
         return post;
     }
@@ -116,11 +120,12 @@ public class BlogPost : BaseEntity, IAggregateRoot
     {
         Guard.AgainstNullOrEmpty(newTitle, nameof(newTitle));
         Title = newTitle;
-        Slug = GenerateSlug(newTitle);
+        // ✅ BOLUM 1.3: Value Objects - Slug Value Object kullanımı
+        Slug = Slug.FromString(newTitle);
         UpdatedAt = DateTime.UtcNow;
         
         // ✅ BOLUM 1.5: Domain Events - BlogPostUpdatedEvent yayınla (ÖNERİLİR)
-        AddDomainEvent(new BlogPostUpdatedEvent(Id, newTitle, Slug));
+        AddDomainEvent(new BlogPostUpdatedEvent(Id, newTitle, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update excerpt
@@ -129,6 +134,9 @@ public class BlogPost : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(newExcerpt, nameof(newExcerpt));
         Excerpt = newExcerpt;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogPostUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogPostUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update content
@@ -137,6 +145,9 @@ public class BlogPost : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(newContent, nameof(newContent));
         Content = newContent;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogPostUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogPostUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update featured image
@@ -144,6 +155,9 @@ public class BlogPost : BaseEntity, IAggregateRoot
     {
         FeaturedImageUrl = newFeaturedImageUrl;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogPostUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogPostUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update category
@@ -152,6 +166,9 @@ public class BlogPost : BaseEntity, IAggregateRoot
         Guard.AgainstDefault(newCategoryId, nameof(newCategoryId));
         CategoryId = newCategoryId;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogPostUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogPostUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update status
@@ -162,7 +179,12 @@ public class BlogPost : BaseEntity, IAggregateRoot
         {
             PublishedAt = DateTime.UtcNow;
             // ✅ BOLUM 1.5: Domain Events - BlogPostPublishedEvent yayınla (ÖNERİLİR)
-            AddDomainEvent(new BlogPostPublishedEvent(Id, Title, Slug, AuthorId));
+            AddDomainEvent(new BlogPostPublishedEvent(Id, Title, Slug.Value, AuthorId));
+        }
+        else
+        {
+            // ✅ BOLUM 1.5: Domain Events - BlogPostUpdatedEvent yayınla (ÖNERİLİR)
+            AddDomainEvent(new BlogPostUpdatedEvent(Id, Title, Slug.Value));
         }
         UpdatedAt = DateTime.UtcNow;
     }
@@ -178,7 +200,21 @@ public class BlogPost : BaseEntity, IAggregateRoot
         UpdatedAt = DateTime.UtcNow;
         
         // ✅ BOLUM 1.5: Domain Events - BlogPostPublishedEvent yayınla (ÖNERİLİR)
-        AddDomainEvent(new BlogPostPublishedEvent(Id, Title, Slug, AuthorId));
+        AddDomainEvent(new BlogPostPublishedEvent(Id, Title, Slug.Value, AuthorId));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Unpublish post
+    public void Unpublish()
+    {
+        if (Status == ContentStatus.Draft)
+            return;
+
+        Status = ContentStatus.Draft;
+        PublishedAt = null;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogPostUnpublishedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogPostUnpublishedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update tags
@@ -186,6 +222,9 @@ public class BlogPost : BaseEntity, IAggregateRoot
     {
         Tags = newTags;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogPostUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogPostUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Set as featured
@@ -196,6 +235,9 @@ public class BlogPost : BaseEntity, IAggregateRoot
 
         IsFeatured = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogPostUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogPostUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Unset as featured
@@ -206,6 +248,9 @@ public class BlogPost : BaseEntity, IAggregateRoot
 
         IsFeatured = false;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogPostUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogPostUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update allow comments
@@ -213,6 +258,9 @@ public class BlogPost : BaseEntity, IAggregateRoot
     {
         AllowComments = allowComments;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogPostUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogPostUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update meta information
@@ -223,6 +271,9 @@ public class BlogPost : BaseEntity, IAggregateRoot
         MetaKeywords = metaKeywords;
         OgImageUrl = ogImageUrl;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogPostUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogPostUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update reading time
@@ -231,6 +282,9 @@ public class BlogPost : BaseEntity, IAggregateRoot
         Guard.AgainstNegative(readingTimeMinutes, nameof(readingTimeMinutes));
         ReadingTimeMinutes = readingTimeMinutes;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogPostUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogPostUpdatedEvent(Id, Title, Slug.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Increment view count
@@ -238,6 +292,9 @@ public class BlogPost : BaseEntity, IAggregateRoot
     {
         ViewCount++;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogPostViewedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogPostViewedEvent(Id, Title, ViewCount));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Increment like count
@@ -245,6 +302,9 @@ public class BlogPost : BaseEntity, IAggregateRoot
     {
         LikeCount++;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogPostLikedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogPostLikedEvent(Id, Title, LikeCount));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Decrement like count
@@ -254,6 +314,9 @@ public class BlogPost : BaseEntity, IAggregateRoot
         {
             LikeCount--;
             UpdatedAt = DateTime.UtcNow;
+            
+            // ✅ BOLUM 1.5: Domain Events - BlogPostUnlikedEvent yayınla (ÖNERİLİR)
+            AddDomainEvent(new BlogPostUnlikedEvent(Id, Title, LikeCount));
         }
     }
 
@@ -262,6 +325,9 @@ public class BlogPost : BaseEntity, IAggregateRoot
     {
         CommentCount++;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - BlogPostCommentCountUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new BlogPostCommentCountUpdatedEvent(Id, Title, CommentCount));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Decrement comment count
@@ -271,12 +337,18 @@ public class BlogPost : BaseEntity, IAggregateRoot
         {
             CommentCount--;
             UpdatedAt = DateTime.UtcNow;
+            
+            // ✅ BOLUM 1.5: Domain Events - BlogPostCommentCountUpdatedEvent yayınla (ÖNERİLİR)
+            AddDomainEvent(new BlogPostCommentCountUpdatedEvent(Id, Title, CommentCount));
         }
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
+        if (IsDeleted)
+            return;
+
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
         
@@ -284,30 +356,5 @@ public class BlogPost : BaseEntity, IAggregateRoot
         AddDomainEvent(new BlogPostDeletedEvent(Id, Title));
     }
 
-    // ✅ BOLUM 1.3: Slug generation helper
-    public static string GenerateSlug(string title)
-    {
-        var slug = title.ToLowerInvariant()
-            .Replace("ğ", "g")
-            .Replace("ü", "u")
-            .Replace("ş", "s")
-            .Replace("ı", "i")
-            .Replace("ö", "o")
-            .Replace("ç", "c")
-            .Replace(" ", "-")
-            .Replace(".", "")
-            .Replace(",", "")
-            .Replace("!", "")
-            .Replace("?", "")
-            .Replace(":", "")
-            .Replace(";", "");
-
-        while (slug.Contains("--"))
-        {
-            slug = slug.Replace("--", "-");
-        }
-
-        return slug.Trim('-');
-    }
 }
 

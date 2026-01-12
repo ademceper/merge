@@ -1,8 +1,7 @@
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Domain.Modules.Content;
@@ -58,11 +57,9 @@ public class SEOSettings : BaseEntity, IAggregateRoot
         string? changeFrequency = null)
     {
         Guard.AgainstNullOrEmpty(pageType, nameof(pageType));
-        
-        if (priority < 0 || priority > 1)
-        {
-            throw new DomainException("Priority 0.0 ile 1.0 arasında olmalıdır.");
-        }
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MinSEOPriority=0.0, MaxSEOPriority=1.0
+        Guard.AgainstOutOfRange(priority, 0m, 1m, nameof(priority));
 
         var validChangeFrequencies = new[] { "always", "hourly", "daily", "weekly", "monthly", "yearly", "never" };
         if (!string.IsNullOrEmpty(changeFrequency) && !validChangeFrequencies.Contains(changeFrequency.ToLowerInvariant()))
@@ -127,6 +124,9 @@ public class SEOSettings : BaseEntity, IAggregateRoot
         OgImageUrl = ogImageUrl;
         TwitterCard = twitterCard;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - SEOSettingsUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new SEOSettingsUpdatedEvent(Id, PageType, EntityId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update structured data
@@ -134,6 +134,9 @@ public class SEOSettings : BaseEntity, IAggregateRoot
     {
         StructuredData = structuredData;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - SEOSettingsUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new SEOSettingsUpdatedEvent(Id, PageType, EntityId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update indexing settings
@@ -142,15 +145,17 @@ public class SEOSettings : BaseEntity, IAggregateRoot
         IsIndexed = isIndexed;
         FollowLinks = followLinks;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - SEOSettingsUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new SEOSettingsUpdatedEvent(Id, PageType, EntityId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update sitemap settings
     public void UpdateSitemapSettings(decimal priority, string? changeFrequency)
     {
-        if (priority < 0 || priority > 1)
-        {
-            throw new DomainException("Priority 0.0 ile 1.0 arasında olmalıdır.");
-        }
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MinSEOPriority=0.0, MaxSEOPriority=1.0
+        Guard.AgainstOutOfRange(priority, 0m, 1m, nameof(priority));
 
         var validChangeFrequencies = new[] { "always", "hourly", "daily", "weekly", "monthly", "yearly", "never" };
         if (!string.IsNullOrEmpty(changeFrequency) && !validChangeFrequencies.Contains(changeFrequency.ToLowerInvariant()))
@@ -161,13 +166,22 @@ public class SEOSettings : BaseEntity, IAggregateRoot
         Priority = priority;
         ChangeFrequency = changeFrequency;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - SEOSettingsUpdatedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new SEOSettingsUpdatedEvent(Id, PageType, EntityId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
     public void MarkAsDeleted()
     {
+        if (IsDeleted)
+            return;
+
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - SEOSettingsDeletedEvent yayınla (ÖNERİLİR)
+        AddDomainEvent(new SEOSettingsDeletedEvent(Id, PageType, EntityId));
     }
 }
 
