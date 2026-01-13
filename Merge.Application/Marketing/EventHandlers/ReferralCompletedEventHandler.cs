@@ -9,24 +9,16 @@ namespace Merge.Application.Marketing.EventHandlers;
 
 /// <summary>
 /// Referral Completed Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 /// </summary>
-public class ReferralCompletedEventHandler : INotificationHandler<ReferralCompletedEvent>
+public class ReferralCompletedEventHandler(
+    IMediator mediator,
+    ILogger<ReferralCompletedEventHandler> logger) : INotificationHandler<ReferralCompletedEvent>
 {
-    private readonly IMediator _mediator;
-    private readonly ILogger<ReferralCompletedEventHandler> _logger;
-
-    public ReferralCompletedEventHandler(
-        IMediator mediator,
-        ILogger<ReferralCompletedEventHandler> logger)
-    {
-        _mediator = mediator;
-        _logger = logger;
-    }
-
     public async Task Handle(ReferralCompletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Referral completed event received. ReferralId: {ReferralId}, ReferrerId: {ReferrerId}, ReferredUserId: {ReferredUserId}, PointsAwarded: {PointsAwarded}",
             notification.ReferralId, notification.ReferrerId, notification.ReferredUserId, notification.PointsAwarded);
 
@@ -38,7 +30,7 @@ public class ReferralCompletedEventHandler : INotificationHandler<ReferralComple
             "Referral",
             $"Referral reward for {notification.ReferredUserId}",
             null);
-        await _mediator.Send(addPointsCommand, cancellationToken);
+        await mediator.Send(addPointsCommand, cancellationToken);
 
         // TODO: İleride burada şunlar yapılabilir:
         // - Notification gönderimi (referral completed)

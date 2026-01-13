@@ -2,7 +2,8 @@ using FluentValidation;
 
 namespace Merge.Application.Marketing.Commands.SendTestEmail;
 
-public class SendTestEmailCommandValidator : AbstractValidator<SendTestEmailCommand>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class SendTestEmailCommandValidator() : AbstractValidator<SendTestEmailCommand>
 {
     public SendTestEmailCommandValidator()
     {

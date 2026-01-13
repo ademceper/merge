@@ -16,30 +16,21 @@ namespace Merge.Application.Logistics.Queries.GetPickPackById;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class GetPickPackByIdQueryHandler : IRequestHandler<GetPickPackByIdQuery, PickPackDto?>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class GetPickPackByIdQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetPickPackByIdQueryHandler> logger) : IRequestHandler<GetPickPackByIdQuery, PickPackDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetPickPackByIdQueryHandler> _logger;
-
-    public GetPickPackByIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetPickPackByIdQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<PickPackDto?> Handle(GetPickPackByIdQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Getting pick-pack. PickPackId: {PickPackId}", request.Id);
+        logger.LogInformation("Getting pick-pack. PickPackId: {PickPackId}", request.Id);
 
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
         // ✅ PERFORMANCE: Include ile N+1 önlenir
-        var pickPack = await _context.Set<PickPack>()
+        var pickPack = await context.Set<PickPack>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(pp => pp.Order)
@@ -52,7 +43,7 @@ public class GetPickPackByIdQueryHandler : IRequestHandler<GetPickPackByIdQuery,
             .FirstOrDefaultAsync(pp => pp.Id == request.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return pickPack != null ? _mapper.Map<PickPackDto>(pickPack) : null;
+        return pickPack != null ? mapper.Map<PickPackDto>(pickPack) : null;
     }
 }
 

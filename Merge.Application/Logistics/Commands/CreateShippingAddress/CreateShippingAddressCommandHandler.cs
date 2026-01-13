@@ -18,38 +18,27 @@ namespace Merge.Application.Logistics.Commands.CreateShippingAddress;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class CreateShippingAddressCommandHandler : IRequestHandler<CreateShippingAddressCommand, ShippingAddressDto>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class CreateShippingAddressCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<CreateShippingAddressCommandHandler> logger) : IRequestHandler<CreateShippingAddressCommand, ShippingAddressDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateShippingAddressCommandHandler> _logger;
-
-    public CreateShippingAddressCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateShippingAddressCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<ShippingAddressDto> Handle(CreateShippingAddressCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Creating shipping address. UserId: {UserId}, Label: {Label}", request.UserId, request.Label);
+        logger.LogInformation("Creating shipping address. UserId: {UserId}, Label: {Label}", request.UserId, request.Label);
 
         // ✅ PERFORMANCE: AsNoTracking - Check if user exists
         // ⚠️ NOT: User entity'si BaseEntity'den türemediği için Set<UserEntity>() kullanılamaz, Users property'si kullanılmalı
-        var user = await _context.Users
+        var user = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
         if (user == null)
         {
-            _logger.LogWarning("User not found. UserId: {UserId}", request.UserId);
+            logger.LogWarning("User not found. UserId: {UserId}", request.UserId);
             throw new NotFoundException("Kullanıcı", request.UserId);
         }
 
@@ -57,7 +46,7 @@ public class CreateShippingAddressCommandHandler : IRequestHandler<CreateShippin
         if (request.IsDefault)
         {
             // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-            var existingDefault = await _context.Set<ShippingAddress>()
+            var existingDefault = await context.Set<ShippingAddress>()
                 .Where(a => a.UserId == request.UserId && a.IsDefault)
                 .ToListAsync(cancellationToken);
 
@@ -83,16 +72,16 @@ public class CreateShippingAddressCommandHandler : IRequestHandler<CreateShippin
             request.IsDefault,
             request.Instructions);
 
-        await _context.Set<ShippingAddress>().AddAsync(address, cancellationToken);
+        await context.Set<ShippingAddress>().AddAsync(address, cancellationToken);
         
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Shipping address created successfully. AddressId: {AddressId}, UserId: {UserId}", address.Id, request.UserId);
+        logger.LogInformation("Shipping address created successfully. AddressId: {AddressId}, UserId: {UserId}", address.Id, request.UserId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<ShippingAddressDto>(address);
+        return mapper.Map<ShippingAddressDto>(address);
     }
 }
 

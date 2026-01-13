@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
 using Merge.API.Middleware;
 using Merge.Application.Logistics.Commands.CreatePickPack;
 using Merge.Application.Logistics.Queries.GetPickPackById;
@@ -26,14 +28,12 @@ namespace Merge.API.Controllers.Logistics;
 [ApiController]
 [Route("api/v{version:apiVersion}/logistics/pick-packs")]
 [Authorize(Roles = "Admin,Manager,Warehouse")]
-public class PickPacksController : BaseController
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class PickPacksController(
+    IMediator mediator,
+    IOptions<ShippingSettings> shippingSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-
-    public PickPacksController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
+    private readonly ShippingSettings _shippingSettings = shippingSettings.Value;
 
     /// <summary>
     /// Yeni pick-pack kaydı oluşturur
@@ -65,7 +65,7 @@ public class PickPacksController : BaseController
         if (validationResult != null) return validationResult;
 
         var command = new CreatePickPackCommand(dto.OrderId, dto.WarehouseId, dto.Notes);
-        var pickPack = await _mediator.Send(command, cancellationToken);
+        var pickPack = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetPickPack), new { id = pickPack.Id }, pickPack);
     }
 
@@ -97,7 +97,7 @@ public class PickPacksController : BaseController
         }
 
         var query = new GetPickPackByIdQuery(id);
-        var pickPack = await _mediator.Send(query, cancellationToken);
+        var pickPack = await mediator.Send(query, cancellationToken);
         if (pickPack == null)
         {
             return NotFound();
@@ -105,7 +105,7 @@ public class PickPacksController : BaseController
 
         // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi siparişlerinin pick-pack'lerine erişebilmeli
         var orderQuery = new GetOrderByIdQuery(pickPack.OrderId);
-        var order = await _mediator.Send(orderQuery, cancellationToken);
+        var order = await mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -147,7 +147,7 @@ public class PickPacksController : BaseController
         }
 
         var query = new GetPickPackByPackNumberQuery(packNumber);
-        var pickPack = await _mediator.Send(query, cancellationToken);
+        var pickPack = await mediator.Send(query, cancellationToken);
         if (pickPack == null)
         {
             return NotFound();
@@ -155,7 +155,7 @@ public class PickPacksController : BaseController
 
         // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi siparişlerinin pick-pack'lerine erişebilmeli
         var orderQuery = new GetOrderByIdQuery(pickPack.OrderId);
-        var order = await _mediator.Send(orderQuery, cancellationToken);
+        var order = await mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -198,7 +198,7 @@ public class PickPacksController : BaseController
 
         // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi siparişlerinin pick-pack'lerine erişebilmeli
         var orderQuery = new GetOrderByIdQuery(orderId);
-        var order = await _mediator.Send(orderQuery, cancellationToken);
+        var order = await mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -210,7 +210,7 @@ public class PickPacksController : BaseController
         }
 
         var query = new GetPickPacksByOrderIdQuery(orderId);
-        var pickPacks = await _mediator.Send(query, cancellationToken);
+        var pickPacks = await mediator.Send(query, cancellationToken);
         return Ok(pickPacks);
     }
 
@@ -241,7 +241,9 @@ public class PickPacksController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-        if (pageSize > 100) pageSize = 100; // Max limit
+        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan
+        if (pageSize > _shippingSettings.QueryLimits.MaxPageSize) 
+            pageSize = _shippingSettings.QueryLimits.MaxPageSize;
 
         PickPackStatus? statusEnum = null;
         if (!string.IsNullOrEmpty(status) && Enum.TryParse<PickPackStatus>(status, out var parsedStatus))
@@ -250,7 +252,7 @@ public class PickPacksController : BaseController
         }
 
         var query = new GetAllPickPacksQuery(statusEnum, warehouseId, page, pageSize);
-        var pickPacks = await _mediator.Send(query, cancellationToken);
+        var pickPacks = await mediator.Send(query, cancellationToken);
         return Ok(pickPacks);
     }
 
@@ -287,7 +289,7 @@ public class PickPacksController : BaseController
         // ✅ BOLUM 1.1: Rich Domain Model - Status transition'ları için ayrı endpoint'ler kullanılmalı
         // Bu endpoint sadece details (notes, weight, dimensions, packageCount) update için kullanılır
         var command = new UpdatePickPackDetailsCommand(id, dto.Notes, dto.Weight, dto.Dimensions, dto.PackageCount);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -319,7 +321,7 @@ public class PickPacksController : BaseController
     {
         var userId = GetUserId();
         var command = new StartPickingCommand(id, userId);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -350,7 +352,7 @@ public class PickPacksController : BaseController
         CancellationToken cancellationToken = default)
     {
         var command = new CompletePickingCommand(id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -382,7 +384,7 @@ public class PickPacksController : BaseController
     {
         var userId = GetUserId();
         var command = new StartPackingCommand(id, userId);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -418,7 +420,7 @@ public class PickPacksController : BaseController
         if (validationResult != null) return validationResult;
 
         var command = new CompletePackingCommand(id, dto.Weight, dto.Dimensions, dto.PackageCount);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -449,7 +451,7 @@ public class PickPacksController : BaseController
         CancellationToken cancellationToken = default)
     {
         var command = new MarkPickPackAsShippedCommand(id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -483,7 +485,7 @@ public class PickPacksController : BaseController
         if (validationResult != null) return validationResult;
 
         var command = new UpdatePickPackItemStatusCommand(itemId, dto.IsPicked, dto.IsPacked, dto.Location);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -515,7 +517,7 @@ public class PickPacksController : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetPickPackStatsQuery(warehouseId, startDate, endDate);
-        var stats = await _mediator.Send(query, cancellationToken);
+        var stats = await mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 }

@@ -17,29 +17,18 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Marketing.Commands.CreateEmailCampaign;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreateEmailCampaignCommandHandler : IRequestHandler<CreateEmailCampaignCommand, EmailCampaignDto>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class CreateEmailCampaignCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<CreateEmailCampaignCommandHandler> logger) : IRequestHandler<CreateEmailCampaignCommand, EmailCampaignDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateEmailCampaignCommandHandler> _logger;
-
-    public CreateEmailCampaignCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateEmailCampaignCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<EmailCampaignDto> Handle(CreateEmailCampaignCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Email kampanyası oluşturuluyor. Name: {Name}, Type: {Type}, TargetSegment: {TargetSegment}",
             request.Name, request.Type, request.TargetSegment);
 
@@ -57,26 +46,26 @@ public class CreateEmailCampaignCommandHandler : IRequestHandler<CreateEmailCamp
             request.TemplateId,
             request.Tags != null ? JsonSerializer.Serialize(request.Tags) : null);
 
-        await _context.Set<EmailCampaign>().AddAsync(campaign, cancellationToken);
+        await context.Set<EmailCampaign>().AddAsync(campaign, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery + Removed manual !c.IsDeleted (Global Query Filter)
-        var createdCampaign = await _context.Set<EmailCampaign>()
+        var createdCampaign = await context.Set<EmailCampaign>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(c => c.Template)
             .FirstOrDefaultAsync(c => c.Id == campaign.Id, cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Email kampanyası oluşturuldu. CampaignId: {CampaignId}, Name: {Name}",
             campaign.Id, request.Name);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<EmailCampaignDto>(createdCampaign!);
+        return mapper.Map<EmailCampaignDto>(createdCampaign!);
     }
 }

@@ -7,20 +7,16 @@ namespace Merge.Application.Logistics.EventHandlers;
 /// <summary>
 /// ShippingAddress Deactivated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 /// </summary>
-public class ShippingAddressDeactivatedEventHandler : INotificationHandler<ShippingAddressDeactivatedEvent>
+public class ShippingAddressDeactivatedEventHandler(
+    ILogger<ShippingAddressDeactivatedEventHandler> logger) : INotificationHandler<ShippingAddressDeactivatedEvent>
 {
-    private readonly ILogger<ShippingAddressDeactivatedEventHandler> _logger;
-
-    public ShippingAddressDeactivatedEventHandler(ILogger<ShippingAddressDeactivatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(ShippingAddressDeactivatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "ShippingAddress deactivated event received. ShippingAddressId: {ShippingAddressId}, UserId: {UserId}",
             notification.ShippingAddressId, notification.UserId);
 
@@ -34,7 +30,7 @@ public class ShippingAddressDeactivatedEventHandler : INotificationHandler<Shipp
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling ShippingAddressDeactivatedEvent. ShippingAddressId: {ShippingAddressId}, UserId: {UserId}",
                 notification.ShippingAddressId, notification.UserId);
             throw;

@@ -2,7 +2,8 @@ using FluentValidation;
 
 namespace Merge.Application.Marketing.Queries.GetMyReferrals;
 
-public class GetMyReferralsQueryValidator : AbstractValidator<GetMyReferralsQuery>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class GetMyReferralsQueryValidator() : AbstractValidator<GetMyReferralsQuery>
 {
     public GetMyReferralsQueryValidator()
     {

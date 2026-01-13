@@ -15,14 +15,9 @@ namespace Merge.API.Controllers.Logistics;
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/logistics/delivery-time")]
-public class DeliveryTimeEstimationsController : BaseController
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class DeliveryTimeEstimationsController(IMediator mediator) : BaseController
 {
-    private readonly IMediator _mediator;
-
-    public DeliveryTimeEstimationsController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
 
     /// <summary>
     /// Teslimat süresini tahmin eder
@@ -51,7 +46,7 @@ public class DeliveryTimeEstimationsController : BaseController
             dto.City,
             dto.Country,
             dto.OrderDate);
-        var result = await _mediator.Send(query, cancellationToken);
+        var result = await mediator.Send(query, cancellationToken);
         return Ok(result);
     }
 
@@ -79,7 +74,7 @@ public class DeliveryTimeEstimationsController : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetAllDeliveryTimeEstimationsQuery(productId, categoryId, warehouseId, isActive);
-        var estimations = await _mediator.Send(query, cancellationToken);
+        var estimations = await mediator.Send(query, cancellationToken);
         return Ok(estimations);
     }
 
@@ -103,7 +98,7 @@ public class DeliveryTimeEstimationsController : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetDeliveryTimeEstimationByIdQuery(id);
-        var estimation = await _mediator.Send(query, cancellationToken);
+        var estimation = await mediator.Send(query, cancellationToken);
         if (estimation == null)
         {
             return NotFound();
@@ -151,7 +146,7 @@ public class DeliveryTimeEstimationsController : BaseController
             dto.AverageDays,
             dto.IsActive,
             dto.Conditions);
-        var estimation = await _mediator.Send(command, cancellationToken);
+        var estimation = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetEstimation), new { id = estimation.Id }, estimation);
     }
 
@@ -194,7 +189,7 @@ public class DeliveryTimeEstimationsController : BaseController
             dto.AverageDays,
             dto.IsActive,
             dto.Conditions);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -222,7 +217,7 @@ public class DeliveryTimeEstimationsController : BaseController
         CancellationToken cancellationToken = default)
     {
         var command = new DeleteDeliveryTimeEstimationCommand(id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 }

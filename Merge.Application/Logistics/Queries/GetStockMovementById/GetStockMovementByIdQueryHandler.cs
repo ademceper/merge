@@ -16,30 +16,21 @@ namespace Merge.Application.Logistics.Queries.GetStockMovementById;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class GetStockMovementByIdQueryHandler : IRequestHandler<GetStockMovementByIdQuery, StockMovementDto?>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class GetStockMovementByIdQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetStockMovementByIdQueryHandler> logger) : IRequestHandler<GetStockMovementByIdQuery, StockMovementDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetStockMovementByIdQueryHandler> _logger;
-
-    public GetStockMovementByIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetStockMovementByIdQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<StockMovementDto?> Handle(GetStockMovementByIdQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Getting stock movement. StockMovementId: {StockMovementId}", request.Id);
+        logger.LogInformation("Getting stock movement. StockMovementId: {StockMovementId}", request.Id);
 
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
         // ✅ PERFORMANCE: Include ile N+1 önlenir
-        var movement = await _context.Set<StockMovement>()
+        var movement = await context.Set<StockMovement>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(sm => sm.Product)
@@ -50,7 +41,7 @@ public class GetStockMovementByIdQueryHandler : IRequestHandler<GetStockMovement
             .FirstOrDefaultAsync(sm => sm.Id == request.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return movement != null ? _mapper.Map<StockMovementDto>(movement) : null;
+        return movement != null ? mapper.Map<StockMovementDto>(movement) : null;
     }
 }
 

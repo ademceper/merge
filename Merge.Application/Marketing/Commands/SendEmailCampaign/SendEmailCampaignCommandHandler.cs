@@ -15,29 +15,17 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.SendEmailCampaign;
 
-public class SendEmailCampaignCommandHandler : IRequestHandler<SendEmailCampaignCommand, bool>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class SendEmailCampaignCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IEmailService emailService,
+    ILogger<SendEmailCampaignCommandHandler> logger) : IRequestHandler<SendEmailCampaignCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IEmailService _emailService;
-    private readonly ILogger<SendEmailCampaignCommandHandler> _logger;
-
-    public SendEmailCampaignCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IEmailService emailService,
-        ILogger<SendEmailCampaignCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _emailService = emailService;
-        _logger = logger;
-    }
-
     public async Task<bool> Handle(SendEmailCampaignCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsSplitQuery + Removed manual !c.IsDeleted (Global Query Filter)
-        var campaign = await _context.Set<EmailCampaign>()
+        var campaign = await context.Set<EmailCampaign>()
             .AsSplitQuery()
             .Include(c => c.Recipients)
             .Include(c => c.Template)
@@ -51,6 +39,7 @@ public class SendEmailCampaignCommandHandler : IRequestHandler<SendEmailCampaign
         }
 
         // Prepare recipients if not already done
+        // ✅ BOLUM 1.1: Rich Domain Model - IReadOnlyCollection kullanımı
         if (campaign.Recipients.Count == 0)
         {
             await PrepareCampaignRecipientsAsync(campaign, cancellationToken);
@@ -60,7 +49,7 @@ public class SendEmailCampaignCommandHandler : IRequestHandler<SendEmailCampaign
         campaign.StartSending(campaign.TotalRecipients);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Send emails (in production, this would be queued)
         var sentCount = await SendCampaignEmailsAsync(campaign, cancellationToken);
@@ -69,7 +58,7 @@ public class SendEmailCampaignCommandHandler : IRequestHandler<SendEmailCampaign
         campaign.MarkAsSent(sentCount);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -85,16 +74,16 @@ public class SendEmailCampaignCommandHandler : IRequestHandler<SendEmailCampaign
                 campaignId: campaign.Id,
                 subscriberId: subscriber.Id);
 
-            await _context.Set<EmailCampaignRecipient>().AddAsync(recipient, cancellationToken);
+            await context.Set<EmailCampaignRecipient>().AddAsync(recipient, cancellationToken);
         }
 
         // TotalRecipients domain method içinde set ediliyor (StartSending)
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<List<EmailSubscriber>> GetTargetedSubscribersAsync(string segment, CancellationToken cancellationToken)
     {
-        IQueryable<EmailSubscriber> query = _context.Set<EmailSubscriber>()
+        IQueryable<EmailSubscriber> query = context.Set<EmailSubscriber>()
             .Where(s => s.IsSubscribed);
 
         switch (segment.ToLower())
@@ -115,7 +104,7 @@ public class SendEmailCampaignCommandHandler : IRequestHandler<SendEmailCampaign
     private async Task<int> SendCampaignEmailsAsync(EmailCampaign campaign, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsSplitQuery ile N+1 query önleme
-        var recipients = await _context.Set<EmailCampaignRecipient>()
+        var recipients = await context.Set<EmailCampaignRecipient>()
             .AsSplitQuery()
             .Include(r => r.Subscriber)
             .Where(r => r.CampaignId == campaign.Id && r.Status == EmailRecipientStatus.Pending)
@@ -130,7 +119,7 @@ public class SendEmailCampaignCommandHandler : IRequestHandler<SendEmailCampaign
         {
             try
             {
-                await _emailService.SendEmailAsync(
+                await emailService.SendEmailAsync(
                     recipient.Subscriber.Email,
                     campaign.Subject,
                     content,
@@ -149,14 +138,14 @@ public class SendEmailCampaignCommandHandler : IRequestHandler<SendEmailCampaign
             catch (Exception ex)
             {
                 // ✅ BOLUM 2.1: Exception handling - Exception yutulmuyor, loglanıyor ve işlem devam ediyor
-                _logger.LogError(ex, "Email gönderilemedi. CampaignId: {CampaignId}, SubscriberId: {SubscriberId}",
+                logger.LogError(ex, "Email gönderilemedi. CampaignId: {CampaignId}, SubscriberId: {SubscriberId}",
                     campaign.Id, recipient.SubscriberId);
                 // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 recipient.MarkAsFailed(ex.Message);
             }
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         return sentCount;
     }
 }

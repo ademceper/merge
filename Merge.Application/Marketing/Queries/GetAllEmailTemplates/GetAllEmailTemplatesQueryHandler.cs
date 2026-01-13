@@ -15,21 +15,13 @@ namespace Merge.Application.Marketing.Queries.GetAllEmailTemplates;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-public class GetAllEmailTemplatesQueryHandler : IRequestHandler<GetAllEmailTemplatesQuery, PagedResult<EmailTemplateDto>>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class GetAllEmailTemplatesQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetAllEmailTemplatesQuery, PagedResult<EmailTemplateDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetAllEmailTemplatesQueryHandler(IDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
-
     public async Task<PagedResult<EmailTemplateDto>> Handle(GetAllEmailTemplatesQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        IQueryable<EmailTemplate> query = _context.Set<EmailTemplate>()
+        IQueryable<EmailTemplate> query = context.Set<EmailTemplate>()
             .AsNoTracking()
             .Where(t => t.IsActive);
 
@@ -50,7 +42,7 @@ public class GetAllEmailTemplatesQueryHandler : IRequestHandler<GetAllEmailTempl
 
         return new PagedResult<EmailTemplateDto>
         {
-            Items = _mapper.Map<List<EmailTemplateDto>>(templates),
+            Items = mapper.Map<List<EmailTemplateDto>>(templates),
             TotalCount = totalCount,
             Page = request.PageNumber,
             PageSize = request.PageSize

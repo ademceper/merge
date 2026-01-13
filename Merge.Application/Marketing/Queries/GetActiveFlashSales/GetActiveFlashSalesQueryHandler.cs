@@ -13,22 +13,14 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetActiveFlashSales;
 
-public class GetActiveFlashSalesQueryHandler : IRequestHandler<GetActiveFlashSalesQuery, PagedResult<FlashSaleDto>>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class GetActiveFlashSalesQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetActiveFlashSalesQuery, PagedResult<FlashSaleDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetActiveFlashSalesQueryHandler(IDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
-
     public async Task<PagedResult<FlashSaleDto>> Handle(GetActiveFlashSalesQuery request, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
         // ✅ PERFORMANCE: AsSplitQuery - N+1 query önleme (Cartesian Explosion önleme)
-        var query = _context.Set<FlashSale>()
+        var query = context.Set<FlashSale>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(fs => fs.FlashSaleProducts)
@@ -44,7 +36,7 @@ public class GetActiveFlashSalesQueryHandler : IRequestHandler<GetActiveFlashSal
 
         return new PagedResult<FlashSaleDto>
         {
-            Items = _mapper.Map<List<FlashSaleDto>>(flashSales),
+            Items = mapper.Map<List<FlashSaleDto>>(flashSales),
             TotalCount = totalCount,
             Page = request.PageNumber,
             PageSize = request.PageSize

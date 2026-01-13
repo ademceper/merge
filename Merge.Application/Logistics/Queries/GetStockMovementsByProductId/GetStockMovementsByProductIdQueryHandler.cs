@@ -19,28 +19,18 @@ namespace Merge.Application.Logistics.Queries.GetStockMovementsByProductId;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class GetStockMovementsByProductIdQueryHandler : IRequestHandler<GetStockMovementsByProductIdQuery, PagedResult<StockMovementDto>>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class GetStockMovementsByProductIdQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetStockMovementsByProductIdQueryHandler> logger,
+    IOptions<ShippingSettings> shippingSettings) : IRequestHandler<GetStockMovementsByProductIdQuery, PagedResult<StockMovementDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetStockMovementsByProductIdQueryHandler> _logger;
-    private readonly ShippingSettings _shippingSettings;
-
-    public GetStockMovementsByProductIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetStockMovementsByProductIdQueryHandler> logger,
-        IOptions<ShippingSettings> shippingSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _shippingSettings = shippingSettings.Value;
-    }
+    private readonly ShippingSettings _shippingSettings = shippingSettings.Value;
 
     public async Task<PagedResult<StockMovementDto>> Handle(GetStockMovementsByProductIdQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Getting stock movements by product. ProductId: {ProductId}, Page: {Page}, PageSize: {PageSize}", request.ProductId, request.Page, request.PageSize);
+        logger.LogInformation("Getting stock movements by product. ProductId: {ProductId}, Page: {Page}, PageSize: {PageSize}", request.ProductId, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination (ZORUNLU)
         // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan
@@ -52,7 +42,7 @@ public class GetStockMovementsByProductIdQueryHandler : IRequestHandler<GetStock
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
         // ✅ PERFORMANCE: Include ile N+1 önlenir
-        var query = _context.Set<StockMovement>()
+        var query = context.Set<StockMovement>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(sm => sm.Product)
@@ -71,7 +61,7 @@ public class GetStockMovementsByProductIdQueryHandler : IRequestHandler<GetStock
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (batch mapping)
-        var items = _mapper.Map<IEnumerable<StockMovementDto>>(movements);
+        var items = mapper.Map<IEnumerable<StockMovementDto>>(movements);
 
         return new PagedResult<StockMovementDto>
         {

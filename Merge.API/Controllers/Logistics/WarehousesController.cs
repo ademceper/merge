@@ -19,14 +19,9 @@ namespace Merge.API.Controllers.Logistics;
 [ApiController]
 [Route("api/v{version:apiVersion}/logistics/warehouses")]
 [Authorize(Roles = "Admin")]
-public class WarehousesController : BaseController
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class WarehousesController(IMediator mediator) : BaseController
 {
-    private readonly IMediator _mediator;
-
-    public WarehousesController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
 
     /// <summary>
     /// Tüm depoları getirir (Admin only)
@@ -49,7 +44,7 @@ public class WarehousesController : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetAllWarehousesQuery(includeInactive);
-        var warehouses = await _mediator.Send(query, cancellationToken);
+        var warehouses = await mediator.Send(query, cancellationToken);
         return Ok(warehouses);
     }
 
@@ -72,7 +67,7 @@ public class WarehousesController : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetActiveWarehousesQuery();
-        var warehouses = await _mediator.Send(query, cancellationToken);
+        var warehouses = await mediator.Send(query, cancellationToken);
         return Ok(warehouses);
     }
 
@@ -99,7 +94,7 @@ public class WarehousesController : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetWarehouseByIdQuery(id);
-        var warehouse = await _mediator.Send(query, cancellationToken);
+        var warehouse = await mediator.Send(query, cancellationToken);
         if (warehouse == null)
         {
             return NotFound();
@@ -130,7 +125,7 @@ public class WarehousesController : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetWarehouseByCodeQuery(code);
-        var warehouse = await _mediator.Send(query, cancellationToken);
+        var warehouse = await mediator.Send(query, cancellationToken);
         if (warehouse == null)
         {
             return NotFound();
@@ -177,7 +172,7 @@ public class WarehousesController : BaseController
             createDto.ContactEmail,
             createDto.Capacity,
             createDto.Description);
-        var warehouse = await _mediator.Send(command, cancellationToken);
+        var warehouse = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = warehouse.Id }, warehouse);
     }
 
@@ -212,7 +207,7 @@ public class WarehousesController : BaseController
 
         // Mevcut warehouse'u çek
         var existingQuery = new GetWarehouseByIdQuery(id);
-        var existingWarehouse = await _mediator.Send(existingQuery, cancellationToken);
+        var existingWarehouse = await mediator.Send(existingQuery, cancellationToken);
         if (existingWarehouse == null)
         {
             return NotFound();
@@ -231,7 +226,7 @@ public class WarehousesController : BaseController
             updateDto.Capacity ?? existingWarehouse.Capacity,
             updateDto.IsActive ?? existingWarehouse.IsActive,
             updateDto.Description);
-        var warehouse = await _mediator.Send(command, cancellationToken);
+        var warehouse = await mediator.Send(command, cancellationToken);
         return Ok(warehouse);
     }
 
@@ -260,7 +255,7 @@ public class WarehousesController : BaseController
         CancellationToken cancellationToken = default)
     {
         var command = new DeleteWarehouseCommand(id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -287,7 +282,7 @@ public class WarehousesController : BaseController
         CancellationToken cancellationToken = default)
     {
         var command = new ActivateWarehouseCommand(id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -314,7 +309,7 @@ public class WarehousesController : BaseController
         CancellationToken cancellationToken = default)
     {
         var command = new DeactivateWarehouseCommand(id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 }

@@ -12,34 +12,24 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.PauseEmailCampaign;
 
-public class PauseEmailCampaignCommandHandler : IRequestHandler<PauseEmailCampaignCommand, bool>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class PauseEmailCampaignCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<PauseEmailCampaignCommandHandler> logger) : IRequestHandler<PauseEmailCampaignCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<PauseEmailCampaignCommandHandler> _logger;
-
-    public PauseEmailCampaignCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<PauseEmailCampaignCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
-
     public async Task<bool> Handle(PauseEmailCampaignCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Pausing email campaign. CampaignId: {CampaignId}", request.Id);
+        logger.LogInformation("Pausing email campaign. CampaignId: {CampaignId}", request.Id);
 
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
-        var campaign = await _context.Set<EmailCampaign>()
+        var campaign = await context.Set<EmailCampaign>()
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
         if (campaign == null)
         {
-            _logger.LogWarning("Email campaign not found. CampaignId: {CampaignId}", request.Id);
+            logger.LogWarning("Email campaign not found. CampaignId: {CampaignId}", request.Id);
             return false;
         }
 
@@ -47,10 +37,10 @@ public class PauseEmailCampaignCommandHandler : IRequestHandler<PauseEmailCampai
         campaign.Pause();
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Email campaign paused successfully. CampaignId: {CampaignId}", request.Id);
+        logger.LogInformation("Email campaign paused successfully. CampaignId: {CampaignId}", request.Id);
 
         return true;
     }

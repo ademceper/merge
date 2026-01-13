@@ -16,30 +16,21 @@ namespace Merge.Application.Logistics.Queries.GetDeliveryTimeEstimationById;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class GetDeliveryTimeEstimationByIdQueryHandler : IRequestHandler<GetDeliveryTimeEstimationByIdQuery, DeliveryTimeEstimationDto?>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class GetDeliveryTimeEstimationByIdQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetDeliveryTimeEstimationByIdQueryHandler> logger) : IRequestHandler<GetDeliveryTimeEstimationByIdQuery, DeliveryTimeEstimationDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetDeliveryTimeEstimationByIdQueryHandler> _logger;
-
-    public GetDeliveryTimeEstimationByIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetDeliveryTimeEstimationByIdQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<DeliveryTimeEstimationDto?> Handle(GetDeliveryTimeEstimationByIdQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Getting delivery time estimation. EstimationId: {EstimationId}", request.Id);
+        logger.LogInformation("Getting delivery time estimation. EstimationId: {EstimationId}", request.Id);
 
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
         // ✅ PERFORMANCE: Include ile N+1 önlenir
-        var estimation = await _context.Set<DeliveryTimeEstimation>()
+        var estimation = await context.Set<DeliveryTimeEstimation>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(e => e.Product)
@@ -48,7 +39,7 @@ public class GetDeliveryTimeEstimationByIdQueryHandler : IRequestHandler<GetDeli
             .FirstOrDefaultAsync(e => e.Id == request.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return estimation != null ? _mapper.Map<DeliveryTimeEstimationDto>(estimation) : null;
+        return estimation != null ? mapper.Map<DeliveryTimeEstimationDto>(estimation) : null;
     }
 }
 

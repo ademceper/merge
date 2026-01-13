@@ -14,38 +14,29 @@ namespace Merge.Application.Logistics.Commands.DeleteShippingAddress;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class DeleteShippingAddressCommandHandler : IRequestHandler<DeleteShippingAddressCommand, Unit>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class DeleteShippingAddressCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<DeleteShippingAddressCommandHandler> logger) : IRequestHandler<DeleteShippingAddressCommand, Unit>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<DeleteShippingAddressCommandHandler> _logger;
-
-    public DeleteShippingAddressCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<DeleteShippingAddressCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<Unit> Handle(DeleteShippingAddressCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Deleting shipping address. AddressId: {AddressId}", request.Id);
+        logger.LogInformation("Deleting shipping address. AddressId: {AddressId}", request.Id);
 
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        var address = await _context.Set<ShippingAddress>()
+        var address = await context.Set<ShippingAddress>()
             .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
 
         if (address == null)
         {
-            _logger.LogWarning("Shipping address not found for deletion. AddressId: {AddressId}", request.Id);
+            logger.LogWarning("Shipping address not found for deletion. AddressId: {AddressId}", request.Id);
             throw new NotFoundException("Kargo adresi", request.Id);
         }
 
         // ✅ PERFORMANCE: AsNoTracking - Check if address is used in any orders
-        var hasOrders = await _context.Set<OrderEntity>()
+        var hasOrders = await context.Set<OrderEntity>()
             .AsNoTracking()
             .AnyAsync(o => o.AddressId == request.Id, cancellationToken);
 
@@ -64,9 +55,9 @@ public class DeleteShippingAddressCommandHandler : IRequestHandler<DeleteShippin
 
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Shipping address deleted successfully. AddressId: {AddressId}", request.Id);
+        logger.LogInformation("Shipping address deleted successfully. AddressId: {AddressId}", request.Id);
         return Unit.Value;
     }
 }

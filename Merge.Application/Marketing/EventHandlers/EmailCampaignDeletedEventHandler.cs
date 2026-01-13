@@ -6,20 +6,14 @@ namespace Merge.Application.Marketing.EventHandlers;
 
 /// <summary>
 /// EmailCampaign Deleted Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 /// </summary>
-public class EmailCampaignDeletedEventHandler : INotificationHandler<EmailCampaignDeletedEvent>
+public class EmailCampaignDeletedEventHandler(ILogger<EmailCampaignDeletedEventHandler> logger) : INotificationHandler<EmailCampaignDeletedEvent>
 {
-    private readonly ILogger<EmailCampaignDeletedEventHandler> _logger;
-
-    public EmailCampaignDeletedEventHandler(ILogger<EmailCampaignDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task Handle(EmailCampaignDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "EmailCampaign deleted event received. CampaignId: {CampaignId}, Name: {Name}",
             notification.CampaignId, notification.Name);
 

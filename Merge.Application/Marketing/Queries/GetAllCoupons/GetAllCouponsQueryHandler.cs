@@ -12,20 +12,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetAllCoupons;
 
-public class GetAllCouponsQueryHandler : IRequestHandler<GetAllCouponsQuery, PagedResult<CouponDto>>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class GetAllCouponsQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetAllCouponsQuery, PagedResult<CouponDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetAllCouponsQueryHandler(IDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
-
     public async Task<PagedResult<CouponDto>> Handle(GetAllCouponsQuery request, CancellationToken cancellationToken)
     {
-        var query = _context.Set<Coupon>()
+        var query = context.Set<Coupon>()
             .AsNoTracking()
             .OrderByDescending(c => c.CreatedAt);
 
@@ -37,7 +29,7 @@ public class GetAllCouponsQueryHandler : IRequestHandler<GetAllCouponsQuery, Pag
 
         return new PagedResult<CouponDto>
         {
-            Items = _mapper.Map<List<CouponDto>>(coupons),
+            Items = mapper.Map<List<CouponDto>>(coupons),
             TotalCount = totalCount,
             Page = request.PageNumber,
             PageSize = request.PageSize

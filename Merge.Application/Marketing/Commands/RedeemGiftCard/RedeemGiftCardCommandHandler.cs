@@ -14,35 +14,23 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Marketing.Commands.RedeemGiftCard;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class RedeemGiftCardCommandHandler : IRequestHandler<RedeemGiftCardCommand, GiftCardDto>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class RedeemGiftCardCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<RedeemGiftCardCommandHandler> logger) : IRequestHandler<RedeemGiftCardCommand, GiftCardDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<RedeemGiftCardCommandHandler> _logger;
-
-    public RedeemGiftCardCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<RedeemGiftCardCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
-
     public async Task<GiftCardDto> Handle(RedeemGiftCardCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Redeeming gift card. Code: {Code}, UserId: {UserId}", request.Code, request.UserId);
+        logger.LogInformation("Redeeming gift card. Code: {Code}, UserId: {UserId}", request.Code, request.UserId);
 
-        var giftCard = await _context.Set<GiftCard>()
+        var giftCard = await context.Set<GiftCard>()
             .FirstOrDefaultAsync(gc => gc.Code == request.Code, cancellationToken);
 
         if (giftCard == null)
         {
-            _logger.LogWarning("GiftCard not found. Code: {Code}", request.Code);
+            logger.LogWarning("GiftCard not found. Code: {Code}", request.Code);
             throw new NotFoundException("Hediye kartı", Guid.Empty);
         }
 
@@ -79,22 +67,22 @@ public class RedeemGiftCardCommandHandler : IRequestHandler<RedeemGiftCardComman
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking ile tek query'de getir
-        var updatedGiftCard = await _context.Set<GiftCard>()
+        var updatedGiftCard = await context.Set<GiftCard>()
             .AsNoTracking()
             .FirstOrDefaultAsync(gc => gc.Code == request.Code, cancellationToken);
 
         if (updatedGiftCard == null)
         {
-            _logger.LogWarning("GiftCard not found after redemption. Code: {Code}", request.Code);
+            logger.LogWarning("GiftCard not found after redemption. Code: {Code}", request.Code);
             throw new NotFoundException("Hediye kartı", Guid.Empty);
         }
 
-        _logger.LogInformation("GiftCard redeemed successfully. Code: {Code}, UserId: {UserId}", request.Code, request.UserId);
+        logger.LogInformation("GiftCard redeemed successfully. Code: {Code}, UserId: {UserId}", request.Code, request.UserId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<GiftCardDto>(updatedGiftCard);
+        return mapper.Map<GiftCardDto>(updatedGiftCard);
     }
 }

@@ -8,20 +8,14 @@ namespace Merge.Application.Marketing.EventHandlers;
 
 /// <summary>
 /// FlashSale Created Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 /// </summary>
-public class FlashSaleCreatedEventHandler : INotificationHandler<FlashSaleCreatedEvent>
+public class FlashSaleCreatedEventHandler(ILogger<FlashSaleCreatedEventHandler> logger) : INotificationHandler<FlashSaleCreatedEvent>
 {
-    private readonly ILogger<FlashSaleCreatedEventHandler> _logger;
-
-    public FlashSaleCreatedEventHandler(ILogger<FlashSaleCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task Handle(FlashSaleCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Flash sale created event received. FlashSaleId: {FlashSaleId}, Title: {Title}, StartDate: {StartDate}, EndDate: {EndDate}",
             notification.FlashSaleId, notification.Title, notification.StartDate, notification.EndDate);
 

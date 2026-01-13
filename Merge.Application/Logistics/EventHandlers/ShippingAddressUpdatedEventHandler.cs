@@ -7,20 +7,16 @@ namespace Merge.Application.Logistics.EventHandlers;
 /// <summary>
 /// ShippingAddress Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 /// </summary>
-public class ShippingAddressUpdatedEventHandler : INotificationHandler<ShippingAddressUpdatedEvent>
+public class ShippingAddressUpdatedEventHandler(
+    ILogger<ShippingAddressUpdatedEventHandler> logger) : INotificationHandler<ShippingAddressUpdatedEvent>
 {
-    private readonly ILogger<ShippingAddressUpdatedEventHandler> _logger;
-
-    public ShippingAddressUpdatedEventHandler(ILogger<ShippingAddressUpdatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(ShippingAddressUpdatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "ShippingAddress updated event received. ShippingAddressId: {ShippingAddressId}, UserId: {UserId}",
             notification.ShippingAddressId, notification.UserId);
 
@@ -35,7 +31,7 @@ public class ShippingAddressUpdatedEventHandler : INotificationHandler<ShippingA
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling ShippingAddressUpdatedEvent. ShippingAddressId: {ShippingAddressId}, UserId: {UserId}",
                 notification.ShippingAddressId, notification.UserId);
             throw;

@@ -7,20 +7,16 @@ namespace Merge.Application.Logistics.EventHandlers;
 /// <summary>
 /// Warehouse Deactivated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 /// </summary>
-public class WarehouseDeactivatedEventHandler : INotificationHandler<WarehouseDeactivatedEvent>
+public class WarehouseDeactivatedEventHandler(
+    ILogger<WarehouseDeactivatedEventHandler> logger) : INotificationHandler<WarehouseDeactivatedEvent>
 {
-    private readonly ILogger<WarehouseDeactivatedEventHandler> _logger;
-
-    public WarehouseDeactivatedEventHandler(ILogger<WarehouseDeactivatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(WarehouseDeactivatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Warehouse deactivated event received. WarehouseId: {WarehouseId}",
             notification.WarehouseId);
 
@@ -36,7 +32,7 @@ public class WarehouseDeactivatedEventHandler : INotificationHandler<WarehouseDe
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling WarehouseDeactivatedEvent. WarehouseId: {WarehouseId}",
                 notification.WarehouseId);
             throw;

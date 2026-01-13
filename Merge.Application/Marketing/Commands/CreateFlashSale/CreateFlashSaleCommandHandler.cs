@@ -15,28 +15,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Marketing.Commands.CreateFlashSale;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreateFlashSaleCommandHandler : IRequestHandler<CreateFlashSaleCommand, FlashSaleDto>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class CreateFlashSaleCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<CreateFlashSaleCommandHandler> logger) : IRequestHandler<CreateFlashSaleCommand, FlashSaleDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateFlashSaleCommandHandler> _logger;
-
-    public CreateFlashSaleCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateFlashSaleCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
-
     public async Task<FlashSaleDto> Handle(CreateFlashSaleCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Creating flash sale. Title: {Title}", request.Title);
+        logger.LogInformation("Creating flash sale. Title: {Title}", request.Title);
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var flashSale = FlashSale.Create(
@@ -46,14 +34,14 @@ public class CreateFlashSaleCommandHandler : IRequestHandler<CreateFlashSaleComm
             request.EndDate,
             request.BannerImageUrl);
 
-        await _context.Set<FlashSale>().AddAsync(flashSale, cancellationToken);
+        await context.Set<FlashSale>().AddAsync(flashSale, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery ile tek query'de getir (N+1 query önleme)
-        var createdFlashSale = await _context.Set<FlashSale>()
+        var createdFlashSale = await context.Set<FlashSale>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(fs => fs.FlashSaleProducts)
@@ -62,13 +50,13 @@ public class CreateFlashSaleCommandHandler : IRequestHandler<CreateFlashSaleComm
 
         if (createdFlashSale == null)
         {
-            _logger.LogWarning("FlashSale not found after creation. FlashSaleId: {FlashSaleId}", flashSale.Id);
+            logger.LogWarning("FlashSale not found after creation. FlashSaleId: {FlashSaleId}", flashSale.Id);
             throw new NotFoundException("Flash Sale", flashSale.Id);
         }
 
-        _logger.LogInformation("FlashSale created successfully. FlashSaleId: {FlashSaleId}, Title: {Title}", flashSale.Id, request.Title);
+        logger.LogInformation("FlashSale created successfully. FlashSaleId: {FlashSaleId}, Title: {Title}", flashSale.Id, request.Title);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<FlashSaleDto>(createdFlashSale);
+        return mapper.Map<FlashSaleDto>(createdFlashSale);
     }
 }

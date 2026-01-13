@@ -6,20 +6,14 @@ namespace Merge.Application.Marketing.EventHandlers;
 
 /// <summary>
 /// EmailCampaignRecipient Failed Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 /// </summary>
-public class EmailCampaignRecipientFailedEventHandler : INotificationHandler<EmailCampaignRecipientFailedEvent>
+public class EmailCampaignRecipientFailedEventHandler(ILogger<EmailCampaignRecipientFailedEventHandler> logger) : INotificationHandler<EmailCampaignRecipientFailedEvent>
 {
-    private readonly ILogger<EmailCampaignRecipientFailedEventHandler> _logger;
-
-    public EmailCampaignRecipientFailedEventHandler(ILogger<EmailCampaignRecipientFailedEventHandler> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task Handle(EmailCampaignRecipientFailedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogError(
+        logger.LogError(
             "EmailCampaignRecipient failed event received. RecipientId: {RecipientId}, CampaignId: {CampaignId}, SubscriberId: {SubscriberId}, ErrorMessage: {ErrorMessage}",
             notification.RecipientId, notification.CampaignId, notification.SubscriberId, notification.ErrorMessage);
 

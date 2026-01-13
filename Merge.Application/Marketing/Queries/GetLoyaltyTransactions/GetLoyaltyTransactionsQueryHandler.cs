@@ -12,22 +12,14 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetLoyaltyTransactions;
 
-public class GetLoyaltyTransactionsQueryHandler : IRequestHandler<GetLoyaltyTransactionsQuery, PagedResult<LoyaltyTransactionDto>>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class GetLoyaltyTransactionsQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetLoyaltyTransactionsQuery, PagedResult<LoyaltyTransactionDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetLoyaltyTransactionsQueryHandler(IDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
-
     public async Task<PagedResult<LoyaltyTransactionDto>> Handle(GetLoyaltyTransactionsQuery request, CancellationToken cancellationToken)
     {
         var startDate = DateTime.UtcNow.AddDays(-request.Days);
 
-        var query = _context.Set<LoyaltyTransaction>()
+        var query = context.Set<LoyaltyTransaction>()
             .AsNoTracking()
             .Where(t => t.UserId == request.UserId && t.CreatedAt >= startDate)
             .OrderByDescending(t => t.CreatedAt);
@@ -40,7 +32,7 @@ public class GetLoyaltyTransactionsQueryHandler : IRequestHandler<GetLoyaltyTran
 
         return new PagedResult<LoyaltyTransactionDto>
         {
-            Items = _mapper.Map<List<LoyaltyTransactionDto>>(transactions),
+            Items = mapper.Map<List<LoyaltyTransactionDto>>(transactions),
             TotalCount = totalCount,
             Page = request.PageNumber,
             PageSize = request.PageSize

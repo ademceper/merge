@@ -11,23 +11,15 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetGiftCardByCode;
 
-public class GetGiftCardByCodeQueryHandler : IRequestHandler<GetGiftCardByCodeQuery, GiftCardDto?>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class GetGiftCardByCodeQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetGiftCardByCodeQuery, GiftCardDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetGiftCardByCodeQueryHandler(IDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
-
     public async Task<GiftCardDto?> Handle(GetGiftCardByCodeQuery request, CancellationToken cancellationToken)
     {
-        var giftCard = await _context.Set<GiftCard>()
+        var giftCard = await context.Set<GiftCard>()
             .AsNoTracking()
             .FirstOrDefaultAsync(gc => gc.Code == request.Code, cancellationToken);
 
-        return giftCard == null ? null : _mapper.Map<GiftCardDto>(giftCard);
+        return giftCard == null ? null : mapper.Map<GiftCardDto>(giftCard);
     }
 }

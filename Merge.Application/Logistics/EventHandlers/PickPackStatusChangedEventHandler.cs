@@ -7,20 +7,16 @@ namespace Merge.Application.Logistics.EventHandlers;
 /// <summary>
 /// PickPack Status Changed Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 /// </summary>
-public class PickPackStatusChangedEventHandler : INotificationHandler<PickPackStatusChangedEvent>
+public class PickPackStatusChangedEventHandler(
+    ILogger<PickPackStatusChangedEventHandler> logger) : INotificationHandler<PickPackStatusChangedEvent>
 {
-    private readonly ILogger<PickPackStatusChangedEventHandler> _logger;
-
-    public PickPackStatusChangedEventHandler(ILogger<PickPackStatusChangedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(PickPackStatusChangedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "PickPack status changed event received. PickPackId: {PickPackId}, OrderId: {OrderId}, OldStatus: {OldStatus}, NewStatus: {NewStatus}",
             notification.PickPackId, notification.OrderId, notification.OldStatus, notification.NewStatus);
 
@@ -36,7 +32,7 @@ public class PickPackStatusChangedEventHandler : INotificationHandler<PickPackSt
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling PickPackStatusChangedEvent. PickPackId: {PickPackId}, OrderId: {OrderId}, OldStatus: {OldStatus}, NewStatus: {NewStatus}",
                 notification.PickPackId, notification.OrderId, notification.OldStatus, notification.NewStatus);
             throw;

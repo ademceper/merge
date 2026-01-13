@@ -71,16 +71,19 @@ public class LiveStreamConfiguration : IEntityTypeConfiguration<LiveStream>
         builder.HasMany(e => e.Products)
             .WithOne(e => e.LiveStream)
             .HasForeignKey(e => e.LiveStreamId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade)
+            .Metadata.SetPropertyAccessMode(PropertyAccessMode.Field);
         
         builder.HasMany(e => e.Viewers)
             .WithOne(e => e.LiveStream)
             .HasForeignKey(e => e.LiveStreamId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade)
+            .Metadata.SetPropertyAccessMode(PropertyAccessMode.Field);
         
         builder.HasMany(e => e.Orders)
             .WithOne(e => e.LiveStream)
             .HasForeignKey(e => e.LiveStreamId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade)
+            .Metadata.SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 }

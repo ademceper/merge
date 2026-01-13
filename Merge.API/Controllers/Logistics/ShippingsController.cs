@@ -19,14 +19,9 @@ namespace Merge.API.Controllers.Logistics;
 [ApiController]
 [Route("api/v{version:apiVersion}/logistics/shippings")]
 [Authorize]
-public class ShippingsController : BaseController
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class ShippingsController(IMediator mediator) : BaseController
 {
-    private readonly IMediator _mediator;
-
-    public ShippingsController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
 
     /// <summary>
     /// Mevcut kargo sağlayıcılarını getirir
@@ -44,7 +39,7 @@ public class ShippingsController : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetAvailableShippingProvidersQuery();
-        var providers = await _mediator.Send(query, cancellationToken);
+        var providers = await mediator.Send(query, cancellationToken);
         return Ok(providers);
     }
 
@@ -77,7 +72,7 @@ public class ShippingsController : BaseController
         }
 
         var query = new GetShippingByIdQuery(id);
-        var shipping = await _mediator.Send(query, cancellationToken);
+        var shipping = await mediator.Send(query, cancellationToken);
         if (shipping == null)
         {
             return NotFound();
@@ -85,7 +80,7 @@ public class ShippingsController : BaseController
 
         // Order ownership kontrolü
         var orderQuery = new GetOrderByIdQuery(shipping.OrderId);
-        var order = await _mediator.Send(orderQuery, cancellationToken);
+        var order = await mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -128,7 +123,7 @@ public class ShippingsController : BaseController
         }
 
         var orderQuery = new GetOrderByIdQuery(orderId);
-        var order = await _mediator.Send(orderQuery, cancellationToken);
+        var order = await mediator.Send(orderQuery, cancellationToken);
         if (order == null)
         {
             return NotFound();
@@ -140,7 +135,7 @@ public class ShippingsController : BaseController
         }
 
         var query = new GetShippingByOrderIdQuery(orderId);
-        var shipping = await _mediator.Send(query, cancellationToken);
+        var shipping = await mediator.Send(query, cancellationToken);
         if (shipping == null)
         {
             return NotFound();
@@ -175,7 +170,7 @@ public class ShippingsController : BaseController
         if (validationResult != null) return validationResult;
 
         var query = new CalculateShippingCostQuery(dto.OrderId, dto.Provider);
-        var cost = await _mediator.Send(query, cancellationToken);
+        var cost = await mediator.Send(query, cancellationToken);
         return Ok(new { cost });
     }
 
@@ -210,7 +205,7 @@ public class ShippingsController : BaseController
         if (validationResult != null) return validationResult;
 
         var command = new CreateShippingCommand(dto.OrderId, dto.ShippingProvider, dto.ShippingCost);
-        var shipping = await _mediator.Send(command, cancellationToken);
+        var shipping = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = shipping.Id }, shipping);
     }
 
@@ -245,7 +240,7 @@ public class ShippingsController : BaseController
         if (validationResult != null) return validationResult;
 
         var command = new UpdateShippingTrackingCommand(shippingId, dto.TrackingNumber);
-        var shipping = await _mediator.Send(command, cancellationToken);
+        var shipping = await mediator.Send(command, cancellationToken);
         return Ok(shipping);
     }
 
@@ -288,7 +283,7 @@ public class ShippingsController : BaseController
         }
 
         var command = new UpdateShippingStatusCommand(shippingId, statusEnum);
-        var shipping = await _mediator.Send(command, cancellationToken);
+        var shipping = await mediator.Send(command, cancellationToken);
         return Ok(shipping);
     }
 }

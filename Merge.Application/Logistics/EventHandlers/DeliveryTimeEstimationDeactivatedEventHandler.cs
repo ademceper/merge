@@ -7,20 +7,16 @@ namespace Merge.Application.Logistics.EventHandlers;
 /// <summary>
 /// DeliveryTimeEstimation Deactivated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 /// </summary>
-public class DeliveryTimeEstimationDeactivatedEventHandler : INotificationHandler<DeliveryTimeEstimationDeactivatedEvent>
+public class DeliveryTimeEstimationDeactivatedEventHandler(
+    ILogger<DeliveryTimeEstimationDeactivatedEventHandler> logger) : INotificationHandler<DeliveryTimeEstimationDeactivatedEvent>
 {
-    private readonly ILogger<DeliveryTimeEstimationDeactivatedEventHandler> _logger;
-
-    public DeliveryTimeEstimationDeactivatedEventHandler(ILogger<DeliveryTimeEstimationDeactivatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(DeliveryTimeEstimationDeactivatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "DeliveryTimeEstimation deactivated event received. DeliveryTimeEstimationId: {DeliveryTimeEstimationId}",
             notification.DeliveryTimeEstimationId);
 
@@ -34,7 +30,7 @@ public class DeliveryTimeEstimationDeactivatedEventHandler : INotificationHandle
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling DeliveryTimeEstimationDeactivatedEvent. DeliveryTimeEstimationId: {DeliveryTimeEstimationId}",
                 notification.DeliveryTimeEstimationId);
             throw;

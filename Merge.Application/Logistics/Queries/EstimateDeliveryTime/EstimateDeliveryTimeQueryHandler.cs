@@ -17,25 +17,17 @@ namespace Merge.Application.Logistics.Queries.EstimateDeliveryTime;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class EstimateDeliveryTimeQueryHandler : IRequestHandler<EstimateDeliveryTimeQuery, DeliveryTimeEstimateResultDto>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class EstimateDeliveryTimeQueryHandler(
+    IDbContext context,
+    ILogger<EstimateDeliveryTimeQueryHandler> logger,
+    IOptions<ShippingSettings> shippingSettings) : IRequestHandler<EstimateDeliveryTimeQuery, DeliveryTimeEstimateResultDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<EstimateDeliveryTimeQueryHandler> _logger;
-    private readonly ShippingSettings _shippingSettings;
-
-    public EstimateDeliveryTimeQueryHandler(
-        IDbContext context,
-        ILogger<EstimateDeliveryTimeQueryHandler> logger,
-        IOptions<ShippingSettings> shippingSettings)
-    {
-        _context = context;
-        _logger = logger;
-        _shippingSettings = shippingSettings.Value;
-    }
+    private readonly ShippingSettings _shippingSettings = shippingSettings.Value;
 
     public async Task<DeliveryTimeEstimateResultDto> Handle(EstimateDeliveryTimeQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Estimating delivery time. ProductId: {ProductId}, CategoryId: {CategoryId}, WarehouseId: {WarehouseId}",
+        logger.LogInformation("Estimating delivery time. ProductId: {ProductId}, CategoryId: {CategoryId}, WarehouseId: {WarehouseId}",
             request.ProductId, request.CategoryId, request.WarehouseId);
 
         // Try to find most specific estimation
@@ -46,7 +38,7 @@ public class EstimateDeliveryTimeQueryHandler : IRequestHandler<EstimateDelivery
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         if (request.ProductId.HasValue)
         {
-            estimation = await _context.Set<DeliveryTimeEstimation>()
+            estimation = await context.Set<DeliveryTimeEstimation>()
                 .AsNoTracking()
                 .Where(e => e.IsActive &&
                       e.ProductId == request.ProductId.Value &&
@@ -65,7 +57,7 @@ public class EstimateDeliveryTimeQueryHandler : IRequestHandler<EstimateDelivery
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         if (estimation == null && request.CategoryId.HasValue)
         {
-            estimation = await _context.Set<DeliveryTimeEstimation>()
+            estimation = await context.Set<DeliveryTimeEstimation>()
                 .AsNoTracking()
                 .Where(e => e.IsActive &&
                       e.CategoryId == request.CategoryId.Value &&
@@ -84,7 +76,7 @@ public class EstimateDeliveryTimeQueryHandler : IRequestHandler<EstimateDelivery
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         if (estimation == null && request.WarehouseId.HasValue)
         {
-            estimation = await _context.Set<DeliveryTimeEstimation>()
+            estimation = await context.Set<DeliveryTimeEstimation>()
                 .AsNoTracking()
                 .Where(e => e.IsActive &&
                       e.WarehouseId == request.WarehouseId.Value &&
@@ -102,7 +94,7 @@ public class EstimateDeliveryTimeQueryHandler : IRequestHandler<EstimateDelivery
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         if (estimation == null)
         {
-            estimation = await _context.Set<DeliveryTimeEstimation>()
+            estimation = await context.Set<DeliveryTimeEstimation>()
                 .AsNoTracking()
                 .Where(e => e.IsActive &&
                       e.ProductId == null &&

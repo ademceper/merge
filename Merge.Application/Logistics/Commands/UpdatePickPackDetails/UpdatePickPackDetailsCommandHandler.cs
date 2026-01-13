@@ -14,33 +14,24 @@ namespace Merge.Application.Logistics.Commands.UpdatePickPackDetails;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class UpdatePickPackDetailsCommandHandler : IRequestHandler<UpdatePickPackDetailsCommand, Unit>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class UpdatePickPackDetailsCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<UpdatePickPackDetailsCommandHandler> logger) : IRequestHandler<UpdatePickPackDetailsCommand, Unit>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<UpdatePickPackDetailsCommandHandler> _logger;
-
-    public UpdatePickPackDetailsCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<UpdatePickPackDetailsCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<Unit> Handle(UpdatePickPackDetailsCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Updating pick-pack details. PickPackId: {PickPackId}", request.PickPackId);
+        logger.LogInformation("Updating pick-pack details. PickPackId: {PickPackId}", request.PickPackId);
 
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        var pickPack = await _context.Set<PickPack>()
+        var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == request.PickPackId, cancellationToken);
 
         if (pickPack == null)
         {
-            _logger.LogWarning("Pick pack not found. PickPackId: {PickPackId}", request.PickPackId);
+            logger.LogWarning("Pick pack not found. PickPackId: {PickPackId}", request.PickPackId);
             throw new NotFoundException("Pick-pack", request.PickPackId);
         }
 
@@ -55,9 +46,9 @@ public class UpdatePickPackDetailsCommandHandler : IRequestHandler<UpdatePickPac
 
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Pick-pack details updated successfully. PickPackId: {PickPackId}", request.PickPackId);
+        logger.LogInformation("Pick-pack details updated successfully. PickPackId: {PickPackId}", request.PickPackId);
         return Unit.Value;
     }
 }

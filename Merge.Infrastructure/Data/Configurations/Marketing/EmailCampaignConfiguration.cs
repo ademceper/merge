@@ -68,10 +68,12 @@ public class EmailCampaignConfiguration : IEntityTypeConfiguration<EmailCampaign
             .HasForeignKey(e => e.TemplateId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Backing field mapping for encapsulated collection
         builder.HasMany(e => e.Recipients)
             .WithOne(r => r.Campaign)
             .HasForeignKey(r => r.CampaignId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade)
+            .Metadata.SetPropertyAccessMode(PropertyAccessMode.Field);
 
         // ✅ BOLUM 8.4: Check Constraints
         builder.ToTable(t =>

@@ -13,32 +13,22 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Marketing.Commands.DeleteCoupon;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class DeleteCouponCommandHandler : IRequestHandler<DeleteCouponCommand, bool>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class DeleteCouponCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<DeleteCouponCommandHandler> logger) : IRequestHandler<DeleteCouponCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<DeleteCouponCommandHandler> _logger;
-
-    public DeleteCouponCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<DeleteCouponCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
-
     public async Task<bool> Handle(DeleteCouponCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Deleting coupon. CouponId: {CouponId}", request.Id);
+        logger.LogInformation("Deleting coupon. CouponId: {CouponId}", request.Id);
 
-        var coupon = await _context.Set<Coupon>()
+        var coupon = await context.Set<Coupon>()
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
         if (coupon == null)
         {
-            _logger.LogWarning("Coupon not found. CouponId: {CouponId}", request.Id);
+            logger.LogWarning("Coupon not found. CouponId: {CouponId}", request.Id);
             throw new NotFoundException("Kupon", request.Id);
         }
 
@@ -47,9 +37,9 @@ public class DeleteCouponCommandHandler : IRequestHandler<DeleteCouponCommand, b
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Coupon deleted successfully. CouponId: {CouponId}", request.Id);
+        logger.LogInformation("Coupon deleted successfully. CouponId: {CouponId}", request.Id);
 
         return true;
     }

@@ -6,20 +6,14 @@ namespace Merge.Application.Marketing.EventHandlers;
 
 /// <summary>
 /// ReferralCode Deleted Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 /// </summary>
-public class ReferralCodeDeletedEventHandler : INotificationHandler<ReferralCodeDeletedEvent>
+public class ReferralCodeDeletedEventHandler(ILogger<ReferralCodeDeletedEventHandler> logger) : INotificationHandler<ReferralCodeDeletedEvent>
 {
-    private readonly ILogger<ReferralCodeDeletedEventHandler> _logger;
-
-    public ReferralCodeDeletedEventHandler(ILogger<ReferralCodeDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task Handle(ReferralCodeDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "ReferralCode deleted event received. ReferralCodeId: {ReferralCodeId}, UserId: {UserId}, Code: {Code}",
             notification.ReferralCodeId, notification.UserId, notification.Code);
 

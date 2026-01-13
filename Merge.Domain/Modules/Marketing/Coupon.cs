@@ -103,8 +103,22 @@ public class Coupon : BaseEntity, IAggregateRoot
     
     public bool IsActive { get; private set; } = true;
     public bool IsForNewUsersOnly { get; private set; } = false;
-    public List<Guid>? ApplicableCategoryIds { get; private set; }
-    public List<Guid>? ApplicableProductIds { get; private set; }
+    
+    // ✅ BOLUM 1.1: Rich Domain Model - Backing fields for encapsulated collections
+    private List<Guid>? _applicableCategoryIds;
+    private List<Guid>? _applicableProductIds;
+    
+    public List<Guid>? ApplicableCategoryIds 
+    { 
+        get => _applicableCategoryIds; 
+        private set => _applicableCategoryIds = value; 
+    }
+    
+    public List<Guid>? ApplicableProductIds 
+    { 
+        get => _applicableProductIds; 
+        private set => _applicableProductIds = value; 
+    }
 
     // ✅ BOLUM 1.5: Concurrency Control
     [Timestamp]
@@ -331,14 +345,14 @@ public class Coupon : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Logic - Set applicable category IDs
     public void SetApplicableCategoryIds(List<Guid>? categoryIds)
     {
-        ApplicableCategoryIds = categoryIds;
+        _applicableCategoryIds = categoryIds;
         UpdatedAt = DateTime.UtcNow;
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Set applicable product IDs
     public void SetApplicableProductIds(List<Guid>? productIds)
     {
-        ApplicableProductIds = productIds;
+        _applicableProductIds = productIds;
         UpdatedAt = DateTime.UtcNow;
     }
 

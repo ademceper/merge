@@ -3,7 +3,8 @@ using FluentValidation;
 namespace Merge.Application.Marketing.Queries.GetCampaignAnalytics;
 
 // ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-public class GetCampaignAnalyticsQueryValidator : AbstractValidator<GetCampaignAnalyticsQuery>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class GetCampaignAnalyticsQueryValidator() : AbstractValidator<GetCampaignAnalyticsQuery>
 {
     public GetCampaignAnalyticsQueryValidator()
     {

@@ -11,23 +11,15 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetCouponByCode;
 
-public class GetCouponByCodeQueryHandler : IRequestHandler<GetCouponByCodeQuery, CouponDto?>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class GetCouponByCodeQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetCouponByCodeQuery, CouponDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetCouponByCodeQueryHandler(IDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
-
     public async Task<CouponDto?> Handle(GetCouponByCodeQuery request, CancellationToken cancellationToken)
     {
-        var coupon = await _context.Set<Coupon>()
+        var coupon = await context.Set<Coupon>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Code.ToUpper() == request.Code.ToUpper(), cancellationToken);
 
-        return coupon == null ? null : _mapper.Map<CouponDto>(coupon);
+        return coupon == null ? null : mapper.Map<CouponDto>(coupon);
     }
 }

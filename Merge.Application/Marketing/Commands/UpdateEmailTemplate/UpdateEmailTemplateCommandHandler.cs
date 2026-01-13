@@ -16,29 +16,17 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Marketing.Commands.UpdateEmailTemplate;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UpdateEmailTemplateCommandHandler : IRequestHandler<UpdateEmailTemplateCommand, EmailTemplateDto>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class UpdateEmailTemplateCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<UpdateEmailTemplateCommandHandler> logger) : IRequestHandler<UpdateEmailTemplateCommand, EmailTemplateDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<UpdateEmailTemplateCommandHandler> _logger;
-
-    public UpdateEmailTemplateCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<UpdateEmailTemplateCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
-
     public async Task<EmailTemplateDto> Handle(UpdateEmailTemplateCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
-        var template = await _context.Set<EmailTemplate>()
+        var template = await context.Set<EmailTemplate>()
             .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
 
         if (template == null)
@@ -70,15 +58,15 @@ public class UpdateEmailTemplateCommandHandler : IRequestHandler<UpdateEmailTemp
         }
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        var updatedTemplate = await _context.Set<EmailTemplate>()
+        var updatedTemplate = await context.Set<EmailTemplate>()
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<EmailTemplateDto>(updatedTemplate!);
+        return mapper.Map<EmailTemplateDto>(updatedTemplate!);
     }
 }

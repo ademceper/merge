@@ -7,20 +7,16 @@ namespace Merge.Application.Logistics.EventHandlers;
 /// <summary>
 /// PickPack Details Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 /// </summary>
-public class PickPackDetailsUpdatedEventHandler : INotificationHandler<PickPackDetailsUpdatedEvent>
+public class PickPackDetailsUpdatedEventHandler(
+    ILogger<PickPackDetailsUpdatedEventHandler> logger) : INotificationHandler<PickPackDetailsUpdatedEvent>
 {
-    private readonly ILogger<PickPackDetailsUpdatedEventHandler> _logger;
-
-    public PickPackDetailsUpdatedEventHandler(ILogger<PickPackDetailsUpdatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(PickPackDetailsUpdatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "PickPack details updated event received. PickPackId: {PickPackId}, OrderId: {OrderId}",
             notification.PickPackId, notification.OrderId);
 
@@ -36,7 +32,7 @@ public class PickPackDetailsUpdatedEventHandler : INotificationHandler<PickPackD
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling PickPackDetailsUpdatedEvent. PickPackId: {PickPackId}, OrderId: {OrderId}",
                 notification.PickPackId, notification.OrderId);
             throw;

@@ -11,26 +11,18 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetLoyaltyAccount;
 
-public class GetLoyaltyAccountQueryHandler : IRequestHandler<GetLoyaltyAccountQuery, LoyaltyAccountDto?>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class GetLoyaltyAccountQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetLoyaltyAccountQuery, LoyaltyAccountDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetLoyaltyAccountQueryHandler(IDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
-
     public async Task<LoyaltyAccountDto?> Handle(GetLoyaltyAccountQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsSplitQuery - N+1 query önleme (Cartesian Explosion önleme)
-        var account = await _context.Set<LoyaltyAccount>()
+        var account = await context.Set<LoyaltyAccount>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(a => a.Tier)
             .FirstOrDefaultAsync(a => a.UserId == request.UserId, cancellationToken);
 
-        return account == null ? null : _mapper.Map<LoyaltyAccountDto>(account);
+        return account == null ? null : mapper.Map<LoyaltyAccountDto>(account);
     }
 }

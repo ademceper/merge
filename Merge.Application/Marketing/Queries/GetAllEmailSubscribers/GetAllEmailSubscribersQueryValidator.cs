@@ -3,7 +3,8 @@ using FluentValidation;
 namespace Merge.Application.Marketing.Queries.GetAllEmailSubscribers;
 
 // ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-public class GetAllEmailSubscribersQueryValidator : AbstractValidator<GetAllEmailSubscribersQuery>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class GetAllEmailSubscribersQueryValidator() : AbstractValidator<GetAllEmailSubscribersQuery>
 {
     public GetAllEmailSubscribersQueryValidator()
     {

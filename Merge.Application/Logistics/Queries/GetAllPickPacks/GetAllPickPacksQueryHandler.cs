@@ -20,28 +20,18 @@ namespace Merge.Application.Logistics.Queries.GetAllPickPacks;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class GetAllPickPacksQueryHandler : IRequestHandler<GetAllPickPacksQuery, PagedResult<PickPackDto>>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class GetAllPickPacksQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetAllPickPacksQueryHandler> logger,
+    IOptions<ShippingSettings> shippingSettings) : IRequestHandler<GetAllPickPacksQuery, PagedResult<PickPackDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetAllPickPacksQueryHandler> _logger;
-    private readonly ShippingSettings _shippingSettings;
-
-    public GetAllPickPacksQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetAllPickPacksQueryHandler> logger,
-        IOptions<ShippingSettings> shippingSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _shippingSettings = shippingSettings.Value;
-    }
+    private readonly ShippingSettings _shippingSettings = shippingSettings.Value;
 
     public async Task<PagedResult<PickPackDto>> Handle(GetAllPickPacksQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Getting all pick-packs. Status: {Status}, WarehouseId: {WarehouseId}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Getting all pick-packs. Status: {Status}, WarehouseId: {WarehouseId}, Page: {Page}, PageSize: {PageSize}",
             request.Status, request.WarehouseId, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination (ZORUNLU)
@@ -54,7 +44,7 @@ public class GetAllPickPacksQueryHandler : IRequestHandler<GetAllPickPacksQuery,
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
         // ✅ PERFORMANCE: Include ile N+1 önlenir
-        IQueryable<PickPack> query = _context.Set<PickPack>()
+        IQueryable<PickPack> query = context.Set<PickPack>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(pp => pp.Order)
@@ -84,7 +74,7 @@ public class GetAllPickPacksQueryHandler : IRequestHandler<GetAllPickPacksQuery,
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (batch mapping)
-        var items = _mapper.Map<IEnumerable<PickPackDto>>(pickPacks);
+        var items = mapper.Map<IEnumerable<PickPackDto>>(pickPacks);
 
         return new PagedResult<PickPackDto>
         {

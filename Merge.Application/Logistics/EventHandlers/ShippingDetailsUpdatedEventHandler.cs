@@ -7,20 +7,16 @@ namespace Merge.Application.Logistics.EventHandlers;
 /// <summary>
 /// Shipping Details Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 /// </summary>
-public class ShippingDetailsUpdatedEventHandler : INotificationHandler<ShippingDetailsUpdatedEvent>
+public class ShippingDetailsUpdatedEventHandler(
+    ILogger<ShippingDetailsUpdatedEventHandler> logger) : INotificationHandler<ShippingDetailsUpdatedEvent>
 {
-    private readonly ILogger<ShippingDetailsUpdatedEventHandler> _logger;
-
-    public ShippingDetailsUpdatedEventHandler(ILogger<ShippingDetailsUpdatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(ShippingDetailsUpdatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Shipping details updated event received. ShippingId: {ShippingId}, OrderId: {OrderId}, UpdatedField: {UpdatedField}",
             notification.ShippingId, notification.OrderId, notification.UpdatedField);
 
@@ -35,7 +31,7 @@ public class ShippingDetailsUpdatedEventHandler : INotificationHandler<ShippingD
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling ShippingDetailsUpdatedEvent. ShippingId: {ShippingId}, OrderId: {OrderId}, UpdatedField: {UpdatedField}",
                 notification.ShippingId, notification.OrderId, notification.UpdatedField);
             throw;

@@ -6,20 +6,14 @@ namespace Merge.Application.Marketing.EventHandlers;
 
 /// <summary>
 /// EmailCampaignRecipient Delivered Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 /// </summary>
-public class EmailCampaignRecipientDeliveredEventHandler : INotificationHandler<EmailCampaignRecipientDeliveredEvent>
+public class EmailCampaignRecipientDeliveredEventHandler(ILogger<EmailCampaignRecipientDeliveredEventHandler> logger) : INotificationHandler<EmailCampaignRecipientDeliveredEvent>
 {
-    private readonly ILogger<EmailCampaignRecipientDeliveredEventHandler> _logger;
-
-    public EmailCampaignRecipientDeliveredEventHandler(ILogger<EmailCampaignRecipientDeliveredEventHandler> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task Handle(EmailCampaignRecipientDeliveredEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "EmailCampaignRecipient delivered event received. RecipientId: {RecipientId}, CampaignId: {CampaignId}, SubscriberId: {SubscriberId}",
             notification.RecipientId, notification.CampaignId, notification.SubscriberId);
 

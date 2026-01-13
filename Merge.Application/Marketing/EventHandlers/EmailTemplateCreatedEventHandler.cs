@@ -8,20 +8,14 @@ namespace Merge.Application.Marketing.EventHandlers;
 
 /// <summary>
 /// EmailTemplate Created Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 /// </summary>
-public class EmailTemplateCreatedEventHandler : INotificationHandler<EmailTemplateCreatedEvent>
+public class EmailTemplateCreatedEventHandler(ILogger<EmailTemplateCreatedEventHandler> logger) : INotificationHandler<EmailTemplateCreatedEvent>
 {
-    private readonly ILogger<EmailTemplateCreatedEventHandler> _logger;
-
-    public EmailTemplateCreatedEventHandler(ILogger<EmailTemplateCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task Handle(EmailTemplateCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Email template created event received. TemplateId: {TemplateId}, Name: {Name}, Type: {Type}",
             notification.TemplateId, notification.Name, notification.Type);
 

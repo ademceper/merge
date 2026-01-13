@@ -7,20 +7,16 @@ namespace Merge.Application.Logistics.EventHandlers;
 /// <summary>
 /// Shipping Tracking Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 /// </summary>
-public class ShippingTrackingUpdatedEventHandler : INotificationHandler<ShippingTrackingUpdatedEvent>
+public class ShippingTrackingUpdatedEventHandler(
+    ILogger<ShippingTrackingUpdatedEventHandler> logger) : INotificationHandler<ShippingTrackingUpdatedEvent>
 {
-    private readonly ILogger<ShippingTrackingUpdatedEventHandler> _logger;
-
-    public ShippingTrackingUpdatedEventHandler(ILogger<ShippingTrackingUpdatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(ShippingTrackingUpdatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Shipping tracking updated event received. ShippingId: {ShippingId}, OrderId: {OrderId}, TrackingNumber: {TrackingNumber}",
             notification.ShippingId, notification.OrderId, notification.TrackingNumber);
 
@@ -37,7 +33,7 @@ public class ShippingTrackingUpdatedEventHandler : INotificationHandler<Shipping
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling ShippingTrackingUpdatedEvent. ShippingId: {ShippingId}, OrderId: {OrderId}, TrackingNumber: {TrackingNumber}",
                 notification.ShippingId, notification.OrderId, notification.TrackingNumber);
             throw;

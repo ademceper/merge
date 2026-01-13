@@ -4,7 +4,8 @@ using Merge.Domain.Enums;
 namespace Merge.Application.Marketing.Commands.CreateEmailCampaign;
 
 // ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-public class CreateEmailCampaignCommandValidator : AbstractValidator<CreateEmailCampaignCommand>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class CreateEmailCampaignCommandValidator() : AbstractValidator<CreateEmailCampaignCommand>
 {
     public CreateEmailCampaignCommandValidator()
     {

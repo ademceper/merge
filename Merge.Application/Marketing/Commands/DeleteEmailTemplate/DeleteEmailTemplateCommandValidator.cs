@@ -3,7 +3,8 @@ using FluentValidation;
 namespace Merge.Application.Marketing.Commands.DeleteEmailTemplate;
 
 // ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-public class DeleteEmailTemplateCommandValidator : AbstractValidator<DeleteEmailTemplateCommand>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class DeleteEmailTemplateCommandValidator() : AbstractValidator<DeleteEmailTemplateCommand>
 {
     public DeleteEmailTemplateCommandValidator()
     {

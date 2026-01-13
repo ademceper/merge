@@ -16,36 +16,24 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Marketing.Commands.AddPoints;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class AddPointsCommandHandler : IRequestHandler<AddPointsCommand, bool>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class AddPointsCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<AddPointsCommandHandler> logger,
+    IOptions<MarketingSettings> marketingSettings) : IRequestHandler<AddPointsCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<AddPointsCommandHandler> _logger;
-    private readonly MarketingSettings _marketingSettings;
-
-    public AddPointsCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<AddPointsCommandHandler> logger,
-        IOptions<MarketingSettings> marketingSettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-        _marketingSettings = marketingSettings.Value;
-    }
-
     public async Task<bool> Handle(AddPointsCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Adding points. UserId: {UserId}, Points: {Points}, Type: {Type}, Description: {Description}",
+        logger.LogInformation("Adding points. UserId: {UserId}, Points: {Points}, Type: {Type}, Description: {Description}",
             request.UserId, request.Points, request.Type, request.Description);
 
-        var account = await _context.Set<LoyaltyAccount>()
+        var account = await context.Set<LoyaltyAccount>()
             .FirstOrDefaultAsync(a => a.UserId == request.UserId, cancellationToken);
 
         if (account == null)
         {
-            _logger.LogWarning("LoyaltyAccount not found. UserId: {UserId}", request.UserId);
+            logger.LogWarning("LoyaltyAccount not found. UserId: {UserId}", request.UserId);
             throw new NotFoundException("Sadakat hesabı", request.UserId);
         }
 
@@ -58,7 +46,7 @@ public class AddPointsCommandHandler : IRequestHandler<AddPointsCommand, bool>
             : LoyaltyTransactionType.Purchase;
         
         // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-        var expiresAt = DateTime.UtcNow.AddYears(_marketingSettings.PointsExpiryYears);
+        var expiresAt = DateTime.UtcNow.AddYears(marketingSettings.Value.PointsExpiryYears);
         var transaction = LoyaltyTransaction.Create(
             request.UserId,
             account.Id,
@@ -69,13 +57,13 @@ public class AddPointsCommandHandler : IRequestHandler<AddPointsCommand, bool>
             request.OrderId,
             null);
 
-        await _context.Set<LoyaltyTransaction>().AddAsync(transaction, cancellationToken);
+        await context.Set<LoyaltyTransaction>().AddAsync(transaction, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Points added successfully. UserId: {UserId}, Points: {Points}, NewBalance: {NewBalance}",
+        logger.LogInformation("Points added successfully. UserId: {UserId}, Points: {Points}, NewBalance: {NewBalance}",
             request.UserId, request.Points, account.PointsBalance);
 
         return true;

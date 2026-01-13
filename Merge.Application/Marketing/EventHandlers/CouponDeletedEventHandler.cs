@@ -6,20 +6,14 @@ namespace Merge.Application.Marketing.EventHandlers;
 
 /// <summary>
 /// Coupon Deleted Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 /// </summary>
-public class CouponDeletedEventHandler : INotificationHandler<CouponDeletedEvent>
+public class CouponDeletedEventHandler(ILogger<CouponDeletedEventHandler> logger) : INotificationHandler<CouponDeletedEvent>
 {
-    private readonly ILogger<CouponDeletedEventHandler> _logger;
-
-    public CouponDeletedEventHandler(ILogger<CouponDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task Handle(CouponDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Coupon deleted event received. CouponId: {CouponId}, Code: {Code}",
             notification.CouponId, notification.Code);
 

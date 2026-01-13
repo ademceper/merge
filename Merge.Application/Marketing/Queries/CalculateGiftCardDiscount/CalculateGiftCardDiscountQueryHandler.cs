@@ -10,22 +10,14 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.CalculateGiftCardDiscount;
 
-public class CalculateGiftCardDiscountQueryHandler : IRequestHandler<CalculateGiftCardDiscountQuery, decimal>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class CalculateGiftCardDiscountQueryHandler(
+    IDbContext context,
+    ILogger<CalculateGiftCardDiscountQueryHandler> logger) : IRequestHandler<CalculateGiftCardDiscountQuery, decimal>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<CalculateGiftCardDiscountQueryHandler> _logger;
-
-    public CalculateGiftCardDiscountQueryHandler(
-        IDbContext context,
-        ILogger<CalculateGiftCardDiscountQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
-
     public async Task<decimal> Handle(CalculateGiftCardDiscountQuery request, CancellationToken cancellationToken)
     {
-        var giftCard = await _context.Set<GiftCard>()
+        var giftCard = await context.Set<GiftCard>()
             .AsNoTracking()
             .FirstOrDefaultAsync(gc => gc.Code == request.Code, cancellationToken);
 
@@ -37,7 +29,7 @@ public class CalculateGiftCardDiscountQueryHandler : IRequestHandler<CalculateGi
         // Hediye kartı bakiyesi kadar indirim uygula
         var discount = Math.Min(giftCard.RemainingAmount, request.OrderAmount);
         
-        _logger.LogInformation("GiftCard discount calculated. Code: {Code}, Discount: {Discount}", request.Code, discount);
+        logger.LogInformation("GiftCard discount calculated. Code: {Code}, Discount: {Discount}", request.Code, discount);
 
         return discount;
     }

@@ -7,20 +7,16 @@ namespace Merge.Application.Logistics.EventHandlers;
 /// <summary>
 /// DeliveryTimeEstimation Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 /// </summary>
-public class DeliveryTimeEstimationCreatedEventHandler : INotificationHandler<DeliveryTimeEstimationCreatedEvent>
+public class DeliveryTimeEstimationCreatedEventHandler(
+    ILogger<DeliveryTimeEstimationCreatedEventHandler> logger) : INotificationHandler<DeliveryTimeEstimationCreatedEvent>
 {
-    private readonly ILogger<DeliveryTimeEstimationCreatedEventHandler> _logger;
-
-    public DeliveryTimeEstimationCreatedEventHandler(ILogger<DeliveryTimeEstimationCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(DeliveryTimeEstimationCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "DeliveryTimeEstimation created event received. DeliveryTimeEstimationId: {DeliveryTimeEstimationId}, ProductId: {ProductId}, CategoryId: {CategoryId}, WarehouseId: {WarehouseId}, MinDays: {MinDays}, MaxDays: {MaxDays}, AverageDays: {AverageDays}",
             notification.DeliveryTimeEstimationId, notification.ProductId, notification.CategoryId, notification.WarehouseId, notification.MinDays, notification.MaxDays, notification.AverageDays);
 
@@ -35,7 +31,7 @@ public class DeliveryTimeEstimationCreatedEventHandler : INotificationHandler<De
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling DeliveryTimeEstimationCreatedEvent. DeliveryTimeEstimationId: {DeliveryTimeEstimationId}",
                 notification.DeliveryTimeEstimationId);
             throw;

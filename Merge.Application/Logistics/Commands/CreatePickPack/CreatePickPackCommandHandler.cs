@@ -18,60 +18,49 @@ namespace Merge.Application.Logistics.Commands.CreatePickPack;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class CreatePickPackCommandHandler : IRequestHandler<CreatePickPackCommand, PickPackDto>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class CreatePickPackCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<CreatePickPackCommandHandler> logger) : IRequestHandler<CreatePickPackCommand, PickPackDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreatePickPackCommandHandler> _logger;
-
-    public CreatePickPackCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreatePickPackCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<PickPackDto> Handle(CreatePickPackCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Creating pick-pack. OrderId: {OrderId}, WarehouseId: {WarehouseId}", request.OrderId, request.WarehouseId);
+        logger.LogInformation("Creating pick-pack. OrderId: {OrderId}, WarehouseId: {WarehouseId}", request.OrderId, request.WarehouseId);
 
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        var order = await _context.Set<OrderEntity>()
+        var order = await context.Set<OrderEntity>()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
         if (order == null)
         {
-            _logger.LogWarning("Order not found. OrderId: {OrderId}", request.OrderId);
+            logger.LogWarning("Order not found. OrderId: {OrderId}", request.OrderId);
             throw new NotFoundException("Sipariş", request.OrderId);
         }
 
         // ✅ PERFORMANCE: AsNoTracking - Check if warehouse exists
-        var warehouse = await _context.Set<Warehouse>()
+        var warehouse = await context.Set<Warehouse>()
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == request.WarehouseId && w.IsActive, cancellationToken);
 
         if (warehouse == null)
         {
-            _logger.LogWarning("Warehouse not found or inactive. WarehouseId: {WarehouseId}", request.WarehouseId);
+            logger.LogWarning("Warehouse not found or inactive. WarehouseId: {WarehouseId}", request.WarehouseId);
             throw new NotFoundException("Depo", request.WarehouseId);
         }
 
         // ✅ PERFORMANCE: AsNoTracking - Check if pick pack already exists
-        var existing = await _context.Set<PickPack>()
+        var existing = await context.Set<PickPack>()
             .AsNoTracking()
             .FirstOrDefaultAsync(pp => pp.OrderId == request.OrderId, cancellationToken);
 
         if (existing != null)
         {
-            _logger.LogWarning("Pick pack already exists for order. OrderId: {OrderId}", request.OrderId);
+            logger.LogWarning("Pick pack already exists for order. OrderId: {OrderId}", request.OrderId);
             throw new BusinessException("Bu sipariş için zaten bir pick pack kaydı var.");
         }
 
@@ -84,7 +73,7 @@ public class CreatePickPackCommandHandler : IRequestHandler<CreatePickPackComman
             packNumber,
             request.Notes);
 
-        await _context.Set<PickPack>().AddAsync(pickPack, cancellationToken);
+        await context.Set<PickPack>().AddAsync(pickPack, cancellationToken);
 
         // Create pick pack items from order items
         // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
@@ -100,12 +89,12 @@ public class CreatePickPackCommandHandler : IRequestHandler<CreatePickPackComman
             items.Add(pickPackItem);
         }
 
-        await _context.Set<PickPackItem>().AddRangeAsync(items, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<PickPackItem>().AddRangeAsync(items, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
-        var createdPickPack = await _context.Set<PickPack>()
+        var createdPickPack = await context.Set<PickPack>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(pp => pp.Order)
@@ -119,21 +108,21 @@ public class CreatePickPackCommandHandler : IRequestHandler<CreatePickPackComman
 
         if (createdPickPack == null)
         {
-            _logger.LogWarning("Pick pack not found after creation. PickPackId: {PickPackId}", pickPack.Id);
+            logger.LogWarning("Pick pack not found after creation. PickPackId: {PickPackId}", pickPack.Id);
             throw new NotFoundException("Pick-pack", pickPack.Id);
         }
 
-        _logger.LogInformation("Pick-pack created successfully. PickPackId: {PickPackId}, PackNumber: {PackNumber}", pickPack.Id, packNumber);
+        logger.LogInformation("Pick-pack created successfully. PickPackId: {PickPackId}, PackNumber: {PackNumber}", pickPack.Id, packNumber);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<PickPackDto>(createdPickPack);
+        return mapper.Map<PickPackDto>(createdPickPack);
     }
 
     private async Task<string> GeneratePackNumberAsync(CancellationToken cancellationToken)
     {
         var date = DateTime.UtcNow.ToString("yyyyMMdd");
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
-        var existingCount = await _context.Set<PickPack>()
+        var existingCount = await context.Set<PickPack>()
             .AsNoTracking()
             .CountAsync(pp => pp.PackNumber.StartsWith($"PK-{date}"), cancellationToken);
 

@@ -12,20 +12,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetUserGiftCards;
 
-public class GetUserGiftCardsQueryHandler : IRequestHandler<GetUserGiftCardsQuery, PagedResult<GiftCardDto>>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class GetUserGiftCardsQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetUserGiftCardsQuery, PagedResult<GiftCardDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetUserGiftCardsQueryHandler(IDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
-
     public async Task<PagedResult<GiftCardDto>> Handle(GetUserGiftCardsQuery request, CancellationToken cancellationToken)
     {
-        var query = _context.Set<GiftCard>()
+        var query = context.Set<GiftCard>()
             .AsNoTracking()
             .Where(gc => gc.PurchasedByUserId == request.UserId || gc.AssignedToUserId == request.UserId)
             .OrderByDescending(gc => gc.CreatedAt);
@@ -38,7 +30,7 @@ public class GetUserGiftCardsQueryHandler : IRequestHandler<GetUserGiftCardsQuer
 
         return new PagedResult<GiftCardDto>
         {
-            Items = _mapper.Map<List<GiftCardDto>>(giftCards),
+            Items = mapper.Map<List<GiftCardDto>>(giftCards),
             TotalCount = totalCount,
             Page = request.PageNumber,
             PageSize = request.PageSize

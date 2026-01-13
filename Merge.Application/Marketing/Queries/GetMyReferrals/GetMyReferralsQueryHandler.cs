@@ -12,21 +12,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetMyReferrals;
 
-public class GetMyReferralsQueryHandler : IRequestHandler<GetMyReferralsQuery, PagedResult<ReferralDto>>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class GetMyReferralsQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetMyReferralsQuery, PagedResult<ReferralDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetMyReferralsQueryHandler(IDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
-
     public async Task<PagedResult<ReferralDto>> Handle(GetMyReferralsQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsSplitQuery - N+1 query önleme (Cartesian Explosion önleme)
-        var query = _context.Set<Referral>()
+        var query = context.Set<Referral>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(r => r.ReferredUser)
@@ -41,7 +33,7 @@ public class GetMyReferralsQueryHandler : IRequestHandler<GetMyReferralsQuery, P
 
         return new PagedResult<ReferralDto>
         {
-            Items = _mapper.Map<List<ReferralDto>>(referrals),
+            Items = mapper.Map<List<ReferralDto>>(referrals),
             TotalCount = totalCount,
             Page = request.PageNumber,
             PageSize = request.PageSize

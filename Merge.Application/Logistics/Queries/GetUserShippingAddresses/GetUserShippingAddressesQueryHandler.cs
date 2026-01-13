@@ -16,32 +16,22 @@ namespace Merge.Application.Logistics.Queries.GetUserShippingAddresses;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class GetUserShippingAddressesQueryHandler : IRequestHandler<GetUserShippingAddressesQuery, IEnumerable<ShippingAddressDto>>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class GetUserShippingAddressesQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetUserShippingAddressesQueryHandler> logger,
+    IOptions<ShippingSettings> shippingSettings) : IRequestHandler<GetUserShippingAddressesQuery, IEnumerable<ShippingAddressDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetUserShippingAddressesQueryHandler> _logger;
-    private readonly ShippingSettings _shippingSettings;
-
-    public GetUserShippingAddressesQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetUserShippingAddressesQueryHandler> logger,
-        IOptions<ShippingSettings> shippingSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _shippingSettings = shippingSettings.Value;
-    }
+    private readonly ShippingSettings _shippingSettings = shippingSettings.Value;
 
     public async Task<IEnumerable<ShippingAddressDto>> Handle(GetUserShippingAddressesQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Getting user shipping addresses. UserId: {UserId}, IsActive: {IsActive}", request.UserId, request.IsActive);
+        logger.LogInformation("Getting user shipping addresses. UserId: {UserId}, IsActive: {IsActive}", request.UserId, request.IsActive);
 
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
-        var query = _context.Set<ShippingAddress>()
+        var query = context.Set<ShippingAddress>()
             .AsNoTracking()
             .Where(a => a.UserId == request.UserId);
 
@@ -58,7 +48,7 @@ public class GetUserShippingAddressesQueryHandler : IRequestHandler<GetUserShipp
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (batch mapping)
-        return _mapper.Map<IEnumerable<ShippingAddressDto>>(addresses);
+        return mapper.Map<IEnumerable<ShippingAddressDto>>(addresses);
     }
 }
 

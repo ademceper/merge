@@ -15,29 +15,17 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.UpdateEmailCampaign;
 
-public class UpdateEmailCampaignCommandHandler : IRequestHandler<UpdateEmailCampaignCommand, EmailCampaignDto>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class UpdateEmailCampaignCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<UpdateEmailCampaignCommandHandler> logger) : IRequestHandler<UpdateEmailCampaignCommand, EmailCampaignDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<UpdateEmailCampaignCommandHandler> _logger;
-
-    public UpdateEmailCampaignCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<UpdateEmailCampaignCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
-
     public async Task<EmailCampaignDto> Handle(UpdateEmailCampaignCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
-        var campaign = await _context.Set<EmailCampaign>()
+        var campaign = await context.Set<EmailCampaign>()
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
         if (campaign == null)
@@ -78,17 +66,17 @@ public class UpdateEmailCampaignCommandHandler : IRequestHandler<UpdateEmailCamp
         }
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery + Removed manual !c.IsDeleted (Global Query Filter)
-        var updatedCampaign = await _context.Set<EmailCampaign>()
+        var updatedCampaign = await context.Set<EmailCampaign>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(c => c.Template)
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<EmailCampaignDto>(updatedCampaign!);
+        return mapper.Map<EmailCampaignDto>(updatedCampaign!);
     }
 }

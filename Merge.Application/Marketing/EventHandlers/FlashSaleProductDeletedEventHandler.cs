@@ -6,20 +6,14 @@ namespace Merge.Application.Marketing.EventHandlers;
 
 /// <summary>
 /// FlashSaleProduct Deleted Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 /// </summary>
-public class FlashSaleProductDeletedEventHandler : INotificationHandler<FlashSaleProductDeletedEvent>
+public class FlashSaleProductDeletedEventHandler(ILogger<FlashSaleProductDeletedEventHandler> logger) : INotificationHandler<FlashSaleProductDeletedEvent>
 {
-    private readonly ILogger<FlashSaleProductDeletedEventHandler> _logger;
-
-    public FlashSaleProductDeletedEventHandler(ILogger<FlashSaleProductDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task Handle(FlashSaleProductDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "FlashSaleProduct deleted event received. FlashSaleProductId: {FlashSaleProductId}, FlashSaleId: {FlashSaleId}, ProductId: {ProductId}",
             notification.FlashSaleProductId, notification.FlashSaleId, notification.ProductId);
 

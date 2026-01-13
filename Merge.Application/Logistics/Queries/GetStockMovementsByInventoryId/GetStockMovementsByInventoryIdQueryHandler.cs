@@ -18,35 +18,25 @@ namespace Merge.Application.Logistics.Queries.GetStockMovementsByInventoryId;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class GetStockMovementsByInventoryIdQueryHandler : IRequestHandler<GetStockMovementsByInventoryIdQuery, IEnumerable<StockMovementDto>>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class GetStockMovementsByInventoryIdQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetStockMovementsByInventoryIdQueryHandler> logger,
+    IOptions<ShippingSettings> shippingSettings) : IRequestHandler<GetStockMovementsByInventoryIdQuery, IEnumerable<StockMovementDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetStockMovementsByInventoryIdQueryHandler> _logger;
-    private readonly ShippingSettings _shippingSettings;
-
-    public GetStockMovementsByInventoryIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetStockMovementsByInventoryIdQueryHandler> logger,
-        IOptions<ShippingSettings> shippingSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _shippingSettings = shippingSettings.Value;
-    }
+    private readonly ShippingSettings _shippingSettings = shippingSettings.Value;
 
     public async Task<IEnumerable<StockMovementDto>> Handle(GetStockMovementsByInventoryIdQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Getting stock movements by inventory. InventoryId: {InventoryId}", request.InventoryId);
+        logger.LogInformation("Getting stock movements by inventory. InventoryId: {InventoryId}", request.InventoryId);
 
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
         // ✅ PERFORMANCE: Include ile N+1 önlenir
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan
-        var movements = await _context.Set<StockMovement>()
+        var movements = await context.Set<StockMovement>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(sm => sm.Product)
@@ -60,7 +50,7 @@ public class GetStockMovementsByInventoryIdQueryHandler : IRequestHandler<GetSto
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (batch mapping)
-        return _mapper.Map<IEnumerable<StockMovementDto>>(movements);
+        return mapper.Map<IEnumerable<StockMovementDto>>(movements);
     }
 }
 

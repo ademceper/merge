@@ -24,12 +24,13 @@ public class CouponConfiguration : IEntityTypeConfiguration<Coupon>
             t.HasCheckConstraint("CK_Coupon_UsedCount_LessThan_UsageLimit", "\"UsedCount\" <= \"UsageLimit\" OR \"UsageLimit\" = 0");
         });
 
-        builder.Property(e => e.ApplicableCategoryIds)
+        // ✅ BOLUM 1.1: Rich Domain Model - Backing field mapping for encapsulated collections
+        builder.Property("_applicableCategoryIds")
               .HasConversion(
                   v => v != null ? string.Join(',', v) : null,
                   v => v != null ? v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(Guid.Parse).ToList() : null);
 
-        builder.Property(e => e.ApplicableProductIds)
+        builder.Property("_applicableProductIds")
               .HasConversion(
                   v => v != null ? string.Join(',', v) : null,
                   v => v != null ? v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(Guid.Parse).ToList() : null);

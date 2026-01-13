@@ -13,39 +13,30 @@ namespace Merge.Application.Logistics.Commands.CompletePicking;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class CompletePickingCommandHandler : IRequestHandler<CompletePickingCommand, Unit>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class CompletePickingCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<CompletePickingCommandHandler> logger) : IRequestHandler<CompletePickingCommand, Unit>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<CompletePickingCommandHandler> _logger;
-
-    public CompletePickingCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<CompletePickingCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<Unit> Handle(CompletePickingCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Completing picking. PickPackId: {PickPackId}", request.PickPackId);
+        logger.LogInformation("Completing picking. PickPackId: {PickPackId}", request.PickPackId);
 
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        var pickPack = await _context.Set<PickPack>()
+        var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == request.PickPackId, cancellationToken);
 
         if (pickPack == null)
         {
-            _logger.LogWarning("Pick pack not found. PickPackId: {PickPackId}", request.PickPackId);
+            logger.LogWarning("Pick pack not found. PickPackId: {PickPackId}", request.PickPackId);
             throw new NotFoundException("Pick-pack", request.PickPackId);
         }
 
         // ✅ PERFORMANCE: Database'de kontrol et (memory'de işlem YASAK)
         // ✅ PERFORMANCE: Tek sorguda GroupBy ile total ve picked item sayılarını al (2 ayrı CountAsync yerine)
-        var itemCounts = await _context.Set<PickPackItem>()
+        var itemCounts = await context.Set<PickPackItem>()
             .AsNoTracking()
             .Where(i => i.PickPackId == request.PickPackId)
             .GroupBy(i => 1)
@@ -58,7 +49,7 @@ public class CompletePickingCommandHandler : IRequestHandler<CompletePickingComm
 
         if (itemCounts == null || itemCounts.TotalItems == 0 || itemCounts.PickedItems < itemCounts.TotalItems)
         {
-            _logger.LogWarning("Not all items are picked. PickPackId: {PickPackId}, TotalItems: {TotalItems}, PickedItems: {PickedItems}",
+            logger.LogWarning("Not all items are picked. PickPackId: {PickPackId}, TotalItems: {TotalItems}, PickedItems: {PickedItems}",
                 request.PickPackId, itemCounts?.TotalItems ?? 0, itemCounts?.PickedItems ?? 0);
             throw new BusinessException("Tüm kalemler seçilmemiş.");
         }
@@ -68,9 +59,9 @@ public class CompletePickingCommandHandler : IRequestHandler<CompletePickingComm
 
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Picking completed successfully. PickPackId: {PickPackId}", request.PickPackId);
+        logger.LogInformation("Picking completed successfully. PickPackId: {PickPackId}", request.PickPackId);
         return Unit.Value;
     }
 }

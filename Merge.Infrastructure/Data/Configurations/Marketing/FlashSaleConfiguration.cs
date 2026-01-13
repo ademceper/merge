@@ -30,10 +30,12 @@ public class FlashSaleConfiguration : IEntityTypeConfiguration<FlashSale>
         builder.HasIndex(e => new { e.IsActive, e.StartDate, e.EndDate });
 
         // ✅ BOLUM 8.3: Relationship Configuration
+        // ✅ BOLUM 1.1: Rich Domain Model - Backing field mapping for encapsulated collection
         builder.HasMany(e => e.FlashSaleProducts)
             .WithOne(p => p.FlashSale)
             .HasForeignKey(p => p.FlashSaleId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade)
+            .Metadata.SetPropertyAccessMode(PropertyAccessMode.Field);
 
         // ✅ BOLUM 8.4: Check Constraints
         builder.ToTable(t =>

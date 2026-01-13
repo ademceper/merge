@@ -17,14 +17,9 @@ namespace Merge.API.Controllers.Logistics;
 [ApiController]
 [Route("api/v{version:apiVersion}/logistics/shipping-addresses")]
 [Authorize]
-public class ShippingAddressesController : BaseController
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class ShippingAddressesController(IMediator mediator) : BaseController
 {
-    private readonly IMediator _mediator;
-
-    public ShippingAddressesController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
 
     /// <summary>
     /// Kullanıcının kargo adreslerini getirir
@@ -46,7 +41,7 @@ public class ShippingAddressesController : BaseController
     {
         var userId = GetUserId();
         var query = new GetUserShippingAddressesQuery(userId, isActive);
-        var addresses = await _mediator.Send(query, cancellationToken);
+        var addresses = await mediator.Send(query, cancellationToken);
         return Ok(addresses);
     }
 
@@ -70,7 +65,7 @@ public class ShippingAddressesController : BaseController
     {
         var userId = GetUserId();
         var query = new GetDefaultShippingAddressQuery(userId);
-        var address = await _mediator.Send(query, cancellationToken);
+        var address = await mediator.Send(query, cancellationToken);
         if (address == null)
         {
             return NotFound();
@@ -102,7 +97,7 @@ public class ShippingAddressesController : BaseController
     {
         var userId = GetUserId();
         var query = new GetShippingAddressByIdQuery(id);
-        var address = await _mediator.Send(query, cancellationToken);
+        var address = await mediator.Send(query, cancellationToken);
         if (address == null)
         {
             return NotFound();
@@ -155,7 +150,7 @@ public class ShippingAddressesController : BaseController
             dto.AddressLine2,
             dto.IsDefault,
             dto.Instructions);
-        var address = await _mediator.Send(command, cancellationToken);
+        var address = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetAddress), new { id = address.Id }, address);
     }
 
@@ -190,7 +185,7 @@ public class ShippingAddressesController : BaseController
 
         var userId = GetUserId();
         var addressQuery = new GetShippingAddressByIdQuery(id);
-        var address = await _mediator.Send(addressQuery, cancellationToken);
+        var address = await mediator.Send(addressQuery, cancellationToken);
         if (address == null)
         {
             return NotFound();
@@ -217,7 +212,7 @@ public class ShippingAddressesController : BaseController
             dto.IsDefault,
             dto.IsActive,
             dto.Instructions);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -245,7 +240,7 @@ public class ShippingAddressesController : BaseController
     {
         var userId = GetUserId();
         var addressQuery = new GetShippingAddressByIdQuery(id);
-        var address = await _mediator.Send(addressQuery, cancellationToken);
+        var address = await mediator.Send(addressQuery, cancellationToken);
         if (address == null)
         {
             return NotFound();
@@ -258,7 +253,7 @@ public class ShippingAddressesController : BaseController
         }
 
         var command = new DeleteShippingAddressCommand(id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -284,7 +279,7 @@ public class ShippingAddressesController : BaseController
     {
         var userId = GetUserId();
         var command = new SetDefaultShippingAddressCommand(userId, id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 }

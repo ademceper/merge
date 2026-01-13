@@ -16,33 +16,23 @@ namespace Merge.Application.Logistics.Queries.GetActiveWarehouses;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class GetActiveWarehousesQueryHandler : IRequestHandler<GetActiveWarehousesQuery, IEnumerable<WarehouseDto>>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class GetActiveWarehousesQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetActiveWarehousesQueryHandler> logger,
+    IOptions<ShippingSettings> shippingSettings) : IRequestHandler<GetActiveWarehousesQuery, IEnumerable<WarehouseDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetActiveWarehousesQueryHandler> _logger;
-    private readonly ShippingSettings _shippingSettings;
-
-    public GetActiveWarehousesQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetActiveWarehousesQueryHandler> logger,
-        IOptions<ShippingSettings> shippingSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _shippingSettings = shippingSettings.Value;
-    }
+    private readonly ShippingSettings _shippingSettings = shippingSettings.Value;
 
     public async Task<IEnumerable<WarehouseDto>> Handle(GetActiveWarehousesQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Getting active warehouses");
+        logger.LogInformation("Getting active warehouses");
 
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan
-        var warehouses = await _context.Set<Warehouse>()
+        var warehouses = await context.Set<Warehouse>()
             .AsNoTracking()
             .Where(w => w.IsActive)
             .OrderBy(w => w.Name)
@@ -50,7 +40,7 @@ public class GetActiveWarehousesQueryHandler : IRequestHandler<GetActiveWarehous
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (batch mapping)
-        return _mapper.Map<IEnumerable<WarehouseDto>>(warehouses);
+        return mapper.Map<IEnumerable<WarehouseDto>>(warehouses);
     }
 }
 

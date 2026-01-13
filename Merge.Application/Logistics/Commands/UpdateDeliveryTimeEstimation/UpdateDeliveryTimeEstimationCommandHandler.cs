@@ -14,34 +14,25 @@ namespace Merge.Application.Logistics.Commands.UpdateDeliveryTimeEstimation;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class UpdateDeliveryTimeEstimationCommandHandler : IRequestHandler<UpdateDeliveryTimeEstimationCommand, Unit>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class UpdateDeliveryTimeEstimationCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<UpdateDeliveryTimeEstimationCommandHandler> logger) : IRequestHandler<UpdateDeliveryTimeEstimationCommand, Unit>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<UpdateDeliveryTimeEstimationCommandHandler> _logger;
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-
-    public UpdateDeliveryTimeEstimationCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<UpdateDeliveryTimeEstimationCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<Unit> Handle(UpdateDeliveryTimeEstimationCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Updating delivery time estimation. EstimationId: {EstimationId}", request.Id);
+        logger.LogInformation("Updating delivery time estimation. EstimationId: {EstimationId}", request.Id);
 
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        var estimation = await _context.Set<DeliveryTimeEstimation>()
+        var estimation = await context.Set<DeliveryTimeEstimation>()
             .FirstOrDefaultAsync(e => e.Id == request.Id, cancellationToken);
 
         if (estimation == null)
         {
-            _logger.LogWarning("Delivery time estimation not found. EstimationId: {EstimationId}", request.Id);
+            logger.LogWarning("Delivery time estimation not found. EstimationId: {EstimationId}", request.Id);
             throw new NotFoundException("Teslimat süresi tahmini", request.Id);
         }
 
@@ -60,23 +51,21 @@ public class UpdateDeliveryTimeEstimationCommandHandler : IRequestHandler<Update
             estimation.UpdateConditions(conditionsJson);
         }
 
+        // ✅ BOLUM 7.1.6: Pattern Matching - Switch expression kullanımı
         if (request.IsActive.HasValue)
         {
-            if (request.IsActive.Value)
+            _ = request.IsActive.Value switch
             {
-                estimation.Activate();
-            }
-            else
-            {
-                estimation.Deactivate();
-            }
+                true => estimation.Activate(),
+                false => estimation.Deactivate()
+            };
         }
 
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Delivery time estimation updated successfully. EstimationId: {EstimationId}", request.Id);
+        logger.LogInformation("Delivery time estimation updated successfully. EstimationId: {EstimationId}", request.Id);
         return Unit.Value;
     }
 }

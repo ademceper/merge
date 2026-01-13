@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Common;
+using Merge.Application.Configuration;
 using Merge.API.Middleware;
 using Merge.Application.Logistics.Queries.GetStockMovementById;
 using Merge.Application.Logistics.Queries.GetStockMovementsByInventoryId;
@@ -19,14 +21,12 @@ namespace Merge.API.Controllers.Logistics;
 [ApiController]
 [Route("api/v{version:apiVersion}/logistics/stock-movements")]
 [Authorize(Roles = "Admin,Seller")]
-public class StockMovementsController : BaseController
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class StockMovementsController(
+    IMediator mediator,
+    IOptions<ShippingSettings> shippingSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-
-    public StockMovementsController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
+    private readonly ShippingSettings _shippingSettings = shippingSettings.Value;
 
     /// <summary>
     /// Stok hareketi detaylarını getirir
@@ -56,7 +56,7 @@ public class StockMovementsController : BaseController
         }
 
         var query = new GetStockMovementByIdQuery(id);
-        var movement = await _mediator.Send(query, cancellationToken);
+        var movement = await mediator.Send(query, cancellationToken);
         if (movement == null)
         {
             return NotFound();
@@ -64,7 +64,7 @@ public class StockMovementsController : BaseController
 
         // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi ürünlerinin stock movement'larına erişebilmeli
         var productQuery = new GetProductByIdQuery(movement.ProductId);
-        var product = await _mediator.Send(productQuery, cancellationToken);
+        var product = await mediator.Send(productQuery, cancellationToken);
         if (product == null)
         {
             return NotFound();
@@ -107,14 +107,14 @@ public class StockMovementsController : BaseController
 
         // ✅ BOLUM 3.2: IDOR Koruması - Önce inventory'yi kontrol et
         var inventoryQuery = new GetInventoryByIdQuery(inventoryId);
-        var inventory = await _mediator.Send(inventoryQuery, cancellationToken);
+        var inventory = await mediator.Send(inventoryQuery, cancellationToken);
         if (inventory == null)
         {
             return NotFound();
         }
 
         var productQuery = new GetProductByIdQuery(inventory.ProductId);
-        var product = await _mediator.Send(productQuery, cancellationToken);
+        var product = await mediator.Send(productQuery, cancellationToken);
         if (product == null)
         {
             return NotFound();
@@ -126,7 +126,7 @@ public class StockMovementsController : BaseController
         }
 
         var query = new GetStockMovementsByInventoryIdQuery(inventoryId);
-        var movements = await _mediator.Send(query, cancellationToken);
+        var movements = await mediator.Send(query, cancellationToken);
         return Ok(movements);
     }
 
@@ -163,7 +163,7 @@ public class StockMovementsController : BaseController
 
         // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi ürünlerinin stock movement'larına erişebilmeli
         var productQuery = new GetProductByIdQuery(productId);
-        var product = await _mediator.Send(productQuery, cancellationToken);
+        var product = await mediator.Send(productQuery, cancellationToken);
         if (product == null)
         {
             return NotFound();
@@ -175,10 +175,12 @@ public class StockMovementsController : BaseController
         }
 
         // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-        if (pageSize > 100) pageSize = 100; // Max limit
+        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan
+        if (pageSize > _shippingSettings.QueryLimits.MaxPageSize) 
+            pageSize = _shippingSettings.QueryLimits.MaxPageSize;
 
         var query = new GetStockMovementsByProductIdQuery(productId, page, pageSize);
-        var movements = await _mediator.Send(query, cancellationToken);
+        var movements = await mediator.Send(query, cancellationToken);
         return Ok(movements);
     }
 
@@ -207,10 +209,12 @@ public class StockMovementsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-        if (pageSize > 100) pageSize = 100; // Max limit
+        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan
+        if (pageSize > _shippingSettings.QueryLimits.MaxPageSize) 
+            pageSize = _shippingSettings.QueryLimits.MaxPageSize;
 
         var query = new GetStockMovementsByWarehouseIdQuery(warehouseId, page, pageSize);
-        var movements = await _mediator.Send(query, cancellationToken);
+        var movements = await mediator.Send(query, cancellationToken);
         return Ok(movements);
     }
 
@@ -251,7 +255,7 @@ public class StockMovementsController : BaseController
         if (filter.ProductId.HasValue)
         {
             var productQuery = new GetProductByIdQuery(filter.ProductId.Value);
-            var product = await _mediator.Send(productQuery, cancellationToken);
+            var product = await mediator.Send(productQuery, cancellationToken);
             if (product == null)
             {
                 return NotFound();
@@ -271,7 +275,7 @@ public class StockMovementsController : BaseController
             filter.EndDate,
             filter.Page,
             filter.PageSize);
-        var movements = await _mediator.Send(query, cancellationToken);
+        var movements = await mediator.Send(query, cancellationToken);
         return Ok(movements);
     }
 
@@ -311,7 +315,7 @@ public class StockMovementsController : BaseController
 
         // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi ürünlerinin stock movement'larını oluşturabilmeli
         var productQuery = new GetProductByIdQuery(createDto.ProductId);
-        var product = await _mediator.Send(productQuery, cancellationToken);
+        var product = await mediator.Send(productQuery, cancellationToken);
         if (product == null)
         {
             return NotFound();
@@ -333,7 +337,7 @@ public class StockMovementsController : BaseController
             createDto.FromWarehouseId,
             createDto.ToWarehouseId,
             userId);
-        var movement = await _mediator.Send(command, cancellationToken);
+        var movement = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = movement.Id }, movement);
     }
 }

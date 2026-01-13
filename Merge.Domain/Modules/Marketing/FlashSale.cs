@@ -23,8 +23,11 @@ public class FlashSale : BaseEntity, IAggregateRoot
     public bool IsActive { get; private set; } = true;
     public string? BannerImageUrl { get; private set; }
     
-    // Navigation properties
-    public ICollection<FlashSaleProduct> FlashSaleProducts { get; private set; } = new List<FlashSaleProduct>();
+    // ✅ BOLUM 1.1: Rich Domain Model - Backing fields for encapsulated collections
+    private readonly List<FlashSaleProduct> _flashSaleProducts = [];
+    
+    // ✅ BOLUM 1.1: Rich Domain Model - Navigation properties as IReadOnlyCollection
+    public IReadOnlyCollection<FlashSaleProduct> FlashSaleProducts => _flashSaleProducts.AsReadOnly();
 
     // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]

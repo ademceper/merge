@@ -13,33 +13,24 @@ namespace Merge.Application.Logistics.Commands.StartPicking;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class StartPickingCommandHandler : IRequestHandler<StartPickingCommand, Unit>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class StartPickingCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<StartPickingCommandHandler> logger) : IRequestHandler<StartPickingCommand, Unit>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<StartPickingCommandHandler> _logger;
-
-    public StartPickingCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<StartPickingCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<Unit> Handle(StartPickingCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Starting picking. PickPackId: {PickPackId}, UserId: {UserId}", request.PickPackId, request.UserId);
+        logger.LogInformation("Starting picking. PickPackId: {PickPackId}, UserId: {UserId}", request.PickPackId, request.UserId);
 
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        var pickPack = await _context.Set<PickPack>()
+        var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == request.PickPackId, cancellationToken);
 
         if (pickPack == null)
         {
-            _logger.LogWarning("Pick pack not found. PickPackId: {PickPackId}", request.PickPackId);
+            logger.LogWarning("Pick pack not found. PickPackId: {PickPackId}", request.PickPackId);
             throw new NotFoundException("Pick-pack", request.PickPackId);
         }
 
@@ -48,9 +39,9 @@ public class StartPickingCommandHandler : IRequestHandler<StartPickingCommand, U
 
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Picking started successfully. PickPackId: {PickPackId}", request.PickPackId);
+        logger.LogInformation("Picking started successfully. PickPackId: {PickPackId}", request.PickPackId);
         return Unit.Value;
     }
 }

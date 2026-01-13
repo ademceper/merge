@@ -17,44 +17,33 @@ namespace Merge.Application.Logistics.Commands.CreateStockMovement;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class CreateStockMovementCommandHandler : IRequestHandler<CreateStockMovementCommand, StockMovementDto>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class CreateStockMovementCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<CreateStockMovementCommandHandler> logger) : IRequestHandler<CreateStockMovementCommand, StockMovementDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateStockMovementCommandHandler> _logger;
-
-    public CreateStockMovementCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateStockMovementCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<StockMovementDto> Handle(CreateStockMovementCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Creating stock movement. ProductId: {ProductId}, WarehouseId: {WarehouseId}, Quantity: {Quantity}, MovementType: {MovementType}",
+        logger.LogInformation("Creating stock movement. ProductId: {ProductId}, WarehouseId: {WarehouseId}, Quantity: {Quantity}, MovementType: {MovementType}",
             request.ProductId, request.WarehouseId, request.Quantity, request.MovementType);
 
         // ✅ ARCHITECTURE: Transaction başlat - atomic operation (Inventory update + StockMovement create)
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
             // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
             // Get inventory
-            var inventory = await _context.Set<Inventory>()
+            var inventory = await context.Set<Inventory>()
                 .FirstOrDefaultAsync(i => i.ProductId == request.ProductId &&
                                         i.WarehouseId == request.WarehouseId, cancellationToken);
 
             if (inventory == null)
             {
-                _logger.LogWarning("Inventory not found. ProductId: {ProductId}, WarehouseId: {WarehouseId}", request.ProductId, request.WarehouseId);
+                logger.LogWarning("Inventory not found. ProductId: {ProductId}, WarehouseId: {WarehouseId}", request.ProductId, request.WarehouseId);
                 throw new NotFoundException("Envanter", Guid.Empty);
             }
 
@@ -63,7 +52,7 @@ public class CreateStockMovementCommandHandler : IRequestHandler<CreateStockMove
 
             if (quantityAfter < 0)
             {
-                _logger.LogWarning("Stock quantity would be negative. QuantityBefore: {QuantityBefore}, Quantity: {Quantity}", quantityBefore, request.Quantity);
+                logger.LogWarning("Stock quantity would be negative. QuantityBefore: {QuantityBefore}, Quantity: {Quantity}", quantityBefore, request.Quantity);
                 throw new ValidationException("Stok miktarı negatif olamaz.");
             }
 
@@ -87,18 +76,18 @@ public class CreateStockMovementCommandHandler : IRequestHandler<CreateStockMove
                 request.FromWarehouseId,
                 request.ToWarehouseId);
 
-            await _context.Set<StockMovement>().AddAsync(stockMovement, cancellationToken);
+            await context.Set<StockMovement>().AddAsync(stockMovement, cancellationToken);
             
             // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
             // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            _logger.LogInformation("Stock movement created successfully. StockMovementId: {StockMovementId}", stockMovement.Id);
+            logger.LogInformation("Stock movement created successfully. StockMovementId: {StockMovementId}", stockMovement.Id);
 
             // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
             // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
-            var createdMovement = await _context.Set<StockMovement>()
+            var createdMovement = await context.Set<StockMovement>()
                 .AsNoTracking()
                 .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
                 .Include(sm => sm.Product)
@@ -110,17 +99,17 @@ public class CreateStockMovementCommandHandler : IRequestHandler<CreateStockMove
 
             if (createdMovement == null)
             {
-                _logger.LogWarning("Stock movement not found after creation. StockMovementId: {StockMovementId}", stockMovement.Id);
+                logger.LogWarning("Stock movement not found after creation. StockMovementId: {StockMovementId}", stockMovement.Id);
                 throw new NotFoundException("Stok hareketi", stockMovement.Id);
             }
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-            return _mapper.Map<StockMovementDto>(createdMovement);
+            return mapper.Map<StockMovementDto>(createdMovement);
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            _logger.LogError(ex, "Error creating stock movement. ProductId: {ProductId}, WarehouseId: {WarehouseId}",
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Error creating stock movement. ProductId: {ProductId}, WarehouseId: {WarehouseId}",
                 request.ProductId, request.WarehouseId);
             throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
         }

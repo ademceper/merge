@@ -15,38 +15,29 @@ namespace Merge.Application.Logistics.Queries.CalculateShippingCost;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class CalculateShippingCostQueryHandler : IRequestHandler<CalculateShippingCostQuery, decimal>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class CalculateShippingCostQueryHandler(
+    IDbContext context,
+    ILogger<CalculateShippingCostQueryHandler> logger,
+    IOptions<ShippingSettings> shippingSettings,
+    IOptions<OrderSettings> orderSettings) : IRequestHandler<CalculateShippingCostQuery, decimal>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<CalculateShippingCostQueryHandler> _logger;
-    private readonly ShippingSettings _shippingSettings;
-    private readonly OrderSettings _orderSettings;
-
-    public CalculateShippingCostQueryHandler(
-        IDbContext context,
-        ILogger<CalculateShippingCostQueryHandler> logger,
-        IOptions<ShippingSettings> shippingSettings,
-        IOptions<OrderSettings> orderSettings)
-    {
-        _context = context;
-        _logger = logger;
-        _shippingSettings = shippingSettings.Value;
-        _orderSettings = orderSettings.Value;
-    }
+    private readonly ShippingSettings _shippingSettings = shippingSettings.Value;
+    private readonly OrderSettings _orderSettings = orderSettings.Value;
 
     public async Task<decimal> Handle(CalculateShippingCostQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Calculating shipping cost. OrderId: {OrderId}, Provider: {Provider}", request.OrderId, request.ShippingProvider);
+        logger.LogInformation("Calculating shipping cost. OrderId: {OrderId}, Provider: {Provider}", request.OrderId, request.ShippingProvider);
 
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
-        var order = await _context.Set<OrderEntity>()
+        var order = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
         if (order == null)
         {
-            _logger.LogWarning("Order not found. OrderId: {OrderId}", request.OrderId);
+            logger.LogWarning("Order not found. OrderId: {OrderId}", request.OrderId);
             throw new NotFoundException("Sipariş", request.OrderId);
         }
 

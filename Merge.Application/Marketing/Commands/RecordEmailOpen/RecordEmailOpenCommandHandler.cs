@@ -13,35 +13,25 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Marketing.Commands.RecordEmailOpen;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class RecordEmailOpenCommandHandler : IRequestHandler<RecordEmailOpenCommand, Unit>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class RecordEmailOpenCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<RecordEmailOpenCommandHandler> logger) : IRequestHandler<RecordEmailOpenCommand, Unit>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<RecordEmailOpenCommandHandler> _logger;
-
-    public RecordEmailOpenCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<RecordEmailOpenCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
-
     public async Task<Unit> Handle(RecordEmailOpenCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Email açılması kaydediliyor. CampaignId: {CampaignId}, SubscriberId: {SubscriberId}",
             request.CampaignId, request.SubscriberId);
 
-        var recipient = await _context.Set<Merge.Domain.Modules.Marketing.EmailCampaignRecipient>()
+        var recipient = await context.Set<Merge.Domain.Modules.Marketing.EmailCampaignRecipient>()
             .FirstOrDefaultAsync(r => r.CampaignId == request.CampaignId && r.SubscriberId == request.SubscriberId, cancellationToken);
 
         if (recipient == null)
         {
-            _logger.LogWarning("EmailCampaignRecipient not found. CampaignId: {CampaignId}, SubscriberId: {SubscriberId}",
+            logger.LogWarning("EmailCampaignRecipient not found. CampaignId: {CampaignId}, SubscriberId: {SubscriberId}",
                 request.CampaignId, request.SubscriberId);
             return Unit.Value;
         }
@@ -54,7 +44,7 @@ public class RecordEmailOpenCommandHandler : IRequestHandler<RecordEmailOpenComm
         if (wasFirstOpen)
         {
             // ✅ PERFORMANCE: Batch load campaign and subscriber (N+1 fix)
-            var campaign = await _context.Set<Merge.Domain.Modules.Marketing.EmailCampaign>()
+            var campaign = await context.Set<Merge.Domain.Modules.Marketing.EmailCampaign>()
                 .FirstOrDefaultAsync(c => c.Id == request.CampaignId, cancellationToken);
 
             if (campaign != null)
@@ -71,7 +61,7 @@ public class RecordEmailOpenCommandHandler : IRequestHandler<RecordEmailOpenComm
                 );
             }
 
-            var subscriber = await _context.Set<Merge.Domain.Modules.Marketing.EmailSubscriber>()
+            var subscriber = await context.Set<Merge.Domain.Modules.Marketing.EmailSubscriber>()
                 .FirstOrDefaultAsync(s => s.Id == request.SubscriberId, cancellationToken);
 
             if (subscriber != null)
@@ -82,10 +72,10 @@ public class RecordEmailOpenCommandHandler : IRequestHandler<RecordEmailOpenComm
         }
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Email açılması kaydedildi. CampaignId: {CampaignId}, SubscriberId: {SubscriberId}, OpenCount: {OpenCount}",
             request.CampaignId, request.SubscriberId, recipient.OpenCount);
 

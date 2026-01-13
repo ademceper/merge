@@ -15,21 +15,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Marketing.Commands.BulkImportEmailSubscribers;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class BulkImportEmailSubscribersCommandHandler : IRequestHandler<BulkImportEmailSubscribersCommand, int>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class BulkImportEmailSubscribersCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<BulkImportEmailSubscribersCommandHandler> logger) : IRequestHandler<BulkImportEmailSubscribersCommand, int>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<BulkImportEmailSubscribersCommandHandler> _logger;
-
-    public BulkImportEmailSubscribersCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<BulkImportEmailSubscribersCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<int> Handle(BulkImportEmailSubscribersCommand request, CancellationToken cancellationToken)
     {
@@ -40,7 +31,7 @@ public class BulkImportEmailSubscribersCommandHandler : IRequestHandler<BulkImpo
 
         // ✅ PERFORMANCE: Batch load existing subscribers (N+1 fix)
         var emails = request.Subscribers.Select(s => s.Email.ToLower()).Distinct().ToList();
-        var existingSubscribers = await _context.Set<EmailSubscriber>()
+        var existingSubscribers = await context.Set<EmailSubscriber>()
             .Where(s => emails.Contains(s.Email.ToLower()))
             .ToDictionaryAsync(s => s.Email.ToLower(), cancellationToken);
 
@@ -99,14 +90,14 @@ public class BulkImportEmailSubscribersCommandHandler : IRequestHandler<BulkImpo
 
         if (newSubscribers.Count > 0)
         {
-            await _context.Set<EmailSubscriber>().AddRangeAsync(newSubscribers, cancellationToken);
+            await context.Set<EmailSubscriber>().AddRangeAsync(newSubscribers, cancellationToken);
         }
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Toplu email abone import işlemi tamamlandı. Yeni: {NewCount}, Güncellenen: {UpdatedCount}",
             newSubscribers.Count, updatedSubscribers.Count);
 

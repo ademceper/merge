@@ -15,37 +15,26 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Marketing.Commands.CreateCoupon;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreateCouponCommandHandler : IRequestHandler<CreateCouponCommand, CouponDto>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class CreateCouponCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<CreateCouponCommandHandler> logger) : IRequestHandler<CreateCouponCommand, CouponDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateCouponCommandHandler> _logger;
-
-    public CreateCouponCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateCouponCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<CouponDto> Handle(CreateCouponCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Creating coupon. Code: {Code}", request.Code);
+        logger.LogInformation("Creating coupon. Code: {Code}", request.Code);
 
         // ✅ PERFORMANCE: AsNoTracking - Check if code already exists
-        var existingCoupon = await _context.Set<Coupon>()
+        var existingCoupon = await context.Set<Coupon>()
             .AsNoTracking()
             .AnyAsync(c => c.Code.ToUpper() == request.Code.ToUpper(), cancellationToken);
 
         if (existingCoupon)
         {
-            _logger.LogWarning("Coupon with code already exists. Code: {Code}", request.Code);
+            logger.LogWarning("Coupon with code already exists. Code: {Code}", request.Code);
             throw new BusinessException($"Bu kupon kodu zaten kullanılıyor: '{request.Code}'");
         }
 
@@ -88,26 +77,26 @@ public class CreateCouponCommandHandler : IRequestHandler<CreateCouponCommand, C
             coupon.SetApplicableProductIds(request.ApplicableProductIds);
         }
 
-        await _context.Set<Coupon>().AddAsync(coupon, cancellationToken);
+        await context.Set<Coupon>().AddAsync(coupon, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking ile tek query'de getir
-        var createdCoupon = await _context.Set<Coupon>()
+        var createdCoupon = await context.Set<Coupon>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == coupon.Id, cancellationToken);
 
         if (createdCoupon == null)
         {
-            _logger.LogWarning("Coupon not found after creation. CouponId: {CouponId}", coupon.Id);
+            logger.LogWarning("Coupon not found after creation. CouponId: {CouponId}", coupon.Id);
             throw new NotFoundException("Kupon", coupon.Id);
         }
 
-        _logger.LogInformation("Coupon created successfully. CouponId: {CouponId}, Code: {Code}", coupon.Id, request.Code);
+        logger.LogInformation("Coupon created successfully. CouponId: {CouponId}, Code: {Code}", coupon.Id, request.Code);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<CouponDto>(createdCoupon);
+        return mapper.Map<CouponDto>(createdCoupon);
     }
 }

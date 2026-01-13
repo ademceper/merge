@@ -14,33 +14,24 @@ namespace Merge.Application.Logistics.Queries.GetWarehouseById;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class GetWarehouseByIdQueryHandler : IRequestHandler<GetWarehouseByIdQuery, WarehouseDto?>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class GetWarehouseByIdQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetWarehouseByIdQueryHandler> logger) : IRequestHandler<GetWarehouseByIdQuery, WarehouseDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetWarehouseByIdQueryHandler> _logger;
-
-    public GetWarehouseByIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetWarehouseByIdQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<WarehouseDto?> Handle(GetWarehouseByIdQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Getting warehouse. WarehouseId: {WarehouseId}", request.Id);
+        logger.LogInformation("Getting warehouse. WarehouseId: {WarehouseId}", request.Id);
 
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
-        var warehouse = await _context.Set<Warehouse>()
+        var warehouse = await context.Set<Warehouse>()
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == request.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return warehouse != null ? _mapper.Map<WarehouseDto>(warehouse) : null;
+        return warehouse != null ? mapper.Map<WarehouseDto>(warehouse) : null;
     }
 }
 

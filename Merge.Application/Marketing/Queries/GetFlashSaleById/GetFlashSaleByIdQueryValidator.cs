@@ -2,7 +2,8 @@ using FluentValidation;
 
 namespace Merge.Application.Marketing.Queries.GetFlashSaleById;
 
-public class GetFlashSaleByIdQueryValidator : AbstractValidator<GetFlashSaleByIdQuery>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class GetFlashSaleByIdQueryValidator() : AbstractValidator<GetFlashSaleByIdQuery>
 {
     public GetFlashSaleByIdQueryValidator()
     {

@@ -15,18 +15,11 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Marketing.Commands.ValidateCoupon;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class ValidateCouponCommandHandler : IRequestHandler<ValidateCouponCommand, decimal>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class ValidateCouponCommandHandler(
+    IDbContext context,
+    ILogger<ValidateCouponCommandHandler> logger) : IRequestHandler<ValidateCouponCommand, decimal>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<ValidateCouponCommandHandler> _logger;
-
-    public ValidateCouponCommandHandler(
-        IDbContext context,
-        ILogger<ValidateCouponCommandHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<decimal> Handle(ValidateCouponCommand request, CancellationToken cancellationToken)
     {
@@ -35,13 +28,13 @@ public class ValidateCouponCommandHandler : IRequestHandler<ValidateCouponComman
             throw new ValidationException("Sipariş tutarı 0'dan büyük olmalıdır.");
         }
 
-        var coupon = await _context.Set<Coupon>()
+        var coupon = await context.Set<Coupon>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Code.ToUpper() == request.Code.ToUpper(), cancellationToken);
 
         if (coupon == null)
         {
-            _logger.LogWarning("Coupon not found. Code: {Code}", request.Code);
+            logger.LogWarning("Coupon not found. Code: {Code}", request.Code);
             throw new NotFoundException("Kupon", Guid.Empty);
         }
 
@@ -59,7 +52,7 @@ public class ValidateCouponCommandHandler : IRequestHandler<ValidateCouponComman
         // Yeni kullanıcı kontrolü
         if (coupon.IsForNewUsersOnly && request.UserId.HasValue)
         {
-            var hasOrder = await _context.Set<OrderEntity>()
+            var hasOrder = await context.Set<OrderEntity>()
                 .AsNoTracking()
                 .AnyAsync(o => o.UserId == request.UserId.Value, cancellationToken);
 
@@ -86,7 +79,7 @@ public class ValidateCouponCommandHandler : IRequestHandler<ValidateCouponComman
         var purchaseAmount = new Money(request.OrderAmount);
         var discount = coupon.CalculateDiscount(purchaseAmount);
 
-        _logger.LogInformation("Coupon validated successfully. Code: {Code}, Discount: {Discount}", request.Code, discount.Amount);
+        logger.LogInformation("Coupon validated successfully. Code: {Code}, Discount: {Discount}", request.Code, discount.Amount);
 
         return discount.Amount;
     }

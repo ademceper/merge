@@ -12,32 +12,22 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Marketing.Commands.DeleteFlashSale;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class DeleteFlashSaleCommandHandler : IRequestHandler<DeleteFlashSaleCommand, bool>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class DeleteFlashSaleCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<DeleteFlashSaleCommandHandler> logger) : IRequestHandler<DeleteFlashSaleCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<DeleteFlashSaleCommandHandler> _logger;
-
-    public DeleteFlashSaleCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<DeleteFlashSaleCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
-
     public async Task<bool> Handle(DeleteFlashSaleCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Deleting flash sale. FlashSaleId: {FlashSaleId}", request.Id);
+        logger.LogInformation("Deleting flash sale. FlashSaleId: {FlashSaleId}", request.Id);
 
-        var flashSale = await _context.Set<FlashSale>()
+        var flashSale = await context.Set<FlashSale>()
             .FirstOrDefaultAsync(fs => fs.Id == request.Id, cancellationToken);
 
         if (flashSale == null)
         {
-            _logger.LogWarning("FlashSale not found. FlashSaleId: {FlashSaleId}", request.Id);
+            logger.LogWarning("FlashSale not found. FlashSaleId: {FlashSaleId}", request.Id);
             throw new NotFoundException("Flash Sale", request.Id);
         }
 
@@ -46,9 +36,9 @@ public class DeleteFlashSaleCommandHandler : IRequestHandler<DeleteFlashSaleComm
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("FlashSale deleted successfully. FlashSaleId: {FlashSaleId}", request.Id);
+        logger.LogInformation("FlashSale deleted successfully. FlashSaleId: {FlashSaleId}", request.Id);
 
         return true;
     }

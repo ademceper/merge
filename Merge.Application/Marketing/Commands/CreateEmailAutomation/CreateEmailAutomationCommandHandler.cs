@@ -16,29 +16,17 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Marketing.Commands.CreateEmailAutomation;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreateEmailAutomationCommandHandler : IRequestHandler<CreateEmailAutomationCommand, EmailAutomationDto>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class CreateEmailAutomationCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<CreateEmailAutomationCommandHandler> logger) : IRequestHandler<CreateEmailAutomationCommand, EmailAutomationDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateEmailAutomationCommandHandler> _logger;
-
-    public CreateEmailAutomationCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateEmailAutomationCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
-
     public async Task<EmailAutomationDto> Handle(CreateEmailAutomationCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Email otomasyonu oluşturuluyor. Name: {Name}, Type: {Type}",
             request.Name, request.Type);
 
@@ -52,25 +40,25 @@ public class CreateEmailAutomationCommandHandler : IRequestHandler<CreateEmailAu
             delayHours: request.DelayHours,
             triggerConditions: request.TriggerConditions != null ? JsonSerializer.Serialize(request.TriggerConditions) : null);
 
-        await _context.Set<EmailAutomation>().AddAsync(automation, cancellationToken);
+        await context.Set<EmailAutomation>().AddAsync(automation, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery + Removed manual !a.IsDeleted (Global Query Filter)
-        var createdAutomation = await _context.Set<EmailAutomation>()
+        var createdAutomation = await context.Set<EmailAutomation>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(a => a.Template)
             .FirstOrDefaultAsync(a => a.Id == automation.Id, cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Email otomasyonu oluşturuldu. AutomationId: {AutomationId}, Name: {Name}",
             automation.Id, request.Name);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<EmailAutomationDto>(createdAutomation!);
+        return mapper.Map<EmailAutomationDto>(createdAutomation!);
     }
 }

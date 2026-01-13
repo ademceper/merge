@@ -18,29 +18,18 @@ namespace Merge.Application.Logistics.Commands.CreateDeliveryTimeEstimation;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class CreateDeliveryTimeEstimationCommandHandler : IRequestHandler<CreateDeliveryTimeEstimationCommand, DeliveryTimeEstimationDto>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class CreateDeliveryTimeEstimationCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<CreateDeliveryTimeEstimationCommandHandler> logger) : IRequestHandler<CreateDeliveryTimeEstimationCommand, DeliveryTimeEstimationDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateDeliveryTimeEstimationCommandHandler> _logger;
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-
-    public CreateDeliveryTimeEstimationCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateDeliveryTimeEstimationCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<DeliveryTimeEstimationDto> Handle(CreateDeliveryTimeEstimationCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Creating delivery time estimation. ProductId: {ProductId}, CategoryId: {CategoryId}, WarehouseId: {WarehouseId}",
+        logger.LogInformation("Creating delivery time estimation. ProductId: {ProductId}, CategoryId: {CategoryId}, WarehouseId: {WarehouseId}",
             request.ProductId, request.CategoryId, request.WarehouseId);
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
@@ -63,15 +52,15 @@ public class CreateDeliveryTimeEstimationCommandHandler : IRequestHandler<Create
             conditionsJson,
             request.IsActive);
 
-        await _context.Set<DeliveryTimeEstimation>().AddAsync(estimation, cancellationToken);
+        await context.Set<DeliveryTimeEstimation>().AddAsync(estimation, cancellationToken);
         
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
-        var createdEstimation = await _context.Set<DeliveryTimeEstimation>()
+        var createdEstimation = await context.Set<DeliveryTimeEstimation>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(e => e.Product)
@@ -81,14 +70,14 @@ public class CreateDeliveryTimeEstimationCommandHandler : IRequestHandler<Create
 
         if (createdEstimation == null)
         {
-            _logger.LogWarning("Delivery time estimation not found after creation. EstimationId: {EstimationId}", estimation.Id);
+            logger.LogWarning("Delivery time estimation not found after creation. EstimationId: {EstimationId}", estimation.Id);
             throw new NotFoundException("Teslimat süresi tahmini", estimation.Id);
         }
 
-        _logger.LogInformation("Delivery time estimation created successfully. EstimationId: {EstimationId}", estimation.Id);
+        logger.LogInformation("Delivery time estimation created successfully. EstimationId: {EstimationId}", estimation.Id);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<DeliveryTimeEstimationDto>(createdEstimation);
+        return mapper.Map<DeliveryTimeEstimationDto>(createdEstimation);
     }
 }
 

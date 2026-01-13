@@ -4,7 +4,8 @@ using Merge.Domain.Modules.Content;
 namespace Merge.Application.Marketing.Commands.CreateFlashSale;
 
 // ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-public class CreateFlashSaleCommandValidator : AbstractValidator<CreateFlashSaleCommand>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class CreateFlashSaleCommandValidator() : AbstractValidator<CreateFlashSaleCommand>
 {
     public CreateFlashSaleCommandValidator()
     {

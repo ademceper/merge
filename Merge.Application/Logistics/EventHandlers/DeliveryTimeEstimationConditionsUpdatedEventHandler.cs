@@ -7,20 +7,16 @@ namespace Merge.Application.Logistics.EventHandlers;
 /// <summary>
 /// DeliveryTimeEstimation Conditions Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 /// </summary>
-public class DeliveryTimeEstimationConditionsUpdatedEventHandler : INotificationHandler<DeliveryTimeEstimationConditionsUpdatedEvent>
+public class DeliveryTimeEstimationConditionsUpdatedEventHandler(
+    ILogger<DeliveryTimeEstimationConditionsUpdatedEventHandler> logger) : INotificationHandler<DeliveryTimeEstimationConditionsUpdatedEvent>
 {
-    private readonly ILogger<DeliveryTimeEstimationConditionsUpdatedEventHandler> _logger;
-
-    public DeliveryTimeEstimationConditionsUpdatedEventHandler(ILogger<DeliveryTimeEstimationConditionsUpdatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(DeliveryTimeEstimationConditionsUpdatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "DeliveryTimeEstimation conditions updated event received. DeliveryTimeEstimationId: {DeliveryTimeEstimationId}",
             notification.DeliveryTimeEstimationId);
 
@@ -35,7 +31,7 @@ public class DeliveryTimeEstimationConditionsUpdatedEventHandler : INotification
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling DeliveryTimeEstimationConditionsUpdatedEvent. DeliveryTimeEstimationId: {DeliveryTimeEstimationId}",
                 notification.DeliveryTimeEstimationId);
             throw;

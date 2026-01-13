@@ -19,28 +19,18 @@ namespace Merge.Application.Logistics.Queries.GetStockMovementsByWarehouseId;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class GetStockMovementsByWarehouseIdQueryHandler : IRequestHandler<GetStockMovementsByWarehouseIdQuery, PagedResult<StockMovementDto>>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class GetStockMovementsByWarehouseIdQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetStockMovementsByWarehouseIdQueryHandler> logger,
+    IOptions<ShippingSettings> shippingSettings) : IRequestHandler<GetStockMovementsByWarehouseIdQuery, PagedResult<StockMovementDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetStockMovementsByWarehouseIdQueryHandler> _logger;
-    private readonly ShippingSettings _shippingSettings;
-
-    public GetStockMovementsByWarehouseIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetStockMovementsByWarehouseIdQueryHandler> logger,
-        IOptions<ShippingSettings> shippingSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _shippingSettings = shippingSettings.Value;
-    }
+    private readonly ShippingSettings _shippingSettings = shippingSettings.Value;
 
     public async Task<PagedResult<StockMovementDto>> Handle(GetStockMovementsByWarehouseIdQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Getting stock movements by warehouse. WarehouseId: {WarehouseId}, Page: {Page}, PageSize: {PageSize}", request.WarehouseId, request.Page, request.PageSize);
+        logger.LogInformation("Getting stock movements by warehouse. WarehouseId: {WarehouseId}, Page: {Page}, PageSize: {PageSize}", request.WarehouseId, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination (ZORUNLU)
         // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan
@@ -52,7 +42,7 @@ public class GetStockMovementsByWarehouseIdQueryHandler : IRequestHandler<GetSto
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
         // ✅ PERFORMANCE: Include ile N+1 önlenir
-        var query = _context.Set<StockMovement>()
+        var query = context.Set<StockMovement>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(sm => sm.Product)
@@ -71,7 +61,7 @@ public class GetStockMovementsByWarehouseIdQueryHandler : IRequestHandler<GetSto
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (batch mapping)
-        var items = _mapper.Map<IEnumerable<StockMovementDto>>(movements);
+        var items = mapper.Map<IEnumerable<StockMovementDto>>(movements);
 
         return new PagedResult<StockMovementDto>
         {

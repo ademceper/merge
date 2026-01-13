@@ -16,37 +16,26 @@ namespace Merge.Application.Logistics.Commands.CreateWarehouse;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class CreateWarehouseCommandHandler : IRequestHandler<CreateWarehouseCommand, WarehouseDto>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class CreateWarehouseCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<CreateWarehouseCommandHandler> logger) : IRequestHandler<CreateWarehouseCommand, WarehouseDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateWarehouseCommandHandler> _logger;
-
-    public CreateWarehouseCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateWarehouseCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<WarehouseDto> Handle(CreateWarehouseCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Creating warehouse. Code: {Code}, Name: {Name}", request.Code, request.Name);
+        logger.LogInformation("Creating warehouse. Code: {Code}, Name: {Name}", request.Code, request.Name);
 
         // ✅ PERFORMANCE: AsNoTracking - Check if code already exists
-        var existingWarehouse = await _context.Set<Warehouse>()
+        var existingWarehouse = await context.Set<Warehouse>()
             .AsNoTracking()
             .AnyAsync(w => w.Code == request.Code, cancellationToken);
 
         if (existingWarehouse)
         {
-            _logger.LogWarning("Warehouse with code already exists. Code: {Code}", request.Code);
+            logger.LogWarning("Warehouse with code already exists. Code: {Code}", request.Code);
             throw new BusinessException($"Bu kod ile depo zaten mevcut: '{request.Code}'");
         }
 
@@ -64,24 +53,24 @@ public class CreateWarehouseCommandHandler : IRequestHandler<CreateWarehouseComm
             request.Capacity,
             request.Description);
 
-        await _context.Set<Warehouse>().AddAsync(warehouse, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<Warehouse>().AddAsync(warehouse, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking + Include ile tek query'de getir
-        var createdWarehouse = await _context.Set<Warehouse>()
+        var createdWarehouse = await context.Set<Warehouse>()
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == warehouse.Id, cancellationToken);
 
         if (createdWarehouse == null)
         {
-            _logger.LogWarning("Warehouse not found after creation. WarehouseId: {WarehouseId}", warehouse.Id);
+            logger.LogWarning("Warehouse not found after creation. WarehouseId: {WarehouseId}", warehouse.Id);
             throw new NotFoundException("Depo", warehouse.Id);
         }
 
-        _logger.LogInformation("Warehouse created successfully. WarehouseId: {WarehouseId}, Code: {Code}", warehouse.Id, request.Code);
+        logger.LogInformation("Warehouse created successfully. WarehouseId: {WarehouseId}, Code: {Code}", warehouse.Id, request.Code);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<WarehouseDto>(createdWarehouse);
+        return mapper.Map<WarehouseDto>(createdWarehouse);
     }
 }
 

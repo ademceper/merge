@@ -7,20 +7,16 @@ namespace Merge.Application.Logistics.EventHandlers;
 /// <summary>
 /// StockMovement Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 /// </summary>
-public class StockMovementCreatedEventHandler : INotificationHandler<StockMovementCreatedEvent>
+public class StockMovementCreatedEventHandler(
+    ILogger<StockMovementCreatedEventHandler> logger) : INotificationHandler<StockMovementCreatedEvent>
 {
-    private readonly ILogger<StockMovementCreatedEventHandler> _logger;
-
-    public StockMovementCreatedEventHandler(ILogger<StockMovementCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(StockMovementCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "StockMovement created event received. StockMovementId: {StockMovementId}, ProductId: {ProductId}, WarehouseId: {WarehouseId}, MovementType: {MovementType}, Quantity: {Quantity}, QuantityBefore: {QuantityBefore}, QuantityAfter: {QuantityAfter}",
             notification.StockMovementId, notification.ProductId, notification.WarehouseId, notification.MovementType, notification.Quantity, notification.QuantityBefore, notification.QuantityAfter);
 
@@ -38,7 +34,7 @@ public class StockMovementCreatedEventHandler : INotificationHandler<StockMoveme
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling StockMovementCreatedEvent. StockMovementId: {StockMovementId}, ProductId: {ProductId}, WarehouseId: {WarehouseId}",
                 notification.StockMovementId, notification.ProductId, notification.WarehouseId);
             throw;

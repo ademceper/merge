@@ -15,35 +15,23 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Marketing.Commands.UpdateFlashSale;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UpdateFlashSaleCommandHandler : IRequestHandler<UpdateFlashSaleCommand, FlashSaleDto>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class UpdateFlashSaleCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<UpdateFlashSaleCommandHandler> logger) : IRequestHandler<UpdateFlashSaleCommand, FlashSaleDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<UpdateFlashSaleCommandHandler> _logger;
-
-    public UpdateFlashSaleCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<UpdateFlashSaleCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
-
     public async Task<FlashSaleDto> Handle(UpdateFlashSaleCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Updating flash sale. FlashSaleId: {FlashSaleId}", request.Id);
+        logger.LogInformation("Updating flash sale. FlashSaleId: {FlashSaleId}", request.Id);
 
-        var flashSale = await _context.Set<FlashSale>()
+        var flashSale = await context.Set<FlashSale>()
             .FirstOrDefaultAsync(fs => fs.Id == request.Id, cancellationToken);
 
         if (flashSale == null)
         {
-            _logger.LogWarning("FlashSale not found. FlashSaleId: {FlashSaleId}", request.Id);
+            logger.LogWarning("FlashSale not found. FlashSaleId: {FlashSaleId}", request.Id);
             throw new NotFoundException("Flash Sale", request.Id);
         }
 
@@ -66,10 +54,10 @@ public class UpdateFlashSaleCommandHandler : IRequestHandler<UpdateFlashSaleComm
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery ile tek query'de getir (N+1 query önleme)
-        var updatedFlashSale = await _context.Set<FlashSale>()
+        var updatedFlashSale = await context.Set<FlashSale>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(fs => fs.FlashSaleProducts)
@@ -78,13 +66,13 @@ public class UpdateFlashSaleCommandHandler : IRequestHandler<UpdateFlashSaleComm
 
         if (updatedFlashSale == null)
         {
-            _logger.LogWarning("FlashSale not found after update. FlashSaleId: {FlashSaleId}", flashSale.Id);
+            logger.LogWarning("FlashSale not found after update. FlashSaleId: {FlashSaleId}", flashSale.Id);
             throw new NotFoundException("Flash Sale", flashSale.Id);
         }
 
-        _logger.LogInformation("FlashSale updated successfully. FlashSaleId: {FlashSaleId}", request.Id);
+        logger.LogInformation("FlashSale updated successfully. FlashSaleId: {FlashSaleId}", request.Id);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<FlashSaleDto>(updatedFlashSale);
+        return mapper.Map<FlashSaleDto>(updatedFlashSale);
     }
 }

@@ -19,28 +19,18 @@ namespace Merge.Application.Logistics.Queries.GetFilteredStockMovements;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class GetFilteredStockMovementsQueryHandler : IRequestHandler<GetFilteredStockMovementsQuery, IEnumerable<StockMovementDto>>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class GetFilteredStockMovementsQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetFilteredStockMovementsQueryHandler> logger,
+    IOptions<ShippingSettings> shippingSettings) : IRequestHandler<GetFilteredStockMovementsQuery, IEnumerable<StockMovementDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetFilteredStockMovementsQueryHandler> _logger;
-    private readonly ShippingSettings _shippingSettings;
-
-    public GetFilteredStockMovementsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetFilteredStockMovementsQueryHandler> logger,
-        IOptions<ShippingSettings> shippingSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _shippingSettings = shippingSettings.Value;
-    }
+    private readonly ShippingSettings _shippingSettings = shippingSettings.Value;
 
     public async Task<IEnumerable<StockMovementDto>> Handle(GetFilteredStockMovementsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Getting filtered stock movements. ProductId: {ProductId}, WarehouseId: {WarehouseId}, MovementType: {MovementType}",
+        logger.LogInformation("Getting filtered stock movements. ProductId: {ProductId}, WarehouseId: {WarehouseId}, MovementType: {MovementType}",
             request.ProductId, request.WarehouseId, request.MovementType);
 
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
@@ -53,7 +43,7 @@ public class GetFilteredStockMovementsQueryHandler : IRequestHandler<GetFiltered
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
         // ✅ PERFORMANCE: Include ile N+1 önlenir
-        IQueryable<StockMovement> query = _context.Set<StockMovement>()
+        IQueryable<StockMovement> query = context.Set<StockMovement>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(sm => sm.Product)
@@ -94,7 +84,7 @@ public class GetFilteredStockMovementsQueryHandler : IRequestHandler<GetFiltered
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (batch mapping)
-        return _mapper.Map<IEnumerable<StockMovementDto>>(movements);
+        return mapper.Map<IEnumerable<StockMovementDto>>(movements);
     }
 }
 

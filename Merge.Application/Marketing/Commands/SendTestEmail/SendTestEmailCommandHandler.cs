@@ -13,26 +13,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Commands.SendTestEmail;
 
-public class SendTestEmailCommandHandler : IRequestHandler<SendTestEmailCommand>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class SendTestEmailCommandHandler(
+    IDbContext context,
+    IEmailService emailService,
+    ILogger<SendTestEmailCommandHandler> logger) : IRequestHandler<SendTestEmailCommand>
 {
-    private readonly IDbContext _context;
-    private readonly IEmailService _emailService;
-    private readonly ILogger<SendTestEmailCommandHandler> _logger;
-
-    public SendTestEmailCommandHandler(
-        IDbContext context,
-        IEmailService emailService,
-        ILogger<SendTestEmailCommandHandler> logger)
-    {
-        _context = context;
-        _emailService = emailService;
-        _logger = logger;
-    }
-
     public async Task Handle(SendTestEmailCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery + Removed manual !c.IsDeleted (Global Query Filter)
-        var campaign = await _context.Set<EmailCampaign>()
+        var campaign = await context.Set<EmailCampaign>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(c => c.Template)
@@ -47,7 +37,7 @@ public class SendTestEmailCommandHandler : IRequestHandler<SendTestEmailCommand>
             ? campaign.Content
             : campaign.Template?.HtmlContent ?? string.Empty;
 
-        await _emailService.SendEmailAsync(
+        await emailService.SendEmailAsync(
             request.TestEmail,
             campaign.Subject + " [TEST]",
             content,
@@ -55,7 +45,7 @@ public class SendTestEmailCommandHandler : IRequestHandler<SendTestEmailCommand>
             cancellationToken
         );
 
-        _logger.LogInformation("Test email gönderildi. CampaignId: {CampaignId}, TestEmail: {TestEmail}",
+        logger.LogInformation("Test email gönderildi. CampaignId: {CampaignId}, TestEmail: {TestEmail}",
             request.CampaignId, request.TestEmail);
     }
 }

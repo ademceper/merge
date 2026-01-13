@@ -11,21 +11,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Marketing.Queries.GetCampaignAnalytics;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetCampaignAnalyticsQueryHandler : IRequestHandler<GetCampaignAnalyticsQuery, EmailCampaignAnalyticsDto?>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class GetCampaignAnalyticsQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetCampaignAnalyticsQuery, EmailCampaignAnalyticsDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetCampaignAnalyticsQueryHandler(IDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
-
     public async Task<EmailCampaignAnalyticsDto?> Handle(GetCampaignAnalyticsQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        var campaign = await _context.Set<Merge.Domain.Modules.Marketing.EmailCampaign>()
+        var campaign = await context.Set<Merge.Domain.Modules.Marketing.EmailCampaign>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == request.CampaignId, cancellationToken);
 
@@ -35,7 +27,7 @@ public class GetCampaignAnalyticsQueryHandler : IRequestHandler<GetCampaignAnaly
         }
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var dto = _mapper.Map<EmailCampaignAnalyticsDto>(campaign);
+        var dto = mapper.Map<EmailCampaignAnalyticsDto>(campaign);
         
         // ✅ PERFORMANCE: Memory'de minimal işlem (sadece property assignment)
         var bounceRate = campaign.SentCount > 0 ? (decimal)campaign.BouncedCount / campaign.SentCount * 100 : 0;

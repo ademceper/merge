@@ -137,7 +137,12 @@ public class EmailCampaign : BaseEntity, IAggregateRoot
     }
     
     public string? Tags { get; private set; } // JSON array of tags
-    public ICollection<EmailCampaignRecipient> Recipients { get; private set; } = new List<EmailCampaignRecipient>();
+    
+    // ✅ BOLUM 1.1: Rich Domain Model - Backing fields for encapsulated collections
+    private readonly List<EmailCampaignRecipient> _recipients = [];
+    
+    // ✅ BOLUM 1.1: Rich Domain Model - Navigation properties as IReadOnlyCollection
+    public IReadOnlyCollection<EmailCampaignRecipient> Recipients => _recipients.AsReadOnly();
 
     // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]

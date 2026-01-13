@@ -15,29 +15,17 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Marketing.Commands.UpdateEmailSubscriber;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UpdateEmailSubscriberCommandHandler : IRequestHandler<UpdateEmailSubscriberCommand, EmailSubscriberDto>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class UpdateEmailSubscriberCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<UpdateEmailSubscriberCommandHandler> logger) : IRequestHandler<UpdateEmailSubscriberCommand, EmailSubscriberDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<UpdateEmailSubscriberCommandHandler> _logger;
-
-    public UpdateEmailSubscriberCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<UpdateEmailSubscriberCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
-
     public async Task<EmailSubscriberDto> Handle(UpdateEmailSubscriberCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var subscriber = await _context.Set<Merge.Domain.Modules.Marketing.EmailSubscriber>()
+        var subscriber = await context.Set<Merge.Domain.Modules.Marketing.EmailSubscriber>()
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 
         if (subscriber == null)
@@ -62,20 +50,20 @@ public class UpdateEmailSubscriberCommandHandler : IRequestHandler<UpdateEmailSu
         }
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-        var updatedSubscriber = await _context.Set<Merge.Domain.Modules.Marketing.EmailSubscriber>()
+        var updatedSubscriber = await context.Set<Merge.Domain.Modules.Marketing.EmailSubscriber>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Email abonesi güncellendi. SubscriberId: {SubscriberId}",
             request.Id);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<EmailSubscriberDto>(updatedSubscriber!);
+        return mapper.Map<EmailSubscriberDto>(updatedSubscriber!);
     }
 }

@@ -12,27 +12,19 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Marketing.Queries.GetFlashSaleById;
 
-public class GetFlashSaleByIdQueryHandler : IRequestHandler<GetFlashSaleByIdQuery, FlashSaleDto?>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class GetFlashSaleByIdQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetFlashSaleByIdQuery, FlashSaleDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetFlashSaleByIdQueryHandler(IDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
-
     public async Task<FlashSaleDto?> Handle(GetFlashSaleByIdQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsSplitQuery - N+1 query önleme (Cartesian Explosion önleme)
-        var flashSale = await _context.Set<FlashSale>()
+        var flashSale = await context.Set<FlashSale>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(fs => fs.FlashSaleProducts)
                 .ThenInclude(fsp => fsp.Product)
             .FirstOrDefaultAsync(fs => fs.Id == request.Id, cancellationToken);
 
-        return flashSale == null ? null : _mapper.Map<FlashSaleDto>(flashSale);
+        return flashSale == null ? null : mapper.Map<FlashSaleDto>(flashSale);
     }
 }

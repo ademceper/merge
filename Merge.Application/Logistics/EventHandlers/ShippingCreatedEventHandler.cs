@@ -7,20 +7,16 @@ namespace Merge.Application.Logistics.EventHandlers;
 /// <summary>
 /// Shipping Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 /// </summary>
-public class ShippingCreatedEventHandler : INotificationHandler<ShippingCreatedEvent>
+public class ShippingCreatedEventHandler(
+    ILogger<ShippingCreatedEventHandler> logger) : INotificationHandler<ShippingCreatedEvent>
 {
-    private readonly ILogger<ShippingCreatedEventHandler> _logger;
-
-    public ShippingCreatedEventHandler(ILogger<ShippingCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(ShippingCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Shipping created event received. ShippingId: {ShippingId}, OrderId: {OrderId}, ShippingProvider: {ShippingProvider}, ShippingCost: {ShippingCost}",
             notification.ShippingId, notification.OrderId, notification.ShippingProvider, notification.ShippingCost);
 
@@ -37,7 +33,7 @@ public class ShippingCreatedEventHandler : INotificationHandler<ShippingCreatedE
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling ShippingCreatedEvent. ShippingId: {ShippingId}, OrderId: {OrderId}, ShippingProvider: {ShippingProvider}",
                 notification.ShippingId, notification.OrderId, notification.ShippingProvider);
             throw;

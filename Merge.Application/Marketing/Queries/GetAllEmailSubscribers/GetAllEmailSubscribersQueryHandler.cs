@@ -14,21 +14,13 @@ namespace Merge.Application.Marketing.Queries.GetAllEmailSubscribers;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-public class GetAllEmailSubscribersQueryHandler : IRequestHandler<GetAllEmailSubscribersQuery, PagedResult<EmailSubscriberDto>>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class GetAllEmailSubscribersQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetAllEmailSubscribersQuery, PagedResult<EmailSubscriberDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetAllEmailSubscribersQueryHandler(IDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
-
     public async Task<PagedResult<EmailSubscriberDto>> Handle(GetAllEmailSubscribersQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-        IQueryable<EmailSubscriber> query = _context.Set<EmailSubscriber>()
+        IQueryable<EmailSubscriber> query = context.Set<EmailSubscriber>()
             .AsNoTracking();
 
         if (request.IsSubscribed.HasValue)
@@ -47,7 +39,7 @@ public class GetAllEmailSubscribersQueryHandler : IRequestHandler<GetAllEmailSub
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return new PagedResult<EmailSubscriberDto>
         {
-            Items = _mapper.Map<List<EmailSubscriberDto>>(subscribers),
+            Items = mapper.Map<List<EmailSubscriberDto>>(subscribers),
             TotalCount = totalCount,
             Page = request.PageNumber,
             PageSize = request.PageSize

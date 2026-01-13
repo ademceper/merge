@@ -8,20 +8,14 @@ namespace Merge.Application.Marketing.EventHandlers;
 
 /// <summary>
 /// Coupon Used Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
+/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
 /// </summary>
-public class CouponUsedEventHandler : INotificationHandler<CouponUsedEvent>
+public class CouponUsedEventHandler(ILogger<CouponUsedEventHandler> logger) : INotificationHandler<CouponUsedEvent>
 {
-    private readonly ILogger<CouponUsedEventHandler> _logger;
-
-    public CouponUsedEventHandler(ILogger<CouponUsedEventHandler> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task Handle(CouponUsedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Coupon used event received. CouponId: {CouponId}, Code: {Code}, UsedCount: {UsedCount}, UsageLimit: {UsageLimit}",
             notification.CouponId, notification.Code, notification.UsedCount, notification.UsageLimit);
 

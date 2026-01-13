@@ -3,7 +3,8 @@ using FluentValidation;
 namespace Merge.Application.Marketing.Commands.CreateCoupon;
 
 // ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-public class CreateCouponCommandValidator : AbstractValidator<CreateCouponCommand>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
+public class CreateCouponCommandValidator() : AbstractValidator<CreateCouponCommand>
 {
     public CreateCouponCommandValidator()
     {
