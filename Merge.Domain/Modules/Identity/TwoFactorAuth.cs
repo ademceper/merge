@@ -11,10 +11,11 @@ namespace Merge.Domain.Modules.Identity;
 /// TwoFactorAuth Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
 /// BOLUM 1.2: Enum kullanımı (string Status YASAK)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
 /// BOLUM 1.5: Domain Events (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class TwoFactorAuth : BaseEntity
+public class TwoFactorAuth : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
@@ -34,6 +35,27 @@ public class TwoFactorAuth : BaseEntity
     // Navigation properties
     public User User { get; private set; } = null!;
 
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
+    // Service layer'dan event eklenebilmesi için public yapıldı
+    public new void AddDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        // BaseEntity'deki protected AddDomainEvent'i çağır
+        base.AddDomainEvent(domainEvent);
+    }
+
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
+    public new void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        base.RemoveDomainEvent(domainEvent);
+    }
+
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private TwoFactorAuth() { }
 
@@ -48,12 +70,39 @@ public class TwoFactorAuth : BaseEntity
     {
         Guard.AgainstDefault(userId, nameof(userId));
         Guard.AgainstNullOrEmpty(secret, nameof(secret));
+        Guard.AgainstLength(secret, 100, nameof(secret));
 
         if (method == TwoFactorMethod.SMS && string.IsNullOrEmpty(phoneNumber))
             throw new DomainException("Phone number is required for SMS 2FA method");
+        
+        if (!string.IsNullOrEmpty(phoneNumber))
+        {
+            var cleanedPhone = phoneNumber.Trim().Replace(" ", "").Replace("-", "").Replace("(", "").Replace(")", "");
+            if (cleanedPhone.Length < 10 || cleanedPhone.Length > 15)
+                throw new DomainException("Geçersiz telefon numarası formatı");
+        }
 
         if (method == TwoFactorMethod.Email && string.IsNullOrEmpty(email))
             throw new DomainException("Email is required for Email 2FA method");
+        
+        // ✅ BOLUM 1.3: Value Objects - Email validation
+        if (!string.IsNullOrEmpty(email))
+        {
+            var emailValueObject = new Email(email);
+            email = emailValueObject.Value;
+        }
+        
+        // Validate backup codes if provided
+        if (backupCodes != null && backupCodes.Length > 0)
+        {
+            foreach (var code in backupCodes)
+            {
+                if (string.IsNullOrWhiteSpace(code))
+                    throw new DomainException("Backup code cannot be null or empty");
+                
+                Guard.AgainstLength(code, 20, nameof(backupCodes));
+            }
+        }
 
         var twoFactorAuth = new TwoFactorAuth
         {
@@ -69,6 +118,9 @@ public class TwoFactorAuth : BaseEntity
             FailedAttempts = 0,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events - TwoFactorAuthCreatedEvent
+        twoFactorAuth.AddDomainEvent(new TwoFactorAuthCreatedEvent(twoFactorAuth.Id, userId, method));
 
         return twoFactorAuth;
     }
@@ -114,12 +166,39 @@ public class TwoFactorAuth : BaseEntity
         string[]? backupCodes = null)
     {
         Guard.AgainstNullOrEmpty(secret, nameof(secret));
+        Guard.AgainstLength(secret, 100, nameof(secret));
 
         if (method == TwoFactorMethod.SMS && string.IsNullOrEmpty(phoneNumber))
             throw new DomainException("Phone number is required for SMS 2FA method");
+        
+        if (!string.IsNullOrEmpty(phoneNumber))
+        {
+            var cleanedPhone = phoneNumber.Trim().Replace(" ", "").Replace("-", "").Replace("(", "").Replace(")", "");
+            if (cleanedPhone.Length < 10 || cleanedPhone.Length > 15)
+                throw new DomainException("Geçersiz telefon numarası formatı");
+        }
 
         if (method == TwoFactorMethod.Email && string.IsNullOrEmpty(email))
             throw new DomainException("Email is required for Email 2FA method");
+        
+        // ✅ BOLUM 1.3: Value Objects - Email validation
+        if (!string.IsNullOrEmpty(email))
+        {
+            var emailValueObject = new Email(email);
+            email = emailValueObject.Value;
+        }
+        
+        // Validate backup codes if provided
+        if (backupCodes != null && backupCodes.Length > 0)
+        {
+            foreach (var code in backupCodes)
+            {
+                if (string.IsNullOrWhiteSpace(code))
+                    throw new DomainException("Backup code cannot be null or empty");
+                
+                Guard.AgainstLength(code, 20, nameof(backupCodes));
+            }
+        }
 
         Method = method;
         Secret = secret;
@@ -142,6 +221,9 @@ public class TwoFactorAuth : BaseEntity
 
         IsVerified = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events
+        AddDomainEvent(new TwoFactorVerifiedEvent(Id, UserId, Method));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Record failed attempt
@@ -154,21 +236,30 @@ public class TwoFactorAuth : BaseEntity
         LastAttemptAt = DateTime.UtcNow;
 
         // Lock account after max failed attempts
+        bool wasLocked = IsLocked;
         if (FailedAttempts >= maxFailedAttempts)
         {
             LockedUntil = DateTime.UtcNow.AddMinutes(lockoutMinutes);
         }
 
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events
+        AddDomainEvent(new TwoFactorFailedAttemptRecordedEvent(Id, UserId, Method, FailedAttempts, IsLocked && !wasLocked));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Reset failed attempts
     public void ResetFailedAttempts()
     {
+        if (FailedAttempts == 0 && !IsLocked) return;
+        
         FailedAttempts = 0;
         LastAttemptAt = DateTime.UtcNow;
         LockedUntil = null;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events
+        AddDomainEvent(new TwoFactorFailedAttemptsResetEvent(Id, UserId, Method));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update backup codes
@@ -178,15 +269,28 @@ public class TwoFactorAuth : BaseEntity
         
         if (backupCodes.Length == 0)
             throw new DomainException("Backup codes cannot be empty");
+        
+        // Validate each backup code length
+        foreach (var code in backupCodes)
+        {
+            if (string.IsNullOrWhiteSpace(code))
+                throw new DomainException("Backup code cannot be null or empty");
+            
+            Guard.AgainstLength(code, 20, nameof(backupCodes));
+        }
 
         BackupCodes = backupCodes;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events
+        AddDomainEvent(new TwoFactorBackupCodesUpdatedEvent(Id, UserId, Method, backupCodes.Length));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Remove backup code
     public void RemoveBackupCode(string backupCode)
     {
         Guard.AgainstNullOrEmpty(backupCode, nameof(backupCode));
+        Guard.AgainstLength(backupCode, 20, nameof(backupCode));
 
         if (BackupCodes == null || BackupCodes.Length == 0)
             throw new DomainException("No backup codes available");
@@ -204,6 +308,9 @@ public class TwoFactorAuth : BaseEntity
 
         BackupCodes = remainingCodes;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events
+        AddDomainEvent(new TwoFactorBackupCodeRemovedEvent(Id, UserId, Method, remainingCodes.Length));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Computed properties

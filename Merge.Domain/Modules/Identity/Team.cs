@@ -39,6 +39,15 @@ public class Team : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
+    public new void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        base.RemoveDomainEvent(domainEvent);
+    }
+
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Team() { }
 
@@ -57,6 +66,11 @@ public class Team : BaseEntity, IAggregateRoot
         if (!string.IsNullOrEmpty(description))
         {
             Guard.AgainstLength(description, 1000, nameof(description));
+        }
+        
+        if (!string.IsNullOrEmpty(settings))
+        {
+            Guard.AgainstLength(settings, 2000, nameof(settings));
         }
 
         var team = new Team
@@ -114,7 +128,11 @@ public class Team : BaseEntity, IAggregateRoot
             TeamLeadId = null;
         }
 
-        if (settings != null) Settings = settings;
+        if (settings != null)
+        {
+            Guard.AgainstLength(settings, 2000, nameof(settings));
+            Settings = settings;
+        }
 
         UpdatedAt = DateTime.UtcNow;
 

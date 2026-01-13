@@ -33,6 +33,7 @@ public class UserLanguagePreference : BaseEntity
         Guard.AgainstDefault(userId, nameof(userId));
         Guard.AgainstDefault(languageId, nameof(languageId));
         Guard.AgainstNullOrEmpty(languageCode, nameof(languageCode));
+        Guard.AgainstLength(languageCode, 10, nameof(languageCode));
 
         return new UserLanguagePreference
         {
@@ -49,6 +50,7 @@ public class UserLanguagePreference : BaseEntity
     {
         Guard.AgainstDefault(languageId, nameof(languageId));
         Guard.AgainstNullOrEmpty(languageCode, nameof(languageCode));
+        Guard.AgainstLength(languageCode, 10, nameof(languageCode));
 
         LanguageId = languageId;
         LanguageCode = languageCode.ToLowerInvariant();

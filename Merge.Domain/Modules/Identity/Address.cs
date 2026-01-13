@@ -34,6 +34,24 @@ public class Address : BaseEntity, IAggregateRoot
     public User User { get; private set; } = null!;
     public ICollection<Order> Orders { get; private set; } = new List<Order>();
 
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    public new void AddDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        base.AddDomainEvent(domainEvent);
+    }
+
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
+    public new void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        base.RemoveDomainEvent(domainEvent);
+    }
+
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Address() { }
 
@@ -53,10 +71,38 @@ public class Address : BaseEntity, IAggregateRoot
         bool isDefault = false)
     {
         Guard.AgainstDefault(userId, nameof(userId));
-        Guard.AgainstNullOrEmpty(addressLine1, nameof(addressLine1));
-        Guard.AgainstNullOrEmpty(city, nameof(city));
+        Guard.AgainstNullOrEmpty(title, nameof(title));
+        Guard.AgainstLength(title, 50, nameof(title));
         Guard.AgainstNullOrEmpty(firstName, nameof(firstName));
+        Guard.AgainstLength(firstName, 100, nameof(firstName));
         Guard.AgainstNullOrEmpty(lastName, nameof(lastName));
+        Guard.AgainstLength(lastName, 100, nameof(lastName));
+        Guard.AgainstNullOrEmpty(phoneNumber, nameof(phoneNumber));
+        Guard.AgainstNullOrEmpty(addressLine1, nameof(addressLine1));
+        Guard.AgainstLength(addressLine1, 200, nameof(addressLine1));
+        Guard.AgainstNullOrEmpty(city, nameof(city));
+        Guard.AgainstLength(city, 100, nameof(city));
+        Guard.AgainstNullOrEmpty(district, nameof(district));
+        Guard.AgainstLength(district, 100, nameof(district));
+        Guard.AgainstNullOrEmpty(postalCode, nameof(postalCode));
+        Guard.AgainstLength(postalCode, 20, nameof(postalCode));
+        Guard.AgainstNullOrEmpty(country, nameof(country));
+        Guard.AgainstLength(country, 100, nameof(country));
+        
+        if (!string.IsNullOrEmpty(addressLine2))
+        {
+            Guard.AgainstLength(addressLine2, 200, nameof(addressLine2));
+        }
+
+        // ✅ BOLUM 1.3: Value Objects - PhoneNumber validation (basit format kontrolü)
+        // NOT: PhoneNumber value object kullanmak için entity'yi büyük ölçüde değiştirmek gerekir
+        // Şimdilik basit validation ekliyoruz
+        if (!string.IsNullOrWhiteSpace(phoneNumber))
+        {
+            var cleanedPhone = phoneNumber.Trim().Replace(" ", "").Replace("-", "").Replace("(", "").Replace(")", "");
+            if (cleanedPhone.Length < 10 || cleanedPhone.Length > 15)
+                throw new DomainException("Geçersiz telefon numarası formatı");
+        }
 
         var address = new Address
         {
@@ -94,10 +140,34 @@ public class Address : BaseEntity, IAggregateRoot
         string postalCode,
         string? addressLine2 = null)
     {
-        Guard.AgainstNullOrEmpty(addressLine1, nameof(addressLine1));
-        Guard.AgainstNullOrEmpty(city, nameof(city));
+        Guard.AgainstNullOrEmpty(title, nameof(title));
+        Guard.AgainstLength(title, 50, nameof(title));
         Guard.AgainstNullOrEmpty(firstName, nameof(firstName));
+        Guard.AgainstLength(firstName, 100, nameof(firstName));
         Guard.AgainstNullOrEmpty(lastName, nameof(lastName));
+        Guard.AgainstLength(lastName, 100, nameof(lastName));
+        Guard.AgainstNullOrEmpty(phoneNumber, nameof(phoneNumber));
+        Guard.AgainstNullOrEmpty(addressLine1, nameof(addressLine1));
+        Guard.AgainstLength(addressLine1, 200, nameof(addressLine1));
+        Guard.AgainstNullOrEmpty(city, nameof(city));
+        Guard.AgainstLength(city, 100, nameof(city));
+        Guard.AgainstNullOrEmpty(district, nameof(district));
+        Guard.AgainstLength(district, 100, nameof(district));
+        Guard.AgainstNullOrEmpty(postalCode, nameof(postalCode));
+        Guard.AgainstLength(postalCode, 20, nameof(postalCode));
+        
+        if (!string.IsNullOrEmpty(addressLine2))
+        {
+            Guard.AgainstLength(addressLine2, 200, nameof(addressLine2));
+        }
+
+        // ✅ BOLUM 1.3: Value Objects - PhoneNumber validation
+        if (!string.IsNullOrWhiteSpace(phoneNumber))
+        {
+            var cleanedPhone = phoneNumber.Trim().Replace(" ", "").Replace("-", "").Replace("(", "").Replace(")", "");
+            if (cleanedPhone.Length < 10 || cleanedPhone.Length > 15)
+                throw new DomainException("Geçersiz telefon numarası formatı");
+        }
 
         Title = title;
         FirstName = firstName;
@@ -131,6 +201,9 @@ public class Address : BaseEntity, IAggregateRoot
         if (!IsDefault) return;
         IsDefault = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - Add domain event
+        AddDomainEvent(new AddressRemovedDefaultEvent(Id, UserId));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)

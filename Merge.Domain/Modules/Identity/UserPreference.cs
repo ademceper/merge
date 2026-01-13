@@ -3,12 +3,14 @@ using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Modules.Notifications;
+using Merge.Domain.Enums;
 
 namespace Merge.Domain.Modules.Identity;
 
 /// <summary>
 /// UserPreference Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.2: Enum kullanımı (string Theme, TimeFormat YASAK)
 /// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
 /// BOLUM 1.5: Domain Events (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
@@ -19,12 +21,14 @@ public class UserPreference : BaseEntity, IAggregateRoot
     public Guid UserId { get; private set; }
 
     // Display Preferences
-    public string Theme { get; private set; } = "Light"; // Light, Dark, Auto
+    // ✅ BOLUM 1.2: Enum kullanımı (string Theme YASAK)
+    public Theme Theme { get; private set; } = Theme.Light;
     public string DefaultLanguage { get; private set; } = "tr-TR";
     public string DefaultCurrency { get; private set; } = "TRY";
     public int ItemsPerPage { get; private set; } = 20;
     public string DateFormat { get; private set; } = "dd/MM/yyyy";
-    public string TimeFormat { get; private set; } = "24h"; // 12h, 24h
+    // ✅ BOLUM 1.2: Enum kullanımı (string TimeFormat YASAK)
+    public TimeFormat TimeFormat { get; private set; } = TimeFormat.TwentyFourHour;
 
     // Notification Preferences
     public bool EmailNotifications { get; private set; } = true;
@@ -54,6 +58,24 @@ public class UserPreference : BaseEntity, IAggregateRoot
     // Navigation properties
     public User User { get; private set; } = null!;
 
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    public new void AddDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        base.AddDomainEvent(domainEvent);
+    }
+
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
+    public new void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        base.RemoveDomainEvent(domainEvent);
+    }
+
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private UserPreference() { }
 
@@ -77,12 +99,12 @@ public class UserPreference : BaseEntity, IAggregateRoot
 
     // ✅ BOLUM 1.1: Domain Method - Update preferences
     public void UpdatePreferences(
-        string? theme = null,
+        Theme? theme = null,
         string? defaultLanguage = null,
         string? defaultCurrency = null,
         int? itemsPerPage = null,
         string? dateFormat = null,
-        string? timeFormat = null,
+        TimeFormat? timeFormat = null,
         bool? emailNotifications = null,
         bool? smsNotifications = null,
         bool? pushNotifications = null,
@@ -106,12 +128,29 @@ public class UserPreference : BaseEntity, IAggregateRoot
         if (itemsPerPage.HasValue && (itemsPerPage.Value < 1 || itemsPerPage.Value > 100))
             throw new DomainException("ItemsPerPage must be between 1 and 100");
 
-        if (theme != null) Theme = theme;
-        if (defaultLanguage != null) DefaultLanguage = defaultLanguage;
-        if (defaultCurrency != null) DefaultCurrency = defaultCurrency;
+        if (theme.HasValue) Theme = theme.Value;
+        
+        if (defaultLanguage != null)
+        {
+            Guard.AgainstLength(defaultLanguage, 10, nameof(defaultLanguage));
+            DefaultLanguage = defaultLanguage;
+        }
+        
+        if (defaultCurrency != null)
+        {
+            Guard.AgainstLength(defaultCurrency, 10, nameof(defaultCurrency));
+            DefaultCurrency = defaultCurrency;
+        }
+        
         if (itemsPerPage.HasValue) ItemsPerPage = itemsPerPage.Value;
-        if (dateFormat != null) DateFormat = dateFormat;
-        if (timeFormat != null) TimeFormat = timeFormat;
+        
+        if (dateFormat != null)
+        {
+            Guard.AgainstLength(dateFormat, 50, nameof(dateFormat));
+            DateFormat = dateFormat;
+        }
+        
+        if (timeFormat.HasValue) TimeFormat = timeFormat.Value;
 
         if (emailNotifications.HasValue) EmailNotifications = emailNotifications.Value;
         if (smsNotifications.HasValue) SmsNotifications = smsNotifications.Value;
@@ -129,8 +168,17 @@ public class UserPreference : BaseEntity, IAggregateRoot
         if (allowDataCollection.HasValue) AllowDataCollection = allowDataCollection.Value;
         if (allowThirdPartySharing.HasValue) AllowThirdPartySharing = allowThirdPartySharing.Value;
 
-        if (defaultShippingAddress != null) DefaultShippingAddress = defaultShippingAddress;
-        if (defaultPaymentMethod != null) DefaultPaymentMethod = defaultPaymentMethod;
+        if (defaultShippingAddress != null)
+        {
+            Guard.AgainstLength(defaultShippingAddress, 50, nameof(defaultShippingAddress));
+            DefaultShippingAddress = defaultShippingAddress;
+        }
+        
+        if (defaultPaymentMethod != null)
+        {
+            Guard.AgainstLength(defaultPaymentMethod, 50, nameof(defaultPaymentMethod));
+            DefaultPaymentMethod = defaultPaymentMethod;
+        }
         if (autoApplyCoupons.HasValue) AutoApplyCoupons = autoApplyCoupons.Value;
         if (saveCartOnLogout.HasValue) SaveCartOnLogout = saveCartOnLogout.Value;
         if (showOutOfStockItems.HasValue) ShowOutOfStockItems = showOutOfStockItems.Value;
@@ -144,12 +192,12 @@ public class UserPreference : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Method - Reset to defaults
     public void ResetToDefaults()
     {
-        Theme = "Light";
+        Theme = Theme.Light;
         DefaultLanguage = "tr-TR";
         DefaultCurrency = "TRY";
         ItemsPerPage = 20;
         DateFormat = "dd/MM/yyyy";
-        TimeFormat = "24h";
+        TimeFormat = TimeFormat.TwentyFourHour;
 
         EmailNotifications = true;
         SmsNotifications = false;

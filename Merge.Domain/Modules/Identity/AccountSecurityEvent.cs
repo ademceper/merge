@@ -36,8 +36,26 @@ public class AccountSecurityEvent : BaseEntity, IAggregateRoot
     public DateTime? ActionTakenAt { get; private set; }
     
     // Navigation properties
-    public User User { get; set; } = null!;
-    public User? ActionTakenBy { get; set; }
+    public User User { get; private set; } = null!;
+    public User? ActionTakenBy { get; private set; }
+
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    public new void AddDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        base.AddDomainEvent(domainEvent);
+    }
+
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
+    public new void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        base.RemoveDomainEvent(domainEvent);
+    }
 
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private AccountSecurityEvent() { }
@@ -56,6 +74,31 @@ public class AccountSecurityEvent : BaseEntity, IAggregateRoot
         bool requiresAction = false)
     {
         Guard.AgainstDefault(userId, nameof(userId));
+        
+        if (!string.IsNullOrEmpty(ipAddress))
+        {
+            Guard.AgainstLength(ipAddress, 50, nameof(ipAddress));
+        }
+        
+        if (!string.IsNullOrEmpty(userAgent))
+        {
+            Guard.AgainstLength(userAgent, 500, nameof(userAgent));
+        }
+        
+        if (!string.IsNullOrEmpty(location))
+        {
+            Guard.AgainstLength(location, 200, nameof(location));
+        }
+        
+        if (!string.IsNullOrEmpty(deviceFingerprint))
+        {
+            Guard.AgainstLength(deviceFingerprint, 256, nameof(deviceFingerprint));
+        }
+        
+        if (!string.IsNullOrEmpty(details))
+        {
+            Guard.AgainstLength(details, 2000, nameof(details));
+        }
 
         var securityEvent = new AccountSecurityEvent
         {
@@ -90,6 +133,12 @@ public class AccountSecurityEvent : BaseEntity, IAggregateRoot
     {
         Guard.AgainstDefault(actionTakenByUserId, nameof(actionTakenByUserId));
         Guard.AgainstNullOrEmpty(action, nameof(action));
+        Guard.AgainstLength(action, 200, nameof(action));
+        
+        if (!string.IsNullOrEmpty(notes))
+        {
+            Guard.AgainstLength(notes, 1000, nameof(notes));
+        }
 
         if (ActionTaken != null)
             throw new DomainException("Action has already been taken for this event");
@@ -112,13 +161,21 @@ public class AccountSecurityEvent : BaseEntity, IAggregateRoot
         if (Severity == SecurityEventSeverity.Info)
             Severity = SecurityEventSeverity.Warning;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events
+        AddDomainEvent(new AccountSecurityEventMarkedAsSuspiciousEvent(Id, UserId, EventType, Severity));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update severity
     public void UpdateSeverity(SecurityEventSeverity severity)
     {
+        if (Severity == severity) return;
+        
         Severity = severity;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events
+        AddDomainEvent(new AccountSecurityEventSeverityUpdatedEvent(Id, UserId, EventType, severity));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Require action
@@ -127,6 +184,9 @@ public class AccountSecurityEvent : BaseEntity, IAggregateRoot
         if (RequiresAction) return;
         RequiresAction = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events
+        AddDomainEvent(new AccountSecurityEventRequiresActionEvent(Id, UserId, EventType, Severity));
     }
 }
 

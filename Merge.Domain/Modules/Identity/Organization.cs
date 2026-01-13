@@ -50,6 +50,15 @@ public class Organization : BaseEntity, IAggregateRoot
         base.AddDomainEvent(domainEvent);
     }
 
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
+    public new void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        base.RemoveDomainEvent(domainEvent);
+    }
+
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Organization() { }
 
@@ -71,12 +80,62 @@ public class Organization : BaseEntity, IAggregateRoot
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstLength(name, 200, nameof(name));
+        
+        if (!string.IsNullOrEmpty(legalName))
+        {
+            Guard.AgainstLength(legalName, 200, nameof(legalName));
+        }
+        
+        if (!string.IsNullOrEmpty(taxNumber))
+        {
+            Guard.AgainstLength(taxNumber, 50, nameof(taxNumber));
+        }
+        
+        if (!string.IsNullOrEmpty(registrationNumber))
+        {
+            Guard.AgainstLength(registrationNumber, 50, nameof(registrationNumber));
+        }
+        
+        if (!string.IsNullOrEmpty(phone))
+        {
+            Guard.AgainstLength(phone, 50, nameof(phone));
+        }
+        
+        if (!string.IsNullOrEmpty(address))
+        {
+            Guard.AgainstLength(address, 500, nameof(address));
+        }
+        
+        if (!string.IsNullOrEmpty(city))
+        {
+            Guard.AgainstLength(city, 100, nameof(city));
+        }
+        
+        if (!string.IsNullOrEmpty(state))
+        {
+            Guard.AgainstLength(state, 100, nameof(state));
+        }
+        
+        if (!string.IsNullOrEmpty(postalCode))
+        {
+            Guard.AgainstLength(postalCode, 20, nameof(postalCode));
+        }
+        
+        if (!string.IsNullOrEmpty(country))
+        {
+            Guard.AgainstLength(country, 100, nameof(country));
+        }
+        
+        if (!string.IsNullOrEmpty(settings))
+        {
+            Guard.AgainstLength(settings, 2000, nameof(settings));
+        }
 
         if (!string.IsNullOrEmpty(email))
         {
-            // Email validation
-            if (!System.Text.RegularExpressions.Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
-                throw new DomainException("Geçersiz e-posta adresi formatı");
+            // ✅ BOLUM 1.3: Value Objects - Email validation
+            var emailValueObject = new Email(email);
+            email = emailValueObject.Value;
         }
 
         if (!string.IsNullOrEmpty(website))
@@ -93,7 +152,7 @@ public class Organization : BaseEntity, IAggregateRoot
             LegalName = legalName,
             TaxNumber = taxNumber,
             RegistrationNumber = registrationNumber,
-            Email = email?.ToLowerInvariant(),
+            Email = email,
             Phone = phone,
             Website = website,
             Address = address,
@@ -144,9 +203,9 @@ public class Organization : BaseEntity, IAggregateRoot
             }
             else
             {
-                if (!System.Text.RegularExpressions.Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
-                    throw new DomainException("Geçersiz e-posta adresi formatı");
-                Email = email.ToLowerInvariant();
+                // ✅ BOLUM 1.3: Value Objects - Email validation
+                var emailValueObject = new Email(email);
+                Email = emailValueObject.Value;
             }
         }
 
@@ -164,16 +223,128 @@ public class Organization : BaseEntity, IAggregateRoot
             }
         }
 
-        if (legalName != null) LegalName = legalName;
-        if (taxNumber != null) TaxNumber = taxNumber;
-        if (registrationNumber != null) RegistrationNumber = registrationNumber;
-        if (phone != null) Phone = phone;
-        if (address != null) Address = address;
-        if (city != null) City = city;
-        if (state != null) State = state;
-        if (postalCode != null) PostalCode = postalCode;
-        if (country != null) Country = country;
-        if (settings != null) Settings = settings;
+        if (legalName != null)
+        {
+            if (string.IsNullOrEmpty(legalName))
+            {
+                LegalName = null;
+            }
+            else
+            {
+                Guard.AgainstLength(legalName, 200, nameof(legalName));
+                LegalName = legalName;
+            }
+        }
+        
+        if (taxNumber != null)
+        {
+            if (string.IsNullOrEmpty(taxNumber))
+            {
+                TaxNumber = null;
+            }
+            else
+            {
+                Guard.AgainstLength(taxNumber, 50, nameof(taxNumber));
+                TaxNumber = taxNumber;
+            }
+        }
+        
+        if (registrationNumber != null)
+        {
+            if (string.IsNullOrEmpty(registrationNumber))
+            {
+                RegistrationNumber = null;
+            }
+            else
+            {
+                Guard.AgainstLength(registrationNumber, 50, nameof(registrationNumber));
+                RegistrationNumber = registrationNumber;
+            }
+        }
+        
+        if (phone != null)
+        {
+            if (string.IsNullOrEmpty(phone))
+            {
+                Phone = null;
+            }
+            else
+            {
+                Guard.AgainstLength(phone, 50, nameof(phone));
+                Phone = phone;
+            }
+        }
+        
+        if (address != null)
+        {
+            if (string.IsNullOrEmpty(address))
+            {
+                Address = null;
+            }
+            else
+            {
+                Guard.AgainstLength(address, 500, nameof(address));
+                Address = address;
+            }
+        }
+        
+        if (city != null)
+        {
+            if (string.IsNullOrEmpty(city))
+            {
+                City = null;
+            }
+            else
+            {
+                Guard.AgainstLength(city, 100, nameof(city));
+                City = city;
+            }
+        }
+        
+        if (state != null)
+        {
+            if (string.IsNullOrEmpty(state))
+            {
+                State = null;
+            }
+            else
+            {
+                Guard.AgainstLength(state, 100, nameof(state));
+                State = state;
+            }
+        }
+        
+        if (postalCode != null)
+        {
+            if (string.IsNullOrEmpty(postalCode))
+            {
+                PostalCode = null;
+            }
+            else
+            {
+                Guard.AgainstLength(postalCode, 20, nameof(postalCode));
+                PostalCode = postalCode;
+            }
+        }
+        
+        if (country != null)
+        {
+            if (string.IsNullOrEmpty(country))
+            {
+                Country = null;
+            }
+            else
+            {
+                Guard.AgainstLength(country, 100, nameof(country));
+                Country = country;
+            }
+        }
+        
+        if (settings != null)
+        {
+            Guard.AgainstLength(settings, 2000, nameof(settings));
+            Settings = settings;
+        }
 
         UpdatedAt = DateTime.UtcNow;
 

@@ -65,16 +65,21 @@ public class User : IdentityUser<Guid>, IAggregateRoot
     public static User Create(string firstName, string lastName, string email, string? phoneNumber = null)
     {
         Guard.AgainstNullOrEmpty(firstName, nameof(firstName));
+        Guard.AgainstLength(firstName, 100, nameof(firstName));
         Guard.AgainstNullOrEmpty(lastName, nameof(lastName));
+        Guard.AgainstLength(lastName, 100, nameof(lastName));
         Guard.AgainstNullOrEmpty(email, nameof(email));
+
+        // ✅ BOLUM 1.3: Value Objects - Email validation
+        var emailValueObject = new Email(email);
 
         var user = new User
         {
             Id = Guid.NewGuid(),
             FirstName = firstName,
             LastName = lastName,
-            Email = email,
-            UserName = email,
+            Email = emailValueObject.Value,
+            UserName = emailValueObject.Value,
             PhoneNumber = phoneNumber,
             SecurityStamp = Guid.NewGuid().ToString(),
             EmailConfirmed = false,
@@ -82,8 +87,8 @@ public class User : IdentityUser<Guid>, IAggregateRoot
             IsDeleted = false
         };
         
-        // Add UserCreatedEvent
-        user.AddDomainEvent(new UserCreatedEvent(user.Id, firstName, lastName, email));
+        // ✅ BOLUM 1.5: Domain Events - Add UserCreatedEvent
+        user.AddDomainEvent(new UserCreatedEvent(user.Id, firstName, lastName, emailValueObject.Value));
         
         return user;
     }
@@ -104,11 +109,22 @@ public class User : IdentityUser<Guid>, IAggregateRoot
         _domainEvents.Clear();
     }
 
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
+    public void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        _domainEvents.Remove(domainEvent);
+    }
+
     // ✅ BOLUM 1.1: Domain Method - Update user profile
     public void UpdateProfile(string firstName, string lastName, string? phoneNumber = null)
     {
         Guard.AgainstNullOrEmpty(firstName, nameof(firstName));
+        Guard.AgainstLength(firstName, 100, nameof(firstName));
         Guard.AgainstNullOrEmpty(lastName, nameof(lastName));
+        Guard.AgainstLength(lastName, 100, nameof(lastName));
 
         FirstName = firstName;
         LastName = lastName;

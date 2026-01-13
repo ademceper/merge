@@ -2,12 +2,14 @@ using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
+using Merge.Domain.Enums;
 
 namespace Merge.Domain.Modules.Identity;
 
 /// <summary>
 /// TeamMember Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.2: Enum kullanımı (string Role YASAK)
 /// BOLUM 1.5: Domain Events (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
@@ -16,7 +18,10 @@ public class TeamMember : BaseEntity
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid TeamId { get; private set; }
     public Guid UserId { get; private set; }
-    public string Role { get; private set; } = "Member"; // Member, Lead, Admin
+    
+    // ✅ BOLUM 1.2: Enum kullanımı (string Role YASAK)
+    public TeamMemberRole Role { get; private set; } = TeamMemberRole.Member;
+    
     public DateTime JoinedAt { get; private set; } = DateTime.UtcNow;
     public bool IsActive { get; private set; } = true;
     
@@ -31,17 +36,10 @@ public class TeamMember : BaseEntity
     public static TeamMember Create(
         Guid teamId,
         Guid userId,
-        string role = "Member")
+        TeamMemberRole role = TeamMemberRole.Member)
     {
         Guard.AgainstDefault(teamId, nameof(teamId));
         Guard.AgainstDefault(userId, nameof(userId));
-        Guard.AgainstNullOrEmpty(role, nameof(role));
-        Guard.AgainstLength(role, 50, nameof(role));
-
-        // Role validation
-        var validRoles = new[] { "Member", "Lead", "Admin" };
-        if (!validRoles.Contains(role, StringComparer.OrdinalIgnoreCase))
-            throw new DomainException($"Geçersiz rol: {role}. Geçerli roller: {string.Join(", ", validRoles)}");
 
         var teamMember = new TeamMember
         {
@@ -62,16 +60,8 @@ public class TeamMember : BaseEntity
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update role
-    public void UpdateRole(string role)
+    public void UpdateRole(TeamMemberRole role)
     {
-        Guard.AgainstNullOrEmpty(role, nameof(role));
-        Guard.AgainstLength(role, 50, nameof(role));
-
-        // Role validation
-        var validRoles = new[] { "Member", "Lead", "Admin" };
-        if (!validRoles.Contains(role, StringComparer.OrdinalIgnoreCase))
-            throw new DomainException($"Geçersiz rol: {role}. Geçerli roller: {string.Join(", ", validRoles)}");
-
         Role = role;
         UpdatedAt = DateTime.UtcNow;
     }

@@ -13,6 +13,7 @@ namespace Merge.Domain.Modules.Identity;
 /// <summary>
 /// SecurityAlert Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.2: Enum kullanımı (string AlertType YASAK)
 /// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
 /// BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 1.7: Concurrency Control (ZORUNLU)
@@ -22,7 +23,9 @@ public class SecurityAlert : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid? UserId { get; private set; } // Null for system-wide alerts
-    public string AlertType { get; private set; } = string.Empty; // Account, Payment, Order, System
+    
+    // ✅ BOLUM 1.2: Enum kullanımı (string AlertType YASAK)
+    public AlertType AlertType { get; private set; }
     // ✅ BOLUM 1.2: Enum kullanımı (string Severity YASAK)
     public AlertSeverity Severity { get; private set; } = AlertSeverity.Medium;
     public string Title { get; private set; } = string.Empty;
@@ -41,25 +44,49 @@ public class SecurityAlert : BaseEntity, IAggregateRoot
     public byte[]? RowVersion { get; set; }
     
     // Navigation properties
-    public User? User { get; set; }
-    public User? AcknowledgedBy { get; set; }
-    public User? ResolvedBy { get; set; }
+    public User? User { get; private set; }
+    public User? AcknowledgedBy { get; private set; }
+    public User? ResolvedBy { get; private set; }
 
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private SecurityAlert() { }
 
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    public new void AddDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        base.AddDomainEvent(domainEvent);
+    }
+
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
+    public new void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        base.RemoveDomainEvent(domainEvent);
+    }
+
     // ✅ BOLUM 1.1: Factory Method with validation
     public static SecurityAlert Create(
-        string alertType,
+        AlertType alertType,
         string title,
         string description,
         AlertSeverity severity = AlertSeverity.Medium,
         Guid? userId = null,
         string? metadata = null)
     {
-        Guard.AgainstNullOrEmpty(alertType, nameof(alertType));
         Guard.AgainstNullOrEmpty(title, nameof(title));
+        Guard.AgainstLength(title, 200, nameof(title));
         Guard.AgainstNullOrEmpty(description, nameof(description));
+        Guard.AgainstLength(description, 2000, nameof(description));
+        
+        if (!string.IsNullOrEmpty(metadata))
+        {
+            Guard.AgainstLength(metadata, 2000, nameof(metadata));
+        }
 
         var alert = new SecurityAlert
         {
@@ -75,7 +102,7 @@ public class SecurityAlert : BaseEntity, IAggregateRoot
         };
 
         // ✅ BOLUM 1.5: Domain Events
-        alert.AddDomainEvent(new SecurityAlertCreatedEvent(alert.Id, alert.AlertType, alert.Severity));
+        alert.AddDomainEvent(new SecurityAlertCreatedEvent(alert.Id, alertType, alert.Severity));
 
         return alert;
     }
@@ -104,6 +131,11 @@ public class SecurityAlert : BaseEntity, IAggregateRoot
 
         if (Status == AlertStatus.Resolved)
             throw new DomainException("Alert is already resolved");
+        
+        if (!string.IsNullOrEmpty(resolutionNotes))
+        {
+            Guard.AgainstLength(resolutionNotes, 1000, nameof(resolutionNotes));
+        }
 
         ResolvedByUserId = resolvedByUserId;
         ResolvedAt = DateTime.UtcNow;
@@ -118,8 +150,13 @@ public class SecurityAlert : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Method - Update severity
     public void UpdateSeverity(AlertSeverity severity)
     {
+        if (Severity == severity) return;
+        
         Severity = severity;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events
+        AddDomainEvent(new SecurityAlertSeverityUpdatedEvent(Id, severity));
     }
 }
 

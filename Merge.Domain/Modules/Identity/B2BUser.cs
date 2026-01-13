@@ -80,6 +80,24 @@ public class B2BUser : BaseEntity, IAggregateRoot
     public User? ApprovedBy { get; private set; }
     public ICollection<PurchaseOrder> PurchaseOrders { get; private set; } = new List<PurchaseOrder>();
 
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    public new void AddDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        base.AddDomainEvent(domainEvent);
+    }
+
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
+    public new void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        base.RemoveDomainEvent(domainEvent);
+    }
+
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private B2BUser() { }
 
@@ -96,6 +114,21 @@ public class B2BUser : BaseEntity, IAggregateRoot
         Guard.AgainstDefault(userId, nameof(userId));
         Guard.AgainstDefault(organizationId, nameof(organizationId));
         Guard.AgainstNull(organization, nameof(organization));
+        
+        if (!string.IsNullOrEmpty(employeeId))
+        {
+            Guard.AgainstLength(employeeId, 100, nameof(employeeId));
+        }
+        
+        if (!string.IsNullOrEmpty(department))
+        {
+            Guard.AgainstLength(department, 200, nameof(department));
+        }
+        
+        if (!string.IsNullOrEmpty(jobTitle))
+        {
+            Guard.AgainstLength(jobTitle, 200, nameof(jobTitle));
+        }
 
         var b2bUser = new B2BUser
         {
@@ -112,6 +145,10 @@ public class B2BUser : BaseEntity, IAggregateRoot
             UsedCredit = 0,
             CreatedAt = DateTime.UtcNow
         };
+        
+        // Settings validation (eğer varsa)
+        // Settings JSON olarak saklanıyor, bu yüzden length validation eklenebilir
+        // Ancak Create metodunda Settings parametresi yok, bu yüzden şimdilik atlıyoruz
 
         // ✅ BOLUM 1.5: Domain Event - B2B User Created
         b2bUser.AddDomainEvent(new B2BUserCreatedEvent(
@@ -205,6 +242,21 @@ public class B2BUser : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Logic - Update profile
     public void UpdateProfile(string? employeeId, string? department, string? jobTitle)
     {
+        if (!string.IsNullOrEmpty(employeeId))
+        {
+            Guard.AgainstLength(employeeId, 100, nameof(employeeId));
+        }
+        
+        if (!string.IsNullOrEmpty(department))
+        {
+            Guard.AgainstLength(department, 200, nameof(department));
+        }
+        
+        if (!string.IsNullOrEmpty(jobTitle))
+        {
+            Guard.AgainstLength(jobTitle, 200, nameof(jobTitle));
+        }
+        
         EmployeeId = employeeId;
         Department = department;
         JobTitle = jobTitle;
@@ -230,6 +282,11 @@ public class B2BUser : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Logic - Update settings
     public void UpdateSettings(string? settingsJson)
     {
+        if (!string.IsNullOrEmpty(settingsJson))
+        {
+            Guard.AgainstLength(settingsJson, 2000, nameof(settingsJson));
+        }
+        
         Settings = settingsJson;
         UpdatedAt = DateTime.UtcNow;
 

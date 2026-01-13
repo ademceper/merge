@@ -10,8 +10,8 @@ namespace Merge.Domain.SharedKernel.DomainEvents;
 public record UserActivityLogCreatedEvent(
     Guid ActivityLogId,
     Guid? UserId,
-    string ActivityType,
-    string EntityType,
+    ActivityType ActivityType,
+    EntityType EntityType,
     Guid? EntityId) : IDomainEvent
 {
     public DateTime OccurredOn { get; } = DateTime.UtcNow;

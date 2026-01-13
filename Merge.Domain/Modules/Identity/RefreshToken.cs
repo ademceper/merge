@@ -1,5 +1,6 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 
 namespace Merge.Domain.Modules.Identity;
@@ -7,9 +8,11 @@ namespace Merge.Domain.Modules.Identity;
 /// <summary>
 /// RefreshToken Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class RefreshToken : BaseEntity
+public class RefreshToken : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
@@ -30,6 +33,24 @@ public class RefreshToken : BaseEntity
     public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
     public bool IsActive => !IsRevoked && !IsExpired;
 
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    public new void AddDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        base.AddDomainEvent(domainEvent);
+    }
+
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
+    public new void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        base.RemoveDomainEvent(domainEvent);
+    }
+
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private RefreshToken() { }
 
@@ -42,9 +63,15 @@ public class RefreshToken : BaseEntity
     {
         Guard.AgainstDefault(userId, nameof(userId));
         Guard.AgainstNullOrEmpty(tokenHash, nameof(tokenHash));
+        Guard.AgainstLength(tokenHash, 256, nameof(tokenHash));
         
         if (expiresAt <= DateTime.UtcNow)
             throw new DomainException("Refresh token expiration date must be in the future");
+        
+        if (!string.IsNullOrEmpty(createdByIp))
+        {
+            Guard.AgainstLength(createdByIp, 50, nameof(createdByIp));
+        }
 
         var refreshToken = new RefreshToken
         {
@@ -56,6 +83,9 @@ public class RefreshToken : BaseEntity
             IsRevoked = false,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events - RefreshTokenCreatedEvent
+        refreshToken.AddDomainEvent(new RefreshTokenCreatedEvent(refreshToken.Id, userId, expiresAt));
 
         return refreshToken;
     }
@@ -69,10 +99,23 @@ public class RefreshToken : BaseEntity
         if (IsExpired)
             throw new DomainException("Refresh token is already expired");
 
+        if (!string.IsNullOrEmpty(revokedByIp))
+        {
+            Guard.AgainstLength(revokedByIp, 50, nameof(revokedByIp));
+        }
+        
+        if (!string.IsNullOrEmpty(replacedByTokenHash))
+        {
+            Guard.AgainstLength(replacedByTokenHash, 256, nameof(replacedByTokenHash));
+        }
+
         IsRevoked = true;
         RevokedAt = DateTime.UtcNow;
         RevokedByIp = revokedByIp;
         ReplacedByTokenHash = replacedByTokenHash;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - RefreshTokenRevokedEvent
+        AddDomainEvent(new RefreshTokenRevokedEvent(Id, UserId, revokedByIp, replacedByTokenHash));
     }
 }

@@ -4,10 +4,11 @@ using Merge.Domain.SharedKernel;
 namespace Merge.Domain.SharedKernel.DomainEvents;
 
 /// <summary>
-/// Security Alert Created Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
+/// Security Alert Severity Updated Domain Event - BOLUM 1.5: Domain Events (ZORUNLU)
 /// </summary>
-public record SecurityAlertCreatedEvent(Guid AlertId, AlertType AlertType, AlertSeverity Severity) : IDomainEvent
+public record SecurityAlertSeverityUpdatedEvent(
+    Guid AlertId,
+    AlertSeverity NewSeverity) : IDomainEvent
 {
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }
-

@@ -33,6 +33,7 @@ public class UserCurrencyPreference : BaseEntity
         Guard.AgainstDefault(userId, nameof(userId));
         Guard.AgainstDefault(currencyId, nameof(currencyId));
         Guard.AgainstNullOrEmpty(currencyCode, nameof(currencyCode));
+        Guard.AgainstLength(currencyCode, 10, nameof(currencyCode));
 
         return new UserCurrencyPreference
         {
@@ -49,6 +50,7 @@ public class UserCurrencyPreference : BaseEntity
     {
         Guard.AgainstDefault(currencyId, nameof(currencyId));
         Guard.AgainstNullOrEmpty(currencyCode, nameof(currencyCode));
+        Guard.AgainstLength(currencyCode, 10, nameof(currencyCode));
 
         CurrencyId = currencyId;
         CurrencyCode = currencyCode.ToUpperInvariant();

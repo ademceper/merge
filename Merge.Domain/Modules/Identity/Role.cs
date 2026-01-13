@@ -25,8 +25,14 @@ public class Role : IdentityRole<Guid>, IAggregateRoot
     public static Role Create(string name, string? description = null)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
+        Guard.AgainstLength(name, 256, nameof(name)); // IdentityRole.Name max length
         
-        return new Role
+        if (!string.IsNullOrEmpty(description))
+        {
+            Guard.AgainstLength(description, 500, nameof(description));
+        }
+        
+        var role = new Role
         {
             Id = Guid.NewGuid(),
             Name = name,
@@ -35,6 +41,11 @@ public class Role : IdentityRole<Guid>, IAggregateRoot
             CreatedAt = DateTime.UtcNow,
             ConcurrencyStamp = Guid.NewGuid().ToString()
         };
+
+        // ✅ BOLUM 1.5: Domain Events - RoleCreatedEvent
+        role.AddDomainEvent(new RoleCreatedEvent(role.Id, name, description));
+
+        return role;
     }
 
     // ✅ BOLUM 1.4: IAggregateRoot interface implementation
@@ -55,12 +66,20 @@ public class Role : IdentityRole<Guid>, IAggregateRoot
 
     public void RemoveDomainEvent(IDomainEvent domainEvent)
     {
-         _domainEvents.Remove(domainEvent);
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        _domainEvents.Remove(domainEvent);
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update description
     public void UpdateDescription(string? description)
     {
+        if (!string.IsNullOrEmpty(description))
+        {
+            Guard.AgainstLength(description, 500, nameof(description));
+        }
+        
         Description = description;
         UpdatedAt = DateTime.UtcNow;
 
@@ -72,8 +91,10 @@ public class Role : IdentityRole<Guid>, IAggregateRoot
     public void UpdateName(string name)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
+        Guard.AgainstLength(name, 256, nameof(name)); // IdentityRole.Name max length
         
         Name = name;
+        NormalizedName = name.ToUpperInvariant();
         UpdatedAt = DateTime.UtcNow;
 
         // ✅ BOLUM 1.5: Domain Events - RoleUpdatedEvent
