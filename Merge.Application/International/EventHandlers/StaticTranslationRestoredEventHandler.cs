@@ -22,7 +22,7 @@ public class StaticTranslationRestoredEventHandler : INotificationHandler<Static
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation(
             "Static translation restored event received. TranslationId: {TranslationId}, Key: {Key}, LanguageCode: {LanguageCode}",
-            notification.TranslationId, notification.Key, notification.LanguageCode);
+            notification.Id, notification.Key, notification.LanguageCode);
 
         try
         {
@@ -36,7 +36,7 @@ public class StaticTranslationRestoredEventHandler : INotificationHandler<Static
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             _logger.LogError(ex,
                 "Error handling StaticTranslationRestoredEvent. TranslationId: {TranslationId}, Key: {Key}",
-                notification.TranslationId, notification.Key);
+                notification.Id, notification.Key);
             throw;
         }
     }
