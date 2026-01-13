@@ -3,6 +3,9 @@ using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Modules.Catalog;
+using Merge.Domain.ValueObjects;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Merge.Domain.Modules.Marketing;
 
@@ -66,6 +69,7 @@ public class LiveStreamProduct : BaseEntity
         } 
     }
     
+    // ✅ BOLUM 1.3: Value Objects kullanımı - Money (EF Core compatibility için decimal backing)
     private decimal? _specialPrice;
     public decimal? SpecialPrice 
     { 
@@ -80,7 +84,27 @@ public class LiveStreamProduct : BaseEntity
         } 
     }
     
-    public string? ShowcaseNotes { get; private set; } // Notes about the product showcase
+    // ✅ BOLUM 1.3: Value Object property (computed from decimal)
+    [NotMapped]
+    public Money? SpecialPriceMoney => _specialPrice.HasValue ? new Money(_specialPrice.Value) : null;
+    
+    private string? _showcaseNotes;
+    public string? ShowcaseNotes 
+    { 
+        get => _showcaseNotes; 
+        private set 
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                Guard.AgainstLength(value, 1000, nameof(ShowcaseNotes));
+            }
+            _showcaseNotes = value;
+        } 
+    }
+
+    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private LiveStreamProduct() { }
@@ -104,10 +128,13 @@ public class LiveStreamProduct : BaseEntity
             ProductId = productId,
             _displayOrder = displayOrder,
             _specialPrice = specialPrice,
-            ShowcaseNotes = showcaseNotes,
+            _showcaseNotes = showcaseNotes,
             IsHighlighted = false,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.4: Invariant validation
+        streamProduct.ValidateInvariants();
 
         // ✅ BOLUM 1.5: Domain Events - LiveStreamProductAddedEvent
         streamProduct.AddDomainEvent(new LiveStreamProductAddedEvent(liveStreamId, productId, specialPrice));
@@ -124,6 +151,9 @@ public class LiveStreamProduct : BaseEntity
         ShowcasedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+
         // ✅ BOLUM 1.5: Domain Events - LiveStreamProductShowcasedEvent
         AddDomainEvent(new LiveStreamProductShowcasedEvent(LiveStreamId, ProductId, ShowcasedAt.Value));
     }
@@ -135,6 +165,12 @@ public class LiveStreamProduct : BaseEntity
 
         IsHighlighted = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+
+        // ✅ BOLUM 1.5: Domain Events - LiveStreamProductUnhighlightedEvent
+        AddDomainEvent(new LiveStreamProductUnhighlightedEvent(LiveStreamId, ProductId, UpdatedAt.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Increment view count
@@ -142,6 +178,9 @@ public class LiveStreamProduct : BaseEntity
     {
         ViewCount++;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Method - Increment click count
@@ -149,6 +188,9 @@ public class LiveStreamProduct : BaseEntity
     {
         ClickCount++;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Method - Increment order count
@@ -156,6 +198,9 @@ public class LiveStreamProduct : BaseEntity
     {
         OrderCount++;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update display order
@@ -165,6 +210,9 @@ public class LiveStreamProduct : BaseEntity
 
         _displayOrder = newDisplayOrder;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update special price
@@ -177,6 +225,19 @@ public class LiveStreamProduct : BaseEntity
 
         _specialPrice = newSpecialPrice;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Update showcase notes
+    public void UpdateShowcaseNotes(string? newShowcaseNotes)
+    {
+        ShowcaseNotes = newShowcaseNotes;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
@@ -187,6 +248,53 @@ public class LiveStreamProduct : BaseEntity
         IsDeleted = true;
         IsHighlighted = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+
+        // ✅ BOLUM 1.5: Domain Events - LiveStreamProductDeletedEvent
+        AddDomainEvent(new LiveStreamProductDeletedEvent(LiveStreamId, ProductId, UpdatedAt.Value));
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Restore deleted product
+    public void Restore()
+    {
+        if (!IsDeleted)
+            return;
+
+        IsDeleted = false;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+
+        // ✅ BOLUM 1.5: Domain Events - LiveStreamProductRestoredEvent
+        AddDomainEvent(new LiveStreamProductRestoredEvent(LiveStreamId, ProductId, UpdatedAt.Value));
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (Guid.Empty == LiveStreamId)
+            throw new DomainException("Canlı yayın ID boş olamaz");
+
+        if (Guid.Empty == ProductId)
+            throw new DomainException("Ürün ID boş olamaz");
+
+        if (DisplayOrder < 0)
+            throw new DomainException("Görüntüleme sırası negatif olamaz");
+
+        if (ViewCount < 0)
+            throw new DomainException("Görüntülenme sayısı negatif olamaz");
+
+        if (ClickCount < 0)
+            throw new DomainException("Tıklanma sayısı negatif olamaz");
+
+        if (OrderCount < 0)
+            throw new DomainException("Sipariş sayısı negatif olamaz");
+
+        if (SpecialPrice.HasValue && SpecialPrice.Value < 0)
+            throw new DomainException("Özel fiyat negatif olamaz");
     }
 }
 

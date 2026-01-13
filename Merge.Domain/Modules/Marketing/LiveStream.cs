@@ -1,11 +1,14 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Enums;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Marketplace;
 using Merge.Domain.Modules.Ordering;
+using Merge.Domain.ValueObjects;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq;
 
 namespace Merge.Domain.Modules.Marketing;
 
@@ -21,16 +24,85 @@ public class LiveStream : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid SellerId { get; private set; }
     public SellerProfile? Seller { get; private set; }
-    public string Title { get; private set; } = string.Empty;
-    public string Description { get; private set; } = string.Empty;
+    
+    private string _title = string.Empty;
+    public string Title 
+    { 
+        get => _title; 
+        private set 
+        {
+            Guard.AgainstNullOrEmpty(value, nameof(Title));
+            Guard.AgainstLength(value, 200, nameof(Title));
+            if (value.Length < 2)
+                throw new ArgumentException("Title must be at least 2 characters", nameof(Title));
+            _title = value;
+        } 
+    }
+    
+    private string _description = string.Empty;
+    public string Description 
+    { 
+        get => _description; 
+        private set 
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                Guard.AgainstLength(value, 2000, nameof(Description));
+            }
+            _description = value ?? string.Empty;
+        } 
+    }
     // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public LiveStreamStatus Status { get; private set; } = LiveStreamStatus.Scheduled;
     public DateTime? ScheduledStartTime { get; private set; }
     public DateTime? ActualStartTime { get; private set; }
     public DateTime? EndTime { get; private set; }
-    public string? StreamUrl { get; private set; } // RTMP/WebRTC stream URL
-    public string? StreamKey { get; private set; } // Stream key for broadcasting
-    public string? ThumbnailUrl { get; private set; }
+    
+    private string? _streamUrl;
+    public string? StreamUrl 
+    { 
+        get => _streamUrl; 
+        private set 
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                if (!IsValidUrl(value))
+                    throw new DomainException("Geçerli bir Stream URL giriniz.");
+                Guard.AgainstLength(value, 500, nameof(StreamUrl));
+            }
+            _streamUrl = value;
+        } 
+    }
+    
+    private string? _streamKey;
+    public string? StreamKey 
+    { 
+        get => _streamKey; 
+        private set 
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                Guard.AgainstLength(value, 200, nameof(StreamKey));
+            }
+            _streamKey = value;
+        } 
+    }
+    
+    private string? _thumbnailUrl;
+    public string? ThumbnailUrl 
+    { 
+        get => _thumbnailUrl; 
+        private set 
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                if (!IsValidUrl(value))
+                    throw new DomainException("Geçerli bir Thumbnail URL giriniz.");
+                Guard.AgainstLength(value, 500, nameof(ThumbnailUrl));
+            }
+            _thumbnailUrl = value;
+        } 
+    }
     
     private int _viewerCount = 0;
     public int ViewerCount 
@@ -76,6 +148,7 @@ public class LiveStream : BaseEntity, IAggregateRoot
         } 
     }
     
+    // ✅ BOLUM 1.3: Value Objects kullanımı - Money (EF Core compatibility için decimal backing)
     private decimal _revenue = 0;
     public decimal Revenue 
     { 
@@ -87,14 +160,75 @@ public class LiveStream : BaseEntity, IAggregateRoot
         } 
     }
     
-    public bool IsActive { get; private set; } = true;
-    public string? Category { get; private set; } // Stream category
-    public string? Tags { get; private set; } // Comma separated tags
+    // ✅ BOLUM 1.3: Value Object property (computed from decimal)
+    [NotMapped]
+    public Money RevenueMoney => new Money(_revenue);
     
-    // Navigation properties
-    public ICollection<LiveStreamProduct> Products { get; private set; } = new List<LiveStreamProduct>();
-    public ICollection<LiveStreamViewer> Viewers { get; private set; } = new List<LiveStreamViewer>();
-    public ICollection<LiveStreamOrder> Orders { get; private set; } = new List<LiveStreamOrder>();
+    public bool IsActive { get; private set; } = true;
+    
+    private string? _category;
+    public string? Category 
+    { 
+        get => _category; 
+        private set 
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                Guard.AgainstLength(value, 100, nameof(Category));
+            }
+            _category = value;
+        } 
+    }
+    
+    private string? _tags;
+    public string? Tags 
+    { 
+        get => _tags; 
+        private set 
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                Guard.AgainstLength(value, 500, nameof(Tags));
+            }
+            _tags = value;
+        } 
+    }
+    
+    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
+    
+    // ✅ BOLUM 1.1: Rich Domain Model - Backing fields for encapsulated collections
+    // ✅ BOLUM 7.1.9: Collection Expressions (C# 12) - List yerine collection expression
+    private readonly List<LiveStreamProduct> _products = [];
+    private readonly List<LiveStreamViewer> _viewers = [];
+    private readonly List<LiveStreamOrder> _orders = [];
+    
+    // ✅ BOLUM 1.1: Rich Domain Model - Navigation properties as IReadOnlyCollection
+    public IReadOnlyCollection<LiveStreamProduct> Products => _products.AsReadOnly();
+    public IReadOnlyCollection<LiveStreamViewer> Viewers => _viewers.AsReadOnly();
+    public IReadOnlyCollection<LiveStreamOrder> Orders => _orders.AsReadOnly();
+
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
+    // Service layer'dan event eklenebilmesi için public yapıldı (Organization, Team entity'lerinde de aynı pattern kullanılıyor)
+    public new void AddDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        // BaseEntity'deki protected AddDomainEvent'i çağır
+        base.AddDomainEvent(domainEvent);
+    }
+
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation - Remove domain event
+    public new void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        base.RemoveDomainEvent(domainEvent);
+    }
 
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private LiveStream() { }
@@ -118,18 +252,21 @@ public class LiveStream : BaseEntity, IAggregateRoot
         {
             Id = Guid.NewGuid(),
             SellerId = sellerId,
-            Title = title,
-            Description = description,
+            _title = title,
+            _description = description ?? string.Empty,
             Status = LiveStreamStatus.Scheduled,
             ScheduledStartTime = scheduledStartTime,
-            StreamUrl = streamUrl,
-            StreamKey = streamKey,
-            ThumbnailUrl = thumbnailUrl,
-            Category = category,
-            Tags = tags,
+            _streamUrl = streamUrl,
+            _streamKey = streamKey,
+            _thumbnailUrl = thumbnailUrl,
+            _category = category,
+            _tags = tags,
             IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.4: Invariant validation
+        stream.ValidateInvariants();
 
         // ✅ BOLUM 1.5: Domain Events - LiveStreamCreatedEvent
         stream.AddDomainEvent(new LiveStreamCreatedEvent(stream.Id, stream.SellerId, stream.Title, stream.ScheduledStartTime));
@@ -154,7 +291,7 @@ public class LiveStream : BaseEntity, IAggregateRoot
             throw new DomainException("Canlı yayın sırasında detaylar güncellenemez.");
 
         Title = title;
-        Description = description;
+        Description = description ?? string.Empty;
         ScheduledStartTime = scheduledStartTime;
         StreamUrl = streamUrl;
         StreamKey = streamKey;
@@ -162,6 +299,12 @@ public class LiveStream : BaseEntity, IAggregateRoot
         Category = category;
         Tags = tags;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+
+        // ✅ BOLUM 1.5: Domain Events - LiveStreamUpdatedEvent
+        AddDomainEvent(new LiveStreamUpdatedEvent(Id, SellerId, Title, UpdatedAt.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Start stream
@@ -173,6 +316,9 @@ public class LiveStream : BaseEntity, IAggregateRoot
         Status = LiveStreamStatus.Live;
         ActualStartTime = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
 
         // ✅ BOLUM 1.5: Domain Events - LiveStreamStartedEvent
         AddDomainEvent(new LiveStreamStartedEvent(Id, SellerId, ActualStartTime.Value));
@@ -189,6 +335,9 @@ public class LiveStream : BaseEntity, IAggregateRoot
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
 
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+
         // ✅ BOLUM 1.5: Domain Events - LiveStreamEndedEvent
         AddDomainEvent(new LiveStreamEndedEvent(Id, SellerId, EndTime.Value, TotalViewerCount, OrderCount, Revenue));
     }
@@ -201,6 +350,12 @@ public class LiveStream : BaseEntity, IAggregateRoot
 
         Status = LiveStreamStatus.Paused;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+
+        // ✅ BOLUM 1.5: Domain Events - LiveStreamPausedEvent
+        AddDomainEvent(new LiveStreamPausedEvent(Id, SellerId, UpdatedAt.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Resume stream
@@ -211,6 +366,12 @@ public class LiveStream : BaseEntity, IAggregateRoot
 
         Status = LiveStreamStatus.Live;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+
+        // ✅ BOLUM 1.5: Domain Events - LiveStreamResumedEvent
+        AddDomainEvent(new LiveStreamResumedEvent(Id, SellerId, UpdatedAt.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Cancel stream
@@ -225,6 +386,12 @@ public class LiveStream : BaseEntity, IAggregateRoot
         Status = LiveStreamStatus.Cancelled;
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+
+        // ✅ BOLUM 1.5: Domain Events - LiveStreamCancelledEvent
+        AddDomainEvent(new LiveStreamCancelledEvent(Id, SellerId, UpdatedAt.Value));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Increment viewer count
@@ -237,6 +404,9 @@ public class LiveStream : BaseEntity, IAggregateRoot
             PeakViewerCount = ViewerCount;
         }
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Method - Decrement viewer count
@@ -247,9 +417,98 @@ public class LiveStream : BaseEntity, IAggregateRoot
             ViewerCount--;
         }
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Add product to stream
+    public void AddProduct(LiveStreamProduct product)
+    {
+        Guard.AgainstNull(product, nameof(product));
+        
+        if (product.LiveStreamId != Id)
+            throw new DomainException("Product must belong to this stream");
+
+        // Check if product already exists (not deleted)
+        if (_products.Any(p => p.ProductId == product.ProductId && !p.IsDeleted))
+            throw new DomainException("Product is already added to this stream");
+
+        _products.Add(product);
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Remove product from stream
+    public void RemoveProduct(Guid productId)
+    {
+        Guard.AgainstDefault(productId, nameof(productId));
+
+        var product = _products.FirstOrDefault(p => p.ProductId == productId && !p.IsDeleted);
+        if (product == null)
+            throw new DomainException("Product not found in this stream");
+
+        product.MarkAsDeleted();
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Add viewer to stream
+    public void AddViewer(LiveStreamViewer viewer)
+    {
+        Guard.AgainstNull(viewer, nameof(viewer));
+        
+        if (viewer.LiveStreamId != Id)
+            throw new DomainException("Viewer must belong to this stream");
+
+        if (Status != LiveStreamStatus.Live)
+            throw new DomainException("Viewers can only join live streams");
+
+        _viewers.Add(viewer);
+        IncrementViewerCount();
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Remove viewer from stream
+    public void RemoveViewer(Guid viewerId)
+    {
+        Guard.AgainstDefault(viewerId, nameof(viewerId));
+
+        var viewer = _viewers.FirstOrDefault(v => v.Id == viewerId && !v.IsDeleted);
+        if (viewer == null)
+            throw new DomainException("Viewer not found in this stream");
+
+        viewer.Leave();
+        DecrementViewerCount();
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Method - Add order
+    public void AddOrder(LiveStreamOrder order)
+    {
+        Guard.AgainstNull(order, nameof(order));
+        
+        if (order.LiveStreamId != Id)
+            throw new DomainException("Order must belong to this stream");
+
+        _orders.Add(order);
+        OrderCount++;
+        Revenue += order.OrderAmount;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Add order (legacy method for backward compatibility)
     public void AddOrder(decimal orderAmount)
     {
         Guard.AgainstNegativeOrZero(orderAmount, nameof(orderAmount));
@@ -257,6 +516,9 @@ public class LiveStream : BaseEntity, IAggregateRoot
         OrderCount++;
         Revenue += orderAmount;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
@@ -270,6 +532,72 @@ public class LiveStream : BaseEntity, IAggregateRoot
         IsDeleted = true;
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+
+        // ✅ BOLUM 1.5: Domain Events - LiveStreamDeletedEvent
+        AddDomainEvent(new LiveStreamDeletedEvent(Id, SellerId, Title, UpdatedAt.Value));
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Restore deleted stream
+    public void Restore()
+    {
+        if (!IsDeleted)
+            return;
+
+        IsDeleted = false;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+
+        // ✅ BOLUM 1.5: Domain Events - LiveStreamRestoredEvent
+        AddDomainEvent(new LiveStreamRestoredEvent(Id, SellerId, Title, UpdatedAt.Value));
+    }
+
+    // ✅ BOLUM 1.3: URL Validation - Domain layer'da URL validasyonu
+    private static bool IsValidUrl(string url)
+    {
+        return Uri.TryCreate(url, UriKind.Absolute, out var result) &&
+               (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (string.IsNullOrWhiteSpace(Title))
+            throw new DomainException("Başlık boş olamaz");
+
+        if (Title.Length < 2 || Title.Length > 200)
+            throw new DomainException("Başlık 2-200 karakter arasında olmalıdır");
+
+        if (!string.IsNullOrEmpty(Description) && Description.Length > 2000)
+            throw new DomainException("Açıklama en fazla 2000 karakter olabilir");
+
+        if (Guid.Empty == SellerId)
+            throw new DomainException("Satıcı ID boş olamaz");
+
+        if (Revenue < 0)
+            throw new DomainException("Gelir negatif olamaz");
+
+        if (OrderCount < 0)
+            throw new DomainException("Sipariş sayısı negatif olamaz");
+
+        if (ViewerCount < 0)
+            throw new DomainException("İzleyici sayısı negatif olamaz");
+
+        if (TotalViewerCount < 0)
+            throw new DomainException("Toplam izleyici sayısı negatif olamaz");
+
+        if (PeakViewerCount < 0)
+            throw new DomainException("Zirve izleyici sayısı negatif olamaz");
+
+        if (ScheduledStartTime.HasValue && EndTime.HasValue && EndTime.Value < ScheduledStartTime.Value)
+            throw new DomainException("Bitiş zamanı başlangıç zamanından önce olamaz");
+
+        if (ActualStartTime.HasValue && EndTime.HasValue && EndTime.Value < ActualStartTime.Value)
+            throw new DomainException("Bitiş zamanı gerçek başlangıç zamanından önce olamaz");
     }
 }
 

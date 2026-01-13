@@ -1,7 +1,9 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Modules.Identity;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Marketing;
 
@@ -32,7 +34,24 @@ public class LiveStreamViewer : BaseEntity
     }
     
     public bool IsActive { get; private set; } = true; // Currently watching
-    public string? GuestId { get; private set; } // For anonymous viewers
+    
+    private string? _guestId;
+    public string? GuestId 
+    { 
+        get => _guestId; 
+        private set 
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                Guard.AgainstLength(value, 100, nameof(GuestId));
+            }
+            _guestId = value;
+        } 
+    }
+
+    // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private LiveStreamViewer() { }
@@ -48,16 +67,29 @@ public class LiveStreamViewer : BaseEntity
         if (!userId.HasValue && string.IsNullOrWhiteSpace(guestId))
             throw new DomainException("UserId veya GuestId gereklidir.");
 
-        return new LiveStreamViewer
+        var viewer = new LiveStreamViewer
         {
             Id = Guid.NewGuid(),
             LiveStreamId = liveStreamId,
             UserId = userId,
-            GuestId = guestId,
+            _guestId = guestId,
             JoinedAt = DateTime.UtcNow,
             IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.4: Invariant validation
+        viewer.ValidateInvariants();
+
+        // ✅ BOLUM 1.5: Domain Events - ViewerJoinedEvent
+        viewer.AddDomainEvent(new ViewerJoinedEvent(
+            liveStreamId,
+            viewer.Id,
+            userId,
+            guestId,
+            viewer.JoinedAt));
+
+        return viewer;
     }
 
     // ✅ BOLUM 1.1: Domain Method - Leave stream
@@ -69,6 +101,18 @@ public class LiveStreamViewer : BaseEntity
         IsActive = false;
         WatchDuration = (int)(LeftAt.Value - JoinedAt).TotalSeconds;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+
+        // ✅ BOLUM 1.5: Domain Events - ViewerLeftEvent
+        AddDomainEvent(new ViewerLeftEvent(
+            LiveStreamId,
+            Id,
+            UserId,
+            GuestId,
+            LeftAt.Value,
+            WatchDuration));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update watch duration
@@ -78,6 +122,9 @@ public class LiveStreamViewer : BaseEntity
 
         _watchDuration = durationInSeconds;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
@@ -93,6 +140,44 @@ public class LiveStreamViewer : BaseEntity
             WatchDuration = (int)(LeftAt.Value - JoinedAt).TotalSeconds;
         }
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+
+        // ✅ BOLUM 1.5: Domain Events - LiveStreamViewerDeletedEvent
+        AddDomainEvent(new LiveStreamViewerDeletedEvent(LiveStreamId, Id, UserId, GuestId, UpdatedAt.Value));
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Restore deleted viewer
+    public void Restore()
+    {
+        if (!IsDeleted)
+            return;
+
+        IsDeleted = false;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+
+        // ✅ BOLUM 1.5: Domain Events - LiveStreamViewerRestoredEvent
+        AddDomainEvent(new LiveStreamViewerRestoredEvent(LiveStreamId, Id, UserId, GuestId, UpdatedAt.Value));
+    }
+
+    // ✅ BOLUM 1.4: Invariant validation
+    private void ValidateInvariants()
+    {
+        if (Guid.Empty == LiveStreamId)
+            throw new DomainException("Canlı yayın ID boş olamaz");
+
+        if (!UserId.HasValue && string.IsNullOrWhiteSpace(GuestId))
+            throw new DomainException("UserId veya GuestId gereklidir");
+
+        if (WatchDuration < 0)
+            throw new DomainException("İzleme süresi negatif olamaz");
+
+        if (LeftAt.HasValue && LeftAt.Value < JoinedAt)
+            throw new DomainException("Ayrılma zamanı katılma zamanından önce olamaz");
     }
 }
 

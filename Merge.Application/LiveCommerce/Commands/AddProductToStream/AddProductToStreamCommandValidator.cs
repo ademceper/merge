@@ -21,7 +21,7 @@ public class AddProductToStreamCommandValidator : AbstractValidator<AddProductTo
             .WithMessage("Özel fiyat 0 veya daha büyük olmalıdır.");
 
         RuleFor(x => x.ShowcaseNotes)
-            .MaximumLength(500).WithMessage("Vitrin notları en fazla 500 karakter olabilir.");
+            .MaximumLength(1000).WithMessage("Vitrin notları en fazla 1000 karakter olabilir.");
     }
 }
 

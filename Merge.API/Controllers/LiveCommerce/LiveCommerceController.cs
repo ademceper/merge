@@ -18,21 +18,19 @@ using Merge.Application.LiveCommerce.Commands.CreateOrderFromStream;
 using Merge.Application.LiveCommerce.Queries.GetStreamStats;
 using Merge.Application.LiveCommerce.Commands.UpdateLiveStream;
 using Merge.Application.LiveCommerce.Commands.DeleteLiveStream;
+using Merge.Application.LiveCommerce.Commands.PauseStream;
+using Merge.Application.LiveCommerce.Commands.ResumeStream;
+using Merge.Application.LiveCommerce.Commands.CancelStream;
 
 namespace Merge.API.Controllers.LiveCommerce;
 
 // ✅ BOLUM 4.1: API Versioning (ZORUNLU)
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/live-commerce")]
-public class LiveCommerceController : BaseController
+public class LiveCommerceController(IMediator mediator) : BaseController
 {
-    private readonly IMediator _mediator;
-
-    public LiveCommerceController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
 
     /// <summary>
     /// Yeni canlı yayın oluşturur (Seller, Admin)
@@ -74,7 +72,7 @@ public class LiveCommerceController : BaseController
             dto.ThumbnailUrl,
             dto.Category,
             dto.Tags);
-        var stream = await _mediator.Send(command, cancellationToken);
+        var stream = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetStream), new { id = stream.Id }, stream);
     }
 
@@ -102,7 +100,7 @@ public class LiveCommerceController : BaseController
         }
 
         var streamQuery = new GetLiveStreamQuery(id);
-        var existingStream = await _mediator.Send(streamQuery, cancellationToken);
+        var existingStream = await mediator.Send(streamQuery, cancellationToken);
         if (existingStream == null)
         {
             return NotFound();
@@ -126,7 +124,7 @@ public class LiveCommerceController : BaseController
             dto.ThumbnailUrl,
             dto.Category,
             dto.Tags);
-        var stream = await _mediator.Send(command, cancellationToken);
+        var stream = await mediator.Send(command, cancellationToken);
         return Ok(stream);
     }
 
@@ -152,7 +150,7 @@ public class LiveCommerceController : BaseController
         }
 
         var streamQuery = new GetLiveStreamQuery(id);
-        var stream = await _mediator.Send(streamQuery, cancellationToken);
+        var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
             return NotFound();
@@ -166,7 +164,7 @@ public class LiveCommerceController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new DeleteLiveStreamCommand(id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -186,7 +184,7 @@ public class LiveCommerceController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetLiveStreamQuery(id);
-        var stream = await _mediator.Send(query, cancellationToken);
+        var stream = await mediator.Send(query, cancellationToken);
         if (stream == null)
         {
             return NotFound();
@@ -210,7 +208,7 @@ public class LiveCommerceController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetActiveStreamsQuery(page, pageSize);
-        var streams = await _mediator.Send(query, cancellationToken);
+        var streams = await mediator.Send(query, cancellationToken);
         return Ok(streams);
     }
 
@@ -231,7 +229,7 @@ public class LiveCommerceController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetStreamsBySellerQuery(sellerId, page, pageSize);
-        var streams = await _mediator.Send(query, cancellationToken);
+        var streams = await mediator.Send(query, cancellationToken);
         return Ok(streams);
     }
 
@@ -257,7 +255,7 @@ public class LiveCommerceController : BaseController
 
         // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'ini başlatabilir
         var streamQuery = new GetLiveStreamQuery(id);
-        var stream = await _mediator.Send(streamQuery, cancellationToken);
+        var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
             return NotFound();
@@ -271,7 +269,7 @@ public class LiveCommerceController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new StartStreamCommand(id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -297,7 +295,7 @@ public class LiveCommerceController : BaseController
 
         // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'ini sonlandırabilir
         var streamQuery = new GetLiveStreamQuery(id);
-        var stream = await _mediator.Send(streamQuery, cancellationToken);
+        var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
             return NotFound();
@@ -311,7 +309,127 @@ public class LiveCommerceController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new EndStreamCommand(id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Canlı yayını duraklatır (Seller, Admin)
+    /// </summary>
+    [HttpPost("streams/{id}/pause")]
+    [Authorize(Roles = "Seller,Admin")]
+    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika (kritik işlem)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PauseStream(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'ini duraklatabilir
+        var streamQuery = new GetLiveStreamQuery(id);
+        var stream = await mediator.Send(streamQuery, cancellationToken);
+        if (stream == null)
+        {
+            return NotFound();
+        }
+
+        if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
+        {
+            return Forbid("Sadece kendi stream'inizi duraklatabilirsiniz.");
+        }
+
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var command = new PauseStreamCommand(id);
+        await mediator.Send(command, cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Duraklatılmış canlı yayını devam ettirir (Seller, Admin)
+    /// </summary>
+    [HttpPost("streams/{id}/resume")]
+    [Authorize(Roles = "Seller,Admin")]
+    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika (kritik işlem)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> ResumeStream(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'ini devam ettirebilir
+        var streamQuery = new GetLiveStreamQuery(id);
+        var stream = await mediator.Send(streamQuery, cancellationToken);
+        if (stream == null)
+        {
+            return NotFound();
+        }
+
+        if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
+        {
+            return Forbid("Sadece kendi stream'inizi devam ettirebilirsiniz.");
+        }
+
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var command = new ResumeStreamCommand(id);
+        await mediator.Send(command, cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Canlı yayını iptal eder (Seller, Admin)
+    /// </summary>
+    [HttpPost("streams/{id}/cancel")]
+    [Authorize(Roles = "Seller,Admin")]
+    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika (kritik işlem)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> CancelStream(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'ini iptal edebilir
+        var streamQuery = new GetLiveStreamQuery(id);
+        var stream = await mediator.Send(streamQuery, cancellationToken);
+        if (stream == null)
+        {
+            return NotFound();
+        }
+
+        if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
+        {
+            return Forbid("Sadece kendi stream'inizi iptal edebilirsiniz.");
+        }
+
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+        var command = new CancelStreamCommand(id);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -340,7 +458,7 @@ public class LiveCommerceController : BaseController
 
         // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'ine ürün ekleyebilir
         var streamQuery = new GetLiveStreamQuery(streamId);
-        var stream = await _mediator.Send(streamQuery, cancellationToken);
+        var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
             return NotFound();
@@ -360,7 +478,7 @@ public class LiveCommerceController : BaseController
             dto?.DisplayOrder ?? 0,
             dto?.SpecialPrice,
             dto?.ShowcaseNotes);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         return Ok(result);
     }
 
@@ -387,7 +505,7 @@ public class LiveCommerceController : BaseController
 
         // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'inde ürün vitrine çıkarabilir
         var streamQuery = new GetLiveStreamQuery(streamId);
-        var stream = await _mediator.Send(streamQuery, cancellationToken);
+        var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
             return NotFound();
@@ -401,7 +519,7 @@ public class LiveCommerceController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new ShowcaseProductCommand(streamId, productId);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -424,7 +542,7 @@ public class LiveCommerceController : BaseController
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new JoinStreamCommand(streamId, userId, dto?.GuestId);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -447,7 +565,7 @@ public class LiveCommerceController : BaseController
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new LeaveStreamCommand(streamId, userId, dto?.GuestId);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -470,7 +588,7 @@ public class LiveCommerceController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new CreateOrderFromStreamCommand(streamId, orderId, productId);
-        var streamOrder = await _mediator.Send(command, cancellationToken);
+        var streamOrder = await mediator.Send(command, cancellationToken);
         return Ok(streamOrder);
     }
 
@@ -496,7 +614,7 @@ public class LiveCommerceController : BaseController
 
         // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream istatistiklerini görebilir
         var streamQuery = new GetLiveStreamQuery(id);
-        var stream = await _mediator.Send(streamQuery, cancellationToken);
+        var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
             return NotFound();
@@ -510,7 +628,7 @@ public class LiveCommerceController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetStreamStatsQuery(id);
-        var stats = await _mediator.Send(query, cancellationToken);
+        var stats = await mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 }

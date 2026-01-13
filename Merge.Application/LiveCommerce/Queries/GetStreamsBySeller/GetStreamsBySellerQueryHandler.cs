@@ -2,49 +2,45 @@ using MediatR;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.LiveCommerce;
 using Merge.Application.Interfaces;
 using Merge.Application.Common;
-using Merge.Domain.Entities;
-using Merge.Domain.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Marketing;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
-using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.LiveCommerce.Queries.GetStreamsBySeller;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class GetStreamsBySellerQueryHandler : IRequestHandler<GetStreamsBySellerQuery, PagedResult<LiveStreamDto>>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class GetStreamsBySellerQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetStreamsBySellerQueryHandler> logger,
+    IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetStreamsBySellerQuery, PagedResult<LiveStreamDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetStreamsBySellerQueryHandler> _logger;
-
-    public GetStreamsBySellerQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetStreamsBySellerQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
-
     public async Task<PagedResult<LiveStreamDto>> Handle(GetStreamsBySellerQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Getting streams by seller. SellerId: {SellerId}, Page: {Page}, PageSize: {PageSize}", 
+        logger.LogInformation("Getting streams by seller. SellerId: {SellerId}, Page: {Page}, PageSize: {PageSize}", 
             request.SellerId, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination (ZORUNLU)
+        // ✅ BOLUM 12.0: Magic number YASAK - Configuration kullan
         var page = request.Page < 1 ? 1 : request.Page;
-        var pageSize = request.PageSize > 100 ? 100 : request.PageSize; // Max limit
+        var settings = paginationSettings.Value;
+        var pageSize = request.PageSize > settings.MaxPageSize 
+            ? settings.MaxPageSize 
+            : request.PageSize;
 
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
+        // ✅ PERFORMANCE: AsSplitQuery ile Cartesian Explosion önlenir (birden fazla Include var)
         // ✅ PERFORMANCE: Include ile N+1 önlenir
-        var query = _context.Set<LiveStream>()
+        var query = context.Set<LiveStream>()
             .AsNoTracking()
+            .AsSplitQuery() // ✅ EF Core 9: Query splitting - her Include ayrı sorgu
             .Include(s => s.Seller)
             .Include(s => s.Products)
                 .ThenInclude(p => p.Product)
@@ -59,7 +55,7 @@ public class GetStreamsBySellerQueryHandler : IRequestHandler<GetStreamsBySeller
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (batch mapping)
-        var items = _mapper.Map<IEnumerable<LiveStreamDto>>(streams);
+        var items = mapper.Map<IEnumerable<LiveStreamDto>>(streams);
 
         return new PagedResult<LiveStreamDto>
         {

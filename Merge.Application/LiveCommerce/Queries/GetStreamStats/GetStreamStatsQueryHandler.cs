@@ -4,61 +4,54 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.DTOs.LiveCommerce;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
-using Merge.Domain.Entities;
-using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Marketing;
 using Merge.Domain.Modules.Ordering;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
-using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.LiveCommerce.Queries.GetStreamStats;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class GetStreamStatsQueryHandler : IRequestHandler<GetStreamStatsQuery, LiveStreamStatsDto>
+// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
+public class GetStreamStatsQueryHandler(
+    IDbContext context,
+    ILogger<GetStreamStatsQueryHandler> logger) : IRequestHandler<GetStreamStatsQuery, LiveStreamStatsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetStreamStatsQueryHandler> _logger;
-
-    public GetStreamStatsQueryHandler(
-        IDbContext context,
-        ILogger<GetStreamStatsQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
+    // ✅ BOLUM 12.0: Magic number YASAK - Constants kullan
+    private const int DefaultDurationSeconds = 0;
+    private const decimal DefaultRevenue = 0m;
 
     public async Task<LiveStreamStatsDto> Handle(GetStreamStatsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Getting stream stats. StreamId: {StreamId}", request.StreamId);
+        logger.LogInformation("Getting stream stats. StreamId: {StreamId}", request.StreamId);
 
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
-        var stream = await _context.Set<LiveStream>()
+        var stream = await context.Set<LiveStream>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == request.StreamId, cancellationToken);
 
         if (stream == null)
         {
-            _logger.LogWarning("Stream not found. StreamId: {StreamId}", request.StreamId);
+            logger.LogWarning("Stream not found. StreamId: {StreamId}", request.StreamId);
             throw new NotFoundException("Canlı yayın", request.StreamId);
         }
 
         // ✅ PERFORMANCE: Database'de aggregation (memory'de YASAK)
-        var totalViewers = await _context.Set<LiveStreamViewer>()
+        var totalViewers = await context.Set<LiveStreamViewer>()
             .CountAsync(v => v.LiveStreamId == request.StreamId, cancellationToken);
 
-        var totalOrders = await _context.Set<LiveStreamOrder>()
+        var totalOrders = await context.Set<LiveStreamOrder>()
             .CountAsync(o => o.LiveStreamId == request.StreamId, cancellationToken);
 
-        var totalRevenue = await _context.Set<LiveStreamOrder>()
+        var totalRevenue = await context.Set<LiveStreamOrder>()
             .Where(o => o.LiveStreamId == request.StreamId)
-            .SumAsync(o => (decimal?)o.OrderAmount, cancellationToken) ?? 0;
+            .SumAsync(o => (decimal?)o.OrderAmount, cancellationToken) ?? DefaultRevenue;
 
         var duration = stream.ActualStartTime.HasValue && stream.EndTime.HasValue
             ? (int)(stream.EndTime.Value - stream.ActualStartTime.Value).TotalSeconds
             : stream.ActualStartTime.HasValue
                 ? (int)(DateTime.UtcNow - stream.ActualStartTime.Value).TotalSeconds
-                : 0;
+                : DefaultDurationSeconds;
 
         return new LiveStreamStatsDto(
             stream.Id,
