@@ -149,6 +149,9 @@ public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
     {
         Conditions = conditions;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - DeliveryTimeEstimationConditionsUpdatedEvent
+        AddDomainEvent(new DeliveryTimeEstimationConditionsUpdatedEvent(Id));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Activate estimation
@@ -158,6 +161,9 @@ public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
 
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - DeliveryTimeEstimationActivatedEvent
+        AddDomainEvent(new DeliveryTimeEstimationActivatedEvent(Id));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Deactivate estimation
@@ -167,6 +173,9 @@ public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
 
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - DeliveryTimeEstimationDeactivatedEvent
+        AddDomainEvent(new DeliveryTimeEstimationDeactivatedEvent(Id));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)

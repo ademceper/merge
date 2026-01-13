@@ -104,8 +104,10 @@ public class CreatePickPackCommandHandler : IRequestHandler<CreatePickPackComman
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
+        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
         var createdPickPack = await _context.Set<PickPack>()
             .AsNoTracking()
+            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(pp => pp.Order)
             .Include(pp => pp.Warehouse)
             .Include(pp => pp.PickedBy)

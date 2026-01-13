@@ -44,19 +44,22 @@ public class CompletePickingCommandHandler : IRequestHandler<CompletePickingComm
         }
 
         // ✅ PERFORMANCE: Database'de kontrol et (memory'de işlem YASAK)
-        // Check if all items are picked
-        var totalItems = await _context.Set<PickPackItem>()
+        // ✅ PERFORMANCE: Tek sorguda GroupBy ile total ve picked item sayılarını al (2 ayrı CountAsync yerine)
+        var itemCounts = await _context.Set<PickPackItem>()
             .AsNoTracking()
-            .CountAsync(i => i.PickPackId == request.PickPackId, cancellationToken);
+            .Where(i => i.PickPackId == request.PickPackId)
+            .GroupBy(i => 1)
+            .Select(g => new
+            {
+                TotalItems = g.Count(),
+                PickedItems = g.Count(i => i.IsPicked)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
 
-        var pickedItems = await _context.Set<PickPackItem>()
-            .AsNoTracking()
-            .CountAsync(i => i.PickPackId == request.PickPackId && i.IsPicked, cancellationToken);
-
-        if (totalItems == 0 || pickedItems < totalItems)
+        if (itemCounts == null || itemCounts.TotalItems == 0 || itemCounts.PickedItems < itemCounts.TotalItems)
         {
             _logger.LogWarning("Not all items are picked. PickPackId: {PickPackId}, TotalItems: {TotalItems}, PickedItems: {PickedItems}",
-                request.PickPackId, totalItems, pickedItems);
+                request.PickPackId, itemCounts?.TotalItems ?? 0, itemCounts?.PickedItems ?? 0);
             throw new BusinessException("Tüm kalemler seçilmemiş.");
         }
 

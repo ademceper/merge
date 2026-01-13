@@ -2,8 +2,10 @@ using MediatR;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using OrderEntity = Merge.Domain.Modules.Ordering.Order;
@@ -23,17 +25,20 @@ public class UpdateShippingTrackingCommandHandler : IRequestHandler<UpdateShippi
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<UpdateShippingTrackingCommandHandler> _logger;
+    private readonly ShippingSettings _shippingSettings;
 
     public UpdateShippingTrackingCommandHandler(
         IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
-        ILogger<UpdateShippingTrackingCommandHandler> logger)
+        ILogger<UpdateShippingTrackingCommandHandler> logger,
+        IOptions<ShippingSettings> shippingSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
+        _shippingSettings = shippingSettings.Value;
     }
 
     public async Task<ShippingDto> Handle(UpdateShippingTrackingCommand request, CancellationToken cancellationToken)
@@ -52,7 +57,11 @@ public class UpdateShippingTrackingCommandHandler : IRequestHandler<UpdateShippi
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         shipping.Ship(request.TrackingNumber);
-        shipping.UpdateEstimatedDeliveryDate(DateTime.UtcNow.AddDays(3));
+        
+        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
+        // Varsayılan teslimat süresini configuration'dan al
+        var estimatedDays = _shippingSettings.DefaultDeliveryTime.AverageDays;
+        shipping.UpdateEstimatedDeliveryDate(DateTime.UtcNow.AddDays(estimatedDays));
 
         // ✅ BOLUM 1.1: Rich Domain Model - Order status'unu güncelle
         var order = await _context.Set<OrderEntity>()

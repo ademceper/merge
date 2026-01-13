@@ -255,29 +255,28 @@ public class PickPacksController : BaseController
     }
 
     /// <summary>
-    /// Pick-pack durumunu günceller
+    /// Pick-pack detaylarını günceller (notlar, ağırlık, boyutlar, paket sayısı)
+    /// NOT: Status transition'ları için ayrı endpoint'ler kullanılmalı (start-picking, complete-picking, start-packing, complete-packing, mark-shipped)
     /// </summary>
     /// <param name="id">Pick-pack ID'si</param>
-    /// <param name="dto">Durum güncelleme verileri</param>
+    /// <param name="dto">Detay güncelleme verileri</param>
     /// <param name="cancellationToken">İptal token'ı</param>
     /// <returns>İşlem başarılı (204 No Content)</returns>
-    /// <response code="204">Pick-pack durumu başarıyla güncellendi</response>
+    /// <response code="204">Pick-pack detayları başarıyla güncellendi</response>
     /// <response code="400">Geçersiz istek verisi</response>
     /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
     /// <response code="403">Bu işlem için yetki yok</response>
     /// <response code="404">Pick-pack bulunamadı</response>
-    /// <response code="422">İş kuralı ihlali (örn: geçersiz durum geçişi)</response>
     /// <response code="429">Çok fazla istek</response>
-    [HttpPut("{id}/status")]
+    [HttpPut("{id}/details")]
     [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<IActionResult> UpdateStatus(
+    public async Task<IActionResult> UpdateDetails(
         Guid id,
         [FromBody] UpdatePickPackStatusDto dto,
         CancellationToken cancellationToken = default)
@@ -285,13 +284,9 @@ public class PickPacksController : BaseController
         var validationResult = ValidateModelState();
         if (validationResult != null) return validationResult;
 
-        PickPackStatus? statusEnum = null;
-        if (!string.IsNullOrEmpty(dto.Status) && Enum.TryParse<PickPackStatus>(dto.Status, out var parsedStatus))
-        {
-            statusEnum = parsedStatus;
-        }
-
-        var command = new UpdatePickPackDetailsCommand(id, statusEnum, dto.Notes, dto.Weight, dto.Dimensions, dto.PackageCount);
+        // ✅ BOLUM 1.1: Rich Domain Model - Status transition'ları için ayrı endpoint'ler kullanılmalı
+        // Bu endpoint sadece details (notes, weight, dimensions, packageCount) update için kullanılır
+        var command = new UpdatePickPackDetailsCommand(id, dto.Notes, dto.Weight, dto.Dimensions, dto.PackageCount);
         await _mediator.Send(command, cancellationToken);
         return NoContent();
     }

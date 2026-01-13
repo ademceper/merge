@@ -84,6 +84,8 @@ builder.Services.Configure<Merge.Application.Configuration.UserSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.UserSettings.SectionName));
 builder.Services.Configure<Merge.Application.Configuration.InternationalSettings>(
     builder.Configuration.GetSection(Merge.Application.Configuration.InternationalSettings.SectionName));
+builder.Services.Configure<Merge.Application.Configuration.ShippingSettings>(
+    builder.Configuration.GetSection(Merge.Application.Configuration.ShippingSettings.SectionName));
 
 // Add services to the container
 // ✅ BOLUM 4.0: API Versioning (ZORUNLU)

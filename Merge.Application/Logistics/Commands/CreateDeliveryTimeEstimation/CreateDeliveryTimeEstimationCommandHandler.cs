@@ -70,8 +70,10 @@ public class CreateDeliveryTimeEstimationCommandHandler : IRequestHandler<Create
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
+        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
         var createdEstimation = await _context.Set<DeliveryTimeEstimation>()
             .AsNoTracking()
+            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(e => e.Product)
             .Include(e => e.Category)
             .Include(e => e.Warehouse)

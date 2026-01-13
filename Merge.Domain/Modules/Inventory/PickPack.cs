@@ -219,6 +219,9 @@ public class PickPack : BaseEntity, IAggregateRoot
         Notes = notes;
         Dimensions = dimensions;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - PickPackDetailsUpdatedEvent
+        AddDomainEvent(new PickPackDetailsUpdatedEvent(Id, OrderId));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update notes
@@ -226,6 +229,9 @@ public class PickPack : BaseEntity, IAggregateRoot
     {
         Notes = notes;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - PickPackDetailsUpdatedEvent (notes update is part of details update)
+        AddDomainEvent(new PickPackDetailsUpdatedEvent(Id, OrderId));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)

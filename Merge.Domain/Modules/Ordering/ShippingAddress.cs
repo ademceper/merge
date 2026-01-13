@@ -153,6 +153,9 @@ public class ShippingAddress : BaseEntity, IAggregateRoot
 
         IsDefault = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ShippingAddressUnsetAsDefaultEvent
+        AddDomainEvent(new ShippingAddressUnsetAsDefaultEvent(Id, UserId));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Activate address
@@ -162,6 +165,9 @@ public class ShippingAddress : BaseEntity, IAggregateRoot
 
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ShippingAddressActivatedEvent
+        AddDomainEvent(new ShippingAddressActivatedEvent(Id, UserId));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Deactivate address
@@ -171,6 +177,9 @@ public class ShippingAddress : BaseEntity, IAggregateRoot
 
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ShippingAddressDeactivatedEvent
+        AddDomainEvent(new ShippingAddressDeactivatedEvent(Id, UserId));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)

@@ -11,11 +11,6 @@ public class UpdatePickPackDetailsCommandValidator : AbstractValidator<UpdatePic
         RuleFor(x => x.PickPackId)
             .NotEmpty().WithMessage("Pick-pack ID'si zorunludur.");
 
-        RuleFor(x => x.Status)
-            .IsInEnum()
-            .When(x => x.Status.HasValue)
-            .WithMessage("Geçerli bir pick-pack durumu seçiniz.");
-
         RuleFor(x => x.Notes)
             .MaximumLength(2000).WithMessage("Notlar en fazla 2000 karakter olabilir.")
             .When(x => !string.IsNullOrEmpty(x.Notes));

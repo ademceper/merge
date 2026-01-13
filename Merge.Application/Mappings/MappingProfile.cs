@@ -265,6 +265,8 @@ public class MappingProfile : Profile
         CreateMap<CreatePaymentDto, Merge.Domain.Modules.Payment.Payment>();
 
         // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
+        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
+        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
         CreateMap<Shipping, ShippingDto>()
             .ConstructUsing(src => new ShippingDto(
                 src.Id,
@@ -272,7 +274,7 @@ public class MappingProfile : Profile
                 src.Order != null ? src.Order.OrderNumber : string.Empty,
                 src.ShippingProvider,
                 src.TrackingNumber,
-                src.Status.ToString(),
+                src.Status, // ✅ Enum direkt kullanılıyor (ToString() YASAK)
                 src.ShippedDate,
                 src.EstimatedDeliveryDate,
                 src.DeliveredDate,
@@ -710,9 +712,11 @@ public class MappingProfile : Profile
                 src.CreatedAt
             ));
         CreateMap<CreateDeliveryTimeEstimationDto, DeliveryTimeEstimation>();
+        CreateMap<UpdateDeliveryTimeEstimationDto, DeliveryTimeEstimation>();
 
         // ✅ BOLUM 7.1.5: Records - ConstructUsing ile record mapping
         // PickPack mappings
+        // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
         CreateMap<PickPack, PickPackDto>()
             .ConstructUsing(src => new PickPackDto(
                 src.Id,
@@ -721,7 +725,7 @@ public class MappingProfile : Profile
                 src.WarehouseId,
                 src.Warehouse != null ? src.Warehouse.Name : string.Empty,
                 src.PackNumber,
-                src.Status.ToString(),
+                src.Status, // ✅ Enum direkt kullanılıyor (ToString() YASAK)
                 src.PickedByUserId,
                 src.PickedBy != null ? $"{src.PickedBy.FirstName} {src.PickedBy.LastName}" : null,
                 src.PackedByUserId,

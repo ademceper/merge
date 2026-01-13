@@ -2,8 +2,10 @@ using MediatR;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.Interfaces;
@@ -22,15 +24,18 @@ public class GetFilteredStockMovementsQueryHandler : IRequestHandler<GetFiltered
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<GetFilteredStockMovementsQueryHandler> _logger;
+    private readonly ShippingSettings _shippingSettings;
 
     public GetFilteredStockMovementsQueryHandler(
         IDbContext context,
         IMapper mapper,
-        ILogger<GetFilteredStockMovementsQueryHandler> logger)
+        ILogger<GetFilteredStockMovementsQueryHandler> logger,
+        IOptions<ShippingSettings> shippingSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
+        _shippingSettings = shippingSettings.Value;
     }
 
     public async Task<IEnumerable<StockMovementDto>> Handle(GetFilteredStockMovementsQuery request, CancellationToken cancellationToken)
@@ -39,13 +44,18 @@ public class GetFilteredStockMovementsQueryHandler : IRequestHandler<GetFiltered
             request.ProductId, request.WarehouseId, request.MovementType);
 
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan
         var page = request.Page < 1 ? 1 : request.Page;
-        var pageSize = request.PageSize > 100 ? 100 : request.PageSize; // Max limit
+        var pageSize = request.PageSize > _shippingSettings.QueryLimits.MaxPageSize 
+            ? _shippingSettings.QueryLimits.MaxPageSize 
+            : request.PageSize;
 
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
+        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
         // ✅ PERFORMANCE: Include ile N+1 önlenir
         IQueryable<StockMovement> query = _context.Set<StockMovement>()
             .AsNoTracking()
+            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(sm => sm.Product)
             .Include(sm => sm.Warehouse)
             .Include(sm => sm.User)

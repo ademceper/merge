@@ -1,6 +1,8 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Logistics;
+using Merge.Application.Configuration;
 using Merge.Domain.Interfaces;
 
 namespace Merge.Application.Logistics.Queries.GetAvailableShippingProviders;
@@ -10,25 +12,28 @@ namespace Merge.Application.Logistics.Queries.GetAvailableShippingProviders;
 public class GetAvailableShippingProvidersQueryHandler : IRequestHandler<GetAvailableShippingProvidersQuery, IEnumerable<ShippingProviderDto>>
 {
     private readonly ILogger<GetAvailableShippingProvidersQueryHandler> _logger;
+    private readonly ShippingSettings _shippingSettings;
 
     public GetAvailableShippingProvidersQueryHandler(
-        ILogger<GetAvailableShippingProvidersQueryHandler> logger)
+        ILogger<GetAvailableShippingProvidersQueryHandler> logger,
+        IOptions<ShippingSettings> shippingSettings)
     {
         _logger = logger;
+        _shippingSettings = shippingSettings.Value;
     }
 
     public Task<IEnumerable<ShippingProviderDto>> Handle(GetAvailableShippingProvidersQuery request, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Getting available shipping providers");
 
-        // Gerçek uygulamada veritabanından veya config'den alınacak
-        var providers = new List<ShippingProviderDto>
-        {
-            new ShippingProviderDto("YURTICI", "Yurtiçi Kargo", 50m, 3),
-            new ShippingProviderDto("ARAS", "Aras Kargo", 45m, 2),
-            new ShippingProviderDto("MNG", "MNG Kargo", 40m, 2),
-            new ShippingProviderDto("SURAT", "Sürat Kargo", 55m, 3)
-        };
+        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
+        var providers = _shippingSettings.Providers
+            .Select(kvp => new ShippingProviderDto(
+                kvp.Key,
+                kvp.Value.Name,
+                kvp.Value.BaseCost,
+                kvp.Value.EstimatedDays))
+            .ToList();
 
         return Task.FromResult<IEnumerable<ShippingProviderDto>>(providers);
     }

@@ -45,19 +45,22 @@ public class CompletePackingCommandHandler : IRequestHandler<CompletePackingComm
         }
 
         // ✅ PERFORMANCE: Database'de kontrol et (memory'de işlem YASAK)
-        // Check if all items are packed
-        var totalItems = await _context.Set<PickPackItem>()
+        // ✅ PERFORMANCE: Tek sorguda GroupBy ile total ve packed item sayılarını al (2 ayrı CountAsync yerine)
+        var itemCounts = await _context.Set<PickPackItem>()
             .AsNoTracking()
-            .CountAsync(i => i.PickPackId == request.PickPackId, cancellationToken);
+            .Where(i => i.PickPackId == request.PickPackId)
+            .GroupBy(i => 1)
+            .Select(g => new
+            {
+                TotalItems = g.Count(),
+                PackedItems = g.Count(i => i.IsPacked)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
 
-        var packedItems = await _context.Set<PickPackItem>()
-            .AsNoTracking()
-            .CountAsync(i => i.PickPackId == request.PickPackId && i.IsPacked, cancellationToken);
-
-        if (totalItems == 0 || packedItems < totalItems)
+        if (itemCounts == null || itemCounts.TotalItems == 0 || itemCounts.PackedItems < itemCounts.TotalItems)
         {
             _logger.LogWarning("Not all items are packed. PickPackId: {PickPackId}, TotalItems: {TotalItems}, PackedItems: {PackedItems}",
-                request.PickPackId, totalItems, packedItems);
+                request.PickPackId, itemCounts?.TotalItems ?? 0, itemCounts?.PackedItems ?? 0);
             throw new BusinessException("Tüm kalemler paketlenmemiş.");
         }
 

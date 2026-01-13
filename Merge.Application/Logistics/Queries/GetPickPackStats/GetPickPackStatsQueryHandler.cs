@@ -51,27 +51,31 @@ public class GetPickPackStatsQueryHandler : IRequestHandler<GetPickPackStatsQuer
         }
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
+        // ✅ PERFORMANCE: Tek sorguda tüm status'leri GroupBy ile al (8 ayrı CountAsync yerine)
         var total = await query.CountAsync(cancellationToken);
-        var pending = await query.CountAsync(pp => pp.Status == PickPackStatus.Pending, cancellationToken);
-        var picking = await query.CountAsync(pp => pp.Status == PickPackStatus.Picking, cancellationToken);
-        var picked = await query.CountAsync(pp => pp.Status == PickPackStatus.Picked, cancellationToken);
-        var packing = await query.CountAsync(pp => pp.Status == PickPackStatus.Packing, cancellationToken);
-        var packed = await query.CountAsync(pp => pp.Status == PickPackStatus.Packed, cancellationToken);
-        var shipped = await query.CountAsync(pp => pp.Status == PickPackStatus.Shipped, cancellationToken);
-        var cancelled = await query.CountAsync(pp => pp.Status == PickPackStatus.Cancelled, cancellationToken);
+        
+        var statusCounts = await query
+            .GroupBy(pp => pp.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Memory'de minimal işlem (sadece Dictionary oluşturma)
-        return new Dictionary<string, int>
+        // ✅ PERFORMANCE: ToDictionary kullanarak FirstOrDefault overhead'ini önle
+        var statusCountsDict = statusCounts.ToDictionary(s => s.Status, s => s.Count);
+        
+        var result = new Dictionary<string, int>
         {
             { "Total", total },
-            { "Pending", pending },
-            { "Picking", picking },
-            { "Picked", picked },
-            { "Packing", packing },
-            { "Packed", packed },
-            { "Shipped", shipped },
-            { "Cancelled", cancelled }
+            { "Pending", statusCountsDict.GetValueOrDefault(PickPackStatus.Pending, 0) },
+            { "Picking", statusCountsDict.GetValueOrDefault(PickPackStatus.Picking, 0) },
+            { "Picked", statusCountsDict.GetValueOrDefault(PickPackStatus.Picked, 0) },
+            { "Packing", statusCountsDict.GetValueOrDefault(PickPackStatus.Packing, 0) },
+            { "Packed", statusCountsDict.GetValueOrDefault(PickPackStatus.Packed, 0) },
+            { "Shipped", statusCountsDict.GetValueOrDefault(PickPackStatus.Shipped, 0) },
+            { "Cancelled", statusCountsDict.GetValueOrDefault(PickPackStatus.Cancelled, 0) }
         };
+
+        return result;
     }
 }
 

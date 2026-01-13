@@ -32,7 +32,7 @@ public class UpdatePickPackDetailsCommandHandler : IRequestHandler<UpdatePickPac
 
     public async Task<Unit> Handle(UpdatePickPackDetailsCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Updating pick-pack details. PickPackId: {PickPackId}, Status: {Status}", request.PickPackId, request.Status);
+        _logger.LogInformation("Updating pick-pack details. PickPackId: {PickPackId}", request.PickPackId);
 
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var pickPack = await _context.Set<PickPack>()
@@ -45,24 +45,13 @@ public class UpdatePickPackDetailsCommandHandler : IRequestHandler<UpdatePickPac
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
-        if (request.Notes != null || request.Weight.HasValue || request.Dimensions != null || request.PackageCount.HasValue)
-        {
-            pickPack.UpdateDetails(
-                request.Notes,
-                request.Weight,
-                request.Dimensions,
-                request.PackageCount);
-        }
-
-        // Status değişikliği için domain method'ları kullan
-        if (request.Status.HasValue)
-        {
-            // Status transition'ları domain method'lar ile yapılmalı
-            // Burada sadece direkt status set edilemez, domain method'lar kullanılmalı
-            // Ancak UpdatePickPackStatusDto'da status string olarak geliyor, bu yüzden bu command'ı kaldırabiliriz
-            // veya status transition'ları için ayrı command'lar kullanabiliriz
-            // Şimdilik bu command'ı sadece details update için kullanacağız
-        }
+        // Sadece details update (notes, weight, dimensions, packageCount)
+        // Status transition'ları için ayrı command'lar kullanılmalı (StartPicking, CompletePicking, StartPacking, CompletePacking, Ship, Cancel)
+        pickPack.UpdateDetails(
+            request.Notes,
+            request.Weight,
+            request.Dimensions,
+            request.PackageCount);
 
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync

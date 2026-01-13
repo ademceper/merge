@@ -2,8 +2,10 @@ using MediatR;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
@@ -21,15 +23,18 @@ public class GetStockMovementsByInventoryIdQueryHandler : IRequestHandler<GetSto
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<GetStockMovementsByInventoryIdQueryHandler> _logger;
+    private readonly ShippingSettings _shippingSettings;
 
     public GetStockMovementsByInventoryIdQueryHandler(
         IDbContext context,
         IMapper mapper,
-        ILogger<GetStockMovementsByInventoryIdQueryHandler> logger)
+        ILogger<GetStockMovementsByInventoryIdQueryHandler> logger,
+        IOptions<ShippingSettings> shippingSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
+        _shippingSettings = shippingSettings.Value;
     }
 
     public async Task<IEnumerable<StockMovementDto>> Handle(GetStockMovementsByInventoryIdQuery request, CancellationToken cancellationToken)
@@ -37,10 +42,13 @@ public class GetStockMovementsByInventoryIdQueryHandler : IRequestHandler<GetSto
         _logger.LogInformation("Getting stock movements by inventory. InventoryId: {InventoryId}", request.InventoryId);
 
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
+        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
         // ✅ PERFORMANCE: Include ile N+1 önlenir
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan
         var movements = await _context.Set<StockMovement>()
             .AsNoTracking()
+            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(sm => sm.Product)
             .Include(sm => sm.Warehouse)
             .Include(sm => sm.User)
@@ -48,7 +56,7 @@ public class GetStockMovementsByInventoryIdQueryHandler : IRequestHandler<GetSto
             .Include(sm => sm.ToWarehouse)
             .Where(sm => sm.InventoryId == request.InventoryId)
             .OrderByDescending(sm => sm.CreatedAt)
-            .Take(100) // ✅ Güvenlik: Maksimum 100 hareket
+            .Take(_shippingSettings.QueryLimits.MaxStockMovementsPerInventory)
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (batch mapping)

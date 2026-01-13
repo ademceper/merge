@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
@@ -19,13 +21,16 @@ public class EstimateDeliveryTimeQueryHandler : IRequestHandler<EstimateDelivery
 {
     private readonly IDbContext _context;
     private readonly ILogger<EstimateDeliveryTimeQueryHandler> _logger;
+    private readonly ShippingSettings _shippingSettings;
 
     public EstimateDeliveryTimeQueryHandler(
         IDbContext context,
-        ILogger<EstimateDeliveryTimeQueryHandler> logger)
+        ILogger<EstimateDeliveryTimeQueryHandler> logger,
+        IOptions<ShippingSettings> shippingSettings)
     {
         _context = context;
         _logger = logger;
+        _shippingSettings = shippingSettings.Value;
     }
 
     public async Task<DeliveryTimeEstimateResultDto> Handle(EstimateDeliveryTimeQuery request, CancellationToken cancellationToken)
@@ -113,14 +118,30 @@ public class EstimateDeliveryTimeQueryHandler : IRequestHandler<EstimateDelivery
             }
         }
 
-        // If no estimation found, use default values
+        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
+        // If no estimation found, use default values from configuration
         if (estimation == null)
         {
+            // Default değerler ShippingSettings'ten alınır
+            var defaultMinDays = _shippingSettings.DefaultDeliveryTime.MinDays;
+            var defaultMaxDays = _shippingSettings.DefaultDeliveryTime.MaxDays;
+            var defaultAverageDays = _shippingSettings.DefaultDeliveryTime.AverageDays;
+            
+            // Provider'ların ortalama estimated days'ini hesapla (eğer provider varsa)
+            if (_shippingSettings.Providers.Any())
+            {
+                var avgEstimatedDays = (int)Math.Round(_shippingSettings.Providers.Values.Average(p => p.EstimatedDays));
+                // Configuration'dan gelen değerlerle provider ortalamasını birleştir
+                defaultAverageDays = Math.Max(defaultAverageDays, avgEstimatedDays);
+                defaultMinDays = Math.Max(defaultMinDays, Math.Max(1, avgEstimatedDays - 2));
+                defaultMaxDays = Math.Max(defaultMaxDays, avgEstimatedDays + 2);
+            }
+            
             return new DeliveryTimeEstimateResultDto(
-                MinDays: 3,
-                MaxDays: 7,
-                AverageDays: 5,
-                EstimatedDeliveryDate: request.OrderDate.AddDays(5),
+                MinDays: defaultMinDays,
+                MaxDays: defaultMaxDays,
+                AverageDays: defaultAverageDays,
+                EstimatedDeliveryDate: request.OrderDate.AddDays(defaultAverageDays),
                 EstimationSource: "System Default");
         }
 

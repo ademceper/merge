@@ -2,8 +2,10 @@ using MediatR;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Logistics;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
@@ -21,15 +23,18 @@ public class GetPickPacksByOrderIdQueryHandler : IRequestHandler<GetPickPacksByO
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<GetPickPacksByOrderIdQueryHandler> _logger;
+    private readonly ShippingSettings _shippingSettings;
 
     public GetPickPacksByOrderIdQueryHandler(
         IDbContext context,
         IMapper mapper,
-        ILogger<GetPickPacksByOrderIdQueryHandler> logger)
+        ILogger<GetPickPacksByOrderIdQueryHandler> logger,
+        IOptions<ShippingSettings> shippingSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
+        _shippingSettings = shippingSettings.Value;
     }
 
     public async Task<IEnumerable<PickPackDto>> Handle(GetPickPacksByOrderIdQuery request, CancellationToken cancellationToken)
@@ -37,10 +42,13 @@ public class GetPickPacksByOrderIdQueryHandler : IRequestHandler<GetPickPacksByO
         _logger.LogInformation("Getting pick-packs by order. OrderId: {OrderId}", request.OrderId);
 
         // ✅ PERFORMANCE: AsNoTracking (read-only query)
+        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
         // ✅ PERFORMANCE: Include ile N+1 önlenir
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+        // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan
         var pickPacks = await _context.Set<PickPack>()
             .AsNoTracking()
+            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(pp => pp.Order)
             .Include(pp => pp.Warehouse)
             .Include(pp => pp.PickedBy)
@@ -50,7 +58,7 @@ public class GetPickPacksByOrderIdQueryHandler : IRequestHandler<GetPickPacksByO
                     .ThenInclude(oi => oi.Product)
             .Where(pp => pp.OrderId == request.OrderId)
             .OrderByDescending(pp => pp.CreatedAt)
-            .Take(50) // ✅ Güvenlik: Maksimum 50 pick-pack
+            .Take(_shippingSettings.QueryLimits.MaxPickPacksPerOrder)
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (batch mapping)

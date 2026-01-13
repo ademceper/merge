@@ -1,6 +1,9 @@
+using Merge.Domain.Enums;
+
 namespace Merge.Application.DTOs.Logistics;
 
 // ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı)
+// ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
 public record PickPackDto(
     Guid Id,
     Guid OrderId,
@@ -8,7 +11,7 @@ public record PickPackDto(
     Guid WarehouseId,
     string WarehouseName,
     string PackNumber,
-    string Status,
+    PickPackStatus Status,
     Guid? PickedByUserId,
     string? PickedByName,
     Guid? PackedByUserId,
