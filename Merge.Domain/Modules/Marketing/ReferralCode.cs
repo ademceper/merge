@@ -208,5 +208,8 @@ public class ReferralCode : BaseEntity, IAggregateRoot
         IsDeleted = true;
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - ReferralCodeDeletedEvent
+        AddDomainEvent(new ReferralCodeDeletedEvent(Id, UserId, Code));
     }
 }

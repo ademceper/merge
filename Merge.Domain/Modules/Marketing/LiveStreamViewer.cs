@@ -10,9 +10,12 @@ namespace Merge.Domain.Modules.Marketing;
 /// <summary>
 /// LiveStreamViewer Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class LiveStreamViewer : BaseEntity
+public class LiveStreamViewer : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid LiveStreamId { get; private set; }

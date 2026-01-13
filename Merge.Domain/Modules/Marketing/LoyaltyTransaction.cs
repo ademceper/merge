@@ -1,4 +1,5 @@
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
 using Merge.Domain.SharedKernel;
@@ -11,9 +12,12 @@ namespace Merge.Domain.Modules.Marketing;
 /// <summary>
 /// LoyaltyTransaction Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class LoyaltyTransaction : BaseEntity
+public class LoyaltyTransaction : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
@@ -43,6 +47,10 @@ public class LoyaltyTransaction : BaseEntity
     public Order? Order { get; private set; }
     public Review? Review { get; private set; }
 
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [System.ComponentModel.DataAnnotations.Schema.Timestamp]
+    public byte[]? RowVersion { get; set; }
+
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private LoyaltyTransaction() { }
 
@@ -67,7 +75,7 @@ public class LoyaltyTransaction : BaseEntity
         if (expiresAt <= DateTime.UtcNow)
             throw new DomainException("Son kullanma tarihi gelecekte olmalıdır");
 
-        return new LoyaltyTransaction
+        var transaction = new LoyaltyTransaction
         {
             Id = Guid.NewGuid(),
             UserId = userId,
@@ -81,6 +89,11 @@ public class LoyaltyTransaction : BaseEntity
             IsExpired = false,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events - LoyaltyTransactionCreatedEvent
+        transaction.AddDomainEvent(new LoyaltyTransactionCreatedEvent(transaction.Id, userId, loyaltyAccountId, points, type));
+
+        return transaction;
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as expired
@@ -91,6 +104,9 @@ public class LoyaltyTransaction : BaseEntity
 
         IsExpired = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - LoyaltyTransactionExpiredEvent
+        AddDomainEvent(new LoyaltyTransactionExpiredEvent(Id, UserId, Points));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Check if expired

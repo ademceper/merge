@@ -44,7 +44,8 @@ public class RemoveProductFromFlashSaleCommandHandler : IRequestHandler<RemovePr
             throw new NotFoundException("Flash Sale Product", Guid.Empty);
         }
 
-        _context.Set<FlashSaleProduct>().Remove(flashSaleProduct);
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı (soft delete)
+        flashSaleProduct.MarkAsDeleted();
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder

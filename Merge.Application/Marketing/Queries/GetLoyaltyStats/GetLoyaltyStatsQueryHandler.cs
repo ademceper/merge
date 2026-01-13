@@ -36,12 +36,27 @@ public class GetLoyaltyStatsQueryHandler : IRequestHandler<GetLoyaltyStatsQuery,
             .SumAsync(t => (long)Math.Abs(t.Points), cancellationToken);
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        var membersByTier = await _context.Set<LoyaltyAccount>()
+        // NOT: GroupBy ile Include birlikte kullanıldığında AsSplitQuery kullanılamaz
+        // Bu durumda Join kullanarak Tier bilgisini alıyoruz
+        var membersByTierId = await _context.Set<LoyaltyAccount>()
             .AsNoTracking()
-            .Include(a => a.Tier)
-            .GroupBy(a => a.Tier != null ? a.Tier.Name : "No Tier")
-            .Select(g => new { Tier = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.Tier, x => x.Count, cancellationToken);
+            .GroupBy(a => a.TierId)
+            .Select(g => new { TierId = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+        
+        // Tier isimlerini almak için ayrı bir sorgu
+        var tierIds = membersByTierId.Where(x => x.TierId.HasValue).Select(x => x.TierId!.Value).ToList();
+        var tierNames = await _context.Set<LoyaltyTier>()
+            .AsNoTracking()
+            .Where(t => tierIds.Contains(t.Id))
+            .ToDictionaryAsync(t => t.Id, t => t.Name, cancellationToken);
+        
+        // Dictionary'yi Tier isimleriyle oluştur
+        var membersByTier = membersByTierId.ToDictionary(
+            kvp => kvp.TierId.HasValue && tierNames.TryGetValue(kvp.TierId.Value, out var name) 
+                ? name 
+                : "No Tier",
+            kvp => kvp.Count);
 
         return new LoyaltyStatsDto(
             totalMembers,

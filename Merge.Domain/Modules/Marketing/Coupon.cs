@@ -368,6 +368,9 @@ public class Coupon : BaseEntity, IAggregateRoot
         IsDeleted = true;
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - CouponDeletedEvent
+        AddDomainEvent(new CouponDeletedEvent(Id, Code));
     }
 }
 

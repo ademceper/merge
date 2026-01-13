@@ -222,6 +222,27 @@ public class EmailCampaign : BaseEntity, IAggregateRoot
         AddDomainEvent(new EmailCampaignUpdatedEvent(Id, Name));
     }
 
+    // ✅ BOLUM 1.1: Domain Method - Set template ID
+    public void SetTemplateId(Guid? templateId)
+    {
+        TemplateId = templateId;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - EmailCampaignUpdatedEvent
+        AddDomainEvent(new EmailCampaignUpdatedEvent(Id, Name));
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Set target segment
+    public void SetTargetSegment(string targetSegment)
+    {
+        Guard.AgainstNullOrEmpty(targetSegment, nameof(targetSegment));
+        TargetSegment = targetSegment;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - EmailCampaignUpdatedEvent
+        AddDomainEvent(new EmailCampaignUpdatedEvent(Id, Name));
+    }
+
     // ✅ BOLUM 1.1: Domain Method - Schedule campaign
     public void Schedule(DateTime scheduledAt)
     {
@@ -338,5 +359,8 @@ public class EmailCampaign : BaseEntity, IAggregateRoot
 
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - EmailCampaignDeletedEvent
+        AddDomainEvent(new EmailCampaignDeletedEvent(Id, Name));
     }
 }

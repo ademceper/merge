@@ -43,8 +43,6 @@ public class DeleteCouponCommandHandler : IRequestHandler<DeleteCouponCommand, b
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı (soft delete)
-        // NOT: Coupon entity'de MarkAsDeleted metodu yok, BaseEntity'deki IsDeleted property'sini kullanıyoruz
-        // Ancak domain logic için MarkAsDeleted metodu eklenmeli
         coupon.MarkAsDeleted();
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur

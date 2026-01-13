@@ -3,15 +3,19 @@ using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Domain.Modules.Marketing;
 
 /// <summary>
 /// EmailCampaignRecipient Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class EmailCampaignRecipient : BaseEntity
+public class EmailCampaignRecipient : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid CampaignId { get; private set; }
@@ -57,7 +61,7 @@ public class EmailCampaignRecipient : BaseEntity
         Guard.AgainstDefault(campaignId, nameof(campaignId));
         Guard.AgainstDefault(subscriberId, nameof(subscriberId));
 
-        return new EmailCampaignRecipient
+        var recipient = new EmailCampaignRecipient
         {
             Id = Guid.NewGuid(),
             CampaignId = campaignId,
@@ -65,6 +69,11 @@ public class EmailCampaignRecipient : BaseEntity
             Status = EmailRecipientStatus.Pending,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events - EmailCampaignRecipientCreatedEvent
+        recipient.AddDomainEvent(new EmailCampaignRecipientCreatedEvent(recipient.Id, campaignId, subscriberId));
+
+        return recipient;
     }
 
     // ✅ BOLUM 1.1: Rich Domain Model - Domain Method - Mark as sent
@@ -76,6 +85,9 @@ public class EmailCampaignRecipient : BaseEntity
         Status = EmailRecipientStatus.Sent;
         SentAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - EmailCampaignRecipientSentEvent
+        AddDomainEvent(new EmailCampaignRecipientSentEvent(Id, CampaignId, SubscriberId));
     }
 
     // ✅ BOLUM 1.1: Rich Domain Model - Domain Method - Mark as delivered
@@ -84,12 +96,17 @@ public class EmailCampaignRecipient : BaseEntity
         Status = EmailRecipientStatus.Delivered;
         DeliveredAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - EmailCampaignRecipientDeliveredEvent
+        AddDomainEvent(new EmailCampaignRecipientDeliveredEvent(Id, CampaignId, SubscriberId));
     }
 
     // ✅ BOLUM 1.1: Rich Domain Model - Domain Method - Record email opened
     public void RecordEmailOpened()
     {
-        if (OpenedAt == null)
+        var isFirstOpen = OpenedAt == null;
+        
+        if (isFirstOpen)
         {
             OpenedAt = DateTime.UtcNow;
             Status = EmailRecipientStatus.Opened;
@@ -97,12 +114,20 @@ public class EmailCampaignRecipient : BaseEntity
         
         OpenCount++;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - EmailCampaignRecipientOpenedEvent (sadece ilk açılışta)
+        if (isFirstOpen)
+        {
+            AddDomainEvent(new EmailCampaignRecipientOpenedEvent(Id, CampaignId, SubscriberId));
+        }
     }
 
     // ✅ BOLUM 1.1: Rich Domain Model - Domain Method - Record email clicked
     public void RecordEmailClicked()
     {
-        if (ClickedAt == null)
+        var isFirstClick = ClickedAt == null;
+        
+        if (isFirstClick)
         {
             ClickedAt = DateTime.UtcNow;
             Status = EmailRecipientStatus.Clicked;
@@ -110,6 +135,12 @@ public class EmailCampaignRecipient : BaseEntity
         
         ClickCount++;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - EmailCampaignRecipientClickedEvent (sadece ilk tıklamada)
+        if (isFirstClick)
+        {
+            AddDomainEvent(new EmailCampaignRecipientClickedEvent(Id, CampaignId, SubscriberId));
+        }
     }
 
     // ✅ BOLUM 1.1: Rich Domain Model - Domain Method - Mark as bounced
@@ -119,6 +150,9 @@ public class EmailCampaignRecipient : BaseEntity
         BouncedAt = DateTime.UtcNow;
         ErrorMessage = errorMessage;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - EmailCampaignRecipientBouncedEvent
+        AddDomainEvent(new EmailCampaignRecipientBouncedEvent(Id, CampaignId, SubscriberId, errorMessage));
     }
 
     // ✅ BOLUM 1.1: Rich Domain Model - Domain Method - Mark as unsubscribed
@@ -127,6 +161,9 @@ public class EmailCampaignRecipient : BaseEntity
         Status = EmailRecipientStatus.Unsubscribed;
         UnsubscribedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - EmailCampaignRecipientUnsubscribedEvent
+        AddDomainEvent(new EmailCampaignRecipientUnsubscribedEvent(Id, CampaignId, SubscriberId));
     }
 
     // ✅ BOLUM 1.1: Rich Domain Model - Domain Method - Mark as failed
@@ -137,10 +174,13 @@ public class EmailCampaignRecipient : BaseEntity
         Status = EmailRecipientStatus.Failed;
         ErrorMessage = errorMessage;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - EmailCampaignRecipientFailedEvent
+        AddDomainEvent(new EmailCampaignRecipientFailedEvent(Id, CampaignId, SubscriberId, errorMessage));
     }
 
     // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
-    [Timestamp]
+    [System.ComponentModel.DataAnnotations.Schema.Timestamp]
     public byte[]? RowVersion { get; set; }
 }
 

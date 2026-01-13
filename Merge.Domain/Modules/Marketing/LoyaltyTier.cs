@@ -1,4 +1,5 @@
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.SharedKernel;
 using Merge.Domain.ValueObjects;
@@ -8,9 +9,12 @@ namespace Merge.Domain.Modules.Marketing;
 /// <summary>
 /// LoyaltyTier Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class LoyaltyTier : BaseEntity
+public class LoyaltyTier : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty; // Bronze, Silver, Gold, Platinum
@@ -72,6 +76,10 @@ public class LoyaltyTier : BaseEntity
     
     public bool IsActive { get; private set; } = true;
 
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [System.ComponentModel.DataAnnotations.Schema.Timestamp]
+    public byte[]? RowVersion { get; set; }
+
     // ✅ BOLUM 1.3: Value Object properties
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Percentage DiscountPercentageValue => new Percentage(_discountPercentage);
@@ -96,7 +104,7 @@ public class LoyaltyTier : BaseEntity
         Guard.AgainstNegative(minimumPoints, nameof(minimumPoints));
         Guard.AgainstNegativeOrZero(level, nameof(level));
 
-        return new LoyaltyTier
+        var tier = new LoyaltyTier
         {
             Id = Guid.NewGuid(),
             Name = name,
@@ -111,6 +119,11 @@ public class LoyaltyTier : BaseEntity
             IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events - LoyaltyTierCreatedEvent
+        tier.AddDomainEvent(new LoyaltyTierCreatedEvent(tier.Id, tier.Name, tier.Level, tier.MinimumPoints));
+
+        return tier;
     }
 
     // ✅ BOLUM 1.1: Domain Method - Activate
@@ -121,6 +134,9 @@ public class LoyaltyTier : BaseEntity
 
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - LoyaltyTierActivatedEvent
+        AddDomainEvent(new LoyaltyTierActivatedEvent(Id, Name));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Deactivate
@@ -131,6 +147,9 @@ public class LoyaltyTier : BaseEntity
 
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - LoyaltyTierDeactivatedEvent
+        AddDomainEvent(new LoyaltyTierDeactivatedEvent(Id, Name));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update details
@@ -169,6 +188,9 @@ public class LoyaltyTier : BaseEntity
             IconUrl = iconUrl;
 
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - LoyaltyTierUpdatedEvent
+        AddDomainEvent(new LoyaltyTierUpdatedEvent(Id, Name));
     }
 }
 

@@ -131,5 +131,8 @@ public class FlashSale : BaseEntity, IAggregateRoot
         IsDeleted = true;
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FlashSaleDeletedEvent
+        AddDomainEvent(new FlashSaleDeletedEvent(Id, Title));
     }
 }

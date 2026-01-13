@@ -1,17 +1,21 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Modules.Catalog;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Marketing;
 
 /// <summary>
 /// FlashSaleProduct Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class FlashSaleProduct : BaseEntity
+public class FlashSaleProduct : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid FlashSaleId { get; private set; }
@@ -65,6 +69,10 @@ public class FlashSaleProduct : BaseEntity
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Money SalePriceMoney => new Money(_salePrice);
 
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
+
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private FlashSaleProduct() { }
 
@@ -81,7 +89,7 @@ public class FlashSaleProduct : BaseEntity
         Guard.AgainstNull(salePrice, nameof(salePrice));
         Guard.AgainstNegative(stockLimit, nameof(stockLimit));
 
-        return new FlashSaleProduct
+        var flashSaleProduct = new FlashSaleProduct
         {
             Id = Guid.NewGuid(),
             FlashSaleId = flashSaleId,
@@ -92,6 +100,16 @@ public class FlashSaleProduct : BaseEntity
             SortOrder = sortOrder,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events - FlashSaleProductCreatedEvent
+        flashSaleProduct.AddDomainEvent(new FlashSaleProductCreatedEvent(
+            flashSaleProduct.Id,
+            flashSaleId,
+            productId,
+            salePrice.Amount,
+            stockLimit));
+
+        return flashSaleProduct;
     }
 
     // ✅ BOLUM 1.1: Domain Method - Record sale
@@ -104,6 +122,15 @@ public class FlashSaleProduct : BaseEntity
 
         _soldQuantity += quantity;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FlashSaleProductSaleRecordedEvent
+        AddDomainEvent(new FlashSaleProductSaleRecordedEvent(
+            Id,
+            FlashSaleId,
+            ProductId,
+            quantity,
+            _soldQuantity,
+            GetRemainingStock()));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Check if available
@@ -127,6 +154,9 @@ public class FlashSaleProduct : BaseEntity
         Guard.AgainstNull(salePrice, nameof(salePrice));
         _salePrice = salePrice.Amount;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FlashSaleProductUpdatedEvent
+        AddDomainEvent(new FlashSaleProductUpdatedEvent(Id, FlashSaleId, ProductId, "SalePrice"));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update stock limit
@@ -139,6 +169,9 @@ public class FlashSaleProduct : BaseEntity
 
         _stockLimit = stockLimit;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FlashSaleProductUpdatedEvent
+        AddDomainEvent(new FlashSaleProductUpdatedEvent(Id, FlashSaleId, ProductId, "StockLimit"));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update sort order
@@ -146,6 +179,21 @@ public class FlashSaleProduct : BaseEntity
     {
         SortOrder = sortOrder;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FlashSaleProductUpdatedEvent
+        AddDomainEvent(new FlashSaleProductUpdatedEvent(Id, FlashSaleId, ProductId, "SortOrder"));
+    }
+
+    // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
+    public void MarkAsDeleted()
+    {
+        if (IsDeleted) return;
+
+        IsDeleted = true;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FlashSaleProductDeletedEvent
+        AddDomainEvent(new FlashSaleProductDeletedEvent(Id, FlashSaleId, ProductId));
     }
 }
 

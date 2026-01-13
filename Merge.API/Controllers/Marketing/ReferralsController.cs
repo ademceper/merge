@@ -9,6 +9,7 @@ using Merge.Application.Marketing.Queries.GetMyReferralCode;
 using Merge.Application.Marketing.Queries.GetMyReferrals;
 using Merge.Application.Marketing.Queries.GetReferralStats;
 using Merge.Application.Marketing.Commands.ApplyReferralCode;
+using Merge.Application.Marketing.Commands.CreateReferralCode;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
 
@@ -56,9 +57,17 @@ public class ReferralsController : BaseController
         }
         
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
+        // ✅ BOLUM 2.0: CQRS - Query handler'lar SADECE okuma yapmalı
         var query = new GetMyReferralCodeQuery(userId);
         var code = await _mediator.Send(query, cancellationToken);
+        
+        // ✅ BOLUM 2.0: CQRS - Entity oluşturma command handler'da yapılmalı
+        if (code == null)
+        {
+            var createCommand = new CreateReferralCodeCommand(userId);
+            code = await _mediator.Send(createCommand, cancellationToken);
+        }
+        
         return Ok(code);
     }
 

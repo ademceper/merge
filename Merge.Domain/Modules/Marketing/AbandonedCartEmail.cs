@@ -1,5 +1,6 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
 using System.ComponentModel.DataAnnotations;
@@ -12,9 +13,11 @@ namespace Merge.Domain.Modules.Marketing;
 /// AbandonedCartEmail Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
 /// BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// </summary>
-public class AbandonedCartEmail : BaseEntity
+public class AbandonedCartEmail : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid CartId { get; private set; }
@@ -51,7 +54,7 @@ public class AbandonedCartEmail : BaseEntity
         Guard.AgainstDefault(cartId, nameof(cartId));
         Guard.AgainstDefault(userId, nameof(userId));
 
-        return new AbandonedCartEmail
+        var abandonedCartEmail = new AbandonedCartEmail
         {
             Id = Guid.NewGuid(),
             CartId = cartId,
@@ -64,6 +67,11 @@ public class AbandonedCartEmail : BaseEntity
             CouponId = couponId,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events - AbandonedCartEmailCreatedEvent
+        abandonedCartEmail.AddDomainEvent(new AbandonedCartEmailCreatedEvent(abandonedCartEmail.Id, cartId, userId, emailType));
+
+        return abandonedCartEmail;
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Mark as opened
@@ -74,6 +82,9 @@ public class AbandonedCartEmail : BaseEntity
 
         WasOpened = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - AbandonedCartEmailOpenedEvent
+        AddDomainEvent(new AbandonedCartEmailOpenedEvent(Id, CartId, UserId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Mark as clicked
@@ -84,6 +95,9 @@ public class AbandonedCartEmail : BaseEntity
 
         WasClicked = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - AbandonedCartEmailClickedEvent
+        AddDomainEvent(new AbandonedCartEmailClickedEvent(Id, CartId, UserId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Mark as resulted in purchase
@@ -94,5 +108,8 @@ public class AbandonedCartEmail : BaseEntity
 
         ResultedInPurchase = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - AbandonedCartEmailResultedInPurchaseEvent
+        AddDomainEvent(new AbandonedCartEmailResultedInPurchaseEvent(Id, CartId, UserId));
     }
 }

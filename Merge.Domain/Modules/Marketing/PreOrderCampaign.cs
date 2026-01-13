@@ -1,5 +1,6 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.ValueObjects;
 using System.ComponentModel.DataAnnotations;
@@ -12,11 +13,13 @@ namespace Merge.Domain.Modules.Marketing;
 /// PreOrderCampaign Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
 /// BOLUM 1.3: Value Objects (ZORUNLU)
-/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 1.6: Invariant Validation (ZORUNLU)
 /// BOLUM 1.7: Concurrency Control (ZORUNLU)
+/// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class PreOrderCampaign : BaseAggregateRoot
+public class PreOrderCampaign : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
@@ -96,7 +99,7 @@ public class PreOrderCampaign : BaseAggregateRoot
         if (specialPrice < 0)
             throw new DomainException("Özel fiyat negatif olamaz");
 
-        return new PreOrderCampaign
+        var campaign = new PreOrderCampaign
         {
             Id = Guid.NewGuid(),
             Name = name,
@@ -113,6 +116,11 @@ public class PreOrderCampaign : BaseAggregateRoot
             NotifyOnAvailable = notifyOnAvailable,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events - PreOrderCampaignCreatedEvent
+        campaign.AddDomainEvent(new PreOrderCampaignCreatedEvent(campaign.Id, campaign.Name, campaign.ProductId, campaign.StartDate, campaign.EndDate));
+
+        return campaign;
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Increment current quantity
@@ -126,6 +134,9 @@ public class PreOrderCampaign : BaseAggregateRoot
 
         CurrentQuantity += amount;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - PreOrderCampaignQuantityUpdatedEvent
+        AddDomainEvent(new PreOrderCampaignQuantityUpdatedEvent(Id, CurrentQuantity, MaxQuantity));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Decrement current quantity
@@ -139,6 +150,9 @@ public class PreOrderCampaign : BaseAggregateRoot
 
         CurrentQuantity -= amount;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - PreOrderCampaignQuantityUpdatedEvent
+        AddDomainEvent(new PreOrderCampaignQuantityUpdatedEvent(Id, CurrentQuantity, MaxQuantity));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Check if campaign is full
@@ -162,6 +176,9 @@ public class PreOrderCampaign : BaseAggregateRoot
 
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - PreOrderCampaignActivatedEvent
+        AddDomainEvent(new PreOrderCampaignActivatedEvent(Id, Name));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Deactivate campaign
@@ -172,6 +189,9 @@ public class PreOrderCampaign : BaseAggregateRoot
 
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - PreOrderCampaignDeactivatedEvent
+        AddDomainEvent(new PreOrderCampaignDeactivatedEvent(Id, Name));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update dates
@@ -186,6 +206,9 @@ public class PreOrderCampaign : BaseAggregateRoot
         EndDate = endDate;
         ExpectedDeliveryDate = expectedDeliveryDate;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - PreOrderCampaignUpdatedEvent
+        AddDomainEvent(new PreOrderCampaignUpdatedEvent(Id, Name));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update pricing
@@ -199,6 +222,9 @@ public class PreOrderCampaign : BaseAggregateRoot
         DepositPercentage = depositPercentage;
         SpecialPrice = specialPrice;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - PreOrderCampaignUpdatedEvent
+        AddDomainEvent(new PreOrderCampaignUpdatedEvent(Id, Name));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update basic info
@@ -212,6 +238,9 @@ public class PreOrderCampaign : BaseAggregateRoot
         Description = description;
         MaxQuantity = maxQuantity;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - PreOrderCampaignUpdatedEvent
+        AddDomainEvent(new PreOrderCampaignUpdatedEvent(Id, Name));
     }
 }
 

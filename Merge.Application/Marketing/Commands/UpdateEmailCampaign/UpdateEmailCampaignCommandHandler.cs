@@ -61,27 +61,20 @@ public class UpdateEmailCampaignCommandHandler : IRequestHandler<UpdateEmailCamp
 
         if (request.TemplateId.HasValue)
         {
-            // TemplateId için reflection veya property set gerekli (domain method'da yok)
-            var campaignType = typeof(EmailCampaign);
-            var templateIdProperty = campaignType.GetProperty("TemplateId");
-            if (templateIdProperty != null && templateIdProperty.CanWrite)
-            {
-                templateIdProperty.SetValue(campaign, request.TemplateId.Value);
-            }
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+            campaign.SetTemplateId(request.TemplateId.Value);
         }
 
         if (request.ScheduledAt.HasValue && request.ScheduledAt != campaign.ScheduledAt)
         {
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
             campaign.Schedule(request.ScheduledAt.Value);
         }
 
         if (!string.IsNullOrEmpty(request.TargetSegment) && request.TargetSegment != campaign.TargetSegment)
         {
-            var targetSegmentProperty = typeof(EmailCampaign).GetProperty("TargetSegment");
-            if (targetSegmentProperty != null && targetSegmentProperty.CanWrite)
-            {
-                targetSegmentProperty.SetValue(campaign, request.TargetSegment);
-            }
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+            campaign.SetTargetSegment(request.TargetSegment);
         }
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
