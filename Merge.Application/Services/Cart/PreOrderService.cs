@@ -83,13 +83,28 @@ public class PreOrderService : IPreOrderService
         var price = campaign.SpecialPrice > 0 ? campaign.SpecialPrice : product.Price;
         var depositAmount = price * (campaign.DepositPercentage / 100);
 
+        // ✅ BOLUM 1.1: Rich Domain Model - User entity'yi yükle (PreOrder.Create için gerekli)
+        var user = await _context.Set<Merge.Domain.Modules.Identity.User>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+        if (user == null)
+        {
+            throw new NotFoundException("Kullanıcı", userId);
+        }
+
         // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
+        // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+        var priceMoney = new Merge.Domain.ValueObjects.Money(price);
+        var depositAmountMoney = new Merge.Domain.ValueObjects.Money(depositAmount);
         var preOrder = PreOrder.Create(
             userId,
             dto.ProductId,
+            product,
+            user,
             dto.Quantity,
-            price,
-            depositAmount,
+            priceMoney,
+            depositAmountMoney,
             campaign.ExpectedDeliveryDate,
             campaign.EndDate,
             dto.Notes,
@@ -251,7 +266,8 @@ public class PreOrderService : IPreOrderService
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
-        preOrder.PayDeposit(dto.Amount);
+        var depositAmountMoney = new Merge.Domain.ValueObjects.Money(dto.Amount);
+        preOrder.PayDeposit(depositAmountMoney);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

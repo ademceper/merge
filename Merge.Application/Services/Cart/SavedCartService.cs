@@ -102,11 +102,12 @@ public class SavedCartService : ISavedCartService
                                   sci.ProductId == dto.ProductId, cancellationToken);
 
         var currentPrice = product.DiscountPrice ?? product.Price;
+        var currentPriceMoney = new Merge.Domain.ValueObjects.Money(currentPrice);
 
         if (existing != null)
         {
             existing.UpdateQuantity(dto.Quantity);
-            existing.UpdatePrice(currentPrice);
+            existing.UpdatePrice(currentPriceMoney);
             existing.UpdateNotes(dto.Notes);
             await _savedCartItemRepository.UpdateAsync(existing);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -122,7 +123,9 @@ public class SavedCartService : ISavedCartService
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
-        var savedItem = SavedCartItem.Create(userId, dto.ProductId, dto.Quantity, currentPrice, dto.Notes);
+        // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+        var currentPriceMoney = new Merge.Domain.ValueObjects.Money(currentPrice);
+        var savedItem = SavedCartItem.Create(userId, dto.ProductId, dto.Quantity, currentPriceMoney, dto.Notes);
 
         await _savedCartItemRepository.AddAsync(savedItem, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

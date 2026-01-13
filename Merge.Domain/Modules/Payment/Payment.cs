@@ -1,18 +1,22 @@
 using Merge.Domain.SharedKernel;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Modules.Ordering;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Merge.Domain.Modules.Payment;
 
 /// <summary>
-/// Payment aggregate root - Rich Domain Model implementation
-/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU)
+/// Payment Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.3: Value Objects (ZORUNLU) - Money Value Object kullanımı
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
+/// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class Payment : BaseEntity, IAggregateRoot
 {
@@ -43,7 +47,7 @@ public class Payment : BaseEntity, IAggregateRoot
     public string? FailureReason { get; private set; }
     public string? Metadata { get; private set; }
 
-    // ✅ BOLUM 1.5: Concurrency Control
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
@@ -125,6 +129,14 @@ public class Payment : BaseEntity, IAggregateRoot
             throw new DomainException("Sadece bekleyen ödemeler işleme alınabilir");
 
         TransitionTo(PaymentStatus.Processing);
+
+        // ✅ BOLUM 1.5: Domain Events - PaymentProcessingEvent yayınla
+        AddDomainEvent(new PaymentProcessingEvent(
+            Id,
+            OrderId,
+            PaymentMethod,
+            PaymentProvider,
+            _amount));
     }
 
     public void Complete(string transactionId, string? paymentReference = null)
@@ -222,6 +234,9 @@ public class Payment : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(transactionId, nameof(transactionId));
         TransactionId = transactionId;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - PaymentUpdatedEvent yayınla
+        AddDomainEvent(new PaymentUpdatedEvent(Id, OrderId, transactionId, PaymentReference, Metadata));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Set payment reference
@@ -230,6 +245,9 @@ public class Payment : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(paymentReference, nameof(paymentReference));
         PaymentReference = paymentReference;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - PaymentUpdatedEvent yayınla
+        AddDomainEvent(new PaymentUpdatedEvent(Id, OrderId, TransactionId, paymentReference, Metadata));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Set metadata
@@ -237,6 +255,9 @@ public class Payment : BaseEntity, IAggregateRoot
     {
         Metadata = metadata;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - PaymentUpdatedEvent yayınla
+        AddDomainEvent(new PaymentUpdatedEvent(Id, OrderId, TransactionId, PaymentReference, metadata));
     }
 }
 

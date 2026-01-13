@@ -1,7 +1,6 @@
 using Merge.Domain.SharedKernel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.ValueObjects;
@@ -20,7 +19,17 @@ public class CartItem : BaseEntity
     public Guid CartId { get; private set; }
     public Guid ProductId { get; private set; }
     public Guid? ProductVariantId { get; private set; } // Seçilen varyant (renk, beden vb.)
-    public int Quantity { get; private set; }
+    
+    private int _quantity;
+    public int Quantity 
+    { 
+        get => _quantity; 
+        private set 
+        {
+            Guard.AgainstNegativeOrZero(value, nameof(Quantity));
+            _quantity = value;
+        }
+    }
     
     // ✅ BOLUM 1.3: Value Objects - Money backing field (EF Core compatibility)
     private decimal _price;
@@ -51,12 +60,14 @@ public class CartItem : BaseEntity
     private CartItem() { }
 
     // ✅ BOLUM 1.1: Factory Method with validation
-    public static CartItem Create(Guid cartId, Guid productId, int quantity, decimal price, Guid? productVariantId = null)
+    // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+    public static CartItem Create(Guid cartId, Guid productId, int quantity, Money price, Guid? productVariantId = null)
     {
         Guard.AgainstDefault(cartId, nameof(cartId));
         Guard.AgainstDefault(productId, nameof(productId));
         Guard.AgainstNegativeOrZero(quantity, nameof(quantity));
-        Guard.AgainstNegativeOrZero(price, nameof(price));
+        Guard.AgainstNull(price, nameof(price));
+        Guard.AgainstNegativeOrZero(price.Amount, nameof(price));
 
         return new CartItem
         {
@@ -64,8 +75,8 @@ public class CartItem : BaseEntity
             CartId = cartId,
             ProductId = productId,
             ProductVariantId = productVariantId,
-            Quantity = quantity,
-            Price = price,
+            _quantity = quantity, // EF Core compatibility - backing field
+            _price = price.Amount, // EF Core compatibility - backing field
             CreatedAt = DateTime.UtcNow
         };
     }
@@ -80,7 +91,7 @@ public class CartItem : BaseEntity
             throw new DomainException($"Miktar maksimum {maxQuantity.Value} olabilir.");
         }
 
-        Quantity = newQuantity;
+        _quantity = newQuantity;
         UpdatedAt = DateTime.UtcNow;
     }
 

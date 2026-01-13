@@ -1,7 +1,6 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
+using Merge.Domain.Exceptions;
 
 namespace Merge.Domain.Modules.Payment;
 
@@ -10,6 +9,7 @@ namespace Merge.Domain.Modules.Payment;
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
 /// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
 /// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class SubscriptionUsage : BaseEntity, IAggregateRoot
@@ -21,6 +21,10 @@ public class SubscriptionUsage : BaseEntity, IAggregateRoot
     public int? Limit { get; private set; } // Usage limit for this feature
     public DateTime PeriodStart { get; private set; }
     public DateTime PeriodEnd { get; private set; }
+    
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [System.ComponentModel.DataAnnotations.Timestamp]
+    public byte[]? RowVersion { get; set; }
     
     // Navigation properties
     public UserSubscription UserSubscription { get; private set; } = null!;
@@ -43,7 +47,7 @@ public class SubscriptionUsage : BaseEntity, IAggregateRoot
             throw new DomainException("Period start date must be before end date");
 
         if (limit.HasValue && limit.Value < 0)
-            throw new ArgumentException("Limit cannot be negative", nameof(limit));
+            throw new DomainException("Limit cannot be negative");
 
         var usage = new SubscriptionUsage
         {
@@ -57,6 +61,16 @@ public class SubscriptionUsage : BaseEntity, IAggregateRoot
             PeriodEnd = periodEnd,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events (ZORUNLU) - SubscriptionUsageCreatedEvent
+        usage.AddDomainEvent(new SubscriptionUsageCreatedEvent(
+            usage.Id,
+            subscription.Id,
+            subscription.UserId,
+            feature,
+            periodStart,
+            periodEnd,
+            limit));
 
         return usage;
     }
@@ -125,6 +139,15 @@ public class SubscriptionUsage : BaseEntity, IAggregateRoot
 
         Limit = limit;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events (ZORUNLU) - SubscriptionUsageUpdatedEvent
+        AddDomainEvent(new SubscriptionUsageUpdatedEvent(
+            Id,
+            UserSubscriptionId,
+            UserSubscription?.UserId ?? Guid.Empty,
+            Feature,
+            UsageCount,
+            limit));
     }
 }
 

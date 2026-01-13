@@ -201,11 +201,13 @@ public class ReturnRequestService : IReturnRequestService
             throw new NotFoundException("Kullanıcı", dto.UserId);
         }
 
+        // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+        var refundAmountMoney = new Merge.Domain.ValueObjects.Money(refundAmount);
         var returnRequest = ReturnRequest.Create(
             dto.OrderId,
             dto.UserId,
             dto.Reason,
-            refundAmount,
+            refundAmountMoney,
             dto.OrderItemIds.ToList(),
             order,
             user);

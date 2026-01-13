@@ -104,16 +104,22 @@ public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceComm
             var dueDate = DateTime.UtcNow.AddDays(_paymentSettings.InvoiceDueDays);
 
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
+            // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+            var subTotalMoney = new Merge.Domain.ValueObjects.Money(order.SubTotal);
+            var taxMoney = new Merge.Domain.ValueObjects.Money(order.Tax);
+            var shippingCostMoney = new Merge.Domain.ValueObjects.Money(order.ShippingCost);
+            var discountMoney = new Merge.Domain.ValueObjects.Money(order.CouponDiscount ?? 0);
+            var totalAmountMoney = new Merge.Domain.ValueObjects.Money(order.TotalAmount);
             var invoice = Invoice.Create(
                 request.OrderId,
                 invoiceNumber,
                 DateTime.UtcNow,
                 dueDate,
-                order.SubTotal,
-                order.Tax,
-                order.ShippingCost,
-                order.CouponDiscount ?? 0,
-                order.TotalAmount);
+                subTotalMoney,
+                taxMoney,
+                shippingCostMoney,
+                discountMoney,
+                totalAmountMoney);
 
             await _context.Set<Invoice>().AddAsync(invoice, cancellationToken);
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır

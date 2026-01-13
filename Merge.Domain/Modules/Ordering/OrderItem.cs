@@ -1,24 +1,68 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.Modules.Catalog;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Merge.Domain.Modules.Ordering;
 
 /// <summary>
 /// OrderItem Entity - Rich Domain Model implementation
+/// BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.3: Value Objects (ZORUNLU) - Money Value Object kullanımı
+/// BOLUM 1.6: Invariant Validation (ZORUNLU)
 /// OrderItem, Order aggregate root'unun bir parçasıdır
+/// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class OrderItem : BaseEntity
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid OrderId { get; private set; }
     public Guid ProductId { get; private set; }
-    public int Quantity { get; private set; }
-    public decimal UnitPrice { get; private set; }
-    public decimal TotalPrice { get; private set; }
+    
+    private int _quantity;
+    public int Quantity 
+    { 
+        get => _quantity; 
+        private set 
+        {
+            Guard.AgainstNegativeOrZero(value, nameof(Quantity));
+            _quantity = value;
+        }
+    }
+    
+    // ✅ BOLUM 1.3: Value Objects kullanımı - EF Core compatibility için decimal backing fields
+    private decimal _unitPrice;
+    private decimal _totalPrice;
+    
+    // Database columns (EF Core mapping)
+    public decimal UnitPrice 
+    { 
+        get => _unitPrice; 
+        private set 
+        {
+            Guard.AgainstNegative(value, nameof(UnitPrice));
+            _unitPrice = value;
+        }
+    }
+    
+    public decimal TotalPrice 
+    { 
+        get => _totalPrice; 
+        private set 
+        {
+            Guard.AgainstNegative(value, nameof(TotalPrice));
+            _totalPrice = value;
+        }
+    }
+    
+    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
+    [NotMapped]
+    public Money UnitPriceMoney => new Money(_unitPrice);
+    
+    [NotMapped]
+    public Money TotalPriceMoney => new Money(_totalPrice);
     
     // Navigation properties
     public Order Order { get; private set; } = null!;
@@ -42,6 +86,7 @@ public class OrderItem : BaseEntity
         Guard.AgainstDefault(productId, nameof(productId));
         Guard.AgainstNull(product, nameof(product));
         Guard.AgainstNegativeOrZero(quantity, nameof(quantity));
+        Guard.AgainstNull(unitPrice, nameof(unitPrice));
         Guard.AgainstNegative(unitPrice.Amount, nameof(unitPrice));
 
         var totalPrice = new Money(unitPrice.Amount * quantity);
@@ -56,9 +101,9 @@ public class OrderItem : BaseEntity
             OrderId = orderId,
             ProductId = productId,
             Product = product,
-            Quantity = quantity,
-            UnitPrice = unitPrice.Amount, // EF Core compatibility
-            TotalPrice = totalPrice.Amount,
+            _quantity = quantity, // EF Core compatibility - backing field
+            _unitPrice = unitPrice.Amount, // EF Core compatibility - backing field
+            _totalPrice = totalPrice.Amount, // EF Core compatibility - backing field
             CreatedAt = DateTime.UtcNow
         };
 
@@ -73,9 +118,9 @@ public class OrderItem : BaseEntity
     {
         Guard.AgainstNegativeOrZero(newQuantity, nameof(newQuantity));
 
-        Quantity = newQuantity;
+        _quantity = newQuantity;
         // ✅ BOLUM 1.6: Invariant validation - TotalPrice = UnitPrice * Quantity
-        TotalPrice = UnitPrice * Quantity;
+        _totalPrice = _unitPrice * _quantity;
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -85,11 +130,12 @@ public class OrderItem : BaseEntity
     /// </summary>
     public void UpdateUnitPrice(Money newUnitPrice)
     {
+        Guard.AgainstNull(newUnitPrice, nameof(newUnitPrice));
         Guard.AgainstNegative(newUnitPrice.Amount, nameof(newUnitPrice));
 
-        UnitPrice = newUnitPrice.Amount;
+        _unitPrice = newUnitPrice.Amount;
         // ✅ BOLUM 1.6: Invariant validation - TotalPrice = UnitPrice * Quantity
-        TotalPrice = UnitPrice * Quantity;
+        _totalPrice = _unitPrice * _quantity;
         UpdatedAt = DateTime.UtcNow;
     }
 }

@@ -72,12 +72,28 @@ public class CreatePreOrderCommandHandler : IRequestHandler<CreatePreOrderComman
             var price = campaign.SpecialPrice > 0 ? campaign.SpecialPrice : product.Price;
             var depositAmount = price * (campaign.DepositPercentage / 100);
 
+            // ✅ BOLUM 1.1: Rich Domain Model - User entity'yi yükle (PreOrder.Create için gerekli)
+            var user = await _context.Set<Merge.Domain.Modules.Identity.User>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
+
+            if (user is null)
+            {
+                throw new NotFoundException("Kullanıcı", request.UserId);
+            }
+
+            // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
+            // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+            var priceMoney = new Merge.Domain.ValueObjects.Money(price);
+            var depositAmountMoney = new Merge.Domain.ValueObjects.Money(depositAmount);
             var preOrder = PreOrder.Create(
                 request.UserId,
                 request.ProductId,
+                product,
+                user,
                 request.Quantity,
-                price,
-                depositAmount,
+                priceMoney,
+                depositAmountMoney,
                 campaign.ExpectedDeliveryDate,
                 campaign.EndDate,
                 request.Notes,

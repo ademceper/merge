@@ -1,23 +1,28 @@
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Marketing;
 using Merge.Domain.Modules.Payment;
 
-
-
 namespace Merge.Domain.Modules.Ordering;
 
 /// <summary>
 /// Order aggregate root - Rich Domain Model implementation
+/// BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.2: Enum kullanımı (ZORUNLU - String Status YASAK)
+/// BOLUM 1.3: Value Objects (ZORUNLU) - Money Value Object kullanımı
 /// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU)
+/// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.6: Invariant Validation (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
+/// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class Order : BaseEntity, IAggregateRoot
 {
@@ -127,7 +132,7 @@ public class Order : BaseEntity, IAggregateRoot
         base.RemoveDomainEvent(domainEvent);
     }
 
-    // ✅ BOLUM 1.5: Concurrency Control
+    // ✅ BOLUM 1.7: Concurrency Control
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
@@ -209,6 +214,19 @@ public class Order : BaseEntity, IAggregateRoot
 
         _orderItems.Add(orderItem);
         RecalculateTotals();
+        
+        // ✅ BOLUM 1.6: Invariant validation - Validate after adding item
+        ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Event - Order Item Added
+        AddDomainEvent(new OrderItemAddedEvent(
+            Id,
+            UserId,
+            orderItem.Id,
+            product.Id,
+            quantity,
+            unitPrice.Amount,
+            orderItem.TotalPrice));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Remove item from order
@@ -221,8 +239,15 @@ public class Order : BaseEntity, IAggregateRoot
         if (item == null)
             throw new DomainException("Sipariş öğesi bulunamadı");
 
+        var productId = item.ProductId;
         _orderItems.Remove(item);
         RecalculateTotals();
+        
+        // ✅ BOLUM 1.6: Invariant validation - Validate after removing item
+        ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Event - Order Item Removed
+        AddDomainEvent(new OrderItemRemovedEvent(Id, UserId, orderItemId, productId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update item quantity
@@ -239,14 +264,31 @@ public class Order : BaseEntity, IAggregateRoot
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         // Stock check would require product lookup - handled in service layer
+        var oldQuantity = item.Quantity;
+        var oldTotalPrice = item.TotalPrice;
         item.UpdateQuantity(newQuantity);
         RecalculateTotals();
+        
+        // ✅ BOLUM 1.6: Invariant validation - Validate after updating item
+        ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Event - Order Item Updated
+        AddDomainEvent(new OrderItemUpdatedEvent(
+            Id,
+            UserId,
+            orderItemId,
+            item.ProductId,
+            oldQuantity,
+            newQuantity,
+            oldTotalPrice,
+            item.TotalPrice));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Apply coupon
     public void ApplyCoupon(Coupon coupon, Money discountAmount)
     {
         Guard.AgainstNull(coupon, nameof(coupon));
+        Guard.AgainstNull(discountAmount, nameof(discountAmount));
 
         if (Status != OrderStatus.Pending)
             throw new DomainException("Bekleyen olmayan siparişe kupon uygulanamaz");
@@ -267,6 +309,9 @@ public class Order : BaseEntity, IAggregateRoot
         CouponId = coupon.Id;
         _couponDiscount = discountAmount.Amount;
         RecalculateTotals();
+        
+        // ✅ BOLUM 1.5: Domain Event - Order Coupon Applied
+        AddDomainEvent(new OrderCouponAppliedEvent(Id, UserId, coupon.Id, discountAmount.Amount));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Remove coupon
@@ -275,22 +320,38 @@ public class Order : BaseEntity, IAggregateRoot
         if (Status != OrderStatus.Pending)
             throw new DomainException("Bekleyen olmayan siparişten kupon kaldırılamaz");
 
+        var removedCouponId = CouponId;
         CouponId = null;
         _couponDiscount = null;
         RecalculateTotals();
+        
+        // ✅ BOLUM 1.5: Domain Event - Order Coupon Removed
+        AddDomainEvent(new OrderCouponRemovedEvent(Id, UserId, removedCouponId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Apply gift card discount
     public void ApplyGiftCardDiscount(Money discountAmount)
     {
+        Guard.AgainstNull(discountAmount, nameof(discountAmount));
+        
         if (Status != OrderStatus.Pending)
             throw new DomainException("Bekleyen olmayan siparişe hediye kartı uygulanamaz");
 
-        if (discountAmount.Amount > _totalAmount)
+        // ✅ BOLUM 1.6: Invariant validation - Discount amount check
+        // Not: _totalAmount kontrolü RecalculateTotals() sonrası yapılmalı
+        // Önce mevcut total'ı kontrol et, sonra discount'u uygula
+        var currentTotal = _subTotal - (_couponDiscount ?? 0) + _shippingCost + _tax;
+        if (discountAmount.Amount > currentTotal)
             throw new DomainException("Hediye kartı tutarı sipariş tutarından fazla olamaz");
 
         _giftCardDiscount = discountAmount.Amount;
         RecalculateTotals();
+        
+        // ✅ BOLUM 1.6: Invariant validation - Validate after applying discount
+        ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Event - Order Gift Card Discount Applied
+        AddDomainEvent(new OrderGiftCardDiscountAppliedEvent(Id, UserId, discountAmount.Amount));
     }
 
     // ✅ BOLUM 1.1: State Machine Pattern - Transition to new status
@@ -327,6 +388,9 @@ public class Order : BaseEntity, IAggregateRoot
     public void Confirm()
     {
         TransitionTo(OrderStatus.Processing);
+        
+        // ✅ BOLUM 1.5: Domain Event - Order Confirmed
+        AddDomainEvent(new OrderConfirmedEvent(Id, UserId));
     }
 
     public void Ship()
@@ -368,29 +432,46 @@ public class Order : BaseEntity, IAggregateRoot
             throw new DomainException("Sadece teslim edilmiş siparişler iade edilebilir");
 
         TransitionTo(OrderStatus.Refunded);
+        
+        // ✅ BOLUM 1.5: Domain Event - Order Refunded
+        AddDomainEvent(new OrderRefundedEvent(Id, UserId, TotalAmount));
     }
 
-    public void PutOnHold()
+    public void PutOnHold(string? reason = null)
     {
         if (Status != OrderStatus.Pending)
             throw new DomainException("Sadece bekleyen siparişler beklemeye alınabilir");
 
         TransitionTo(OrderStatus.OnHold);
+        
+        // ✅ BOLUM 1.5: Domain Event - Order Put On Hold
+        AddDomainEvent(new OrderPutOnHoldEvent(Id, UserId, reason));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Set payment status
     public void SetPaymentStatus(PaymentStatus status)
     {
+        var oldStatus = PaymentStatus;
         PaymentStatus = status;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Event - Order Payment Status Changed
+        if (oldStatus != status)
+            AddDomainEvent(new OrderPaymentStatusChangedEvent(Id, UserId, oldStatus, status));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Set payment method
     public void SetPaymentMethod(string paymentMethod)
     {
         Guard.AgainstNullOrEmpty(paymentMethod, nameof(paymentMethod));
+        
+        var oldMethod = PaymentMethod;
         PaymentMethod = paymentMethod;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Event - Order Payment Method Changed
+        if (oldMethod != paymentMethod)
+            AddDomainEvent(new OrderPaymentMethodChangedEvent(Id, UserId, oldMethod, paymentMethod));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Calculate totals
@@ -418,22 +499,53 @@ public class Order : BaseEntity, IAggregateRoot
         
         _totalAmount = total;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.6: Invariant validation - Validate all invariants after recalculation
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Set shipping cost
     public void SetShippingCost(Money shippingCost)
     {
+        Guard.AgainstNull(shippingCost, nameof(shippingCost));
         Guard.AgainstNegative(shippingCost.Amount, nameof(shippingCost));
+        var oldShippingCost = _shippingCost;
         _shippingCost = shippingCost.Amount;
         RecalculateTotals();
+        
+        // ✅ BOLUM 1.5: Domain Event - Order Totals Recalculated (shipping cost changed)
+        if (oldShippingCost != _shippingCost)
+            AddDomainEvent(new OrderTotalsRecalculatedEvent(
+                Id,
+                UserId,
+                _subTotal,
+                _shippingCost,
+                _tax,
+                _couponDiscount,
+                _giftCardDiscount,
+                _totalAmount));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Set tax
     public void SetTax(Money tax)
     {
+        Guard.AgainstNull(tax, nameof(tax));
         Guard.AgainstNegative(tax.Amount, nameof(tax));
+        var oldTax = _tax;
         _tax = tax.Amount;
         RecalculateTotals();
+        
+        // ✅ BOLUM 1.5: Domain Event - Order Totals Recalculated (tax changed)
+        if (oldTax != _tax)
+            AddDomainEvent(new OrderTotalsRecalculatedEvent(
+                Id,
+                UserId,
+                _subTotal,
+                _shippingCost,
+                _tax,
+                _couponDiscount,
+                _giftCardDiscount,
+                _totalAmount));
     }
 
     // ✅ BOLUM 1.4: Invariant validation - Total amount must be non-negative

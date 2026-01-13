@@ -1,9 +1,8 @@
 using Merge.Domain.SharedKernel;
-using System.ComponentModel.DataAnnotations;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel.DomainEvents;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Payment;
 
@@ -104,6 +103,9 @@ public class FraudDetectionRule : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Name = name;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FraudDetectionRuleUpdatedEvent
+        AddDomainEvent(new FraudDetectionRuleUpdatedEvent(Id, Name));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update conditions
@@ -112,6 +114,9 @@ public class FraudDetectionRule : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(conditions, nameof(conditions));
         Conditions = conditions;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FraudDetectionRuleUpdatedEvent
+        AddDomainEvent(new FraudDetectionRuleUpdatedEvent(Id, Name));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update risk score
@@ -120,6 +125,9 @@ public class FraudDetectionRule : BaseEntity, IAggregateRoot
         Guard.AgainstOutOfRange(riskScore, 0, 100, nameof(riskScore));
         _riskScore = riskScore;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FraudDetectionRuleUpdatedEvent
+        AddDomainEvent(new FraudDetectionRuleUpdatedEvent(Id, Name));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update action
@@ -127,6 +135,9 @@ public class FraudDetectionRule : BaseEntity, IAggregateRoot
     {
         Action = action;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FraudDetectionRuleUpdatedEvent
+        AddDomainEvent(new FraudDetectionRuleUpdatedEvent(Id, Name));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update priority
@@ -135,6 +146,9 @@ public class FraudDetectionRule : BaseEntity, IAggregateRoot
         Guard.AgainstNegative(priority, nameof(priority));
         _priority = priority;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FraudDetectionRuleUpdatedEvent
+        AddDomainEvent(new FraudDetectionRuleUpdatedEvent(Id, Name));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update description
@@ -142,6 +156,9 @@ public class FraudDetectionRule : BaseEntity, IAggregateRoot
     {
         Description = description;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FraudDetectionRuleUpdatedEvent
+        AddDomainEvent(new FraudDetectionRuleUpdatedEvent(Id, Name));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update rule type
@@ -149,6 +166,9 @@ public class FraudDetectionRule : BaseEntity, IAggregateRoot
     {
         RuleType = ruleType;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FraudDetectionRuleUpdatedEvent
+        AddDomainEvent(new FraudDetectionRuleUpdatedEvent(Id, Name));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Activate

@@ -1,5 +1,4 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Modules.Identity;
@@ -11,6 +10,8 @@ namespace Merge.Domain.Modules.Ordering;
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
 /// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
 /// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.6: Invariant Validation (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU - Optional, navigation property için gerekli değil)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class ShippingAddress : BaseEntity, IAggregateRoot
@@ -31,6 +32,30 @@ public class ShippingAddress : BaseEntity, IAggregateRoot
     public bool IsActive { get; private set; } = true;
     public string? Instructions { get; private set; } // Delivery instructions
     
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
+    // Service layer'dan event eklenebilmesi için public yapıldı
+    public new void AddDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        // BaseEntity'deki protected AddDomainEvent'i çağır
+        base.AddDomainEvent(domainEvent);
+    }
+
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
+    // Service layer'dan event kaldırılabilmesi için public yapıldı
+    public new void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        // BaseEntity'deki protected RemoveDomainEvent'i çağır
+        base.RemoveDomainEvent(domainEvent);
+    }
+
     // Navigation properties
     public User User { get; private set; } = null!;
     public ICollection<Order> Orders { get; private set; } = new List<Order>();
@@ -191,6 +216,9 @@ public class ShippingAddress : BaseEntity, IAggregateRoot
         IsActive = false;
         IsDefault = false;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - ShippingAddressDeletedEvent
+        AddDomainEvent(new ShippingAddressDeletedEvent(Id, UserId));
     }
 }
 

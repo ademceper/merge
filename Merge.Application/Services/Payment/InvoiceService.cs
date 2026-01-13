@@ -178,16 +178,22 @@ public class InvoiceService : IInvoiceService
         var invoiceNumber = GenerateInvoiceNumber();
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+        var subTotalMoney = new Merge.Domain.ValueObjects.Money(order.SubTotal);
+        var taxMoney = new Merge.Domain.ValueObjects.Money(order.Tax);
+        var shippingCostMoney = new Merge.Domain.ValueObjects.Money(order.ShippingCost);
+        var discountMoney = new Merge.Domain.ValueObjects.Money(order.CouponDiscount ?? 0);
+        var totalAmountMoney = new Merge.Domain.ValueObjects.Money(order.TotalAmount);
         var invoice = Invoice.Create(
             orderId: orderId,
             invoiceNumber: invoiceNumber,
             invoiceDate: DateTime.UtcNow,
             dueDate: DateTime.UtcNow.AddDays(_paymentSettings.InvoiceDueDays), // ✅ BOLUM 12.0: Magic number config'den
-            subTotal: order.SubTotal,
-            tax: order.Tax,
-            shippingCost: order.ShippingCost,
-            discount: order.CouponDiscount ?? 0,
-            totalAmount: order.TotalAmount);
+            subTotal: subTotalMoney,
+            tax: taxMoney,
+            shippingCost: shippingCostMoney,
+            discount: discountMoney,
+            totalAmount: totalAmountMoney);
 
         invoice = await _invoiceRepository.AddAsync(invoice);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

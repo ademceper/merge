@@ -1,15 +1,17 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Modules.Ordering;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Payment;
 
 /// <summary>
 /// GiftCardTransaction Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.3: Value Objects (ZORUNLU) - Money Value Object kullanımı
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class GiftCardTransaction : BaseEntity
@@ -32,6 +34,10 @@ public class GiftCardTransaction : BaseEntity
     
     public GiftCardTransactionType Type { get; private set; }
     public string? Notes { get; private set; }
+    
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [System.ComponentModel.DataAnnotations.Timestamp]
+    public byte[]? RowVersion { get; set; }
     
     // Navigation properties
     public GiftCard GiftCard { get; private set; } = null!;

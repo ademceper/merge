@@ -19,7 +19,17 @@ public class SavedCartItem : BaseEntity
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     public Guid ProductId { get; private set; }
-    public int Quantity { get; private set; }
+    
+    private int _quantity;
+    public int Quantity 
+    { 
+        get => _quantity; 
+        private set 
+        {
+            Guard.AgainstNegativeOrZero(value, nameof(Quantity));
+            _quantity = value;
+        }
+    }
     
     // ✅ BOLUM 1.3: Value Objects - Money backing field (EF Core compatibility)
     private decimal _price;
@@ -51,20 +61,22 @@ public class SavedCartItem : BaseEntity
     private SavedCartItem() { }
 
     // ✅ BOLUM 1.1: Factory Method with validation
-    public static SavedCartItem Create(Guid userId, Guid productId, int quantity, decimal price, string? notes = null)
+    // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+    public static SavedCartItem Create(Guid userId, Guid productId, int quantity, Money price, string? notes = null)
     {
         Guard.AgainstDefault(userId, nameof(userId));
         Guard.AgainstDefault(productId, nameof(productId));
         Guard.AgainstNegativeOrZero(quantity, nameof(quantity));
-        Guard.AgainstNegativeOrZero(price, nameof(price));
+        Guard.AgainstNull(price, nameof(price));
+        Guard.AgainstNegativeOrZero(price.Amount, nameof(price));
 
         return new SavedCartItem
         {
             Id = Guid.NewGuid(),
             UserId = userId,
             ProductId = productId,
-            Quantity = quantity,
-            Price = price,
+            _quantity = quantity, // EF Core compatibility - backing field
+            _price = price.Amount, // EF Core compatibility - backing field
             Notes = notes,
             CreatedAt = DateTime.UtcNow
         };
@@ -74,15 +86,17 @@ public class SavedCartItem : BaseEntity
     public void UpdateQuantity(int newQuantity)
     {
         Guard.AgainstNegativeOrZero(newQuantity, nameof(newQuantity));
-        Quantity = newQuantity;
+        _quantity = newQuantity;
         UpdatedAt = DateTime.UtcNow;
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Update price
-    public void UpdatePrice(decimal newPrice)
+    // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+    public void UpdatePrice(Money newPrice)
     {
-        Guard.AgainstNegativeOrZero(newPrice, nameof(newPrice));
-        Price = newPrice;
+        Guard.AgainstNull(newPrice, nameof(newPrice));
+        Guard.AgainstNegativeOrZero(newPrice.Amount, nameof(newPrice));
+        _price = newPrice.Amount;
         UpdatedAt = DateTime.UtcNow;
     }
 

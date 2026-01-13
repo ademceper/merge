@@ -1,5 +1,4 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Modules.Catalog;
@@ -12,6 +11,8 @@ namespace Merge.Domain.Modules.Ordering;
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
 /// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
 /// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.6: Invariant Validation (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU - Optional, navigation property için gerekli değil)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
@@ -60,6 +61,30 @@ public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
     public bool IsActive { get; private set; } = true;
     public string? Conditions { get; private set; } // JSON for conditions (e.g., stock availability, order time)
     
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
+    // Service layer'dan event eklenebilmesi için public yapıldı
+    public new void AddDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        // BaseEntity'deki protected AddDomainEvent'i çağır
+        base.AddDomainEvent(domainEvent);
+    }
+
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
+    // Service layer'dan event kaldırılabilmesi için public yapıldı
+    public new void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        // BaseEntity'deki protected RemoveDomainEvent'i çağır
+        base.RemoveDomainEvent(domainEvent);
+    }
+
     // Navigation properties
     public Product? Product { get; private set; }
     public Category? Category { get; private set; }
@@ -186,6 +211,9 @@ public class DeliveryTimeEstimation : BaseEntity, IAggregateRoot
         IsDeleted = true;
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - DeliveryTimeEstimationDeletedEvent
+        AddDomainEvent(new DeliveryTimeEstimationDeletedEvent(Id));
     }
 }
 

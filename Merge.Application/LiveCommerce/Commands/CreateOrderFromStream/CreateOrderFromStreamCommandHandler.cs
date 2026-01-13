@@ -48,10 +48,12 @@ public class CreateOrderFromStreamCommandHandler(
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+        // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+        var orderAmountMoney = new Merge.Domain.ValueObjects.Money(order.TotalAmount);
         var streamOrder = LiveStreamOrder.Create(
             request.StreamId,
             request.OrderId,
-            order.TotalAmount,
+            orderAmountMoney,
             request.ProductId);
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı

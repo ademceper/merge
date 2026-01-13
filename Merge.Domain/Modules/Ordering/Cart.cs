@@ -1,9 +1,9 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.Exceptions;
 using Merge.Domain.SharedKernel.DomainEvents;
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.ValueObjects;
+using Merge.Domain.Exceptions;
 
 namespace Merge.Domain.Modules.Ordering;
 
@@ -16,7 +16,7 @@ namespace Merge.Domain.Modules.Ordering;
 /// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class Cart : BaseAggregateRoot
+public class Cart : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 7.1.9: Collection Expressions (C# 12) - List yerine collection expression
     private readonly List<CartItem> _cartItems = [];
@@ -30,6 +30,30 @@ public class Cart : BaseAggregateRoot
     // ✅ BOLUM 1.4: Aggregate Root Pattern - CartItem'lara sadece Cart üzerinden erişim
     public IReadOnlyCollection<CartItem> CartItems => _cartItems.AsReadOnly();
     
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
+    // Service layer'dan event eklenebilmesi için public yapıldı
+    public new void AddDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        // BaseEntity'deki protected AddDomainEvent'i çağır
+        base.AddDomainEvent(domainEvent);
+    }
+
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
+    // Service layer'dan event kaldırılabilmesi için public yapıldı
+    public new void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        // BaseEntity'deki protected RemoveDomainEvent'i çağır
+        base.RemoveDomainEvent(domainEvent);
+    }
+
     // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
@@ -38,14 +62,16 @@ public class Cart : BaseAggregateRoot
     private Cart() { }
 
     // ✅ BOLUM 1.1: Factory Method with validation
-    public static Cart Create(Guid userId)
+    public static Cart Create(Guid userId, User user)
     {
         Guard.AgainstDefault(userId, nameof(userId));
+        Guard.AgainstNull(user, nameof(user));
 
         var cart = new Cart
         {
             Id = Guid.NewGuid(),
             UserId = userId,
+            User = user,
             CreatedAt = DateTime.UtcNow
         };
 

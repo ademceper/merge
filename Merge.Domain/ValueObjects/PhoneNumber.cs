@@ -1,5 +1,10 @@
+using Merge.Domain.Exceptions;
+
 namespace Merge.Domain.ValueObjects;
 
+/// <summary>
+/// PhoneNumber Value Object - BOLUM 1.3: Value Objects (ZORUNLU)
+/// </summary>
 public record PhoneNumber
 {
     public string Value { get; }
@@ -9,12 +14,12 @@ public record PhoneNumber
     public PhoneNumber(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("Phone number cannot be empty", nameof(value));
+            throw new DomainException("Telefon numarası boş olamaz");
 
         var cleaned = CleanPhoneNumber(value);
 
         if (!IsValidPhoneNumber(cleaned))
-            throw new ArgumentException("Invalid phone number format", nameof(value));
+            throw new DomainException("Geçersiz telefon numarası formatı");
 
         Value = cleaned;
         (CountryCode, Number) = ParsePhoneNumber(cleaned);
@@ -23,17 +28,17 @@ public record PhoneNumber
     public PhoneNumber(string countryCode, string number)
     {
         if (string.IsNullOrWhiteSpace(countryCode))
-            throw new ArgumentException("Country code cannot be empty", nameof(countryCode));
+            throw new DomainException("Ülke kodu boş olamaz");
         if (string.IsNullOrWhiteSpace(number))
-            throw new ArgumentException("Number cannot be empty", nameof(number));
+            throw new DomainException("Telefon numarası boş olamaz");
 
         var cleanedCountryCode = countryCode.TrimStart('+');
         var cleanedNumber = new string(number.Where(char.IsDigit).ToArray());
 
         if (!IsValidCountryCode(cleanedCountryCode))
-            throw new ArgumentException("Invalid country code", nameof(countryCode));
+            throw new DomainException("Geçersiz ülke kodu");
         if (!IsValidNumber(cleanedNumber))
-            throw new ArgumentException("Invalid phone number", nameof(number));
+            throw new DomainException("Geçersiz telefon numarası");
 
         CountryCode = cleanedCountryCode;
         Number = cleanedNumber;

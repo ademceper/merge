@@ -8,7 +8,14 @@ namespace Merge.Domain.SharedKernel.DomainEvents;
 /// </summary>
 public record OrganizationUpdatedEvent(
     Guid OrganizationId,
-    string Name) : IDomainEvent
+    string Name,
+    IReadOnlyList<string> ChangedFields) : IDomainEvent
 {
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
+    
+    // Backward compatibility için overload
+    public OrganizationUpdatedEvent(Guid organizationId, string name)
+        : this(organizationId, name, Array.Empty<string>())
+    {
+    }
 }

@@ -1,9 +1,8 @@
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel.DomainEvents;
 using PaymentStatus = Merge.Domain.Enums.PaymentStatus;
 
 namespace Merge.Domain.Modules.Payment;
@@ -12,10 +11,12 @@ namespace Merge.Domain.Modules.Payment;
 /// SubscriptionPayment Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
 /// BOLUM 1.3: Value Objects (ZORUNLU) - Money Value Object kullanımı
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
 /// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class SubscriptionPayment : BaseEntity
+public class SubscriptionPayment : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserSubscriptionId { get; private set; }
@@ -46,6 +47,10 @@ public class SubscriptionPayment : BaseEntity
     // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Money AmountMoney => new Money(_amount, UserSubscription?.SubscriptionPlan?.Currency ?? "TRY");
+
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [System.ComponentModel.DataAnnotations.Timestamp]
+    public byte[]? RowVersion { get; set; }
 
     // Navigation properties
     public UserSubscription UserSubscription { get; private set; } = null!;
@@ -78,6 +83,14 @@ public class SubscriptionPayment : BaseEntity
             RetryCount = 0,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events (ZORUNLU) - SubscriptionPaymentCreatedEvent
+        payment.AddDomainEvent(new SubscriptionPaymentCreatedEvent(
+            payment.Id,
+            subscription.Id,
+            amount,
+            billingPeriodStart,
+            billingPeriodEnd));
 
         return payment;
     }
@@ -113,7 +126,8 @@ public class SubscriptionPayment : BaseEntity
         PaymentStatus = PaymentStatus.Failed;
         FailureReason = reason;
         RetryCount++;
-        NextRetryDate = DateTime.UtcNow.AddDays(1); // Retry next day
+        // ✅ BOLUM 12.0: Magic number - Retry delay (1 day) - Handler'da configuration olarak belirlenebilir
+        NextRetryDate = DateTime.UtcNow.AddDays(1);
         UpdatedAt = DateTime.UtcNow;
 
         // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
@@ -139,6 +153,7 @@ public class SubscriptionPayment : BaseEntity
     }
 
     // ✅ BOLUM 1.1: Domain Method - Check if payment can be retried
+    // ✅ BOLUM 12.0: Magic number - Default maxRetries (3) - Handler'da configuration olarak belirlenebilir
     public bool CanRetry(int maxRetries = 3)
     {
         return PaymentStatus == PaymentStatus.Failed && RetryCount < maxRetries;

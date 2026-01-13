@@ -64,6 +64,7 @@ public class OrganizationService : IOrganizationService
             dto.Phone,
             dto.Website,
             dto.Address,
+            dto.AddressLine2, // ✅ AddressLine2 parametresi eklendi
             dto.City,
             dto.State,
             dto.PostalCode,
@@ -211,6 +212,7 @@ public class OrganizationService : IOrganizationService
             dto.Phone,
             dto.Website,
             dto.Address,
+            dto.AddressLine2, // ✅ AddressLine2 parametresi eklendi
             dto.City,
             dto.State,
             dto.PostalCode,

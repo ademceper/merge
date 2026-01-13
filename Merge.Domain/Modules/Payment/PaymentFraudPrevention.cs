@@ -1,8 +1,8 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.Enums;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
+using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Payment;
 
@@ -11,6 +11,7 @@ namespace Merge.Domain.Modules.Payment;
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
 /// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
 /// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class PaymentFraudPrevention : BaseEntity, IAggregateRoot
@@ -45,8 +46,12 @@ public class PaymentFraudPrevention : BaseEntity, IAggregateRoot
     public string? IpAddress { get; private set; }
     public string? UserAgent { get; private set; }
     
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
+    
     // Navigation properties
-    public Payment Payment { get; set; } = null!;
+    public Payment Payment { get; private set; } = null!;
 
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private PaymentFraudPrevention() { }
@@ -136,13 +141,22 @@ public class PaymentFraudPrevention : BaseEntity, IAggregateRoot
         Guard.AgainstOutOfRange(riskScore, 0, 100, nameof(riskScore));
         _riskScore = riskScore;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - PaymentFraudPreventionUpdatedEvent
+        AddDomainEvent(new PaymentFraudPreventionUpdatedEvent(Id, PaymentId, CheckType, riskScore, Status));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update status
     public void UpdateStatus(VerificationStatus status)
     {
+        if (Status == status)
+            return;
+
         Status = status;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - PaymentFraudPreventionUpdatedEvent
+        AddDomainEvent(new PaymentFraudPreventionUpdatedEvent(Id, PaymentId, CheckType, _riskScore, status));
     }
 }
 

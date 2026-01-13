@@ -1,5 +1,4 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.ValueObjects;
@@ -8,10 +7,13 @@ using Merge.Domain.Modules.Identity;
 namespace Merge.Domain.Modules.Payment;
 
 /// <summary>
-/// CreditTerm Entity - Rich Domain Model implementation
+/// CreditTerm Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.3: Value Objects (ZORUNLU) - Money Value Object kullanımı
 /// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
 /// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
+/// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class CreditTerm : BaseEntity, IAggregateRoot
 {
@@ -61,7 +63,7 @@ public class CreditTerm : BaseEntity, IAggregateRoot
     public bool IsActive { get; private set; } = true;
     public string? Terms { get; private set; } // Additional terms description
     
-    // ✅ BOLUM 1.5: Concurrency Control
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
     

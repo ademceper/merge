@@ -1,13 +1,15 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
 
 namespace Merge.Domain.Modules.Ordering;
 
 /// <summary>
 /// OrderSplitItem Entity - Rich Domain Model implementation
-/// BOLUM 1.1: Rich Domain Model (ZORUNLU)
 /// BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.6: Invariant Validation (ZORUNLU)
+/// OrderSplitItem, OrderSplit aggregate root'unun bir parçasıdır
+/// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class OrderSplitItem : BaseEntity
 {
@@ -15,7 +17,17 @@ public class OrderSplitItem : BaseEntity
     public Guid OrderSplitId { get; private set; }
     public Guid OriginalOrderItemId { get; private set; }
     public Guid SplitOrderItemId { get; private set; }
-    public int Quantity { get; private set; } // How many items moved to split order
+    
+    private int _quantity;
+    public int Quantity 
+    { 
+        get => _quantity; 
+        private set 
+        {
+            Guard.AgainstNegativeOrZero(value, nameof(Quantity));
+            _quantity = value;
+        }
+    } // How many items moved to split order
     
     // Navigation properties
     public OrderSplit OrderSplit { get; private set; } = null!;
@@ -49,7 +61,7 @@ public class OrderSplitItem : BaseEntity
             OrderSplitId = orderSplitId,
             OriginalOrderItemId = originalOrderItemId,
             SplitOrderItemId = splitOrderItemId,
-            Quantity = quantity,
+            _quantity = quantity, // EF Core compatibility - backing field
             OrderSplit = orderSplit,
             OriginalOrderItem = originalOrderItem,
             SplitOrderItem = splitOrderItem,

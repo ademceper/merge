@@ -1,14 +1,19 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
+using Merge.Domain.Exceptions;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Payment;
 
 /// <summary>
-/// PaymentMethod Entity - BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// PaymentMethod Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
+/// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class PaymentMethod : BaseEntity
+public class PaymentMethod : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public string Name { get; private set; } = string.Empty;
@@ -25,6 +30,10 @@ public class PaymentMethod : BaseEntity
     public string? Settings { get; private set; }
     public int DisplayOrder { get; private set; } = 0;
     public bool IsDefault { get; private set; } = false;
+
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private PaymentMethod() { }
@@ -206,8 +215,14 @@ public class PaymentMethod : BaseEntity
 
     public void UnsetAsDefault()
     {
+        if (!IsDefault)
+            return;
+
         IsDefault = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - PaymentMethodUnsetDefaultEvent yayınla
+        AddDomainEvent(new PaymentMethodUnsetDefaultEvent(Id, Name, Code));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Calculate processing fee
@@ -244,6 +259,24 @@ public class PaymentMethod : BaseEntity
             return false;
 
         return true;
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)
+    public void MarkAsDeleted()
+    {
+        if (IsDeleted)
+            return;
+
+        if (IsDefault)
+            throw new DomainException("Varsayılan ödeme yöntemi silinemez. Önce varsayılan durumunu kaldırın.");
+
+        IsDeleted = true;
+        IsActive = false;
+        IsDefault = false;
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - PaymentMethodDeletedEvent
+        AddDomainEvent(new PaymentMethodDeletedEvent(Id, Name, Code));
     }
 }
 

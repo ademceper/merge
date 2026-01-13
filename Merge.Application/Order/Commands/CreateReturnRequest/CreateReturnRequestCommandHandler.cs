@@ -102,11 +102,13 @@ public class CreateReturnRequestCommandHandler : IRequestHandler<CreateReturnReq
             throw new NotFoundException("Kullanıcı", request.Dto.UserId);
         }
 
+        // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+        var refundAmountMoney = new Merge.Domain.ValueObjects.Money(refundAmount);
         var returnRequest = ReturnRequest.Create(
             request.Dto.OrderId,
             request.Dto.UserId,
             request.Dto.Reason,
-            refundAmount,
+            refundAmountMoney,
             request.Dto.OrderItemIds,
             order,
             user);

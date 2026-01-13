@@ -37,7 +37,8 @@ public class PayPreOrderDepositCommandHandler : IRequestHandler<PayPreOrderDepos
             throw new BusinessException("Depozito zaten ödenmiş.");
         }
 
-        preOrder.PayDeposit(request.Amount);
+        var depositAmountMoney = new Merge.Domain.ValueObjects.Money(request.Amount);
+        preOrder.PayDeposit(depositAmountMoney);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

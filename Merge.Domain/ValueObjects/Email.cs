@@ -1,5 +1,10 @@
+using Merge.Domain.Exceptions;
+
 namespace Merge.Domain.ValueObjects;
 
+/// <summary>
+/// Email Value Object - BOLUM 1.3: Value Objects (ZORUNLU)
+/// </summary>
 public record Email
 {
     public string Value { get; }
@@ -7,10 +12,10 @@ public record Email
     public Email(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("Email cannot be empty", nameof(value));
+            throw new DomainException("Email boş olamaz");
         if (!IsValidEmail(value))
-            throw new ArgumentException("Invalid email format", nameof(value));
-        Value = value.ToLowerInvariant();
+            throw new DomainException("Geçersiz email formatı");
+        Value = value.ToLowerInvariant().Trim();
     }
 
     private static bool IsValidEmail(string email) =>

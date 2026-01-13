@@ -1,9 +1,8 @@
 using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Domain.Modules.Payment;
 
@@ -13,6 +12,7 @@ namespace Merge.Domain.Modules.Payment;
 /// BOLUM 1.3: Value Objects (ZORUNLU) - Money Value Object kullanımı
 /// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
 /// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class SubscriptionPlan : BaseEntity, IAggregateRoot
@@ -68,6 +68,10 @@ public class SubscriptionPlan : BaseEntity, IAggregateRoot
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Money? SetupFeeMoney => _setupFee.HasValue ? new Money(_setupFee.Value, Currency) : null;
 
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [System.ComponentModel.DataAnnotations.Timestamp]
+    public byte[]? RowVersion { get; set; }
+
     // Navigation properties
     public ICollection<UserSubscription> UserSubscriptions { get; private set; } = new List<UserSubscription>();
 
@@ -98,10 +102,10 @@ public class SubscriptionPlan : BaseEntity, IAggregateRoot
         Guard.AgainstNegativeOrZero(maxUsers, nameof(maxUsers));
         
         if (trialDays.HasValue && trialDays.Value < 0)
-            throw new ArgumentException("Trial days cannot be negative", nameof(trialDays));
+            throw new DomainException("Trial days cannot be negative");
         
         if (string.IsNullOrWhiteSpace(currency) || currency.Length != 3)
-            throw new ArgumentException("Currency must be a 3-letter code", nameof(currency));
+            throw new DomainException("Currency must be a 3-letter code");
 
         var plan = new SubscriptionPlan
         {
@@ -171,7 +175,7 @@ public class SubscriptionPlan : BaseEntity, IAggregateRoot
         if (trialDays.HasValue)
         {
             if (trialDays.Value < 0)
-                throw new ArgumentException("Trial days cannot be negative", nameof(trialDays));
+                throw new DomainException("Trial days cannot be negative");
             TrialDays = trialDays;
         }
 
@@ -205,7 +209,7 @@ public class SubscriptionPlan : BaseEntity, IAggregateRoot
         if (currency != null)
         {
             if (string.IsNullOrWhiteSpace(currency) || currency.Length != 3)
-                throw new ArgumentException("Currency must be a 3-letter code", nameof(currency));
+                throw new DomainException("Currency must be a 3-letter code");
             Currency = currency.ToUpperInvariant();
         }
 

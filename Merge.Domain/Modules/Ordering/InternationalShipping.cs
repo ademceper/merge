@@ -1,17 +1,21 @@
 using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
 using Merge.Domain.ValueObjects;
-using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Ordering;
 
 /// <summary>
 /// InternationalShipping Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.2: Enum kullanımı (ZORUNLU - String Status YASAK)
+/// BOLUM 1.3: Value Objects (ZORUNLU) - Money Value Object kullanımı
 /// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
 /// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.6: Invariant Validation (ZORUNLU)
 /// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
@@ -84,6 +88,22 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
         } 
     }
     
+    // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
+    [NotMapped]
+    public Money ShippingCostMoney => new Money(_shippingCost);
+    
+    [NotMapped]
+    public Money? CustomsDutyMoney => _customsDuty.HasValue ? new Money(_customsDuty.Value) : null;
+    
+    [NotMapped]
+    public Money? ImportTaxMoney => _importTax.HasValue ? new Money(_importTax.Value) : null;
+    
+    [NotMapped]
+    public Money? HandlingFeeMoney => _handlingFee.HasValue ? new Money(_handlingFee.Value) : null;
+    
+    [NotMapped]
+    public Money TotalCostMoney => new Money(_totalCost);
+    
     private int _estimatedDays;
     public int EstimatedDays 
     { 
@@ -106,10 +126,34 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
     public DateTime? ClearedAt { get; private set; }
     public DateTime? DeliveredAt { get; private set; }
     
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
+    // Service layer'dan event eklenebilmesi için public yapıldı
+    public new void AddDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        // BaseEntity'deki protected AddDomainEvent'i çağır
+        base.AddDomainEvent(domainEvent);
+    }
+
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
+    // Service layer'dan event kaldırılabilmesi için public yapıldı
+    public new void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        // BaseEntity'deki protected RemoveDomainEvent'i çağır
+        base.RemoveDomainEvent(domainEvent);
+    }
+
     // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
-    
+
     // Navigation properties
     public Order Order { get; private set; } = null!;
     
@@ -174,11 +218,13 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
     }
     
     // ✅ BOLUM 1.1: Domain Method - Update customs duty
-    public void UpdateCustomsDuty(decimal customsDuty)
+    // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+    public void UpdateCustomsDuty(Money customsDuty)
     {
-        Guard.AgainstNegative(customsDuty, nameof(customsDuty));
+        Guard.AgainstNull(customsDuty, nameof(customsDuty));
+        Guard.AgainstNegative(customsDuty.Amount, nameof(customsDuty));
         
-        _customsDuty = customsDuty;
+        _customsDuty = customsDuty.Amount;
         RecalculateTotalCost();
         UpdatedAt = DateTime.UtcNow;
         
@@ -187,11 +233,13 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
     }
     
     // ✅ BOLUM 1.1: Domain Method - Update import tax
-    public void UpdateImportTax(decimal importTax)
+    // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+    public void UpdateImportTax(Money importTax)
     {
-        Guard.AgainstNegative(importTax, nameof(importTax));
+        Guard.AgainstNull(importTax, nameof(importTax));
+        Guard.AgainstNegative(importTax.Amount, nameof(importTax));
         
-        _importTax = importTax;
+        _importTax = importTax.Amount;
         RecalculateTotalCost();
         UpdatedAt = DateTime.UtcNow;
         
@@ -200,11 +248,13 @@ public class InternationalShipping : BaseEntity, IAggregateRoot
     }
     
     // ✅ BOLUM 1.1: Domain Method - Update handling fee
-    public void UpdateHandlingFee(decimal handlingFee)
+    // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+    public void UpdateHandlingFee(Money handlingFee)
     {
-        Guard.AgainstNegative(handlingFee, nameof(handlingFee));
+        Guard.AgainstNull(handlingFee, nameof(handlingFee));
+        Guard.AgainstNegative(handlingFee.Amount, nameof(handlingFee));
         
-        _handlingFee = handlingFee;
+        _handlingFee = handlingFee.Amount;
         RecalculateTotalCost();
         UpdatedAt = DateTime.UtcNow;
         

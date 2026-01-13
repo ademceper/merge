@@ -1416,6 +1416,7 @@ public class MappingProfile : Profile
                     src.Phone,
                     src.Website,
                     src.Address,
+                    src.AddressLine2, // ✅ AddressLine2 property eklendi
                     src.City,
                     src.State,
                     src.PostalCode,

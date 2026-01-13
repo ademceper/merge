@@ -1,19 +1,27 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.Enums;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
+using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Payment;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Merge.Domain.Modules.Ordering;
 
 /// <summary>
 /// PurchaseOrder Aggregate Root - Rich Domain Model implementation
-/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU)
+/// BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.2: Enum kullanımı (ZORUNLU - String Status YASAK)
+/// BOLUM 1.3: Value Objects (ZORUNLU) - Money Value Object kullanımı
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU)
+/// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.6: Invariant Validation (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
+/// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class PurchaseOrder : BaseEntity, IAggregateRoot
 {
@@ -64,13 +72,13 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
     }
     
     // ✅ BOLUM 1.3: Value Object properties (computed from decimal)
-    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    [NotMapped]
     public Money SubTotalMoney => new Money(_subTotal);
     
-    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    [NotMapped]
     public Money TaxMoney => new Money(_tax);
     
-    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    [NotMapped]
     public Money TotalAmountMoney => new Money(_totalAmount);
     
     public string? Notes { get; private set; }
@@ -80,8 +88,32 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
     public DateTime? ExpectedDeliveryDate { get; private set; }
     public Guid? CreditTermId { get; private set; }
     
-    // ✅ BOLUM 1.5: Concurrency Control
-    [System.ComponentModel.DataAnnotations.Timestamp]
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
+    // Service layer'dan event eklenebilmesi için public yapıldı
+    public new void AddDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        // BaseEntity'deki protected AddDomainEvent'i çağır
+        base.AddDomainEvent(domainEvent);
+    }
+
+    // ✅ BOLUM 1.4: IAggregateRoot interface implementation
+    // BaseEntity'deki protected RemoveDomainEvent yerine public RemoveDomainEvent kullanılabilir
+    // Service layer'dan event kaldırılabilmesi için public yapıldı
+    public new void RemoveDomainEvent(IDomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+        
+        // BaseEntity'deki protected RemoveDomainEvent'i çağır
+        base.RemoveDomainEvent(domainEvent);
+    }
+
+    // ✅ BOLUM 1.7: Concurrency Control
+    [Timestamp]
     public byte[]? RowVersion { get; set; }
 
     // ✅ BOLUM 1.1: Encapsulated collection - Read-only access
@@ -117,9 +149,9 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
             PONumber = poNumber,
             Organization = organization,
             Status = PurchaseOrderStatus.Draft,
-            SubTotal = 0,
-            Tax = 0,
-            TotalAmount = 0,
+            _subTotal = 0, // EF Core compatibility - backing field
+            _tax = 0, // EF Core compatibility - backing field
+            _totalAmount = 0, // EF Core compatibility - backing field
             ExpectedDeliveryDate = expectedDeliveryDate,
             CreditTermId = creditTermId,
             CreatedAt = DateTime.UtcNow
@@ -137,11 +169,12 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Add item to purchase order
-    public void AddItem(Product product, int quantity, decimal unitPrice, string? notes = null)
+    public void AddItem(Product product, int quantity, Money unitPrice, string? notes = null)
     {
         Guard.AgainstNull(product, nameof(product));
         Guard.AgainstNegativeOrZero(quantity, nameof(quantity));
-        Guard.AgainstNegative(unitPrice, nameof(unitPrice));
+        Guard.AgainstNull(unitPrice, nameof(unitPrice));
+        Guard.AgainstNegative(unitPrice.Amount, nameof(unitPrice));
 
         // ✅ BOLUM 1.1: Business rule - Can only add items to draft orders
         if (Status != PurchaseOrderStatus.Draft)
@@ -157,33 +190,95 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
             notes);
 
         _items.Add(item);
-        RecalculateTotals();
+        RecalculateTotals(); // ValidateInvariants() içinde çağrılıyor
         UpdatedAt = DateTime.UtcNow;
 
         // ✅ BOLUM 1.5: Domain Event - Purchase Order Item Added
         // Not: PurchaseOrderItem aggregate içinde entity olduğu için ayrı event'e gerek yok
         // Ancak PurchaseOrder'ın toplam tutarı değiştiği için event ekleniyor
-        AddDomainEvent(new PurchaseOrderItemAddedEvent(Id, product.Id, quantity, unitPrice));
+        AddDomainEvent(new PurchaseOrderItemAddedEvent(Id, product.Id, quantity, unitPrice.Amount));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Remove item from purchase order
+    public void RemoveItem(Guid purchaseOrderItemId)
+    {
+        if (Status != PurchaseOrderStatus.Draft)
+            throw new DomainException("Sadece taslak durumundaki siparişlerden ürün çıkarılabilir");
+
+        var item = _items.FirstOrDefault(i => i.Id == purchaseOrderItemId);
+        if (item == null)
+            throw new DomainException("Sipariş öğesi bulunamadı");
+
+        var productId = item.ProductId;
+        _items.Remove(item);
+        RecalculateTotals(); // ValidateInvariants() içinde çağrılıyor
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - Purchase Order Item Removed
+        // Not: PurchaseOrderItem aggregate içinde entity olduğu için ayrı event'e gerek yok
+        // Ancak PurchaseOrder'ın toplam tutarı değiştiği için event ekleniyor
+        AddDomainEvent(new PurchaseOrderItemRemovedEvent(Id, productId, purchaseOrderItemId));
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Update item quantity in purchase order
+    public void UpdateItemQuantity(Guid purchaseOrderItemId, int newQuantity)
+    {
+        Guard.AgainstNegativeOrZero(newQuantity, nameof(newQuantity));
+
+        if (Status != PurchaseOrderStatus.Draft)
+            throw new DomainException("Sadece taslak durumundaki siparişlerde ürün miktarı değiştirilebilir");
+
+        var item = _items.FirstOrDefault(i => i.Id == purchaseOrderItemId);
+        if (item == null)
+            throw new DomainException("Sipariş öğesi bulunamadı");
+
+        var oldQuantity = item.Quantity;
+        item.UpdateQuantity(newQuantity);
+        RecalculateTotals(); // ValidateInvariants() içinde çağrılıyor
+        UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Event - Purchase Order Item Updated
+        // Not: PurchaseOrderItem aggregate içinde entity olduğu için ayrı event'e gerek yok
+        // Ancak PurchaseOrder'ın toplam tutarı değiştiği için event ekleniyor
+        AddDomainEvent(new PurchaseOrderItemUpdatedEvent(Id, item.ProductId, purchaseOrderItemId, oldQuantity, newQuantity));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Calculate totals
     private void RecalculateTotals()
     {
-        SubTotal = _items.Sum(i => i.TotalPrice);
+        _subTotal = _items.Sum(i => i.TotalPrice);
         // Tax will be calculated externally based on tax rate
-        TotalAmount = SubTotal + Tax;
+        _totalAmount = _subTotal + _tax;
+        
+        // ✅ BOLUM 1.6: Invariant validation - Validate after recalculation
+        ValidateInvariants();
+    }
+    
+    // ✅ BOLUM 1.6: Invariant validation - Total amount must be non-negative
+    private void ValidateInvariants()
+    {
+        if (_totalAmount < 0)
+            throw new DomainException("Sipariş tutarı negatif olamaz");
+
+        if (_items.Count == 0 && Status != PurchaseOrderStatus.Cancelled)
+            throw new DomainException("Sipariş en az bir ürün içermelidir");
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Set tax amount
-    public void SetTax(decimal taxAmount)
+    public void SetTax(Money taxAmount)
     {
-        Guard.AgainstNegative(taxAmount, nameof(taxAmount));
+        Guard.AgainstNull(taxAmount, nameof(taxAmount));
+        Guard.AgainstNegative(taxAmount.Amount, nameof(taxAmount));
         
         if (Status != PurchaseOrderStatus.Draft)
             throw new DomainException("Sadece taslak durumundaki siparişlerde vergi güncellenebilir");
 
-        Tax = taxAmount;
-        TotalAmount = SubTotal + Tax;
+        _tax = taxAmount.Amount;
+        _totalAmount = _subTotal + _tax;
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.6: Invariant validation - Validate after setting tax
+        ValidateInvariants();
     }
 
     // ✅ BOLUM 1.1: State Transition - Submit purchase order

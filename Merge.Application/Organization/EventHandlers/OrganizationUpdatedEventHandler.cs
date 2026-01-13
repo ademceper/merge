@@ -21,13 +21,15 @@ public class OrganizationUpdatedEventHandler : INotificationHandler<Organization
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation(
-            "Organization updated event received. OrganizationId: {OrganizationId}, Name: {Name}",
-            notification.OrganizationId, notification.Name);
+            "Organization updated event received. OrganizationId: {OrganizationId}, Name: {Name}, ChangedFields: {ChangedFields}",
+            notification.OrganizationId, 
+            notification.Name,
+            string.Join(", ", notification.ChangedFields));
 
         // TODO: İleride burada şunlar yapılabilir:
-        // - Cache invalidation
-        // - Analytics tracking
-        // - External system sync (CRM, ERP)
+        // - Cache invalidation (sadece değişen alanlar için)
+        // - Analytics tracking (hangi alanlar değişti)
+        // - External system sync (CRM, ERP) - sadece değişen alanlar için
 
         await Task.CompletedTask;
     }

@@ -12,6 +12,7 @@ using CartEntity = Merge.Domain.Modules.Ordering.Cart;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Ordering;
+using Merge.Domain.Modules.Identity;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -61,8 +62,19 @@ public class AddItemToCartCommandHandler : IRequestHandler<AddItemToCartCommand,
             if (cart is null)
             {
                 _logger.LogInformation("Creating new cart for user {UserId}", request.UserId);
+                
+                // ✅ BOLUM 1.1: Rich Domain Model - User entity'yi yükle (Cart.Create için gerekli)
+                var user = await _context.Set<Merge.Domain.Modules.Identity.User>()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
+                
+                if (user is null)
+                {
+                    throw new NotFoundException("Kullanıcı", request.UserId);
+                }
+                
                 // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
-                cart = CartEntity.Create(request.UserId);
+                cart = CartEntity.Create(request.UserId, user);
                 await _context.Set<CartEntity>().AddAsync(cart, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
@@ -99,11 +111,14 @@ public class AddItemToCartCommandHandler : IRequestHandler<AddItemToCartCommand,
             var maxQuantity = _cartSettings.MaxCartItemQuantity;
 
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
+            // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+            var itemPrice = product.DiscountPrice ?? product.Price;
+            var itemPriceMoney = new Merge.Domain.ValueObjects.Money(itemPrice);
             var cartItem = CartItem.Create(
                 cart.Id,
                 request.ProductId,
                 request.Quantity,
-                product.DiscountPrice ?? product.Price);
+                itemPriceMoney);
 
             // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
             // Cart.AddItem() method'u mevcut item varsa otomatik olarak quantity günceller ve uygun domain event yayınlar

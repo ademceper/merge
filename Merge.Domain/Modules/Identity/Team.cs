@@ -25,7 +25,14 @@ public class Team : BaseEntity, IAggregateRoot
     // Navigation properties
     public Organization Organization { get; private set; } = null!;
     public User? TeamLead { get; private set; }
-    public ICollection<TeamMember> Members { get; private set; } = new List<TeamMember>();
+    
+    // ✅ BOLUM 1.1: Rich Domain Model - Encapsulated collections with backing fields
+    // ✅ BOLUM 7.1.9: Collection Expressions (C# 12) - List yerine collection expression
+    private readonly List<TeamMember> _members = [];
+    
+    // ✅ BOLUM 1.1: Rich Domain Model - Navigation properties (read-only collections)
+    // ✅ BOLUM 1.4: Aggregate Root Pattern - TeamMember'lara sadece Team üzerinden erişim
+    public IReadOnlyCollection<TeamMember> Members => _members.AsReadOnly();
 
     // ✅ BOLUM 1.4: IAggregateRoot interface implementation
     // BaseEntity'deki protected AddDomainEvent yerine public AddDomainEvent kullanılabilir
@@ -98,14 +105,25 @@ public class Team : BaseEntity, IAggregateRoot
         Guid? teamLeadId = null,
         string? settings = null)
     {
-        if (!string.IsNullOrEmpty(name))
+        // ✅ BOLUM 1.1: Business Invariants - Silinmiş takım güncellenemez
+        if (IsDeleted)
+            throw new DomainException("Silinmiş takım güncellenemez");
+
+        var changedFields = new List<string>();
+
+        // ✅ BOLUM 1.1: Name validation - null check, empty check ve minimum length kontrolü
+        if (name != null && name != Name)
         {
-            Guard.AgainstNullOrEmpty(name, nameof(name));
-            Guard.AgainstLength(name, 200, nameof(name));
+            if (string.IsNullOrWhiteSpace(name))
+                throw new DomainException("Takım adı boş olamaz");
+            
+            // ✅ BOLUM 1.1: Name validation - Minimum length kontrolü (Create ile uyumlu)
+            Guard.AgainstOutOfRange(name.Length, 1, 200, nameof(name));
             Name = name;
+            changedFields.Add(nameof(Name));
         }
 
-        if (description != null)
+        if (description != null && description != Description)
         {
             if (string.IsNullOrEmpty(description))
             {
@@ -116,28 +134,50 @@ public class Team : BaseEntity, IAggregateRoot
                 Guard.AgainstLength(description, 1000, nameof(description));
                 Description = description;
             }
+            changedFields.Add(nameof(Description));
         }
 
-        if (teamLeadId.HasValue)
+        if (teamLeadId.HasValue && teamLeadId.Value != TeamLeadId)
         {
             Guard.AgainstDefault(teamLeadId.Value, nameof(teamLeadId));
             TeamLeadId = teamLeadId;
+            changedFields.Add(nameof(TeamLeadId));
         }
-        else if (teamLeadId == null)
+        else if (teamLeadId == null && TeamLeadId != null)
         {
             TeamLeadId = null;
+            changedFields.Add(nameof(TeamLeadId));
         }
 
-        if (settings != null)
+        if (settings != null && settings != Settings)
         {
             Guard.AgainstLength(settings, 2000, nameof(settings));
+            
+            // ✅ BOLUM 1.1: JSON validation - Settings JSON format kontrolü
+            if (!string.IsNullOrEmpty(settings))
+            {
+                try
+                {
+                    System.Text.Json.JsonDocument.Parse(settings);
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    throw new DomainException("Settings geçerli bir JSON formatında olmalıdır");
+                }
+            }
+            
             Settings = settings;
+            changedFields.Add(nameof(Settings));
         }
 
-        UpdatedAt = DateTime.UtcNow;
+        // Sadece değişiklik varsa UpdatedAt ve event ekle
+        if (changedFields.Count > 0)
+        {
+            UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - Add domain event
-        AddDomainEvent(new TeamUpdatedEvent(Id, OrganizationId, Name));
+            // ✅ BOLUM 1.5: Domain Events - Add domain event with changed fields
+            AddDomainEvent(new TeamUpdatedEvent(Id, OrganizationId, Name));
+        }
     }
 
     // ✅ BOLUM 1.1: Domain Method - Activate team

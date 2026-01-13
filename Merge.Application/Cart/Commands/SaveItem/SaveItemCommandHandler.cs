@@ -54,13 +54,14 @@ public class SaveItemCommandHandler : IRequestHandler<SaveItemCommand, SavedCart
                                       sci.ProductId == request.ProductId, cancellationToken);
 
         var currentPrice = product.DiscountPrice ?? product.Price;
+        var currentPriceMoney = new Merge.Domain.ValueObjects.Money(currentPrice);
 
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (existing is not null)
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
             existing.UpdateQuantity(request.Quantity);
-            existing.UpdatePrice(currentPrice);
+            existing.UpdatePrice(currentPriceMoney);
             existing.UpdateNotes(request.Notes);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -75,7 +76,9 @@ public class SaveItemCommandHandler : IRequestHandler<SaveItemCommand, SavedCart
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
-        var savedItem = SavedCartItem.Create(request.UserId, request.ProductId, request.Quantity, currentPrice, request.Notes);
+        // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+        var currentPriceMoney = new Merge.Domain.ValueObjects.Money(currentPrice);
+        var savedItem = SavedCartItem.Create(request.UserId, request.ProductId, request.Quantity, currentPriceMoney, request.Notes);
 
         await _context.Set<SavedCartItem>().AddAsync(savedItem, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

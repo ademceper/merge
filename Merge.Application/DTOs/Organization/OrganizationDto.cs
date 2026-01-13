@@ -16,6 +16,7 @@ public record OrganizationDto(
     string? Phone,
     string? Website,
     string? Address,
+    string? AddressLine2,
     string? City,
     string? State,
     string? PostalCode,

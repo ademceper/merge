@@ -1,12 +1,11 @@
 using Merge.Domain.SharedKernel;
-using System.ComponentModel.DataAnnotations;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Ordering;
 using Merge.Domain.Modules.Catalog;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Payment;
 
@@ -116,6 +115,9 @@ public class FraudAlert : BaseEntity, IAggregateRoot
         Guard.AgainstOutOfRange(riskScore, 0, 100, nameof(riskScore));
         _riskScore = riskScore;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FraudAlertUpdatedEvent
+        AddDomainEvent(new FraudAlertUpdatedEvent(Id, UserId, AlertType, riskScore, Status));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update reason
@@ -123,6 +125,9 @@ public class FraudAlert : BaseEntity, IAggregateRoot
     {
         Reason = reason;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FraudAlertUpdatedEvent
+        AddDomainEvent(new FraudAlertUpdatedEvent(Id, UserId, AlertType, _riskScore, Status));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
@@ -131,6 +136,9 @@ public class FraudAlert : BaseEntity, IAggregateRoot
         if (IsDeleted) return;
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - FraudAlertDeletedEvent
+        AddDomainEvent(new FraudAlertDeletedEvent(Id, UserId, AlertType));
     }
 }
 

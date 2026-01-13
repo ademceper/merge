@@ -1,12 +1,11 @@
 using Merge.Domain.SharedKernel;
-using System.ComponentModel.DataAnnotations;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Enums;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel.DomainEvents;
-using PaymentStatus = Merge.Domain.Enums.PaymentStatus;
 using Merge.Domain.Modules.Identity;
+using PaymentStatus = Merge.Domain.Enums.PaymentStatus;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Payment;
 
@@ -16,6 +15,7 @@ namespace Merge.Domain.Modules.Payment;
 /// BOLUM 1.3: Value Objects (ZORUNLU) - Money Value Object kullanımı
 /// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
 /// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class UserSubscription : BaseEntity, IAggregateRoot
@@ -54,7 +54,7 @@ public class UserSubscription : BaseEntity, IAggregateRoot
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public Money CurrentPriceMoney => new Money(_currentPrice, SubscriptionPlan?.Currency ?? "TRY");
 
-    // ✅ CONCURRENCY: Eşzamanlı güncellemeleri önlemek için
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
@@ -248,6 +248,9 @@ public class UserSubscription : BaseEntity, IAggregateRoot
             Status = SubscriptionStatus.Expired;
             AutoRenew = false;
             UpdatedAt = DateTime.UtcNow;
+
+            // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
+            AddDomainEvent(new UserSubscriptionExpiredEvent(Id, UserId));
         }
     }
 }

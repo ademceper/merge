@@ -1,19 +1,21 @@
 using Merge.Domain.SharedKernel;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Modules.Identity;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Merge.Domain.Modules.Payment;
 
 /// <summary>
-/// GiftCard aggregate root - Rich Domain Model implementation
+/// GiftCard Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.3: Value Objects (ZORUNLU) - Money Value Object kullanımı
 /// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
 /// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
+/// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class GiftCard : BaseEntity, IAggregateRoot
 {
@@ -53,7 +55,7 @@ public class GiftCard : BaseEntity, IAggregateRoot
     public bool IsRedeemed { get; private set; } = false;
     public DateTime? RedeemedAt { get; private set; }
 
-    // ✅ BOLUM 1.5: Concurrency Control
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
@@ -202,8 +204,15 @@ public class GiftCard : BaseEntity, IAggregateRoot
     public void AssignTo(Guid userId)
     {
         Guard.AgainstDefault(userId, nameof(userId));
+        
+        if (AssignedToUserId == userId)
+            return; // Already assigned to this user
+        
         AssignedToUserId = userId;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - GiftCardAssignedEvent
+        AddDomainEvent(new GiftCardAssignedEvent(Id, Code, userId, PurchasedByUserId));
     }
 }
 
