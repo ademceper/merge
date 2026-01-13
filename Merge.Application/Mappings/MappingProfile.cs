@@ -139,6 +139,7 @@ public class MappingProfile : Profile
             .ConstructUsing(src => new CartItemDto(
                 src.Id,
                 src.ProductId,
+                src.ProductVariantId,
                 src.Product != null ? src.Product.Name : string.Empty,
                 src.Product != null ? src.Product.ImageUrl : string.Empty,
                 src.Quantity,
@@ -146,6 +147,8 @@ public class MappingProfile : Profile
                 src.Quantity * src.Price
             ));
 
+        // ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı) - Positional constructor kullanımı
+        // ✅ BOLUM 7.1.9: Collection Expressions (C# 12) - ToList().AsReadOnly() yerine direkt IReadOnlyList
         CreateMap<Merge.Domain.Modules.Ordering.Cart, CartDto>()
             .ConstructUsing(src => new CartDto(
                 src.Id,
@@ -153,12 +156,13 @@ public class MappingProfile : Profile
                 src.CartItems.Select(ci => new CartItemDto(
                     ci.Id,
                     ci.ProductId,
+                    ci.ProductVariantId,
                     ci.Product != null ? ci.Product.Name : string.Empty,
                     ci.Product != null ? ci.Product.ImageUrl : string.Empty,
                     ci.Quantity,
                     ci.Price,
                     ci.Quantity * ci.Price
-                )).ToList().AsReadOnly(),
+                )).ToArray(), // ✅ BOLUM 7.1.9: Collection Expressions - Array kullanımı (IReadOnlyList'e otomatik cast)
                 src.CalculateTotalAmount()
             ));
 

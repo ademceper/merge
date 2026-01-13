@@ -180,7 +180,7 @@ public class EmailCampaignRecipient : BaseEntity, IAggregateRoot
     }
 
     // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
-    [System.ComponentModel.DataAnnotations.Schema.Timestamp]
+    [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
 }
 

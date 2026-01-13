@@ -1,5 +1,5 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Modules.Identity;
@@ -9,10 +9,12 @@ namespace Merge.Domain.Modules.Notifications;
 /// <summary>
 /// NotificationPreference Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class NotificationPreference : BaseEntity
+public class NotificationPreference : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
@@ -63,7 +65,7 @@ public class NotificationPreference : BaseEntity
             Guard.AgainstLength(customSettings, 5000, nameof(customSettings));
         }
 
-        return new NotificationPreference
+        var preference = new NotificationPreference
         {
             Id = Guid.NewGuid(),
             UserId = userId,
@@ -73,6 +75,16 @@ public class NotificationPreference : BaseEntity
             _customSettings = customSettings,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events - NotificationPreferenceCreatedEvent
+        preference.AddDomainEvent(new NotificationPreferenceCreatedEvent(
+            preference.Id, 
+            userId, 
+            notificationType, 
+            channel, 
+            isEnabled));
+
+        return preference;
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update preference
@@ -86,6 +98,9 @@ public class NotificationPreference : BaseEntity
         IsEnabled = isEnabled;
         _customSettings = customSettings;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - NotificationPreferenceUpdatedEvent
+        AddDomainEvent(new NotificationPreferenceUpdatedEvent(Id, UserId, NotificationType, Channel, isEnabled));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Enable preference
@@ -96,6 +111,9 @@ public class NotificationPreference : BaseEntity
 
         IsEnabled = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - NotificationPreferenceEnabledEvent
+        AddDomainEvent(new NotificationPreferenceEnabledEvent(Id, UserId, NotificationType, Channel));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Disable preference
@@ -106,6 +124,9 @@ public class NotificationPreference : BaseEntity
 
         IsEnabled = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - NotificationPreferenceDisabledEvent
+        AddDomainEvent(new NotificationPreferenceDisabledEvent(Id, UserId, NotificationType, Channel));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Delete preference (soft delete)
@@ -116,6 +137,9 @@ public class NotificationPreference : BaseEntity
 
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - NotificationPreferenceDeletedEvent
+        AddDomainEvent(new NotificationPreferenceDeletedEvent(Id, UserId, NotificationType, Channel));
     }
 }
 

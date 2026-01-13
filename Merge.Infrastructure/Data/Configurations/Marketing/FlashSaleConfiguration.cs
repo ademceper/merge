@@ -34,8 +34,7 @@ public class FlashSaleConfiguration : IEntityTypeConfiguration<FlashSale>
         builder.HasMany(e => e.FlashSaleProducts)
             .WithOne(p => p.FlashSale)
             .HasForeignKey(p => p.FlashSaleId)
-            .OnDelete(DeleteBehavior.Cascade)
-            .Metadata.SetPropertyAccessMode(PropertyAccessMode.Field);
+            .OnDelete(DeleteBehavior.Cascade);
 
         // ✅ BOLUM 8.4: Check Constraints
         builder.ToTable(t =>

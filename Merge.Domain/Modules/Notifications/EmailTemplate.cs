@@ -2,7 +2,6 @@ using Merge.Domain.SharedKernel;
 using System.ComponentModel.DataAnnotations;
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Modules.Marketing;
 
@@ -18,14 +17,61 @@ namespace Merge.Domain.Modules.Notifications;
 public class EmailTemplate : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
-    public string Name { get; private set; } = string.Empty;
+    private string _name = string.Empty;
+    public string Name 
+    { 
+        get => _name; 
+        private set 
+        {
+            Guard.AgainstNullOrEmpty(value, nameof(Name));
+            Guard.AgainstLength(value, 200, nameof(Name));
+            _name = value;
+        }
+    }
+    
     public string Description { get; private set; } = string.Empty;
-    public string Subject { get; private set; } = string.Empty;
-    public string HtmlContent { get; private set; } = string.Empty;
+    
+    private string _subject = string.Empty;
+    public string Subject 
+    { 
+        get => _subject; 
+        private set 
+        {
+            Guard.AgainstNullOrEmpty(value, nameof(Subject));
+            Guard.AgainstLength(value, 200, nameof(Subject));
+            _subject = value;
+        }
+    }
+    
+    private string _htmlContent = string.Empty;
+    public string HtmlContent 
+    { 
+        get => _htmlContent; 
+        private set 
+        {
+            Guard.AgainstNullOrEmpty(value, nameof(HtmlContent));
+            _htmlContent = value;
+        }
+    }
+    
     public string TextContent { get; private set; } = string.Empty;
     public EmailTemplateType Type { get; private set; } = EmailTemplateType.Custom;
     public bool IsActive { get; private set; } = true;
-    public string? Thumbnail { get; private set; }
+    
+    private string? _thumbnail;
+    public string? Thumbnail 
+    { 
+        get => _thumbnail; 
+        private set 
+        {
+            if (value != null)
+            {
+                Guard.AgainstLength(value, 500, nameof(Thumbnail));
+            }
+            _thumbnail = value;
+        }
+    }
+    
     public string? Variables { get; private set; } // JSON array of available variables like {{customer_name}}, {{order_number}}
     public ICollection<EmailCampaign> Campaigns { get; private set; } = new List<EmailCampaign>();
 
@@ -55,14 +101,14 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
 
         var template = new EmailTemplate
         {
-            Name = name,
+            _name = name,
             Description = description ?? string.Empty,
-            Subject = subject,
-            HtmlContent = htmlContent,
+            _subject = subject,
+            _htmlContent = htmlContent,
             TextContent = textContent ?? string.Empty,
             Type = type,
             Variables = variables,
-            Thumbnail = thumbnail,
+            _thumbnail = thumbnail,
             IsActive = true
         };
 
@@ -86,7 +132,7 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
         if (!string.IsNullOrEmpty(name))
         {
             Guard.AgainstLength(name, 200, nameof(name));
-            Name = name;
+            _name = name;
         }
 
         if (description != null)
@@ -95,11 +141,11 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
         if (!string.IsNullOrEmpty(subject))
         {
             Guard.AgainstLength(subject, 200, nameof(subject));
-            Subject = subject;
+            _subject = subject;
         }
 
         if (!string.IsNullOrEmpty(htmlContent))
-            HtmlContent = htmlContent;
+            _htmlContent = htmlContent;
 
         if (textContent != null)
             TextContent = textContent;
@@ -111,7 +157,9 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
             Variables = variables;
 
         if (thumbnail != null)
-            Thumbnail = thumbnail;
+            _thumbnail = thumbnail;
+
+        UpdatedAt = DateTime.UtcNow;
 
         // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new EmailTemplateUpdatedEvent(Id, Name));
@@ -124,6 +172,7 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
             return;
 
         IsActive = true;
+        UpdatedAt = DateTime.UtcNow;
 
         // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new EmailTemplateActivatedEvent(Id, Name));
@@ -136,6 +185,7 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
             return;
 
         IsActive = false;
+        UpdatedAt = DateTime.UtcNow;
 
         // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new EmailTemplateDeactivatedEvent(Id, Name));
@@ -149,6 +199,7 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
 
         IsDeleted = true;
         IsActive = false;
+        UpdatedAt = DateTime.UtcNow;
 
         // ✅ BOLUM 1.5: Domain Events (ZORUNLU)
         AddDomainEvent(new EmailTemplateDeletedEvent(Id, Name));

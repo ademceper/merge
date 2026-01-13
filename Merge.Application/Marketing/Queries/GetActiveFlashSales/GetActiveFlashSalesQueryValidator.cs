@@ -3,7 +3,7 @@ using FluentValidation;
 namespace Merge.Application.Marketing.Queries.GetActiveFlashSales;
 
 // ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
-public class GetActiveFlashSalesQueryValidator() : AbstractValidator<GetActiveFlashSalesQuery>
+public class GetActiveFlashSalesQueryValidator : AbstractValidator<GetActiveFlashSalesQuery>
 {
     public GetActiveFlashSalesQueryValidator()
     {

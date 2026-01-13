@@ -63,7 +63,7 @@ public class LoyaltyRule : BaseEntity, IAggregateRoot
     public bool IsActive { get; private set; } = true;
 
     // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
-    [System.ComponentModel.DataAnnotations.Schema.Timestamp]
+    [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
 
     // ✅ BOLUM 1.3: Value Object properties

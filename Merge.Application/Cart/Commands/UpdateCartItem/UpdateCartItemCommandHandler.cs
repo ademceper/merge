@@ -73,18 +73,53 @@ public class UpdateCartItemCommandHandler : IRequestHandler<UpdateCartItemComman
             throw new BusinessException("Yeterli stok yok.");
         }
 
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration'dan al
-        var maxQuantity = _cartSettings.MaxCartItemQuantity;
+        // ✅ ARCHITECTURE: Transaction başlat - atomic operation (Cart + CartItem + Updates)
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
-        cartItem.UpdateQuantity(request.Quantity, maxQuantity);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            // ✅ BOLUM 1.1: Rich Domain Model - Cart entity üzerinden domain method kullanımı
+            // Cart aggregate root olduğu için, CartItem güncellemeleri Cart üzerinden yapılmalı
+            var cart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
+                .Include(c => c.CartItems)
+                .FirstOrDefaultAsync(c => c.Id == cartItem.CartId, cancellationToken);
 
-        _logger.LogInformation(
-            "Successfully updated cart item quantity. CartItemId: {CartItemId}, NewQuantity: {Quantity}, ProductId: {ProductId}",
-            request.CartItemId, request.Quantity, cartItem.ProductId);
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            if (cart is null)
+            {
+                _logger.LogWarning("Cart not found for cart item {CartItemId}", request.CartItemId);
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return false;
+            }
 
-        return true;
+            // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration'dan al
+            var maxQuantity = _cartSettings.MaxCartItemQuantity;
+
+            // ✅ BOLUM 1.1: Rich Domain Model - Cart entity method kullanımı
+            // ✅ ARCHITECTURE: Domain event'ler Cart.UpdateItemQuantity() içinde otomatik olarak oluşturulur
+            cart.UpdateItemQuantity(request.CartItemId, request.Quantity, maxQuantity);
+            
+            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
+            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Successfully updated cart item quantity. CartItemId: {CartItemId}, NewQuantity: {Quantity}, ProductId: {ProductId}",
+                request.CartItemId, request.Quantity, cartItem.ProductId);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
+            _logger.LogError(ex,
+                "Error updating cart item quantity. CartItemId: {CartItemId}, Quantity: {Quantity}",
+                request.CartItemId, request.Quantity);
+            // ✅ ARCHITECTURE: Hata olursa ROLLBACK - hiçbir şey yazılmaz
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            throw;
+        }
     }
 }
 

@@ -48,7 +48,7 @@ public class LoyaltyTransaction : BaseEntity, IAggregateRoot
     public Review? Review { get; private set; }
 
     // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
-    [System.ComponentModel.DataAnnotations.Schema.Timestamp]
+    [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
 
     // ✅ BOLUM 1.1: Factory Method - Private constructor

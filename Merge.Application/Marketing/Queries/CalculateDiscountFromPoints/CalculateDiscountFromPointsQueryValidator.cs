@@ -3,7 +3,7 @@ using FluentValidation;
 namespace Merge.Application.Marketing.Queries.CalculateDiscountFromPoints;
 
 // ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
-public class CalculateDiscountFromPointsQueryValidator() : AbstractValidator<CalculateDiscountFromPointsQuery>
+public class CalculateDiscountFromPointsQueryValidator : AbstractValidator<CalculateDiscountFromPointsQuery>
 {
     public CalculateDiscountFromPointsQueryValidator()
     {

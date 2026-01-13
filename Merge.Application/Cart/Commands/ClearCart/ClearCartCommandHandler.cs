@@ -31,27 +31,51 @@ public class ClearCartCommandHandler : IRequestHandler<ClearCartCommand, bool>
 
     public async Task<bool> Handle(ClearCartCommand request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Removed manual !ci.IsDeleted check (Global Query Filter)
-        var cart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
-            .Include(c => c.CartItems)
-            .FirstOrDefaultAsync(c => c.UserId == request.UserId, cancellationToken);
+        // ✅ ARCHITECTURE: Transaction başlat - atomic operation (Cart + CartItems + Updates)
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
-        if (cart is null)
+        try
         {
-            return false;
+            // ✅ PERFORMANCE: Removed manual !ci.IsDeleted check (Global Query Filter)
+            var cart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
+                .Include(c => c.CartItems)
+                .FirstOrDefaultAsync(c => c.UserId == request.UserId, cancellationToken);
+
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            if (cart is null)
+            {
+                _logger.LogWarning("Cart not found for user {UserId}", request.UserId);
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return false;
+            }
+
+            var itemCount = cart.CartItems.Count(ci => !ci.IsDeleted);
+
+            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+            // ✅ ARCHITECTURE: Domain event'ler entity içinde oluşturuluyor (Cart.Clear() içinde CartClearedEvent)
+            cart.Clear();
+            
+            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
+            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Cleared cart. UserId: {UserId}, ItemsRemoved: {Count}",
+                request.UserId, itemCount);
+
+            return true;
         }
-
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
-        // ✅ ARCHITECTURE: Domain event'ler entity içinde oluşturuluyor (Cart.Clear() içinde CartClearedEvent)
-        cart.Clear();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation(
-            "Cleared cart. UserId: {UserId}, ItemsRemoved: {Count}",
-            request.UserId, cart.CartItems.Count);
-
-        return true;
+        catch (Exception ex)
+        {
+            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
+            _logger.LogError(ex,
+                "Error clearing cart. UserId: {UserId}",
+                request.UserId);
+            // ✅ ARCHITECTURE: Hata olursa ROLLBACK - hiçbir şey yazılmaz
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            throw;
+        }
     }
 }
 

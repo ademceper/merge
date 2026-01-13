@@ -5,7 +5,7 @@ namespace Merge.Application.Marketing.Commands.CreateFlashSale;
 
 // ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 // ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
-public class CreateFlashSaleCommandValidator() : AbstractValidator<CreateFlashSaleCommand>
+public class CreateFlashSaleCommandValidator : AbstractValidator<CreateFlashSaleCommand>
 {
     public CreateFlashSaleCommandValidator()
     {

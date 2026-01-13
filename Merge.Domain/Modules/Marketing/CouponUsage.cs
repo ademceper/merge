@@ -40,7 +40,7 @@ public class CouponUsage : BaseEntity, IAggregateRoot
     public Order Order { get; private set; } = null!;
 
     // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
-    [System.ComponentModel.DataAnnotations.Schema.Timestamp]
+    [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
 
     // ✅ BOLUM 1.3: Value Object properties

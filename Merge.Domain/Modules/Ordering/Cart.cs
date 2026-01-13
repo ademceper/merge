@@ -74,8 +74,13 @@ public class Cart : BaseAggregateRoot
         if (existingItem is not null)
         {
             // Update quantity instead of adding duplicate
+            var oldQuantity = existingItem.Quantity;
             var newQuantity = existingItem.Quantity + item.Quantity;
             existingItem.UpdateQuantity(newQuantity, maxQuantity);
+            UpdatedAt = DateTime.UtcNow;
+
+            // ✅ BOLUM 1.5: Domain Events - CartItemQuantityUpdatedEvent yayınla (mevcut item güncellendi)
+            AddDomainEvent(new CartItemQuantityUpdatedEvent(Id, existingItem.Id, item.ProductId, oldQuantity, newQuantity));
         }
         else
         {
@@ -85,12 +90,33 @@ public class Cart : BaseAggregateRoot
                 throw new DomainException($"Miktar maksimum {maxQuantity.Value} olabilir.");
             }
             _cartItems.Add(item);
-        }
+            UpdatedAt = DateTime.UtcNow;
 
+            // ✅ BOLUM 1.5: Domain Events - CartItemAddedEvent yayınla (yeni item eklendi)
+            AddDomainEvent(new CartItemAddedEvent(Id, item.ProductId, item.Quantity));
+        }
+    }
+
+    // ✅ BOLUM 1.1: Domain Logic - Update item quantity in cart
+    public void UpdateItemQuantity(Guid cartItemId, int newQuantity, int? maxQuantity = null)
+    {
+        Guard.AgainstDefault(cartItemId, nameof(cartItemId));
+        Guard.AgainstNegativeOrZero(newQuantity, nameof(newQuantity));
+
+        var item = _cartItems.FirstOrDefault(ci => ci.Id == cartItemId && !ci.IsDeleted);
+        
+        // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+        if (item is null)
+            throw new DomainException($"Sepet öğesi bulunamadı: {cartItemId}");
+
+        var oldQuantity = item.Quantity;
+        
+        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+        item.UpdateQuantity(newQuantity, maxQuantity);
         UpdatedAt = DateTime.UtcNow;
 
-        // ✅ BOLUM 1.5: Domain Events - CartItemAddedEvent yayınla
-        AddDomainEvent(new CartItemAddedEvent(Id, item.ProductId, item.Quantity));
+        // ✅ BOLUM 1.5: Domain Events - CartItemQuantityUpdatedEvent yayınla
+        AddDomainEvent(new CartItemQuantityUpdatedEvent(Id, cartItemId, item.ProductId, oldQuantity, newQuantity));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Remove item from cart

@@ -3,7 +3,7 @@ using FluentValidation;
 namespace Merge.Application.Marketing.Queries.GetAllEmailCampaigns;
 
 // ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern .NET 9 feature
-public class GetAllEmailCampaignsQueryValidator() : AbstractValidator<GetAllEmailCampaignsQuery>
+public class GetAllEmailCampaignsQueryValidator : AbstractValidator<GetAllEmailCampaignsQuery>
 {
     public GetAllEmailCampaignsQueryValidator()
     {

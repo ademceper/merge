@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Merge.Domain.Modules.Marketing;
 
 namespace Merge.Infrastructure.Data.Configurations.Marketing;
@@ -25,14 +26,14 @@ public class CouponConfiguration : IEntityTypeConfiguration<Coupon>
         });
 
         // ✅ BOLUM 1.1: Rich Domain Model - Backing field mapping for encapsulated collections
+        var listGuidToStringConverter = new ValueConverter<List<Guid>?, string?>(
+            v => v != null ? string.Join(',', v) : null,
+            v => v != null ? v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(Guid.Parse).ToList() : null);
+
         builder.Property("_applicableCategoryIds")
-              .HasConversion(
-                  v => v != null ? string.Join(',', v) : null,
-                  v => v != null ? v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(Guid.Parse).ToList() : null);
+              .HasConversion(listGuidToStringConverter);
 
         builder.Property("_applicableProductIds")
-              .HasConversion(
-                  v => v != null ? string.Join(',', v) : null,
-                  v => v != null ? v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(Guid.Parse).ToList() : null);
+              .HasConversion(listGuidToStringConverter);
     }
 }

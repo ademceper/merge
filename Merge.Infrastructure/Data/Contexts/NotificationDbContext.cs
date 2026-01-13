@@ -30,5 +30,26 @@ public class NotificationDbContext : DbContext, IDbContext
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(NotificationDbContext).Assembly, 
             type => type.Namespace == "Merge.Infrastructure.Data.Configurations.Notifications");
+
+        // ✅ BOLUM 1.1: Global Query Filter - Soft Delete (ZORUNLU)
+        ConfigureGlobalQueryFilters(modelBuilder);
+    }
+
+    private void ConfigureGlobalQueryFilters(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                var parameter = System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e");
+                var property = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
+                var filter = System.Linq.Expressions.Expression.Lambda(
+                    System.Linq.Expressions.Expression.Equal(property, System.Linq.Expressions.Expression.Constant(false)),
+                    parameter
+                );
+
+                modelBuilder.Entity(entityType.ClrType).HasQueryFilter(filter);
+            }
+        }
     }
 }

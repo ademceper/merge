@@ -1,10 +1,12 @@
 using AutoMapper;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NotificationEntity = Merge.Domain.Modules.Notifications.Notification;
 using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.Exceptions;
+using Merge.Application.Notification.Commands.CreateNotification;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using System.Text.Json;
@@ -21,20 +23,20 @@ public class NotificationTemplateService : INotificationTemplateService
 {
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly INotificationService _notificationService;
+    private readonly IMediator _mediator;
     private readonly IMapper _mapper;
     private readonly ILogger<NotificationTemplateService> _logger;
 
     public NotificationTemplateService(
         IDbContext context,
         IUnitOfWork unitOfWork,
-        INotificationService notificationService,
+        IMediator mediator,
         IMapper mapper,
         ILogger<NotificationTemplateService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
-        _notificationService = notificationService;
+        _mediator = mediator;
         _mapper = mapper;
         _logger = logger;
     }
@@ -220,14 +222,15 @@ public class NotificationTemplateService : INotificationTemplateService
             throw new NotFoundException("Şablon", Guid.Empty);
         }
 
-        var createDto = new CreateNotificationDto(
+        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - Service yerine MediatR kullan
+        var createCommand = new CreateNotificationCommand(
             userId,
             notificationTypeEnum,
             title,
             message,
             link);
 
-        return await _notificationService.CreateNotificationAsync(createDto, cancellationToken);
+        return await _mediator.Send(createCommand, cancellationToken);
     }
 
     private string ReplaceVariables(string template, Dictionary<string, object> variables)

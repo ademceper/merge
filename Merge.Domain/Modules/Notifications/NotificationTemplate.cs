@@ -1,5 +1,5 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
 
@@ -8,10 +8,12 @@ namespace Merge.Domain.Modules.Notifications;
 /// <summary>
 /// NotificationTemplate Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class NotificationTemplate : BaseEntity
+public class NotificationTemplate : BaseEntity, IAggregateRoot
 {
     private string _name = string.Empty;
     public string Name 
@@ -149,7 +151,7 @@ public class NotificationTemplate : BaseEntity
             Guard.AgainstLength(defaultData, 5000, nameof(defaultData));
         }
 
-        return new NotificationTemplate
+        var template = new NotificationTemplate
         {
             Id = Guid.NewGuid(),
             _name = name,
@@ -163,6 +165,11 @@ public class NotificationTemplate : BaseEntity
             _defaultData = defaultData,
             CreatedAt = DateTime.UtcNow
         };
+
+        // ✅ BOLUM 1.5: Domain Events - NotificationTemplateCreatedEvent
+        template.AddDomainEvent(new NotificationTemplateCreatedEvent(template.Id, name, type));
+
+        return template;
     }
 
     // ✅ BOLUM 1.1: Domain Method - Update template
@@ -225,6 +232,9 @@ public class NotificationTemplate : BaseEntity
         }
 
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - NotificationTemplateUpdatedEvent
+        AddDomainEvent(new NotificationTemplateUpdatedEvent(Id, _name));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Activate template
@@ -235,6 +245,9 @@ public class NotificationTemplate : BaseEntity
 
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - NotificationTemplateActivatedEvent
+        AddDomainEvent(new NotificationTemplateActivatedEvent(Id, _name));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Deactivate template
@@ -245,6 +258,9 @@ public class NotificationTemplate : BaseEntity
 
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - NotificationTemplateDeactivatedEvent
+        AddDomainEvent(new NotificationTemplateDeactivatedEvent(Id, _name));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Delete template (soft delete)
@@ -255,6 +271,9 @@ public class NotificationTemplate : BaseEntity
 
         IsDeleted = true;
         UpdatedAt = DateTime.UtcNow;
+
+        // ✅ BOLUM 1.5: Domain Events - NotificationTemplateDeletedEvent
+        AddDomainEvent(new NotificationTemplateDeletedEvent(Id, _name));
     }
 }
 

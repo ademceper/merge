@@ -17,8 +17,8 @@ public class ShippingDetailsUpdatedEventHandler(
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
-            "Shipping details updated event received. ShippingId: {ShippingId}, OrderId: {OrderId}, UpdatedField: {UpdatedField}",
-            notification.ShippingId, notification.OrderId, notification.UpdatedField);
+            "Shipping details updated event received. ShippingId: {ShippingId}, OrderId: {OrderId}, UpdateType: {UpdateType}",
+            notification.ShippingId, notification.OrderId, notification.UpdateType);
 
         try
         {
@@ -32,8 +32,8 @@ public class ShippingDetailsUpdatedEventHandler(
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
-                "Error handling ShippingDetailsUpdatedEvent. ShippingId: {ShippingId}, OrderId: {OrderId}, UpdatedField: {UpdatedField}",
-                notification.ShippingId, notification.OrderId, notification.UpdatedField);
+                "Error handling ShippingDetailsUpdatedEvent. ShippingId: {ShippingId}, OrderId: {OrderId}, UpdateType: {UpdateType}",
+                notification.ShippingId, notification.OrderId, notification.UpdateType);
             throw;
         }
     }

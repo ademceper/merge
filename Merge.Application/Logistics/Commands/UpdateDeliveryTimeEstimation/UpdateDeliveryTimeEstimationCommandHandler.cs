@@ -54,11 +54,14 @@ public class UpdateDeliveryTimeEstimationCommandHandler(
         // ✅ BOLUM 7.1.6: Pattern Matching - Switch expression kullanımı
         if (request.IsActive.HasValue)
         {
-            _ = request.IsActive.Value switch
+            if (request.IsActive.Value)
             {
-                true => estimation.Activate(),
-                false => estimation.Deactivate()
-            };
+                estimation.Activate();
+            }
+            else
+            {
+                estimation.Deactivate();
+            }
         }
 
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)

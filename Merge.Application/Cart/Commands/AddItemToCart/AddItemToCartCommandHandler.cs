@@ -98,32 +98,6 @@ public class AddItemToCartCommandHandler : IRequestHandler<AddItemToCartCommand,
             // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration'dan al
             var maxQuantity = _cartSettings.MaxCartItemQuantity;
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
-            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
-            // Check if item already exists (same product and variant)
-            var existingItem = cart.CartItems.FirstOrDefault(ci => ci.ProductId == request.ProductId);
-            
-            if (existingItem is not null)
-            {
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
-                existingItem.UpdateQuantity(existingItem.Quantity + request.Quantity, maxQuantity);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-                await _unitOfWork.CommitTransactionAsync(cancellationToken);
-
-                _logger.LogInformation(
-                    "Updated cart item quantity. UserId: {UserId}, ProductId: {ProductId}, NewQuantity: {Quantity}",
-                    request.UserId, request.ProductId, existingItem.Quantity);
-
-                // ✅ PERFORMANCE: Use single query with Include instead of LoadAsync
-                var updatedItem = await _context.Set<CartItem>()
-                    .AsNoTracking()
-                    .Include(ci => ci.Product)
-                    .FirstOrDefaultAsync(ci => ci.Id == existingItem.Id, cancellationToken);
-
-                // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-                return _mapper.Map<CartItemDto>(updatedItem!);
-            }
-
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
             var cartItem = CartItem.Create(
                 cart.Id,
@@ -132,22 +106,44 @@ public class AddItemToCartCommandHandler : IRequestHandler<AddItemToCartCommand,
                 product.DiscountPrice ?? product.Price);
 
             // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
+            // Cart.AddItem() method'u mevcut item varsa otomatik olarak quantity günceller ve uygun domain event yayınlar
+            // ✅ ARCHITECTURE: Domain event'ler Cart.AddItem() içinde otomatik olarak oluşturulur
             cart.AddItem(cartItem, maxQuantity);
+            
+            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
+            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            // Cart.AddItem() sonrası güncellenen veya yeni eklenen item'ı bul
+            var updatedOrNewItem = cart.CartItems.FirstOrDefault(ci => 
+                ci.ProductId == request.ProductId && 
+                ci.ProductVariantId == cartItem.ProductVariantId &&
+                !ci.IsDeleted);
+
             _logger.LogInformation(
-                "Added new item to cart. UserId: {UserId}, ProductId: {ProductId}, Quantity: {Quantity}, CartItemId: {CartItemId}",
-                request.UserId, request.ProductId, request.Quantity, cartItem.Id);
+                "Item added/updated in cart. UserId: {UserId}, ProductId: {ProductId}, Quantity: {Quantity}, CartItemId: {CartItemId}",
+                request.UserId, request.ProductId, updatedOrNewItem?.Quantity ?? request.Quantity, updatedOrNewItem?.Id ?? cartItem.Id);
 
             // ✅ PERFORMANCE: Use single query with Include instead of LoadAsync
-            var newItem = await _context.Set<CartItem>()
+            var itemId = updatedOrNewItem?.Id ?? cartItem.Id;
+            var itemToReturn = await _context.Set<CartItem>()
                 .AsNoTracking()
                 .Include(ci => ci.Product)
-                .FirstOrDefaultAsync(ci => ci.Id == cartItem.Id, cancellationToken);
+                .FirstOrDefaultAsync(ci => ci.Id == itemId, cancellationToken);
+
+            // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
+            if (itemToReturn is null)
+            {
+                _logger.LogError(
+                    "Cart item not found after adding. CartItemId: {CartItemId}, ProductId: {ProductId}",
+                    updatedOrNewItem?.Id ?? cartItem.Id, request.ProductId);
+                throw new InvalidOperationException("Sepet öğesi eklenemedi.");
+            }
 
             // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-            return _mapper.Map<CartItemDto>(newItem!);
+            return _mapper.Map<CartItemDto>(itemToReturn);
         }
         catch (Exception ex)
         {

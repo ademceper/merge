@@ -72,8 +72,7 @@ public class EmailCampaignConfiguration : IEntityTypeConfiguration<EmailCampaign
         builder.HasMany(e => e.Recipients)
             .WithOne(r => r.Campaign)
             .HasForeignKey(r => r.CampaignId)
-            .OnDelete(DeleteBehavior.Cascade)
-            .Metadata.SetPropertyAccessMode(PropertyAccessMode.Field);
+            .OnDelete(DeleteBehavior.Cascade);
 
         // ✅ BOLUM 8.4: Check Constraints
         builder.ToTable(t =>

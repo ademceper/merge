@@ -60,21 +60,27 @@ public class UpdateShippingAddressCommandHandler(
         // ✅ BOLUM 7.1.6: Pattern Matching - Switch expression kullanımı
         if (request.IsDefault.HasValue)
         {
-            _ = request.IsDefault.Value switch
+            if (request.IsDefault.Value)
             {
-                true => await SetDefaultAddressAsync(address, request.Id, cancellationToken),
-                false => address.UnsetAsDefault()
-            };
+                await SetDefaultAddressAsync(address, request.Id, cancellationToken);
+            }
+            else
+            {
+                address.UnsetAsDefault();
+            }
         }
 
         // ✅ BOLUM 7.1.6: Pattern Matching - Switch expression kullanımı
         if (request.IsActive.HasValue)
         {
-            _ = request.IsActive.Value switch
+            if (request.IsActive.Value)
             {
-                true => address.Activate(),
-                false => address.Deactivate()
-            };
+                address.Activate();
+            }
+            else
+            {
+                address.Deactivate();
+            }
         }
 
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
