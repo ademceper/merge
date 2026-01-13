@@ -39,16 +39,36 @@ public class LogActivityCommandHandler : IRequestHandler<LogActivityCommand>
 
         var deviceInfo = ParseUserAgent(request.UserAgent);
 
+        // Parse enum values from strings
+        if (!Enum.TryParse<ActivityType>(request.ActivityType, true, out var activityType))
+        {
+            _logger.LogWarning("Invalid ActivityType: {ActivityType}", request.ActivityType);
+            throw new ArgumentException($"Invalid ActivityType: {request.ActivityType}", nameof(request.ActivityType));
+        }
+
+        if (!Enum.TryParse<EntityType>(request.EntityType, true, out var entityType))
+        {
+            _logger.LogWarning("Invalid EntityType: {EntityType}", request.EntityType);
+            throw new ArgumentException($"Invalid EntityType: {request.EntityType}", nameof(request.EntityType));
+        }
+
+        DeviceType deviceType = DeviceType.Other;
+        if (!string.IsNullOrEmpty(deviceInfo.DeviceType))
+        {
+            if (!Enum.TryParse<DeviceType>(deviceInfo.DeviceType, true, out deviceType))
+                deviceType = DeviceType.Other;
+        }
+
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var activity = UserActivityLog.Create(
-            activityType: request.ActivityType,
-            entityType: request.EntityType,
+            activityType: activityType,
+            entityType: entityType,
             description: request.Description,
             ipAddress: request.IpAddress,
             userAgent: request.UserAgent,
             userId: request.UserId,
             entityId: request.EntityId,
-            deviceType: deviceInfo.DeviceType,
+            deviceType: deviceType,
             browser: deviceInfo.Browser,
             os: deviceInfo.OS,
             metadata: request.Metadata,

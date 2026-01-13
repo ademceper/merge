@@ -5,6 +5,7 @@ using AutoMapper;
 using Merge.Application.DTOs.User;
 using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
+using Merge.Domain.Enums;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Identity;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
@@ -49,13 +50,21 @@ public class UpdateUserPreferenceCommandHandler : IRequestHandler<UpdateUserPref
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
+        Theme? theme = null;
+        if (!string.IsNullOrEmpty(request.Theme) && Enum.TryParse<Theme>(request.Theme, true, out var parsedTheme))
+            theme = parsedTheme;
+
+        TimeFormat? timeFormat = null;
+        if (!string.IsNullOrEmpty(request.TimeFormat) && Enum.TryParse<TimeFormat>(request.TimeFormat, true, out var parsedTimeFormat))
+            timeFormat = parsedTimeFormat;
+
         preferences.UpdatePreferences(
-            theme: request.Theme,
+            theme: theme,
             defaultLanguage: request.DefaultLanguage,
             defaultCurrency: request.DefaultCurrency,
             itemsPerPage: request.ItemsPerPage,
             dateFormat: request.DateFormat,
-            timeFormat: request.TimeFormat,
+            timeFormat: timeFormat,
             emailNotifications: request.EmailNotifications,
             smsNotifications: request.SmsNotifications,
             pushNotifications: request.PushNotifications,

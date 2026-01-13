@@ -67,13 +67,20 @@ public class SendVerificationCodeCommandHandler : IRequestHandler<SendVerificati
         var code = GenerateNumericCode(_twoFactorSettings.VerificationCodeLength);
         var expiresAt = DateTime.UtcNow.AddMinutes(_twoFactorSettings.VerificationCodeExpirationMinutes);
 
+        // Parse Purpose from string to enum
+        if (!Enum.TryParse<TwoFactorPurpose>(request.Purpose, true, out var purpose))
+        {
+            _logger.LogWarning("Invalid TwoFactorPurpose: {Purpose}, defaulting to Login", request.Purpose);
+            purpose = TwoFactorPurpose.Login;
+        }
+
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var twoFactorCode = TwoFactorCode.Create(
             request.UserId,
             code,
             twoFactorAuth.Method,
             expiresAt,
-            request.Purpose);
+            purpose);
 
         await _codeRepository.AddAsync(twoFactorCode);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)

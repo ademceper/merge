@@ -78,7 +78,7 @@ public class Enable2FACommandHandler : IRequestHandler<Enable2FACommand, Unit>
                 .FirstOrDefaultAsync(c =>
                     c.UserId == request.UserId &&
                     c.Code == request.EnableDto.Code &&
-                    c.Purpose == "Enable2FA" &&
+                    c.Purpose == TwoFactorPurpose.Enable2FA &&
                     !c.IsUsed &&
                     c.ExpiresAt > DateTime.UtcNow, cancellationToken);
 

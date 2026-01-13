@@ -52,15 +52,15 @@ public class GetMostViewedProductsQueryHandler : IRequestHandler<GetMostViewedPr
         var productIds = await _context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
-                       a.EntityType == "Product" &&
+                       a.EntityType == EntityType.Product &&
                        a.EntityId.HasValue &&
-                       (a.ActivityType == "ViewProduct" ||
-                        a.ActivityType == "AddToCart"))
+                       (a.ActivityType == ActivityType.ViewProduct ||
+                        a.ActivityType == ActivityType.AddToCart))
             .GroupBy(a => a.EntityId)
             .Select(g => new
             {
                 ProductId = g.Key!.Value,
-                ViewCount = g.Count(a => a.ActivityType == "ViewProduct")
+                ViewCount = g.Count(a => a.ActivityType == ActivityType.ViewProduct)
             })
             .OrderByDescending(p => p.ViewCount)
             .Take(topN)
@@ -70,17 +70,17 @@ public class GetMostViewedProductsQueryHandler : IRequestHandler<GetMostViewedPr
         var productActivitiesData = await _context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
-                       a.EntityType == "Product" &&
+                       a.EntityType == EntityType.Product &&
                        a.EntityId.HasValue &&
                        productIds.Contains(a.EntityId.Value) &&
-                       (a.ActivityType == "ViewProduct" ||
-                        a.ActivityType == "AddToCart"))
+                       (a.ActivityType == ActivityType.ViewProduct ||
+                        a.ActivityType == ActivityType.AddToCart))
             .GroupBy(a => a.EntityId)
             .Select(g => new
             {
                 ProductId = g.Key!.Value,
-                ViewCount = g.Count(a => a.ActivityType == "ViewProduct"),
-                AddToCartCount = g.Count(a => a.ActivityType == "AddToCart")
+                ViewCount = g.Count(a => a.ActivityType == ActivityType.ViewProduct),
+                AddToCartCount = g.Count(a => a.ActivityType == ActivityType.AddToCart)
             })
             .OrderByDescending(p => p.ViewCount)
             .Take(topN)

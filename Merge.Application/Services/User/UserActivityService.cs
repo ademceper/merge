@@ -44,16 +44,36 @@ public class UserActivityService : IUserActivityService
 
         var deviceInfo = ParseUserAgent(userAgent);
 
+        // Parse enum values from strings
+        if (!Enum.TryParse<ActivityType>(activityDto.ActivityType, true, out var activityType))
+        {
+            _logger.LogWarning("Invalid ActivityType: {ActivityType}", activityDto.ActivityType);
+            throw new ArgumentException($"Invalid ActivityType: {activityDto.ActivityType}", nameof(activityDto));
+        }
+
+        if (!Enum.TryParse<EntityType>(activityDto.EntityType, true, out var entityType))
+        {
+            _logger.LogWarning("Invalid EntityType: {EntityType}", activityDto.EntityType);
+            throw new ArgumentException($"Invalid EntityType: {activityDto.EntityType}", nameof(activityDto));
+        }
+
+        DeviceType deviceType = DeviceType.Other;
+        if (!string.IsNullOrEmpty(deviceInfo.DeviceType))
+        {
+            if (!Enum.TryParse<DeviceType>(deviceInfo.DeviceType, true, out deviceType))
+                deviceType = DeviceType.Other;
+        }
+
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var activity = UserActivityLog.Create(
-            activityType: activityDto.ActivityType,
-            entityType: activityDto.EntityType,
+            activityType: activityType,
+            entityType: entityType,
             description: activityDto.Description,
             ipAddress: ipAddress,
             userAgent: userAgent,
             userId: activityDto.UserId,
             entityId: activityDto.EntityId,
-            deviceType: deviceInfo.DeviceType,
+            deviceType: deviceType,
             browser: deviceInfo.Browser,
             os: deviceInfo.OS,
             metadata: activityDto.Metadata,
@@ -124,11 +144,13 @@ public class UserActivityService : IUserActivityService
         if (filter.UserId.HasValue)
             query = query.Where(a => a.UserId == filter.UserId.Value);
 
-        if (!string.IsNullOrEmpty(filter.ActivityType))
-            query = query.Where(a => a.ActivityType == filter.ActivityType);
+        if (!string.IsNullOrEmpty(filter.ActivityType) && 
+            Enum.TryParse<ActivityType>(filter.ActivityType, true, out var activityType))
+            query = query.Where(a => a.ActivityType == activityType);
 
-        if (!string.IsNullOrEmpty(filter.EntityType))
-            query = query.Where(a => a.EntityType == filter.EntityType);
+        if (!string.IsNullOrEmpty(filter.EntityType) && 
+            Enum.TryParse<EntityType>(filter.EntityType, true, out var entityType))
+            query = query.Where(a => a.EntityType == entityType);
 
         if (filter.EntityId.HasValue)
             query = query.Where(a => a.EntityId == filter.EntityId.Value);
@@ -142,8 +164,9 @@ public class UserActivityService : IUserActivityService
         if (!string.IsNullOrEmpty(filter.IpAddress))
             query = query.Where(a => a.IpAddress == filter.IpAddress);
 
-        if (!string.IsNullOrEmpty(filter.DeviceType))
-            query = query.Where(a => a.DeviceType == filter.DeviceType);
+        if (!string.IsNullOrEmpty(filter.DeviceType) && 
+            Enum.TryParse<DeviceType>(filter.DeviceType, true, out var deviceType))
+            query = query.Where(a => a.DeviceType == deviceType);
 
         if (filter.WasSuccessful.HasValue)
             query = query.Where(a => a.WasSuccessful == filter.WasSuccessful.Value);
@@ -184,12 +207,12 @@ public class UserActivityService : IUserActivityService
         var activitiesByType = await query
             .GroupBy(a => a.ActivityType)
             .Select(g => new { Type = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.Type, x => x.Count, cancellationToken);
+            .ToDictionaryAsync(x => x.Type.ToString(), x => x.Count, cancellationToken);
 
         var activitiesByDevice = await query
             .GroupBy(a => a.DeviceType)
             .Select(g => new { Device = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.Device, x => x.Count, cancellationToken);
+            .ToDictionaryAsync(x => x.Device.ToString(), x => x.Count, cancellationToken);
 
         var activitiesByHour = await query
             .GroupBy(a => a.CreatedAt.Hour)
@@ -321,15 +344,15 @@ public class UserActivityService : IUserActivityService
         var productIds = await _context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
-                       a.EntityType == "Product" &&
+                       a.EntityType == EntityType.Product &&
                        a.EntityId.HasValue &&
-                       (a.ActivityType == "ViewProduct" ||
-                        a.ActivityType == "AddToCart"))
+                       (a.ActivityType == ActivityType.ViewProduct ||
+                        a.ActivityType == ActivityType.AddToCart))
             .GroupBy(a => a.EntityId)
             .Select(g => new
             {
                 ProductId = g.Key!.Value,
-                ViewCount = g.Count(a => a.ActivityType == "ViewProduct")
+                ViewCount = g.Count(a => a.ActivityType == ActivityType.ViewProduct)
             })
             .OrderByDescending(p => p.ViewCount)
             .Take(topN)
@@ -340,17 +363,17 @@ public class UserActivityService : IUserActivityService
         var productActivitiesData = await _context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
-                       a.EntityType == "Product" &&
+                       a.EntityType == EntityType.Product &&
                        a.EntityId.HasValue &&
                        productIds.Contains(a.EntityId.Value) &&
-                       (a.ActivityType == "ViewProduct" ||
-                        a.ActivityType == "AddToCart"))
+                       (a.ActivityType == ActivityType.ViewProduct ||
+                        a.ActivityType == ActivityType.AddToCart))
             .GroupBy(a => a.EntityId)
             .Select(g => new
             {
                 ProductId = g.Key!.Value,
-                ViewCount = g.Count(a => a.ActivityType == "ViewProduct"),
-                AddToCartCount = g.Count(a => a.ActivityType == "AddToCart")
+                ViewCount = g.Count(a => a.ActivityType == ActivityType.ViewProduct),
+                AddToCartCount = g.Count(a => a.ActivityType == ActivityType.AddToCart)
             })
             .OrderByDescending(p => p.ViewCount)
             .Take(topN)

@@ -43,10 +43,17 @@ public class CreateSecurityAlertCommandHandler : IRequestHandler<CreateSecurityA
             ? parsedSeverity
             : AlertSeverity.Medium;
 
+        // Parse AlertType from string to enum
+        if (!Enum.TryParse<AlertType>(request.AlertType, true, out var alertType))
+        {
+            _logger.LogWarning("Invalid AlertType: {AlertType}, defaulting to Other", request.AlertType);
+            alertType = AlertType.Other;
+        }
+
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
         var alert = SecurityAlert.Create(
-            alertType: request.AlertType,
+            alertType: alertType,
             title: request.Title,
             description: request.Description,
             severity: severity,

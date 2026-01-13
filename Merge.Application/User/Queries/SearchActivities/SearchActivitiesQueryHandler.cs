@@ -56,11 +56,13 @@ public class SearchActivitiesQueryHandler : IRequestHandler<SearchActivitiesQuer
         if (request.Filter.UserId.HasValue)
             query = query.Where(a => a.UserId == request.Filter.UserId.Value);
 
-        if (!string.IsNullOrEmpty(request.Filter.ActivityType))
-            query = query.Where(a => a.ActivityType == request.Filter.ActivityType);
+        if (!string.IsNullOrEmpty(request.Filter.ActivityType) && 
+            Enum.TryParse<ActivityType>(request.Filter.ActivityType, true, out var activityType))
+            query = query.Where(a => a.ActivityType == activityType);
 
-        if (!string.IsNullOrEmpty(request.Filter.EntityType))
-            query = query.Where(a => a.EntityType == request.Filter.EntityType);
+        if (!string.IsNullOrEmpty(request.Filter.EntityType) && 
+            Enum.TryParse<EntityType>(request.Filter.EntityType, true, out var entityType))
+            query = query.Where(a => a.EntityType == entityType);
 
         if (request.Filter.EntityId.HasValue)
             query = query.Where(a => a.EntityId == request.Filter.EntityId.Value);
@@ -74,8 +76,9 @@ public class SearchActivitiesQueryHandler : IRequestHandler<SearchActivitiesQuer
         if (!string.IsNullOrEmpty(request.Filter.IpAddress))
             query = query.Where(a => a.IpAddress == request.Filter.IpAddress);
 
-        if (!string.IsNullOrEmpty(request.Filter.DeviceType))
-            query = query.Where(a => a.DeviceType == request.Filter.DeviceType);
+        if (!string.IsNullOrEmpty(request.Filter.DeviceType) && 
+            Enum.TryParse<DeviceType>(request.Filter.DeviceType, true, out var deviceType))
+            query = query.Where(a => a.DeviceType == deviceType);
 
         if (request.Filter.WasSuccessful.HasValue)
             query = query.Where(a => a.WasSuccessful == request.Filter.WasSuccessful.Value);

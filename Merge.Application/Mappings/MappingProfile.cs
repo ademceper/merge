@@ -1460,7 +1460,7 @@ public class MappingProfile : Profile
                 src.UserId,
                 src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty,
                 src.User != null ? src.User.Email ?? string.Empty : string.Empty,
-                src.Role,
+                src.Role.ToString(),
                 src.JoinedAt,
                 src.IsActive));
 

@@ -85,7 +85,7 @@ public class LogSecurityEventCommandHandler : IRequestHandler<LogSecurityEventCo
                 : (severity == SecurityEventSeverity.Warning ? AlertSeverity.High : AlertSeverity.Medium);
 
             var alert = SecurityAlert.Create(
-                alertType: "Account",
+                alertType: AlertType.Account,
                 title: $"Suspicious activity detected: {request.EventType}",
                 description: $"Security event: {request.EventType} for user {user.Email}",
                 severity: alertSeverity,

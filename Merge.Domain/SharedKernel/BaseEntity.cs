@@ -10,11 +10,11 @@ public abstract class BaseEntity
     private readonly List<IDomainEvent> _domainEvents = new();
 
     // ✅ BOLUM 1.1: Rich Domain Model - Virtual properties for override (encapsulation)
-    // NOT: EF Core için public set gerekli, ancak derived class'larda override edilip private set yapılabilir
-    public virtual Guid Id { get; protected set; } = Guid.NewGuid();
-    public virtual DateTime CreatedAt { get; protected set; } = DateTime.UtcNow;
-    public virtual DateTime? UpdatedAt { get; protected set; }
-    public virtual bool IsDeleted { get; protected set; } = false;
+    // NOT: EF Core ve Infrastructure katmanı erişimi için public set gerekli, ancak derived class'larda override edilip private set yapılabilir
+    public virtual Guid Id { get; set; } = Guid.NewGuid();
+    public virtual DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public virtual DateTime? UpdatedAt { get; set; }
+    public virtual bool IsDeleted { get; set; } = false;
 
     /// <summary>
     /// Domain Events collection - Read-only access

@@ -436,9 +436,9 @@ public class SellerDashboardService : ISellerDashboardService
         // Conversion metrics (simplified - would need view tracking)
         var productViews = await _context.Set<UserActivityLog>()
             .AsNoTracking()
-            .Where(a => a.ActivityType == "ProductView" && 
+            .Where(a => a.ActivityType == ActivityType.ViewProduct && 
                   a.CreatedAt >= startDate && a.CreatedAt <= endDate &&
-                  a.EntityType == "Product")
+                  a.EntityType == EntityType.Product)
             .Join(_context.Set<ProductEntity>().AsNoTracking().Where(p => p.SellerId == sellerId),
                   activity => activity.EntityId,
                   product => product.Id,

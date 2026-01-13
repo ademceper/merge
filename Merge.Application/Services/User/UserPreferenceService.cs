@@ -6,6 +6,7 @@ using Merge.Application.Interfaces.User;
 using Merge.Domain.Entities;
 using Merge.Application.DTOs.User;
 using Microsoft.Extensions.Logging;
+using Merge.Domain.Enums;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Notifications;
@@ -74,14 +75,23 @@ public class UserPreferenceService : IUserPreferenceService
             await _context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
         }
 
+        // Parse enum values from strings
+        Theme? theme = null;
+        if (!string.IsNullOrEmpty(dto.Theme) && Enum.TryParse<Theme>(dto.Theme, true, out var parsedTheme))
+            theme = parsedTheme;
+
+        TimeFormat? timeFormat = null;
+        if (!string.IsNullOrEmpty(dto.TimeFormat) && Enum.TryParse<TimeFormat>(dto.TimeFormat, true, out var parsedTimeFormat))
+            timeFormat = parsedTimeFormat;
+
         // ✅ BOLUM 1.1: Domain Method use (Encapsulation)
         preferences.UpdatePreferences(
-            theme: dto.Theme,
+            theme: theme,
             defaultLanguage: dto.DefaultLanguage,
             defaultCurrency: dto.DefaultCurrency,
             itemsPerPage: dto.ItemsPerPage,
             dateFormat: dto.DateFormat,
-            timeFormat: dto.TimeFormat,
+            timeFormat: timeFormat,
             emailNotifications: dto.EmailNotifications,
             smsNotifications: dto.SmsNotifications,
             pushNotifications: dto.PushNotifications,

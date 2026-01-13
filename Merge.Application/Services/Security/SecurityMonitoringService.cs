@@ -591,7 +591,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
                 : (dto.Severity == "Critical" ? AlertSeverity.Critical : AlertSeverity.High);
             
             var alert = SecurityAlert.Create(
-                alertType: "Account",
+                alertType: AlertType.Account,
                 title: $"Suspicious activity detected: {dto.EventType}",
                 description: $"Security event: {dto.EventType} for user {user.Email}",
                 severity: alertSeverity,
@@ -732,8 +732,15 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
             ? parsedSeverity 
             : AlertSeverity.Medium;
         
+        // Parse AlertType from string to enum
+        if (!Enum.TryParse<AlertType>(dto.AlertType, true, out var alertType))
+        {
+            _logger.LogWarning("Invalid AlertType: {AlertType}, defaulting to Other", dto.AlertType);
+            alertType = AlertType.Other;
+        }
+        
         var alert = SecurityAlert.Create(
-            alertType: dto.AlertType,
+            alertType: alertType,
             title: dto.Title,
             description: dto.Description,
             severity: severity,

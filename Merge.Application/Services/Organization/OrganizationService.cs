@@ -530,11 +530,18 @@ public class OrganizationService : IOrganizationService
             throw new BusinessException("Kullanıcı zaten bu takımın üyesi.");
         }
 
+        // Parse Role from string to enum
+        if (!Enum.TryParse<TeamMemberRole>(dto.Role, true, out var role))
+        {
+            _logger.LogWarning("Invalid TeamMemberRole: {Role}, defaulting to Member", dto.Role);
+            role = TeamMemberRole.Member;
+        }
+
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-        var teamMember = TeamMember.Create(teamId, dto.UserId, dto.Role);
+        var teamMember = TeamMember.Create(teamId, dto.UserId, role);
 
         // ✅ BOLUM 1.5: Domain Events - Team aggregate root'a event ekle
-        team.AddDomainEvent(new TeamMemberAddedEvent(teamMember.Id, teamId, dto.UserId, dto.Role));
+        team.AddDomainEvent(new TeamMemberAddedEvent(teamMember.Id, teamId, dto.UserId, role.ToString()));
 
         await _context.Set<TeamMember>().AddAsync(teamMember, cancellationToken);
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
@@ -594,7 +601,14 @@ public class OrganizationService : IOrganizationService
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         if (!string.IsNullOrEmpty(dto.Role))
         {
-            teamMember.UpdateRole(dto.Role);
+            if (Enum.TryParse<TeamMemberRole>(dto.Role, true, out var role))
+            {
+                teamMember.UpdateRole(role);
+            }
+            else
+            {
+                _logger.LogWarning("Invalid TeamMemberRole: {Role}", dto.Role);
+            }
         }
 
         if (dto.IsActive.HasValue)
@@ -608,7 +622,7 @@ public class OrganizationService : IOrganizationService
         // ✅ BOLUM 1.5: Domain Events - Team aggregate root'a event ekle
         if (teamMember.Team is Team team)
         {
-            team.AddDomainEvent(new TeamMemberUpdatedEvent(teamMember.Id, teamId, userId, teamMember.Role));
+            team.AddDomainEvent(new TeamMemberUpdatedEvent(teamMember.Id, teamId, userId, teamMember.Role.ToString()));
         }
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır

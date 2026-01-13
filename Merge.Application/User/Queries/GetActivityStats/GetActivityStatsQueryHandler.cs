@@ -61,12 +61,12 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
         var activitiesByType = await query
             .GroupBy(a => a.ActivityType)
             .Select(g => new { Type = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.Type, x => x.Count, cancellationToken);
+            .ToDictionaryAsync(x => x.Type.ToString(), x => x.Count, cancellationToken);
 
         var activitiesByDevice = await query
             .GroupBy(a => a.DeviceType)
             .Select(g => new { Device = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.Device, x => x.Count, cancellationToken);
+            .ToDictionaryAsync(x => x.Device.ToString(), x => x.Count, cancellationToken);
 
         var activitiesByHour = await query
             .GroupBy(a => a.CreatedAt.Hour)
@@ -141,15 +141,15 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
         var productIds = await _context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
-                       a.EntityType == "Product" &&
+                       a.EntityType == EntityType.Product &&
                        a.EntityId.HasValue &&
-                       (a.ActivityType == "ViewProduct" ||
-                        a.ActivityType == "AddToCart"))
+                       (a.ActivityType == ActivityType.ViewProduct ||
+                        a.ActivityType == ActivityType.AddToCart))
             .GroupBy(a => a.EntityId)
             .Select(g => new
             {
                 ProductId = g.Key!.Value,
-                ViewCount = g.Count(a => a.ActivityType == "ViewProduct")
+                ViewCount = g.Count(a => a.ActivityType == ActivityType.ViewProduct)
             })
             .OrderByDescending(p => p.ViewCount)
             .Take(topN)
@@ -159,17 +159,17 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
         var productActivitiesData = await _context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
-                       a.EntityType == "Product" &&
+                       a.EntityType == EntityType.Product &&
                        a.EntityId.HasValue &&
                        productIds.Contains(a.EntityId.Value) &&
-                       (a.ActivityType == "ViewProduct" ||
-                        a.ActivityType == "AddToCart"))
+                       (a.ActivityType == ActivityType.ViewProduct ||
+                        a.ActivityType == ActivityType.AddToCart))
             .GroupBy(a => a.EntityId)
             .Select(g => new
             {
                 ProductId = g.Key!.Value,
-                ViewCount = g.Count(a => a.ActivityType == "ViewProduct"),
-                AddToCartCount = g.Count(a => a.ActivityType == "AddToCart")
+                ViewCount = g.Count(a => a.ActivityType == ActivityType.ViewProduct),
+                AddToCartCount = g.Count(a => a.ActivityType == ActivityType.AddToCart)
             })
             .OrderByDescending(p => p.ViewCount)
             .Take(topN)
