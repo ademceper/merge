@@ -1,32 +1,38 @@
 using FluentValidation;
+using Microsoft.Extensions.Options;
+using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.CreateCurrency;
 
 // ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
+// ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
 public class CreateCurrencyCommandValidator : AbstractValidator<CreateCurrencyCommand>
 {
-    public CreateCurrencyCommandValidator()
+    public CreateCurrencyCommandValidator(IOptions<InternationalSettings> settings)
     {
+        var config = settings.Value;
+
         RuleFor(x => x.Code)
             .NotEmpty().WithMessage("Para birimi kodu zorunludur.")
-            .Length(3, 10).WithMessage("Para birimi kodu en az 3, en fazla 10 karakter olmalıdır.");
+            .Length(3, config.MaxCurrencyCodeLength).WithMessage($"Para birimi kodu en az 3, en fazla {config.MaxCurrencyCodeLength} karakter olmalıdır.");
 
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Para birimi adı zorunludur.")
-            .MaximumLength(100).WithMessage("Para birimi adı en fazla 100 karakter olabilir.");
+            .MaximumLength(config.MaxCurrencyNameLength).WithMessage($"Para birimi adı en fazla {config.MaxCurrencyNameLength} karakter olabilir.");
 
         RuleFor(x => x.Symbol)
             .NotEmpty().WithMessage("Sembol zorunludur.")
-            .MaximumLength(10).WithMessage("Sembol en fazla 10 karakter olabilir.");
+            .MaximumLength(config.MaxCurrencySymbolLength).WithMessage($"Sembol en fazla {config.MaxCurrencySymbolLength} karakter olabilir.");
 
         RuleFor(x => x.ExchangeRate)
             .GreaterThanOrEqualTo(0).WithMessage("Döviz kuru 0 veya daha büyük olmalıdır.");
 
         RuleFor(x => x.DecimalPlaces)
-            .InclusiveBetween(0, 10).WithMessage("Ondalık basamak sayısı 0 ile 10 arasında olmalıdır.");
+            .InclusiveBetween(config.MinCurrencyDecimalPlaces, config.MaxCurrencyDecimalPlaces)
+            .WithMessage($"Ondalık basamak sayısı {config.MinCurrencyDecimalPlaces} ile {config.MaxCurrencyDecimalPlaces} arasında olmalıdır.");
 
         RuleFor(x => x.Format)
-            .MaximumLength(50).WithMessage("Format en fazla 50 karakter olabilir.");
+            .MaximumLength(config.MaxCurrencyFormatLength).WithMessage($"Format en fazla {config.MaxCurrencyFormatLength} karakter olabilir.");
     }
 }
 

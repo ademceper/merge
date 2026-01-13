@@ -1,7 +1,7 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
+using System.ComponentModel.DataAnnotations;
 
 namespace Merge.Domain.Modules.Payment;
 
@@ -10,6 +10,7 @@ namespace Merge.Domain.Modules.Payment;
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
 /// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
 /// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
 public class Currency : BaseEntity, IAggregateRoot
@@ -47,6 +48,10 @@ public class Currency : BaseEntity, IAggregateRoot
     
     public string Format { get; private set; } = string.Empty; // {symbol}{amount} or {amount}{symbol}
 
+    // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
+
     // ✅ BOLUM 1.1: Factory Method - Private constructor
     private Currency() { }
 
@@ -65,6 +70,8 @@ public class Currency : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNullOrEmpty(symbol, nameof(symbol));
         Guard.AgainstNegative(exchangeRate, nameof(exchangeRate));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MinCurrencyDecimalPlaces=0, MaxCurrencyDecimalPlaces=10
         Guard.AgainstOutOfRange(decimalPlaces, 0, 10, nameof(decimalPlaces));
 
         if (isBaseCurrency && exchangeRate != 1.0m)
@@ -96,6 +103,8 @@ public class Currency : BaseEntity, IAggregateRoot
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNullOrEmpty(symbol, nameof(symbol));
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MinCurrencyDecimalPlaces=0, MaxCurrencyDecimalPlaces=10
         Guard.AgainstOutOfRange(decimalPlaces, 0, 10, nameof(decimalPlaces));
 
         Name = name;
@@ -150,6 +159,9 @@ public class Currency : BaseEntity, IAggregateRoot
         IsBaseCurrency = false;
         LastUpdated = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CurrencyBaseCurrencyStatusRemovedEvent
+        AddDomainEvent(new CurrencyBaseCurrencyStatusRemovedEvent(Id, Code));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Activate currency
@@ -208,6 +220,9 @@ public class Currency : BaseEntity, IAggregateRoot
 
         IsDeleted = false;
         UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.5: Domain Events - CurrencyRestoredEvent
+        AddDomainEvent(new CurrencyRestoredEvent(Id, Code));
     }
 }
 

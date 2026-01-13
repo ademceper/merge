@@ -1,5 +1,5 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Modules.Content;
 using System.ComponentModel.DataAnnotations;
@@ -9,9 +9,12 @@ namespace Merge.Domain.Modules.Catalog;
 /// <summary>
 /// ProductTranslation Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class ProductTranslation : BaseEntity
+public class ProductTranslation : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid ProductId { get; private set; }
@@ -70,6 +73,9 @@ public class ProductTranslation : BaseEntity
         // ✅ BOLUM 1.4: Invariant validation
         translation.ValidateInvariants();
         
+        // ✅ BOLUM 1.5: Domain Events - ProductTranslationCreatedEvent
+        translation.AddDomainEvent(new ProductTranslationCreatedEvent(translation.Id, productId, languageId, languageCode, name));
+        
         return translation;
     }
 
@@ -94,6 +100,9 @@ public class ProductTranslation : BaseEntity
         
         // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductTranslationUpdatedEvent
+        AddDomainEvent(new ProductTranslationUpdatedEvent(Id, ProductId, LanguageCode));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
@@ -107,6 +116,9 @@ public class ProductTranslation : BaseEntity
         
         // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductTranslationDeletedEvent
+        AddDomainEvent(new ProductTranslationDeletedEvent(Id, ProductId, LanguageCode));
     }
 
     // ✅ BOLUM 1.4: Invariant validation
@@ -123,6 +135,16 @@ public class ProductTranslation : BaseEntity
 
         if (string.IsNullOrWhiteSpace(Name))
             throw new DomainException("Çeviri adı boş olamaz");
+
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxProductTranslationNameLength=200, MaxProductTranslationDescriptionLength=5000, MaxProductTranslationShortDescriptionLength=500
+        // MaxProductTranslationMetaTitleLength=200, MaxProductTranslationMetaDescriptionLength=500, MaxProductTranslationMetaKeywordsLength=200
+        Guard.AgainstLength(Name, 200, nameof(Name));
+        Guard.AgainstLength(Description, 5000, nameof(Description));
+        Guard.AgainstLength(ShortDescription, 500, nameof(ShortDescription));
+        Guard.AgainstLength(MetaTitle, 200, nameof(MetaTitle));
+        Guard.AgainstLength(MetaDescription, 500, nameof(MetaDescription));
+        Guard.AgainstLength(MetaKeywords, 200, nameof(MetaKeywords));
     }
 }
 

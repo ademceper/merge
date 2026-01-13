@@ -1,19 +1,24 @@
 using FluentValidation;
-using Merge.Domain.Modules.Catalog;
+using Microsoft.Extensions.Options;
+using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Queries.GetStaticTranslations;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
+// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
+// ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
 public class GetStaticTranslationsQueryValidator : AbstractValidator<GetStaticTranslationsQuery>
 {
-    public GetStaticTranslationsQueryValidator()
+    public GetStaticTranslationsQueryValidator(IOptions<InternationalSettings> settings)
     {
+        var config = settings.Value;
+
         RuleFor(x => x.LanguageCode)
             .NotEmpty().WithMessage("Dil kodu zorunludur.")
-            .Length(2, 10).WithMessage("Dil kodu en az 2, en fazla 10 karakter olmalıdır.");
+            .Length(config.MinLanguageCodeLength, config.MaxLanguageCodeLength)
+            .WithMessage($"Dil kodu en az {config.MinLanguageCodeLength}, en fazla {config.MaxLanguageCodeLength} karakter olmalıdır.");
 
         RuleFor(x => x.Category)
-            .MaximumLength(100).WithMessage("Kategori en fazla 100 karakter olabilir.")
+            .MaximumLength(config.MaxTranslationCategoryLength).WithMessage($"Kategori en fazla {config.MaxTranslationCategoryLength} karakter olabilir.")
             .When(x => !string.IsNullOrEmpty(x.Category));
     }
 }

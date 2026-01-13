@@ -45,7 +45,7 @@ public class DeleteCategoryTranslationCommandHandler : IRequestHandler<DeleteCat
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
-        translation.MarkAsDeleted(); // BaseEntity'den geliyor
+        translation.MarkAsDeleted(); // CategoryTranslation entity'sinde domain method
 
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
         // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync

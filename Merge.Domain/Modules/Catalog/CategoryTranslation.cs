@@ -1,5 +1,5 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel;
+using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.Modules.Content;
 using System.ComponentModel.DataAnnotations;
@@ -9,9 +9,12 @@ namespace Merge.Domain.Modules.Catalog;
 /// <summary>
 /// CategoryTranslation Entity - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
+/// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class CategoryTranslation : BaseEntity
+public class CategoryTranslation : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid CategoryId { get; private set; }
@@ -58,6 +61,9 @@ public class CategoryTranslation : BaseEntity
         // ✅ BOLUM 1.4: Invariant validation
         translation.ValidateInvariants();
         
+        // ✅ BOLUM 1.5: Domain Events - CategoryTranslationCreatedEvent
+        translation.AddDomainEvent(new CategoryTranslationCreatedEvent(translation.Id, categoryId, languageId, languageCode, name));
+        
         return translation;
     }
 
@@ -72,6 +78,9 @@ public class CategoryTranslation : BaseEntity
         
         // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - CategoryTranslationUpdatedEvent
+        AddDomainEvent(new CategoryTranslationUpdatedEvent(Id, CategoryId, LanguageCode));
     }
 
     // ✅ BOLUM 1.1: Domain Method - Mark as deleted (soft delete)
@@ -85,6 +94,9 @@ public class CategoryTranslation : BaseEntity
         
         // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - CategoryTranslationDeletedEvent
+        AddDomainEvent(new CategoryTranslationDeletedEvent(Id, CategoryId, LanguageCode));
     }
 
     // ✅ BOLUM 1.4: Invariant validation
@@ -101,6 +113,11 @@ public class CategoryTranslation : BaseEntity
 
         if (string.IsNullOrWhiteSpace(Name))
             throw new DomainException("Çeviri adı boş olamaz");
+
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
+        // Configuration değerleri: MaxCategoryTranslationNameLength=200, MaxCategoryTranslationDescriptionLength=2000
+        Guard.AgainstLength(Name, 200, nameof(Name));
+        Guard.AgainstLength(Description, 2000, nameof(Description));
     }
 }
 

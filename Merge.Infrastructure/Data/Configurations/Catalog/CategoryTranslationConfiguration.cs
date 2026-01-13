@@ -4,22 +4,46 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Infrastructure.Data.Configurations.Catalog;
 
+/// <summary>
+/// CategoryTranslation Entity Configuration - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
+/// </summary>
 public class CategoryTranslationConfiguration : IEntityTypeConfiguration<CategoryTranslation>
 {
     public void Configure(EntityTypeBuilder<CategoryTranslation> builder)
     {
+        // ✅ BOLUM 6.1: Index Strategy
         builder.HasIndex(e => e.CategoryId);
         builder.HasIndex(e => e.LanguageId);
+        builder.HasIndex(e => e.LanguageCode);
         builder.HasIndex(e => new { e.CategoryId, e.LanguageId }).IsUnique();
+        builder.HasIndex(e => new { e.CategoryId, e.LanguageCode }).IsUnique();
         
+        // ✅ BOLUM 1.7: Concurrency Control - RowVersion configuration
+        builder.Property(e => e.RowVersion)
+            .IsRowVersion()
+            .IsRequired(false);
+        
+        // Property configurations
+        builder.Property(e => e.LanguageCode)
+            .IsRequired()
+            .HasMaxLength(10);
+        
+        builder.Property(e => e.Name)
+            .IsRequired()
+            .HasMaxLength(200);
+        
+        builder.Property(e => e.Description)
+            .HasMaxLength(2000);
+        
+        // Navigation properties
         builder.HasOne(e => e.Category)
-              .WithMany()
-              .HasForeignKey(e => e.CategoryId)
-              .OnDelete(DeleteBehavior.Cascade);
+            .WithMany()
+            .HasForeignKey(e => e.CategoryId)
+            .OnDelete(DeleteBehavior.Cascade);
         
         builder.HasOne(e => e.Language)
-              .WithMany()
-              .HasForeignKey(e => e.LanguageId)
-              .OnDelete(DeleteBehavior.Restrict);
+            .WithMany()
+            .HasForeignKey(e => e.LanguageId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
