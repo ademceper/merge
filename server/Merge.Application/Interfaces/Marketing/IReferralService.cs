@@ -23,11 +23,24 @@ public interface IReviewMediaService
     Task DeleteReviewMediaAsync(Guid mediaId, CancellationToken cancellationToken = default);
 }
 
+// ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 public interface ISharedWishlistService
 {
-    Task<SharedWishlistDto> CreateSharedWishlistAsync(Guid userId, CreateSharedWishlistDto dto);
-    Task<SharedWishlistDto?> GetSharedWishlistByCodeAsync(string shareCode);
-    Task<IEnumerable<SharedWishlistDto>> GetMySharedWishlistsAsync(Guid userId);
-    Task DeleteSharedWishlistAsync(Guid wishlistId);
-    Task MarkItemAsPurchasedAsync(Guid itemId, Guid purchasedBy);
+    Task<SharedWishlistDto> CreateSharedWishlistAsync(
+        Guid userId, 
+        CreateSharedWishlistDto dto,
+        CancellationToken cancellationToken = default);
+    Task<SharedWishlistDto?> GetSharedWishlistByCodeAsync(
+        string shareCode,
+        CancellationToken cancellationToken = default);
+    Task<IEnumerable<SharedWishlistDto>> GetMySharedWishlistsAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
+    Task DeleteSharedWishlistAsync(
+        Guid wishlistId,
+        CancellationToken cancellationToken = default);
+    Task MarkItemAsPurchasedAsync(
+        Guid itemId, 
+        Guid purchasedBy,
+        CancellationToken cancellationToken = default);
 }

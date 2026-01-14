@@ -53,6 +53,9 @@ public class EmailCampaignRecipient : BaseEntity, IAggregateRoot
         }
     }
 
+    // ✅ BOLUM 1.1: Factory Method - Private constructor
+    private EmailCampaignRecipient() { }
+
     // ✅ BOLUM 1.1: Rich Domain Model - Factory Method
     public static EmailCampaignRecipient Create(
         Guid campaignId,
