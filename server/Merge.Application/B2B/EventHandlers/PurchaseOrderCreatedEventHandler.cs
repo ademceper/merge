@@ -8,19 +8,14 @@ namespace Merge.Application.B2B.EventHandlers;
 /// Purchase Order Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class PurchaseOrderCreatedEventHandler : INotificationHandler<PurchaseOrderCreatedEvent>
+public class PurchaseOrderCreatedEventHandler(
+    ILogger<PurchaseOrderCreatedEventHandler> logger) : INotificationHandler<PurchaseOrderCreatedEvent>
 {
-    private readonly ILogger<PurchaseOrderCreatedEventHandler> _logger;
-
-    public PurchaseOrderCreatedEventHandler(ILogger<PurchaseOrderCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(PurchaseOrderCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Purchase order created event received. PurchaseOrderId: {PurchaseOrderId}, OrganizationId: {OrganizationId}, B2BUserId: {B2BUserId}, PONumber: {PONumber}, TotalAmount: {TotalAmount}",
             notification.PurchaseOrderId, notification.OrganizationId, notification.B2BUserId, notification.PONumber, notification.TotalAmount);
 

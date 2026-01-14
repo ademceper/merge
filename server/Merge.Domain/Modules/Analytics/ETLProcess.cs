@@ -15,31 +15,39 @@ namespace Merge.Domain.Modules.Analytics;
 /// BOLUM 1.7: Concurrency Control (ZORUNLU)
 /// Her entity dosyasında SADECE 1 class olmalı
 /// </summary>
-public class ETLProcess : BaseAggregateRoot
+public class ETLProcess(
+    string name,
+    string description,
+    string processType,
+    TransactionStatus status,
+    string? sourceSystem,
+    string? targetSystem,
+    string? schedule,
+    string? configuration) : BaseAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
-    public string Name { get; private set; } = string.Empty;
-    public string Description { get; private set; } = string.Empty;
-    public string ProcessType { get; private set; } = string.Empty; // Extract, Transform, Load
+    public string Name { get; private set; } = name;
+    public string Description { get; private set; } = description;
+    public string ProcessType { get; private set; } = processType; // Extract, Transform, Load
     // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
-    public TransactionStatus Status { get; private set; } = TransactionStatus.Pending;
-    public string? SourceSystem { get; private set; }
-    public string? TargetSystem { get; private set; }
+    public TransactionStatus Status { get; private set; } = status;
+    public string? SourceSystem { get; private set; } = sourceSystem;
+    public string? TargetSystem { get; private set; } = targetSystem;
     public DateTime? LastRunAt { get; private set; }
     public DateTime? NextRunAt { get; private set; }
-    public string? Schedule { get; private set; } // Cron expression or schedule description
+    public string? Schedule { get; private set; } = schedule; // Cron expression or schedule description
     public int RecordsProcessed { get; private set; } = 0;
     public int RecordsFailed { get; private set; } = 0;
     public string? ErrorMessage { get; private set; }
     public TimeSpan? ExecutionTime { get; private set; }
-    public string? Configuration { get; private set; } // JSON configuration
+    public string? Configuration { get; private set; } = configuration; // JSON configuration
 
     // ✅ BOLUM 1.7: Concurrency Control - [Timestamp] RowVersion (ZORUNLU)
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // ✅ BOLUM 1.1: Factory Method - Private constructor
-    private ETLProcess() { }
+    // ✅ BOLUM 1.1: Factory Method - Parameterless constructor for EF Core
+    private ETLProcess() : this(string.Empty, string.Empty, string.Empty, TransactionStatus.Pending, null, null, null, null) { }
 
     // ✅ BOLUM 1.1: Factory Method with validation
     public static ETLProcess Create(
@@ -54,19 +62,17 @@ public class ETLProcess : BaseAggregateRoot
         Guard.AgainstNullOrEmpty(name, nameof(name));
         Guard.AgainstNullOrEmpty(processType, nameof(processType));
 
-        var process = new ETLProcess
+        var process = new ETLProcess(
+            name,
+            description ?? string.Empty,
+            processType,
+            TransactionStatus.Pending,
+            sourceSystem,
+            targetSystem,
+            schedule,
+            configuration)
         {
             Id = Guid.NewGuid(),
-            Name = name,
-            Description = description ?? string.Empty,
-            ProcessType = processType,
-            Status = TransactionStatus.Pending,
-            SourceSystem = sourceSystem,
-            TargetSystem = targetSystem,
-            Schedule = schedule,
-            Configuration = configuration,
-            RecordsProcessed = 0,
-            RecordsFailed = 0,
             CreatedAt = DateTime.UtcNow
         };
 

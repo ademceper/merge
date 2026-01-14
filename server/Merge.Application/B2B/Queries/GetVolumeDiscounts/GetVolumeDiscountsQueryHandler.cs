@@ -19,35 +19,23 @@ namespace Merge.Application.B2B.Queries.GetVolumeDiscounts;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetVolumeDiscountsQueryHandler : IRequestHandler<GetVolumeDiscountsQuery, PagedResult<VolumeDiscountDto>>
+public class GetVolumeDiscountsQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetVolumeDiscountsQueryHandler> logger,
+    IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetVolumeDiscountsQuery, PagedResult<VolumeDiscountDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetVolumeDiscountsQueryHandler> _logger;
-    private readonly PaginationSettings _paginationSettings;
-
-    public GetVolumeDiscountsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetVolumeDiscountsQueryHandler> logger,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     public async Task<PagedResult<VolumeDiscountDto>> Handle(GetVolumeDiscountsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize ? _paginationSettings.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: AsSplitQuery to avoid Cartesian Explosion (multiple Include'lar)
         // ✅ PERFORMANCE: Removed manual !vd.IsDeleted check (Global Query Filter handles it)
-        var query = _context.Set<VolumeDiscount>()
+        var query = context.Set<VolumeDiscount>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting - Multiple Include'lar için
             .Include(vd => vd.Product)
@@ -80,7 +68,7 @@ public class GetVolumeDiscountsQueryHandler : IRequestHandler<GetVolumeDiscounts
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        var items = _mapper.Map<List<VolumeDiscountDto>>(discounts);
+        var items = mapper.Map<List<VolumeDiscountDto>>(discounts);
 
         // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
         return new PagedResult<VolumeDiscountDto>

@@ -3,8 +3,6 @@ using System.Reflection;
 using FluentValidation;
 using MediatR;
 using Merge.Application.Common.Behaviors;
-using Merge.Application.Interfaces.Analytics;
-using Merge.Application.Interfaces.B2B;
 using Merge.Application.Interfaces.Cart;
 
 using Merge.Application.Interfaces.Content;
@@ -22,8 +20,6 @@ using Merge.Application.Interfaces.Search;
 using Merge.Application.Interfaces.Security;
 using Merge.Application.Interfaces.Seller;
 using Merge.Application.Interfaces.Governance;
-using Merge.Application.Services.Analytics;
-using Merge.Application.Services.B2B;
 using Merge.Application.Services.Cart;
 using Merge.Application.Services.Order;
 using Merge.Application.Services.Payment;
@@ -88,8 +84,6 @@ public static class DependencyInjection
         services.AddScoped<IAbandonedCartService, AbandonedCartService>();
         services.AddScoped<IAuditLogService, AuditLogService>();
         services.AddScoped<ISharedWishlistService, SharedWishlistService>();
-        services.AddScoped<IAnalyticsService, AnalyticsService>();
-        services.AddScoped<AdminService>(); // Concrete or interface? Program.cs used concrete for some
         services.AddScoped<IProductComparisonService, ProductComparisonService>();
         services.AddScoped<ISizeGuideService, SizeGuideService>();
         services.AddScoped<IPolicyService, PolicyService>();

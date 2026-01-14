@@ -8,19 +8,14 @@ namespace Merge.Application.B2B.EventHandlers;
 /// Credit Term Deactivated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class CreditTermDeactivatedEventHandler : INotificationHandler<CreditTermDeactivatedEvent>
+public class CreditTermDeactivatedEventHandler(
+    ILogger<CreditTermDeactivatedEventHandler> logger) : INotificationHandler<CreditTermDeactivatedEvent>
 {
-    private readonly ILogger<CreditTermDeactivatedEventHandler> _logger;
-
-    public CreditTermDeactivatedEventHandler(ILogger<CreditTermDeactivatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(CreditTermDeactivatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Credit term deactivated event received. CreditTermId: {CreditTermId}, OrganizationId: {OrganizationId}",
             notification.CreditTermId, notification.OrganizationId);
 

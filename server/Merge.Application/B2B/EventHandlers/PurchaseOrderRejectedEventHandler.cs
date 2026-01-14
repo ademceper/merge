@@ -11,30 +11,22 @@ namespace Merge.Application.B2B.EventHandlers;
 /// Purchase Order Rejected Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class PurchaseOrderRejectedEventHandler : INotificationHandler<PurchaseOrderRejectedEvent>
+public class PurchaseOrderRejectedEventHandler(
+    ILogger<PurchaseOrderRejectedEventHandler> logger,
+    INotificationService? notificationService = null) : INotificationHandler<PurchaseOrderRejectedEvent>
 {
-    private readonly ILogger<PurchaseOrderRejectedEventHandler> _logger;
-    private readonly INotificationService? _notificationService;
-
-    public PurchaseOrderRejectedEventHandler(
-        ILogger<PurchaseOrderRejectedEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(PurchaseOrderRejectedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Purchase order rejected event received. PurchaseOrderId: {PurchaseOrderId}, OrganizationId: {OrganizationId}, PONumber: {PONumber}, Reason: {Reason}",
             notification.PurchaseOrderId, notification.OrganizationId, notification.PONumber, notification.Reason);
 
         try
         {
             // Email bildirimi gönder (B2B kullanıcıya)
-            if (_notificationService != null)
+            if (notificationService != null)
             {
                 // TODO: B2B user ID'den user ID'yi al ve notification gönder
                 // var b2bUser = await _b2bService.GetB2BUserByIdAsync(notification.B2BUserId, cancellationToken);
@@ -59,7 +51,7 @@ public class PurchaseOrderRejectedEventHandler : INotificationHandler<PurchaseOr
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling PurchaseOrderRejectedEvent. PurchaseOrderId: {PurchaseOrderId}, PONumber: {PONumber}",
                 notification.PurchaseOrderId, notification.PONumber);
             throw;

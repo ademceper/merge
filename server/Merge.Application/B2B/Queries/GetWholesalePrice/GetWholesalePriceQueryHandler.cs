@@ -12,18 +12,10 @@ namespace Merge.Application.B2B.Queries.GetWholesalePrice;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetWholesalePriceQueryHandler : IRequestHandler<GetWholesalePriceQuery, decimal?>
+public class GetWholesalePriceQueryHandler(
+    IDbContext context,
+    ILogger<GetWholesalePriceQueryHandler> logger) : IRequestHandler<GetWholesalePriceQuery, decimal?>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetWholesalePriceQueryHandler> _logger;
-
-    public GetWholesalePriceQueryHandler(
-        IDbContext context,
-        ILogger<GetWholesalePriceQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<decimal?> Handle(GetWholesalePriceQuery request, CancellationToken cancellationToken)
     {
@@ -32,7 +24,7 @@ public class GetWholesalePriceQueryHandler : IRequestHandler<GetWholesalePriceQu
         // First try organization-specific pricing
         if (request.OrganizationId.HasValue)
         {
-            var orgPrice = await _context.Set<WholesalePrice>()
+            var orgPrice = await context.Set<WholesalePrice>()
                 .AsNoTracking()
                 .Where(wp => wp.ProductId == request.ProductId &&
                            wp.OrganizationId == request.OrganizationId.Value &&
@@ -51,7 +43,7 @@ public class GetWholesalePriceQueryHandler : IRequestHandler<GetWholesalePriceQu
         }
 
         // Fall back to general pricing
-        var generalPrice = await _context.Set<WholesalePrice>()
+        var generalPrice = await context.Set<WholesalePrice>()
             .AsNoTracking()
             .Where(wp => wp.ProductId == request.ProductId &&
                        wp.OrganizationId == null &&

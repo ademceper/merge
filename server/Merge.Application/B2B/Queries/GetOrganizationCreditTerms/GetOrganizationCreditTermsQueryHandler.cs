@@ -18,34 +18,22 @@ namespace Merge.Application.B2B.Queries.GetOrganizationCreditTerms;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetOrganizationCreditTermsQueryHandler : IRequestHandler<GetOrganizationCreditTermsQuery, PagedResult<CreditTermDto>>
+public class GetOrganizationCreditTermsQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetOrganizationCreditTermsQueryHandler> logger,
+    IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetOrganizationCreditTermsQuery, PagedResult<CreditTermDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetOrganizationCreditTermsQueryHandler> _logger;
-    private readonly PaginationSettings _paginationSettings;
-
-    public GetOrganizationCreditTermsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetOrganizationCreditTermsQueryHandler> logger,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     public async Task<PagedResult<CreditTermDto>> Handle(GetOrganizationCreditTermsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize ? _paginationSettings.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !ct.IsDeleted check (Global Query Filter handles it)
-        var query = _context.Set<CreditTerm>()
+        var query = context.Set<CreditTerm>()
             .AsNoTracking()
             .Include(ct => ct.Organization)
             .Where(ct => ct.OrganizationId == request.OrganizationId);
@@ -65,7 +53,7 @@ public class GetOrganizationCreditTermsQueryHandler : IRequestHandler<GetOrganiz
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        var items = _mapper.Map<List<CreditTermDto>>(creditTerms);
+        var items = mapper.Map<List<CreditTermDto>>(creditTerms);
 
         // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
         return new PagedResult<CreditTermDto>

@@ -11,30 +11,22 @@ namespace Merge.Application.B2B.EventHandlers;
 /// Purchase Order Approved Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class PurchaseOrderApprovedEventHandler : INotificationHandler<PurchaseOrderApprovedEvent>
+public class PurchaseOrderApprovedEventHandler(
+    ILogger<PurchaseOrderApprovedEventHandler> logger,
+    INotificationService? notificationService = null) : INotificationHandler<PurchaseOrderApprovedEvent>
 {
-    private readonly ILogger<PurchaseOrderApprovedEventHandler> _logger;
-    private readonly INotificationService? _notificationService;
-
-    public PurchaseOrderApprovedEventHandler(
-        ILogger<PurchaseOrderApprovedEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(PurchaseOrderApprovedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Purchase order approved event received. PurchaseOrderId: {PurchaseOrderId}, OrganizationId: {OrganizationId}, ApprovedByUserId: {ApprovedByUserId}, PONumber: {PONumber}, TotalAmount: {TotalAmount}",
             notification.PurchaseOrderId, notification.OrganizationId, notification.ApprovedByUserId, notification.PONumber, notification.TotalAmount);
 
         try
         {
             // Email bildirimi gönder (B2B kullanıcıya)
-            if (_notificationService != null)
+            if (notificationService != null)
             {
                 // TODO: B2B user ID'den user ID'yi al ve notification gönder
                 // var b2bUser = await _b2bService.GetB2BUserByIdAsync(notification.B2BUserId, cancellationToken);
@@ -61,7 +53,7 @@ public class PurchaseOrderApprovedEventHandler : INotificationHandler<PurchaseOr
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling PurchaseOrderApprovedEvent. PurchaseOrderId: {PurchaseOrderId}, PONumber: {PONumber}",
                 notification.PurchaseOrderId, notification.PONumber);
             throw;

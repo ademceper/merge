@@ -12,41 +12,31 @@ namespace Merge.Application.B2B.Commands.DeleteVolumeDiscount;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class DeleteVolumeDiscountCommandHandler : IRequestHandler<DeleteVolumeDiscountCommand, bool>
+public class DeleteVolumeDiscountCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<DeleteVolumeDiscountCommandHandler> logger) : IRequestHandler<DeleteVolumeDiscountCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<DeleteVolumeDiscountCommandHandler> _logger;
-
-    public DeleteVolumeDiscountCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<DeleteVolumeDiscountCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(DeleteVolumeDiscountCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Deleting volume discount. VolumeDiscountId: {VolumeDiscountId}", request.Id);
+        logger.LogInformation("Deleting volume discount. VolumeDiscountId: {VolumeDiscountId}", request.Id);
 
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
-        var discount = await _context.Set<VolumeDiscount>()
+        var discount = await context.Set<VolumeDiscount>()
             .FirstOrDefaultAsync(vd => vd.Id == request.Id, cancellationToken);
 
         if (discount == null)
         {
-            _logger.LogWarning("Volume discount not found with Id: {VolumeDiscountId}", request.Id);
+            logger.LogWarning("Volume discount not found with Id: {VolumeDiscountId}", request.Id);
             return false;
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Delete method (soft delete + domain event)
         discount.Delete();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Volume discount deleted successfully. VolumeDiscountId: {VolumeDiscountId}", request.Id);
+        logger.LogInformation("Volume discount deleted successfully. VolumeDiscountId: {VolumeDiscountId}", request.Id);
         return true;
     }
 }

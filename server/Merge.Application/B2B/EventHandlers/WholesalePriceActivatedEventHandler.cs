@@ -8,19 +8,14 @@ namespace Merge.Application.B2B.EventHandlers;
 /// Wholesale Price Activated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class WholesalePriceActivatedEventHandler : INotificationHandler<WholesalePriceActivatedEvent>
+public class WholesalePriceActivatedEventHandler(
+    ILogger<WholesalePriceActivatedEventHandler> logger) : INotificationHandler<WholesalePriceActivatedEvent>
 {
-    private readonly ILogger<WholesalePriceActivatedEventHandler> _logger;
-
-    public WholesalePriceActivatedEventHandler(ILogger<WholesalePriceActivatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(WholesalePriceActivatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Wholesale price activated event received. WholesalePriceId: {WholesalePriceId}, ProductId: {ProductId}, OrganizationId: {OrganizationId}",
             notification.WholesalePriceId, notification.ProductId, notification.OrganizationId);
 

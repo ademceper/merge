@@ -3,7 +3,6 @@ using System.Security.Claims;
 
 namespace Merge.API.Controllers;
 
-// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
 public abstract class BaseController : ControllerBase
@@ -51,16 +50,13 @@ public abstract class BaseController : ControllerBase
         return true;
     }
 
-    /// <summary>
-    /// ModelState validation kontrolü yapar. Geçersizse BadRequest döner.
-    /// </summary>
     protected ActionResult? ValidateModelState()
     {
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);
         }
-        return null; // ModelState geçerli, null döner (çağıran kod devam edebilir)
+        return null;
     }
 }
 

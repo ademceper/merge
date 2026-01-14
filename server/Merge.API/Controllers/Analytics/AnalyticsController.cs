@@ -49,30 +49,20 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Analytics;
 
-// ✅ BOLUM 4.0: API Versioning (ZORUNLU)
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/analytics")]
 [Authorize(Roles = "Admin,Manager")]
-public class AnalyticsController : BaseController
+public class AnalyticsController(
+    IMediator mediator,
+    IOptions<PaginationSettings> paginationSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-    private readonly PaginationSettings _paginationSettings;
 
-    public AnalyticsController(
-        IMediator mediator,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _mediator = mediator;
-        _paginationSettings = paginationSettings.Value;
-    }
-
-    // Dashboard
     /// <summary>
     /// Dashboard özet bilgilerini getirir
     /// </summary>
     [HttpGet("dashboard/summary")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika (ağır işlem)
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(DashboardSummaryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -83,10 +73,8 @@ public class AnalyticsController : BaseController
         [FromQuery] DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetDashboardSummaryQuery(startDate, endDate);
-        var summary = await _mediator.Send(query, cancellationToken);
+        var summary = await mediator.Send(query, cancellationToken);
         return Ok(summary);
     }
 
@@ -94,7 +82,7 @@ public class AnalyticsController : BaseController
     /// Dashboard metriklerini getirir
     /// </summary>
     [HttpGet("dashboard/metrics")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(List<DashboardMetricDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -104,9 +92,8 @@ public class AnalyticsController : BaseController
         [FromQuery] string? category = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetDashboardMetricsQuery(category);
-        var metrics = await _mediator.Send(query, cancellationToken);
+        var metrics = await mediator.Send(query, cancellationToken);
         return Ok(metrics);
     }
 
@@ -114,25 +101,23 @@ public class AnalyticsController : BaseController
     /// Dashboard metriklerini yeniler
     /// </summary>
     [HttpPost("dashboard/refresh")]
-    [RateLimit(5, 300)] // ✅ BOLUM 3.3: Rate Limiting - 5 refresh / 5 dakika
+    [RateLimit(5, 300)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> RefreshDashboardMetrics(CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new RefreshDashboardMetricsCommand();
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return Ok();
     }
 
-    // Sales Analytics
     /// <summary>
     /// Satış analitiklerini getirir
     /// </summary>
     [HttpGet("sales")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika (ağır işlem)
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(SalesAnalyticsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -143,9 +128,8 @@ public class AnalyticsController : BaseController
         [FromQuery] DateTime endDate,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetSalesAnalyticsQuery(startDate, endDate);
-        var analytics = await _mediator.Send(query, cancellationToken);
+        var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 
@@ -153,7 +137,7 @@ public class AnalyticsController : BaseController
     /// Zaman içinde gelir trendini getirir
     /// </summary>
     [HttpGet("sales/revenue-over-time")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika (ağır işlem)
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(List<TimeSeriesDataPoint>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -165,10 +149,8 @@ public class AnalyticsController : BaseController
         [FromQuery] string interval = "day",
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetRevenueOverTimeQuery(startDate, endDate, interval);
-        var data = await _mediator.Send(query, cancellationToken);
+        var data = await mediator.Send(query, cancellationToken);
         return Ok(data);
     }
 
@@ -189,13 +171,13 @@ public class AnalyticsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
-        if (limit > _paginationSettings.MaxPageSize) limit = _paginationSettings.MaxPageSize;
+        if (limit > paginationSettings.Value.MaxPageSize) limit = paginationSettings.Value.MaxPageSize;
         if (limit < 1) limit = 1;
 
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetTopProductsQuery(startDate, endDate, limit);
-        var products = await _mediator.Send(query, cancellationToken);
+        var products = await mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
@@ -217,7 +199,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetSalesByCategoryQuery(startDate, endDate);
-        var sales = await _mediator.Send(query, cancellationToken);
+        var sales = await mediator.Send(query, cancellationToken);
         return Ok(sales);
     }
 
@@ -240,7 +222,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetProductAnalyticsQuery(startDate, endDate);
-        var analytics = await _mediator.Send(query, cancellationToken);
+        var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 
@@ -259,13 +241,13 @@ public class AnalyticsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
-        if (limit > _paginationSettings.MaxPageSize) limit = _paginationSettings.MaxPageSize;
+        if (limit > paginationSettings.Value.MaxPageSize) limit = paginationSettings.Value.MaxPageSize;
         if (limit < 1) limit = 1;
 
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetBestSellersQuery(limit);
-        var products = await _mediator.Send(query, cancellationToken);
+        var products = await mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
@@ -284,13 +266,13 @@ public class AnalyticsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
-        if (limit > _paginationSettings.MaxPageSize) limit = _paginationSettings.MaxPageSize;
+        if (limit > paginationSettings.Value.MaxPageSize) limit = paginationSettings.Value.MaxPageSize;
         if (limit < 1) limit = 1;
 
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetWorstPerformersQuery(limit);
-        var products = await _mediator.Send(query, cancellationToken);
+        var products = await mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
@@ -313,7 +295,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetCustomerAnalyticsQuery(startDate, endDate);
-        var analytics = await _mediator.Send(query, cancellationToken);
+        var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 
@@ -332,13 +314,13 @@ public class AnalyticsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
-        if (limit > _paginationSettings.MaxPageSize) limit = _paginationSettings.MaxPageSize;
+        if (limit > paginationSettings.Value.MaxPageSize) limit = paginationSettings.Value.MaxPageSize;
         if (limit < 1) limit = 1;
 
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetTopCustomersQuery(limit);
-        var customers = await _mediator.Send(query, cancellationToken);
+        var customers = await mediator.Send(query, cancellationToken);
         return Ok(customers);
     }
 
@@ -356,7 +338,7 @@ public class AnalyticsController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetCustomerSegmentsQuery();
-        var segments = await _mediator.Send(query, cancellationToken);
+        var segments = await mediator.Send(query, cancellationToken);
         return Ok(segments);
     }
 
@@ -386,7 +368,7 @@ public class AnalyticsController : BaseController
         }
 
         var query = new GetCustomerLifetimeValueQuery(customerId);
-        var result = await _mediator.Send(query, cancellationToken);
+        var result = await mediator.Send(query, cancellationToken);
         return Ok(result);
     }
 
@@ -405,7 +387,7 @@ public class AnalyticsController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetInventoryAnalyticsQuery();
-        var analytics = await _mediator.Send(query, cancellationToken);
+        var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 
@@ -426,7 +408,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetLowStockProductsQuery(threshold);
-        var products = await _mediator.Send(query, cancellationToken);
+        var products = await mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
@@ -444,7 +426,7 @@ public class AnalyticsController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetStockByWarehouseQuery();
-        var stock = await _mediator.Send(query, cancellationToken);
+        var stock = await mediator.Send(query, cancellationToken);
         return Ok(stock);
     }
 
@@ -467,7 +449,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetMarketingAnalyticsQuery(startDate, endDate);
-        var analytics = await _mediator.Send(query, cancellationToken);
+        var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 
@@ -489,7 +471,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetCouponPerformanceQuery(startDate, endDate);
-        var performance = await _mediator.Send(query, cancellationToken);
+        var performance = await mediator.Send(query, cancellationToken);
         return Ok(performance);
     }
 
@@ -511,7 +493,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetReferralPerformanceQuery(startDate, endDate);
-        var performance = await _mediator.Send(query, cancellationToken);
+        var performance = await mediator.Send(query, cancellationToken);
         return Ok(performance);
     }
 
@@ -534,7 +516,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetFinancialAnalyticsQuery(startDate, endDate);
-        var analytics = await _mediator.Send(query, cancellationToken);
+        var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 
@@ -557,7 +539,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetReviewAnalyticsQuery(startDate, endDate);
-        var analytics = await _mediator.Send(query, cancellationToken);
+        var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 
@@ -579,7 +561,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetRatingDistributionQuery(startDate, endDate);
-        var distribution = await _mediator.Send(query, cancellationToken);
+        var distribution = await mediator.Send(query, cancellationToken);
         return Ok(distribution);
     }
 
@@ -601,7 +583,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetReviewTrendsQuery(startDate, endDate);
-        var trends = await _mediator.Send(query, cancellationToken);
+        var trends = await mediator.Send(query, cancellationToken);
         return Ok(trends);
     }
 
@@ -620,13 +602,13 @@ public class AnalyticsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
-        if (limit > _paginationSettings.MaxPageSize) limit = _paginationSettings.MaxPageSize;
+        if (limit > paginationSettings.Value.MaxPageSize) limit = paginationSettings.Value.MaxPageSize;
         if (limit < 1) limit = 1;
 
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetTopReviewedProductsQuery(limit);
-        var products = await _mediator.Send(query, cancellationToken);
+        var products = await mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
@@ -645,13 +627,13 @@ public class AnalyticsController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
-        if (limit > _paginationSettings.MaxPageSize) limit = _paginationSettings.MaxPageSize;
+        if (limit > paginationSettings.Value.MaxPageSize) limit = paginationSettings.Value.MaxPageSize;
         if (limit < 1) limit = 1;
 
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetTopReviewersQuery(limit);
-        var reviewers = await _mediator.Send(query, cancellationToken);
+        var reviewers = await mediator.Send(query, cancellationToken);
         return Ok(reviewers);
     }
 
@@ -687,7 +669,7 @@ public class AnalyticsController : BaseController
             dto.Filters,
             dto.Format);
 
-        var report = await _mediator.Send(command, cancellationToken);
+        var report = await mediator.Send(command, cancellationToken);
         return Ok(report);
     }
 
@@ -713,7 +695,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetReportQuery(id, userId);
-        var report = await _mediator.Send(query, cancellationToken);
+        var report = await mediator.Send(query, cancellationToken);
 
         if (report == null)
         {
@@ -758,13 +740,13 @@ public class AnalyticsController : BaseController
         }
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetReportsQuery(userId, type, page, pageSize);
-        var reports = await _mediator.Send(query, cancellationToken);
+        var reports = await mediator.Send(query, cancellationToken);
         return Ok(reports);
     }
 
@@ -789,7 +771,7 @@ public class AnalyticsController : BaseController
 
         // ✅ SECURITY: Authorization check - Users can only export their own reports unless Admin
         var reportQuery = new GetReportQuery(id, userId);
-        var report = await _mediator.Send(reportQuery, cancellationToken);
+        var report = await mediator.Send(reportQuery, cancellationToken);
         if (report == null)
         {
             return NotFound();
@@ -803,7 +785,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new ExportReportQuery(id, userId);
-        var data = await _mediator.Send(query, cancellationToken);
+        var data = await mediator.Send(query, cancellationToken);
         
         if (data == null)
         {
@@ -834,7 +816,7 @@ public class AnalyticsController : BaseController
 
         // ✅ SECURITY: Authorization check - Users can only delete their own reports unless Admin
         var reportQuery = new GetReportQuery(id, userId);
-        var report = await _mediator.Send(reportQuery, cancellationToken);
+        var report = await mediator.Send(reportQuery, cancellationToken);
         if (report == null)
         {
             return NotFound();
@@ -848,7 +830,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new DeleteReportCommand(id, userId);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -893,7 +875,7 @@ public class AnalyticsController : BaseController
             dto.Format,
             dto.EmailRecipients);
 
-        var schedule = await _mediator.Send(command, cancellationToken);
+        var schedule = await mediator.Send(command, cancellationToken);
         return Ok(schedule);
     }
 
@@ -918,13 +900,13 @@ public class AnalyticsController : BaseController
         }
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetReportSchedulesQuery(userId, page, pageSize);
-        var schedules = await _mediator.Send(query, cancellationToken);
+        var schedules = await mediator.Send(query, cancellationToken);
         return Ok(schedules);
     }
 
@@ -952,7 +934,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         // ✅ SECURITY: Authorization check handler'da yapılıyor
         var command = new ToggleReportScheduleCommand(id, isActive, userId);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -985,7 +967,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         // ✅ SECURITY: Authorization check handler'da yapılıyor
         var command = new DeleteReportScheduleCommand(id, userId);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -1014,7 +996,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetFinancialReportQuery(startDate, endDate);
-        var report = await _mediator.Send(query, cancellationToken);
+        var report = await mediator.Send(query, cancellationToken);
         return Ok(report);
     }
 
@@ -1037,7 +1019,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetFinancialSummariesQuery(startDate, endDate, period);
-        var summaries = await _mediator.Send(query, cancellationToken);
+        var summaries = await mediator.Send(query, cancellationToken);
         return Ok(summaries);
     }
 
@@ -1059,7 +1041,7 @@ public class AnalyticsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetFinancialMetricsQuery(startDate, endDate);
-        var metrics = await _mediator.Send(query, cancellationToken);
+        var metrics = await mediator.Send(query, cancellationToken);
         return Ok(metrics);
     }
 }

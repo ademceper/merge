@@ -13,35 +13,25 @@ namespace Merge.Application.B2B.Commands.UpdateWholesalePrice;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class UpdateWholesalePriceCommandHandler : IRequestHandler<UpdateWholesalePriceCommand, bool>
+public class UpdateWholesalePriceCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<UpdateWholesalePriceCommandHandler> logger) : IRequestHandler<UpdateWholesalePriceCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<UpdateWholesalePriceCommandHandler> _logger;
-
-    public UpdateWholesalePriceCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<UpdateWholesalePriceCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(UpdateWholesalePriceCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Updating wholesale price. WholesalePriceId: {WholesalePriceId}", request.Id);
+        logger.LogInformation("Updating wholesale price. WholesalePriceId: {WholesalePriceId}", request.Id);
 
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, handler'da tekrar validation gereksiz
 
         // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
-        var price = await _context.Set<WholesalePrice>()
+        var price = await context.Set<WholesalePrice>()
             .FirstOrDefaultAsync(wp => wp.Id == request.Id, cancellationToken);
 
         if (price == null)
         {
-            _logger.LogWarning("Wholesale price not found with Id: {WholesalePriceId}", request.Id);
+            logger.LogWarning("Wholesale price not found with Id: {WholesalePriceId}", request.Id);
             return false;
         }
 
@@ -54,9 +44,9 @@ public class UpdateWholesalePriceCommandHandler : IRequestHandler<UpdateWholesal
         else
             price.Deactivate();
         
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Wholesale price updated successfully. WholesalePriceId: {WholesalePriceId}", request.Id);
+        logger.LogInformation("Wholesale price updated successfully. WholesalePriceId: {WholesalePriceId}", request.Id);
         return true;
     }
 }

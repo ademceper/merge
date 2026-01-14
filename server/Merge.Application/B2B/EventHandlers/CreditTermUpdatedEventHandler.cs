@@ -8,19 +8,14 @@ namespace Merge.Application.B2B.EventHandlers;
 /// Credit Term Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class CreditTermUpdatedEventHandler : INotificationHandler<CreditTermUpdatedEvent>
+public class CreditTermUpdatedEventHandler(
+    ILogger<CreditTermUpdatedEventHandler> logger) : INotificationHandler<CreditTermUpdatedEvent>
 {
-    private readonly ILogger<CreditTermUpdatedEventHandler> _logger;
-
-    public CreditTermUpdatedEventHandler(ILogger<CreditTermUpdatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(CreditTermUpdatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Credit term updated event received. CreditTermId: {CreditTermId}, OrganizationId: {OrganizationId}, Name: {Name}, PaymentDays: {PaymentDays}, CreditLimit: {CreditLimit}",
             notification.CreditTermId, notification.OrganizationId, notification.Name, notification.PaymentDays, notification.CreditLimit);
 

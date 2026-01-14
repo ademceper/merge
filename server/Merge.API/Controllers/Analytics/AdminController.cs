@@ -34,24 +34,13 @@ namespace Merge.API.Controllers.Analytics;
 [ApiController]
 [Route("api/v{version:apiVersion}/admin")]
 [Authorize(Roles = "Admin")]
-public class AdminController : BaseController
+public class AdminController(
+    IMediator mediator,
+    IOptions<PaginationSettings> paginationSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-    private readonly PaginationSettings _paginationSettings;
 
-    public AdminController(
-        IMediator mediator,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _mediator = mediator;
-        _paginationSettings = paginationSettings.Value;
-    }
-
-    /// <summary>
-    /// Dashboard istatistiklerini getirir
-    /// </summary>
     [HttpGet("dashboard/stats")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika (ağır işlem)
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(DashboardStatsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -59,9 +48,8 @@ public class AdminController : BaseController
     public async Task<ActionResult<DashboardStatsDto>> GetDashboardStats(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetDashboardStatsQuery();
-        var stats = await _mediator.Send(query, cancellationToken);
+        var stats = await mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 
@@ -69,7 +57,7 @@ public class AdminController : BaseController
     /// Gelir grafiğini getirir
     /// </summary>
     [HttpGet("dashboard/revenue-chart")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika (ağır işlem)
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(RevenueChartDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -79,10 +67,8 @@ public class AdminController : BaseController
         [FromQuery] int days = 30,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetRevenueChartQuery(days);
-        var chart = await _mediator.Send(query, cancellationToken);
+        var chart = await mediator.Send(query, cancellationToken);
         return Ok(chart);
     }
 
@@ -90,7 +76,7 @@ public class AdminController : BaseController
     /// En çok satan ürünleri getirir
     /// </summary>
     [HttpGet("dashboard/top-products")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(IEnumerable<AdminTopProductDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -100,14 +86,11 @@ public class AdminController : BaseController
         [FromQuery] int count = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
-        if (count > _paginationSettings.MaxPageSize) count = _paginationSettings.MaxPageSize;
+        if (count > paginationSettings.Value.MaxPageSize) count = paginationSettings.Value.MaxPageSize;
         if (count < 1) count = 1;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetAdminTopProductsQuery(count);
-        var topProducts = await _mediator.Send(query, cancellationToken);
+        var topProducts = await mediator.Send(query, cancellationToken);
         return Ok(topProducts);
     }
 
@@ -115,7 +98,7 @@ public class AdminController : BaseController
     /// Envanter özetini getirir
     /// </summary>
     [HttpGet("dashboard/inventory-overview")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika (ağır işlem)
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(InventoryOverviewDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -123,9 +106,8 @@ public class AdminController : BaseController
     public async Task<ActionResult<InventoryOverviewDto>> GetInventoryOverview(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetInventoryOverviewQuery();
-        var overview = await _mediator.Send(query, cancellationToken);
+        var overview = await mediator.Send(query, cancellationToken);
         return Ok(overview);
     }
 
@@ -133,7 +115,7 @@ public class AdminController : BaseController
     /// Son siparişleri getirir
     /// </summary>
     [HttpGet("orders/recent")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(IEnumerable<OrderDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -143,14 +125,11 @@ public class AdminController : BaseController
         [FromQuery] int count = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Max limit kontrolü (config'den)
-        if (count > _paginationSettings.MaxPageSize) count = _paginationSettings.MaxPageSize;
+        if (count > paginationSettings.Value.MaxPageSize) count = paginationSettings.Value.MaxPageSize;
         if (count < 1) count = 1;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetRecentOrdersQuery(count);
-        var orders = await _mediator.Send(query, cancellationToken);
+        var orders = await mediator.Send(query, cancellationToken);
         return Ok(orders);
     }
 
@@ -158,7 +137,7 @@ public class AdminController : BaseController
     /// Düşük stoklu ürünleri getirir
     /// </summary>
     [HttpGet("products/low-stock")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(IEnumerable<ProductDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -168,10 +147,8 @@ public class AdminController : BaseController
         [FromQuery] int threshold = 10,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetAdminLowStockProductsQuery(threshold);
-        var products = await _mediator.Send(query, cancellationToken);
+        var products = await mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
@@ -179,7 +156,7 @@ public class AdminController : BaseController
     /// Bekleyen yorumları getirir (pagination ile)
     /// </summary>
     [HttpGet("reviews/pending")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(PagedResult<ReviewDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -190,14 +167,11 @@ public class AdminController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetPendingReviewsQuery(page, pageSize);
-        var reviews = await _mediator.Send(query, cancellationToken);
+        var reviews = await mediator.Send(query, cancellationToken);
         return Ok(reviews);
     }
 
@@ -205,7 +179,7 @@ public class AdminController : BaseController
     /// Bekleyen iade taleplerini getirir (pagination ile)
     /// </summary>
     [HttpGet("returns/pending")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(PagedResult<ReturnRequestDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -216,14 +190,11 @@ public class AdminController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetPendingReturnsQuery(page, pageSize);
-        var returns = await _mediator.Send(query, cancellationToken);
+        var returns = await mediator.Send(query, cancellationToken);
         return Ok(returns);
     }
 
@@ -231,7 +202,7 @@ public class AdminController : BaseController
     /// Kullanıcıları listeler (pagination ile)
     /// </summary>
     [HttpGet("users")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(PagedResult<UserDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -243,14 +214,11 @@ public class AdminController : BaseController
         [FromQuery] string? role = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetUsersQuery(page, pageSize, role);
-        var users = await _mediator.Send(query, cancellationToken);
+        var users = await mediator.Send(query, cancellationToken);
         return Ok(users);
     }
 
@@ -258,7 +226,7 @@ public class AdminController : BaseController
     /// Kullanıcıyı aktifleştirir
     /// </summary>
     [HttpPost("users/{userId}/activate")]
-    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -268,10 +236,8 @@ public class AdminController : BaseController
         Guid userId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new ActivateUserCommand(userId);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -283,7 +249,7 @@ public class AdminController : BaseController
     /// Kullanıcıyı pasifleştirir
     /// </summary>
     [HttpPost("users/{userId}/deactivate")]
-    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -293,10 +259,8 @@ public class AdminController : BaseController
         Guid userId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new DeactivateUserCommand(userId);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -308,7 +272,7 @@ public class AdminController : BaseController
     /// Kullanıcı rolünü değiştirir
     /// </summary>
     [HttpPost("users/{userId}/change-role")]
-    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika (kritik işlem)
+    [RateLimit(5, 60)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -320,11 +284,8 @@ public class AdminController : BaseController
         [FromBody] ChangeRoleDto roleDto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new ChangeUserRoleCommand(userId, roleDto.Role);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -336,7 +297,7 @@ public class AdminController : BaseController
     /// Kullanıcıyı siler
     /// </summary>
     [HttpDelete("users/{userId}")]
-    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika (kritik işlem)
+    [RateLimit(5, 60)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -346,10 +307,8 @@ public class AdminController : BaseController
         Guid userId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new DeleteUserCommand(userId);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -361,7 +320,7 @@ public class AdminController : BaseController
     /// Analytics özetini getirir
     /// </summary>
     [HttpGet("analytics/summary")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika (ağır işlem)
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(AnalyticsSummaryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -371,10 +330,8 @@ public class AdminController : BaseController
         [FromQuery] int days = 30,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetAnalyticsSummaryQuery(days);
-        var summary = await _mediator.Send(query, cancellationToken);
+        var summary = await mediator.Send(query, cancellationToken);
         return Ok(summary);
     }
 
@@ -382,7 +339,7 @@ public class AdminController : BaseController
     /// 2FA istatistiklerini getirir
     /// </summary>
     [HttpGet("security/2fa-stats")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(TwoFactorStatsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -390,9 +347,8 @@ public class AdminController : BaseController
     public async Task<ActionResult<TwoFactorStatsDto>> Get2FAStats(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new Get2FAStatsQuery();
-        var stats = await _mediator.Send(query, cancellationToken);
+        var stats = await mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 
@@ -400,7 +356,7 @@ public class AdminController : BaseController
     /// Sistem sağlık durumunu getirir
     /// </summary>
     [HttpGet("system/health")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(SystemHealthDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -408,9 +364,8 @@ public class AdminController : BaseController
     public async Task<ActionResult<SystemHealthDto>> GetSystemHealth(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetSystemHealthQuery();
-        var health = await _mediator.Send(query, cancellationToken);
+        var health = await mediator.Send(query, cancellationToken);
         return Ok(health);
     }
 }

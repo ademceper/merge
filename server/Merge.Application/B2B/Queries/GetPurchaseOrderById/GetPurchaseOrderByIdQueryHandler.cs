@@ -17,28 +17,18 @@ namespace Merge.Application.B2B.Queries.GetPurchaseOrderById;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetPurchaseOrderByIdQueryHandler : IRequestHandler<GetPurchaseOrderByIdQuery, PurchaseOrderDto?>
+public class GetPurchaseOrderByIdQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetPurchaseOrderByIdQueryHandler> logger) : IRequestHandler<GetPurchaseOrderByIdQuery, PurchaseOrderDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetPurchaseOrderByIdQueryHandler> _logger;
-
-    public GetPurchaseOrderByIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetPurchaseOrderByIdQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<PurchaseOrderDto?> Handle(GetPurchaseOrderByIdQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: AsSplitQuery to avoid Cartesian Explosion (multiple collection includes)
         // ✅ PERFORMANCE: Removed manual !po.IsDeleted check (Global Query Filter handles it)
-        var po = await _context.Set<PurchaseOrder>()
+        var po = await context.Set<PurchaseOrder>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting - Multiple Include'lar için
             .Include(po => po.Organization)
@@ -51,7 +41,7 @@ public class GetPurchaseOrderByIdQueryHandler : IRequestHandler<GetPurchaseOrder
             .FirstOrDefaultAsync(po => po.Id == request.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        return po != null ? _mapper.Map<PurchaseOrderDto>(po) : null;
+        return po != null ? mapper.Map<PurchaseOrderDto>(po) : null;
     }
 }
 

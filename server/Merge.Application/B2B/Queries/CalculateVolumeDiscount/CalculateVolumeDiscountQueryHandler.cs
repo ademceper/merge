@@ -12,18 +12,10 @@ namespace Merge.Application.B2B.Queries.CalculateVolumeDiscount;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class CalculateVolumeDiscountQueryHandler : IRequestHandler<CalculateVolumeDiscountQuery, decimal>
+public class CalculateVolumeDiscountQueryHandler(
+    IDbContext context,
+    ILogger<CalculateVolumeDiscountQueryHandler> logger) : IRequestHandler<CalculateVolumeDiscountQuery, decimal>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<CalculateVolumeDiscountQueryHandler> _logger;
-
-    public CalculateVolumeDiscountQueryHandler(
-        IDbContext context,
-        ILogger<CalculateVolumeDiscountQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<decimal> Handle(CalculateVolumeDiscountQuery request, CancellationToken cancellationToken)
     {
@@ -32,7 +24,7 @@ public class CalculateVolumeDiscountQueryHandler : IRequestHandler<CalculateVolu
         // First try organization-specific discount
         if (request.OrganizationId.HasValue)
         {
-            var orgDiscount = await _context.Set<VolumeDiscount>()
+            var orgDiscount = await context.Set<VolumeDiscount>()
                 .AsNoTracking()
                 .Where(vd => (vd.ProductId == request.ProductId || vd.CategoryId != null) &&
                            vd.OrganizationId == request.OrganizationId.Value &&
@@ -51,7 +43,7 @@ public class CalculateVolumeDiscountQueryHandler : IRequestHandler<CalculateVolu
         }
 
         // Fall back to general discount
-        var generalDiscount = await _context.Set<VolumeDiscount>()
+        var generalDiscount = await context.Set<VolumeDiscount>()
             .AsNoTracking()
             .Where(vd => (vd.ProductId == request.ProductId || vd.CategoryId != null) &&
                        vd.OrganizationId == null &&

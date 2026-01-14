@@ -16,52 +16,40 @@ namespace Merge.Application.Analytics.Commands.RefreshDashboardMetrics;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class RefreshDashboardMetricsCommandHandler : IRequestHandler<RefreshDashboardMetricsCommand>
+public class RefreshDashboardMetricsCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<RefreshDashboardMetricsCommandHandler> logger,
+    IOptions<AnalyticsSettings> settings) : IRequestHandler<RefreshDashboardMetricsCommand>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<RefreshDashboardMetricsCommandHandler> _logger;
-    private readonly AnalyticsSettings _settings;
-
-    public RefreshDashboardMetricsCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<RefreshDashboardMetricsCommandHandler> logger,
-        IOptions<AnalyticsSettings> settings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-        _settings = settings.Value;
-    }
 
     public async Task Handle(RefreshDashboardMetricsCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Refreshing dashboard metrics");
+        logger.LogInformation("Refreshing dashboard metrics");
         
         var now = DateTime.UtcNow;
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var last30Days = now.AddDays(-_settings.DefaultPeriodDays);
+        var last30Days = now.AddDays(-settings.Value.DefaultPeriodDays);
 
         // Calculate and store metrics
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
-        var totalRevenue = await _context.Set<OrderEntity>()
+        var totalRevenue = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.CreatedAt >= last30Days)
             .SumAsync(o => o.TotalAmount, cancellationToken);
 
         await SaveMetricAsync("total_revenue", "Total Revenue (30d)", "Sales", totalRevenue, last30Days, now, cancellationToken);
 
-        var totalOrders = await _context.Set<OrderEntity>()
+        var totalOrders = await context.Set<OrderEntity>()
             .AsNoTracking()
             .CountAsync(o => o.CreatedAt >= last30Days, cancellationToken);
 
         await SaveMetricAsync("total_orders", "Total Orders (30d)", "Sales", totalOrders, last30Days, now, cancellationToken);
 
         // Add more metrics as needed
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         
-        _logger.LogInformation("Dashboard metrics refreshed successfully");
+        logger.LogInformation("Dashboard metrics refreshed successfully");
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -70,7 +58,7 @@ public class RefreshDashboardMetricsCommandHandler : IRequestHandler<RefreshDash
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var metric = DashboardMetric.Create(key, name, category, value, start, end);
 
-        await _context.Set<DashboardMetric>().AddAsync(metric, cancellationToken);
+        await context.Set<DashboardMetric>().AddAsync(metric, cancellationToken);
     }
 }
 

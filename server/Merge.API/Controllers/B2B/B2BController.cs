@@ -47,18 +47,10 @@ namespace Merge.API.Controllers.B2B;
 [ApiController]
 [Route("api/v{version:apiVersion}/b2b")]
 [Authorize]
-public class B2BController : BaseController
+public class B2BController(
+    IMediator mediator,
+    IOptions<PaginationSettings> paginationSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-    private readonly PaginationSettings _paginationSettings;
-
-    public B2BController(
-        IMediator mediator,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _mediator = mediator;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     // B2B Users
     /// <summary>
@@ -87,7 +79,7 @@ public class B2BController : BaseController
             dto.CreditLimit,
             dto.Settings);
         
-        var b2bUser = await _mediator.Send(command, cancellationToken);
+        var b2bUser = await mediator.Send(command, cancellationToken);
         
         // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
@@ -112,7 +104,7 @@ public class B2BController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetB2BUserByIdQuery(id);
-        var b2bUser = await _mediator.Send(query, cancellationToken);
+        var b2bUser = await mediator.Send(query, cancellationToken);
         
         if (b2bUser == null)
         {
@@ -147,7 +139,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var query = new GetB2BUserByUserIdQuery(userId);
-        var b2bUser = await _mediator.Send(query, cancellationToken);
+        var b2bUser = await mediator.Send(query, cancellationToken);
         
         if (b2bUser == null)
         {
@@ -180,11 +172,11 @@ public class B2BController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var query = new GetOrganizationB2BUsersQuery(organizationId, status, page, pageSize);
-        var users = await _mediator.Send(query, cancellationToken);
+        var users = await mediator.Send(query, cancellationToken);
         
         // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
@@ -213,7 +205,7 @@ public class B2BController : BaseController
 
         var userId = GetUserId();
         var b2bUserQuery = new GetB2BUserByIdQuery(id);
-        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
         if (b2bUser == null)
         {
@@ -229,7 +221,7 @@ public class B2BController : BaseController
         }
 
         var command = new UpdateB2BUserCommand(id, dto);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
@@ -254,7 +246,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var approvedBy = GetUserId();
         var command = new ApproveB2BUserCommand(id, approvedBy);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
@@ -281,7 +273,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
 
         var command = new CreateWholesalePriceCommand(dto);
-        var price = await _mediator.Send(command, cancellationToken);
+        var price = await mediator.Send(command, cancellationToken);
         
         // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
@@ -308,11 +300,11 @@ public class B2BController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var query = new GetProductWholesalePricesQuery(productId, organizationId, page, pageSize);
-        var prices = await _mediator.Send(query, cancellationToken);
+        var prices = await mediator.Send(query, cancellationToken);
         
         // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
@@ -340,7 +332,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel validation gereksiz
         var query = new GetWholesalePriceQuery(productId, quantity, organizationId);
-        var price = await _mediator.Send(query, cancellationToken);
+        var price = await mediator.Send(query, cancellationToken);
         
         var response = new WholesalePriceResponseDto
         {
@@ -377,7 +369,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new UpdateWholesalePriceCommand(id, dto);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
@@ -401,7 +393,7 @@ public class B2BController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteWholesalePriceCommand(id);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
@@ -428,7 +420,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
 
         var command = new CreateCreditTermCommand(dto);
-        var creditTerm = await _mediator.Send(command, cancellationToken);
+        var creditTerm = await mediator.Send(command, cancellationToken);
         
         // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
@@ -456,12 +448,12 @@ public class B2BController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var userId = GetUserId();
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
-        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
         // ✅ SECURITY: Authorization check - Users can only view credit terms for their own organization or must be Admin/Manager
         if (b2bUser == null || (b2bUser.OrganizationId != organizationId && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
@@ -470,7 +462,7 @@ public class B2BController : BaseController
         }
 
         var query = new GetOrganizationCreditTermsQuery(organizationId, isActive, page, pageSize);
-        var creditTerms = await _mediator.Send(query, cancellationToken);
+        var creditTerms = await mediator.Send(query, cancellationToken);
         
         // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
@@ -493,7 +485,7 @@ public class B2BController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetCreditTermByIdQuery(id);
-        var creditTerm = await _mediator.Send(query, cancellationToken);
+        var creditTerm = await mediator.Send(query, cancellationToken);
         
         if (creditTerm == null)
         {
@@ -502,7 +494,7 @@ public class B2BController : BaseController
 
         var userId = GetUserId();
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
-        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
         // ✅ SECURITY: Authorization check - Users can only view credit terms for their own organization or must be Admin/Manager
         if (b2bUser == null || (creditTerm.OrganizationId != b2bUser.OrganizationId && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
@@ -537,7 +529,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new UpdateCreditTermCommand(id, dto);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
@@ -561,7 +553,7 @@ public class B2BController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteCreditTermCommand(id);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
@@ -587,7 +579,7 @@ public class B2BController : BaseController
 
         var userId = GetUserId();
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
-        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
         if (b2bUser == null)
         {
@@ -595,7 +587,7 @@ public class B2BController : BaseController
         }
 
         var command = new CreatePurchaseOrderCommand(b2bUser.Id, dto);
-        var po = await _mediator.Send(command, cancellationToken);
+        var po = await mediator.Send(command, cancellationToken);
         
         // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
@@ -619,7 +611,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var poQuery = new GetPurchaseOrderByIdQuery(id);
-        var po = await _mediator.Send(poQuery, cancellationToken);
+        var po = await mediator.Send(poQuery, cancellationToken);
         
         if (po == null)
         {
@@ -628,7 +620,7 @@ public class B2BController : BaseController
 
         // ✅ SECURITY: Authorization check - Users can only view their own purchase orders or must be Admin/Manager
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
-        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
         if (b2bUser == null || (po.B2BUserId != b2bUser.Id && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
         {
@@ -657,7 +649,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var poQuery = new GetPurchaseOrderByPONumberQuery(poNumber);
-        var po = await _mediator.Send(poQuery, cancellationToken);
+        var po = await mediator.Send(poQuery, cancellationToken);
         
         if (po == null)
         {
@@ -666,7 +658,7 @@ public class B2BController : BaseController
 
         // ✅ SECURITY: Authorization check - Users can only view their own purchase orders or must be Admin/Manager
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
-        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
         if (b2bUser == null || (po.B2BUserId != b2bUser.Id && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
         {
@@ -700,11 +692,11 @@ public class B2BController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var query = new GetOrganizationPurchaseOrdersQuery(organizationId, status, page, pageSize);
-        var pos = await _mediator.Send(query, cancellationToken);
+        var pos = await mediator.Send(query, cancellationToken);
         
         // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
@@ -732,12 +724,12 @@ public class B2BController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var userId = GetUserId();
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
-        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
         if (b2bUser == null)
         {
@@ -745,7 +737,7 @@ public class B2BController : BaseController
         }
 
         var query = new GetB2BUserPurchaseOrdersQuery(b2bUser.Id, status, page, pageSize);
-        var pos = await _mediator.Send(query, cancellationToken);
+        var pos = await mediator.Send(query, cancellationToken);
         
         // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
@@ -771,7 +763,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var poQuery = new GetPurchaseOrderByIdQuery(id);
-        var po = await _mediator.Send(poQuery, cancellationToken);
+        var po = await mediator.Send(poQuery, cancellationToken);
         
         if (po == null)
         {
@@ -780,7 +772,7 @@ public class B2BController : BaseController
 
         // ✅ SECURITY: Authorization check - Users can only submit their own purchase orders
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
-        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
         if (b2bUser == null || po.B2BUserId != b2bUser.Id)
         {
@@ -788,7 +780,7 @@ public class B2BController : BaseController
         }
 
         var command = new SubmitPurchaseOrderCommand(id);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
@@ -813,7 +805,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var approvedBy = GetUserId();
         var command = new ApprovePurchaseOrderCommand(id, approvedBy);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
@@ -839,7 +831,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
 
         var command = new RejectPurchaseOrderCommand(id, dto.Reason);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
@@ -864,7 +856,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var poQuery = new GetPurchaseOrderByIdQuery(id);
-        var po = await _mediator.Send(poQuery, cancellationToken);
+        var po = await mediator.Send(poQuery, cancellationToken);
         
         if (po == null)
         {
@@ -873,7 +865,7 @@ public class B2BController : BaseController
 
         // ✅ SECURITY: Authorization check - Users can only cancel their own purchase orders
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
-        var b2bUser = await _mediator.Send(b2bUserQuery, cancellationToken);
+        var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
         if (b2bUser == null || po.B2BUserId != b2bUser.Id)
         {
@@ -881,7 +873,7 @@ public class B2BController : BaseController
         }
 
         var command = new CancelPurchaseOrderCommand(id);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
@@ -908,7 +900,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
 
         var command = new CreateVolumeDiscountCommand(dto);
-        var discount = await _mediator.Send(command, cancellationToken);
+        var discount = await mediator.Send(command, cancellationToken);
         
         // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
@@ -936,11 +928,11 @@ public class B2BController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var query = new GetVolumeDiscountsQuery(productId, categoryId, organizationId, page, pageSize);
-        var discounts = await _mediator.Send(query, cancellationToken);
+        var discounts = await mediator.Send(query, cancellationToken);
         
         // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU) - Pagination links
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
@@ -970,7 +962,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new UpdateVolumeDiscountCommand(id, dto);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
@@ -994,7 +986,7 @@ public class B2BController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteVolumeDiscountCommand(id);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
@@ -1018,7 +1010,7 @@ public class B2BController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteB2BUserCommand(id);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {
@@ -1045,7 +1037,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new CalculateVolumeDiscountQuery(productId, quantity, organizationId);
-        var discount = await _mediator.Send(query, cancellationToken);
+        var discount = await mediator.Send(query, cancellationToken);
         
         // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
@@ -1074,7 +1066,7 @@ public class B2BController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new UpdateCreditUsageCommand(id, dto.Amount);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
         {

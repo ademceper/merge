@@ -24,40 +24,26 @@ namespace Merge.Application.B2B.Commands.CreatePurchaseOrder;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseOrderCommand, PurchaseOrderDto>
+public class CreatePurchaseOrderCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<CreatePurchaseOrderCommandHandler> logger,
+    IOptions<B2BSettings> b2bSettings) : IRequestHandler<CreatePurchaseOrderCommand, PurchaseOrderDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreatePurchaseOrderCommandHandler> _logger;
-    private readonly B2BSettings _b2bSettings;
-
-    public CreatePurchaseOrderCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreatePurchaseOrderCommandHandler> logger,
-        IOptions<B2BSettings> b2bSettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _b2bSettings = b2bSettings.Value;
-    }
 
     public async Task<PurchaseOrderDto> Handle(CreatePurchaseOrderCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Creating purchase order. B2BUserId: {B2BUserId}, OrganizationId: {OrganizationId}",
+        logger.LogInformation("Creating purchase order. B2BUserId: {B2BUserId}, OrganizationId: {OrganizationId}",
             request.B2BUserId, request.Dto.OrganizationId);
 
         // ✅ ARCHITECTURE: Transaction başlat - atomic operation (PurchaseOrder + Items + Updates)
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
             // ✅ FIX: Use FirstOrDefaultAsync without manual IsDeleted check (Global Query Filter handles it)
-            var b2bUser = await _context.Set<B2BUser>()
+            var b2bUser = await context.Set<B2BUser>()
                 .Include(b => b.Organization)
                 .FirstOrDefaultAsync(b => b.Id == request.B2BUserId && b.IsApproved, cancellationToken);
 
@@ -82,12 +68,12 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                 purchaseOrder.UpdateNotes(request.Dto.Notes);
             }
 
-            await _context.Set<PurchaseOrder>().AddAsync(purchaseOrder, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await context.Set<PurchaseOrder>().AddAsync(purchaseOrder, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             // ✅ PERFORMANCE: Batch load all products at once (N+1 query fix)
             var productIds = request.Dto.Items.Select(i => i.ProductId).Distinct().ToList();
-            var products = await _context.Set<ProductEntity>()
+            var products = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .Where(p => productIds.Contains(p.Id))
                 .ToDictionaryAsync(p => p.Id, cancellationToken);
@@ -103,7 +89,7 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
 
             // ✅ PERFORMANCE: Batch load all wholesale prices at once (N+1 query fix)
             var now = DateTime.UtcNow;
-            var wholesalePricesQuery = _context.Set<WholesalePrice>()
+            var wholesalePricesQuery = context.Set<WholesalePrice>()
                 .AsNoTracking()
                 .Where(wp => productIds.Contains(wp.ProductId) &&
                            wp.IsActive &&
@@ -123,7 +109,7 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
             var wholesalePrices = await wholesalePricesQuery.ToListAsync(cancellationToken);
 
             // ✅ PERFORMANCE: Batch load all volume discounts at once (N+1 query fix)
-            var volumeDiscountsQuery = _context.Set<VolumeDiscount>()
+            var volumeDiscountsQuery = context.Set<VolumeDiscount>()
                 .AsNoTracking()
                 .Where(vd => (productIds.Contains(vd.ProductId) || vd.CategoryId != null) &&
                            vd.IsActive &&
@@ -219,15 +205,15 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
             // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullan
             // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
             var subTotal = purchaseOrder.SubTotal;
-            var taxAmount = new Merge.Domain.ValueObjects.Money(subTotal * _b2bSettings.DefaultTaxRate);
+            var taxAmount = new Merge.Domain.ValueObjects.Money(subTotal * b2bSettings.Value.DefaultTaxRate);
             purchaseOrder.SetTax(taxAmount);
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             // ✅ ARCHITECTURE: Reload with Include for AutoMapper
             // ✅ PERFORMANCE: AsSplitQuery to avoid Cartesian Explosion (multiple collection includes)
-            purchaseOrder = await _context.Set<PurchaseOrder>()
+            purchaseOrder = await context.Set<PurchaseOrder>()
                 .AsNoTracking()
                 .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting - Multiple Include'lar için
                 .Include(po => po.Organization)
@@ -239,20 +225,20 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                     .ThenInclude(i => i.Product)
                 .FirstOrDefaultAsync(po => po.Id == purchaseOrder.Id, cancellationToken);
 
-            _logger.LogInformation("Purchase order created successfully. PurchaseOrderId: {PurchaseOrderId}, PONumber: {PONumber}",
+            logger.LogInformation("Purchase order created successfully. PurchaseOrderId: {PurchaseOrderId}, PONumber: {PONumber}",
                 purchaseOrder!.Id, purchaseOrder.PONumber);
 
             // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-            return _mapper.Map<PurchaseOrderDto>(purchaseOrder);
+            return mapper.Map<PurchaseOrderDto>(purchaseOrder);
         }
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "PurchaseOrder olusturma hatasi. B2BUserId: {B2BUserId}, OrganizationId: {OrganizationId}",
                 request.B2BUserId, request.Dto.OrganizationId);
             // ✅ ARCHITECTURE: Hata olursa ROLLBACK - hiçbir şey yazılmaz
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }
@@ -261,7 +247,7 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         var date = DateTime.UtcNow.ToString("yyyyMMdd");
-        var existingCount = await _context.Set<PurchaseOrder>()
+        var existingCount = await context.Set<PurchaseOrder>()
             .AsNoTracking()
             .CountAsync(po => po.PONumber.StartsWith($"PO-{date}"), cancellationToken);
 

@@ -18,38 +18,26 @@ namespace Merge.Application.B2B.Queries.GetOrganizationB2BUsers;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetOrganizationB2BUsersQueryHandler : IRequestHandler<GetOrganizationB2BUsersQuery, PagedResult<B2BUserDto>>
+public class GetOrganizationB2BUsersQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetOrganizationB2BUsersQueryHandler> logger,
+    IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetOrganizationB2BUsersQuery, PagedResult<B2BUserDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetOrganizationB2BUsersQueryHandler> _logger;
-    private readonly PaginationSettings _paginationSettings;
-
-    public GetOrganizationB2BUsersQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetOrganizationB2BUsersQueryHandler> logger,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     public async Task<PagedResult<B2BUserDto>> Handle(GetOrganizationB2BUsersQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Retrieving B2B users for OrganizationId: {OrganizationId}, Status: {Status}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Retrieving B2B users for OrganizationId: {OrganizationId}, Status: {Status}, Page: {Page}, PageSize: {PageSize}",
             request.OrganizationId, request.Status, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize ? _paginationSettings.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: AsSplitQuery to avoid Cartesian Explosion (multiple Include'lar)
         // ✅ PERFORMANCE: Removed manual !b.IsDeleted check (Global Query Filter handles it)
-        var query = _context.Set<B2BUser>()
+        var query = context.Set<B2BUser>()
             .AsNoTracking()
             .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting - Multiple Include'lar için
             .Include(b => b.User)
@@ -75,7 +63,7 @@ public class GetOrganizationB2BUsersQueryHandler : IRequestHandler<GetOrganizati
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        var items = _mapper.Map<List<B2BUserDto>>(b2bUsers);
+        var items = mapper.Map<List<B2BUserDto>>(b2bUsers);
 
         // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
         return new PagedResult<B2BUserDto>

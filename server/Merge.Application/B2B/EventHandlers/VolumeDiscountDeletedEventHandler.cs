@@ -8,19 +8,14 @@ namespace Merge.Application.B2B.EventHandlers;
 /// Volume Discount Deleted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class VolumeDiscountDeletedEventHandler : INotificationHandler<VolumeDiscountDeletedEvent>
+public class VolumeDiscountDeletedEventHandler(
+    ILogger<VolumeDiscountDeletedEventHandler> logger) : INotificationHandler<VolumeDiscountDeletedEvent>
 {
-    private readonly ILogger<VolumeDiscountDeletedEventHandler> _logger;
-
-    public VolumeDiscountDeletedEventHandler(ILogger<VolumeDiscountDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(VolumeDiscountDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Volume discount deleted event received. VolumeDiscountId: {VolumeDiscountId}, ProductId: {ProductId}, CategoryId: {CategoryId}, OrganizationId: {OrganizationId}",
             notification.VolumeDiscountId, notification.ProductId, notification.CategoryId, notification.OrganizationId);
 
