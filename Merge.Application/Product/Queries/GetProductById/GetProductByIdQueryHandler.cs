@@ -1,9 +1,11 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using AutoMapper;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
@@ -20,19 +22,21 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, P
     private readonly IMapper _mapper;
     private readonly ILogger<GetProductByIdQueryHandler> _logger;
     private readonly ICacheService _cache;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_PRODUCT_BY_ID = "product_";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(15); // Products change more frequently
 
     public GetProductByIdQueryHandler(
         IDbContext context,
         IMapper mapper,
         ILogger<GetProductByIdQueryHandler> logger,
-        ICacheService cache)
+        ICacheService cache,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<ProductDto?> Handle(GetProductByIdQuery request, CancellationToken cancellationToken)
@@ -66,8 +70,10 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, P
 
         var productDto = _mapper.Map<ProductDto>(product);
         
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
         // Cache the result
-        await _cache.SetAsync(cacheKey, productDto, CACHE_EXPIRATION, cancellationToken);
+        var cacheExpiration = TimeSpan.FromMinutes(_cacheSettings.ProductCacheExpirationMinutes);
+        await _cache.SetAsync(cacheKey, productDto, cacheExpiration, cancellationToken);
 
         return productDto;
     }

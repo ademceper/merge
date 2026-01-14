@@ -24,21 +24,23 @@ public class SearchProductsQueryHandler : IRequestHandler<SearchProductsQuery, P
     private readonly ILogger<SearchProductsQueryHandler> _logger;
     private readonly ICacheService _cache;
     private readonly PaginationSettings _paginationSettings;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_PRODUCTS_SEARCH = "products_search_";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(5); // Search results can be dynamic
 
     public SearchProductsQueryHandler(
         IDbContext context,
         IMapper mapper,
         ILogger<SearchProductsQueryHandler> logger,
         ICacheService cache,
-        IOptions<PaginationSettings> paginationSettings)
+        IOptions<PaginationSettings> paginationSettings,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
         _paginationSettings = paginationSettings.Value;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<PagedResult<ProductDto>> Handle(SearchProductsQuery request, CancellationToken cancellationToken)
@@ -98,7 +100,7 @@ public class SearchProductsQueryHandler : IRequestHandler<SearchProductsQuery, P
                     PageSize = pageSize
                 };
             },
-            CACHE_EXPIRATION,
+            TimeSpan.FromMinutes(_cacheSettings.ProductSearchCacheExpirationMinutes),
             cancellationToken);
 
         return cachedResult!;

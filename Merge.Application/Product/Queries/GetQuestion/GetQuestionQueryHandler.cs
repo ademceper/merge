@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
@@ -21,19 +23,21 @@ public class GetQuestionQueryHandler : IRequestHandler<GetQuestionQuery, Product
     private readonly AutoMapper.IMapper _mapper;
     private readonly ILogger<GetQuestionQueryHandler> _logger;
     private readonly ICacheService _cache;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_QUESTION_BY_ID = "question_";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(15); // Questions change more frequently
 
     public GetQuestionQueryHandler(
         IDbContext context,
         AutoMapper.IMapper mapper,
         ILogger<GetQuestionQueryHandler> logger,
-        ICacheService cache)
+        ICacheService cache,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<ProductQuestionDto?> Handle(GetQuestionQuery request, CancellationToken cancellationToken)
@@ -78,9 +82,10 @@ public class GetQuestionQueryHandler : IRequestHandler<GetQuestionQuery, Product
         questionDto = questionDto with { HasUserVoted = hasUserVoted };
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz (sadece UserId yoksa)
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
         if (!request.UserId.HasValue)
         {
-            await _cache.SetAsync(cacheKey, questionDto, CACHE_EXPIRATION, cancellationToken);
+            await _cache.SetAsync(cacheKey, questionDto, TimeSpan.FromMinutes(_cacheSettings.QuestionCacheExpirationMinutes), cancellationToken);
         }
 
         _logger.LogInformation("Question retrieved successfully. QuestionId: {QuestionId}", request.QuestionId);

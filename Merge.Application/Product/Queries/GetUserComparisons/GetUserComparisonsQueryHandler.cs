@@ -26,21 +26,23 @@ public class GetUserComparisonsQueryHandler : IRequestHandler<GetUserComparisons
     private readonly ILogger<GetUserComparisonsQueryHandler> _logger;
     private readonly ICacheService _cache;
     private readonly PaginationSettings _paginationSettings;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_USER_COMPARISONS = "user_comparisons_";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(10); // User comparisons can change frequently
 
     public GetUserComparisonsQueryHandler(
         IDbContext context,
         AutoMapper.IMapper mapper,
         ILogger<GetUserComparisonsQueryHandler> logger,
         ICacheService cache,
-        IOptions<PaginationSettings> paginationSettings)
+        IOptions<PaginationSettings> paginationSettings,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
         _paginationSettings = paginationSettings.Value;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<PagedResult<ProductComparisonDto>> Handle(GetUserComparisonsQuery request, CancellationToken cancellationToken)
@@ -98,7 +100,7 @@ public class GetUserComparisonsQueryHandler : IRequestHandler<GetUserComparisons
                     PageSize = pageSize
                 };
             },
-            CACHE_EXPIRATION,
+            TimeSpan.FromMinutes(_cacheSettings.ProductComparisonCacheExpirationMinutes),
             cancellationToken);
 
         return cachedResult!;

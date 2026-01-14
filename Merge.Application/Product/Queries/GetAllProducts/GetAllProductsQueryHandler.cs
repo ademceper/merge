@@ -24,21 +24,23 @@ public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, P
     private readonly ILogger<GetAllProductsQueryHandler> _logger;
     private readonly ICacheService _cache;
     private readonly PaginationSettings _paginationSettings;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_ALL_PRODUCTS_PAGED = "products_all_paged";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(15); // Products change more frequently than categories
 
     public GetAllProductsQueryHandler(
         IDbContext context,
         IMapper mapper,
         ILogger<GetAllProductsQueryHandler> logger,
         ICacheService cache,
-        IOptions<PaginationSettings> paginationSettings)
+        IOptions<PaginationSettings> paginationSettings,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
         _paginationSettings = paginationSettings.Value;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<PagedResult<ProductDto>> Handle(GetAllProductsQuery request, CancellationToken cancellationToken)
@@ -86,7 +88,7 @@ public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, P
                     PageSize = pageSize
                 };
             },
-            CACHE_EXPIRATION,
+            TimeSpan.FromMinutes(_cacheSettings.ProductCacheExpirationMinutes),
             cancellationToken);
 
         return cachedResult!;

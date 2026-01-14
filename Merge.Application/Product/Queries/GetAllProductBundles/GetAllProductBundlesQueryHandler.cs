@@ -1,9 +1,11 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using AutoMapper;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
@@ -20,20 +22,22 @@ public class GetAllProductBundlesQueryHandler : IRequestHandler<GetAllProductBun
     private readonly IMapper _mapper;
     private readonly ILogger<GetAllProductBundlesQueryHandler> _logger;
     private readonly ICacheService _cache;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_ALL_BUNDLES = "bundles_all";
     private const string CACHE_KEY_ACTIVE_BUNDLES = "bundles_active";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(15);
 
     public GetAllProductBundlesQueryHandler(
         IDbContext context,
         IMapper mapper,
         ILogger<GetAllProductBundlesQueryHandler> logger,
-        ICacheService cache)
+        ICacheService cache,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<IEnumerable<ProductBundleDto>> Handle(GetAllProductBundlesQuery request, CancellationToken cancellationToken)
@@ -70,7 +74,8 @@ public class GetAllProductBundlesQueryHandler : IRequestHandler<GetAllProductBun
         var bundleDtos = _mapper.Map<IEnumerable<ProductBundleDto>>(bundles).ToList();
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        await _cache.SetAsync(cacheKey, bundleDtos, CACHE_EXPIRATION, cancellationToken);
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
+        await _cache.SetAsync(cacheKey, bundleDtos, TimeSpan.FromMinutes(_cacheSettings.ProductBundleCacheExpirationMinutes), cancellationToken);
 
         _logger.LogInformation("Retrieved all product bundles. Count: {Count}, ActiveOnly: {ActiveOnly}",
             bundles.Count, request.ActiveOnly);

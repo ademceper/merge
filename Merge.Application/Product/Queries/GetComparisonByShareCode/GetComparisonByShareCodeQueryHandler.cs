@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using ReviewEntity = Merge.Domain.Modules.Catalog.Review;
 using Merge.Domain.Interfaces;
@@ -20,19 +22,21 @@ public class GetComparisonByShareCodeQueryHandler : IRequestHandler<GetCompariso
     private readonly AutoMapper.IMapper _mapper;
     private readonly ILogger<GetComparisonByShareCodeQueryHandler> _logger;
     private readonly ICacheService _cache;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_COMPARISON_BY_SHARE_CODE = "comparison_by_share_code_";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(10); // Shared comparisons can change
 
     public GetComparisonByShareCodeQueryHandler(
         IDbContext context,
         AutoMapper.IMapper mapper,
         ILogger<GetComparisonByShareCodeQueryHandler> logger,
-        ICacheService cache)
+        ICacheService cache,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<ProductComparisonDto?> Handle(GetComparisonByShareCodeQuery request, CancellationToken cancellationToken)
@@ -63,7 +67,7 @@ public class GetComparisonByShareCodeQueryHandler : IRequestHandler<GetCompariso
 
                 return await MapToDto(comparison, cancellationToken);
             },
-            CACHE_EXPIRATION,
+            TimeSpan.FromMinutes(_cacheSettings.SharedComparisonCacheExpirationMinutes),
             cancellationToken);
 
         return cachedResult;

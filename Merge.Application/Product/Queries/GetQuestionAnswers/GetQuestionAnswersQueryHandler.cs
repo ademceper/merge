@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
@@ -21,19 +23,21 @@ public class GetQuestionAnswersQueryHandler : IRequestHandler<GetQuestionAnswers
     private readonly AutoMapper.IMapper _mapper;
     private readonly ILogger<GetQuestionAnswersQueryHandler> _logger;
     private readonly ICacheService _cache;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_ANSWERS_BY_QUESTION = "answers_by_question_";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(15); // Answers change more frequently
 
     public GetQuestionAnswersQueryHandler(
         IDbContext context,
         AutoMapper.IMapper mapper,
         ILogger<GetQuestionAnswersQueryHandler> logger,
-        ICacheService cache)
+        ICacheService cache,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<IEnumerable<ProductAnswerDto>> Handle(GetQuestionAnswersQuery request, CancellationToken cancellationToken)
@@ -81,9 +85,10 @@ public class GetQuestionAnswersQueryHandler : IRequestHandler<GetQuestionAnswers
         }
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz (sadece UserId yoksa)
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
         if (!request.UserId.HasValue)
         {
-            await _cache.SetAsync(cacheKey, dtos, CACHE_EXPIRATION, cancellationToken);
+            await _cache.SetAsync(cacheKey, dtos, TimeSpan.FromMinutes(_cacheSettings.AnswerCacheExpirationMinutes), cancellationToken);
         }
 
         _logger.LogInformation("Retrieved answers for question. QuestionId: {QuestionId}, Count: {Count}", 

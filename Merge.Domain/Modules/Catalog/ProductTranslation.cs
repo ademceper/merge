@@ -54,6 +54,32 @@ public class ProductTranslation : BaseEntity, IAggregateRoot
         Guard.AgainstDefault(languageId, nameof(languageId));
         Guard.AgainstNullOrEmpty(languageCode, nameof(languageCode));
         Guard.AgainstNullOrEmpty(name, nameof(name));
+        Guard.AgainstLength(name, ValidationConstants.MaxNameLength, nameof(name));
+        
+        if (!string.IsNullOrEmpty(description))
+        {
+            Guard.AgainstLength(description, ValidationConstants.MaxDescriptionLength, nameof(description));
+        }
+        
+        if (!string.IsNullOrEmpty(shortDescription))
+        {
+            Guard.AgainstLength(shortDescription, ValidationConstants.MaxShortDescriptionLength, nameof(shortDescription));
+        }
+        
+        if (!string.IsNullOrEmpty(metaTitle))
+        {
+            Guard.AgainstLength(metaTitle, ValidationConstants.MaxMetaTitleLength, nameof(metaTitle));
+        }
+        
+        if (!string.IsNullOrEmpty(metaDescription))
+        {
+            Guard.AgainstLength(metaDescription, ValidationConstants.MaxMetaDescriptionLength, nameof(metaDescription));
+        }
+        
+        if (!string.IsNullOrEmpty(metaKeywords))
+        {
+            Guard.AgainstLength(metaKeywords, ValidationConstants.MaxMetaKeywordsLength, nameof(metaKeywords));
+        }
 
         var translation = new ProductTranslation
         {
@@ -89,6 +115,32 @@ public class ProductTranslation : BaseEntity, IAggregateRoot
         string metaKeywords = "")
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
+        Guard.AgainstLength(name, ValidationConstants.MaxNameLength, nameof(name));
+        
+        if (!string.IsNullOrEmpty(description))
+        {
+            Guard.AgainstLength(description, ValidationConstants.MaxDescriptionLength, nameof(description));
+        }
+        
+        if (!string.IsNullOrEmpty(shortDescription))
+        {
+            Guard.AgainstLength(shortDescription, ValidationConstants.MaxShortDescriptionLength, nameof(shortDescription));
+        }
+        
+        if (!string.IsNullOrEmpty(metaTitle))
+        {
+            Guard.AgainstLength(metaTitle, ValidationConstants.MaxMetaTitleLength, nameof(metaTitle));
+        }
+        
+        if (!string.IsNullOrEmpty(metaDescription))
+        {
+            Guard.AgainstLength(metaDescription, ValidationConstants.MaxMetaDescriptionLength, nameof(metaDescription));
+        }
+        
+        if (!string.IsNullOrEmpty(metaKeywords))
+        {
+            Guard.AgainstLength(metaKeywords, ValidationConstants.MaxMetaKeywordsLength, nameof(metaKeywords));
+        }
 
         Name = name;
         Description = description;
@@ -121,6 +173,18 @@ public class ProductTranslation : BaseEntity, IAggregateRoot
         AddDomainEvent(new ProductTranslationDeletedEvent(Id, ProductId, LanguageCode));
     }
 
+    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture - Domain katmanı Application'a bağımlı olmamalı)
+    // Not: Application katmanındaki InternationalSettings ile senkronize tutulmalı
+    private static class ValidationConstants
+    {
+        public const int MaxNameLength = 200;
+        public const int MaxDescriptionLength = 5000;
+        public const int MaxShortDescriptionLength = 500;
+        public const int MaxMetaTitleLength = 200;
+        public const int MaxMetaDescriptionLength = 500;
+        public const int MaxMetaKeywordsLength = 200;
+    }
+
     // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
@@ -136,15 +200,13 @@ public class ProductTranslation : BaseEntity, IAggregateRoot
         if (string.IsNullOrWhiteSpace(Name))
             throw new DomainException("Çeviri adı boş olamaz");
 
-        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma - Entity'lerde sabit değerler kullanılıyor (Clean Architecture)
-        // Configuration değerleri: MaxProductTranslationNameLength=200, MaxProductTranslationDescriptionLength=5000, MaxProductTranslationShortDescriptionLength=500
-        // MaxProductTranslationMetaTitleLength=200, MaxProductTranslationMetaDescriptionLength=500, MaxProductTranslationMetaKeywordsLength=200
-        Guard.AgainstLength(Name, 200, nameof(Name));
-        Guard.AgainstLength(Description, 5000, nameof(Description));
-        Guard.AgainstLength(ShortDescription, 500, nameof(ShortDescription));
-        Guard.AgainstLength(MetaTitle, 200, nameof(MetaTitle));
-        Guard.AgainstLength(MetaDescription, 500, nameof(MetaDescription));
-        Guard.AgainstLength(MetaKeywords, 200, nameof(MetaKeywords));
+        // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
+        Guard.AgainstLength(Name, ValidationConstants.MaxNameLength, nameof(Name));
+        Guard.AgainstLength(Description, ValidationConstants.MaxDescriptionLength, nameof(Description));
+        Guard.AgainstLength(ShortDescription, ValidationConstants.MaxShortDescriptionLength, nameof(ShortDescription));
+        Guard.AgainstLength(MetaTitle, ValidationConstants.MaxMetaTitleLength, nameof(MetaTitle));
+        Guard.AgainstLength(MetaDescription, ValidationConstants.MaxMetaDescriptionLength, nameof(MetaDescription));
+        Guard.AgainstLength(MetaKeywords, ValidationConstants.MaxMetaKeywordsLength, nameof(MetaKeywords));
     }
 }
 

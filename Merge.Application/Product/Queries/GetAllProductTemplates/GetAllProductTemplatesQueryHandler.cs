@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
@@ -19,21 +21,23 @@ public class GetAllProductTemplatesQueryHandler : IRequestHandler<GetAllProductT
     private readonly AutoMapper.IMapper _mapper;
     private readonly ILogger<GetAllProductTemplatesQueryHandler> _logger;
     private readonly ICacheService _cache;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_ALL_TEMPLATES = "product_templates_all";
     private const string CACHE_KEY_TEMPLATES_BY_CATEGORY = "product_templates_by_category_";
     private const string CACHE_KEY_TEMPLATES_ACTIVE = "product_templates_active";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(30); // Templates change less frequently
 
     public GetAllProductTemplatesQueryHandler(
         IDbContext context,
         AutoMapper.IMapper mapper,
         ILogger<GetAllProductTemplatesQueryHandler> logger,
-        ICacheService cache)
+        ICacheService cache,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<IEnumerable<ProductTemplateDto>> Handle(GetAllProductTemplatesQuery request, CancellationToken cancellationToken)
@@ -89,7 +93,8 @@ public class GetAllProductTemplatesQueryHandler : IRequestHandler<GetAllProductT
         var templateDtos = _mapper.Map<IEnumerable<ProductTemplateDto>>(templates).ToList();
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        await _cache.SetAsync(cacheKey, templateDtos, CACHE_EXPIRATION, cancellationToken);
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
+        await _cache.SetAsync(cacheKey, templateDtos, TimeSpan.FromMinutes(_cacheSettings.ProductTemplateCacheExpirationMinutes), cancellationToken);
 
         _logger.LogInformation("Retrieved all product templates. Count: {Count}, CategoryId: {CategoryId}, IsActive: {IsActive}",
             templates.Count, request.CategoryId, request.IsActive);

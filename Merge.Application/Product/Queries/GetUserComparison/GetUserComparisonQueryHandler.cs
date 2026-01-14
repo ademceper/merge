@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using ReviewEntity = Merge.Domain.Modules.Catalog.Review;
 using Merge.Domain.Interfaces;
@@ -21,21 +23,23 @@ public class GetUserComparisonQueryHandler : IRequestHandler<GetUserComparisonQu
     private readonly AutoMapper.IMapper _mapper;
     private readonly ILogger<GetUserComparisonQueryHandler> _logger;
     private readonly ICacheService _cache;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_USER_COMPARISON = "user_comparison_";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(5); // Current comparison can change frequently
 
     public GetUserComparisonQueryHandler(
         IDbContext context,
         IUnitOfWork unitOfWork,
         AutoMapper.IMapper mapper,
         ILogger<GetUserComparisonQueryHandler> logger,
-        ICacheService cache)
+        ICacheService cache,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<ProductComparisonDto> Handle(GetUserComparisonQuery request, CancellationToken cancellationToken)
@@ -74,7 +78,7 @@ public class GetUserComparisonQueryHandler : IRequestHandler<GetUserComparisonQu
 
                 return await MapToDto(comparison, cancellationToken);
             },
-            CACHE_EXPIRATION,
+            TimeSpan.FromMinutes(_cacheSettings.UserComparisonCacheExpirationMinutes),
             cancellationToken);
 
         return cachedResult!;

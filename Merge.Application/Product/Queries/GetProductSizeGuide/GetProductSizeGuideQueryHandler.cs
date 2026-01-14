@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
@@ -19,19 +21,21 @@ public class GetProductSizeGuideQueryHandler : IRequestHandler<GetProductSizeGui
     private readonly AutoMapper.IMapper _mapper;
     private readonly ILogger<GetProductSizeGuideQueryHandler> _logger;
     private readonly ICacheService _cache;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_PRODUCT_SIZE_GUIDE = "product_size_guide_";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(30); // Size guides change less frequently
 
     public GetProductSizeGuideQueryHandler(
         IDbContext context,
         AutoMapper.IMapper mapper,
         ILogger<GetProductSizeGuideQueryHandler> logger,
-        ICacheService cache)
+        ICacheService cache,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<ProductSizeGuideDto?> Handle(GetProductSizeGuideQuery request, CancellationToken cancellationToken)
@@ -76,7 +80,8 @@ public class GetProductSizeGuideQueryHandler : IRequestHandler<GetProductSizeGui
         );
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        await _cache.SetAsync(cacheKey, productSizeGuideDto, CACHE_EXPIRATION, cancellationToken);
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
+        await _cache.SetAsync(cacheKey, productSizeGuideDto, TimeSpan.FromMinutes(_cacheSettings.ProductSizeGuideCacheExpirationMinutes), cancellationToken);
 
         _logger.LogInformation("Product size guide retrieved successfully. ProductId: {ProductId}", request.ProductId);
 

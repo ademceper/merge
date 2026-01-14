@@ -159,11 +159,14 @@ public class Product : BaseEntity, IAggregateRoot
         Guid? storeId = null)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
+        Guard.AgainstOutOfRange(name.Length, ValidationConstants.MinNameLength, ValidationConstants.MaxNameLength, nameof(name));
         Guard.AgainstNullOrEmpty(description, nameof(description));
+        Guard.AgainstLength(description, ValidationConstants.MaxDescriptionLength, nameof(description));
         Guard.AgainstNull(sku, nameof(sku));
         Guard.AgainstNull(price, nameof(price));
         Guard.AgainstDefault(categoryId, nameof(categoryId));
         Guard.AgainstNullOrEmpty(brand, nameof(brand));
+        Guard.AgainstLength(brand, ValidationConstants.MaxBrandLength, nameof(brand));
 
         var product = new Product
         {
@@ -360,6 +363,7 @@ public class Product : BaseEntity, IAggregateRoot
     public void UpdateName(string newName)
     {
         Guard.AgainstNullOrEmpty(newName, nameof(newName));
+        Guard.AgainstOutOfRange(newName.Length, ValidationConstants.MinNameLength, ValidationConstants.MaxNameLength, nameof(newName));
         Name = newName;
         UpdatedAt = DateTime.UtcNow;
         
@@ -374,6 +378,7 @@ public class Product : BaseEntity, IAggregateRoot
     public void UpdateDescription(string newDescription)
     {
         Guard.AgainstNullOrEmpty(newDescription, nameof(newDescription));
+        Guard.AgainstLength(newDescription, ValidationConstants.MaxDescriptionLength, nameof(newDescription));
         Description = newDescription;
         UpdatedAt = DateTime.UtcNow;
         
@@ -402,6 +407,7 @@ public class Product : BaseEntity, IAggregateRoot
     public void UpdateBrand(string newBrand)
     {
         Guard.AgainstNullOrEmpty(newBrand, nameof(newBrand));
+        Guard.AgainstLength(newBrand, ValidationConstants.MaxBrandLength, nameof(newBrand));
         Brand = newBrand;
         UpdatedAt = DateTime.UtcNow;
         
@@ -416,7 +422,35 @@ public class Product : BaseEntity, IAggregateRoot
     public void UpdateImages(string imageUrl, List<string> imageUrls)
     {
         Guard.AgainstNullOrEmpty(imageUrl, nameof(imageUrl));
+        Guard.AgainstLength(imageUrl, ValidationConstants.MaxImageUrlLength, nameof(imageUrl));
         Guard.AgainstNull(imageUrls, nameof(imageUrls));
+
+        // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
+        try
+        {
+            var urlValueObject = new Url(imageUrl);
+        }
+        catch (DomainException)
+        {
+            throw new DomainException("Geçersiz görsel URL formatı");
+        }
+
+        if (imageUrls.Count > ValidationConstants.MaxImageUrlsCount)
+            throw new DomainException($"En fazla {ValidationConstants.MaxImageUrlsCount} görsel eklenebilir");
+
+        foreach (var url in imageUrls)
+        {
+            Guard.AgainstLength(url, ValidationConstants.MaxImageUrlLength, nameof(imageUrls));
+            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
+            try
+            {
+                var urlValueObject = new Url(url);
+            }
+            catch (DomainException)
+            {
+                throw new DomainException($"Geçersiz görsel URL formatı: {url}");
+            }
+        }
 
         ImageUrl = imageUrl;
         _imageUrls.Clear();
@@ -434,10 +468,28 @@ public class Product : BaseEntity, IAggregateRoot
     public void AddImageUrl(string imageUrl)
     {
         Guard.AgainstNullOrEmpty(imageUrl, nameof(imageUrl));
+        Guard.AgainstLength(imageUrl, ValidationConstants.MaxImageUrlLength, nameof(imageUrl));
+        
+        // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
+        try
+        {
+            var urlValueObject = new Url(imageUrl);
+        }
+        catch (DomainException)
+        {
+            throw new DomainException("Geçersiz görsel URL formatı");
+        }
+        
         if (_imageUrls.Contains(imageUrl))
         {
             throw new DomainException("Bu görsel URL'i zaten eklenmiş");
         }
+        
+        if (_imageUrls.Count >= ValidationConstants.MaxImageUrlsCount)
+        {
+            throw new DomainException($"En fazla {ValidationConstants.MaxImageUrlsCount} görsel eklenebilir");
+        }
+        
         _imageUrls.Add(imageUrl);
         UpdatedAt = DateTime.UtcNow;
         
@@ -469,6 +521,18 @@ public class Product : BaseEntity, IAggregateRoot
     public void SetImageUrl(string imageUrl)
     {
         Guard.AgainstNullOrEmpty(imageUrl, nameof(imageUrl));
+        Guard.AgainstLength(imageUrl, ValidationConstants.MaxImageUrlLength, nameof(imageUrl));
+        
+        // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
+        try
+        {
+            var urlValueObject = new Url(imageUrl);
+        }
+        catch (DomainException)
+        {
+            throw new DomainException("Geçersiz görsel URL formatı");
+        }
+        
         ImageUrl = imageUrl;
         UpdatedAt = DateTime.UtcNow;
         
@@ -493,9 +557,69 @@ public class Product : BaseEntity, IAggregateRoot
         AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, categoryId));
     }
 
+    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture - Domain katmanı Application'a bağımlı olmamalı)
+    // Not: Application katmanındaki validator'larla senkronize tutulmalı
+    private static class ValidationConstants
+    {
+        public const int MinNameLength = 2;
+        public const int MaxNameLength = 200;
+        public const int MaxDescriptionLength = 5000;
+        public const int MaxBrandLength = 100;
+        public const int MaxImageUrlLength = 2000;
+        public const int MaxImageUrlsCount = 10; // Maksimum görsel sayısı
+    }
+
     // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
+        if (string.IsNullOrWhiteSpace(Name))
+            throw new DomainException("Ürün adı boş olamaz");
+
+        if (Name.Length < ValidationConstants.MinNameLength || Name.Length > ValidationConstants.MaxNameLength)
+            throw new DomainException($"Ürün adı {ValidationConstants.MinNameLength}-{ValidationConstants.MaxNameLength} karakter arasında olmalıdır");
+
+        if (string.IsNullOrWhiteSpace(Description))
+            throw new DomainException("Ürün açıklaması boş olamaz");
+
+        if (Description.Length > ValidationConstants.MaxDescriptionLength)
+            throw new DomainException($"Ürün açıklaması en fazla {ValidationConstants.MaxDescriptionLength} karakter olabilir");
+
+        if (string.IsNullOrWhiteSpace(Brand))
+            throw new DomainException("Marka boş olamaz");
+
+        if (Brand.Length > ValidationConstants.MaxBrandLength)
+            throw new DomainException($"Marka en fazla {ValidationConstants.MaxBrandLength} karakter olabilir");
+
+        if (!string.IsNullOrEmpty(ImageUrl))
+        {
+            Guard.AgainstLength(ImageUrl, ValidationConstants.MaxImageUrlLength, nameof(ImageUrl));
+            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
+            try
+            {
+                var urlValueObject = new Url(ImageUrl);
+            }
+            catch (DomainException)
+            {
+                throw new DomainException("Geçersiz görsel URL formatı");
+            }
+        }
+
+        if (_imageUrls.Count > ValidationConstants.MaxImageUrlsCount)
+            throw new DomainException($"En fazla {ValidationConstants.MaxImageUrlsCount} görsel eklenebilir");
+
+        foreach (var url in _imageUrls)
+        {
+            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
+            try
+            {
+                var urlValueObject = new Url(url);
+            }
+            catch (DomainException)
+            {
+                throw new DomainException($"Geçersiz görsel URL formatı: {url}");
+            }
+        }
+
         if (_price <= 0)
             throw new DomainException("Ürün fiyatı pozitif olmalıdır");
 
@@ -552,6 +676,30 @@ public class Product : BaseEntity, IAggregateRoot
         
         // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        // Review ekleme önemli bir business event'tir (rating hesaplaması için)
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
+    }
+    
+    // ✅ BOLUM 1.1: Domain Logic - Remove review (collection manipulation)
+    public void RemoveReview(Guid reviewId)
+    {
+        Guard.AgainstDefault(reviewId, nameof(reviewId));
+        var review = _reviews.FirstOrDefault(r => r.Id == reviewId);
+        if (review == null)
+        {
+            throw new DomainException("Review bulunamadı");
+        }
+        _reviews.Remove(review);
+        UpdatedAt = DateTime.UtcNow;
+        
+        // ✅ BOLUM 1.4: Invariant validation
+        ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        // Review silme önemli bir business event'tir (rating hesaplaması için)
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Add variant (collection manipulation)
@@ -571,6 +719,10 @@ public class Product : BaseEntity, IAggregateRoot
         
         // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        // Variant ekleme önemli bir business event'tir
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Remove variant (collection manipulation)
@@ -587,6 +739,10 @@ public class Product : BaseEntity, IAggregateRoot
         
         // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductUpdatedEvent yayınla (ÖNERİLİR)
+        // Variant silme önemli bir business event'tir
+        AddDomainEvent(new ProductUpdatedEvent(Id, Name, _sku, CategoryId));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted (soft delete)

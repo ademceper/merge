@@ -54,8 +54,8 @@ public class CreateProductCommandValidator : AbstractValidator<CreateProductComm
         RuleFor(x => x.ImageUrl)
             .NotEmpty()
             .WithMessage("Ürün resmi zorunludur.")
-            .MaximumLength(500)
-            .WithMessage("Resim URL'si en fazla 500 karakter olabilir.");
+            .MaximumLength(2000)
+            .WithMessage("Resim URL'si en fazla 2000 karakter olabilir.");
 
         RuleFor(x => x.CategoryId)
             .NotEmpty()

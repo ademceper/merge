@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
@@ -19,19 +21,21 @@ public class GetAllSizeGuidesQueryHandler : IRequestHandler<GetAllSizeGuidesQuer
     private readonly AutoMapper.IMapper _mapper;
     private readonly ILogger<GetAllSizeGuidesQueryHandler> _logger;
     private readonly ICacheService _cache;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_ALL_SIZE_GUIDES = "size_guides_all";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(30); // Size guides change less frequently
 
     public GetAllSizeGuidesQueryHandler(
         IDbContext context,
         AutoMapper.IMapper mapper,
         ILogger<GetAllSizeGuidesQueryHandler> logger,
-        ICacheService cache)
+        ICacheService cache,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<IEnumerable<SizeGuideDto>> Handle(GetAllSizeGuidesQuery request, CancellationToken cancellationToken)
@@ -59,7 +63,8 @@ public class GetAllSizeGuidesQueryHandler : IRequestHandler<GetAllSizeGuidesQuer
         var sizeGuideDtos = _mapper.Map<IEnumerable<SizeGuideDto>>(sizeGuides).ToList();
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        await _cache.SetAsync(CACHE_KEY_ALL_SIZE_GUIDES, sizeGuideDtos, CACHE_EXPIRATION, cancellationToken);
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
+        await _cache.SetAsync(CACHE_KEY_ALL_SIZE_GUIDES, sizeGuideDtos, TimeSpan.FromMinutes(_cacheSettings.SizeGuideCacheExpirationMinutes), cancellationToken);
 
         _logger.LogInformation("Retrieved all size guides. Count: {Count}", sizeGuides.Count);
 

@@ -1,7 +1,7 @@
 using Merge.Domain.SharedKernel;
-using Merge.Domain.SharedKernel;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Domain.Modules.Catalog;
 
@@ -13,6 +13,13 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class ProductTemplate : BaseEntity, IAggregateRoot
 {
+    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
+    private static class ValidationConstants
+    {
+        public const int MinNameLength = 2;
+        public const int MaxNameLength = 200;
+    }
+
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     private string _name = string.Empty;
     public string Name 
@@ -21,14 +28,7 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         private set 
         {
             Guard.AgainstNullOrEmpty(value, nameof(Name));
-            if (value.Length < 2)
-            {
-                throw new DomainException("Şablon adı en az 2 karakter olmalıdır");
-            }
-            if (value.Length > 200)
-            {
-                throw new DomainException("Şablon adı en fazla 200 karakter olabilir");
-            }
+            Guard.AgainstOutOfRange(value.Length, ValidationConstants.MinNameLength, ValidationConstants.MaxNameLength, nameof(Name));
             _name = value;
         } 
     }
@@ -107,15 +107,20 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         bool isActive = true)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
+        Guard.AgainstOutOfRange(name.Length, ValidationConstants.MinNameLength, ValidationConstants.MaxNameLength, nameof(name));
         Guard.AgainstDefault(categoryId, nameof(categoryId));
         
-        if (name.Length < 2)
+        if (!string.IsNullOrEmpty(defaultImageUrl))
         {
-            throw new DomainException("Şablon adı en az 2 karakter olmalıdır");
-        }
-        if (name.Length > 200)
-        {
-            throw new DomainException("Şablon adı en fazla 200 karakter olabilir");
+            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
+            try
+            {
+                var urlValueObject = new Url(defaultImageUrl);
+            }
+            catch (DomainException)
+            {
+                throw new DomainException("Geçersiz görsel URL formatı");
+            }
         }
         
         var template = new ProductTemplate
@@ -165,7 +170,19 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         if (defaultSKUPrefix != null) DefaultSKUPrefix = defaultSKUPrefix;
         if (defaultPrice.HasValue) DefaultPrice = defaultPrice;
         if (defaultStockQuantity.HasValue) DefaultStockQuantity = defaultStockQuantity;
-        if (defaultImageUrl != null) DefaultImageUrl = defaultImageUrl;
+        if (defaultImageUrl != null)
+        {
+            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
+            try
+            {
+                var urlValueObject = new Url(defaultImageUrl);
+            }
+            catch (DomainException)
+            {
+                throw new DomainException("Geçersiz görsel URL formatı");
+            }
+            DefaultImageUrl = defaultImageUrl;
+        }
         if (specifications != null) Specifications = specifications;
         if (attributes != null) Attributes = attributes;
         if (isActive.HasValue) IsActive = isActive.Value;
@@ -244,8 +261,7 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         if (string.IsNullOrWhiteSpace(_name))
             throw new DomainException("Şablon adı boş olamaz");
 
-        if (_name.Length < 2 || _name.Length > 200)
-            throw new DomainException("Şablon adı 2-200 karakter arasında olmalıdır");
+        Guard.AgainstOutOfRange(_name.Length, ValidationConstants.MinNameLength, ValidationConstants.MaxNameLength, nameof(Name));
 
         if (Guid.Empty == CategoryId)
             throw new DomainException("Kategori ID boş olamaz");
@@ -258,6 +274,19 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
 
         if (_usageCount < 0)
             throw new DomainException("Kullanım sayısı negatif olamaz");
+
+        if (!string.IsNullOrEmpty(DefaultImageUrl))
+        {
+            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
+            try
+            {
+                var urlValueObject = new Url(DefaultImageUrl);
+            }
+            catch (DomainException)
+            {
+                throw new DomainException("Geçersiz görsel URL formatı");
+            }
+        }
     }
 }
 

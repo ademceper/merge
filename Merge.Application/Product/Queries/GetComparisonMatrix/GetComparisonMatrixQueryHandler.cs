@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using ReviewEntity = Merge.Domain.Modules.Catalog.Review;
@@ -21,19 +23,21 @@ public class GetComparisonMatrixQueryHandler : IRequestHandler<GetComparisonMatr
     private readonly AutoMapper.IMapper _mapper;
     private readonly ILogger<GetComparisonMatrixQueryHandler> _logger;
     private readonly ICacheService _cache;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_COMPARISON_MATRIX = "comparison_matrix_";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(5); // Matrix can change when products are updated
 
     public GetComparisonMatrixQueryHandler(
         IDbContext context,
         AutoMapper.IMapper mapper,
         ILogger<GetComparisonMatrixQueryHandler> logger,
-        ICacheService cache)
+        ICacheService cache,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<ComparisonMatrixDto> Handle(GetComparisonMatrixQuery request, CancellationToken cancellationToken)
@@ -148,7 +152,7 @@ public class GetComparisonMatrixQueryHandler : IRequestHandler<GetComparisonMatr
 
                 return matrix;
             },
-            CACHE_EXPIRATION,
+            TimeSpan.FromMinutes(_cacheSettings.ComparisonMatrixCacheExpirationMinutes),
             cancellationToken);
 
         return cachedResult!;

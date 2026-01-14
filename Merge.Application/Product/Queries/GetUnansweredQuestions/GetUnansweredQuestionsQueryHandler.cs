@@ -23,21 +23,23 @@ public class GetUnansweredQuestionsQueryHandler : IRequestHandler<GetUnansweredQ
     private readonly ILogger<GetUnansweredQuestionsQueryHandler> _logger;
     private readonly ICacheService _cache;
     private readonly PaginationSettings _paginationSettings;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_UNANSWERED_QUESTIONS = "unanswered_questions_";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(5); // Unanswered questions change frequently
 
     public GetUnansweredQuestionsQueryHandler(
         IDbContext context,
         AutoMapper.IMapper mapper,
         ILogger<GetUnansweredQuestionsQueryHandler> logger,
         ICacheService cache,
-        IOptions<PaginationSettings> paginationSettings)
+        IOptions<PaginationSettings> paginationSettings,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
         _paginationSettings = paginationSettings.Value;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<IEnumerable<ProductQuestionDto>> Handle(GetUnansweredQuestionsQuery request, CancellationToken cancellationToken)
@@ -84,7 +86,8 @@ public class GetUnansweredQuestionsQueryHandler : IRequestHandler<GetUnansweredQ
         var questionDtos = questions.Select(q => _mapper.Map<ProductQuestionDto>(q)).ToList();
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        await _cache.SetAsync(cacheKey, questionDtos, CACHE_EXPIRATION, cancellationToken);
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
+        await _cache.SetAsync(cacheKey, questionDtos, TimeSpan.FromMinutes(_cacheSettings.UnansweredQuestionsCacheExpirationMinutes), cancellationToken);
 
         _logger.LogInformation("Retrieved unanswered questions. ProductId: {ProductId}, Count: {Count}, Limit: {Limit}",
             request.ProductId, questions.Count, limit);

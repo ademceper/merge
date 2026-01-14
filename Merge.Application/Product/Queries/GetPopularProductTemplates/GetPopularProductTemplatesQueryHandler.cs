@@ -22,21 +22,23 @@ public class GetPopularProductTemplatesQueryHandler : IRequestHandler<GetPopular
     private readonly ILogger<GetPopularProductTemplatesQueryHandler> _logger;
     private readonly ICacheService _cache;
     private readonly PaginationSettings _paginationSettings;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_POPULAR_TEMPLATES = "product_templates_popular_";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(30); // Templates change less frequently
 
     public GetPopularProductTemplatesQueryHandler(
         IDbContext context,
         AutoMapper.IMapper mapper,
         ILogger<GetPopularProductTemplatesQueryHandler> logger,
         ICacheService cache,
-        IOptions<PaginationSettings> paginationSettings)
+        IOptions<PaginationSettings> paginationSettings,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
         _paginationSettings = paginationSettings.Value;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<IEnumerable<ProductTemplateDto>> Handle(GetPopularProductTemplatesQuery request, CancellationToken cancellationToken)
@@ -74,7 +76,8 @@ public class GetPopularProductTemplatesQueryHandler : IRequestHandler<GetPopular
         var templateDtos = _mapper.Map<IEnumerable<ProductTemplateDto>>(templates).ToList();
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        await _cache.SetAsync(cacheKey, templateDtos, CACHE_EXPIRATION, cancellationToken);
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
+        await _cache.SetAsync(cacheKey, templateDtos, TimeSpan.FromMinutes(_cacheSettings.PopularTemplatesCacheExpirationMinutes), cancellationToken);
 
         _logger.LogInformation("Retrieved popular product templates. Count: {Count}, Limit: {Limit}", templates.Count, limit);
 

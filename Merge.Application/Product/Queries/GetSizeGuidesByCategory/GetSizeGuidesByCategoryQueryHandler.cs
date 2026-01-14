@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
@@ -19,19 +21,21 @@ public class GetSizeGuidesByCategoryQueryHandler : IRequestHandler<GetSizeGuides
     private readonly AutoMapper.IMapper _mapper;
     private readonly ILogger<GetSizeGuidesByCategoryQueryHandler> _logger;
     private readonly ICacheService _cache;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_SIZE_GUIDES_BY_CATEGORY = "size_guides_by_category_";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(30); // Size guides change less frequently
 
     public GetSizeGuidesByCategoryQueryHandler(
         IDbContext context,
         AutoMapper.IMapper mapper,
         ILogger<GetSizeGuidesByCategoryQueryHandler> logger,
-        ICacheService cache)
+        ICacheService cache,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<IEnumerable<SizeGuideDto>> Handle(GetSizeGuidesByCategoryQuery request, CancellationToken cancellationToken)
@@ -60,7 +64,8 @@ public class GetSizeGuidesByCategoryQueryHandler : IRequestHandler<GetSizeGuides
         var sizeGuideDtos = _mapper.Map<IEnumerable<SizeGuideDto>>(sizeGuides).ToList();
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        await _cache.SetAsync(cacheKey, sizeGuideDtos, CACHE_EXPIRATION, cancellationToken);
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
+        await _cache.SetAsync(cacheKey, sizeGuideDtos, TimeSpan.FromMinutes(_cacheSettings.SizeGuideCacheExpirationMinutes), cancellationToken);
 
         _logger.LogInformation("Retrieved size guides by category. CategoryId: {CategoryId}, Count: {Count}", 
             request.CategoryId, sizeGuides.Count);

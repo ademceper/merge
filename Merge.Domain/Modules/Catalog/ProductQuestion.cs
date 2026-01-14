@@ -20,6 +20,13 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
     public Guid ProductId { get; private set; }
     public Guid UserId { get; private set; }
     
+    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
+    private static class ValidationConstants
+    {
+        public const int MinQuestionLength = 5;
+        public const int MaxQuestionLength = 1000;
+    }
+
     private string _question = string.Empty;
     public string Question 
     { 
@@ -27,14 +34,7 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
         private set 
         {
             Guard.AgainstNullOrEmpty(value, nameof(Question));
-            if (value.Length < 5)
-            {
-                throw new DomainException("Soru en az 5 karakter olmalıdır");
-            }
-            if (value.Length > 1000)
-            {
-                throw new DomainException("Soru en fazla 1000 karakter olabilir");
-            }
+            Guard.AgainstOutOfRange(value.Length, ValidationConstants.MinQuestionLength, ValidationConstants.MaxQuestionLength, nameof(Question));
             _question = value;
         } 
     }
@@ -89,15 +89,7 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
         Guard.AgainstDefault(productId, nameof(productId));
         Guard.AgainstDefault(userId, nameof(userId));
         Guard.AgainstNullOrEmpty(question, nameof(question));
-        
-        if (question.Length < 5)
-        {
-            throw new DomainException("Soru en az 5 karakter olmalıdır");
-        }
-        if (question.Length > 1000)
-        {
-            throw new DomainException("Soru en fazla 1000 karakter olabilir");
-        }
+        Guard.AgainstOutOfRange(question.Length, ValidationConstants.MinQuestionLength, ValidationConstants.MaxQuestionLength, nameof(question));
         
         var productQuestion = new ProductQuestion
         {
@@ -198,6 +190,10 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
         
         // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductQuestionUpdatedEvent yayınla (ÖNERİLİR)
+        // Seller answer durumu önemli bir business event'tir
+        AddDomainEvent(new ProductQuestionUpdatedEvent(Id, ProductId, UserId, _answerCount, _helpfulCount, HasSellerAnswer));
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Add answer (collection manipulation)
@@ -218,6 +214,10 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
         
         // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductQuestionUpdatedEvent yayınla (ÖNERİLİR)
+        // Answer ekleme önemli bir business event'tir
+        AddDomainEvent(new ProductQuestionUpdatedEvent(Id, ProductId, UserId, _answerCount, _helpfulCount, HasSellerAnswer));
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Remove answer (collection manipulation)
@@ -236,6 +236,10 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
         
         // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductQuestionUpdatedEvent yayınla (ÖNERİLİR)
+        // Answer silme önemli bir business event'tir
+        AddDomainEvent(new ProductQuestionUpdatedEvent(Id, ProductId, UserId, _answerCount, _helpfulCount, HasSellerAnswer));
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Add helpfulness vote (collection manipulation)
@@ -256,6 +260,10 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
         
         // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductQuestionUpdatedEvent yayınla (ÖNERİLİR)
+        // Helpfulness vote ekleme önemli bir business event'tir
+        AddDomainEvent(new ProductQuestionUpdatedEvent(Id, ProductId, UserId, _answerCount, _helpfulCount, HasSellerAnswer));
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Remove helpfulness vote (collection manipulation)
@@ -273,6 +281,10 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
         
         // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductQuestionUpdatedEvent yayınla (ÖNERİLİR)
+        // Helpfulness vote silme önemli bir business event'tir
+        AddDomainEvent(new ProductQuestionUpdatedEvent(Id, ProductId, UserId, _answerCount, _helpfulCount, HasSellerAnswer));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
@@ -296,8 +308,7 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
         if (string.IsNullOrWhiteSpace(_question))
             throw new DomainException("Soru boş olamaz");
 
-        if (_question.Length < 5 || _question.Length > 1000)
-            throw new DomainException("Soru 5-1000 karakter arasında olmalıdır");
+        Guard.AgainstOutOfRange(_question.Length, ValidationConstants.MinQuestionLength, ValidationConstants.MaxQuestionLength, nameof(Question));
 
         if (Guid.Empty == ProductId)
             throw new DomainException("Ürün ID boş olamaz");

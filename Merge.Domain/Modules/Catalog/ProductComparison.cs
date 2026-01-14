@@ -14,10 +14,29 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class ProductComparison : BaseEntity, IAggregateRoot
 {
+    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
+    private static class ValidationConstants
+    {
+        public const int MaxNameLength = 200;
+        public const int MinShareCodeLength = 6;
+        public const int MaxProductsInComparison = 10;
+        public const int ShareCodeLength = 8; // GenerateShareCode için kullanılan karakter sayısı
+    }
+
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid UserId { get; private set; }
     public User User { get; private set; } = null!;
-    public string Name { get; private set; } = string.Empty;
+    
+    private string _name = string.Empty;
+    public string Name 
+    { 
+        get => _name; 
+        private set 
+        {
+            Guard.AgainstLength(value, ValidationConstants.MaxNameLength, nameof(Name));
+            _name = value ?? string.Empty;
+        } 
+    }
     public bool IsSaved { get; private set; } = false;
     
     private string? _shareCode;
@@ -26,9 +45,9 @@ public class ProductComparison : BaseEntity, IAggregateRoot
         get => _shareCode; 
         private set 
         {
-            if (!string.IsNullOrEmpty(value) && value.Length < 6)
+            if (!string.IsNullOrEmpty(value))
             {
-                throw new DomainException("Share code en az 6 karakter olmalıdır");
+                Guard.AgainstOutOfRange(value.Length, ValidationConstants.MinShareCodeLength, int.MaxValue, nameof(ShareCode));
             }
             _shareCode = value;
         } 
@@ -55,11 +74,14 @@ public class ProductComparison : BaseEntity, IAggregateRoot
     {
         Guard.AgainstDefault(userId, nameof(userId));
         
+        var comparisonName = name ?? "Unnamed Comparison";
+        Guard.AgainstLength(comparisonName, ValidationConstants.MaxNameLength, nameof(name));
+        
         var comparison = new ProductComparison
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Name = name ?? "Unnamed Comparison",
+            _name = comparisonName,
             IsSaved = isSaved,
             LastAccessedAt = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow
@@ -84,10 +106,10 @@ public class ProductComparison : BaseEntity, IAggregateRoot
             throw new DomainException("Bu ürün zaten karşılaştırmada");
         }
         
-        // Max 10 products in comparison
-        if (_items.Count >= 10)
+        // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
+        if (_items.Count >= ValidationConstants.MaxProductsInComparison)
         {
-            throw new DomainException("Karşılaştırmada en fazla 10 ürün olabilir");
+            throw new DomainException($"Karşılaştırmada en fazla {ValidationConstants.MaxProductsInComparison} ürün olabilir");
         }
         
         var actualPosition = position >= 0 ? position : _items.Count;
@@ -136,6 +158,7 @@ public class ProductComparison : BaseEntity, IAggregateRoot
     {
         if (!string.IsNullOrEmpty(name))
         {
+            Guard.AgainstLength(name, ValidationConstants.MaxNameLength, nameof(name));
             Name = name;
         }
         
@@ -154,8 +177,9 @@ public class ProductComparison : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.1: Domain Logic - Generate share code
     public void GenerateShareCode()
     {
-        // Generate a unique 8-character share code
-        var code = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+        // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
+        // Generate a unique share code using ValidationConstants.ShareCodeLength
+        var code = Guid.NewGuid().ToString("N")[..ValidationConstants.ShareCodeLength].ToUpperInvariant();
         ShareCode = code;
         UpdatedAt = DateTime.UtcNow;
         
@@ -213,14 +237,18 @@ public class ProductComparison : BaseEntity, IAggregateRoot
         if (Guid.Empty == UserId)
             throw new DomainException("Kullanıcı ID boş olamaz");
 
-        if (string.IsNullOrWhiteSpace(Name))
+        if (string.IsNullOrWhiteSpace(_name))
             throw new DomainException("Karşılaştırma adı boş olamaz");
 
-        if (!string.IsNullOrEmpty(_shareCode) && _shareCode.Length < 6)
-            throw new DomainException("Share code en az 6 karakter olmalıdır");
+        Guard.AgainstLength(_name, ValidationConstants.MaxNameLength, nameof(Name));
 
-        if (_items.Count > 10)
-            throw new DomainException("Karşılaştırmada en fazla 10 ürün olabilir");
+        if (!string.IsNullOrEmpty(_shareCode))
+        {
+            Guard.AgainstOutOfRange(_shareCode.Length, ValidationConstants.MinShareCodeLength, int.MaxValue, nameof(ShareCode));
+        }
+
+        if (_items.Count > ValidationConstants.MaxProductsInComparison)
+            throw new DomainException($"Karşılaştırmada en fazla {ValidationConstants.MaxProductsInComparison} ürün olabilir");
     }
 }
 

@@ -11,13 +11,22 @@ namespace Merge.Domain.Modules.Catalog;
 /// <summary>
 /// ProductAnswer Entity - Rich Domain Model implementation
 /// BOLUM 1.1: Rich Domain Model (ZORUNLU)
+/// BOLUM 1.4: Aggregate Root Pattern (ZORUNLU) - Domain event'ler için IAggregateRoot implement edilmeli
+/// BOLUM 1.5: Domain Events (ZORUNLU)
 /// </summary>
-public class ProductAnswer : BaseEntity
+public class ProductAnswer : BaseEntity, IAggregateRoot
 {
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
     public Guid QuestionId { get; private set; }
     public Guid UserId { get; private set; }
     
+    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
+    private static class ValidationConstants
+    {
+        public const int MinAnswerLength = 5;
+        public const int MaxAnswerLength = 2000;
+    }
+
     private string _answer = string.Empty;
     public string Answer 
     { 
@@ -25,14 +34,7 @@ public class ProductAnswer : BaseEntity
         private set 
         {
             Guard.AgainstNullOrEmpty(value, nameof(Answer));
-            if (value.Length < 5)
-            {
-                throw new DomainException("Cevap en az 5 karakter olmalıdır");
-            }
-            if (value.Length > 2000)
-            {
-                throw new DomainException("Cevap en fazla 2000 karakter olabilir");
-            }
+            Guard.AgainstOutOfRange(value.Length, ValidationConstants.MinAnswerLength, ValidationConstants.MaxAnswerLength, nameof(Answer));
             _answer = value;
         } 
     }
@@ -77,15 +79,7 @@ public class ProductAnswer : BaseEntity
         Guard.AgainstDefault(questionId, nameof(questionId));
         Guard.AgainstDefault(userId, nameof(userId));
         Guard.AgainstNullOrEmpty(answer, nameof(answer));
-        
-        if (answer.Length < 5)
-        {
-            throw new DomainException("Cevap en az 5 karakter olmalıdır");
-        }
-        if (answer.Length > 2000)
-        {
-            throw new DomainException("Cevap en fazla 2000 karakter olabilir");
-        }
+        Guard.AgainstOutOfRange(answer.Length, ValidationConstants.MinAnswerLength, ValidationConstants.MaxAnswerLength, nameof(answer));
         
         var productAnswer = new ProductAnswer
         {
@@ -164,6 +158,10 @@ public class ProductAnswer : BaseEntity
         
         // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductAnswerUpdatedEvent yayınla (ÖNERİLİR)
+        // Helpfulness vote ekleme önemli bir business event'tir
+        AddDomainEvent(new ProductAnswerUpdatedEvent(Id, QuestionId, UserId, _helpfulCount));
     }
     
     // ✅ BOLUM 1.1: Domain Logic - Remove helpfulness vote (collection manipulation)
@@ -181,6 +179,10 @@ public class ProductAnswer : BaseEntity
         
         // ✅ BOLUM 1.4: Invariant validation
         ValidateInvariants();
+        
+        // ✅ BOLUM 1.5: Domain Events - ProductAnswerUpdatedEvent yayınla (ÖNERİLİR)
+        // Helpfulness vote silme önemli bir business event'tir
+        AddDomainEvent(new ProductAnswerUpdatedEvent(Id, QuestionId, UserId, _helpfulCount));
     }
 
     // ✅ BOLUM 1.1: Domain Logic - Mark as deleted
@@ -210,8 +212,7 @@ public class ProductAnswer : BaseEntity
         if (string.IsNullOrWhiteSpace(_answer))
             throw new DomainException("Cevap boş olamaz");
 
-        if (_answer.Length < 5 || _answer.Length > 2000)
-            throw new DomainException("Cevap 5-2000 karakter arasında olmalıdır");
+        Guard.AgainstOutOfRange(_answer.Length, ValidationConstants.MinAnswerLength, ValidationConstants.MaxAnswerLength, nameof(Answer));
 
         if (_helpfulCount < 0)
             throw new DomainException("Yardımcı sayısı negatif olamaz");

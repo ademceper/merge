@@ -25,21 +25,23 @@ public class GetUserQuestionsQueryHandler : IRequestHandler<GetUserQuestionsQuer
     private readonly ILogger<GetUserQuestionsQueryHandler> _logger;
     private readonly ICacheService _cache;
     private readonly PaginationSettings _paginationSettings;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_USER_QUESTIONS = "user_questions_";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(5); // User questions can change frequently
 
     public GetUserQuestionsQueryHandler(
         IDbContext context,
         AutoMapper.IMapper mapper,
         ILogger<GetUserQuestionsQueryHandler> logger,
         ICacheService cache,
-        IOptions<PaginationSettings> paginationSettings)
+        IOptions<PaginationSettings> paginationSettings,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
         _paginationSettings = paginationSettings.Value;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<PagedResult<ProductQuestionDto>> Handle(GetUserQuestionsQuery request, CancellationToken cancellationToken)
@@ -104,7 +106,7 @@ public class GetUserQuestionsQueryHandler : IRequestHandler<GetUserQuestionsQuer
                     PageSize = pageSize
                 };
             },
-            CACHE_EXPIRATION,
+            TimeSpan.FromMinutes(_cacheSettings.UserQuestionsCacheExpirationMinutes),
             cancellationToken);
 
         return cachedResult!;

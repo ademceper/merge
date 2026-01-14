@@ -25,7 +25,11 @@ public class SharedWishlistService : ISharedWishlistService
         _mapper = mapper;
     }
 
-    public async Task<SharedWishlistDto> CreateSharedWishlistAsync(Guid userId, CreateSharedWishlistDto dto)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<SharedWishlistDto> CreateSharedWishlistAsync(
+        Guid userId, 
+        CreateSharedWishlistDto dto,
+        CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var wishlist = SharedWishlist.Create(
@@ -36,8 +40,8 @@ public class SharedWishlistService : ISharedWishlistService
 
         wishlist.GenerateShareCode();
 
-        await _context.Set<SharedWishlist>().AddAsync(wishlist);
-        await _unitOfWork.SaveChangesAsync();
+        await _context.Set<SharedWishlist>().AddAsync(wishlist, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         foreach (var productId in dto.ProductIds)
         {
@@ -45,11 +49,11 @@ public class SharedWishlistService : ISharedWishlistService
             var item = SharedWishlistItem.Create(
                 wishlist.Id,
                 productId);
-            await _context.Set<SharedWishlistItem>().AddAsync(item);
+            await _context.Set<SharedWishlistItem>().AddAsync(item, cancellationToken);
         }
 
-        await _unitOfWork.SaveChangesAsync();
-        var created = await GetSharedWishlistByCodeAsync(wishlist.ShareCode);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        var created = await GetSharedWishlistByCodeAsync(wishlist.ShareCode, cancellationToken);
         if (created == null)
         {
             var items = _mapper.Map<List<SharedWishlistItemDto>>(dto.ProductIds.Select(id => new { ProductId = id }));
@@ -66,19 +70,22 @@ public class SharedWishlistService : ISharedWishlistService
         return created;
     }
 
-    public async Task<SharedWishlistDto?> GetSharedWishlistByCodeAsync(string shareCode)
+    // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
+    public async Task<SharedWishlistDto?> GetSharedWishlistByCodeAsync(
+        string shareCode,
+        CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !w.IsDeleted (Global Query Filter)
         var wishlist = await _context.Set<SharedWishlist>()
             .Include(w => w.User)
-            .FirstOrDefaultAsync(w => w.ShareCode == shareCode);
+            .FirstOrDefaultAsync(w => w.ShareCode == shareCode, cancellationToken);
 
         if (wishlist == null)
             return null;
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         wishlist.IncrementViewCount();
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Include ile N+1 önlenir
@@ -86,7 +93,7 @@ public class SharedWishlistService : ISharedWishlistService
             .AsNoTracking()
             .Include(i => i.Product)
             .Where(i => i.SharedWishlistId == wishlist.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var baseDto = _mapper.Map<SharedWishlistDto>(wishlist);

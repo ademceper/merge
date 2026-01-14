@@ -17,18 +17,38 @@ public class ProductSizeGuide : BaseEntity
     public Guid SizeGuideId { get; private set; }
     public SizeGuide SizeGuide { get; private set; } = null!;
     
-    public string? CustomNotes { get; private set; } // Product-specific sizing notes
+    private string? _customNotes;
+    public string? CustomNotes 
+    { 
+        get => _customNotes; 
+        private set 
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                Guard.AgainstLength(value, ValidationConstants.MaxCustomNotesLength, nameof(CustomNotes));
+            }
+            _customNotes = value;
+        } 
+    }
+    
     public bool FitType { get; private set; } = true; // true = Regular Fit, false = Slim Fit, etc.
     
+    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
+    private static class ValidationConstants
+    {
+        public const int MaxFitDescriptionLength = 500;
+        public const int MaxCustomNotesLength = 1000;
+    }
+
     private string? _fitDescription;
     public string? FitDescription 
     { 
         get => _fitDescription; 
         private set 
         {
-            if (!string.IsNullOrEmpty(value) && value.Length > 500)
+            if (!string.IsNullOrEmpty(value))
             {
-                throw new DomainException("Fit açıklaması en fazla 500 karakter olabilir");
+                Guard.AgainstLength(value, ValidationConstants.MaxFitDescriptionLength, nameof(FitDescription));
             }
             _fitDescription = value;
         } 
@@ -52,9 +72,14 @@ public class ProductSizeGuide : BaseEntity
         Guard.AgainstDefault(productId, nameof(productId));
         Guard.AgainstDefault(sizeGuideId, nameof(sizeGuideId));
         
-        if (!string.IsNullOrEmpty(fitDescription) && fitDescription.Length > 500)
+        if (!string.IsNullOrEmpty(fitDescription))
         {
-            throw new DomainException("Fit açıklaması en fazla 500 karakter olabilir");
+            Guard.AgainstLength(fitDescription, ValidationConstants.MaxFitDescriptionLength, nameof(fitDescription));
+        }
+        
+        if (!string.IsNullOrEmpty(customNotes))
+        {
+            Guard.AgainstLength(customNotes, ValidationConstants.MaxCustomNotesLength, nameof(customNotes));
         }
         
         var productSizeGuide = new ProductSizeGuide
@@ -62,7 +87,7 @@ public class ProductSizeGuide : BaseEntity
             Id = Guid.NewGuid(),
             ProductId = productId,
             SizeGuideId = sizeGuideId,
-            CustomNotes = customNotes,
+            _customNotes = customNotes,
             FitType = fitType,
             _fitDescription = fitDescription,
             CreatedAt = DateTime.UtcNow
@@ -87,7 +112,11 @@ public class ProductSizeGuide : BaseEntity
             SizeGuideId = sizeGuideId.Value;
         }
         
-        if (customNotes != null) CustomNotes = customNotes;
+        if (customNotes != null)
+        {
+            Guard.AgainstLength(customNotes, ValidationConstants.MaxCustomNotesLength, nameof(customNotes));
+            CustomNotes = customNotes;
+        }
         if (fitType.HasValue) FitType = fitType.Value;
         if (fitDescription != null) FitDescription = fitDescription;
         
@@ -118,8 +147,15 @@ public class ProductSizeGuide : BaseEntity
         if (Guid.Empty == SizeGuideId)
             throw new DomainException("Size guide ID boş olamaz");
 
-        if (!string.IsNullOrEmpty(_fitDescription) && _fitDescription.Length > 500)
-            throw new DomainException("Fit açıklaması en fazla 500 karakter olabilir");
+        if (!string.IsNullOrEmpty(_fitDescription))
+        {
+            Guard.AgainstLength(_fitDescription, ValidationConstants.MaxFitDescriptionLength, nameof(FitDescription));
+        }
+
+        if (!string.IsNullOrEmpty(_customNotes))
+        {
+            Guard.AgainstLength(_customNotes, ValidationConstants.MaxCustomNotesLength, nameof(CustomNotes));
+        }
     }
 }
 

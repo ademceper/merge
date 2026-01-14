@@ -65,13 +65,8 @@ public class AddProductToBundleCommandHandler : IRequestHandler<AddProductToBund
                 throw new NotFoundException("Ürün", request.ProductId);
             }
 
-            // ✅ PERFORMANCE: Removed !bi.IsDeleted (Global Query Filter)
-            var existing = await _context.Set<BundleItem>()
-                .AsNoTracking()
-                .FirstOrDefaultAsync(bi => bi.BundleId == request.BundleId &&
-                                     bi.ProductId == request.ProductId, cancellationToken);
-
             // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+            // Note: Duplicate check zaten ProductBundle.AddItem() method'unda yapılıyor
             bundle.AddItem(request.ProductId, request.Quantity, request.SortOrder);
 
             // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)

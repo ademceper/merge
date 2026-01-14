@@ -27,7 +27,25 @@ public class ProductTrustBadge : BaseEntity
         private set => _isActive = value; 
     }
     
-    public string? AwardReason { get; private set; }
+    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
+    private static class ValidationConstants
+    {
+        public const int MaxAwardReasonLength = 500;
+    }
+
+    private string? _awardReason;
+    public string? AwardReason 
+    { 
+        get => _awardReason; 
+        private set 
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                Guard.AgainstLength(value, ValidationConstants.MaxAwardReasonLength, nameof(AwardReason));
+            }
+            _awardReason = value;
+        } 
+    }
     
     // ✅ BOLUM 1.7: Concurrency Control - RowVersion (ZORUNLU)
     [Timestamp]
@@ -56,6 +74,11 @@ public class ProductTrustBadge : BaseEntity
             throw new DomainException("Expiry date must be after award date");
         }
         
+        if (!string.IsNullOrEmpty(awardReason))
+        {
+            Guard.AgainstLength(awardReason, ValidationConstants.MaxAwardReasonLength, nameof(awardReason));
+        }
+        
         var badge = new ProductTrustBadge
         {
             Id = Guid.NewGuid(),
@@ -64,7 +87,7 @@ public class ProductTrustBadge : BaseEntity
             AwardedAt = awardedAt ?? DateTime.UtcNow,
             ExpiresAt = expiresAt,
             _isActive = true,
-            AwardReason = awardReason,
+            _awardReason = awardReason,
             CreatedAt = DateTime.UtcNow
         };
         
@@ -116,6 +139,10 @@ public class ProductTrustBadge : BaseEntity
     // ✅ BOLUM 1.1: Domain Method - Update award reason
     public void UpdateAwardReason(string? newReason)
     {
+        if (!string.IsNullOrEmpty(newReason))
+        {
+            Guard.AgainstLength(newReason, ValidationConstants.MaxAwardReasonLength, nameof(newReason));
+        }
         AwardReason = newReason;
         UpdatedAt = DateTime.UtcNow;
         

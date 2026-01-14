@@ -1,9 +1,11 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using AutoMapper;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
@@ -20,19 +22,21 @@ public class GetProductBundleByIdQueryHandler : IRequestHandler<GetProductBundle
     private readonly IMapper _mapper;
     private readonly ILogger<GetProductBundleByIdQueryHandler> _logger;
     private readonly ICacheService _cache;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_BUNDLE_BY_ID = "bundle_";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(15);
 
     public GetProductBundleByIdQueryHandler(
         IDbContext context,
         IMapper mapper,
         ILogger<GetProductBundleByIdQueryHandler> logger,
-        ICacheService cache)
+        ICacheService cache,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<ProductBundleDto?> Handle(GetProductBundleByIdQuery request, CancellationToken cancellationToken)
@@ -64,7 +68,8 @@ public class GetProductBundleByIdQueryHandler : IRequestHandler<GetProductBundle
         var bundleDto = _mapper.Map<ProductBundleDto>(bundle);
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        await _cache.SetAsync(cacheKey, bundleDto, CACHE_EXPIRATION, cancellationToken);
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
+        await _cache.SetAsync(cacheKey, bundleDto, TimeSpan.FromMinutes(_cacheSettings.ProductBundleCacheExpirationMinutes), cancellationToken);
 
         _logger.LogInformation("Product bundle retrieved successfully. BundleId: {BundleId}", request.Id);
 

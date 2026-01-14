@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using ReviewEntity = Merge.Domain.Modules.Catalog.Review;
@@ -22,21 +24,23 @@ public class GetProductComparisonByIdQueryHandler : IRequestHandler<GetProductCo
     private readonly AutoMapper.IMapper _mapper;
     private readonly ILogger<GetProductComparisonByIdQueryHandler> _logger;
     private readonly ICacheService _cache;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_COMPARISON_BY_ID = "comparison_by_id_";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(10); // Comparisons can change
 
     public GetProductComparisonByIdQueryHandler(
         IDbContext context,
         IUnitOfWork unitOfWork,
         AutoMapper.IMapper mapper,
         ILogger<GetProductComparisonByIdQueryHandler> logger,
-        ICacheService cache)
+        ICacheService cache,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
         _cache = cache;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<ProductComparisonDto?> Handle(GetProductComparisonByIdQuery request, CancellationToken cancellationToken)
@@ -69,7 +73,7 @@ public class GetProductComparisonByIdQueryHandler : IRequestHandler<GetProductCo
                 // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
                 return await MapToDto(comparison, cancellationToken);
             },
-            CACHE_EXPIRATION,
+            TimeSpan.FromMinutes(_cacheSettings.ProductComparisonCacheExpirationMinutes),
             cancellationToken);
 
         return cachedResult;

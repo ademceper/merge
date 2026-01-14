@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Interfaces;
+using Merge.Application.Configuration;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
@@ -18,17 +20,19 @@ public class GetQAStatsQueryHandler : IRequestHandler<GetQAStatsQuery, QAStatsDt
     private readonly IDbContext _context;
     private readonly ILogger<GetQAStatsQueryHandler> _logger;
     private readonly ICacheService _cache;
+    private readonly CacheSettings _cacheSettings;
     private const string CACHE_KEY_QA_STATS = "qa_stats_";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(10); // Stats change frequently
 
     public GetQAStatsQueryHandler(
         IDbContext context,
         ILogger<GetQAStatsQueryHandler> logger,
-        ICacheService cache)
+        ICacheService cache,
+        IOptions<CacheSettings> cacheSettings)
     {
         _context = context;
         _logger = logger;
         _cache = cache;
+        _cacheSettings = cacheSettings.Value;
     }
 
     public async Task<QAStatsDto> Handle(GetQAStatsQuery request, CancellationToken cancellationToken)
@@ -73,7 +77,8 @@ public class GetQAStatsQueryHandler : IRequestHandler<GetQAStatsQuery, QAStatsDt
         );
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
-        await _cache.SetAsync(cacheKey, stats, CACHE_EXPIRATION, cancellationToken);
+        // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
+        await _cache.SetAsync(cacheKey, stats, TimeSpan.FromMinutes(_cacheSettings.QAStatsCacheExpirationMinutes), cancellationToken);
 
         _logger.LogInformation("Retrieved QA stats. ProductId: {ProductId}, TotalQuestions: {TotalQuestions}, TotalAnswers: {TotalAnswers}",
             request.ProductId, totalQuestions, totalAnswers);

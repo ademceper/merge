@@ -15,9 +15,38 @@ namespace Merge.Domain.Modules.Catalog;
 /// </summary>
 public class ProductBundle : BaseEntity, IAggregateRoot
 {
+    // ✅ BOLUM 12.0: Magic Number'ları Constants'a Taşıma (Clean Architecture)
+    private static class ValidationConstants
+    {
+        public const int MinNameLength = 2;
+        public const int MaxNameLength = 200;
+        public const int MaxDescriptionLength = 5000;
+        public const int MaxImageUrlLength = 2000;
+    }
+
     // ✅ BOLUM 1.1: Rich Domain Model - Private setters for encapsulation
-    public string Name { get; private set; } = string.Empty;
-    public string Description { get; private set; } = string.Empty;
+    private string _name = string.Empty;
+    public string Name 
+    { 
+        get => _name; 
+        private set 
+        {
+            Guard.AgainstNullOrEmpty(value, nameof(Name));
+            Guard.AgainstOutOfRange(value.Length, ValidationConstants.MinNameLength, ValidationConstants.MaxNameLength, nameof(Name));
+            _name = value;
+        } 
+    }
+    
+    private string _description = string.Empty;
+    public string Description 
+    { 
+        get => _description; 
+        private set 
+        {
+            Guard.AgainstLength(value, ValidationConstants.MaxDescriptionLength, nameof(Description));
+            _description = value ?? string.Empty;
+        } 
+    }
     
     // ✅ BOLUM 1.3: Value Objects - Money backing fields (EF Core compatibility)
     private decimal _bundlePrice;
@@ -56,7 +85,19 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         } 
     }
     
-    public string ImageUrl { get; private set; } = string.Empty;
+    private string _imageUrl = string.Empty;
+    public string ImageUrl 
+    { 
+        get => _imageUrl; 
+        private set 
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                Guard.AgainstLength(value, ValidationConstants.MaxImageUrlLength, nameof(ImageUrl));
+            }
+            _imageUrl = value ?? string.Empty;
+        } 
+    }
     public bool IsActive { get; private set; } = true;
     public DateTime? StartDate { get; private set; }
     public DateTime? EndDate { get; private set; }
@@ -93,7 +134,27 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         DateTime? endDate = null)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
+        Guard.AgainstOutOfRange(name.Length, ValidationConstants.MinNameLength, ValidationConstants.MaxNameLength, nameof(name));
         Guard.AgainstNegativeOrZero(bundlePrice, nameof(bundlePrice));
+        
+        if (!string.IsNullOrEmpty(description))
+        {
+            Guard.AgainstLength(description, ValidationConstants.MaxDescriptionLength, nameof(description));
+        }
+        
+        if (!string.IsNullOrEmpty(imageUrl))
+        {
+            Guard.AgainstLength(imageUrl, ValidationConstants.MaxImageUrlLength, nameof(imageUrl));
+            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
+            try
+            {
+                var urlValueObject = new Url(imageUrl);
+            }
+            catch (DomainException)
+            {
+                throw new DomainException("Geçersiz görsel URL formatı");
+            }
+        }
         
         if (startDate.HasValue && endDate.HasValue && endDate.Value < startDate.Value)
         {
@@ -107,12 +168,12 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         var bundle = new ProductBundle
         {
             Id = Guid.NewGuid(),
-            Name = name,
-            Description = description ?? string.Empty,
+            _name = name,
+            _description = description ?? string.Empty,
             _bundlePrice = bundlePrice,
             _originalTotalPrice = originalTotalPrice,
             _discountPercentage = discountPercentage,
-            ImageUrl = imageUrl ?? string.Empty,
+            _imageUrl = imageUrl ?? string.Empty,
             IsActive = true,
             StartDate = startDate,
             EndDate = endDate,
@@ -139,6 +200,26 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         DateTime? endDate = null)
     {
         Guard.AgainstNullOrEmpty(name, nameof(name));
+        Guard.AgainstOutOfRange(name.Length, ValidationConstants.MinNameLength, ValidationConstants.MaxNameLength, nameof(name));
+        
+        if (!string.IsNullOrEmpty(description))
+        {
+            Guard.AgainstLength(description, ValidationConstants.MaxDescriptionLength, nameof(description));
+        }
+        
+        if (!string.IsNullOrEmpty(imageUrl))
+        {
+            Guard.AgainstLength(imageUrl, ValidationConstants.MaxImageUrlLength, nameof(imageUrl));
+            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
+            try
+            {
+                var urlValueObject = new Url(imageUrl);
+            }
+            catch (DomainException)
+            {
+                throw new DomainException("Geçersiz görsel URL formatı");
+            }
+        }
         
         if (startDate.HasValue && endDate.HasValue && endDate.Value < startDate.Value)
         {
@@ -294,8 +375,29 @@ public class ProductBundle : BaseEntity, IAggregateRoot
     // ✅ BOLUM 1.4: Invariant validation
     private void ValidateInvariants()
     {
-        if (string.IsNullOrWhiteSpace(Name))
+        if (string.IsNullOrWhiteSpace(_name))
             throw new DomainException("Bundle adı boş olamaz");
+
+        Guard.AgainstOutOfRange(_name.Length, ValidationConstants.MinNameLength, ValidationConstants.MaxNameLength, nameof(Name));
+
+        if (!string.IsNullOrEmpty(_description))
+        {
+            Guard.AgainstLength(_description, ValidationConstants.MaxDescriptionLength, nameof(Description));
+        }
+
+        if (!string.IsNullOrEmpty(_imageUrl))
+        {
+            Guard.AgainstLength(_imageUrl, ValidationConstants.MaxImageUrlLength, nameof(ImageUrl));
+            // ✅ BOLUM 1.3: Value Objects - URL validation using Url Value Object
+            try
+            {
+                var urlValueObject = new Url(_imageUrl);
+            }
+            catch (DomainException)
+            {
+                throw new DomainException("Geçersiz görsel URL formatı");
+            }
+        }
 
         if (_bundlePrice <= 0)
             throw new DomainException("Bundle fiyatı pozitif olmalıdır");
