@@ -3,6 +3,7 @@ using Merge.Domain.Enums;
 using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.ValueObjects;
+using AddressValueObject = Merge.Domain.ValueObjects.Address;
 
 namespace Merge.Domain.Modules.Identity;
 
@@ -96,7 +97,7 @@ public class Organization : BaseEntity, IAggregateRoot
     
     // ✅ BOLUM 1.3: Value Object property (computed from backing fields)
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-    public Address? AddressValueObject
+    public AddressValueObject? AddressValueObject
     {
         get
         {
@@ -110,7 +111,7 @@ public class Organization : BaseEntity, IAggregateRoot
             // ✅ BOLUM 1.3: Value Objects - Address Value Object oluştur (validation otomatik yapılır)
             // Eğer Address Value Object oluşturulamazsa (validation hatası), exception fırlatılır
             // Bu doğru davranıştır - invalid address data'sı için exception fırlatılmalı
-            return new Address(
+            return new AddressValueObject(
                 _addressLine1,
                 _city,
                 _country,
@@ -243,7 +244,7 @@ public class Organization : BaseEntity, IAggregateRoot
         {
             // ✅ BOLUM 1.3: Value Objects - Address Value Object validation (tüm alanlar zorunlu)
             // Address Value Object constructor içinde validation yapılır
-            var addressValueObject = new Address(
+            var addressValueObject = new AddressValueObject(
                 address,
                 city,
                 country,
@@ -444,7 +445,7 @@ public class Organization : BaseEntity, IAggregateRoot
             {
                 // ✅ BOLUM 1.3: Value Objects - Address Value Object validation (tüm alanlar zorunlu)
                 // Address Value Object constructor içinde validation yapılır
-                var addressValueObject = new Address(
+                var addressValueObject = new AddressValueObject(
                     finalAddress,
                     finalCity,
                     finalCountry,

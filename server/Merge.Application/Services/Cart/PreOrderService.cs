@@ -84,7 +84,8 @@ public class PreOrderService : IPreOrderService
         var depositAmount = price * (campaign.DepositPercentage / 100);
 
         // ✅ BOLUM 1.1: Rich Domain Model - User entity'yi yükle (PreOrder.Create için gerekli)
-        var user = await _context.Set<Merge.Domain.Modules.Identity.User>()
+        // ✅ User entity'si BaseEntity'den türemediği için IDbContext.Users property'si kullanılıyor
+        var user = await _context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 

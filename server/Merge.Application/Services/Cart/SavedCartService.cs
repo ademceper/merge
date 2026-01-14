@@ -123,8 +123,7 @@ public class SavedCartService : ISavedCartService
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
-        // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
-        var currentPriceMoney = new Merge.Domain.ValueObjects.Money(currentPrice);
+        // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı (currentPriceMoney zaten yukarıda tanımlanmış)
         var savedItem = SavedCartItem.Create(userId, dto.ProductId, dto.Quantity, currentPriceMoney, dto.Notes);
 
         await _savedCartItemRepository.AddAsync(savedItem, cancellationToken);

@@ -1,15 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Merge.Domain.Modules.Payment;
+using PaymentEntity = Merge.Domain.Modules.Payment.Payment;
 
 namespace Merge.Infrastructure.Data.Configurations.Payment;
 
 /// <summary>
 /// Payment Entity Configuration - BOLUM 1.0: Entity Dosya Organizasyonu (ZORUNLU)
 /// </summary>
-public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
+public class PaymentConfiguration : IEntityTypeConfiguration<PaymentEntity>
 {
-    public void Configure(EntityTypeBuilder<Payment> builder)
+    public void Configure(EntityTypeBuilder<PaymentEntity> builder)
     {
         // ✅ BOLUM 6.1: Index Strategy
         builder.HasIndex(e => e.OrderId);

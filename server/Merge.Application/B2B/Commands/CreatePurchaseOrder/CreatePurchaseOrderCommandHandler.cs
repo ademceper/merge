@@ -206,17 +206,21 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                 }
 
                 // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
+                // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
+                var unitPriceMoney = new Merge.Domain.ValueObjects.Money(unitPrice);
                 purchaseOrder.AddItem(
                     products[itemDto.ProductId],
                     itemDto.Quantity,
-                    unitPrice,
+                    unitPriceMoney,
                     itemDto.Notes);
             }
 
             // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
             // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullan
+            // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
             var subTotal = purchaseOrder.SubTotal;
-            purchaseOrder.SetTax(subTotal * _b2bSettings.DefaultTaxRate);
+            var taxAmount = new Merge.Domain.ValueObjects.Money(subTotal * _b2bSettings.DefaultTaxRate);
+            purchaseOrder.SetTax(taxAmount);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);

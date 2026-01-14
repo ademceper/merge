@@ -64,7 +64,8 @@ public class AddItemToCartCommandHandler : IRequestHandler<AddItemToCartCommand,
                 _logger.LogInformation("Creating new cart for user {UserId}", request.UserId);
                 
                 // ✅ BOLUM 1.1: Rich Domain Model - User entity'yi yükle (Cart.Create için gerekli)
-                var user = await _context.Set<Merge.Domain.Modules.Identity.User>()
+                // ✅ User entity'si BaseEntity'den türemediği için IDbContext.Users property'si kullanılıyor
+                var user = await _context.Users
                     .AsNoTracking()
                     .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
                 

@@ -77,7 +77,6 @@ public class SaveItemCommandHandler : IRequestHandler<SaveItemCommand, SavedCart
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
         // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
-        var currentPriceMoney = new Merge.Domain.ValueObjects.Money(currentPrice);
         var savedItem = SavedCartItem.Create(request.UserId, request.ProductId, request.Quantity, currentPriceMoney, request.Notes);
 
         await _context.Set<SavedCartItem>().AddAsync(savedItem, cancellationToken);
