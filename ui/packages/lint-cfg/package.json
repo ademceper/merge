@@ -1,5 +1,5 @@
 {
-  "name": "@workspace/eslint-config",
+  "name": "@merge/lint-cfg",
   "version": "0.0.0",
   "type": "module",
   "private": true,

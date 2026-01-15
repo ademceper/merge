@@ -3,7 +3,7 @@
 import * as React from "react"
 import { ContextMenu as ContextMenuPrimitive } from "radix-ui"
 
-import { cn } from "@workspace/ui/lib/utils"
+import { cn } from "@merge/ui/lib/utils"
 import { CaretRightIcon, CheckIcon } from "@phosphor-icons/react"
 
 function ContextMenu({

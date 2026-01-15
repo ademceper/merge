@@ -28,20 +28,20 @@ const Toaster = ({ ...props }: ToasterProps) => {
           <SpinnerIcon className="size-4 animate-spin" />
         ),
       }}
-      style={
-        {
+      {...({
+        style: {
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
           "--border-radius": "var(--radius)",
-        } as React.CSSProperties
-      }
-      toastOptions={{
-        classNames: {
-          toast: "cn-toast",
         },
-      }}
-      {...props}
+        toastOptions: {
+          classNames: {
+            toast: "cn-toast",
+          },
+        },
+        ...props,
+      } as any)}
     />
   )
 }
