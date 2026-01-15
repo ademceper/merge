@@ -4,11 +4,14 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.CreateStaticTranslation;
 
-public class CreateStaticTranslationCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<CreateStaticTranslationCommand>
+public class CreateStaticTranslationCommandValidator : AbstractValidator<CreateStaticTranslationCommand>
 {
-    public CreateStaticTranslationCommandValidator()
+    private readonly InternationalSettings config;
+
+    public CreateStaticTranslationCommandValidator(IOptions<InternationalSettings> settings)
     {
-        var config = settings.Value;
+        config = settings.Value;
+        
 
         RuleFor(x => x.Key)
             .NotEmpty().WithMessage("Anahtar zorunludur.")

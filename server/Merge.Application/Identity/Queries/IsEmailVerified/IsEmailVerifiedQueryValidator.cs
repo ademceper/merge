@@ -3,7 +3,7 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Identity.Queries.IsEmailVerified;
 
-public class IsEmailVerifiedQueryValidator() : AbstractValidator<IsEmailVerifiedQuery>
+public class IsEmailVerifiedQueryValidator : AbstractValidator<IsEmailVerifiedQuery>
 {
     public IsEmailVerifiedQueryValidator()
     {

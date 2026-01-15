@@ -12,9 +12,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.LiveCommerce.Commands.UpdateLiveStream;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class UpdateLiveStreamCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -25,7 +22,6 @@ public class UpdateLiveStreamCommandHandler(
     {
         logger.LogInformation("Updating live stream. StreamId: {StreamId}", request.StreamId);
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var stream = await context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == request.StreamId, cancellationToken);
 
@@ -35,7 +31,6 @@ public class UpdateLiveStreamCommandHandler(
             throw new NotFoundException("Canlı yayın", request.StreamId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         stream.UpdateDetails(
             request.Title,
             request.Description,
@@ -46,15 +41,11 @@ public class UpdateLiveStreamCommandHandler(
             request.Category,
             request.Tags);
 
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsNoTracking + Include ile tek query'de getir
-        // ✅ PERFORMANCE: AsSplitQuery ile Cartesian Explosion önlenir (birden fazla Include var)
         var updatedStream = await context.Set<LiveStream>()
             .AsNoTracking()
-            .AsSplitQuery() // ✅ EF Core 9: Query splitting - her Include ayrı sorgu
+            .AsSplitQuery()
             .Include(s => s.Seller)
             .Include(s => s.Products)
                 .ThenInclude(p => p.Product)
@@ -68,8 +59,6 @@ public class UpdateLiveStreamCommandHandler(
 
         logger.LogInformation("Live stream updated successfully. StreamId: {StreamId}", request.StreamId);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return mapper.Map<LiveStreamDto>(updatedStream);
     }
 }
-

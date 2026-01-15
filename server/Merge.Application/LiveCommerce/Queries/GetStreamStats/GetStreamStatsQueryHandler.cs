@@ -10,14 +10,10 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 
 namespace Merge.Application.LiveCommerce.Queries.GetStreamStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class GetStreamStatsQueryHandler(
     IDbContext context,
     ILogger<GetStreamStatsQueryHandler> logger) : IRequestHandler<GetStreamStatsQuery, LiveStreamStatsDto>
 {
-    // ✅ BOLUM 12.0: Magic number YASAK - Constants kullan
     private const int DefaultDurationSeconds = 0;
     private const decimal DefaultRevenue = 0m;
 
@@ -25,7 +21,6 @@ public class GetStreamStatsQueryHandler(
     {
         logger.LogInformation("Getting stream stats. StreamId: {StreamId}", request.StreamId);
 
-        // ✅ PERFORMANCE: AsNoTracking (read-only query)
         var stream = await context.Set<LiveStream>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == request.StreamId, cancellationToken);
@@ -36,7 +31,6 @@ public class GetStreamStatsQueryHandler(
             throw new NotFoundException("Canlı yayın", request.StreamId);
         }
 
-        // ✅ PERFORMANCE: Database'de aggregation (memory'de YASAK)
         var totalViewers = await context.Set<LiveStreamViewer>()
             .CountAsync(v => v.LiveStreamId == request.StreamId, cancellationToken);
 
@@ -65,4 +59,3 @@ public class GetStreamStatsQueryHandler(
             duration);
     }
 }
-

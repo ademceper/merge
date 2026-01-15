@@ -3,7 +3,7 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Content.Commands.CreateBlogPost;
 
-public class CreateBlogPostCommandValidator() : AbstractValidator<CreateBlogPostCommand>
+public class CreateBlogPostCommandValidator : AbstractValidator<CreateBlogPostCommand>
 {
     public CreateBlogPostCommandValidator()
     {

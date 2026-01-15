@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.LiveCommerce.Commands.JoinStream;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class JoinStreamCommandValidator : AbstractValidator<JoinStreamCommand>
 {
     public JoinStreamCommandValidator()
@@ -19,4 +18,3 @@ public class JoinStreamCommandValidator : AbstractValidator<JoinStreamCommand>
             .WithMessage("Guest ID en fazla 100 karakter olabilir.");
     }
 }
-

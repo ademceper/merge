@@ -4,11 +4,14 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.UpdateExchangeRate;
 
-public class UpdateExchangeRateCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<UpdateExchangeRateCommand>
+public class UpdateExchangeRateCommandValidator : AbstractValidator<UpdateExchangeRateCommand>
 {
-    public UpdateExchangeRateCommandValidator()
+    private readonly InternationalSettings config;
+
+    public UpdateExchangeRateCommandValidator(IOptions<InternationalSettings> settings)
     {
-        var config = settings.Value;
+        config = settings.Value;
+        
 
         RuleFor(x => x.CurrencyCode)
             .NotEmpty().WithMessage("Para birimi kodu zorunludur.")

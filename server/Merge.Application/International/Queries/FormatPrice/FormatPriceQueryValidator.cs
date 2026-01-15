@@ -4,11 +4,13 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Queries.FormatPrice;
 
-public class FormatPriceQueryValidator(IOptions<InternationalSettings> settings) : AbstractValidator<FormatPriceQuery>
+public class FormatPriceQueryValidator : AbstractValidator<FormatPriceQuery>
 {
-    public FormatPriceQueryValidator()
+    private readonly InternationalSettings config;
+
+    public FormatPriceQueryValidator(IOptions<InternationalSettings> settings)
     {
-        var config = settings.Value;
+        config = settings.Value;
 
         RuleFor(x => x.Amount)
             .GreaterThanOrEqualTo(0).WithMessage("Miktar 0 veya daha büyük olmalıdır.");

@@ -4,11 +4,14 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.CreateProductTranslation;
 
-public class CreateProductTranslationCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<CreateProductTranslationCommand>
+public class CreateProductTranslationCommandValidator : AbstractValidator<CreateProductTranslationCommand>
 {
-    public CreateProductTranslationCommandValidator()
+    private readonly InternationalSettings config;
+
+    public CreateProductTranslationCommandValidator(IOptions<InternationalSettings> settings)
     {
-        var config = settings.Value;
+        config = settings.Value;
+        
 
         RuleFor(x => x.ProductId)
             .NotEmpty().WithMessage("Ürün ID zorunludur.");

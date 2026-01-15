@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace Merge.Application.International.Commands.ConvertPrice;
 
-public class ConvertPriceCommandValidator() : AbstractValidator<ConvertPriceCommand>
+public class ConvertPriceCommandValidator : AbstractValidator<ConvertPriceCommand>
 {
     public ConvertPriceCommandValidator()
     {

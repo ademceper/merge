@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.LiveCommerce.Commands.CreateOrderFromStream;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class CreateOrderFromStreamCommandValidator : AbstractValidator<CreateOrderFromStreamCommand>
 {
     public CreateOrderFromStreamCommandValidator()
@@ -14,4 +13,3 @@ public class CreateOrderFromStreamCommandValidator : AbstractValidator<CreateOrd
             .NotEmpty().WithMessage("Sipariş ID'si zorunludur.");
     }
 }
-

@@ -3,7 +3,7 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Identity.Commands.RevokeToken;
 
-public class RevokeTokenCommandValidator() : AbstractValidator<RevokeTokenCommand>
+public class RevokeTokenCommandValidator : AbstractValidator<RevokeTokenCommand>
 {
     public RevokeTokenCommandValidator()
     {

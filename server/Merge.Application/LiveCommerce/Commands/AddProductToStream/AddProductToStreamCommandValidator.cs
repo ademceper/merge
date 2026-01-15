@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.LiveCommerce.Commands.AddProductToStream;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class AddProductToStreamCommandValidator : AbstractValidator<AddProductToStreamCommand>
 {
     public AddProductToStreamCommandValidator()
@@ -24,4 +23,3 @@ public class AddProductToStreamCommandValidator : AbstractValidator<AddProductTo
             .MaximumLength(1000).WithMessage("Vitrin notları en fazla 1000 karakter olabilir.");
     }
 }
-

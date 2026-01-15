@@ -4,33 +4,21 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.LiveCommerce.EventHandlers;
 
-/// <summary>
-/// Live Stream Order Restored Event Handler - BOLUM 1.5: Domain Events (ÖNERİLİR)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
-/// </summary>
 public class LiveStreamOrderRestoredEventHandler(
     ILogger<LiveStreamOrderRestoredEventHandler> logger) : INotificationHandler<LiveStreamOrderRestoredEvent>
 {
     public async Task Handle(LiveStreamOrderRestoredEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         logger.LogInformation(
             "Live stream order restored event received. StreamId: {StreamId}, OrderId: {OrderId}, OrderAmount: {OrderAmount}, RestoredAt: {RestoredAt}",
             notification.StreamId, notification.OrderId, notification.OrderAmount, notification.RestoredAt);
 
         try
         {
-            // TODO: İleride burada şunlar yapılabilir:
-            // - Analytics tracking (order restore metrics, revenue adjustment)
-            // - Cache invalidation (deleted orders cache, stream stats cache)
-            // - External system integration (order management system - order restored)
-
             await Task.CompletedTask;
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
             logger.LogError(ex,
                 "Error handling LiveStreamOrderRestoredEvent. StreamId: {StreamId}, OrderId: {OrderId}",
                 notification.StreamId, notification.OrderId);

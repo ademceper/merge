@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.LiveCommerce.Commands.UpdateLiveStream;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class UpdateLiveStreamCommandValidator : AbstractValidator<UpdateLiveStreamCommand>
 {
     public UpdateLiveStreamCommandValidator()
@@ -39,4 +38,3 @@ public class UpdateLiveStreamCommandValidator : AbstractValidator<UpdateLiveStre
             .MaximumLength(500).WithMessage("Etiketler en fazla 500 karakter olabilir.");
     }
 }
-

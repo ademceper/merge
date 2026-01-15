@@ -133,7 +133,7 @@ public class TwoFactorAuthController(IMediator mediator) : BaseController
         // Note: AllowAnonymous endpoint, so UserId comes from request body (for login flow)
         var command = new Verify2FACodeCommand(verifyDto.UserId, verifyDto.Code);
         
-        var isValid = await _mediator.Send(command, cancellationToken);
+        var isValid = await mediator.Send(command, cancellationToken);
         if (!isValid)
         {
             return BadRequest("Geçersiz kod.");
@@ -204,7 +204,7 @@ public class TwoFactorAuthController(IMediator mediator) : BaseController
         // Note: AllowAnonymous endpoint, so UserId comes from request body (for login flow)
         var command = new VerifyBackupCodeCommand(verifyDto.UserId, verifyDto.BackupCode);
         
-        var isValid = await _mediator.Send(command, cancellationToken);
+        var isValid = await mediator.Send(command, cancellationToken);
         if (!isValid)
         {
             return BadRequest("Geçersiz yedek kod.");

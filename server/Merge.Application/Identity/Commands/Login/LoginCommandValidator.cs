@@ -3,7 +3,7 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Identity.Commands.Login;
 
-public class LoginCommandValidator() : AbstractValidator<LoginCommand>
+public class LoginCommandValidator : AbstractValidator<LoginCommand>
 {
     public LoginCommandValidator()
     {

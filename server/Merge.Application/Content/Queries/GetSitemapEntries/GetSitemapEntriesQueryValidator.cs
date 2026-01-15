@@ -4,12 +4,13 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Content.Queries.GetSitemapEntries;
 
-public class GetSitemapEntriesQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetSitemapEntriesQuery>
+public class GetSitemapEntriesQueryValidator : AbstractValidator<GetSitemapEntriesQuery>
 {
-    public GetSitemapEntriesQueryValidator()
-    {
-        var settings = paginationSettings.Value;
+    private readonly PaginationSettings settings;
 
+    public GetSitemapEntriesQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    {
+        settings = paginationSettings.Value;
         RuleFor(x => x.Page)
             .GreaterThan(0)
             .WithMessage("Sayfa numarası 1'den büyük olmalıdır.");

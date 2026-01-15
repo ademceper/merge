@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace Merge.Application.International.Queries.GetUserLanguagePreference;
 
-public class GetUserLanguagePreferenceQueryValidator() : AbstractValidator<GetUserLanguagePreferenceQuery>
+public class GetUserLanguagePreferenceQueryValidator : AbstractValidator<GetUserLanguagePreferenceQuery>
 {
     public GetUserLanguagePreferenceQueryValidator()
     {

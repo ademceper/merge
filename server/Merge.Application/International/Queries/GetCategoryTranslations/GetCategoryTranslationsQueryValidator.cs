@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace Merge.Application.International.Queries.GetCategoryTranslations;
 
-public class GetCategoryTranslationsQueryValidator() : AbstractValidator<GetCategoryTranslationsQuery>
+public class GetCategoryTranslationsQueryValidator : AbstractValidator<GetCategoryTranslationsQuery>
 {
     public GetCategoryTranslationsQueryValidator()
     {

@@ -4,7 +4,7 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Governance.Commands.AcceptPolicy;
 
-public class AcceptPolicyCommandValidator() : AbstractValidator<AcceptPolicyCommand>
+public class AcceptPolicyCommandValidator : AbstractValidator<AcceptPolicyCommand>
 {
     public AcceptPolicyCommandValidator()
     {

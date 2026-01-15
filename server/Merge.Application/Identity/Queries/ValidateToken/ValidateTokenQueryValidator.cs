@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace Merge.Application.Identity.Queries.ValidateToken;
 
-public class ValidateTokenQueryValidator() : AbstractValidator<ValidateTokenQuery>
+public class ValidateTokenQueryValidator : AbstractValidator<ValidateTokenQuery>
 {
     public ValidateTokenQueryValidator()
     {

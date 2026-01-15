@@ -4,11 +4,13 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Content.Queries.GetAllBanners;
 
-public class GetAllBannersQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetAllBannersQuery>
+public class GetAllBannersQueryValidator : AbstractValidator<GetAllBannersQuery>
 {
-    public GetAllBannersQueryValidator()
+    private readonly PaginationSettings settings;
+
+    public GetAllBannersQueryValidator(IOptions<PaginationSettings> paginationSettings)
     {
-        var settings = paginationSettings.Value;
+        settings = paginationSettings.Value;
 
         RuleFor(x => x.Page)
             .GreaterThan(0)

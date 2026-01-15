@@ -4,12 +4,13 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Queries.GetStaticTranslations;
 
-public class GetStaticTranslationsQueryValidator(IOptions<InternationalSettings> settings) : AbstractValidator<GetStaticTranslationsQuery>
+public class GetStaticTranslationsQueryValidator : AbstractValidator<GetStaticTranslationsQuery>
 {
-    public GetStaticTranslationsQueryValidator()
-    {
-        var config = settings.Value;
+    private readonly InternationalSettings config;
 
+    public GetStaticTranslationsQueryValidator(IOptions<InternationalSettings> settings)
+    {
+        config = settings.Value;
         RuleFor(x => x.LanguageCode)
             .NotEmpty().WithMessage("Dil kodu zorunludur.")
             .Length(config.MinLanguageCodeLength, config.MaxLanguageCodeLength)

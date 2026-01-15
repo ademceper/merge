@@ -3,7 +3,7 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Identity.Commands.SendVerificationCode;
 
-public class SendVerificationCodeCommandValidator() : AbstractValidator<SendVerificationCodeCommand>
+public class SendVerificationCodeCommandValidator : AbstractValidator<SendVerificationCodeCommand>
 {
     public SendVerificationCodeCommandValidator()
     {

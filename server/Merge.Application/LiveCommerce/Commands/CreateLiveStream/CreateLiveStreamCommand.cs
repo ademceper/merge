@@ -4,7 +4,6 @@ using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Application.LiveCommerce.Commands.CreateLiveStream;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record CreateLiveStreamCommand(
     Guid SellerId,
     string Title,
@@ -15,4 +14,3 @@ public record CreateLiveStreamCommand(
     string? ThumbnailUrl,
     string? Category,
     string? Tags) : IRequest<LiveStreamDto>;
-

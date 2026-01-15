@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.LiveCommerce.Commands.LeaveStream;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class LeaveStreamCommandValidator : AbstractValidator<LeaveStreamCommand>
 {
     public LeaveStreamCommandValidator()
@@ -19,4 +18,3 @@ public class LeaveStreamCommandValidator : AbstractValidator<LeaveStreamCommand>
             .WithMessage("Guest ID en fazla 100 karakter olabilir.");
     }
 }
-

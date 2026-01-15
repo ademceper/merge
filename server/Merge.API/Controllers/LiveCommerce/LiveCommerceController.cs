@@ -24,20 +24,14 @@ using Merge.Application.LiveCommerce.Commands.CancelStream;
 
 namespace Merge.API.Controllers.LiveCommerce;
 
-// ✅ BOLUM 4.1: API Versioning (ZORUNLU)
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/live-commerce")]
 public class LiveCommerceController(IMediator mediator) : BaseController
 {
-
-    /// <summary>
-    /// Yeni canlı yayın oluşturur (Seller, Admin)
-    /// </summary>
     [HttpPost("streams")]
     [Authorize(Roles = "Seller,Admin")]
-    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [RateLimit(10, 60)]
     [ProducesResponseType(typeof(LiveStreamDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -47,21 +41,14 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         [FromBody] CreateLiveStreamDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'ini oluşturabilir
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
-
-        // Seller kontrolü - Seller sadece kendi ID'sini kullanabilir
         if (!TryGetUserRole(out var role) || (role != "Admin" && dto.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizi oluşturabilirsiniz.");
         }
-
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new CreateLiveStreamCommand(
             dto.SellerId,
             dto.Title,
@@ -76,12 +63,9 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         return CreatedAtAction(nameof(GetStream), new { id = stream.Id }, stream);
     }
 
-    /// <summary>
-    /// Canlı yayın detaylarını günceller (Seller, Admin)
-    /// </summary>
     [HttpPut("streams/{id}")]
     [Authorize(Roles = "Seller,Admin")]
-    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [RateLimit(10, 60)]
     [ProducesResponseType(typeof(LiveStreamDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -93,27 +77,20 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         [FromBody] CreateLiveStreamDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'ini güncelleyebilir
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
-
         var streamQuery = new GetLiveStreamQuery(id);
         var existingStream = await mediator.Send(streamQuery, cancellationToken);
         if (existingStream == null)
         {
             return NotFound();
         }
-
         if (!TryGetUserRole(out var role) || (role != "Admin" && existingStream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizi güncelleyebilirsiniz.");
         }
-
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new UpdateLiveStreamCommand(
             id,
             dto.Title,
@@ -128,12 +105,9 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         return Ok(stream);
     }
 
-    /// <summary>
-    /// Canlı yayını siler (Seller, Admin)
-    /// </summary>
     [HttpDelete("streams/{id}")]
     [Authorize(Roles = "Seller,Admin")]
-    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika (kritik işlem)
+    [RateLimit(5, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -143,37 +117,28 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'ini silebilir
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
-
         var streamQuery = new GetLiveStreamQuery(id);
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
             return NotFound();
         }
-
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizi silebilirsiniz.");
         }
-
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new DeleteLiveStreamCommand(id);
         await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
-    /// <summary>
-    /// Canlı yayın detaylarını getirir
-    /// </summary>
     [HttpGet("streams/{id}")]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(LiveStreamDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -181,8 +146,6 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetLiveStreamQuery(id);
         var stream = await mediator.Send(query, cancellationToken);
         if (stream == null)
@@ -192,12 +155,9 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         return Ok(stream);
     }
 
-    /// <summary>
-    /// Aktif canlı yayınları getirir
-    /// </summary>
     [HttpGet("streams/active")]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(PagedResult<LiveStreamDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PagedResult<LiveStreamDto>>> GetActiveStreams(
@@ -205,19 +165,14 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetActiveStreamsQuery(page, pageSize);
         var streams = await mediator.Send(query, cancellationToken);
         return Ok(streams);
     }
 
-    /// <summary>
-    /// Satıcıya ait canlı yayınları getirir
-    /// </summary>
     [HttpGet("streams/seller/{sellerId}")]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(PagedResult<LiveStreamDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PagedResult<LiveStreamDto>>> GetStreamsBySeller(
@@ -226,19 +181,14 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetStreamsBySellerQuery(sellerId, page, pageSize);
         var streams = await mediator.Send(query, cancellationToken);
         return Ok(streams);
     }
 
-    /// <summary>
-    /// Canlı yayını başlatır (Seller, Admin)
-    /// </summary>
     [HttpPost("streams/{id}/start")]
     [Authorize(Roles = "Seller,Admin")]
-    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika (kritik işlem)
+    [RateLimit(5, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -252,33 +202,24 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         {
             return Unauthorized();
         }
-
-        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'ini başlatabilir
         var streamQuery = new GetLiveStreamQuery(id);
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
             return NotFound();
         }
-
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizi başlatabilirsiniz.");
         }
-
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new StartStreamCommand(id);
         await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
-    /// <summary>
-    /// Canlı yayını sonlandırır (Seller, Admin)
-    /// </summary>
     [HttpPost("streams/{id}/end")]
     [Authorize(Roles = "Seller,Admin")]
-    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika (kritik işlem)
+    [RateLimit(5, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -292,33 +233,24 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         {
             return Unauthorized();
         }
-
-        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'ini sonlandırabilir
         var streamQuery = new GetLiveStreamQuery(id);
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
             return NotFound();
         }
-
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizi sonlandırabilirsiniz.");
         }
-
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new EndStreamCommand(id);
         await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
-    /// <summary>
-    /// Canlı yayını duraklatır (Seller, Admin)
-    /// </summary>
     [HttpPost("streams/{id}/pause")]
     [Authorize(Roles = "Seller,Admin")]
-    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika (kritik işlem)
+    [RateLimit(5, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -332,33 +264,24 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         {
             return Unauthorized();
         }
-
-        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'ini duraklatabilir
         var streamQuery = new GetLiveStreamQuery(id);
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
             return NotFound();
         }
-
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizi duraklatabilirsiniz.");
         }
-
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new PauseStreamCommand(id);
         await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
-    /// <summary>
-    /// Duraklatılmış canlı yayını devam ettirir (Seller, Admin)
-    /// </summary>
     [HttpPost("streams/{id}/resume")]
     [Authorize(Roles = "Seller,Admin")]
-    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika (kritik işlem)
+    [RateLimit(5, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -372,33 +295,24 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         {
             return Unauthorized();
         }
-
-        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'ini devam ettirebilir
         var streamQuery = new GetLiveStreamQuery(id);
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
             return NotFound();
         }
-
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizi devam ettirebilirsiniz.");
         }
-
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new ResumeStreamCommand(id);
         await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
-    /// <summary>
-    /// Canlı yayını iptal eder (Seller, Admin)
-    /// </summary>
     [HttpPost("streams/{id}/cancel")]
     [Authorize(Roles = "Seller,Admin")]
-    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika (kritik işlem)
+    [RateLimit(5, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -412,33 +326,24 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         {
             return Unauthorized();
         }
-
-        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'ini iptal edebilir
         var streamQuery = new GetLiveStreamQuery(id);
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
             return NotFound();
         }
-
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizi iptal edebilirsiniz.");
         }
-
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new CancelStreamCommand(id);
         await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
-    /// <summary>
-    /// Canlı yayına ürün ekler (Seller, Admin)
-    /// </summary>
     [HttpPost("streams/{streamId}/products/{productId}")]
     [Authorize(Roles = "Seller,Admin")]
-    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [RateLimit(20, 60)]
     [ProducesResponseType(typeof(LiveStreamDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -455,23 +360,16 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         {
             return Unauthorized();
         }
-
-        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'ine ürün ekleyebilir
         var streamQuery = new GetLiveStreamQuery(streamId);
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
             return NotFound();
         }
-
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inize ürün ekleyebilirsiniz.");
         }
-
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new AddProductToStreamCommand(
             streamId,
             productId,
@@ -482,12 +380,9 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         return Ok(result);
     }
 
-    /// <summary>
-    /// Ürünü vitrine çıkarır (Seller, Admin)
-    /// </summary>
     [HttpPost("streams/{streamId}/products/{productId}/showcase")]
     [Authorize(Roles = "Seller,Admin")]
-    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [RateLimit(20, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -502,33 +397,24 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         {
             return Unauthorized();
         }
-
-        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream'inde ürün vitrine çıkarabilir
         var streamQuery = new GetLiveStreamQuery(streamId);
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
             return NotFound();
         }
-
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizde ürün vitrine çıkarabilirsiniz.");
         }
-
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new ShowcaseProductCommand(streamId, productId);
         await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
-    /// <summary>
-    /// Canlı yayına katılır
-    /// </summary>
     [HttpPost("streams/{streamId}/join")]
     [AllowAnonymous]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -538,20 +424,14 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var userId = GetUserIdOrNull();
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new JoinStreamCommand(streamId, userId, dto?.GuestId);
         await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
-    /// <summary>
-    /// Canlı yayından ayrılır
-    /// </summary>
     [HttpPost("streams/{streamId}/leave")]
     [AllowAnonymous]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30 istek / dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -561,20 +441,14 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var userId = GetUserIdOrNull();
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new LeaveStreamCommand(streamId, userId, dto?.GuestId);
         await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
-    /// <summary>
-    /// Canlı yayından sipariş oluşturur
-    /// </summary>
     [HttpPost("streams/{streamId}/orders/{orderId}")]
     [Authorize]
-    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [RateLimit(20, 60)]
     [ProducesResponseType(typeof(LiveStreamOrderDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -585,19 +459,14 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         [FromQuery] Guid? productId = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new CreateOrderFromStreamCommand(streamId, orderId, productId);
         var streamOrder = await mediator.Send(command, cancellationToken);
         return Ok(streamOrder);
     }
 
-    /// <summary>
-    /// Canlı yayın istatistiklerini getirir
-    /// </summary>
     [HttpGet("streams/{id}/stats")]
     [Authorize]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(LiveStreamStatsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -611,25 +480,19 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         {
             return Unauthorized();
         }
-
-        // ✅ BOLUM 3.2: IDOR Koruması - Seller sadece kendi stream istatistiklerini görebilir
         var streamQuery = new GetLiveStreamQuery(id);
         var stream = await mediator.Send(streamQuery, cancellationToken);
         if (stream == null)
         {
             return NotFound();
         }
-
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream istatistiklerinizi görebilirsiniz.");
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetStreamStatsQuery(id);
         var stats = await mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 }
-

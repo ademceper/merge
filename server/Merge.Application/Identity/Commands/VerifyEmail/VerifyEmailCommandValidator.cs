@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace Merge.Application.Identity.Commands.VerifyEmail;
 
-public class VerifyEmailCommandValidator() : AbstractValidator<VerifyEmailCommand>
+public class VerifyEmailCommandValidator : AbstractValidator<VerifyEmailCommand>
 {
     public VerifyEmailCommandValidator()
     {

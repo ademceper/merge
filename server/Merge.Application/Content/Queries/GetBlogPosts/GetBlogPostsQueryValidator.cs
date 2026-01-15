@@ -5,11 +5,13 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Content.Queries.GetBlogPosts;
 
-public class GetBlogPostsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetBlogPostsQuery>
+public class GetBlogPostsQueryValidator : AbstractValidator<GetBlogPostsQuery>
 {
-    public GetBlogPostsQueryValidator()
+    private readonly PaginationSettings settings;
+
+    public GetBlogPostsQueryValidator(IOptions<PaginationSettings> paginationSettings)
     {
-        var settings = paginationSettings.Value;
+        settings = paginationSettings.Value;
 
         RuleFor(x => x.Page)
             .GreaterThan(0)

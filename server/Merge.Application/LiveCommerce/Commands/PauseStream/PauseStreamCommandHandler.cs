@@ -9,9 +9,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.LiveCommerce.Commands.PauseStream;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class PauseStreamCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -21,7 +18,6 @@ public class PauseStreamCommandHandler(
     {
         logger.LogInformation("Pausing stream. StreamId: {StreamId}", request.StreamId);
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var stream = await context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == request.StreamId, cancellationToken);
 
@@ -31,11 +27,8 @@ public class PauseStreamCommandHandler(
             throw new NotFoundException("Canlı yayın", request.StreamId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         stream.Pause();
 
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Stream paused successfully. StreamId: {StreamId}", request.StreamId);

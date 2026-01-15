@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.LiveCommerce.Queries.GetLiveStream;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class GetLiveStreamQueryValidator : AbstractValidator<GetLiveStreamQuery>
 {
     public GetLiveStreamQueryValidator()
@@ -11,4 +10,3 @@ public class GetLiveStreamQueryValidator : AbstractValidator<GetLiveStreamQuery>
             .NotEmpty().WithMessage("Stream ID'si zorunludur.");
     }
 }
-

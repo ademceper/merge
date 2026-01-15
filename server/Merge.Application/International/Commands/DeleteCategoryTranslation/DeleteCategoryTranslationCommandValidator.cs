@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace Merge.Application.International.Commands.DeleteCategoryTranslation;
 
-public class DeleteCategoryTranslationCommandValidator() : AbstractValidator<DeleteCategoryTranslationCommand>
+public class DeleteCategoryTranslationCommandValidator : AbstractValidator<DeleteCategoryTranslationCommand>
 {
     public DeleteCategoryTranslationCommandValidator()
     {

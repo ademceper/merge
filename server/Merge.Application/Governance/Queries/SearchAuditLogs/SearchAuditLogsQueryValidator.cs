@@ -5,9 +5,9 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Governance.Queries.SearchAuditLogs;
 
-public class SearchAuditLogsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<SearchAuditLogsQuery>
+public class SearchAuditLogsQueryValidator : AbstractValidator<SearchAuditLogsQuery>
 {
-    public SearchAuditLogsQueryValidator()
+    public SearchAuditLogsQueryValidator(IOptions<PaginationSettings> paginationSettings)
     {
         var settings = paginationSettings.Value;
 
@@ -50,4 +50,5 @@ public class SearchAuditLogsQueryValidator(IOptions<PaginationSettings> paginati
             .Must(x => !x.StartDate.HasValue || !x.EndDate.HasValue || x.StartDate.Value <= x.EndDate.Value)
             .WithMessage("Start date, end date'den önce veya eşit olmalıdır")
             .When(x => x.StartDate.HasValue && x.EndDate.HasValue);
+    }
 }

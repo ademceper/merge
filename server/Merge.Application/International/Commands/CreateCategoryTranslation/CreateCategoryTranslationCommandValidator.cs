@@ -4,11 +4,14 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.CreateCategoryTranslation;
 
-public class CreateCategoryTranslationCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<CreateCategoryTranslationCommand>
+public class CreateCategoryTranslationCommandValidator : AbstractValidator<CreateCategoryTranslationCommand>
 {
-    public CreateCategoryTranslationCommandValidator()
+    private readonly InternationalSettings config;
+
+    public CreateCategoryTranslationCommandValidator(IOptions<InternationalSettings> settings)
     {
-        var config = settings.Value;
+        config = settings.Value;
+        
 
         RuleFor(x => x.CategoryId)
             .NotEmpty().WithMessage("Kategori ID zorunludur.");

@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace Merge.Application.International.Commands.DeleteStaticTranslation;
 
-public class DeleteStaticTranslationCommandValidator() : AbstractValidator<DeleteStaticTranslationCommand>
+public class DeleteStaticTranslationCommandValidator : AbstractValidator<DeleteStaticTranslationCommand>
 {
     public DeleteStaticTranslationCommandValidator()
     {

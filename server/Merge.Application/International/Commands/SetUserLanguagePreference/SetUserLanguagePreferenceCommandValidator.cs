@@ -4,11 +4,14 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.SetUserLanguagePreference;
 
-public class SetUserLanguagePreferenceCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<SetUserLanguagePreferenceCommand>
+public class SetUserLanguagePreferenceCommandValidator : AbstractValidator<SetUserLanguagePreferenceCommand>
 {
-    public SetUserLanguagePreferenceCommandValidator()
+    private readonly InternationalSettings config;
+
+    public SetUserLanguagePreferenceCommandValidator(IOptions<InternationalSettings> settings)
     {
-        var config = settings.Value;
+        config = settings.Value;
+        
 
         RuleFor(x => x.UserId)
             .NotEmpty().WithMessage("Kullanıcı ID zorunludur.");

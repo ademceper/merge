@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.LiveCommerce.Commands.StartStream;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class StartStreamCommandValidator : AbstractValidator<StartStreamCommand>
 {
     public StartStreamCommandValidator()
@@ -11,4 +10,3 @@ public class StartStreamCommandValidator : AbstractValidator<StartStreamCommand>
             .NotEmpty().WithMessage("Stream ID'si zorunludur.");
     }
 }
-

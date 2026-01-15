@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace Merge.Application.International.Queries.GetAllLanguages;
 
-public class GetAllLanguagesQueryValidator() : AbstractValidator<GetAllLanguagesQuery>
+public class GetAllLanguagesQueryValidator : AbstractValidator<GetAllLanguagesQuery>
 {
     public GetAllLanguagesQueryValidator()
     {

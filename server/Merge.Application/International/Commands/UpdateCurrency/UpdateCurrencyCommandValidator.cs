@@ -4,12 +4,13 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.UpdateCurrency;
 
-public class UpdateCurrencyCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<UpdateCurrencyCommand>
+public class UpdateCurrencyCommandValidator : AbstractValidator<UpdateCurrencyCommand>
 {
-    public UpdateCurrencyCommandValidator()
-    {
-        var config = settings.Value;
+    private readonly InternationalSettings config;
 
+    public UpdateCurrencyCommandValidator(IOptions<InternationalSettings> settings)
+    {
+        config = settings.Value;
         RuleFor(x => x.Id)
             .NotEmpty().WithMessage("Para birimi ID zorunludur.");
 

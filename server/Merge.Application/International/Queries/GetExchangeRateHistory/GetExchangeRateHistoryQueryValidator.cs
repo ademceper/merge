@@ -4,11 +4,13 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Queries.GetExchangeRateHistory;
 
-public class GetExchangeRateHistoryQueryValidator(IOptions<InternationalSettings> settings) : AbstractValidator<GetExchangeRateHistoryQuery>
+public class GetExchangeRateHistoryQueryValidator : AbstractValidator<GetExchangeRateHistoryQuery>
 {
-    public GetExchangeRateHistoryQueryValidator()
+    private readonly InternationalSettings config;
+
+    public GetExchangeRateHistoryQueryValidator(IOptions<InternationalSettings> settings)
     {
-        var config = settings.Value;
+        config = settings.Value;
 
         RuleFor(x => x.CurrencyCode)
             .NotEmpty().WithMessage("Para birimi kodu zorunludur.")

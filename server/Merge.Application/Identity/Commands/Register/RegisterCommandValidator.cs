@@ -3,7 +3,7 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Identity.Commands.Register;
 
-public class RegisterCommandValidator() : AbstractValidator<RegisterCommand>
+public class RegisterCommandValidator : AbstractValidator<RegisterCommand>
 {
     public RegisterCommandValidator()
     {

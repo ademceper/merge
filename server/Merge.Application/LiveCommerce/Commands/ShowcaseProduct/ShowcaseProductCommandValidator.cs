@@ -2,7 +2,6 @@ using FluentValidation;
 
 namespace Merge.Application.LiveCommerce.Commands.ShowcaseProduct;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
 public class ShowcaseProductCommandValidator : AbstractValidator<ShowcaseProductCommand>
 {
     public ShowcaseProductCommandValidator()
@@ -14,4 +13,3 @@ public class ShowcaseProductCommandValidator : AbstractValidator<ShowcaseProduct
             .NotEmpty().WithMessage("Ürün ID'si zorunludur.");
     }
 }
-

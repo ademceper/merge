@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace Merge.Application.International.Queries.GetActiveCurrencies;
 
-public class GetActiveCurrenciesQueryValidator() : AbstractValidator<GetActiveCurrenciesQuery>
+public class GetActiveCurrenciesQueryValidator : AbstractValidator<GetActiveCurrenciesQuery>
 {
     public GetActiveCurrenciesQueryValidator()
     {

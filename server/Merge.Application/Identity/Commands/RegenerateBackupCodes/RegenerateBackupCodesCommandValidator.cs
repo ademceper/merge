@@ -3,7 +3,7 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Identity.Commands.RegenerateBackupCodes;
 
-public class RegenerateBackupCodesCommandValidator() : AbstractValidator<RegenerateBackupCodesCommand>
+public class RegenerateBackupCodesCommandValidator : AbstractValidator<RegenerateBackupCodesCommand>
 {
     public RegenerateBackupCodesCommandValidator()
     {

@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace Merge.Application.International.Commands.SyncExchangeRates;
 
-public class SyncExchangeRatesCommandValidator() : AbstractValidator<SyncExchangeRatesCommand>
+public class SyncExchangeRatesCommandValidator : AbstractValidator<SyncExchangeRatesCommand>
 {
     public SyncExchangeRatesCommandValidator()
     {

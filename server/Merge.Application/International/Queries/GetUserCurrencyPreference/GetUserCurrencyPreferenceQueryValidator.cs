@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace Merge.Application.International.Queries.GetUserCurrencyPreference;
 
-public class GetUserCurrencyPreferenceQueryValidator() : AbstractValidator<GetUserCurrencyPreferenceQuery>
+public class GetUserCurrencyPreferenceQueryValidator : AbstractValidator<GetUserCurrencyPreferenceQuery>
 {
     public GetUserCurrencyPreferenceQueryValidator()
     {

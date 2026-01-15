@@ -9,9 +9,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.LiveCommerce.Commands.EndStream;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 7.1.8: Primary Constructors (C# 12) - Modern C# feature kullanımı
 public class EndStreamCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
@@ -21,7 +18,6 @@ public class EndStreamCommandHandler(
     {
         logger.LogInformation("Ending stream. StreamId: {StreamId}", request.StreamId);
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var stream = await context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == request.StreamId, cancellationToken);
 
@@ -31,15 +27,11 @@ public class EndStreamCommandHandler(
             throw new NotFoundException("Canlı yayın", request.StreamId);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         stream.End();
 
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Stream ended successfully. StreamId: {StreamId}", request.StreamId);
         return Unit.Value;
     }
 }
-

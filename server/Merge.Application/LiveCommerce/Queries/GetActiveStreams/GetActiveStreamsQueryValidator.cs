@@ -4,8 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.LiveCommerce.Queries.GetActiveStreams;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-// ✅ BOLUM 12.0: Magic number YASAK - Configuration kullan
 public class GetActiveStreamsQueryValidator : AbstractValidator<GetActiveStreamsQuery>
 {
     public GetActiveStreamsQueryValidator(IOptions<PaginationSettings> paginationSettings)
@@ -21,4 +19,3 @@ public class GetActiveStreamsQueryValidator : AbstractValidator<GetActiveStreams
             .WithMessage($"Sayfa boyutu en fazla {settings.MaxPageSize} olabilir.");
     }
 }
-

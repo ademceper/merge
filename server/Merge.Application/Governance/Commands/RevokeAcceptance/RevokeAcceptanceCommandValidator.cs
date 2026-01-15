@@ -4,7 +4,7 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Governance.Commands.RevokeAcceptance;
 
-public class RevokeAcceptanceCommandValidator() : AbstractValidator<RevokeAcceptanceCommand>
+public class RevokeAcceptanceCommandValidator : AbstractValidator<RevokeAcceptanceCommand>
 {
     public RevokeAcceptanceCommandValidator()
     {

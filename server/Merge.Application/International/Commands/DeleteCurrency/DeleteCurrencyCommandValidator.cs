@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace Merge.Application.International.Commands.DeleteCurrency;
 
-public class DeleteCurrencyCommandValidator() : AbstractValidator<DeleteCurrencyCommand>
+public class DeleteCurrencyCommandValidator : AbstractValidator<DeleteCurrencyCommand>
 {
     public DeleteCurrencyCommandValidator()
     {

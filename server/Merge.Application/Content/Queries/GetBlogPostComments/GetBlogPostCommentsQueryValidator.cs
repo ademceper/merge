@@ -4,11 +4,13 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Content.Queries.GetBlogPostComments;
 
-public class GetBlogPostCommentsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetBlogPostCommentsQuery>
+public class GetBlogPostCommentsQueryValidator : AbstractValidator<GetBlogPostCommentsQuery>
 {
-    public GetBlogPostCommentsQueryValidator()
+    private readonly PaginationSettings settings;
+
+    public GetBlogPostCommentsQueryValidator(IOptions<PaginationSettings> paginationSettings)
     {
-        var settings = paginationSettings.Value;
+        settings = paginationSettings.Value;
 
         RuleFor(x => x.PostId)
             .NotEmpty()

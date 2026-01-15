@@ -4,12 +4,13 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.BulkCreateStaticTranslations;
 
-public class BulkCreateStaticTranslationsCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<BulkCreateStaticTranslationsCommand>
+public class BulkCreateStaticTranslationsCommandValidator : AbstractValidator<BulkCreateStaticTranslationsCommand>
 {
-    public BulkCreateStaticTranslationsCommandValidator()
-    {
-        var config = settings.Value;
+    private readonly InternationalSettings config;
 
+    public BulkCreateStaticTranslationsCommandValidator(IOptions<InternationalSettings> settings)
+    {
+        config = settings.Value;
         RuleFor(x => x.LanguageCode)
             .NotEmpty().WithMessage("Dil kodu zorunludur.")
             .Length(config.MinLanguageCodeLength, config.MaxLanguageCodeLength)

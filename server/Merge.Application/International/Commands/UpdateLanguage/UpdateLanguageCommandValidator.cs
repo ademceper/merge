@@ -4,11 +4,14 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.UpdateLanguage;
 
-public class UpdateLanguageCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<UpdateLanguageCommand>
+public class UpdateLanguageCommandValidator : AbstractValidator<UpdateLanguageCommand>
 {
-    public UpdateLanguageCommandValidator()
+    private readonly InternationalSettings config;
+
+    public UpdateLanguageCommandValidator(IOptions<InternationalSettings> settings)
     {
-        var config = settings.Value;
+        config = settings.Value;
+        
 
         RuleFor(x => x.Id)
             .NotEmpty().WithMessage("Dil ID zorunludur.");

@@ -4,7 +4,7 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Governance.Commands.CreateAuditLog;
 
-public class CreateAuditLogCommandValidator() : AbstractValidator<CreateAuditLogCommand>
+public class CreateAuditLogCommandValidator : AbstractValidator<CreateAuditLogCommand>
 {
     public CreateAuditLogCommandValidator()
     {

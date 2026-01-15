@@ -3,7 +3,7 @@ using Merge.Domain.Modules.Content;
 
 namespace Merge.Application.Governance.Commands.CreatePolicy;
 
-public class CreatePolicyCommandValidator() : AbstractValidator<CreatePolicyCommand>
+public class CreatePolicyCommandValidator : AbstractValidator<CreatePolicyCommand>
 {
     public CreatePolicyCommandValidator()
     {

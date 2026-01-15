@@ -21,8 +21,6 @@ using Merge.Application.Services.Payment;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.Interfaces.Payment;
 
-using Merge.Application.Services.Content;
-
 using Merge.Application.Services.Logistics;
 using Merge.Application.Services.Marketing;
 using Merge.Application.Services.ML;

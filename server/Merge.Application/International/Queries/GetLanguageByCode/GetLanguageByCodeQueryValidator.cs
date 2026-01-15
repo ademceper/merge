@@ -4,11 +4,13 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Queries.GetLanguageByCode;
 
-public class GetLanguageByCodeQueryValidator(IOptions<InternationalSettings> settings) : AbstractValidator<GetLanguageByCodeQuery>
+public class GetLanguageByCodeQueryValidator : AbstractValidator<GetLanguageByCodeQuery>
 {
-    public GetLanguageByCodeQueryValidator()
+    private readonly InternationalSettings config;
+
+    public GetLanguageByCodeQueryValidator(IOptions<InternationalSettings> settings)
     {
-        var config = settings.Value;
+        config = settings.Value;
 
         RuleFor(x => x.Code)
             .NotEmpty().WithMessage("Dil kodu zorunludur.")
