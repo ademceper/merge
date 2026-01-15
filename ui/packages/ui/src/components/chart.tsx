@@ -70,8 +70,8 @@ function ChartContainer({
 }
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
-  const colorConfig = Object.entries(config).filter(
-    ([, config]) => config.theme || config.color
+  const colorConfig = (Object.entries(config) as Array<[string, ChartConfig[string]]>).filter(
+    ([, itemConfig]: [string, ChartConfig[string]]) => itemConfig.theme || itemConfig.color
   )
 
   if (!colorConfig.length) {
@@ -81,14 +81,14 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   return (
     <style
       dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
+        __html: (Object.entries(THEMES) as Array<[keyof typeof THEMES, string]>)
           .map(
-            ([theme, prefix]) => `
+            ([theme, prefix]: [keyof typeof THEMES, string]) => `
 ${prefix} [data-chart=${id}] {
 ${colorConfig
-  .map(([key, itemConfig]) => {
+  .map(([key, itemConfig]: [string, ChartConfig[string]]) => {
     const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
+      itemConfig.theme?.[theme] ||
       itemConfig.color
     return color ? `  --color-${key}: ${color};` : null
   })

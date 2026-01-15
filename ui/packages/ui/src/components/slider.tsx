@@ -45,7 +45,7 @@ function Slider({
           className="bg-primary absolute select-none data-horizontal:h-full data-vertical:w-full"
         />
       </SliderPrimitive.Track>
-      {Array.from({ length: _values.length }, (_, index) => (
+      {Array.from<number, React.ReactElement>({ length: _values.length }, (_: number, index: number) => (
         <SliderPrimitive.Thumb
           data-slot="slider-thumb"
           key={index}

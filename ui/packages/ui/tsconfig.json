@@ -2,6 +2,7 @@
   "extends": "@merge/ts-cfg/react-library.json",
   "compilerOptions": {
     "baseUrl": ".",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "paths": {
       "@merge/ui/*": ["./src/*"]
     }
