@@ -41,6 +41,7 @@ public class GetInventoryOverviewQueryHandler(
         var maxAlerts = settings.Value.MaxLowStockAlertsInOverview;
         var lowStockInventories = await context.Set<Inventory>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
             .Where(i => i.Quantity <= i.MinimumStockLevel)

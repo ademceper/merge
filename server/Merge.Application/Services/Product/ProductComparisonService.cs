@@ -87,6 +87,7 @@ public class ProductComparisonService : IProductComparisonService
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         comparison = await _context.Set<ProductComparison>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)
@@ -105,8 +106,10 @@ public class ProductComparisonService : IProductComparisonService
     public async Task<ProductComparisonDto?> GetComparisonAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
         var comparison = await _context.Set<ProductComparison>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)
@@ -120,8 +123,10 @@ public class ProductComparisonService : IProductComparisonService
     public async Task<ProductComparisonDto?> GetUserComparisonAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
         var comparison = await _context.Set<ProductComparison>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)
@@ -155,8 +160,10 @@ public class ProductComparisonService : IProductComparisonService
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
         var query = _context.Set<ProductComparison>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)
@@ -196,8 +203,10 @@ public class ProductComparisonService : IProductComparisonService
     public async Task<ProductComparisonDto?> GetComparisonByShareCodeAsync(string shareCode, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
         var comparison = await _context.Set<ProductComparison>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)
@@ -263,6 +272,7 @@ public class ProductComparisonService : IProductComparisonService
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         comparison = await _context.Set<ProductComparison>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)
@@ -393,8 +403,10 @@ public class ProductComparisonService : IProductComparisonService
     public async Task<ComparisonMatrixDto> GetComparisonMatrixAsync(Guid comparisonId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
         var comparison = await _context.Set<ProductComparison>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)
@@ -509,36 +521,33 @@ public class ProductComparisonService : IProductComparisonService
     private async Task<ProductComparisonDto> MapToDto(ProductComparison comparison, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !i.IsDeleted (Global Query Filter)
-        var items = await _context.Set<ProductComparisonItem>()
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
+        var itemsQuery = _context.Set<ProductComparisonItem>()
             .AsNoTracking()
+            .Where(i => i.ComparisonId == comparison.Id)
+            .OrderBy(i => i.Position);
+
+        var items = await itemsQuery
+            .AsSplitQuery()
             .Include(i => i.Product)
                 .ThenInclude(p => p.Category)
-            .Where(i => i.ComparisonId == comparison.Id)
-            .OrderBy(i => i.Position)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Batch load reviews to avoid N+1 queries
-        var productIds = items.Select(i => i.ProductId).ToList();
+        // ✅ PERFORMANCE: Batch load reviews to avoid N+1 queries (subquery ile)
+        var productIdsSubquery = from i in itemsQuery select i.ProductId;
         Dictionary<Guid, (decimal Rating, int Count)> reviewsDict;
-        if (productIds.Any())
-        {
-            var reviews = await _context.Set<ReviewEntity>()
-                .AsNoTracking()
-                .Where(r => productIds.Contains(r.ProductId))
-                .GroupBy(r => r.ProductId)
-                .Select(g => new
-                {
-                    ProductId = g.Key,
-                    Rating = (decimal)g.Average(r => r.Rating),
-                    Count = g.Count()
-                })
-                .ToListAsync(cancellationToken);
-            reviewsDict = reviews.ToDictionary(x => x.ProductId, x => (x.Rating, x.Count));
-        }
-        else
-        {
-            reviewsDict = new Dictionary<Guid, (decimal Rating, int Count)>();
-        }
+        var reviews = await _context.Set<ReviewEntity>()
+            .AsNoTracking()
+            .Where(r => productIdsSubquery.Contains(r.ProductId))
+            .GroupBy(r => r.ProductId)
+            .Select(g => new
+            {
+                ProductId = g.Key,
+                Rating = (decimal)g.Average(r => r.Rating),
+                Count = g.Count()
+            })
+            .ToListAsync(cancellationToken);
+        reviewsDict = reviews.ToDictionary(x => x.ProductId, x => (x.Rating, x.Count));
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: ComparisonProductDto için AutoMapper mapping'i eklenmeli

@@ -47,7 +47,9 @@ public class PickPackService : IPickPackService
         {
             // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
             // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
+            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
             var order = await _context.Set<OrderEntity>()
+                .AsSplitQuery()
                 .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.Product)
                 .FirstOrDefaultAsync(o => o.Id == dto.OrderId, cancellationToken);
@@ -110,8 +112,10 @@ public class PickPackService : IPickPackService
 
             // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !pp.IsDeleted (Global Query Filter)
+            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
             var createdPickPack = await _context.Set<PickPack>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(pp => pp.Order)
                 .Include(pp => pp.Warehouse)
                 .Include(pp => pp.PickedBy)
@@ -137,8 +141,10 @@ public class PickPackService : IPickPackService
     public async Task<PickPackDto?> GetPickPackByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pp.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         var pickPack = await _context.Set<PickPack>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(pp => pp.Order)
             .Include(pp => pp.Warehouse)
             .Include(pp => pp.PickedBy)
@@ -156,8 +162,10 @@ public class PickPackService : IPickPackService
     public async Task<PickPackDto?> GetPickPackByPackNumberAsync(string packNumber, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pp.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         var pickPack = await _context.Set<PickPack>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(pp => pp.Order)
             .Include(pp => pp.Warehouse)
             .Include(pp => pp.PickedBy)
@@ -177,8 +185,10 @@ public class PickPackService : IPickPackService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pp.IsDeleted (Global Query Filter)
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         var pickPacks = await _context.Set<PickPack>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(pp => pp.Order)
             .Include(pp => pp.Warehouse)
             .Include(pp => pp.PickedBy)
@@ -204,8 +214,10 @@ public class PickPackService : IPickPackService
         if (pageSize > 100) pageSize = 100; // Max limit
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pp.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         IQueryable<PickPack> query = _context.Set<PickPack>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(pp => pp.Order)
             .Include(pp => pp.Warehouse)
             .Include(pp => pp.PickedBy)

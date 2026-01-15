@@ -64,8 +64,10 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
         try
         {
             // ✅ PERFORMANCE: AsNoTracking for read-only query (check için)
+            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
             var cart = await _context.Set<CartEntity>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(c => c.CartItems)
                     .ThenInclude(ci => ci.Product)
                 .FirstOrDefaultAsync(c => c.UserId == request.UserId, cancellationToken);
@@ -136,9 +138,10 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
             // ✅ CRITICAL: Commit all changes atomically
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // Performance: Reload with all includes in one query
+            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
             order = await _context.Set<OrderEntity>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.Product)
                 .Include(o => o.Address)

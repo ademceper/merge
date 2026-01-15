@@ -79,6 +79,7 @@ public class GetProductAnalyticsQueryHandler(
         var last30Days = DateTime.UtcNow.AddDays(-settings.Value.DefaultPeriodDays);
         return await context.Set<OrderItem>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(oi => oi.Product)
             .Include(oi => oi.Order)
             .Where(oi => oi.Order.CreatedAt >= last30Days)
@@ -101,6 +102,7 @@ public class GetProductAnalyticsQueryHandler(
         var last30Days = DateTime.UtcNow.AddDays(-settings.Value.DefaultPeriodDays);
         return await context.Set<OrderItem>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(oi => oi.Product)
             .Include(oi => oi.Order)
             .Where(oi => oi.Order.CreatedAt >= last30Days)

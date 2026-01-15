@@ -193,6 +193,7 @@ public class TrustBadgeService : ITrustBadgeService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !stb.IsDeleted (Global Query Filter)
         var badges = await _context.Set<SellerTrustBadge>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(stb => stb.TrustBadge)
             .Include(stb => stb.Seller)
             .Where(stb => stb.SellerId == sellerId && stb.IsActive)
@@ -257,6 +258,7 @@ public class TrustBadgeService : ITrustBadgeService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !ptb.IsDeleted (Global Query Filter)
         var badges = await _context.Set<ProductTrustBadge>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(ptb => ptb.TrustBadge)
             .Include(ptb => ptb.Product)
             .Where(ptb => ptb.ProductId == productId && ptb.IsActive)
@@ -458,6 +460,7 @@ public class TrustBadgeService : ITrustBadgeService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !stb.IsDeleted (Global Query Filter)
         var sellerBadge = await _context.Set<SellerTrustBadge>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(stb => stb.TrustBadge)
             .Include(stb => stb.Seller)
             .FirstOrDefaultAsync(stb => stb.SellerId == sellerId && stb.TrustBadgeId == badgeId, cancellationToken);
@@ -475,6 +478,7 @@ public class TrustBadgeService : ITrustBadgeService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !ptb.IsDeleted (Global Query Filter)
         var productBadge = await _context.Set<ProductTrustBadge>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(ptb => ptb.TrustBadge)
             .Include(ptb => ptb.Product)
             .FirstOrDefaultAsync(ptb => ptb.ProductId == productId && ptb.TrustBadgeId == badgeId, cancellationToken);

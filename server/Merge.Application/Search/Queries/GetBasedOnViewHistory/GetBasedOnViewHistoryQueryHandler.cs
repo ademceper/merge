@@ -47,9 +47,10 @@ public class GetBasedOnViewHistoryQueryHandler : IRequestHandler<GetBasedOnViewH
             ? _searchSettings.MaxRecommendationResults
             : request.MaxResults;
 
-        // Get recently viewed products
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var recentlyViewed = await _context.Set<RecentlyViewedProduct>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(rv => rv.Product)
                 .ThenInclude(p => p.Category)
             .Where(rv => rv.UserId == request.UserId)
@@ -62,14 +63,26 @@ public class GetBasedOnViewHistoryQueryHandler : IRequestHandler<GetBasedOnViewH
             return Array.Empty<ProductRecommendationDto>();
         }
 
-        var viewedCategories = recentlyViewed.Select(rv => rv.Product.CategoryId).Distinct().ToList();
+        // ✅ PERFORMANCE: recentlyViewed zaten materialize edilmiş küçük liste (5 item), bu yüzden ID'leri almak kabul edilebilir
+        // Ancak category'ler için subquery kullanıyoruz (ISSUE #3.1 fix)
         var viewedProductIds = recentlyViewed.Select(rv => rv.ProductId).ToList();
+        
+        // Category'ler için subquery kullan (büyük olabilir)
+        var recentlyViewedQuery = _context.Set<RecentlyViewedProduct>()
+            .AsNoTracking()
+            .Where(rv => rv.UserId == request.UserId)
+            .OrderByDescending(rv => rv.ViewedAt)
+            .Take(5);
+        
+        var viewedCategoriesSubquery = from rv in recentlyViewedQuery
+                                      join p in _context.Set<ProductEntity>().AsNoTracking() on rv.ProductId equals p.Id
+                                      select p.CategoryId;
 
         // Get products from same categories, excluding already viewed
         var recommendations = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive &&
-                       viewedCategories.Contains(p.CategoryId) &&
+                       viewedCategoriesSubquery.Distinct().Contains(p.CategoryId) &&
                        !viewedProductIds.Contains(p.Id))
             .OrderByDescending(p => p.Rating)
             .ThenByDescending(p => p.ReviewCount)

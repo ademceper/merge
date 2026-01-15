@@ -41,6 +41,7 @@ public class GetPendingReviewsQueryHandler(
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
         var query = context.Set<ReviewEntity>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.User)
             .Include(r => r.Product)
             .Where(r => !r.IsApproved);

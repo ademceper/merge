@@ -56,7 +56,6 @@ public class CreateEmailCampaignCommandHandler(
         // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery + Removed manual !c.IsDeleted (Global Query Filter)
         var createdCampaign = await context.Set<EmailCampaign>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(c => c.Template)
             .FirstOrDefaultAsync(c => c.Id == campaign.Id, cancellationToken);
 

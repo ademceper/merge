@@ -31,33 +31,28 @@ public class GetUnassignedTicketsQueryHandler : IRequestHandler<GetUnassignedTic
 
     public async Task<IEnumerable<SupportTicketDto>> Handle(GetUnassignedTicketsQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: ticketIds'i database'de oluştur, memory'de işlem YASAK
+        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        var ticketIds = await _context.Set<SupportTicket>()
+        var ticketsQuery = _context.Set<SupportTicket>()
             .AsNoTracking()
-            .Where(t => t.AssignedToId == null && t.Status != TicketStatus.Closed)
-            .OrderByDescending(t => t.Priority)
-            .ThenBy(t => t.CreatedAt)
-            .Select(t => t.Id)
-            .ToListAsync(cancellationToken);
+            .Where(t => t.AssignedToId == null && t.Status != TicketStatus.Closed);
 
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
-        var tickets = await _context.Set<SupportTicket>()
-            .AsNoTracking()
+        var tickets = await ticketsQuery
             .AsSplitQuery()
             .Include(t => t.User)
             .Include(t => t.Order)
             .Include(t => t.Product)
-            .Where(t => t.AssignedToId == null && t.Status != TicketStatus.Closed)
             .OrderByDescending(t => t.Priority)
             .ThenBy(t => t.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Batch load messages and attachments for all tickets
+        // ✅ PERFORMANCE: Batch load messages and attachments for all tickets (subquery ile)
+        var ticketIdsSubquery = from t in ticketsQuery select t.Id;
         var messagesDict = await _context.Set<TicketMessage>()
             .AsNoTracking()
             .Include(m => m.User)
-            .Where(m => ticketIds.Contains(m.TicketId))
+            .Where(m => ticketIdsSubquery.Contains(m.TicketId))
             .GroupBy(m => m.TicketId)
             .Select(g => new
             {
@@ -68,7 +63,7 @@ public class GetUnassignedTicketsQueryHandler : IRequestHandler<GetUnassignedTic
 
         var attachmentsDict = await _context.Set<TicketAttachment>()
             .AsNoTracking()
-            .Where(a => ticketIds.Contains(a.TicketId))
+            .Where(a => ticketIdsSubquery.Contains(a.TicketId))
             .GroupBy(a => a.TicketId)
             .Select(g => new
             {

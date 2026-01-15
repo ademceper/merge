@@ -42,6 +42,7 @@ public class GetPageBuilderBySlugQueryHandler(
 
         var pageBuilder = request.TrackView
             ? await context.Set<PageBuilder>()
+            .AsSplitQuery()
                 .Include(pb => pb.Author)
                 .FirstOrDefaultAsync(pb => pb.Slug == request.Slug && pb.Status == ContentStatus.Published, cancellationToken)
             : await context.Set<PageBuilder>()

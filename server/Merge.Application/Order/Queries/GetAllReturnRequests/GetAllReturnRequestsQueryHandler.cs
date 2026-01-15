@@ -39,8 +39,10 @@ public class GetAllReturnRequestsQueryHandler : IRequestHandler<GetAllReturnRequ
         var pageSize = request.PageSize > _orderSettings.MaxPageSize ? _orderSettings.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         IQueryable<ReturnRequest> query = _context.Set<ReturnRequest>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.Order)
             .Include(r => r.User);
 

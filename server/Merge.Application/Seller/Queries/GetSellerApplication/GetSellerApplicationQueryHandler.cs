@@ -35,8 +35,10 @@ public class GetSellerApplicationQueryHandler : IRequestHandler<GetSellerApplica
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Getting seller application. ApplicationId: {ApplicationId}", request.ApplicationId);
 
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var application = await _context.Set<SellerApplication>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Reviewer)
             .FirstOrDefaultAsync(a => a.Id == request.ApplicationId, cancellationToken);

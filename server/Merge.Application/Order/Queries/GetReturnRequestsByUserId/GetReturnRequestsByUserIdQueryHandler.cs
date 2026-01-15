@@ -38,8 +38,10 @@ public class GetReturnRequestsByUserIdQueryHandler : IRequestHandler<GetReturnRe
         var pageSize = request.PageSize > _orderSettings.MaxPageSize ? _orderSettings.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var query = _context.Set<ReturnRequest>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.Order)
             .Include(r => r.User)
             .Where(r => r.UserId == request.UserId);

@@ -33,9 +33,9 @@ public class GetPendingPoliciesQueryHandler(
             {
                 logger.LogInformation("Cache miss for pending policies. UserId: {UserId}", request.UserId);
 
-                var pendingPolicies = await context.Set<Policy>()
+                // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
+                var pendingPoliciesQuery = context.Set<Policy>()
                     .AsNoTracking()
-                    .Include(p => p.CreatedBy)
                     .Where(p => p.IsActive && 
                            p.RequiresAcceptance &&
                            (p.EffectiveDate == null || p.EffectiveDate <= DateTime.UtcNow) &&
@@ -46,18 +46,19 @@ public class GetPendingPoliciesQueryHandler(
                                          pa.AcceptedVersion == p.Version && 
                                          pa.IsActive))
                     .OrderByDescending(p => p.Version)
-                    .Take(100)
-                    .ToListAsync(cancellationToken);
+                    .Take(100);
 
-                var policyIds = pendingPolicies.Select(p => p.Id).ToList();
-                var acceptanceCounts = policyIds.Count > 0
-                    ? await context.Set<PolicyAcceptance>()
-                        .AsNoTracking()
-                        .Where(pa => policyIds.Contains(pa.PolicyId) && pa.IsActive)
-                        .GroupBy(pa => pa.PolicyId)
-                        .Select(g => new { PolicyId = g.Key, Count = g.Count() })
-                        .ToDictionaryAsync(x => x.PolicyId, x => x.Count, cancellationToken)
-                    : new Dictionary<Guid, int>();
+                var policyIdsSubquery = from p in pendingPoliciesQuery select p.Id;
+                var acceptanceCounts = await context.Set<PolicyAcceptance>()
+                    .AsNoTracking()
+                    .Where(pa => policyIdsSubquery.Contains(pa.PolicyId) && pa.IsActive)
+                    .GroupBy(pa => pa.PolicyId)
+                    .Select(g => new { PolicyId = g.Key, Count = g.Count() })
+                    .ToDictionaryAsync(x => x.PolicyId, x => x.Count, cancellationToken);
+
+                var pendingPolicies = await pendingPoliciesQuery
+                    .Include(p => p.CreatedBy)
+                    .ToListAsync(cancellationToken);
 
                 var result = new List<PolicyDto>(pendingPolicies.Count);
                 foreach (var policy in pendingPolicies)

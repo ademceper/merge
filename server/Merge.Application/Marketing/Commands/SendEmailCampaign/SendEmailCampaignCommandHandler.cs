@@ -105,7 +105,6 @@ public class SendEmailCampaignCommandHandler(
     {
         // ✅ PERFORMANCE: AsSplitQuery ile N+1 query önleme
         var recipients = await context.Set<EmailCampaignRecipient>()
-            .AsSplitQuery()
             .Include(r => r.Subscriber)
             .Where(r => r.CampaignId == campaign.Id && r.Status == EmailRecipientStatus.Pending)
             .ToListAsync(cancellationToken);

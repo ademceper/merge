@@ -20,7 +20,6 @@ public class GetEmailCampaignByIdQueryHandler(IDbContext context, IMapper mapper
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var campaign = await context.Set<EmailCampaign>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(c => c.Template)
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 

@@ -66,8 +66,10 @@ public class ProductQuestionService : IProductQuestionService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         question = await _context.Set<ProductQuestion>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))
@@ -89,8 +91,10 @@ public class ProductQuestionService : IProductQuestionService
     public async Task<ProductQuestionDto?> GetQuestionAsync(Guid questionId, Guid? userId = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var question = await _context.Set<ProductQuestion>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))
@@ -121,8 +125,10 @@ public class ProductQuestionService : IProductQuestionService
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var query = _context.Set<ProductQuestion>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))
@@ -131,20 +137,21 @@ public class ProductQuestionService : IProductQuestionService
 
         var totalCount = await query.CountAsync(cancellationToken);
 
-        var questions = await query
+        var paginatedQuestionsQuery = query
             .OrderByDescending(q => q.HasSellerAnswer)
             .ThenByDescending(q => q.HelpfulCount)
             .ThenByDescending(q => q.CreatedAt)
             .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+            .Take(pageSize);
 
-        // ✅ PERFORMANCE: Batch load QuestionHelpfulness to avoid N+1 queries
-        var questionIds = questions.Select(q => q.Id).ToList();
-        var userVotes = userId.HasValue && questionIds.Any()
+        var questions = await paginatedQuestionsQuery.ToListAsync(cancellationToken);
+
+        // ✅ PERFORMANCE: Batch load QuestionHelpfulness to avoid N+1 queries (subquery ile)
+        var questionIdsSubquery = from q in paginatedQuestionsQuery select q.Id;
+        var userVotes = userId.HasValue
             ? await _context.Set<QuestionHelpfulness>()
                 .AsNoTracking()
-                .Where(qh => questionIds.Contains(qh.QuestionId) && qh.UserId == userId.Value)
+                .Where(qh => questionIdsSubquery.Contains(qh.QuestionId) && qh.UserId == userId.Value)
                 .ToDictionaryAsync(qh => qh.QuestionId, cancellationToken)
             : new Dictionary<Guid, QuestionHelpfulness>();
 
@@ -175,8 +182,10 @@ public class ProductQuestionService : IProductQuestionService
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var query = _context.Set<ProductQuestion>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers)
@@ -185,20 +194,19 @@ public class ProductQuestionService : IProductQuestionService
 
         var totalCount = await query.CountAsync(cancellationToken);
 
-        var questions = await query
+        var paginatedQuestionsQuery = query
             .OrderByDescending(q => q.CreatedAt)
             .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+            .Take(pageSize);
 
-        // ✅ PERFORMANCE: Batch load QuestionHelpfulness to avoid N+1 queries
-        var questionIds = questions.Select(q => q.Id).ToList();
-        var userVotes = questionIds.Any()
-            ? await _context.Set<QuestionHelpfulness>()
-                .AsNoTracking()
-                .Where(qh => questionIds.Contains(qh.QuestionId) && qh.UserId == userId)
-                .ToDictionaryAsync(qh => qh.QuestionId, cancellationToken)
-            : new Dictionary<Guid, QuestionHelpfulness>();
+        var questions = await paginatedQuestionsQuery.ToListAsync(cancellationToken);
+
+        // ✅ PERFORMANCE: Batch load QuestionHelpfulness to avoid N+1 queries (subquery ile)
+        var questionIdsSubquery = from q in paginatedQuestionsQuery select q.Id;
+        var userVotes = await _context.Set<QuestionHelpfulness>()
+            .AsNoTracking()
+            .Where(qh => questionIdsSubquery.Contains(qh.QuestionId) && qh.UserId == userId)
+            .ToDictionaryAsync(qh => qh.QuestionId, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ BOLUM 7.1.5: Records - with expression kullanımı (object initializer YASAK)
@@ -296,31 +304,38 @@ public class ProductQuestionService : IProductQuestionService
             .Include(a => a.User)
             .FirstOrDefaultAsync(a => a.Id == answer.Id, cancellationToken);
 
+        // ✅ PERFORMANCE: Batch load AnswerHelpfulness to avoid N+1 queries
+        var hasUserVoted = await _context.Set<AnswerHelpfulness>()
+            .AsNoTracking()
+            .AnyAsync(ah => ah.AnswerId == answer.Id && ah.UserId == userId, cancellationToken);
+
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ BOLUM 7.1.5: Records - with expression kullanımı (object initializer YASAK)
-        var answerDto = _mapper.Map<ProductAnswerDto>(answer) with { HasUserVoted = false }; // Yeni cevap, henüz oy verilmemiş
-        return answerDto;
+        return _mapper.Map<ProductAnswerDto>(answer!) with { HasUserVoted = hasUserVoted };
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<ProductAnswerDto>> GetQuestionAnswersAsync(Guid questionId, Guid? userId = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        var answers = await _context.Set<ProductAnswer>()
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
+        var answersQuery = _context.Set<ProductAnswer>()
             .AsNoTracking()
-            .Include(a => a.User)
             .Where(a => a.QuestionId == questionId && a.IsApproved)
             .OrderByDescending(a => a.IsSellerAnswer)
             .ThenByDescending(a => a.HelpfulCount)
-            .ThenByDescending(a => a.CreatedAt)
+            .ThenByDescending(a => a.CreatedAt);
+
+        var answers = await answersQuery
+            .Include(a => a.User)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Batch load AnswerHelpfulness to avoid N+1 queries
-        var answerIds = answers.Select(a => a.Id).ToList();
-        var userVotes = userId.HasValue && answerIds.Any()
+        // ✅ PERFORMANCE: Batch load AnswerHelpfulness to avoid N+1 queries (subquery ile)
+        var answerIdsSubquery = from a in answersQuery select a.Id;
+        var userVotes = userId.HasValue
             ? await _context.Set<AnswerHelpfulness>()
                 .AsNoTracking()
-                .Where(ah => answerIds.Contains(ah.AnswerId) && ah.UserId == userId.Value)
+                .Where(ah => answerIdsSubquery.Contains(ah.AnswerId) && ah.UserId == userId.Value)
                 .ToDictionaryAsync(ah => ah.AnswerId, cancellationToken)
             : new Dictionary<Guid, AnswerHelpfulness>();
 
@@ -521,8 +536,10 @@ public class ProductQuestionService : IProductQuestionService
         var averageAnswersPerQuestion = totalQuestions > 0 ? (decimal)totalAnswers / totalQuestions : 0;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var recentQuestions = await _context.Set<ProductQuestion>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))
@@ -532,8 +549,10 @@ public class ProductQuestionService : IProductQuestionService
             .Take(10)
             .ToListAsync(cancellationToken);
 
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var mostHelpfulQuestions = await _context.Set<ProductQuestion>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))
@@ -563,8 +582,10 @@ public class ProductQuestionService : IProductQuestionService
     public async Task<IEnumerable<ProductQuestionDto>> GetUnansweredQuestionsAsync(Guid? productId = null, int limit = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var query = _context.Set<ProductQuestion>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))

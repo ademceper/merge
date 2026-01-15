@@ -54,6 +54,7 @@ public class ReviewService : IReviewService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var review = await _context.Set<ReviewEntity>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.User)
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
@@ -76,6 +77,7 @@ public class ReviewService : IReviewService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted check (Global Query Filter)
         var query = _context.Set<ReviewEntity>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.User)
             .Include(r => r.Product)
             .Where(r => r.ProductId == productId && r.IsApproved);
@@ -114,6 +116,7 @@ public class ReviewService : IReviewService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted check
         var query = _context.Set<ReviewEntity>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.User)
             .Include(r => r.Product)
             .Where(r => r.UserId == userId);
@@ -188,6 +191,7 @@ public class ReviewService : IReviewService
         // ✅ PERFORMANCE: Single query instead of multiple LoadAsync calls
         review = await _context.Set<ReviewEntity>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.User)
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == review.Id, cancellationToken);
@@ -243,6 +247,7 @@ public class ReviewService : IReviewService
         // ✅ PERFORMANCE: Single query instead of multiple LoadAsync calls
         review = await _context.Set<ReviewEntity>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.User)
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);

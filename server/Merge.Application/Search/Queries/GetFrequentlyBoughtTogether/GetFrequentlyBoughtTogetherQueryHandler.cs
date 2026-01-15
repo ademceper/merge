@@ -49,21 +49,20 @@ public class GetFrequentlyBoughtTogetherQueryHandler : IRequestHandler<GetFreque
             : request.MaxResults;
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        var frequentlyBought = await _context.Set<OrderItem>()
-            .AsNoTracking()
-            .Where(oi => _context.Set<OrderItem>().Any(oi2 =>
-                            oi2.OrderId == oi.OrderId &&
-                            oi2.ProductId == request.ProductId))
-            .Where(oi => oi.ProductId != request.ProductId)
-            .GroupBy(oi => oi.ProductId)
-            .Select(g => new
+        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
+        var frequentlyBought = await (
+            from oi1 in _context.Set<OrderItem>().AsNoTracking()
+            join oi2 in _context.Set<OrderItem>().AsNoTracking()
+                on oi1.OrderId equals oi2.OrderId
+            where oi1.ProductId == request.ProductId && oi2.ProductId != request.ProductId
+            group oi2 by oi2.ProductId into g
+            orderby g.Count() descending
+            select new
             {
                 ProductId = g.Key,
                 Count = g.Count()
-            })
-            .OrderByDescending(x => x.Count)
-            .Take(maxResults)
-            .ToListAsync(cancellationToken);
+            }
+        ).Take(maxResults).ToListAsync(cancellationToken);
 
         if (frequentlyBought.Count == 0)
         {

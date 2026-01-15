@@ -73,33 +73,28 @@ public class GetAllTicketsQueryHandler : IRequestHandler<GetAllTicketsQuery, Pag
 
         var totalCount = await query.CountAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: ticketIds'i database'de oluştur, memory'de işlem YASAK
-        var ticketIds = await query
+        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
+        var paginatedTicketsQuery = query
             .OrderByDescending(t => t.Priority)
             .ThenByDescending(t => t.CreatedAt)
             .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(t => t.Id)
-            .ToListAsync(cancellationToken);
+            .Take(pageSize);
 
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
-        var tickets = await _context.Set<SupportTicket>()
-            .AsNoTracking()
+        var tickets = await paginatedTicketsQuery
             .AsSplitQuery()
             .Include(t => t.User)
             .Include(t => t.Order)
             .Include(t => t.Product)
             .Include(t => t.AssignedTo)
-            .Where(t => ticketIds.Contains(t.Id))
-            .OrderByDescending(t => t.Priority)
-            .ThenByDescending(t => t.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Batch load messages and attachments for all tickets
+        // ✅ PERFORMANCE: Batch load messages and attachments for all tickets (subquery ile)
+        var ticketIdsSubquery = from t in paginatedTicketsQuery select t.Id;
         var messagesDict = await _context.Set<TicketMessage>()
             .AsNoTracking()
             .Include(m => m.User)
-            .Where(m => ticketIds.Contains(m.TicketId))
+            .Where(m => ticketIdsSubquery.Contains(m.TicketId))
             .GroupBy(m => m.TicketId)
             .Select(g => new
             {
@@ -110,7 +105,7 @@ public class GetAllTicketsQueryHandler : IRequestHandler<GetAllTicketsQuery, Pag
 
         var attachmentsDict = await _context.Set<TicketAttachment>()
             .AsNoTracking()
-            .Where(a => ticketIds.Contains(a.TicketId))
+            .Where(a => ticketIdsSubquery.Contains(a.TicketId))
             .GroupBy(a => a.TicketId)
             .Select(g => new
             {

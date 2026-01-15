@@ -30,6 +30,7 @@ public class ConvertPreOrderToOrderCommandHandler(
         try
         {
             var preOrder = await context.Set<PreOrder>()
+            .AsSplitQuery()
                 .Include(po => po.Product)
                 .Include(po => po.User)
                 .FirstOrDefaultAsync(po => po.Id == request.PreOrderId, cancellationToken);

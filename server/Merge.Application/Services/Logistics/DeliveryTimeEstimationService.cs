@@ -57,6 +57,7 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         var createdEstimation = await _context.Set<DeliveryTimeEstimation>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(e => e.Product)
             .Include(e => e.Category)
             .Include(e => e.Warehouse)
@@ -72,6 +73,7 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         var estimation = await _context.Set<DeliveryTimeEstimation>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(e => e.Product)
             .Include(e => e.Category)
             .Include(e => e.Warehouse)
@@ -87,6 +89,7 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         IQueryable<DeliveryTimeEstimation> query = _context.Set<DeliveryTimeEstimation>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(e => e.Product)
             .Include(e => e.Category)
             .Include(e => e.Warehouse);

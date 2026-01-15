@@ -89,6 +89,7 @@ public class GetInventoryAnalyticsQueryHandler(
     {
         return await context.Set<Inventory>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(i => i.Warehouse)
             .Include(i => i.Product)
             .GroupBy(i => new { i.WarehouseId, i.Warehouse.Name })

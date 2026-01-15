@@ -20,7 +20,6 @@ public class GetMyReferralsQueryHandler(IDbContext context, IMapper mapper) : IR
         // ✅ PERFORMANCE: AsSplitQuery - N+1 query önleme (Cartesian Explosion önleme)
         var query = context.Set<Referral>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(r => r.ReferredUser)
             .Where(r => r.ReferrerId == request.UserId)
             .OrderByDescending(r => r.CreatedAt);

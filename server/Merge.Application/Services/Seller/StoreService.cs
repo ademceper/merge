@@ -484,20 +484,26 @@ public class StoreService : IStoreService
                   o.OrderItems.Any(oi => oi.Product != null && oi.Product.StoreId == storeId))
             .CountAsync(cancellationToken);
 
-        var totalRevenue = await _context.Set<OrderEntity>()
-            .AsNoTracking()
-            .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
-                  o.OrderItems.Any(oi => oi.Product != null && oi.Product.StoreId == storeId))
-            .SelectMany(o => o.OrderItems.Where(oi => oi.Product != null && oi.Product.StoreId == storeId))
-            .SumAsync(oi => oi.TotalPrice, cancellationToken);
+        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
+        var totalRevenue = await (
+            from o in _context.Set<OrderEntity>().AsNoTracking()
+            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            where o.PaymentStatus == PaymentStatus.Completed &&
+                  p.StoreId.HasValue && p.StoreId.Value == storeId
+            select oi.TotalPrice
+        ).SumAsync(cancellationToken);
 
-        var monthlyRevenue = await _context.Set<OrderEntity>()
-            .AsNoTracking()
-            .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
+        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
+        var monthlyRevenue = await (
+            from o in _context.Set<OrderEntity>().AsNoTracking()
+            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            where o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
-                  o.OrderItems.Any(oi => oi.Product != null && oi.Product.StoreId == storeId))
-            .SelectMany(o => o.OrderItems.Where(oi => oi.Product != null && oi.Product.StoreId == storeId))
-            .SumAsync(oi => oi.TotalPrice, cancellationToken);
+                  p.StoreId.HasValue && p.StoreId.Value == storeId
+            select oi.TotalPrice
+        ).SumAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de distinct count yap (memory'de işlem YASAK)
         var totalCustomers = await _context.Set<OrderEntity>()

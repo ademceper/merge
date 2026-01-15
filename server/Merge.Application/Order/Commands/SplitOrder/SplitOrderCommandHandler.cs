@@ -51,7 +51,9 @@ public class SplitOrderCommandHandler : IRequestHandler<SplitOrderCommand, Order
             "Sipariş bölme işlemi başlatılıyor. OrderId: {OrderId}, ItemsCount: {ItemsCount}",
             request.OrderId, request.Dto.Items?.Count ?? 0);
 
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var originalOrder = await _context.Set<OrderEntity>()
+            .AsSplitQuery()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .Include(o => o.Address)
@@ -228,8 +230,10 @@ public class SplitOrderCommandHandler : IRequestHandler<SplitOrderCommand, Order
                 "Sipariş başarıyla bölündü. OriginalOrderId: {OriginalOrderId}, SplitOrderId: {SplitOrderId}",
                 request.OrderId, splitOrder.Id);
 
+            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
             orderSplit = await _context.Set<OrderSplit>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(s => s.OriginalOrder)
                 .Include(s => s.SplitOrder)
                 .Include(s => s.NewAddress)

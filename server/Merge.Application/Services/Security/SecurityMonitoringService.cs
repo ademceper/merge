@@ -96,8 +96,10 @@ public class OrderVerificationService : IOrderVerificationService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         verification = await _context.Set<OrderVerification>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(v => v.Order)
             .Include(v => v.VerifiedBy)
             .FirstOrDefaultAsync(v => v.Id == verification.Id, cancellationToken);
@@ -116,6 +118,7 @@ public class OrderVerificationService : IOrderVerificationService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !v.IsDeleted (Global Query Filter)
         var verification = await _context.Set<OrderVerification>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(v => v.Order)
             .Include(v => v.VerifiedBy)
             .FirstOrDefaultAsync(v => v.OrderId == orderId, cancellationToken);
@@ -131,6 +134,7 @@ public class OrderVerificationService : IOrderVerificationService
         // ✅ PERFORMANCE: Include already loaded, no need for MapToDto LoadAsync calls
         var verifications = await _context.Set<OrderVerification>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(v => v.Order)
             .Include(v => v.VerifiedBy)
             .Where(v => v.Status == VerificationStatus.Pending)
@@ -198,6 +202,7 @@ public class OrderVerificationService : IOrderVerificationService
         // ✅ FIX: Explicitly type as IQueryable to avoid IIncludableQueryable type mismatch
         IQueryable<OrderVerification> query = _context.Set<OrderVerification>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(v => v.Order)
             .Include(v => v.VerifiedBy);
 
@@ -234,6 +239,7 @@ public class OrderVerificationService : IOrderVerificationService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
         var order = await _context.Set<OrderEntity>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(o => o.OrderItems)
             .Include(o => o.User)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
@@ -368,18 +374,20 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var check = await _context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.Payment)
             .FirstOrDefaultAsync(c => c.PaymentId == paymentId, cancellationToken);
 
+        if (check == null) return null;
+
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return check != null ? _mapper.Map<PaymentFraudPreventionDto>(check) : null;
+        return _mapper.Map<PaymentFraudPreventionDto>(check);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<PaymentFraudPreventionDto>> GetBlockedPaymentsAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: Include already loaded, MapToDto is now sync
         var checks = await _context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
             .Include(c => c.Payment)
@@ -486,6 +494,7 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var payment = await _context.Set<PaymentEntity>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(p => p.Order)
                 .ThenInclude(o => o.User)
             .FirstOrDefaultAsync(p => p.Id == dto.PaymentId, cancellationToken);
@@ -606,6 +615,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         securityEvent = await _context.Set<AccountSecurityEvent>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(e => e.User)
             .Include(e => e.ActionTakenBy)
             .FirstOrDefaultAsync(e => e.Id == securityEvent.Id, cancellationToken);
@@ -629,6 +639,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         var query = _context.Set<AccountSecurityEvent>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(e => e.User)
             .Include(e => e.ActionTakenBy)
             .Where(e => e.UserId == userId);
@@ -672,6 +683,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         var query = _context.Set<AccountSecurityEvent>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(e => e.User)
             .Include(e => e.ActionTakenBy)
             .Where(e => e.IsSuspicious);
@@ -754,6 +766,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         alert = await _context.Set<SecurityAlert>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.AcknowledgedBy)
             .Include(a => a.ResolvedBy)
@@ -778,6 +791,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         // ✅ FIX: Explicitly type as IQueryable to avoid IIncludableQueryable type mismatch
         IQueryable<SecurityAlert> query = _context.Set<SecurityAlert>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.AcknowledgedBy)
             .Include(a => a.ResolvedBy);
@@ -916,6 +930,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         // ✅ PERFORMANCE: Database'de filtreleme/sıralama yap (memory'de işlem YASAK)
         var recentCriticalAlerts = await _context.Set<SecurityAlert>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.AcknowledgedBy)
             .Include(a => a.ResolvedBy)

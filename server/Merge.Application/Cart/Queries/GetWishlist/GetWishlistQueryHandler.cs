@@ -33,8 +33,10 @@ public class GetWishlistQueryHandler(
         var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var query = context.Set<Wishlist>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(w => w.Product)
                 .ThenInclude(p => p.Category)
             .Where(w => w.UserId == request.UserId)

@@ -42,22 +42,27 @@ public class GetDetailedPerformanceMetricsQueryHandler : IRequestHandler<GetDeta
         var previousEndDate = request.StartDate;
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
+        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Sales metrics
-        var totalSales = await _context.Set<OrderEntity>()
-            .AsNoTracking()
-            .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
+        var totalSales = await (
+            from o in _context.Set<OrderEntity>().AsNoTracking()
+            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            where o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= request.StartDate && o.CreatedAt <= request.EndDate &&
-                  o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId))
-            .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == request.SellerId))
-            .SumAsync(oi => oi.TotalPrice, cancellationToken);
+                  p.SellerId == request.SellerId
+            select oi.TotalPrice
+        ).SumAsync(cancellationToken);
 
-        var previousSales = await _context.Set<OrderEntity>()
-            .AsNoTracking()
-            .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
+        var previousSales = await (
+            from o in _context.Set<OrderEntity>().AsNoTracking()
+            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            where o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= previousStartDate && o.CreatedAt < previousEndDate &&
-                  o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId))
-            .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == request.SellerId))
-            .SumAsync(oi => oi.TotalPrice, cancellationToken);
+                  p.SellerId == request.SellerId
+            select oi.TotalPrice
+        ).SumAsync(cancellationToken);
 
         var salesGrowth = previousSales > 0 ? ((totalSales - previousSales) / previousSales) * 100 : 0;
 

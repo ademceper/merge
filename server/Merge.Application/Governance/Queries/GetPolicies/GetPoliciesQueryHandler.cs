@@ -69,21 +69,20 @@ public class GetPoliciesQueryHandler(
                 var orderedQuery = query.OrderByDescending(p => p.Version).ThenByDescending(p => p.CreatedAt);
                 var totalCount = await orderedQuery.CountAsync(cancellationToken);
 
-                var policies = await orderedQuery
+                var paginatedPoliciesQuery = orderedQuery
                     .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToListAsync(cancellationToken);
+                    .Take(pageSize);
 
-                // ✅ PERFORMANCE: Batch loading - tüm policy'ler için acceptanceCount'ları tek query'de al
-                var policyIds = policies.Select(p => p.Id).ToList();
-                var acceptanceCounts = policyIds.Count > 0
-                    ? await context.Set<PolicyAcceptance>()
-                        .AsNoTracking()
-                        .Where(pa => policyIds.Contains(pa.PolicyId) && pa.IsActive)
-                        .GroupBy(pa => pa.PolicyId)
-                        .Select(g => new { PolicyId = g.Key, Count = g.Count() })
-                        .ToDictionaryAsync(x => x.PolicyId, x => x.Count, cancellationToken)
-                    : new Dictionary<Guid, int>();
+                var policies = await paginatedPoliciesQuery.ToListAsync(cancellationToken);
+
+                // ✅ PERFORMANCE: Batch loading - tüm policy'ler için acceptanceCount'ları tek query'de al (subquery ile)
+                var policyIdsSubquery = from p in paginatedPoliciesQuery select p.Id;
+                var acceptanceCounts = await context.Set<PolicyAcceptance>()
+                    .AsNoTracking()
+                    .Where(pa => policyIdsSubquery.Contains(pa.PolicyId) && pa.IsActive)
+                    .GroupBy(pa => pa.PolicyId)
+                    .Select(g => new { PolicyId = g.Key, Count = g.Count() })
+                    .ToDictionaryAsync(x => x.PolicyId, x => x.Count, cancellationToken);
 
                 // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
                 // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)

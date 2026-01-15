@@ -71,6 +71,7 @@ public class CreateLandingPageVariantCommandHandler(
 
             var reloadedVariant = await context.Set<LandingPage>()
                 .AsNoTracking()
+            .AsSplitQuery()
                 .Include(lp => lp.Author)
                 .Include(lp => lp.VariantOf)
                 .FirstOrDefaultAsync(lp => lp.Id == variant.Id, cancellationToken);

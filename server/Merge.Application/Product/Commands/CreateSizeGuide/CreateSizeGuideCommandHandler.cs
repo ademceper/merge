@@ -87,8 +87,10 @@ public class CreateSizeGuideCommandHandler : IRequestHandler<CreateSizeGuideComm
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
+            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
             sizeGuide = await _context.Set<SizeGuide>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(sg => sg.Category)
                 .Include(sg => sg.Entries)
                 .FirstOrDefaultAsync(sg => sg.Id == sizeGuide.Id, cancellationToken);

@@ -95,6 +95,7 @@ public class CreateBlogPostCommandHandler(
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             var reloadedPost = await context.Set<BlogPost>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(p => p.Category)
                 .Include(p => p.Author)
                 .FirstOrDefaultAsync(p => p.Id == post.Id, cancellationToken);

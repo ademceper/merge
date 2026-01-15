@@ -69,7 +69,6 @@ public class ShippingService : IShippingService
 
     public async Task<ShippingDto?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
         var shipping = await _context.Set<Shipping>()
             .AsNoTracking()
             .Include(s => s.Order)

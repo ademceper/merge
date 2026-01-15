@@ -113,6 +113,7 @@ public class ReferralService : IReferralService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var referrals = await _context.Set<Referral>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.ReferredUser)
             .Where(r => r.ReferrerId == userId)
             .OrderByDescending(r => r.CreatedAt)
@@ -126,18 +127,24 @@ public class ReferralService : IReferralService
     // ✅ BOLUM 3.4: Pagination (ZORUNLU)
     public async Task<PagedResult<ReferralDto>> GetMyReferralsAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
+        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
+        if (pageSize > 100) pageSize = 100;
+        if (page < 1) page = 1;
+
+        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var query = _context.Set<Referral>()
             .AsNoTracking()
             .Include(r => r.ReferredUser)
-            .Where(r => r.ReferrerId == userId)
-            .OrderByDescending(r => r.CreatedAt);
+            .Where(r => r.ReferrerId == userId);
 
         var totalCount = await query.CountAsync(cancellationToken);
         var referrals = await query
+            .OrderByDescending(r => r.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return new PagedResult<ReferralDto>
         {
             Items = _mapper.Map<List<ReferralDto>>(referrals),

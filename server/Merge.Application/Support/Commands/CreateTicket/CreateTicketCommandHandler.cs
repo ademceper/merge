@@ -108,6 +108,7 @@ public class CreateTicketCommandHandler : IRequestHandler<CreateTicketCommand, S
         // ✅ PERFORMANCE: Reload with includes for mapping
         ticket = await _context.Set<SupportTicket>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(t => t.User)
             .Include(t => t.Order)
             .Include(t => t.Product)
@@ -147,6 +148,7 @@ public class CreateTicketCommandHandler : IRequestHandler<CreateTicketCommand, S
         {
             var messageList = await _context.Set<TicketMessage>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(m => m.User)
                 .Include(m => m.Attachments)
                 .Where(m => m.TicketId == ticket.Id)

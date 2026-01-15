@@ -27,8 +27,10 @@ public class GetSalesByCategoryQueryHandler(
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !oi.IsDeleted and !oi.Order.IsDeleted checks (Global Query Filter handles it)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         return await context.Set<OrderItem>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(oi => oi.Product)
             .ThenInclude(p => p.Category)
             .Include(oi => oi.Order)

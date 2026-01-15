@@ -56,8 +56,10 @@ public class GetSizeRecommendationQueryHandler : IRequestHandler<GetSizeRecommen
         _logger.LogInformation("Cache miss for size recommendation. Fetching from database.");
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var productSizeGuide = await _context.Set<ProductSizeGuide>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(psg => psg.SizeGuide)
                 .ThenInclude(sg => sg.Entries)
             .FirstOrDefaultAsync(psg => psg.ProductId == request.ProductId, cancellationToken);

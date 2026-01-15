@@ -121,6 +121,7 @@ public class CreateLandingPageCommandHandler(
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             var reloadedPage = await context.Set<LandingPage>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(lp => lp.Author)
                 .Include(lp => lp.VariantOf)
                 .FirstOrDefaultAsync(lp => lp.Id == landingPage.Id, cancellationToken);

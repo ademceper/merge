@@ -49,6 +49,7 @@ public class CalculateAndRecordCommissionCommandHandler : IRequestHandler<Calcul
             request.OrderId, request.OrderItemId);
 
         var orderItem = await _context.Set<OrderItem>()
+        .AsSplitQuery()
             .Include(oi => oi.Order)
             .Include(oi => oi.Product)
             .FirstOrDefaultAsync(oi => oi.Id == request.OrderItemId && oi.OrderId == request.OrderId, cancellationToken);
@@ -69,9 +70,10 @@ public class CalculateAndRecordCommissionCommandHandler : IRequestHandler<Calcul
 
         var sellerId = orderItem.Product.SellerId.Value;
 
-        // Check if commission already exists
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var existing = await _context.Set<SellerCommission>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sc => sc.Seller)
             .Include(sc => sc.Order)
             .Include(sc => sc.OrderItem)
@@ -133,8 +135,10 @@ public class CalculateAndRecordCommissionCommandHandler : IRequestHandler<Calcul
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         commission = await _context.Set<SellerCommission>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sc => sc.Seller)
             .Include(sc => sc.Order)
             .Include(sc => sc.OrderItem)

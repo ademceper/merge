@@ -21,8 +21,6 @@ public class GetPreOrderQueryHandler(
 
     public async Task<PreOrderDto?> Handle(GetPreOrderQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // Note: Single Include, AsSplitQuery not strictly necessary but good practice
         var preOrder = await context.Set<PreOrder>()
             .AsNoTracking()
             .Include(po => po.Product)

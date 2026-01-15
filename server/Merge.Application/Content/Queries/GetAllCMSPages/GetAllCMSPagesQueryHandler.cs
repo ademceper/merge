@@ -44,6 +44,7 @@ public class GetAllCMSPagesQueryHandler(
 
                 IQueryable<CMSPage> query = context.Set<CMSPage>()
                     .AsNoTracking()
+                    .AsSplitQuery()
                     .Include(p => p.Author)
                     .Include(p => p.ParentPage);
 

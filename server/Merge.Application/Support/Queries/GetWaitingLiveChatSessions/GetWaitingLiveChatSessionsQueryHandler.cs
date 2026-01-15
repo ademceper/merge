@@ -33,7 +33,6 @@ public class GetWaitingLiveChatSessionsQueryHandler : IRequestHandler<GetWaiting
         // Not: Şu anda sadece 1 Include var ama gelecekte ek Include'lar eklenebilir
         var sessions = await _context.Set<LiveChatSession>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(s => s.User)
             .Where(s => s.Status == ChatSessionStatus.Waiting)
             .OrderBy(s => s.CreatedAt)

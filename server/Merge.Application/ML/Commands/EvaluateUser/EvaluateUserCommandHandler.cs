@@ -77,8 +77,10 @@ public class EvaluateUserCommandHandler : IRequestHandler<EvaluateUserCommand, F
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var createdAlert = await _context.Set<FraudAlert>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Order)
             .Include(a => a.Payment)

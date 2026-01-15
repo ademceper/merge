@@ -65,8 +65,10 @@ public class GetUserQuestionsQueryHandler : IRequestHandler<GetUserQuestionsQuer
             {
                 _logger.LogInformation("Cache miss for user questions. Fetching from database.");
 
+                // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
                 var query = _context.Set<ProductQuestion>()
                     .AsNoTracking()
+                    .AsSplitQuery()
                     .Include(q => q.Product)
                     .Include(q => q.User)
                     .Include(q => q.Answers.Where(a => a.IsApproved))
@@ -75,19 +77,19 @@ public class GetUserQuestionsQueryHandler : IRequestHandler<GetUserQuestionsQuer
 
                 var totalCount = await query.CountAsync(cancellationToken);
 
-                var questions = await query
+                var paginatedQuestionsQuery = query
                     .OrderByDescending(q => q.CreatedAt)
                     .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToListAsync(cancellationToken);
+                    .Take(pageSize);
 
-                var questionIds = questions.Select(q => q.Id).ToList();
-                var userVotes = questionIds.Any()
-                    ? await _context.Set<QuestionHelpfulness>()
-                        .AsNoTracking()
-                        .Where(qh => questionIds.Contains(qh.QuestionId) && qh.UserId == request.UserId)
-                        .ToDictionaryAsync(qh => qh.QuestionId, cancellationToken)
-                    : new Dictionary<Guid, QuestionHelpfulness>();
+                var questions = await paginatedQuestionsQuery.ToListAsync(cancellationToken);
+
+                // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
+                var questionIdsSubquery = from q in paginatedQuestionsQuery select q.Id;
+                var userVotes = await _context.Set<QuestionHelpfulness>()
+                    .AsNoTracking()
+                    .Where(qh => questionIdsSubquery.Contains(qh.QuestionId) && qh.UserId == request.UserId)
+                    .ToDictionaryAsync(qh => qh.QuestionId, cancellationToken);
 
                 // ✅ BOLUM 7.1.5: Records - with expression kullanımı (immutable record'lar için)
                 var dtos = new List<ProductQuestionDto>(questions.Count);

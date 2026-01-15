@@ -86,8 +86,10 @@ public class SizeGuideService : ISizeGuideService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         sizeGuide = await _context.Set<SizeGuide>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sg => sg.Category)
             .Include(sg => sg.Entries)
             .FirstOrDefaultAsync(sg => sg.Id == sizeGuide.Id, cancellationToken);
@@ -105,8 +107,10 @@ public class SizeGuideService : ISizeGuideService
     public async Task<SizeGuideDto?> GetSizeGuideAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sg.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var sizeGuide = await _context.Set<SizeGuide>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sg => sg.Category)
             .Include(sg => sg.Entries)
             .FirstOrDefaultAsync(sg => sg.Id == id, cancellationToken);
@@ -119,8 +123,10 @@ public class SizeGuideService : ISizeGuideService
     public async Task<IEnumerable<SizeGuideDto>> GetSizeGuidesByCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sg.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var sizeGuides = await _context.Set<SizeGuide>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sg => sg.Category)
             .Include(sg => sg.Entries)
             .Where(sg => sg.CategoryId == categoryId && sg.IsActive)
@@ -136,6 +142,7 @@ public class SizeGuideService : ISizeGuideService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sg.IsDeleted (Global Query Filter)
         var sizeGuides = await _context.Set<SizeGuide>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sg => sg.Category)
             .Include(sg => sg.Entries)
             .Where(sg => sg.IsActive)
@@ -224,8 +231,10 @@ public class SizeGuideService : ISizeGuideService
     public async Task<ProductSizeGuideDto?> GetProductSizeGuideAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !psg.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         var productSizeGuide = await _context.Set<ProductSizeGuide>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(psg => psg.Product)
             .Include(psg => psg.SizeGuide)
                 .ThenInclude(sg => sg.Category)
@@ -296,8 +305,10 @@ public class SizeGuideService : ISizeGuideService
     public async Task<SizeRecommendationDto> GetSizeRecommendationAsync(Guid productId, decimal height, decimal weight, decimal? chest = null, decimal? waist = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !psg.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var productSizeGuide = await _context.Set<ProductSizeGuide>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(psg => psg.SizeGuide)
                 .ThenInclude(sg => sg.Entries)
             .FirstOrDefaultAsync(psg => psg.ProductId == productId, cancellationToken);

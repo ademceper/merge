@@ -69,6 +69,7 @@ public class GetUnansweredQuestionsQueryHandler : IRequestHandler<GetUnansweredQ
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         var query = _context.Set<ProductQuestion>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Where(q => q.AnswerCount == 0 && q.IsApproved);

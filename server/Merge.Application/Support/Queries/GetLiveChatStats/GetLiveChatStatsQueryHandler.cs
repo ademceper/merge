@@ -38,7 +38,6 @@ public class GetLiveChatStatsQueryHandler : IRequestHandler<GetLiveChatStatsQuer
         // Not: Şu anda sadece 1 Include var ama gelecekte ek Include'lar eklenebilir
         IQueryable<LiveChatSession> query = _context.Set<LiveChatSession>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(s => s.Agent)
             .Where(s => s.CreatedAt >= start && s.CreatedAt <= end);
 

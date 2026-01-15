@@ -54,8 +54,10 @@ public class GetAllProductBundlesQueryHandler : IRequestHandler<GetAllProductBun
         }
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries, removed !b.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         IQueryable<ProductBundle> query = _context.Set<ProductBundle>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product);
 

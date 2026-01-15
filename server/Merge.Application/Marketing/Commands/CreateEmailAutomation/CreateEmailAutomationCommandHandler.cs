@@ -49,7 +49,6 @@ public class CreateEmailAutomationCommandHandler(
         // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery + Removed manual !a.IsDeleted (Global Query Filter)
         var createdAutomation = await context.Set<EmailAutomation>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.Template)
             .FirstOrDefaultAsync(a => a.Id == automation.Id, cancellationToken);
 

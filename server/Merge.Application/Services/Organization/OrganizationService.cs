@@ -552,6 +552,7 @@ public class OrganizationService : IOrganizationService
         // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
         teamMember = await _context.Set<TeamMember>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(tm => tm.Team)
             .Include(tm => tm.User)
             .FirstOrDefaultAsync(tm => tm.Id == teamMember.Id, cancellationToken);

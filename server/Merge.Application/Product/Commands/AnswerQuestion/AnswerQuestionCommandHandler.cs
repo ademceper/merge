@@ -82,6 +82,7 @@ public class AnswerQuestionCommandHandler : IRequestHandler<AnswerQuestionComman
             // Reload with includes
             answer = await _context.Set<ProductAnswer>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(a => a.Question)
                 .Include(a => a.User)
                 .FirstOrDefaultAsync(a => a.Id == answer.Id, cancellationToken);

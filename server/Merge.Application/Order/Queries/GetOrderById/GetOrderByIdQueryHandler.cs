@@ -22,9 +22,11 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
     public async Task<OrderDto?> Handle(GetOrderByIdQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
         var order = await _context.Set<Merge.Domain.Modules.Ordering.Order>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .Include(o => o.Address)

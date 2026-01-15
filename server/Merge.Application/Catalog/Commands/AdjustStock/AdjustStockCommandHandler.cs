@@ -41,6 +41,7 @@ public class AdjustStockCommandHandler(
         try
         {
             var inventory = await context.Set<Inventory>()
+            .AsSplitQuery()
                 .Include(i => i.Product)
                 .Include(i => i.Warehouse)
                 .FirstOrDefaultAsync(i => i.Id == request.InventoryId, cancellationToken);
@@ -95,6 +96,7 @@ public class AdjustStockCommandHandler(
             // Reload with includes for AutoMapper
             inventory = await context.Set<Inventory>()
                 .AsNoTracking()
+            .AsSplitQuery()
                 .Include(i => i.Product)
                 .Include(i => i.Warehouse)
                 .FirstOrDefaultAsync(i => i.Id == request.InventoryId, cancellationToken);

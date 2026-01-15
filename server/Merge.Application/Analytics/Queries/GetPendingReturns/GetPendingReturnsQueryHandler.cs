@@ -41,6 +41,7 @@ public class GetPendingReturnsQueryHandler(
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
         var query = context.Set<ReturnRequest>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.User)
             .Include(r => r.Order)
             .Where(r => r.Status == ReturnRequestStatus.Pending);

@@ -33,7 +33,9 @@ public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, boo
 
     public async Task<bool> Handle(CancelOrderCommand request, CancellationToken cancellationToken)
     {
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var order = await _context.Set<OrderEntity>()
+            .AsSplitQuery()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);

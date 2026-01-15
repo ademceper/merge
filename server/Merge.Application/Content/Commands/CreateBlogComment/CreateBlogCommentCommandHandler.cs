@@ -62,6 +62,7 @@ public class CreateBlogCommentCommandHandler(
 
             var reloadedComment = await context.Set<BlogComment>()
                 .AsNoTracking()
+            .AsSplitQuery()
                 .Include(c => c.User)
                 .Include(c => c.ParentComment)
                 .FirstOrDefaultAsync(c => c.Id == comment.Id, cancellationToken);

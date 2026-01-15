@@ -69,8 +69,10 @@ public class AskQuestionCommandHandler : IRequestHandler<AskQuestionCommand, Pro
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
+            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
             question = await _context.Set<ProductQuestion>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(q => q.Product)
                 .Include(q => q.User)
                 .Include(q => q.Answers.Where(a => a.IsApproved))

@@ -107,8 +107,10 @@ public class UpdateKnowledgeBaseArticleCommandHandler : IRequestHandler<UpdateKn
         _logger.LogInformation("Knowledge base article {ArticleId} updated successfully", request.ArticleId);
 
         // ✅ PERFORMANCE: Reload with includes for mapping
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         article = await _context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.Category)
             .Include(a => a.Author)
             .FirstOrDefaultAsync(a => a.Id == article.Id, cancellationToken);
