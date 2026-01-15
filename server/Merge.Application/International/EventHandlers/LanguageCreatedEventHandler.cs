@@ -4,23 +4,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.International.EventHandlers;
 
-/// <summary>
-/// Language Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
-public class LanguageCreatedEventHandler : INotificationHandler<LanguageCreatedEvent>
+public class LanguageCreatedEventHandler(ILogger<LanguageCreatedEventHandler> logger) : INotificationHandler<LanguageCreatedEvent>
 {
-    private readonly ILogger<LanguageCreatedEventHandler> _logger;
-
-    public LanguageCreatedEventHandler(ILogger<LanguageCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task Handle(LanguageCreatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Language created event received. LanguageId: {LanguageId}, Code: {Code}, Name: {Name}",
             notification.LanguageId, notification.Code, notification.Name);
 
@@ -38,8 +26,7 @@ public class LanguageCreatedEventHandler : INotificationHandler<LanguageCreatedE
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling LanguageCreatedEvent. LanguageId: {LanguageId}, Code: {Code}",
                 notification.LanguageId, notification.Code);
             throw;

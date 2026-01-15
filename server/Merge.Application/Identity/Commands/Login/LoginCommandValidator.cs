@@ -3,8 +3,7 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Identity.Commands.Login;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-public class LoginCommandValidator : AbstractValidator<LoginCommand>
+public class LoginCommandValidator() : AbstractValidator<LoginCommand>
 {
     public LoginCommandValidator()
     {

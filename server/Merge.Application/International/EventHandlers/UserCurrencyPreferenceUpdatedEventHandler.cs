@@ -4,23 +4,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.International.EventHandlers;
 
-/// <summary>
-/// UserCurrencyPreference Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
-public class UserCurrencyPreferenceUpdatedEventHandler : INotificationHandler<UserCurrencyPreferenceUpdatedEvent>
+public class UserCurrencyPreferenceUpdatedEventHandler(ILogger<UserCurrencyPreferenceUpdatedEventHandler> logger) : INotificationHandler<UserCurrencyPreferenceUpdatedEvent>
 {
-    private readonly ILogger<UserCurrencyPreferenceUpdatedEventHandler> _logger;
-
-    public UserCurrencyPreferenceUpdatedEventHandler(ILogger<UserCurrencyPreferenceUpdatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task Handle(UserCurrencyPreferenceUpdatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "User currency preference updated event received. PreferenceId: {PreferenceId}, UserId: {UserId}, CurrencyId: {CurrencyId}, CurrencyCode: {CurrencyCode}",
             notification.UserCurrencyPreferenceId, notification.UserId, notification.CurrencyId, notification.CurrencyCode);
 
@@ -33,8 +21,7 @@ public class UserCurrencyPreferenceUpdatedEventHandler : INotificationHandler<Us
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling UserCurrencyPreferenceUpdatedEvent. PreferenceId: {PreferenceId}, UserId: {UserId}",
                 notification.UserCurrencyPreferenceId, notification.UserId);
             throw;

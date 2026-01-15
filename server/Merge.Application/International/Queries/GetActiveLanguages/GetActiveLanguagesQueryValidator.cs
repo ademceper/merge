@@ -2,8 +2,7 @@ using FluentValidation;
 
 namespace Merge.Application.International.Queries.GetActiveLanguages;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-public class GetActiveLanguagesQueryValidator : AbstractValidator<GetActiveLanguagesQuery>
+public class GetActiveLanguagesQueryValidator() : AbstractValidator<GetActiveLanguagesQuery>
 {
     public GetActiveLanguagesQueryValidator()
     {

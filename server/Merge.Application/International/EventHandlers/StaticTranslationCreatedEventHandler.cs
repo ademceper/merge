@@ -4,23 +4,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.International.EventHandlers;
 
-/// <summary>
-/// StaticTranslation Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
-public class StaticTranslationCreatedEventHandler : INotificationHandler<StaticTranslationCreatedEvent>
+public class StaticTranslationCreatedEventHandler(ILogger<StaticTranslationCreatedEventHandler> logger) : INotificationHandler<StaticTranslationCreatedEvent>
 {
-    private readonly ILogger<StaticTranslationCreatedEventHandler> _logger;
-
-    public StaticTranslationCreatedEventHandler(ILogger<StaticTranslationCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task Handle(StaticTranslationCreatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Static translation created event received. TranslationId: {TranslationId}, Key: {Key}, LanguageCode: {LanguageCode}, Category: {Category}",
             notification.TranslationId, notification.Key, notification.LanguageCode, notification.Category);
 
@@ -34,8 +22,7 @@ public class StaticTranslationCreatedEventHandler : INotificationHandler<StaticT
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling StaticTranslationCreatedEvent. TranslationId: {TranslationId}, Key: {Key}",
                 notification.TranslationId, notification.Key);
             throw;

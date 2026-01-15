@@ -3,8 +3,7 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Identity.Commands.SendVerificationCode;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
-public class SendVerificationCodeCommandValidator : AbstractValidator<SendVerificationCodeCommand>
+public class SendVerificationCodeCommandValidator() : AbstractValidator<SendVerificationCodeCommand>
 {
     public SendVerificationCodeCommandValidator()
     {

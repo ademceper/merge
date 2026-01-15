@@ -4,11 +4,9 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.CreateCurrency;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-// ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-public class CreateCurrencyCommandValidator : AbstractValidator<CreateCurrencyCommand>
+public class CreateCurrencyCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<CreateCurrencyCommand>
 {
-    public CreateCurrencyCommandValidator(IOptions<InternationalSettings> settings)
+    public CreateCurrencyCommandValidator()
     {
         var config = settings.Value;
 

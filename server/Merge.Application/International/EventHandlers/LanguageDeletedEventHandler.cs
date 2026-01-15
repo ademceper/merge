@@ -4,23 +4,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.International.EventHandlers;
 
-/// <summary>
-/// Language Deleted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
-public class LanguageDeletedEventHandler : INotificationHandler<LanguageDeletedEvent>
+public class LanguageDeletedEventHandler(ILogger<LanguageDeletedEventHandler> logger) : INotificationHandler<LanguageDeletedEvent>
 {
-    private readonly ILogger<LanguageDeletedEventHandler> _logger;
-
-    public LanguageDeletedEventHandler(ILogger<LanguageDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task Handle(LanguageDeletedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Language deleted event received. LanguageId: {LanguageId}, Code: {Code}",
             notification.LanguageId, notification.Code);
 
@@ -35,8 +23,7 @@ public class LanguageDeletedEventHandler : INotificationHandler<LanguageDeletedE
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling LanguageDeletedEvent. LanguageId: {LanguageId}, Code: {Code}",
                 notification.LanguageId, notification.Code);
             throw;

@@ -16,72 +16,47 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Identity.Commands.RegenerateBackupCodes;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 12.1: Magic Number Sorunu - Configuration kullanımı
-public class RegenerateBackupCodesCommandHandler : IRequestHandler<RegenerateBackupCodesCommand, BackupCodesResponseDto>
+public class RegenerateBackupCodesCommandHandler(
+    Merge.Application.Interfaces.IRepository<TwoFactorAuth> twoFactorRepository,
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMediator mediator,
+    IOptions<TwoFactorAuthSettings> twoFactorSettings,
+    ILogger<RegenerateBackupCodesCommandHandler> logger) : IRequestHandler<RegenerateBackupCodesCommand, BackupCodesResponseDto>
 {
-    private readonly Merge.Application.Interfaces.IRepository<TwoFactorAuth> _twoFactorRepository;
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMediator _mediator;
-    private readonly TwoFactorAuthSettings _twoFactorSettings;
-    private readonly ILogger<RegenerateBackupCodesCommandHandler> _logger;
-
-    public RegenerateBackupCodesCommandHandler(
-        Merge.Application.Interfaces.IRepository<TwoFactorAuth> twoFactorRepository,
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMediator mediator,
-        IOptions<TwoFactorAuthSettings> twoFactorSettings,
-        ILogger<RegenerateBackupCodesCommandHandler> logger)
-    {
-        _twoFactorRepository = twoFactorRepository;
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mediator = mediator;
-        _twoFactorSettings = twoFactorSettings.Value;
-        _logger = logger;
-    }
 
     public async Task<BackupCodesResponseDto> Handle(RegenerateBackupCodesCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Regenerating backup codes. UserId: {UserId}", request.UserId);
+        logger.LogInformation("Regenerating backup codes. UserId: {UserId}", request.UserId);
 
-        var twoFactorAuth = await _context.Set<TwoFactorAuth>()
+        var twoFactorAuth = await context.Set<TwoFactorAuth>()
             .FirstOrDefaultAsync(t => t.UserId == request.UserId, cancellationToken);
 
         if (twoFactorAuth == null || !twoFactorAuth.IsEnabled)
         {
-            _logger.LogWarning("Regenerate backup codes failed - 2FA not enabled. UserId: {UserId}", request.UserId);
+            logger.LogWarning("Regenerate backup codes failed - 2FA not enabled. UserId: {UserId}", request.UserId);
             throw new BusinessException("2FA etkin değil.");
         }
 
-        // Verify current 2FA code
         var verifyCommand = new Verify2FACodeCommand(request.UserId, request.RegenerateDto.Code);
-        var isValid = await _mediator.Send(verifyCommand, cancellationToken);
+        var isValid = await mediator.Send(verifyCommand, cancellationToken);
 
         if (!isValid)
         {
-            _logger.LogWarning("Regenerate backup codes failed - invalid code. UserId: {UserId}", request.UserId);
+            logger.LogWarning("Regenerate backup codes failed - invalid code. UserId: {UserId}", request.UserId);
             throw new ValidationException("Geçersiz doğrulama kodu.");
         }
 
-        // ✅ BOLUM 12.1: Magic Number Sorunu - Configuration kullanımı
-        var backupCodes = GenerateBackupCodes(_twoFactorSettings.BackupCodeCount);
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
+        var backupCodes = GenerateBackupCodes(twoFactorSettings.Value.BackupCodeCount);
         twoFactorAuth.UpdateBackupCodes(backupCodes);
-        await _twoFactorRepository.UpdateAsync(twoFactorAuth);
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await twoFactorRepository.UpdateAsync(twoFactorAuth);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         var response = new BackupCodesResponseDto(
             BackupCodes: backupCodes,
             Message: "Backup codes regenerated successfully. Store them securely.");
 
-        _logger.LogInformation("Backup codes regenerated successfully. UserId: {UserId}", request.UserId);
+        logger.LogInformation("Backup codes regenerated successfully. UserId: {UserId}", request.UserId);
         return response;
     }
 

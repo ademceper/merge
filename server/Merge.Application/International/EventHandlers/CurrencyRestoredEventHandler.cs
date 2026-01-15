@@ -4,23 +4,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.International.EventHandlers;
 
-/// <summary>
-/// Currency Restored Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
-public class CurrencyRestoredEventHandler : INotificationHandler<CurrencyRestoredEvent>
+public class CurrencyRestoredEventHandler(ILogger<CurrencyRestoredEventHandler> logger) : INotificationHandler<CurrencyRestoredEvent>
 {
-    private readonly ILogger<CurrencyRestoredEventHandler> _logger;
-
-    public CurrencyRestoredEventHandler(ILogger<CurrencyRestoredEventHandler> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task Handle(CurrencyRestoredEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Currency restored event received. CurrencyId: {CurrencyId}, Code: {Code}",
             notification.CurrencyId, notification.Code);
 
@@ -33,8 +21,7 @@ public class CurrencyRestoredEventHandler : INotificationHandler<CurrencyRestore
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling CurrencyRestoredEvent. CurrencyId: {CurrencyId}, Code: {Code}",
                 notification.CurrencyId, notification.Code);
             throw;

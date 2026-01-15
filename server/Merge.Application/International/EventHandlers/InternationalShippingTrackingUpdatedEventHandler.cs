@@ -4,23 +4,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.International.EventHandlers;
 
-/// <summary>
-/// InternationalShipping Tracking Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
-public class InternationalShippingTrackingUpdatedEventHandler : INotificationHandler<InternationalShippingTrackingUpdatedEvent>
+public class InternationalShippingTrackingUpdatedEventHandler(ILogger<InternationalShippingTrackingUpdatedEventHandler> logger) : INotificationHandler<InternationalShippingTrackingUpdatedEvent>
 {
-    private readonly ILogger<InternationalShippingTrackingUpdatedEventHandler> _logger;
-
-    public InternationalShippingTrackingUpdatedEventHandler(ILogger<InternationalShippingTrackingUpdatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task Handle(InternationalShippingTrackingUpdatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "International shipping tracking updated event received. ShippingId: {ShippingId}, OrderId: {OrderId}, TrackingNumber: {TrackingNumber}",
             notification.InternationalShippingId, notification.OrderId, notification.TrackingNumber);
 
@@ -35,8 +23,7 @@ public class InternationalShippingTrackingUpdatedEventHandler : INotificationHan
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling InternationalShippingTrackingUpdatedEvent. ShippingId: {ShippingId}, OrderId: {OrderId}",
                 notification.InternationalShippingId, notification.OrderId);
             throw;

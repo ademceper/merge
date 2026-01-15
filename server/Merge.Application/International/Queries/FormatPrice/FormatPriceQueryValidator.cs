@@ -4,11 +4,9 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Queries.FormatPrice;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-// ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-public class FormatPriceQueryValidator : AbstractValidator<FormatPriceQuery>
+public class FormatPriceQueryValidator(IOptions<InternationalSettings> settings) : AbstractValidator<FormatPriceQuery>
 {
-    public FormatPriceQueryValidator(IOptions<InternationalSettings> settings)
+    public FormatPriceQueryValidator()
     {
         var config = settings.Value;
 

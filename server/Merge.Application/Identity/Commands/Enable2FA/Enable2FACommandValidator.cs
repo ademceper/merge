@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Identity.Commands.Enable2FA;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
 public class Enable2FACommandValidator : AbstractValidator<Enable2FACommand>
 {
     public Enable2FACommandValidator()

@@ -3,8 +3,7 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Identity.Commands.RevokeToken;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
-public class RevokeTokenCommandValidator : AbstractValidator<RevokeTokenCommand>
+public class RevokeTokenCommandValidator() : AbstractValidator<RevokeTokenCommand>
 {
     public RevokeTokenCommandValidator()
     {

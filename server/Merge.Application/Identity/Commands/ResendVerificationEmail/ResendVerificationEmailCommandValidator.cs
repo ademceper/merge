@@ -3,8 +3,7 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Identity.Commands.ResendVerificationEmail;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
-public class ResendVerificationEmailCommandValidator : AbstractValidator<ResendVerificationEmailCommand>
+public class ResendVerificationEmailCommandValidator() : AbstractValidator<ResendVerificationEmailCommand>
 {
     public ResendVerificationEmailCommandValidator()
     {

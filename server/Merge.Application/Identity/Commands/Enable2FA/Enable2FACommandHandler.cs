@@ -18,50 +18,31 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Identity.Commands.Enable2FA;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class Enable2FACommandHandler : IRequestHandler<Enable2FACommand, Unit>
+public class Enable2FACommandHandler(
+    Merge.Application.Interfaces.IRepository<TwoFactorAuth> twoFactorRepository,
+    Merge.Application.Interfaces.IRepository<TwoFactorCode> codeRepository,
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IOptions<TwoFactorAuthSettings> twoFactorSettings,
+    ILogger<Enable2FACommandHandler> logger) : IRequestHandler<Enable2FACommand, Unit>
 {
-    private readonly Merge.Application.Interfaces.IRepository<TwoFactorAuth> _twoFactorRepository;
-    private readonly Merge.Application.Interfaces.IRepository<TwoFactorCode> _codeRepository;
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly TwoFactorAuthSettings _twoFactorSettings;
-    private readonly ILogger<Enable2FACommandHandler> _logger;
-
-    public Enable2FACommandHandler(
-        Merge.Application.Interfaces.IRepository<TwoFactorAuth> twoFactorRepository,
-        Merge.Application.Interfaces.IRepository<TwoFactorCode> codeRepository,
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IOptions<TwoFactorAuthSettings> twoFactorSettings,
-        ILogger<Enable2FACommandHandler> logger)
-    {
-        _twoFactorRepository = twoFactorRepository;
-        _codeRepository = codeRepository;
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _twoFactorSettings = twoFactorSettings.Value;
-        _logger = logger;
-    }
 
     public async Task<Unit> Handle(Enable2FACommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Enabling 2FA. UserId: {UserId}", request.UserId);
+        logger.LogInformation("Enabling 2FA. UserId: {UserId}", request.UserId);
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        var twoFactorAuth = await _context.Set<TwoFactorAuth>()
+        var twoFactorAuth = await context.Set<TwoFactorAuth>()
             .FirstOrDefaultAsync(t => t.UserId == request.UserId, cancellationToken);
 
         if (twoFactorAuth == null)
         {
-            _logger.LogWarning("2FA enable failed - setup not found. UserId: {UserId}", request.UserId);
+            logger.LogWarning("2FA enable failed - setup not found. UserId: {UserId}", request.UserId);
             throw new BusinessException("2FA kurulumu yapılmamış. Önce 2FA kurulumunu yapın.");
         }
 
         if (twoFactorAuth.IsEnabled)
         {
-            _logger.LogWarning("2FA enable failed - already enabled. UserId: {UserId}", request.UserId);
+            logger.LogWarning("2FA enable failed - already enabled. UserId: {UserId}", request.UserId);
             throw new BusinessException("2FA zaten etkin.");
         }
 
@@ -73,8 +54,7 @@ public class Enable2FACommandHandler : IRequestHandler<Enable2FACommand, Unit>
         }
         else
         {
-            // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-            var code = await _context.Set<TwoFactorCode>()
+            var code = await context.Set<TwoFactorCode>()
                 .FirstOrDefaultAsync(c =>
                     c.UserId == request.UserId &&
                     c.Code == request.EnableDto.Code &&
@@ -84,28 +64,24 @@ public class Enable2FACommandHandler : IRequestHandler<Enable2FACommand, Unit>
 
             if (code != null)
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 code.MarkAsUsed();
-                await _codeRepository.UpdateAsync(code);
+                await codeRepository.UpdateAsync(code);
                 isValid = true;
             }
         }
 
         if (!isValid)
         {
-            _logger.LogWarning("2FA enable failed - invalid code. UserId: {UserId}", request.UserId);
+            logger.LogWarning("2FA enable failed - invalid code. UserId: {UserId}", request.UserId);
             throw new ValidationException("Geçersiz doğrulama kodu.");
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         twoFactorAuth.Verify();
         twoFactorAuth.Enable();
-        await _twoFactorRepository.UpdateAsync(twoFactorAuth);
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await twoFactorRepository.UpdateAsync(twoFactorAuth);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("2FA enabled successfully. UserId: {UserId}", request.UserId);
+        logger.LogInformation("2FA enabled successfully. UserId: {UserId}", request.UserId);
         return Unit.Value;
     }
 
@@ -114,8 +90,7 @@ public class Enable2FACommandHandler : IRequestHandler<Enable2FACommand, Unit>
         try
         {
             var unixTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            // ✅ BOLUM 12.1: Magic Number Sorunu - Configuration kullanımı
-            var timeStep = unixTimestamp / _twoFactorSettings.TotpTimeStepSeconds;
+            var timeStep = unixTimestamp / twoFactorSettings.Value.TotpTimeStepSeconds;
 
             // Check current time step and one step before/after for clock skew
             for (long i = -1; i <= 1; i++)
@@ -131,7 +106,7 @@ public class Enable2FACommandHandler : IRequestHandler<Enable2FACommand, Unit>
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "TOTP verification failed");
+            logger.LogWarning(ex, "TOTP verification failed");
             return false;
         }
     }

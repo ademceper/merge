@@ -3,7 +3,6 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Identity.Commands.Setup2FA;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
 public class Setup2FACommandValidator : AbstractValidator<Setup2FACommand>
 {
     public Setup2FACommandValidator()

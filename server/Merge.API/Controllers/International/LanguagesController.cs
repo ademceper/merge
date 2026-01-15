@@ -30,35 +30,25 @@ using Merge.Application.International.Queries.GetTranslationStats;
 
 namespace Merge.API.Controllers.International;
 
-// ✅ BOLUM 4.1: API Versioning (ZORUNLU)
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/international/languages")]
-public class LanguagesController : BaseController
+public class LanguagesController(IMediator mediator) : BaseController
 {
-    private readonly IMediator _mediator;
-
-    public LanguagesController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
     // Language Management
     /// <summary>
     /// Tüm dilleri getirir
     /// </summary>
     [HttpGet]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(IEnumerable<LanguageDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<IEnumerable<LanguageDto>>> GetAllLanguages(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetAllLanguagesQuery();
-        var languages = await _mediator.Send(query, cancellationToken);
+        var languages = await mediator.Send(query, cancellationToken);
         return Ok(languages);
     }
 
@@ -67,16 +57,14 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpGet("active")]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(IEnumerable<LanguageDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<IEnumerable<LanguageDto>>> GetActiveLanguages(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetActiveLanguagesQuery();
-        var languages = await _mediator.Send(query, cancellationToken);
+        var languages = await mediator.Send(query, cancellationToken);
         return Ok(languages);
     }
 
@@ -85,7 +73,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpGet("{id}")]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(LanguageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -93,10 +81,8 @@ public class LanguagesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetLanguageByIdQuery(id);
-        var language = await _mediator.Send(query, cancellationToken);
+        var language = await mediator.Send(query, cancellationToken);
 
         if (language == null)
         {
@@ -111,7 +97,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpGet("code/{code}")]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(LanguageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -119,10 +105,8 @@ public class LanguagesController : BaseController
         string code,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetLanguageByCodeQuery(code);
-        var language = await _mediator.Send(query, cancellationToken);
+        var language = await mediator.Send(query, cancellationToken);
 
         if (language == null)
         {
@@ -137,7 +121,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [RateLimit(10, 60)]
     [ProducesResponseType(typeof(LanguageDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -147,9 +131,6 @@ public class LanguagesController : BaseController
         [FromBody] CreateLanguageDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new CreateLanguageCommand(
             dto.Code,
             dto.Name,
@@ -158,7 +139,7 @@ public class LanguagesController : BaseController
             dto.IsActive,
             dto.IsRTL,
             dto.FlagIcon);
-        var language = await _mediator.Send(command, cancellationToken);
+        var language = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetAllLanguages), new { id = language.Id }, language);
     }
 
@@ -167,7 +148,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
-    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [RateLimit(10, 60)]
     [ProducesResponseType(typeof(LanguageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -179,9 +160,6 @@ public class LanguagesController : BaseController
         [FromBody] UpdateLanguageDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new UpdateLanguageCommand(
             id,
             dto.Name,
@@ -189,7 +167,7 @@ public class LanguagesController : BaseController
             dto.IsActive,
             dto.IsRTL,
             dto.FlagIcon);
-        var language = await _mediator.Send(command, cancellationToken);
+        var language = await mediator.Send(command, cancellationToken);
         return Ok(language);
     }
 
@@ -198,7 +176,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -208,10 +186,8 @@ public class LanguagesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new DeleteLanguageCommand(id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -221,7 +197,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpPost("products/translations")]
     [Authorize(Roles = "Admin,Seller")]
-    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [RateLimit(20, 60)]
     [ProducesResponseType(typeof(ProductTranslationDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -231,9 +207,6 @@ public class LanguagesController : BaseController
         [FromBody] CreateProductTranslationDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new CreateProductTranslationCommand(
             dto.ProductId,
             dto.LanguageCode,
@@ -243,7 +216,7 @@ public class LanguagesController : BaseController
             dto.MetaTitle,
             dto.MetaDescription,
             dto.MetaKeywords);
-        var translation = await _mediator.Send(command, cancellationToken);
+        var translation = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetProductTranslation), new { productId = dto.ProductId, languageCode = dto.LanguageCode }, translation);
     }
 
@@ -252,17 +225,15 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpGet("products/{productId}/translations")]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(IEnumerable<ProductTranslationDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<IEnumerable<ProductTranslationDto>>> GetProductTranslations(
         Guid productId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetProductTranslationsQuery(productId);
-        var translations = await _mediator.Send(query, cancellationToken);
+        var translations = await mediator.Send(query, cancellationToken);
         return Ok(translations);
     }
 
@@ -271,7 +242,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpGet("products/{productId}/translations/{languageCode}")]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(ProductTranslationDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -280,10 +251,8 @@ public class LanguagesController : BaseController
         string languageCode,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetProductTranslationQuery(productId, languageCode);
-        var translation = await _mediator.Send(query, cancellationToken);
+        var translation = await mediator.Send(query, cancellationToken);
 
         if (translation == null)
         {
@@ -298,7 +267,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpPut("products/translations/{id}")]
     [Authorize(Roles = "Admin,Seller")]
-    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [RateLimit(20, 60)]
     [ProducesResponseType(typeof(ProductTranslationDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -310,9 +279,6 @@ public class LanguagesController : BaseController
         [FromBody] UpdateProductTranslationDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new UpdateProductTranslationCommand(
             id,
             dto.Name,
@@ -321,7 +287,7 @@ public class LanguagesController : BaseController
             dto.MetaTitle,
             dto.MetaDescription,
             dto.MetaKeywords);
-        var translation = await _mediator.Send(command, cancellationToken);
+        var translation = await mediator.Send(command, cancellationToken);
         return Ok(translation);
     }
 
@@ -330,7 +296,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpDelete("products/translations/{id}")]
     [Authorize(Roles = "Admin,Seller")]
-    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [RateLimit(20, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -340,10 +306,8 @@ public class LanguagesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new DeleteProductTranslationCommand(id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -353,7 +317,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpPost("categories/translations")]
     [Authorize(Roles = "Admin")]
-    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [RateLimit(20, 60)]
     [ProducesResponseType(typeof(CategoryTranslationDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -363,15 +327,12 @@ public class LanguagesController : BaseController
         [FromBody] CreateCategoryTranslationDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new CreateCategoryTranslationCommand(
             dto.CategoryId,
             dto.LanguageCode,
             dto.Name,
             dto.Description);
-        var translation = await _mediator.Send(command, cancellationToken);
+        var translation = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetCategoryTranslations), new { categoryId = dto.CategoryId }, translation);
     }
 
@@ -380,17 +341,15 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpGet("categories/{categoryId}/translations")]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(IEnumerable<CategoryTranslationDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<IEnumerable<CategoryTranslationDto>>> GetCategoryTranslations(
         Guid categoryId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetCategoryTranslationsQuery(categoryId);
-        var translations = await _mediator.Send(query, cancellationToken);
+        var translations = await mediator.Send(query, cancellationToken);
         return Ok(translations);
     }
 
@@ -399,7 +358,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpPut("categories/translations/{id}")]
     [Authorize(Roles = "Admin")]
-    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [RateLimit(20, 60)]
     [ProducesResponseType(typeof(CategoryTranslationDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -411,11 +370,8 @@ public class LanguagesController : BaseController
         [FromBody] UpdateCategoryTranslationDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new UpdateCategoryTranslationCommand(id, dto.Name, dto.Description);
-        var translation = await _mediator.Send(command, cancellationToken);
+        var translation = await mediator.Send(command, cancellationToken);
         return Ok(translation);
     }
 
@@ -424,7 +380,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpDelete("categories/translations/{id}")]
     [Authorize(Roles = "Admin")]
-    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [RateLimit(20, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -434,10 +390,8 @@ public class LanguagesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new DeleteCategoryTranslationCommand(id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -447,7 +401,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpGet("translations/{languageCode}")]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(Dictionary<string, string>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     // ⚠️ NOTE: Dictionary<string, string> burada kabul edilebilir çünkü key-value çiftleri dinamik ve güvenlik riski düşük
@@ -457,10 +411,8 @@ public class LanguagesController : BaseController
         [FromQuery] string? category = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetStaticTranslationsQuery(languageCode, category);
-        var translations = await _mediator.Send(query, cancellationToken);
+        var translations = await mediator.Send(query, cancellationToken);
         return Ok(translations);
     }
 
@@ -469,7 +421,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpPost("translations")]
     [Authorize(Roles = "Admin")]
-    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [RateLimit(20, 60)]
     [ProducesResponseType(typeof(StaticTranslationDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -479,15 +431,12 @@ public class LanguagesController : BaseController
         [FromBody] CreateStaticTranslationDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new CreateStaticTranslationCommand(
             dto.Key,
             dto.LanguageCode,
             dto.Value,
             dto.Category);
-        var translation = await _mediator.Send(command, cancellationToken);
+        var translation = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetStaticTranslations), new { languageCode = dto.LanguageCode }, translation);
     }
 
@@ -496,7 +445,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpPut("translations/{id}")]
     [Authorize(Roles = "Admin")]
-    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [RateLimit(20, 60)]
     [ProducesResponseType(typeof(StaticTranslationDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -508,11 +457,8 @@ public class LanguagesController : BaseController
         [FromBody] UpdateStaticTranslationDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new UpdateStaticTranslationCommand(id, dto.Value, dto.Category);
-        var translation = await _mediator.Send(command, cancellationToken);
+        var translation = await mediator.Send(command, cancellationToken);
         return Ok(translation);
     }
 
@@ -521,7 +467,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpDelete("translations/{id}")]
     [Authorize(Roles = "Admin")]
-    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [RateLimit(20, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -531,10 +477,8 @@ public class LanguagesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new DeleteStaticTranslationCommand(id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -543,7 +487,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpPost("translations/bulk")]
     [Authorize(Roles = "Admin")]
-    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -553,11 +497,8 @@ public class LanguagesController : BaseController
         [FromBody] BulkTranslationDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new BulkCreateStaticTranslationsCommand(dto.LanguageCode, dto.Translations);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -567,7 +508,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpPost("preference")]
     [Authorize]
-    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -586,11 +527,8 @@ public class LanguagesController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi tercihini ayarlayabilir
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new SetUserLanguagePreferenceCommand(userId, languageCode);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -599,7 +537,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpGet("preference")]
     [Authorize]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -611,11 +549,8 @@ public class LanguagesController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi tercihini görebilir
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetUserLanguagePreferenceQuery(userId);
-        var languageCode = await _mediator.Send(query, cancellationToken);
+        var languageCode = await mediator.Send(query, cancellationToken);
         return Ok(new { languageCode });
     }
 
@@ -625,7 +560,7 @@ public class LanguagesController : BaseController
     /// </summary>
     [HttpGet("stats")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(TranslationStatsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -633,10 +568,8 @@ public class LanguagesController : BaseController
     public async Task<ActionResult<TranslationStatsDto>> GetTranslationStats(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetTranslationStatsQuery();
-        var stats = await _mediator.Send(query, cancellationToken);
+        var stats = await mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 }

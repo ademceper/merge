@@ -4,11 +4,9 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Queries.GetExchangeRateHistory;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-// ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-public class GetExchangeRateHistoryQueryValidator : AbstractValidator<GetExchangeRateHistoryQuery>
+public class GetExchangeRateHistoryQueryValidator(IOptions<InternationalSettings> settings) : AbstractValidator<GetExchangeRateHistoryQuery>
 {
-    public GetExchangeRateHistoryQueryValidator(IOptions<InternationalSettings> settings)
+    public GetExchangeRateHistoryQueryValidator()
     {
         var config = settings.Value;
 

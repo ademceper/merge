@@ -3,7 +3,6 @@ using Merge.Application.DTOs.International;
 
 namespace Merge.Application.International.Commands.CreateProductTranslation;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record CreateProductTranslationCommand(
     Guid ProductId,
     string LanguageCode,

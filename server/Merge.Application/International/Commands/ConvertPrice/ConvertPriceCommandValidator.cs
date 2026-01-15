@@ -2,8 +2,7 @@ using FluentValidation;
 
 namespace Merge.Application.International.Commands.ConvertPrice;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-public class ConvertPriceCommandValidator : AbstractValidator<ConvertPriceCommand>
+public class ConvertPriceCommandValidator() : AbstractValidator<ConvertPriceCommand>
 {
     public ConvertPriceCommandValidator()
     {

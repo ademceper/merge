@@ -4,11 +4,9 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.SetUserLanguagePreference;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-// ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-public class SetUserLanguagePreferenceCommandValidator : AbstractValidator<SetUserLanguagePreferenceCommand>
+public class SetUserLanguagePreferenceCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<SetUserLanguagePreferenceCommand>
 {
-    public SetUserLanguagePreferenceCommandValidator(IOptions<InternationalSettings> settings)
+    public SetUserLanguagePreferenceCommandValidator()
     {
         var config = settings.Value;
 

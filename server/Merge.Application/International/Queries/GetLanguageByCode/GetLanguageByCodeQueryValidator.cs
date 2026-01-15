@@ -4,11 +4,9 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Queries.GetLanguageByCode;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-// ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-public class GetLanguageByCodeQueryValidator : AbstractValidator<GetLanguageByCodeQuery>
+public class GetLanguageByCodeQueryValidator(IOptions<InternationalSettings> settings) : AbstractValidator<GetLanguageByCodeQuery>
 {
-    public GetLanguageByCodeQueryValidator(IOptions<InternationalSettings> settings)
+    public GetLanguageByCodeQueryValidator()
     {
         var config = settings.Value;
 

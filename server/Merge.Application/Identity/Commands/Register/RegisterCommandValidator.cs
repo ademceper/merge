@@ -3,8 +3,7 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Identity.Commands.Register;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
-public class RegisterCommandValidator : AbstractValidator<RegisterCommand>
+public class RegisterCommandValidator() : AbstractValidator<RegisterCommand>
 {
     public RegisterCommandValidator()
     {

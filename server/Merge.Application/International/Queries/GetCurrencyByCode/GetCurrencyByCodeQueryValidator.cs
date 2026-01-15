@@ -4,11 +4,9 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Queries.GetCurrencyByCode;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-// ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-public class GetCurrencyByCodeQueryValidator : AbstractValidator<GetCurrencyByCodeQuery>
+public class GetCurrencyByCodeQueryValidator(IOptions<InternationalSettings> settings) : AbstractValidator<GetCurrencyByCodeQuery>
 {
-    public GetCurrencyByCodeQueryValidator(IOptions<InternationalSettings> settings)
+    public GetCurrencyByCodeQueryValidator()
     {
         var config = settings.Value;
 

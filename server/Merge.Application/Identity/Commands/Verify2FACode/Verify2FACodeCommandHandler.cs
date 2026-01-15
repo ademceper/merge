@@ -15,55 +15,33 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Identity.Commands.Verify2FACode;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-// ✅ BOLUM 12.1: Magic Number Sorunu - Configuration kullanımı
-public class Verify2FACodeCommandHandler : IRequestHandler<Verify2FACodeCommand, bool>
+public class Verify2FACodeCommandHandler(
+    Merge.Application.Interfaces.IRepository<TwoFactorAuth> twoFactorRepository,
+    Merge.Application.Interfaces.IRepository<TwoFactorCode> codeRepository,
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IOptions<TwoFactorAuthSettings> twoFactorSettings,
+    ILogger<Verify2FACodeCommandHandler> logger) : IRequestHandler<Verify2FACodeCommand, bool>
 {
-    private readonly Merge.Application.Interfaces.IRepository<TwoFactorAuth> _twoFactorRepository;
-    private readonly Merge.Application.Interfaces.IRepository<TwoFactorCode> _codeRepository;
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly TwoFactorAuthSettings _twoFactorSettings;
-    private readonly ILogger<Verify2FACodeCommandHandler> _logger;
-
-    public Verify2FACodeCommandHandler(
-        Merge.Application.Interfaces.IRepository<TwoFactorAuth> twoFactorRepository,
-        Merge.Application.Interfaces.IRepository<TwoFactorCode> codeRepository,
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IOptions<TwoFactorAuthSettings> twoFactorSettings,
-        ILogger<Verify2FACodeCommandHandler> logger)
-    {
-        _twoFactorRepository = twoFactorRepository;
-        _codeRepository = codeRepository;
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _twoFactorSettings = twoFactorSettings.Value;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(Verify2FACodeCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Verifying 2FA code. UserId: {UserId}", request.UserId);
+        logger.LogInformation("Verifying 2FA code. UserId: {UserId}", request.UserId);
 
-        // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-        var twoFactorAuth = await _context.Set<TwoFactorAuth>()
+        var twoFactorAuth = await context.Set<TwoFactorAuth>()
             .FirstOrDefaultAsync(t => t.UserId == request.UserId, cancellationToken);
 
         if (twoFactorAuth == null || !twoFactorAuth.IsEnabled)
         {
-            _logger.LogWarning("2FA verification failed - not enabled. UserId: {UserId}", request.UserId);
+            logger.LogWarning("2FA verification failed - not enabled. UserId: {UserId}", request.UserId);
             return false;
         }
 
-        // Check for account lockout
         if (twoFactorAuth.LockedUntil.HasValue && twoFactorAuth.LockedUntil.Value > DateTime.UtcNow)
         {
-            _logger.LogWarning("2FA verification failed - account locked. UserId: {UserId}, LockedUntil: {LockedUntil}", 
+            logger.LogWarning("2FA verification failed - account locked. UserId: {UserId}, LockedUntil: {LockedUntil}", 
                 request.UserId, twoFactorAuth.LockedUntil.Value);
-            // ✅ BOLUM 12.1: Magic Number Sorunu - Configuration kullanımı
-            throw new BusinessException($"Çok fazla başarısız deneme nedeniyle hesap kilitlendi. {twoFactorAuth.LockedUntil.Value.ToString(_twoFactorSettings.DateTimeFormat)} tarihinden sonra tekrar deneyin.");
+            throw new BusinessException($"Çok fazla başarısız deneme nedeniyle hesap kilitlendi. {twoFactorAuth.LockedUntil.Value.ToString(twoFactorSettings.Value.DateTimeFormat)} tarihinden sonra tekrar deneyin.");
         }
 
         bool isValid = false;
@@ -74,8 +52,7 @@ public class Verify2FACodeCommandHandler : IRequestHandler<Verify2FACodeCommand,
         }
         else
         {
-            // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
-            var twoFactorCode = await _context.Set<TwoFactorCode>()
+            var twoFactorCode = await context.Set<TwoFactorCode>()
                 .FirstOrDefaultAsync(c =>
                     c.UserId == request.UserId &&
                     c.Code == request.Code &&
@@ -84,38 +61,30 @@ public class Verify2FACodeCommandHandler : IRequestHandler<Verify2FACodeCommand,
 
             if (twoFactorCode != null)
             {
-                // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
                 twoFactorCode.MarkAsUsed();
-                await _codeRepository.UpdateAsync(twoFactorCode);
+                await codeRepository.UpdateAsync(twoFactorCode);
                 isValid = true;
             }
         }
 
         if (!isValid)
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
-            // ✅ BOLUM 12.1: Magic Number Sorunu - Configuration kullanımı
             twoFactorAuth.RecordFailedAttempt(
-                _twoFactorSettings.MaxFailedAttempts,
-                _twoFactorSettings.LockoutMinutes);
-            await _twoFactorRepository.UpdateAsync(twoFactorAuth);
-            // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+                twoFactorSettings.Value.MaxFailedAttempts,
+                twoFactorSettings.Value.LockoutMinutes);
+            await twoFactorRepository.UpdateAsync(twoFactorAuth);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
             
-            _logger.LogWarning("2FA verification failed - invalid code. UserId: {UserId}, FailedAttempts: {FailedAttempts}", 
+            logger.LogWarning("2FA verification failed - invalid code. UserId: {UserId}, FailedAttempts: {FailedAttempts}", 
                 request.UserId, twoFactorAuth.FailedAttempts);
             return false;
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
-        // Reset failed attempts on successful verification
         twoFactorAuth.ResetFailedAttempts();
-        await _twoFactorRepository.UpdateAsync(twoFactorAuth);
-        // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        // ✅ ARCHITECTURE: Domain events are automatically dispatched and stored in OutboxMessages by UnitOfWork.SaveChangesAsync
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await twoFactorRepository.UpdateAsync(twoFactorAuth);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("2FA code verified successfully. UserId: {UserId}", request.UserId);
+        logger.LogInformation("2FA code verified successfully. UserId: {UserId}", request.UserId);
         return true;
     }
 
@@ -124,7 +93,7 @@ public class Verify2FACodeCommandHandler : IRequestHandler<Verify2FACodeCommand,
         try
         {
             var unixTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var timeStep = unixTimestamp / _twoFactorSettings.TotpTimeStepSeconds;
+            var timeStep = unixTimestamp / twoFactorSettings.Value.TotpTimeStepSeconds;
 
             // Check current time step and one step before/after for clock skew
             for (long i = -1; i <= 1; i++)
@@ -140,7 +109,7 @@ public class Verify2FACodeCommandHandler : IRequestHandler<Verify2FACodeCommand,
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "TOTP verification failed");
+            logger.LogWarning(ex, "TOTP verification failed");
             return false;
         }
     }

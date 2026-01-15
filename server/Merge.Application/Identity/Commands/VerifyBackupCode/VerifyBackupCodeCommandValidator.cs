@@ -3,8 +3,7 @@ using Merge.Domain.Modules.Identity;
 
 namespace Merge.Application.Identity.Commands.VerifyBackupCode;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
-public class VerifyBackupCodeCommandValidator : AbstractValidator<VerifyBackupCodeCommand>
+public class VerifyBackupCodeCommandValidator() : AbstractValidator<VerifyBackupCodeCommand>
 {
     public VerifyBackupCodeCommandValidator()
     {

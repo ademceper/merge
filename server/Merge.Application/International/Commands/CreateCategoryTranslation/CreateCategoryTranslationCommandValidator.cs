@@ -4,11 +4,9 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.CreateCategoryTranslation;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-// ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-public class CreateCategoryTranslationCommandValidator : AbstractValidator<CreateCategoryTranslationCommand>
+public class CreateCategoryTranslationCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<CreateCategoryTranslationCommand>
 {
-    public CreateCategoryTranslationCommandValidator(IOptions<InternationalSettings> settings)
+    public CreateCategoryTranslationCommandValidator()
     {
         var config = settings.Value;
 

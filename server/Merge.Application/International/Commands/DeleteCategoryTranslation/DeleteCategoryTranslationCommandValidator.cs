@@ -2,8 +2,7 @@ using FluentValidation;
 
 namespace Merge.Application.International.Commands.DeleteCategoryTranslation;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
-public class DeleteCategoryTranslationCommandValidator : AbstractValidator<DeleteCategoryTranslationCommand>
+public class DeleteCategoryTranslationCommandValidator() : AbstractValidator<DeleteCategoryTranslationCommand>
 {
     public DeleteCategoryTranslationCommandValidator()
     {

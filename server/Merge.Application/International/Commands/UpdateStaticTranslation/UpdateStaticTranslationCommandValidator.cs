@@ -4,11 +4,9 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.UpdateStaticTranslation;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-// ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-public class UpdateStaticTranslationCommandValidator : AbstractValidator<UpdateStaticTranslationCommand>
+public class UpdateStaticTranslationCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<UpdateStaticTranslationCommand>
 {
-    public UpdateStaticTranslationCommandValidator(IOptions<InternationalSettings> settings)
+    public UpdateStaticTranslationCommandValidator()
     {
         var config = settings.Value;
 

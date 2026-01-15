@@ -21,34 +21,24 @@ using Merge.Application.International.Commands.SyncExchangeRates;
 
 namespace Merge.API.Controllers.International;
 
-// ✅ BOLUM 4.1: API Versioning (ZORUNLU)
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/international/currencies")]
-public class CurrenciesController : BaseController
+public class CurrenciesController(IMediator mediator) : BaseController
 {
-    private readonly IMediator _mediator;
-
-    public CurrenciesController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
     /// <summary>
     /// Tüm para birimlerini getirir
     /// </summary>
     [HttpGet]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(IEnumerable<CurrencyDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<IEnumerable<CurrencyDto>>> GetAllCurrencies(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetAllCurrenciesQuery();
-        var currencies = await _mediator.Send(query, cancellationToken);
+        var currencies = await mediator.Send(query, cancellationToken);
         return Ok(currencies);
     }
 
@@ -57,16 +47,14 @@ public class CurrenciesController : BaseController
     /// </summary>
     [HttpGet("active")]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(IEnumerable<CurrencyDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<IEnumerable<CurrencyDto>>> GetActiveCurrencies(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetActiveCurrenciesQuery();
-        var currencies = await _mediator.Send(query, cancellationToken);
+        var currencies = await mediator.Send(query, cancellationToken);
         return Ok(currencies);
     }
 
@@ -75,7 +63,7 @@ public class CurrenciesController : BaseController
     /// </summary>
     [HttpGet("{id}")]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(CurrencyDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -83,10 +71,8 @@ public class CurrenciesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetCurrencyByIdQuery(id);
-        var currency = await _mediator.Send(query, cancellationToken);
+        var currency = await mediator.Send(query, cancellationToken);
 
         if (currency == null)
         {
@@ -101,7 +87,7 @@ public class CurrenciesController : BaseController
     /// </summary>
     [HttpGet("code/{code}")]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(CurrencyDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -109,10 +95,8 @@ public class CurrenciesController : BaseController
         string code,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetCurrencyByCodeQuery(code);
-        var currency = await _mediator.Send(query, cancellationToken);
+        var currency = await mediator.Send(query, cancellationToken);
 
         if (currency == null)
         {
@@ -127,7 +111,7 @@ public class CurrenciesController : BaseController
     /// </summary>
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [RateLimit(10, 60)]
     [ProducesResponseType(typeof(CurrencyDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -137,9 +121,6 @@ public class CurrenciesController : BaseController
         [FromBody] CreateCurrencyDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new CreateCurrencyCommand(
             dto.Code,
             dto.Name,
@@ -149,7 +130,7 @@ public class CurrenciesController : BaseController
             dto.IsActive,
             dto.DecimalPlaces,
             dto.Format);
-        var currency = await _mediator.Send(command, cancellationToken);
+        var currency = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetCurrencyById), new { id = currency.Id }, currency);
     }
 
@@ -158,7 +139,7 @@ public class CurrenciesController : BaseController
     /// </summary>
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
-    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [RateLimit(20, 60)]
     [ProducesResponseType(typeof(CurrencyDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -170,9 +151,6 @@ public class CurrenciesController : BaseController
         [FromBody] UpdateCurrencyDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new UpdateCurrencyCommand(
             id,
             dto.Name,
@@ -181,7 +159,7 @@ public class CurrenciesController : BaseController
             dto.IsActive,
             dto.DecimalPlaces,
             dto.Format);
-        var currency = await _mediator.Send(command, cancellationToken);
+        var currency = await mediator.Send(command, cancellationToken);
         return Ok(currency);
     }
 
@@ -190,7 +168,7 @@ public class CurrenciesController : BaseController
     /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -200,10 +178,8 @@ public class CurrenciesController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new DeleteCurrencyCommand(id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -212,7 +188,7 @@ public class CurrenciesController : BaseController
     /// </summary>
     [HttpPut("{currencyCode}/exchange-rate")]
     [Authorize(Roles = "Admin")]
-    [RateLimit(20, 60)] // ✅ BOLUM 3.3: Rate Limiting - 20 istek / dakika
+    [RateLimit(20, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -224,10 +200,8 @@ public class CurrenciesController : BaseController
         [FromQuery] string source = "Manual",
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new UpdateExchangeRateCommand(currencyCode, newRate, source);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -236,7 +210,7 @@ public class CurrenciesController : BaseController
     /// </summary>
     [HttpPost("convert")]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(ConvertedPriceDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -244,11 +218,8 @@ public class CurrenciesController : BaseController
         [FromBody] ConvertPriceDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        // ✅ BOLUM 2.3: ValidationBehavior otomatik olarak ValidateModelState'i handle ediyor
         var command = new ConvertPriceCommand(dto.Amount, dto.FromCurrency, dto.ToCurrency);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         return Ok(result);
     }
 
@@ -257,7 +228,7 @@ public class CurrenciesController : BaseController
     /// </summary>
     [HttpGet("format")]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -266,10 +237,8 @@ public class CurrenciesController : BaseController
         [FromQuery] string currencyCode,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new FormatPriceQuery(amount, currencyCode);
-        var formatted = await _mediator.Send(query, cancellationToken);
+        var formatted = await mediator.Send(query, cancellationToken);
         return Ok(new { formatted });
     }
 
@@ -278,7 +247,7 @@ public class CurrenciesController : BaseController
     /// </summary>
     [HttpGet("{currencyCode}/history")]
     [AllowAnonymous]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(IEnumerable<ExchangeRateHistoryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -287,10 +256,8 @@ public class CurrenciesController : BaseController
         [FromQuery] int days = 30,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetExchangeRateHistoryQuery(currencyCode, days);
-        var history = await _mediator.Send(query, cancellationToken);
+        var history = await mediator.Send(query, cancellationToken);
         return Ok(history);
     }
 
@@ -299,7 +266,7 @@ public class CurrenciesController : BaseController
     /// </summary>
     [HttpPost("preference")]
     [Authorize]
-    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10 istek / dakika
+    [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -318,11 +285,8 @@ public class CurrenciesController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi tercihini ayarlayabilir
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new SetUserCurrencyPreferenceCommand(userId, currencyCode);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -331,7 +295,7 @@ public class CurrenciesController : BaseController
     /// </summary>
     [HttpGet("preference")]
     [Authorize]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -343,11 +307,8 @@ public class CurrenciesController : BaseController
             return Unauthorized();
         }
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi tercihini görebilir
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetUserCurrencyPreferenceQuery(userId);
-        var currencyCode = await _mediator.Send(query, cancellationToken);
+        var currencyCode = await mediator.Send(query, cancellationToken);
         return Ok(new { currencyCode });
     }
 
@@ -356,7 +317,7 @@ public class CurrenciesController : BaseController
     /// </summary>
     [HttpGet("stats")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(CurrencyStatsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -364,10 +325,8 @@ public class CurrenciesController : BaseController
     public async Task<ActionResult<CurrencyStatsDto>> GetCurrencyStats(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var query = new GetCurrencyStatsQuery();
-        var stats = await _mediator.Send(query, cancellationToken);
+        var stats = await mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 
@@ -376,7 +335,7 @@ public class CurrenciesController : BaseController
     /// </summary>
     [HttpPost("sync")]
     [Authorize(Roles = "Admin")]
-    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika (tehlikeli işlem)
+    [RateLimit(5, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -384,10 +343,8 @@ public class CurrenciesController : BaseController
     public async Task<IActionResult> SyncExchangeRates(
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         var command = new SyncExchangeRatesCommand();
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 }

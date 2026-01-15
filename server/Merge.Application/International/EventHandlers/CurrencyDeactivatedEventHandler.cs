@@ -4,23 +4,11 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.International.EventHandlers;
 
-/// <summary>
-/// Currency Deactivated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
-/// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-/// </summary>
-public class CurrencyDeactivatedEventHandler : INotificationHandler<CurrencyDeactivatedEvent>
+public class CurrencyDeactivatedEventHandler(ILogger<CurrencyDeactivatedEventHandler> logger) : INotificationHandler<CurrencyDeactivatedEvent>
 {
-    private readonly ILogger<CurrencyDeactivatedEventHandler> _logger;
-
-    public CurrencyDeactivatedEventHandler(ILogger<CurrencyDeactivatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task Handle(CurrencyDeactivatedEvent notification, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Currency deactivated event received. CurrencyId: {CurrencyId}, Code: {Code}",
             notification.CurrencyId, notification.Code);
 
@@ -33,8 +21,7 @@ public class CurrencyDeactivatedEventHandler : INotificationHandler<CurrencyDeac
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling CurrencyDeactivatedEvent. CurrencyId: {CurrencyId}, Code: {Code}",
                 notification.CurrencyId, notification.Code);
             throw;

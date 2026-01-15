@@ -4,11 +4,9 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.UpdateExchangeRate;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-// ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-public class UpdateExchangeRateCommandValidator : AbstractValidator<UpdateExchangeRateCommand>
+public class UpdateExchangeRateCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<UpdateExchangeRateCommand>
 {
-    public UpdateExchangeRateCommandValidator(IOptions<InternationalSettings> settings)
+    public UpdateExchangeRateCommandValidator()
     {
         var config = settings.Value;
 

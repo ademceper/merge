@@ -4,7 +4,6 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Identity.Commands.Register;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record RegisterCommand(
     string FirstName,
     string LastName,

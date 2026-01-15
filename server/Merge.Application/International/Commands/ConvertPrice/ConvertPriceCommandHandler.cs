@@ -12,42 +12,27 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.International.Commands.ConvertPrice;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-public class ConvertPriceCommandHandler : IRequestHandler<ConvertPriceCommand, ConvertedPriceDto>
-{
-    private readonly IDbContext _context;
-    private readonly IMediator _mediator;
-    private readonly ILogger<ConvertPriceCommandHandler> _logger;
-
-    public ConvertPriceCommandHandler(
-        IDbContext context,
+public class ConvertPriceCommandHandler(
+    IDbContext context,
         IMediator mediator,
-        ILogger<ConvertPriceCommandHandler> logger)
-    {
-        _context = context;
-        _mediator = mediator;
-        _logger = logger;
-    }
-
+    ILogger<ConvertPriceCommandHandler> logger) : IRequestHandler<ConvertPriceCommand, ConvertedPriceDto>
+{
     public async Task<ConvertedPriceDto> Handle(ConvertPriceCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Converting price. Amount: {Amount}, From: {FromCurrency}, To: {ToCurrency}", 
+        logger.LogInformation("Converting price. Amount: {Amount}, From: {FromCurrency}, To: {ToCurrency}", 
             request.Amount, request.FromCurrency, request.ToCurrency);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        var from = await _context.Set<Currency>()
+        var from = await context.Set<Currency>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Code.ToUpper() == request.FromCurrency.ToUpper() && c.IsActive, cancellationToken);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        var to = await _context.Set<Currency>()
+        var to = await context.Set<Currency>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Code.ToUpper() == request.ToCurrency.ToUpper() && c.IsActive, cancellationToken);
 
         if (from == null || to == null)
         {
-            _logger.LogWarning("Invalid currency code. From: {FromCurrency}, To: {ToCurrency}", 
+            logger.LogWarning("Invalid currency code. From: {FromCurrency}, To: {ToCurrency}", 
                 request.FromCurrency, request.ToCurrency);
             throw new ValidationException("Geçersiz para birimi kodu.");
         }
@@ -63,7 +48,7 @@ public class ConvertPriceCommandHandler : IRequestHandler<ConvertPriceCommand, C
 
         // Format price
         var formatQuery = new Queries.FormatPrice.FormatPriceQuery(convertedAmount, to.Code);
-        var formatted = await _mediator.Send(formatQuery, cancellationToken);
+        var formatted = await mediator.Send(formatQuery, cancellationToken);
 
         return new ConvertedPriceDto(
             OriginalAmount: request.Amount,
@@ -74,4 +59,3 @@ public class ConvertPriceCommandHandler : IRequestHandler<ConvertPriceCommand, C
             ExchangeRate: to.ExchangeRate / from.ExchangeRate);
     }
 }
-

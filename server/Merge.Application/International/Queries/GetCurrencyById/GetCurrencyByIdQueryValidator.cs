@@ -2,8 +2,7 @@ using FluentValidation;
 
 namespace Merge.Application.International.Queries.GetCurrencyById;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
-public class GetCurrencyByIdQueryValidator : AbstractValidator<GetCurrencyByIdQuery>
+public class GetCurrencyByIdQueryValidator() : AbstractValidator<GetCurrencyByIdQuery>
 {
     public GetCurrencyByIdQueryValidator()
     {

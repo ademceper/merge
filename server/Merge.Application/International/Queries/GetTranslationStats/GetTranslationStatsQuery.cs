@@ -3,6 +3,5 @@ using Merge.Application.DTOs.International;
 
 namespace Merge.Application.International.Queries.GetTranslationStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public record GetTranslationStatsQuery() : IRequest<TranslationStatsDto>;
 
