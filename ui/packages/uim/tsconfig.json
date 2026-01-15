@@ -1,0 +1,9 @@
+{
+  "extends": "@merge/ts-cfg/react-native-library.json",
+  "include": ["."],
+  "exclude": ["dist", "build", "node_modules"],
+  "compilerOptions": {
+    "strict": true,
+    "types": []
+  }
+}

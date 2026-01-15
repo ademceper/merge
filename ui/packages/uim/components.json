@@ -1,0 +1,18 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "../../apps/mobile/tailwind.config.js",
+    "css": "../../apps/mobile/global.css",
+    "baseColor": "neutral",
+    "cssVariables": true
+  },
+  "iconLibrary": "lucide-react-native",
+  "aliases": {
+    "components": "src/components",
+    "utils": "src/lib/utils",
+    "lib": "src/lib"
+  }
+}
