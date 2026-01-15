@@ -66,8 +66,10 @@ public class ProductQuestionService : IProductQuestionService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         question = await _context.Set<ProductQuestion>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))
@@ -89,8 +91,10 @@ public class ProductQuestionService : IProductQuestionService
     public async Task<ProductQuestionDto?> GetQuestionAsync(Guid questionId, Guid? userId = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var question = await _context.Set<ProductQuestion>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))
@@ -121,8 +125,10 @@ public class ProductQuestionService : IProductQuestionService
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var query = _context.Set<ProductQuestion>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))
@@ -175,8 +181,10 @@ public class ProductQuestionService : IProductQuestionService
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var query = _context.Set<ProductQuestion>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers)
@@ -296,16 +304,21 @@ public class ProductQuestionService : IProductQuestionService
             .Include(a => a.User)
             .FirstOrDefaultAsync(a => a.Id == answer.Id, cancellationToken);
 
+        // ✅ PERFORMANCE: Batch load AnswerHelpfulness to avoid N+1 queries
+        var hasUserVoted = await _context.Set<AnswerHelpfulness>()
+            .AsNoTracking()
+            .AnyAsync(ah => ah.AnswerId == answer.Id && ah.UserId == userId, cancellationToken);
+
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ BOLUM 7.1.5: Records - with expression kullanımı (object initializer YASAK)
-        var answerDto = _mapper.Map<ProductAnswerDto>(answer) with { HasUserVoted = false }; // Yeni cevap, henüz oy verilmemiş
-        return answerDto;
+        return _mapper.Map<ProductAnswerDto>(answer!) with { HasUserVoted = hasUserVoted };
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<ProductAnswerDto>> GetQuestionAnswersAsync(Guid questionId, Guid? userId = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var answers = await _context.Set<ProductAnswer>()
             .AsNoTracking()
             .Include(a => a.User)
@@ -521,8 +534,10 @@ public class ProductQuestionService : IProductQuestionService
         var averageAnswersPerQuestion = totalQuestions > 0 ? (decimal)totalAnswers / totalQuestions : 0;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var recentQuestions = await _context.Set<ProductQuestion>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))
@@ -532,8 +547,10 @@ public class ProductQuestionService : IProductQuestionService
             .Take(10)
             .ToListAsync(cancellationToken);
 
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var mostHelpfulQuestions = await _context.Set<ProductQuestion>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))
@@ -563,8 +580,10 @@ public class ProductQuestionService : IProductQuestionService
     public async Task<IEnumerable<ProductQuestionDto>> GetUnansweredQuestionsAsync(Guid? productId = null, int limit = 20, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var query = _context.Set<ProductQuestion>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))

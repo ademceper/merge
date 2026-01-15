@@ -47,6 +47,7 @@ public class GetAllCategoriesQueryHandler(
 
                 var query = context.Set<Category>()
                     .AsNoTracking()
+                    .AsSplitQuery()
                     .Include(c => c.ParentCategory)
                     .Include(c => c.SubCategories); // Include subcategories for mapping
 

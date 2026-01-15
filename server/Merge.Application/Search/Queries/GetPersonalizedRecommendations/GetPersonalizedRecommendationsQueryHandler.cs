@@ -53,18 +53,16 @@ public class GetPersonalizedRecommendationsQueryHandler : IRequestHandler<GetPer
             ? _searchSettings.MaxRecommendationResults
             : request.MaxResults;
 
-        // Get user's purchase history and preferences
-        var userOrders = await _context.Set<OrderEntity>()
-            .AsNoTracking()
-            .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Product)
-            .Where(o => o.UserId == request.UserId)
-            .SelectMany(o => o.OrderItems)
-            .Select(oi => oi.Product.CategoryId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
+        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
+        var userOrders = await (
+            from o in _context.Set<OrderEntity>().AsNoTracking()
+            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            where o.UserId == request.UserId
+            select p.CategoryId
+        ).Distinct().ToListAsync(cancellationToken);
 
-        // Get user's wishlist categories
+        // ✅ PERFORMANCE: Single Include, AsSplitQuery not needed but keeping for consistency
         var wishlistCategories = await _context.Set<Wishlist>()
             .AsNoTracking()
             .Include(w => w.Product)

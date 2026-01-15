@@ -98,6 +98,7 @@ public class GetStockReportByProductQueryHandler(
         // ✅ PERFORMANCE: Warehouse breakdown için inventory'leri yükle (AutoMapper için gerekli)
         var inventories = await context.Set<Inventory>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
             .Where(i => i.ProductId == request.ProductId)

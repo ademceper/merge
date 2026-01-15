@@ -141,16 +141,15 @@ public class ProductRecommendationService : IProductRecommendationService
     public async Task<IEnumerable<ProductRecommendationDto>> GetPersonalizedRecommendationsAsync(Guid userId, int maxResults = 10, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Get user's purchase history and preferences
-        var userOrders = await _context.Set<OrderEntity>()
-            .AsNoTracking()
-            .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Product)
-            .Where(o => o.UserId == userId)
-            .SelectMany(o => o.OrderItems)
-            .Select(oi => oi.Product.CategoryId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
+        var userOrders = await (
+            from o in _context.Set<OrderEntity>().AsNoTracking()
+            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            where o.UserId == userId
+            select p.CategoryId
+        ).Distinct().ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
         // Get user's wishlist categories
@@ -207,8 +206,10 @@ public class ProductRecommendationService : IProductRecommendationService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !rv.IsDeleted (Global Query Filter)
         // Get recently viewed products
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var recentlyViewed = await _context.Set<Merge.Domain.Modules.Catalog.RecentlyViewedProduct>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(rv => rv.Product)
                 .ThenInclude(p => p.Category)
             .Where(rv => rv.UserId == userId)

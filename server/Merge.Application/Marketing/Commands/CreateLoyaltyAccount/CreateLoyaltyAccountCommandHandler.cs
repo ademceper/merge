@@ -60,7 +60,6 @@ public class CreateLoyaltyAccountCommandHandler(
         // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery ile tek query'de getir (N+1 query önleme)
         var createdAccount = await context.Set<LoyaltyAccount>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.Tier)
             .FirstOrDefaultAsync(a => a.Id == account.Id, cancellationToken);
 

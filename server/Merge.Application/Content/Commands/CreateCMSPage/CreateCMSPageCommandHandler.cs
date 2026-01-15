@@ -81,6 +81,7 @@ public class CreateCMSPageCommandHandler(
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             var reloadedPage = await context.Set<CMSPage>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(p => p.Author)
                 .Include(p => p.ParentPage)
                 .FirstOrDefaultAsync(p => p.Id == page.Id, cancellationToken);

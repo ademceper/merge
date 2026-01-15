@@ -54,8 +54,10 @@ public class GetProductSizeGuideQueryHandler : IRequestHandler<GetProductSizeGui
         _logger.LogInformation("Cache miss for product size guide. ProductId: {ProductId}", request.ProductId);
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var productSizeGuide = await _context.Set<ProductSizeGuide>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(psg => psg.Product)
             .Include(psg => psg.SizeGuide)
                 .ThenInclude(sg => sg.Category)

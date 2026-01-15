@@ -46,6 +46,7 @@ public class GetLandingPageByIdQueryHandler(
                 .FirstOrDefaultAsync(lp => lp.Id == request.Id, cancellationToken)
             : await context.Set<LandingPage>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(lp => lp.Author)
                 .Include(lp => lp.VariantOf)
                 .FirstOrDefaultAsync(lp => lp.Id == request.Id, cancellationToken);

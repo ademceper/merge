@@ -36,8 +36,10 @@ public class GetCommissionQueryHandler : IRequestHandler<GetCommissionQuery, Sel
         _logger.LogInformation("Getting commission. CommissionId: {CommissionId}", request.CommissionId);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sc.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var commission = await _context.Set<SellerCommission>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sc => sc.Seller)
             .Include(sc => sc.Order)
             .Include(sc => sc.OrderItem)

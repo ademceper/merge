@@ -53,8 +53,10 @@ public class GetProductBundleByIdQueryHandler : IRequestHandler<GetProductBundle
         }
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries, removed !b.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var bundle = await _context.Set<ProductBundle>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
             .FirstOrDefaultAsync(b => b.Id == request.Id, cancellationToken);

@@ -52,8 +52,10 @@ public class GetSellerOrdersQueryHandler : IRequestHandler<GetSellerOrdersQuery,
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         IQueryable<OrderEntity> query = _context.Set<OrderEntity>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(o => o.User)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)

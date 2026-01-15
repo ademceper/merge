@@ -3,22 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Order;
-using Merge.Application.Interfaces;
 using Merge.Application.Configuration;
-using Merge.Domain.Entities;
 using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using AutoMapper;
-using Merge.Domain.Interfaces;
-using Merge.Domain.Modules.Catalog;
-using Merge.Domain.Modules.Identity;
-using Merge.Domain.Modules.Ordering;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
-using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetRecentOrders;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetRecentOrdersQueryHandler(
     IDbContext context,
     ILogger<GetRecentOrdersQueryHandler> logger,
@@ -28,13 +19,11 @@ public class GetRecentOrdersQueryHandler(
 
     public async Task<IEnumerable<OrderDto>> Handle(GetRecentOrdersQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 12.0: Magic number config'den - eğer default değer kullanılıyorsa config'den al
-        var count = request.Count == 10 ? settings.Value.TopProductsLimit : request.Count; // Recent orders için de aynı limit kullanılıyor
+        var count = request.Count == 10 ? settings.Value.TopProductsLimit : request.Count; 
         
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
         var orders = await context.Set<OrderEntity>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(o => o.User)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
@@ -42,7 +31,6 @@ public class GetRecentOrdersQueryHandler(
             .Take(count)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return mapper.Map<IEnumerable<OrderDto>>(orders);
     }
 }

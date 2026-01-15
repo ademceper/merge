@@ -123,8 +123,10 @@ public class SubmitSellerApplicationCommandHandler : IRequestHandler<SubmitSelle
         );
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         application = await _context.Set<SellerApplication>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Reviewer)
             .FirstOrDefaultAsync(a => a.Id == application.Id, cancellationToken);

@@ -25,7 +25,6 @@ public class GetAllEmailAutomationsQueryHandler(
         // ✅ PERFORMANCE: AsSplitQuery - N+1 query önleme (Cartesian Explosion önleme)
         var query = context.Set<EmailAutomation>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.Template)
             .OrderByDescending(a => a.CreatedAt);
 

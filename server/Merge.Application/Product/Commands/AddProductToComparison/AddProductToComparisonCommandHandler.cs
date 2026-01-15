@@ -91,9 +91,10 @@ public class AddProductToComparisonCommandHandler : IRequestHandler<AddProductTo
             await _cache.RemoveAsync($"{CACHE_KEY_COMPARISON_BY_ID}{comparison.Id}", cancellationToken);
             await _cache.RemoveAsync($"{CACHE_KEY_COMPARISON_MATRIX}{comparison.Id}", cancellationToken);
 
-            // Reload with includes
+            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
             comparison = await _context.Set<ProductComparison>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(c => c.Items)
                     .ThenInclude(i => i.Product)
                         .ThenInclude(p => p.Category)
@@ -115,8 +116,10 @@ public class AddProductToComparisonCommandHandler : IRequestHandler<AddProductTo
 
     private async Task<ProductComparisonDto> MapToDto(ProductComparison comparison, CancellationToken cancellationToken)
     {
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var items = await _context.Set<ProductComparisonItem>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(i => i.Product)
                 .ThenInclude(p => p.Category)
             .Where(i => i.ComparisonId == comparison.Id)

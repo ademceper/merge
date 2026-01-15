@@ -98,8 +98,10 @@ public class ProductTemplateService : IProductTemplateService
             .Include(t => t.Category)
             .FirstOrDefaultAsync(t => t.Id == templateId, cancellationToken);
 
+        if (template == null) return null;
+
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return template != null ? _mapper.Map<ProductTemplateDto>(template) : null;
+        return _mapper.Map<ProductTemplateDto>(template);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)

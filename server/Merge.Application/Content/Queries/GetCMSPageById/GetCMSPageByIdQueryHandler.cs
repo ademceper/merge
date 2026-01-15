@@ -38,6 +38,7 @@ public class GetCMSPageByIdQueryHandler(
 
         var page = await context.Set<CMSPage>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(p => p.Author)
             .Include(p => p.ParentPage)
             .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);

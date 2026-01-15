@@ -50,6 +50,7 @@ public class ReturnRequestService : IReturnRequestService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var returnRequest = await _context.Set<ReturnRequest>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.Order)
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
@@ -71,6 +72,7 @@ public class ReturnRequestService : IReturnRequestService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var query = _context.Set<ReturnRequest>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.Order)
             .Include(r => r.User)
             .Where(r => r.UserId == userId);
@@ -106,6 +108,7 @@ public class ReturnRequestService : IReturnRequestService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         IQueryable<ReturnRequest> query = _context.Set<ReturnRequest>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.Order)
             .Include(r => r.User);
 
@@ -218,6 +221,7 @@ public class ReturnRequestService : IReturnRequestService
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
         var reloadedReturnRequest = await _context.Set<ReturnRequest>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.Order)
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.Id == returnRequest.Id, cancellationToken);
@@ -273,6 +277,7 @@ public class ReturnRequestService : IReturnRequestService
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
         returnRequest = await _context.Set<ReturnRequest>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(r => r.Order)
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);

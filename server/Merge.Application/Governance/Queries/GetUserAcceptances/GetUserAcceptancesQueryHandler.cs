@@ -36,6 +36,7 @@ public class GetUserAcceptancesQueryHandler(
 
                 var acceptances = await context.Set<PolicyAcceptance>()
                     .AsNoTracking()
+                    .AsSplitQuery()
                     .Include(pa => pa.Policy)
                     .Include(pa => pa.User)
                     .Where(pa => pa.UserId == request.UserId)

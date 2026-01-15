@@ -53,8 +53,10 @@ public class GetFraudAlertsQueryHandler : IRequestHandler<GetFraudAlertsQuery, P
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         IQueryable<FraudAlert> query = _context.Set<FraudAlert>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Order)
             .Include(a => a.Payment)

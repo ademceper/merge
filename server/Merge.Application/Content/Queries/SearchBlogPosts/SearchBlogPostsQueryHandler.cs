@@ -31,8 +31,10 @@ public class SearchBlogPostsQueryHandler(
         var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var query = context.Set<BlogPost>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(p => p.Category)
             .Include(p => p.Author)
             .Where(p => p.Status == ContentStatus.Published &&

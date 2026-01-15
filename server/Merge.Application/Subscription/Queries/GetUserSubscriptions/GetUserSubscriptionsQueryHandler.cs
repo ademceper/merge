@@ -40,8 +40,10 @@ public class GetUserSubscriptionsQueryHandler : IRequestHandler<GetUserSubscript
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only query
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         IQueryable<UserSubscription> query = _context.Set<UserSubscription>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(us => us.User)
             .Include(us => us.SubscriptionPlan)
             .Where(us => us.UserId == request.UserId);
@@ -61,8 +63,10 @@ public class GetUserSubscriptionsQueryHandler : IRequestHandler<GetUserSubscript
             .Select(us => us.Id)
             .ToListAsync(cancellationToken);
 
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var subscriptions = await _context.Set<UserSubscription>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(us => us.User)
             .Include(us => us.SubscriptionPlan)
             .Where(us => subscriptionIds.Contains(us.Id))

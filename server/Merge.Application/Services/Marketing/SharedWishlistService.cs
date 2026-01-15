@@ -77,18 +77,12 @@ public class SharedWishlistService : ISharedWishlistService
     {
         // ✅ PERFORMANCE: Removed manual !w.IsDeleted (Global Query Filter)
         var wishlist = await _context.Set<SharedWishlist>()
-            .Include(w => w.User)
+            .AsNoTracking()
             .FirstOrDefaultAsync(w => w.ShareCode == shareCode, cancellationToken);
 
-        if (wishlist == null)
-            return null;
+        if (wishlist == null) return null;
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
-        wishlist.IncrementViewCount();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: Include ile N+1 önlenir
+        // ✅ PERFORMANCE: Removed manual !i.IsDeleted (Global Query Filter)
         var items = await _context.Set<SharedWishlistItem>()
             .AsNoTracking()
             .Include(i => i.Product)

@@ -48,6 +48,7 @@ public class GetInventoryByProductAndWarehouseQueryHandler(
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         var inventory = await context.Set<Inventory>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(i => i.Product)
             .Include(i => i.Warehouse)
             .FirstOrDefaultAsync(i => i.ProductId == request.ProductId && i.WarehouseId == request.WarehouseId, cancellationToken);

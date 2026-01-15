@@ -136,6 +136,7 @@ public class SellerOnboardingService : ISellerOnboardingService
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         application = await _context.Set<SellerApplication>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Reviewer)
             .FirstOrDefaultAsync(a => a.Id == application.Id, cancellationToken);
@@ -148,6 +149,7 @@ public class SellerOnboardingService : ISellerOnboardingService
     {
         var application = await _context.Set<SellerApplication>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Reviewer)
             .FirstOrDefaultAsync(a => a.Id == applicationId, cancellationToken);
@@ -160,6 +162,7 @@ public class SellerOnboardingService : ISellerOnboardingService
     {
         var application = await _context.Set<SellerApplication>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Reviewer)
             .Where(a => a.UserId == userId)
@@ -276,6 +279,7 @@ public class SellerOnboardingService : ISellerOnboardingService
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             application = await _context.Set<SellerApplication>()
                 .AsNoTracking()
+            .AsSplitQuery()
                 .Include(a => a.User)
                 .Include(a => a.Reviewer)
                 .FirstOrDefaultAsync(a => a.Id == application.Id, cancellationToken);

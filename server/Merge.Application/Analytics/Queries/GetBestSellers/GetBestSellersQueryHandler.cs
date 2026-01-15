@@ -3,15 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Analytics;
-using Merge.Application.Interfaces;
 using Merge.Application.Configuration;
-using Merge.Domain.Entities;
-using Merge.Domain.Interfaces;
-using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Ordering;
-using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
-using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Analytics.Queries.GetBestSellers;
 
@@ -31,6 +25,7 @@ public class GetBestSellersQueryHandler(
         
         return await context.Set<OrderItem>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(oi => oi.Product)
             .Include(oi => oi.Order)
             .Where(oi => oi.Order.CreatedAt >= last30Days)

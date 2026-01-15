@@ -51,6 +51,7 @@ public class GetBlogPostByIdQueryHandler(
                 .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken)
             : await context.Set<BlogPost>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(p => p.Category)
                 .Include(p => p.Author)
                 .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);

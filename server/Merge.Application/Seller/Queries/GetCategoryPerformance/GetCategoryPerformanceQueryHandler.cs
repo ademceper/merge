@@ -45,23 +45,25 @@ public class GetCategoryPerformanceQueryHandler : IRequestHandler<GetCategoryPer
         var endDate = request.EndDate ?? DateTime.UtcNow;
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        var categoryPerformance = await _context.Set<OrderEntity>()
-            .AsNoTracking()
-            .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
+        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
+        var categoryPerformance = await (
+            from o in _context.Set<OrderEntity>().AsNoTracking()
+            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            join c in _context.Set<Category>().AsNoTracking() on p.CategoryId equals c.Id
+            where o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
-                  o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId))
-            .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == request.SellerId))
-            .GroupBy(oi => new { oi.Product.CategoryId, oi.Product.Category.Name })
-            .Select(g => new CategoryPerformanceDto
+                  p.SellerId == request.SellerId
+            group new { oi, c } by new { CategoryId = c.Id, CategoryName = c.Name } into g
+            select new CategoryPerformanceDto
             {
                 CategoryId = g.Key.CategoryId,
-                CategoryName = g.Key.Name,
-                TotalSales = g.Sum(oi => oi.TotalPrice),
-                OrderCount = g.Count(),
-                ProductCount = g.Select(oi => oi.ProductId).Distinct().Count()
-            })
-            .OrderByDescending(c => c.TotalSales)
-            .ToListAsync(cancellationToken);
+                CategoryName = g.Key.CategoryName,
+                TotalSales = g.Sum(x => x.oi.TotalPrice),
+                OrderCount = g.Select(x => x.oi.OrderId).Distinct().Count(),
+                ProductCount = g.Select(x => x.oi.ProductId).Distinct().Count()
+            }
+        ).OrderByDescending(c => c.TotalSales).ToListAsync(cancellationToken);
 
         return categoryPerformance;
     }

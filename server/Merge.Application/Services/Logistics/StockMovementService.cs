@@ -46,8 +46,10 @@ public class StockMovementService : IStockMovementService
     public async Task<StockMovementDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var movement = await _context.Set<StockMovement>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sm => sm.Product)
             .Include(sm => sm.Warehouse)
             .Include(sm => sm.User)
@@ -65,8 +67,10 @@ public class StockMovementService : IStockMovementService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var movements = await _context.Set<StockMovement>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sm => sm.Product)
             .Include(sm => sm.Warehouse)
             .Include(sm => sm.User)
@@ -90,8 +94,10 @@ public class StockMovementService : IStockMovementService
         if (pageSize > 100) pageSize = 100; // Max limit
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var query = _context.Set<StockMovement>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sm => sm.Product)
             .Include(sm => sm.Warehouse)
             .Include(sm => sm.User)
@@ -128,8 +134,10 @@ public class StockMovementService : IStockMovementService
         if (pageSize > 100) pageSize = 100; // Max limit
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var query = _context.Set<StockMovement>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sm => sm.Product)
             .Include(sm => sm.Warehouse)
             .Include(sm => sm.User)
@@ -167,8 +175,10 @@ public class StockMovementService : IStockMovementService
         var page = filter.Page < 1 ? 1 : filter.Page;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         IQueryable<StockMovement> query = _context.Set<StockMovement>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sm => sm.Product)
             .Include(sm => sm.Warehouse)
             .Include(sm => sm.User)
@@ -272,8 +282,10 @@ public class StockMovementService : IStockMovementService
 
             // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
+            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
             stockMovement = await _context.Set<StockMovement>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(sm => sm.Product)
                 .Include(sm => sm.Warehouse)
                 .Include(sm => sm.User)

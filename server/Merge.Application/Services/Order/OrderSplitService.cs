@@ -60,7 +60,9 @@ public class OrderSplitService : IOrderSplitService
             orderId, dto.Items?.Count ?? 0);
 
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var originalOrder = await _context.Set<OrderEntity>()
+            .AsSplitQuery()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .Include(o => o.Address)
@@ -220,8 +222,10 @@ public class OrderSplitService : IOrderSplitService
                 orderId, splitOrder.Id);
 
             // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
+            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
             orderSplit = await _context.Set<OrderSplit>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(s => s.OriginalOrder)
                 .Include(s => s.SplitOrder)
                 .Include(s => s.NewAddress)
@@ -248,8 +252,10 @@ public class OrderSplitService : IOrderSplitService
     public async Task<OrderSplitDto?> GetSplitAsync(Guid splitId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         var split = await _context.Set<OrderSplit>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(s => s.OriginalOrder)
             .Include(s => s.SplitOrder)
             .Include(s => s.NewAddress)
@@ -268,8 +274,10 @@ public class OrderSplitService : IOrderSplitService
     public async Task<IEnumerable<OrderSplitDto>> GetOrderSplitsAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         var splits = await _context.Set<OrderSplit>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(s => s.OriginalOrder)
             .Include(s => s.SplitOrder)
             .Include(s => s.NewAddress)
@@ -290,8 +298,10 @@ public class OrderSplitService : IOrderSplitService
     public async Task<IEnumerable<OrderSplitDto>> GetSplitOrdersAsync(Guid splitOrderId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         var splits = await _context.Set<OrderSplit>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(s => s.OriginalOrder)
             .Include(s => s.SplitOrder)
             .Include(s => s.NewAddress)
@@ -313,6 +323,7 @@ public class OrderSplitService : IOrderSplitService
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         var split = await _context.Set<OrderSplit>()
+        .AsSplitQuery()
             .Include(s => s.SplitOrder)
             .Include(s => s.OriginalOrder)
             .FirstOrDefaultAsync(s => s.Id == splitId, cancellationToken);
@@ -327,6 +338,7 @@ public class OrderSplitService : IOrderSplitService
         // ✅ PERFORMANCE: Removed manual !si.IsDeleted (Global Query Filter)
         // Merge items back to original order
         var splitItems = await _context.Set<OrderSplitItem>()
+        .AsSplitQuery()
             .Include(si => si.OriginalOrderItem)
                 .ThenInclude(oi => oi.Product)
             .Include(si => si.SplitOrderItem)

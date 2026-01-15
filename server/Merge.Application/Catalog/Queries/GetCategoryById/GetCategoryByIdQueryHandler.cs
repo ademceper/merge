@@ -43,6 +43,7 @@ public class GetCategoryByIdQueryHandler(
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
         var category = await context.Set<Category>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.ParentCategory)
             .Include(c => c.SubCategories)
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);

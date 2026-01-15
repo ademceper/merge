@@ -70,6 +70,7 @@ public class UpdateInventoryCommandHandler(
             // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
             inventory = await context.Set<Inventory>()
                 .AsNoTracking()
+            .AsSplitQuery()
                 .Include(i => i.Product)
                 .Include(i => i.Warehouse)
                 .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);

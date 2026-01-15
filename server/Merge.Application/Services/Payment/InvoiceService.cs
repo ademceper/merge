@@ -59,8 +59,10 @@ public class InvoiceService : IInvoiceService
     public async Task<InvoiceDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         var invoice = await _context.Set<Invoice>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(i => i.Order)
                 .ThenInclude(o => o.Address)
             .Include(i => i.Order)
@@ -81,8 +83,10 @@ public class InvoiceService : IInvoiceService
     public async Task<InvoiceDto?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         var invoice = await _context.Set<Invoice>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(i => i.Order)
                 .ThenInclude(o => o.Address)
             .Include(i => i.Order)
@@ -108,8 +112,10 @@ public class InvoiceService : IInvoiceService
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         var query = _context.Set<Invoice>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(i => i.Order)
                 .ThenInclude(o => o.Address)
             .Include(i => i.Order)
@@ -149,7 +155,9 @@ public class InvoiceService : IInvoiceService
             "Invoice oluşturuluyor. OrderId: {OrderId}",
             orderId);
 
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var order = await _context.Set<OrderEntity>()
+            .AsSplitQuery()
             .Include(o => o.Address)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
@@ -199,8 +207,10 @@ public class InvoiceService : IInvoiceService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         invoice = await _context.Set<Invoice>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(i => i.Order)
                 .ThenInclude(o => o.Address)
             .Include(i => i.Order)

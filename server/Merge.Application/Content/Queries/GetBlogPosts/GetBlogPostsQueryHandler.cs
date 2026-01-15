@@ -46,6 +46,7 @@ public class GetBlogPostsQueryHandler(
 
                 IQueryable<BlogPost> query = context.Set<BlogPost>()
                     .AsNoTracking()
+                    .AsSplitQuery()
                     .Include(p => p.Category)
                     .Include(p => p.Author);
 

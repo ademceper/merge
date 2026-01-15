@@ -42,6 +42,7 @@ public class GetFeaturedBlogPostsQueryHandler(
 
                 var posts = await context.Set<BlogPost>()
                     .AsNoTracking()
+                    .AsSplitQuery()
                     .Include(p => p.Category)
                     .Include(p => p.Author)
                     .Where(p => p.IsFeatured && p.Status == ContentStatus.Published)

@@ -14,6 +14,7 @@ using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Marketplace;
 using Merge.Domain.Modules.Ordering;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -87,15 +88,18 @@ public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceComm
             .SumAsync(p => p.NetAmount, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
+        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Get orders for the period (for total earnings calculation)
-        var totalEarnings = await _context.Set<OrderEntity>()
-            .AsNoTracking()
-            .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
+        var totalEarnings = await (
+            from o in _context.Set<OrderEntity>().AsNoTracking()
+            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            where o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= request.Dto.PeriodStart &&
                   o.CreatedAt <= request.Dto.PeriodEnd &&
-                  o.OrderItems.Any(oi => oi.Product.SellerId == request.Dto.SellerId))
-            .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == request.Dto.SellerId))
-            .SumAsync(oi => oi.TotalPrice, cancellationToken);
+                  p.SellerId == request.Dto.SellerId
+            select oi.TotalPrice
+        ).SumAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load commissions for invoice items (N+1 fix)
         var commissions = await _context.Set<SellerCommission>()
@@ -145,6 +149,7 @@ public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceComm
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         invoice = await _context.Set<SellerInvoice>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(i => i.Seller)
             .FirstOrDefaultAsync(i => i.Id == invoice.Id, cancellationToken);
 

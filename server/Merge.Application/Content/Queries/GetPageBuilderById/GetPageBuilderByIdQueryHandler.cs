@@ -41,6 +41,7 @@ public class GetPageBuilderByIdQueryHandler(
 
         var pageBuilder = request.TrackView
             ? await context.Set<PageBuilder>()
+            .AsSplitQuery()
                 .Include(pb => pb.Author)
                 .FirstOrDefaultAsync(pb => pb.Id == request.Id, cancellationToken)
             : await context.Set<PageBuilder>()

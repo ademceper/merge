@@ -36,6 +36,7 @@ public class GetTopProductsQueryHandler(
         // ✅ PERFORMANCE: Removed manual !oi.IsDeleted and !oi.Order.IsDeleted checks (Global Query Filter handles it)
         return await context.Set<OrderItem>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(oi => oi.Product)
             .Include(oi => oi.Order)
             .Where(oi => oi.Order.CreatedAt >= request.StartDate && oi.Order.CreatedAt <= request.EndDate)

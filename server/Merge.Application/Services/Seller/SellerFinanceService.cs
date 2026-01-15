@@ -162,6 +162,7 @@ public class SellerFinanceService : ISellerFinanceService
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         transaction = await _context.Set<SellerTransaction>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(t => t.Seller)
             .FirstOrDefaultAsync(t => t.Id == transaction.Id, cancellationToken);
 
@@ -178,8 +179,10 @@ public class SellerFinanceService : ISellerFinanceService
             .Include(t => t.Seller)
             .FirstOrDefaultAsync(t => t.Id == transactionId, cancellationToken);
 
+        if (transaction == null) return null;
+
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return transaction != null ? _mapper.Map<SellerTransactionDto>(transaction) : null;
+        return _mapper.Map<SellerTransactionDto>(transaction);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -278,15 +281,18 @@ public class SellerFinanceService : ISellerFinanceService
             .SumAsync(p => p.NetAmount, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
+        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Get orders for the period (for total earnings calculation)
-        var totalEarnings = await _context.Set<OrderEntity>()
-            .AsNoTracking()
-            .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
+        var totalEarnings = await (
+            from o in _context.Set<OrderEntity>().AsNoTracking()
+            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            where o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= dto.PeriodStart &&
                   o.CreatedAt <= dto.PeriodEnd &&
-                  o.OrderItems.Any(oi => oi.Product.SellerId == dto.SellerId))
-            .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == dto.SellerId))
-            .SumAsync(oi => oi.TotalPrice, cancellationToken);
+                  p.SellerId == dto.SellerId
+            select oi.TotalPrice
+        ).SumAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load commissions for invoice items (N+1 fix)
         var commissions = await _context.Set<SellerCommission>()
@@ -350,8 +356,10 @@ public class SellerFinanceService : ISellerFinanceService
             .Include(i => i.Seller)
             .FirstOrDefaultAsync(i => i.Id == invoiceId, cancellationToken);
 
+        if (invoice == null) return null;
+
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return invoice != null ? _mapper.Map<SellerInvoiceDto>(invoice) : null;
+        return _mapper.Map<SellerInvoiceDto>(invoice);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)

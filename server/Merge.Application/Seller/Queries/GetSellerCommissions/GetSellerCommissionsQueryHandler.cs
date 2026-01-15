@@ -38,8 +38,10 @@ public class GetSellerCommissionsQueryHandler : IRequestHandler<GetSellerCommiss
             request.SellerId, request.Status?.ToString() ?? "All");
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sc.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         IQueryable<SellerCommission> query = _context.Set<SellerCommission>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(sc => sc.Seller)
             .Include(sc => sc.Order)
             .Include(sc => sc.OrderItem)

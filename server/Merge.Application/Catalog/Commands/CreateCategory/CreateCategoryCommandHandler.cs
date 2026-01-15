@@ -57,6 +57,7 @@ public class CreateCategoryCommandHandler(
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             var reloadedCategory = await context.Set<Category>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(c => c.ParentCategory)
                 .Include(c => c.SubCategories)
                 .FirstOrDefaultAsync(c => c.Id == category.Id, cancellationToken);

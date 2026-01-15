@@ -71,12 +71,13 @@ public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQu
                 .AsNoTracking()
                 .CountAsync(o => o.Status == OrderStatus.Pending &&
                            o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId), cancellationToken),
-            TotalRevenue = await _context.Set<OrderEntity>()
-                .AsNoTracking()
-                .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
-                      o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId))
-                .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == request.SellerId))
-                .SumAsync(oi => oi.TotalPrice, cancellationToken),
+            TotalRevenue = await (
+                from o in _context.Set<OrderEntity>().AsNoTracking()
+                join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+                join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+                where o.PaymentStatus == PaymentStatus.Completed && p.SellerId == request.SellerId
+                select oi.TotalPrice
+            ).SumAsync(cancellationToken),
             PendingBalance = sellerProfile.PendingBalance,
             AvailableBalance = sellerProfile.AvailableBalance,
             AverageRating = sellerProfile.AverageRating,
@@ -88,12 +89,15 @@ public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQu
                 .AsNoTracking()
                 .CountAsync(o => o.CreatedAt.Date == today &&
                            o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId), cancellationToken),
-            TodayRevenue = await _context.Set<OrderEntity>()
-                .AsNoTracking()
-                .Where(o => o.PaymentStatus == PaymentStatus.Completed && o.CreatedAt.Date == today &&
-                      o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId))
-                .SelectMany(o => o.OrderItems.Where(oi => oi.Product.SellerId == request.SellerId))
-                .SumAsync(oi => oi.TotalPrice, cancellationToken),
+            TodayRevenue = await (
+                from o in _context.Set<OrderEntity>().AsNoTracking()
+                join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+                join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+                where o.PaymentStatus == PaymentStatus.Completed && 
+                      o.CreatedAt.Date == today && 
+                      p.SellerId == request.SellerId
+                select oi.TotalPrice
+            ).SumAsync(cancellationToken),
             LowStockProducts = await _context.Set<ProductEntity>()
                 .AsNoTracking()
                 .CountAsync(p => p.SellerId == request.SellerId &&

@@ -88,8 +88,10 @@ public class GetSalesAnalyticsQueryHandler(
 
     private async Task<List<TopProductDto>> GetTopProductsAsync(DateTime startDate, DateTime endDate, int limit, CancellationToken cancellationToken)
     {
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         return await context.Set<OrderItem>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(oi => oi.Product)
             .Include(oi => oi.Order)
             .Where(oi => oi.Order.CreatedAt >= startDate && oi.Order.CreatedAt <= endDate)
@@ -109,8 +111,10 @@ public class GetSalesAnalyticsQueryHandler(
 
     private async Task<List<CategorySalesDto>> GetSalesByCategoryAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
     {
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         return await context.Set<OrderItem>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(oi => oi.Product)
             .ThenInclude(p => p.Category)
             .Include(oi => oi.Order)

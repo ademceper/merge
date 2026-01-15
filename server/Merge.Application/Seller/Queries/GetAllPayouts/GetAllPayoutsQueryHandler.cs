@@ -51,8 +51,10 @@ public class GetAllPayoutsQueryHandler : IRequestHandler<GetAllPayoutsQuery, Pag
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         IQueryable<CommissionPayout> query = _context.Set<CommissionPayout>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(p => p.Seller)
             .Include(p => p.Items)
                 .ThenInclude(i => i.Commission)

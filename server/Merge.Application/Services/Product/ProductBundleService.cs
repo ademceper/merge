@@ -51,8 +51,10 @@ public class ProductBundleService : IProductBundleService
     public async Task<ProductBundleDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries, removed !b.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var bundle = await _context.Set<ProductBundle>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
@@ -68,8 +70,10 @@ public class ProductBundleService : IProductBundleService
     public async Task<IEnumerable<ProductBundleDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries, removed !b.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var bundles = await _context.Set<ProductBundle>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
             .OrderByDescending(b => b.CreatedAt)
@@ -85,8 +89,10 @@ public class ProductBundleService : IProductBundleService
     {
         var now = DateTime.UtcNow;
         // ✅ PERFORMANCE: AsNoTracking for read-only queries, removed !b.IsDeleted (Global Query Filter)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var bundles = await _context.Set<ProductBundle>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
             .Where(b => b.IsActive &&
@@ -161,8 +167,10 @@ public class ProductBundleService : IProductBundleService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         bundle = await _context.Set<ProductBundle>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
             .FirstOrDefaultAsync(b => b.Id == bundle.Id, cancellationToken);
@@ -211,8 +219,10 @@ public class ProductBundleService : IProductBundleService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var reloadedBundle = await _context.Set<ProductBundle>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);

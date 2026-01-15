@@ -123,6 +123,7 @@ public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQu
 
         // ✅ PERFORMANCE: Recent tickets - database'de query
         var recentTickets = await allTicketsQuery
+            .AsSplitQuery()
             .Include(t => t.User)
             .Include(t => t.Order)
             .Include(t => t.Product)
@@ -132,7 +133,9 @@ public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQu
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Urgent tickets - database'de query
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var urgentTicketsList = await allTicketsQuery
+            .AsSplitQuery()
             .Include(t => t.User)
             .Include(t => t.Order)
             .Include(t => t.Product)

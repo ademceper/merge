@@ -37,6 +37,7 @@ public class GetMenuCMSPagesQueryHandler(
 
         var pages = await context.Set<CMSPage>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(p => p.Author)
             .Include(p => p.ParentPage)
             .Where(p => p.ShowInMenu && p.Status == ContentStatus.Published && p.ParentPageId == null)

@@ -71,6 +71,7 @@ public class CreateCustomerCommunicationCommandHandler : IRequestHandler<CreateC
         // ✅ PERFORMANCE: Reload with includes for mapping
         communication = await _context.Set<CustomerCommunication>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.User)
             .Include(c => c.SentBy)
             .FirstOrDefaultAsync(c => c.Id == communication.Id, cancellationToken);

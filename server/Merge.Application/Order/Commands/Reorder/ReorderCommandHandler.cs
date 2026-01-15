@@ -35,8 +35,10 @@ public class ReorderCommandHandler : IRequestHandler<ReorderCommand, OrderDto>
 
     public async Task<OrderDto> Handle(ReorderCommand request, CancellationToken cancellationToken)
     {
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var originalOrder = await _context.Set<OrderEntity>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .Include(o => o.Address)

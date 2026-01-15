@@ -51,9 +51,6 @@ public class CreateCreditTermCommandHandler(
         await context.Set<CreditTerm>().AddAsync(creditTerm, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: Reload with Include for AutoMapper
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // Not: AsSplitQuery gerekli değil - sadece 1 Include var (Organization)
         creditTerm = await context.Set<CreditTerm>()
             .AsNoTracking()
             .Include(ct => ct.Organization)

@@ -66,8 +66,10 @@ public class GetProductQuestionsQueryHandler : IRequestHandler<GetProductQuestio
             {
                 _logger.LogInformation("Cache miss for product questions. Fetching from database.");
 
+                // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
                 var query = _context.Set<ProductQuestion>()
                     .AsNoTracking()
+                    .AsSplitQuery()
                     .Include(q => q.Product)
                     .Include(q => q.User)
                     .Include(q => q.Answers.Where(a => a.IsApproved))

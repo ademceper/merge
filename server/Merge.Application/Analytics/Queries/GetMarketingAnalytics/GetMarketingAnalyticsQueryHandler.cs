@@ -65,6 +65,7 @@ public class GetMarketingAnalyticsQueryHandler(
     {
         return await context.Set<CouponUsage>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(cu => cu.Coupon)
             .Include(cu => cu.Order)
             .Where(cu => cu.CreatedAt >= startDate && cu.CreatedAt <= endDate)

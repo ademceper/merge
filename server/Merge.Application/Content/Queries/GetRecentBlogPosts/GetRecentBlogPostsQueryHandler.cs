@@ -42,6 +42,7 @@ public class GetRecentBlogPostsQueryHandler(
 
                 var posts = await context.Set<BlogPost>()
                     .AsNoTracking()
+                    .AsSplitQuery()
                     .Include(p => p.Category)
                     .Include(p => p.Author)
                     .Where(p => p.Status == ContentStatus.Published)

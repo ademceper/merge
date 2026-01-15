@@ -47,9 +47,10 @@ public class GetBasedOnViewHistoryQueryHandler : IRequestHandler<GetBasedOnViewH
             ? _searchSettings.MaxRecommendationResults
             : request.MaxResults;
 
-        // Get recently viewed products
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var recentlyViewed = await _context.Set<RecentlyViewedProduct>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(rv => rv.Product)
                 .ThenInclude(p => p.Category)
             .Where(rv => rv.UserId == request.UserId)

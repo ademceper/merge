@@ -52,6 +52,7 @@ public class GetLowStockAlertsQueryHandler(
                 // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin düşük stok uyarılarını görebilmeli
                 var query = context.Set<Inventory>()
                     .AsNoTracking()
+            .AsSplitQuery()
                     .Include(i => i.Product)
                     .Include(i => i.Warehouse)
                     .Where(i => i.Quantity <= i.MinimumStockLevel);

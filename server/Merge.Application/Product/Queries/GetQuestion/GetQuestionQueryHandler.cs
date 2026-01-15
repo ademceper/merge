@@ -57,8 +57,10 @@ public class GetQuestionQueryHandler : IRequestHandler<GetQuestionQuery, Product
         _logger.LogInformation("Cache miss for question. QuestionId: {QuestionId}", request.QuestionId);
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var question = await _context.Set<ProductQuestion>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))

@@ -47,6 +47,7 @@ public class GetLandingPageBySlugQueryHandler(
                 .FirstOrDefaultAsync(lp => lp.Slug == request.Slug && lp.Status == ContentStatus.Published && lp.IsActive, cancellationToken)
             : await context.Set<LandingPage>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(lp => lp.Author)
                 .Include(lp => lp.VariantOf)
                 .FirstOrDefaultAsync(lp => lp.Slug == request.Slug && lp.Status == ContentStatus.Published && lp.IsActive, cancellationToken);

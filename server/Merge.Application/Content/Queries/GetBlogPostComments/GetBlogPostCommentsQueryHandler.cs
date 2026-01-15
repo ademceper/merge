@@ -45,6 +45,7 @@ public class GetBlogPostCommentsQueryHandler(
 
                 IQueryable<BlogComment> query = context.Set<BlogComment>()
                     .AsNoTracking()
+                    .AsSplitQuery()
                     .Include(c => c.User)
                     .Include(c => c.Replies)
                     .Where(c => c.BlogPostId == request.PostId && c.ParentCommentId == null);

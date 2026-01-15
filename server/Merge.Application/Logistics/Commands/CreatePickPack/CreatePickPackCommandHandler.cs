@@ -32,6 +32,7 @@ public class CreatePickPackCommandHandler(
 
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var order = await context.Set<OrderEntity>()
+        .AsSplitQuery()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);

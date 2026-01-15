@@ -81,8 +81,10 @@ public class UpdateProductBundleCommandHandler : IRequestHandler<UpdateProductBu
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
+            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
             var reloadedBundle = await _context.Set<ProductBundle>()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(b => b.BundleItems)
                     .ThenInclude(bi => bi.Product)
                 .FirstOrDefaultAsync(b => b.Id == request.Id, cancellationToken);

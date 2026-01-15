@@ -66,6 +66,7 @@ public class CreateLiveChatSessionCommandHandler : IRequestHandler<CreateLiveCha
         // ✅ PERFORMANCE: Reload with includes for mapping
         session = await _context.Set<LiveChatSession>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(s => s.User)
             .Include(s => s.Agent)
             .Include(s => s.Messages.OrderByDescending(m => m.CreatedAt).Take(_settings.MaxRecentChatMessages))

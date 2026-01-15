@@ -55,8 +55,10 @@ public class GetUserComparisonQueryHandler : IRequestHandler<GetUserComparisonQu
             {
                 _logger.LogInformation("Cache miss for user comparison. Fetching from database.");
 
+                // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
                 var comparison = await _context.Set<ProductComparison>()
                     .AsNoTracking()
+                    .AsSplitQuery()
                     .Include(c => c.Items)
                         .ThenInclude(i => i.Product)
                             .ThenInclude(p => p.Category)
@@ -86,8 +88,10 @@ public class GetUserComparisonQueryHandler : IRequestHandler<GetUserComparisonQu
 
     private async Task<ProductComparisonDto> MapToDto(ProductComparison comparison, CancellationToken cancellationToken)
     {
+        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var items = await _context.Set<ProductComparisonItem>()
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(i => i.Product)
                 .ThenInclude(p => p.Category)
             .Where(i => i.ComparisonId == comparison.Id)

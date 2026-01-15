@@ -31,7 +31,6 @@ public class GetLiveChatSessionMessagesQueryHandler : IRequestHandler<GetLiveCha
         // Not: Şu anda sadece 1 Include var ama gelecekte ek Include'lar eklenebilir
         var messages = await _context.Set<LiveChatMessage>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(m => m.Sender)
             .Where(m => m.SessionId == request.SessionId)
             .OrderBy(m => m.CreatedAt)
