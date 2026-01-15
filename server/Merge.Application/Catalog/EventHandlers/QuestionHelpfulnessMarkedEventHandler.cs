@@ -8,19 +8,14 @@ namespace Merge.Application.Catalog.EventHandlers;
 /// Question Helpfulness Marked Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class QuestionHelpfulnessMarkedEventHandler : INotificationHandler<QuestionHelpfulnessMarkedEvent>
+public class QuestionHelpfulnessMarkedEventHandler(
+    ILogger<QuestionHelpfulnessMarkedEventHandler> logger) : INotificationHandler<QuestionHelpfulnessMarkedEvent>
 {
-    private readonly ILogger<QuestionHelpfulnessMarkedEventHandler> _logger;
-
-    public QuestionHelpfulnessMarkedEventHandler(ILogger<QuestionHelpfulnessMarkedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(QuestionHelpfulnessMarkedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Question helpfulness marked event received. QuestionId: {QuestionId}, UserId: {UserId}",
             notification.QuestionId, notification.UserId);
 
@@ -36,7 +31,7 @@ public class QuestionHelpfulnessMarkedEventHandler : INotificationHandler<Questi
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling QuestionHelpfulnessMarkedEvent. QuestionId: {QuestionId}, UserId: {UserId}",
                 notification.QuestionId, notification.UserId);
             throw;

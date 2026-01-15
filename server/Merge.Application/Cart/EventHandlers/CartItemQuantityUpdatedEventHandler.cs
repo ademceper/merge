@@ -9,32 +9,24 @@ namespace Merge.Application.Cart.EventHandlers;
 /// Cart Item Quantity Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class CartItemQuantityUpdatedEventHandler : INotificationHandler<CartItemQuantityUpdatedEvent>
+public class CartItemQuantityUpdatedEventHandler(
+    ILogger<CartItemQuantityUpdatedEventHandler> logger,
+    ICacheService? cacheService = null) : INotificationHandler<CartItemQuantityUpdatedEvent>
 {
-    private readonly ILogger<CartItemQuantityUpdatedEventHandler> _logger;
-    private readonly ICacheService? _cacheService;
-
-    public CartItemQuantityUpdatedEventHandler(
-        ILogger<CartItemQuantityUpdatedEventHandler> logger,
-        ICacheService? cacheService = null)
-    {
-        _logger = logger;
-        _cacheService = cacheService;
-    }
 
     public async Task Handle(CartItemQuantityUpdatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Cart item quantity updated event received. CartId: {CartId}, CartItemId: {CartItemId}, ProductId: {ProductId}, OldQuantity: {OldQuantity}, NewQuantity: {NewQuantity}",
             notification.CartId, notification.CartItemId, notification.ProductId, notification.OldQuantity, notification.NewQuantity);
 
         try
         {
             // ✅ BOLUM 10.2: Cache invalidation - Cart cache'i temizle
-            if (_cacheService != null)
+            if (cacheService != null)
             {
-                await _cacheService.RemoveAsync($"cart_{notification.CartId}", cancellationToken);
+                await cacheService.RemoveAsync($"cart_{notification.CartId}", cancellationToken);
             }
 
             // Analytics tracking
@@ -60,7 +52,7 @@ public class CartItemQuantityUpdatedEventHandler : INotificationHandler<CartItem
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling CartItemQuantityUpdatedEvent. CartId: {CartId}, CartItemId: {CartItemId}, ProductId: {ProductId}",
                 notification.CartId, notification.CartItemId, notification.ProductId);
             throw;

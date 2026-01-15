@@ -8,19 +8,14 @@ namespace Merge.Application.Catalog.EventHandlers;
 /// Shared Wishlist Deleted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class SharedWishlistDeletedEventHandler : INotificationHandler<SharedWishlistDeletedEvent>
+public class SharedWishlistDeletedEventHandler(
+    ILogger<SharedWishlistDeletedEventHandler> logger) : INotificationHandler<SharedWishlistDeletedEvent>
 {
-    private readonly ILogger<SharedWishlistDeletedEventHandler> _logger;
-
-    public SharedWishlistDeletedEventHandler(ILogger<SharedWishlistDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(SharedWishlistDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Shared wishlist deleted event received. SharedWishlistId: {SharedWishlistId}, UserId: {UserId}, Name: {Name}",
             notification.SharedWishlistId, notification.UserId, notification.Name);
 
@@ -38,7 +33,7 @@ public class SharedWishlistDeletedEventHandler : INotificationHandler<SharedWish
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling SharedWishlistDeletedEvent. SharedWishlistId: {SharedWishlistId}, UserId: {UserId}",
                 notification.SharedWishlistId, notification.UserId);
             throw;

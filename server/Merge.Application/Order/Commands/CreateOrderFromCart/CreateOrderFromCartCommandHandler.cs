@@ -5,7 +5,6 @@ using Microsoft.Extensions.Options;
 using AutoMapper;
 using Merge.Application.DTOs.Order;
 using Merge.Application.Interfaces;
-using Merge.Application.Interfaces.Cart;
 using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
 using Merge.Application.Marketing.Commands.ValidateCoupon;

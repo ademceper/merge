@@ -17,35 +17,25 @@ namespace Merge.Application.Analytics.Queries.GetWorstPerformers;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetWorstPerformersQueryHandler : IRequestHandler<GetWorstPerformersQuery, List<TopProductDto>>
+public class GetWorstPerformersQueryHandler(
+    IDbContext context,
+    ILogger<GetWorstPerformersQueryHandler> logger,
+    IOptions<AnalyticsSettings> settings) : IRequestHandler<GetWorstPerformersQuery, List<TopProductDto>>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetWorstPerformersQueryHandler> _logger;
-    private readonly AnalyticsSettings _settings;
-
-    public GetWorstPerformersQueryHandler(
-        IDbContext context,
-        ILogger<GetWorstPerformersQueryHandler> logger,
-        IOptions<AnalyticsSettings> settings)
-    {
-        _context = context;
-        _logger = logger;
-        _settings = settings.Value;
-    }
 
     public async Task<List<TopProductDto>> Handle(GetWorstPerformersQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching worst performers. Limit: {Limit}", request.Limit);
+        logger.LogInformation("Fetching worst performers. Limit: {Limit}", request.Limit);
 
         // ✅ BOLUM 12.0: Magic number config'den - eğer default değer kullanılıyorsa config'den al
-        var limit = request.Limit == 10 ? _settings.TopProductsLimit : request.Limit;
+        var limit = request.Limit == 10 ? settings.Value.TopProductsLimit : request.Limit;
         
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var last30Days = DateTime.UtcNow.AddDays(-_settings.DefaultPeriodDays);
+        var last30Days = DateTime.UtcNow.AddDays(-settings.Value.DefaultPeriodDays);
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !oi.IsDeleted and !oi.Order.IsDeleted checks (Global Query Filter handles it)
-        return await _context.Set<OrderItem>()
+        return await context.Set<OrderItem>()
             .AsNoTracking()
             .Include(oi => oi.Product)
             .Include(oi => oi.Order)

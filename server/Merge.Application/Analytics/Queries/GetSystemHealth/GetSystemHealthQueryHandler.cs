@@ -18,25 +18,15 @@ namespace Merge.Application.Analytics.Queries.GetSystemHealth;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetSystemHealthQueryHandler : IRequestHandler<GetSystemHealthQuery, SystemHealthDto>
+public class GetSystemHealthQueryHandler(
+    IDbContext context,
+    ILogger<GetSystemHealthQueryHandler> logger,
+    IOptions<AnalyticsSettings> settings) : IRequestHandler<GetSystemHealthQuery, SystemHealthDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetSystemHealthQueryHandler> _logger;
-    private readonly AnalyticsSettings _settings;
-
-    public GetSystemHealthQueryHandler(
-        IDbContext context,
-        ILogger<GetSystemHealthQueryHandler> logger,
-        IOptions<AnalyticsSettings> settings)
-    {
-        _context = context;
-        _logger = logger;
-        _settings = settings.Value;
-    }
 
     public async Task<SystemHealthDto> Handle(GetSystemHealthQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching system health status");
+        logger.LogInformation("Fetching system health status");
         
         // ✅ BOLUM 5.0: Gerçek Health Check (MOCK DATA YASAK!)
         // Database health check - gerçek sorgu yaparak kontrol et
@@ -44,20 +34,20 @@ public class GetSystemHealthQueryHandler : IRequestHandler<GetSystemHealthQuery,
         try
         {
             // ✅ PERFORMANCE: Basit bir sorgu ile database bağlantısını test et
-            var canConnect = await _context.Database.CanConnectAsync(cancellationToken);
+            var canConnect = await context.Database.CanConnectAsync(cancellationToken);
             databaseStatus = canConnect ? "Connected" : "Disconnected";
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Database health check failed");
+            logger.LogError(ex, "Database health check failed");
             databaseStatus = "Error";
         }
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ BOLUM 5.0: Gerçek veri - TotalRecords database'den hesapla
-        var totalRecords = await _context.Users.AsNoTracking().CountAsync(cancellationToken) +
-                          await _context.Set<ProductEntity>().AsNoTracking().CountAsync(cancellationToken) +
-                          await _context.Set<OrderEntity>().AsNoTracking().CountAsync(cancellationToken);
+        var totalRecords = await context.Users.AsNoTracking().CountAsync(cancellationToken) +
+                          await context.Set<ProductEntity>().AsNoTracking().CountAsync(cancellationToken) +
+                          await context.Set<OrderEntity>().AsNoTracking().CountAsync(cancellationToken);
 
         // ✅ BOLUM 5.0: Gerçek veri - LastBackup database'den al (Backup entity'si varsa)
         // Şimdilik son migration tarihini kullan (gerçek backup tarihi için Backup entity gerekli)
@@ -84,15 +74,15 @@ public class GetSystemHealthQueryHandler : IRequestHandler<GetSystemHealthQuery,
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Disk usage calculation failed");
+            logger.LogWarning(ex, "Disk usage calculation failed");
             diskUsage = "Unknown";
         }
 
         // Active sessions - Son X saat içinde güncellenmiş (aktif olan) kullanıcı sayısı
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var activeSessionThreshold = DateTime.UtcNow.AddHours(-_settings.ActiveSessionThresholdHours);
-        var activeSessions = await _context.Users
+        var activeSessionThreshold = DateTime.UtcNow.AddHours(-settings.Value.ActiveSessionThresholdHours);
+        var activeSessions = await context.Users
             .AsNoTracking()
             .CountAsync(u => u.UpdatedAt >= activeSessionThreshold, cancellationToken);
 
@@ -105,7 +95,7 @@ public class GetSystemHealthQueryHandler : IRequestHandler<GetSystemHealthQuery,
             ActiveSessions: activeSessions
         );
 
-        _logger.LogInformation("System health calculated. DatabaseStatus: {DatabaseStatus}, TotalRecords: {TotalRecords}",
+        logger.LogInformation("System health calculated. DatabaseStatus: {DatabaseStatus}, TotalRecords: {TotalRecords}",
             databaseStatus, totalRecords);
 
         return health;

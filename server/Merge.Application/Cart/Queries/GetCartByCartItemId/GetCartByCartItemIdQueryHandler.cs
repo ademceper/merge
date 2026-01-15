@@ -15,26 +15,16 @@ namespace Merge.Application.Cart.Queries.GetCartByCartItemId;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetCartByCartItemIdQueryHandler : IRequestHandler<GetCartByCartItemIdQuery, CartDto?>
+public class GetCartByCartItemIdQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetCartByCartItemIdQueryHandler> logger) : IRequestHandler<GetCartByCartItemIdQuery, CartDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetCartByCartItemIdQueryHandler> _logger;
-
-    public GetCartByCartItemIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetCartByCartItemIdQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<CartDto?> Handle(GetCartByCartItemIdQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        var cartItem = await _context.Set<CartItem>()
+        var cartItem = await context.Set<CartItem>()
             .AsNoTracking()
             .Include(ci => ci.Cart)
             .FirstOrDefaultAsync(ci => ci.Id == request.CartItemId, cancellationToken);
@@ -47,7 +37,7 @@ public class GetCartByCartItemIdQueryHandler : IRequestHandler<GetCartByCartItem
 
         // Load cart with items for mapping
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        var cart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
+        var cart = await context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(c => c.CartItems)
@@ -56,7 +46,7 @@ public class GetCartByCartItemIdQueryHandler : IRequestHandler<GetCartByCartItem
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
-        return cart is not null ? _mapper.Map<CartDto>(cart) : null;
+        return cart is not null ? mapper.Map<CartDto>(cart) : null;
     }
 }
 

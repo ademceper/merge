@@ -3,7 +3,6 @@ using System.Reflection;
 using FluentValidation;
 using MediatR;
 using Merge.Application.Common.Behaviors;
-using Merge.Application.Interfaces.Cart;
 
 using Merge.Application.Interfaces.Content;
 
@@ -20,7 +19,6 @@ using Merge.Application.Interfaces.Search;
 using Merge.Application.Interfaces.Security;
 using Merge.Application.Interfaces.Seller;
 using Merge.Application.Interfaces.Governance;
-using Merge.Application.Services.Cart;
 using Merge.Application.Services.Order;
 using Merge.Application.Services.Payment;
 using Merge.Application.Interfaces.Order;
@@ -74,14 +72,12 @@ public static class DependencyInjection
         services.AddScoped<IInvoiceService, InvoiceService>();
         services.AddScoped<ISellerDashboardService, SellerDashboardService>();
 
-        services.AddScoped<ISavedCartService, SavedCartService>();
         services.AddScoped<IBannerService, BannerService>();
 
 
         services.AddScoped<IBulkProductService, BulkProductService>();
 
         services.AddScoped<ISellerOnboardingService, SellerOnboardingService>();
-        services.AddScoped<IAbandonedCartService, AbandonedCartService>();
         services.AddScoped<IAuditLogService, AuditLogService>();
         services.AddScoped<ISharedWishlistService, SharedWishlistService>();
         services.AddScoped<IProductComparisonService, ProductComparisonService>();

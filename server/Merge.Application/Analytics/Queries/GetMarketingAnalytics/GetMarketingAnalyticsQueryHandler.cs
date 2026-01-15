@@ -15,38 +15,30 @@ namespace Merge.Application.Analytics.Queries.GetMarketingAnalytics;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetMarketingAnalyticsQueryHandler : IRequestHandler<GetMarketingAnalyticsQuery, MarketingAnalyticsDto>
+public class GetMarketingAnalyticsQueryHandler(
+    IDbContext context,
+    ILogger<GetMarketingAnalyticsQueryHandler> logger) : IRequestHandler<GetMarketingAnalyticsQuery, MarketingAnalyticsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetMarketingAnalyticsQueryHandler> _logger;
-
-    public GetMarketingAnalyticsQueryHandler(
-        IDbContext context,
-        ILogger<GetMarketingAnalyticsQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<MarketingAnalyticsDto> Handle(GetMarketingAnalyticsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching marketing analytics. StartDate: {StartDate}, EndDate: {EndDate}",
+        logger.LogInformation("Fetching marketing analytics. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted, !cu.IsDeleted, !o.IsDeleted checks (Global Query Filter handles it)
-        var coupons = await _context.Set<Coupon>()
+        var coupons = await context.Set<Coupon>()
             .AsNoTracking()
             .Where(c => c.IsActive)
             .CountAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Use CountAsync instead of ToListAsync().Count (database'de count)
-        var couponUsageCount = await _context.Set<CouponUsage>()
+        var couponUsageCount = await context.Set<CouponUsage>()
             .AsNoTracking()
             .Where(cu => cu.CreatedAt >= request.StartDate && cu.CreatedAt <= request.EndDate)
             .CountAsync(cancellationToken);
 
-        var totalDiscounts = await _context.Set<OrderEntity>()
+        var totalDiscounts = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.CreatedAt >= request.StartDate && o.CreatedAt <= request.EndDate)
             .SumAsync(o => (o.CouponDiscount ?? 0) + (o.GiftCardDiscount ?? 0), cancellationToken);
@@ -71,7 +63,7 @@ public class GetMarketingAnalyticsQueryHandler : IRequestHandler<GetMarketingAna
 
     private async Task<List<CouponPerformanceDto>> GetCouponPerformanceAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
     {
-        return await _context.Set<CouponUsage>()
+        return await context.Set<CouponUsage>()
             .AsNoTracking()
             .Include(cu => cu.Coupon)
             .Include(cu => cu.Order)
@@ -90,7 +82,7 @@ public class GetMarketingAnalyticsQueryHandler : IRequestHandler<GetMarketingAna
 
     private async Task<ReferralPerformanceDto> GetReferralPerformanceAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
     {
-        var referralsQuery = _context.Set<Referral>()
+        var referralsQuery = context.Set<Referral>()
             .AsNoTracking()
             .Where(r => r.CreatedAt >= startDate && r.CreatedAt <= endDate);
 

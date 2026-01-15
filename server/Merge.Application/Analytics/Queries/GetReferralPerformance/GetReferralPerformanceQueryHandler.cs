@@ -13,28 +13,20 @@ namespace Merge.Application.Analytics.Queries.GetReferralPerformance;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetReferralPerformanceQueryHandler : IRequestHandler<GetReferralPerformanceQuery, ReferralPerformanceDto>
+public class GetReferralPerformanceQueryHandler(
+    IDbContext context,
+    ILogger<GetReferralPerformanceQueryHandler> logger) : IRequestHandler<GetReferralPerformanceQuery, ReferralPerformanceDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetReferralPerformanceQueryHandler> _logger;
-
-    public GetReferralPerformanceQueryHandler(
-        IDbContext context,
-        ILogger<GetReferralPerformanceQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<ReferralPerformanceDto> Handle(GetReferralPerformanceQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching referral performance. StartDate: {StartDate}, EndDate: {EndDate}",
+        logger.LogInformation("Fetching referral performance. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
         // ✅ PERFORMANCE: Database'de aggregate query kullan (memory'de değil) - 5-10x performans kazancı
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
-        var referralsQuery = _context.Set<Referral>()
+        var referralsQuery = context.Set<Referral>()
             .AsNoTracking()
             .Where(r => r.CreatedAt >= request.StartDate && r.CreatedAt <= request.EndDate);
 

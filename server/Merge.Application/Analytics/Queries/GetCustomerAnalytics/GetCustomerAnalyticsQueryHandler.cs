@@ -19,38 +19,26 @@ namespace Merge.Application.Analytics.Queries.GetCustomerAnalytics;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetCustomerAnalyticsQueryHandler : IRequestHandler<GetCustomerAnalyticsQuery, CustomerAnalyticsDto>
+public class GetCustomerAnalyticsQueryHandler(
+    IDbContext context,
+    ILogger<GetCustomerAnalyticsQueryHandler> logger,
+    IOptions<AnalyticsSettings> settings,
+    IMapper mapper) : IRequestHandler<GetCustomerAnalyticsQuery, CustomerAnalyticsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetCustomerAnalyticsQueryHandler> _logger;
-    private readonly AnalyticsSettings _settings;
-    private readonly IMapper _mapper;
-
-    public GetCustomerAnalyticsQueryHandler(
-        IDbContext context,
-        ILogger<GetCustomerAnalyticsQueryHandler> logger,
-        IOptions<AnalyticsSettings> settings,
-        IMapper mapper)
-    {
-        _context = context;
-        _logger = logger;
-        _settings = settings.Value;
-        _mapper = mapper;
-    }
 
     public async Task<CustomerAnalyticsDto> Handle(GetCustomerAnalyticsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching customer analytics. StartDate: {StartDate}, EndDate: {EndDate}",
+        logger.LogInformation("Fetching customer analytics. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ Identity framework'ün Role ve UserRole entity'leri IDbContext üzerinden erişiliyor
-        var customerRole = await _context.Roles
+        var customerRole = await context.Roles
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Name == "Customer", cancellationToken);
         // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
         var customerUserIds = customerRole != null
-            ? await _context.UserRoles
+            ? await context.UserRoles
                 .AsNoTracking()
                 .Where(ur => ur.RoleId == customerRole.Id)
                 .Select(ur => ur.UserId)
@@ -62,20 +50,20 @@ public class GetCustomerAnalyticsQueryHandler : IRequestHandler<GetCustomerAnaly
         // ✅ PERFORMANCE: Removed manual !u.IsDeleted and !o.IsDeleted checks (Global Query Filter handles it)
         // ✅ PERFORMANCE: List.Count > 0 kullan (Any() YASAK - .cursorrules)
         var totalCustomers = customerUserIds.Count > 0
-            ? await _context.Users
+            ? await context.Users
                 .AsNoTracking()
                 .Where(u => customerUserIds.Contains(u.Id))
                 .CountAsync(cancellationToken)
             : 0;
 
         var newCustomers = customerUserIds.Count > 0
-            ? await _context.Users
+            ? await context.Users
                 .AsNoTracking()
                 .Where(u => customerUserIds.Contains(u.Id) && u.CreatedAt >= request.StartDate && u.CreatedAt <= request.EndDate)
                 .CountAsync(cancellationToken)
             : 0;
 
-        var activeCustomers = await _context.Set<OrderEntity>()
+        var activeCustomers = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.CreatedAt >= request.StartDate && o.CreatedAt <= request.EndDate)
             .Select(o => o.UserId)
@@ -84,7 +72,7 @@ public class GetCustomerAnalyticsQueryHandler : IRequestHandler<GetCustomerAnaly
 
         // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var topCustomers = await GetTopCustomersAsync(_settings.MaxQueryLimit, cancellationToken);
+        var topCustomers = await GetTopCustomersAsync(settings.Value.MaxQueryLimit, cancellationToken);
         var customerSegments = await GetCustomerSegmentsAsync(cancellationToken);
         
         return new CustomerAnalyticsDto(
@@ -104,7 +92,7 @@ public class GetCustomerAnalyticsQueryHandler : IRequestHandler<GetCustomerAnaly
 
     private async Task<List<TopCustomerDto>> GetTopCustomersAsync(int limit, CancellationToken cancellationToken)
     {
-        return await _context.Set<OrderEntity>()
+        return await context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.User)
             .GroupBy(o => new { o.UserId, o.User.FirstName, o.User.LastName, o.User.Email })
@@ -128,16 +116,16 @@ public class GetCustomerAnalyticsQueryHandler : IRequestHandler<GetCustomerAnaly
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
         
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var vipThreshold = _settings.VipCustomerThreshold ?? 10000m;
-        var activeDaysThreshold = _settings.ActiveCustomerDaysThreshold ?? 90;
-        var newCustomerDays = _settings.NewCustomerDaysThreshold ?? 30;
+        var vipThreshold = settings.Value.VipCustomerThreshold ?? 10000m;
+        var activeDaysThreshold = settings.Value.ActiveCustomerDaysThreshold ?? 90;
+        var newCustomerDays = settings.Value.NewCustomerDaysThreshold ?? 30;
 
         var now = DateTime.UtcNow;
         var activeDateThreshold = now.AddDays(-activeDaysThreshold);
         var newCustomerDateThreshold = now.AddDays(-newCustomerDays);
 
         // VIP Customers - Toplam harcaması threshold'dan fazla olanlar
-        var vipCustomers = await _context.Set<OrderEntity>()
+        var vipCustomers = await context.Set<OrderEntity>()
             .AsNoTracking()
             .GroupBy(o => o.UserId)
             .Select(g => new
@@ -151,10 +139,10 @@ public class GetCustomerAnalyticsQueryHandler : IRequestHandler<GetCustomerAnaly
 
         var vipCount = vipCustomers.Count;
         var vipOrdersQuery = vipCount > 0
-            ? _context.Set<OrderEntity>()
+            ? context.Set<OrderEntity>()
                 .AsNoTracking()
                 .Where(o => vipCustomers.Contains(o.UserId))
-            : _context.Set<OrderEntity>().AsNoTracking().Where(o => false);
+            : context.Set<OrderEntity>().AsNoTracking().Where(o => false);
 
         var vipRevenue = vipCount > 0
             ? await vipOrdersQuery.SumAsync(o => o.TotalAmount, cancellationToken)
@@ -165,7 +153,7 @@ public class GetCustomerAnalyticsQueryHandler : IRequestHandler<GetCustomerAnaly
         var vipAvgOrderValue = vipOrderCount > 0 ? vipRevenue / vipOrderCount : 0m;
 
         // Active Customers - Son X gün içinde sipariş verenler
-        var activeCustomers = await _context.Set<OrderEntity>()
+        var activeCustomers = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.CreatedAt >= activeDateThreshold)
             .Select(o => o.UserId)
@@ -174,10 +162,10 @@ public class GetCustomerAnalyticsQueryHandler : IRequestHandler<GetCustomerAnaly
 
         var activeCount = activeCustomers.Count;
         var activeOrdersQuery = activeCount > 0
-            ? _context.Set<OrderEntity>()
+            ? context.Set<OrderEntity>()
                 .AsNoTracking()
                 .Where(o => activeCustomers.Contains(o.UserId) && o.CreatedAt >= activeDateThreshold)
-            : _context.Set<OrderEntity>().AsNoTracking().Where(o => false);
+            : context.Set<OrderEntity>().AsNoTracking().Where(o => false);
 
         var activeRevenue = activeCount > 0
             ? await activeOrdersQuery.SumAsync(o => o.TotalAmount, cancellationToken)
@@ -188,7 +176,7 @@ public class GetCustomerAnalyticsQueryHandler : IRequestHandler<GetCustomerAnaly
         var activeAvgOrderValue = activeOrderCount > 0 ? activeRevenue / activeOrderCount : 0m;
 
         // New Customers - Son X gün içinde kayıt olanlar
-        var newCustomers = await _context.Users
+        var newCustomers = await context.Users
             .AsNoTracking()
             .Where(u => u.CreatedAt >= newCustomerDateThreshold)
             .Select(u => u.Id)
@@ -196,10 +184,10 @@ public class GetCustomerAnalyticsQueryHandler : IRequestHandler<GetCustomerAnaly
 
         var newCount = newCustomers.Count;
         var newOrdersQuery = newCount > 0
-            ? _context.Set<OrderEntity>()
+            ? context.Set<OrderEntity>()
                 .AsNoTracking()
                 .Where(o => newCustomers.Contains(o.UserId))
-            : _context.Set<OrderEntity>().AsNoTracking().Where(o => false);
+            : context.Set<OrderEntity>().AsNoTracking().Where(o => false);
 
         var newRevenue = newCount > 0
             ? await newOrdersQuery.SumAsync(o => o.TotalAmount, cancellationToken)

@@ -14,30 +14,22 @@ namespace Merge.Application.Cart.Queries.GetPreOrder;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetPreOrderQueryHandler : IRequestHandler<GetPreOrderQuery, PreOrderDto?>
+public class GetPreOrderQueryHandler(
+    IDbContext context,
+    IMapper mapper) : IRequestHandler<GetPreOrderQuery, PreOrderDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetPreOrderQueryHandler(
-        IDbContext context,
-        IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
 
     public async Task<PreOrderDto?> Handle(GetPreOrderQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // Note: Single Include, AsSplitQuery not strictly necessary but good practice
-        var preOrder = await _context.Set<PreOrder>()
+        var preOrder = await context.Set<PreOrder>()
             .AsNoTracking()
             .Include(po => po.Product)
             .FirstOrDefaultAsync(po => po.Id == request.PreOrderId, cancellationToken);
 
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
-        return preOrder is not null ? _mapper.Map<PreOrderDto>(preOrder) : null;
+        return preOrder is not null ? mapper.Map<PreOrderDto>(preOrder) : null;
     }
 }
 

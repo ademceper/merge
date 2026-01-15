@@ -13,27 +13,17 @@ namespace Merge.Application.Cart.Commands.ClearRecentlyViewed;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class ClearRecentlyViewedCommandHandler : IRequestHandler<ClearRecentlyViewedCommand>
+public class ClearRecentlyViewedCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<ClearRecentlyViewedCommandHandler> logger) : IRequestHandler<ClearRecentlyViewedCommand>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<ClearRecentlyViewedCommandHandler> _logger;
-
-    public ClearRecentlyViewedCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<ClearRecentlyViewedCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task Handle(ClearRecentlyViewedCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Bulk delete instead of foreach DeleteAsync (N+1 fix)
         // ✅ PERFORMANCE: Removed manual !rvp.IsDeleted check (Global Query Filter handles it)
-        var recentlyViewed = await _context.Set<RecentlyViewedProduct>()
+        var recentlyViewed = await context.Set<RecentlyViewedProduct>()
             .Where(rvp => rvp.UserId == request.UserId)
             .ToListAsync(cancellationToken);
 
@@ -43,7 +33,7 @@ public class ClearRecentlyViewedCommandHandler : IRequestHandler<ClearRecentlyVi
             item.MarkAsDeleted();
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Single SaveChanges
+        await unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Single SaveChanges
     }
 }
 

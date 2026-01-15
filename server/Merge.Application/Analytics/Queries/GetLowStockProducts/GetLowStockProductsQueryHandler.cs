@@ -17,33 +17,23 @@ namespace Merge.Application.Analytics.Queries.GetLowStockProducts;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetLowStockProductsQueryHandler : IRequestHandler<GetLowStockProductsQuery, List<LowStockProductDto>>
+public class GetLowStockProductsQueryHandler(
+    IDbContext context,
+    ILogger<GetLowStockProductsQueryHandler> logger,
+    IOptions<AnalyticsSettings> settings) : IRequestHandler<GetLowStockProductsQuery, List<LowStockProductDto>>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetLowStockProductsQueryHandler> _logger;
-    private readonly AnalyticsSettings _settings;
-
-    public GetLowStockProductsQueryHandler(
-        IDbContext context,
-        ILogger<GetLowStockProductsQueryHandler> logger,
-        IOptions<AnalyticsSettings> settings)
-    {
-        _context = context;
-        _logger = logger;
-        _settings = settings.Value;
-    }
 
     public async Task<List<LowStockProductDto>> Handle(GetLowStockProductsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching low stock products. Threshold: {Threshold}", request.Threshold);
+        logger.LogInformation("Fetching low stock products. Threshold: {Threshold}", request.Threshold);
 
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var threshold = request.Threshold <= 0 ? _settings.DefaultLowStockThreshold : request.Threshold;
+        var threshold = request.Threshold <= 0 ? settings.Value.DefaultLowStockThreshold : request.Threshold;
         
         // ✅ PERFORMANCE: Database'de DTO oluştur (memory'de Select/ToList YASAK)
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted check (Global Query Filter handles it)
-        return await _context.Set<ProductEntity>()
+        return await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.StockQuantity < threshold && p.StockQuantity > 0)
             // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
@@ -57,7 +47,7 @@ public class GetLowStockProductsQueryHandler : IRequestHandler<GetLowStockProduc
             ))
             .OrderBy(p => p.CurrentStock)
             // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-            .Take(_settings.MaxQueryLimit)
+            .Take(settings.Value.MaxQueryLimit)
             .ToListAsync(cancellationToken);
     }
 }

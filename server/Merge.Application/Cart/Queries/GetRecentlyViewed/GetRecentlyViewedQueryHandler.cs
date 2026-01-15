@@ -18,35 +18,23 @@ namespace Merge.Application.Cart.Queries.GetRecentlyViewed;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetRecentlyViewedQueryHandler : IRequestHandler<GetRecentlyViewedQuery, PagedResult<ProductDto>>
+public class GetRecentlyViewedQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetRecentlyViewedQueryHandler> logger,
+    IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetRecentlyViewedQuery, PagedResult<ProductDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetRecentlyViewedQueryHandler> _logger;
-    private readonly PaginationSettings _paginationSettings;
-
-    public GetRecentlyViewedQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetRecentlyViewedQueryHandler> logger,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     public async Task<PagedResult<ProductDto>> Handle(GetRecentlyViewedQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize ? _paginationSettings.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         // ✅ PERFORMANCE: Removed manual !rvp.IsDeleted and !rvp.Product.IsDeleted checks (Global Query Filter handles it)
-        var query = _context.Set<RecentlyViewedProduct>()
+        var query = context.Set<RecentlyViewedProduct>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(rvp => rvp.Product)
@@ -64,7 +52,7 @@ public class GetRecentlyViewedQueryHandler : IRequestHandler<GetRecentlyViewedQu
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        var items = _mapper.Map<List<ProductDto>>(recentlyViewed);
+        var items = mapper.Map<List<ProductDto>>(recentlyViewed);
 
         // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
         return new PagedResult<ProductDto>

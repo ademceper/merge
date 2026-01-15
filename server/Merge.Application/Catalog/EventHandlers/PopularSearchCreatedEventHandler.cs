@@ -8,19 +8,14 @@ namespace Merge.Application.Catalog.EventHandlers;
 /// Popular Search Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class PopularSearchCreatedEventHandler : INotificationHandler<PopularSearchCreatedEvent>
+public class PopularSearchCreatedEventHandler(
+    ILogger<PopularSearchCreatedEventHandler> logger) : INotificationHandler<PopularSearchCreatedEvent>
 {
-    private readonly ILogger<PopularSearchCreatedEventHandler> _logger;
-
-    public PopularSearchCreatedEventHandler(ILogger<PopularSearchCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(PopularSearchCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Popular search created event received. PopularSearchId: {PopularSearchId}, SearchTerm: {SearchTerm}",
             notification.PopularSearchId, notification.SearchTerm);
 
@@ -36,7 +31,7 @@ public class PopularSearchCreatedEventHandler : INotificationHandler<PopularSear
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling PopularSearchCreatedEvent. PopularSearchId: {PopularSearchId}, SearchTerm: {SearchTerm}",
                 notification.PopularSearchId, notification.SearchTerm);
             throw;

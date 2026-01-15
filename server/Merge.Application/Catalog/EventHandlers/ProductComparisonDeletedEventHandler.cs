@@ -8,19 +8,14 @@ namespace Merge.Application.Catalog.EventHandlers;
 /// Product Comparison Deleted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class ProductComparisonDeletedEventHandler : INotificationHandler<ProductComparisonDeletedEvent>
+public class ProductComparisonDeletedEventHandler(
+    ILogger<ProductComparisonDeletedEventHandler> logger) : INotificationHandler<ProductComparisonDeletedEvent>
 {
-    private readonly ILogger<ProductComparisonDeletedEventHandler> _logger;
-
-    public ProductComparisonDeletedEventHandler(ILogger<ProductComparisonDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(ProductComparisonDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Product comparison deleted event received. ComparisonId: {ComparisonId}, UserId: {UserId}",
             notification.ComparisonId, notification.UserId);
 
@@ -37,7 +32,7 @@ public class ProductComparisonDeletedEventHandler : INotificationHandler<Product
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling ProductComparisonDeletedEvent. ComparisonId: {ComparisonId}, UserId: {UserId}",
                 notification.ComparisonId, notification.UserId);
             throw;

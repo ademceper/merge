@@ -15,21 +15,11 @@ namespace Merge.Application.Cart.Commands.CreatePreOrderCampaign;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class CreatePreOrderCampaignCommandHandler : IRequestHandler<CreatePreOrderCampaignCommand, PreOrderCampaignDto>
+public class CreatePreOrderCampaignCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper) : IRequestHandler<CreatePreOrderCampaignCommand, PreOrderCampaignDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-
-    public CreatePreOrderCampaignCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-    }
 
     public async Task<PreOrderCampaignDto> Handle(CreatePreOrderCampaignCommand request, CancellationToken cancellationToken)
     {
@@ -45,15 +35,15 @@ public class CreatePreOrderCampaignCommandHandler : IRequestHandler<CreatePreOrd
             request.SpecialPrice,
             request.NotifyOnAvailable);
 
-        await _context.Set<PreOrderCampaign>().AddAsync(campaign, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<PreOrderCampaign>().AddAsync(campaign, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        campaign = await _context.Set<PreOrderCampaign>()
+        campaign = await context.Set<PreOrderCampaign>()
             .AsNoTracking()
             .Include(c => c.Product)
             .FirstOrDefaultAsync(c => c.Id == campaign.Id, cancellationToken);
 
-        return _mapper.Map<PreOrderCampaignDto>(campaign!);
+        return mapper.Map<PreOrderCampaignDto>(campaign!);
     }
 }
 

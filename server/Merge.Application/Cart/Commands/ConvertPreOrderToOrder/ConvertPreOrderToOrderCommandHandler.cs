@@ -18,28 +18,18 @@ namespace Merge.Application.Cart.Commands.ConvertPreOrderToOrder;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class ConvertPreOrderToOrderCommandHandler : IRequestHandler<ConvertPreOrderToOrderCommand, bool>
+public class ConvertPreOrderToOrderCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<ConvertPreOrderToOrderCommandHandler> logger) : IRequestHandler<ConvertPreOrderToOrderCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<ConvertPreOrderToOrderCommandHandler> _logger;
-
-    public ConvertPreOrderToOrderCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<ConvertPreOrderToOrderCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(ConvertPreOrderToOrderCommand request, CancellationToken cancellationToken)
     {
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var preOrder = await _context.Set<PreOrder>()
+            var preOrder = await context.Set<PreOrder>()
                 .Include(po => po.Product)
                 .Include(po => po.User)
                 .FirstOrDefaultAsync(po => po.Id == request.PreOrderId, cancellationToken);
@@ -52,13 +42,13 @@ public class ConvertPreOrderToOrderCommandHandler : IRequestHandler<ConvertPreOr
                 throw new BusinessException("Ön sipariş zaten dönüştürülmüş.");
             }
 
-            var address = await _context.Set<AddressEntity>()
+            var address = await context.Set<AddressEntity>()
                 .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId && a.IsDefault, cancellationToken);
 
             // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
             if (address is null)
             {
-                address = await _context.Set<AddressEntity>()
+                address = await context.Set<AddressEntity>()
                     .FirstOrDefaultAsync(a => a.UserId == preOrder.UserId, cancellationToken);
             }
 
@@ -70,7 +60,7 @@ public class ConvertPreOrderToOrderCommandHandler : IRequestHandler<ConvertPreOr
 
             var order = Merge.Domain.Modules.Ordering.Order.Create(preOrder.UserId, address.Id, address);
 
-            var product = await _context.Set<Merge.Domain.Modules.Catalog.Product>()
+            var product = await context.Set<Merge.Domain.Modules.Catalog.Product>()
                 .FirstOrDefaultAsync(p => p.Id == preOrder.ProductId, cancellationToken);
 
             // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
@@ -87,21 +77,21 @@ public class ConvertPreOrderToOrderCommandHandler : IRequestHandler<ConvertPreOr
             var tax = new Money(0);
             order.SetTax(tax);
 
-            await _context.Set<Merge.Domain.Modules.Ordering.Order>().AddAsync(order, cancellationToken);
+            await context.Set<Merge.Domain.Modules.Ordering.Order>().AddAsync(order, cancellationToken);
 
             preOrder.ConvertToOrder(order.Id);
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "PreOrder siparise donusturme hatasi. PreOrderId: {PreOrderId}",
                 request.PreOrderId);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

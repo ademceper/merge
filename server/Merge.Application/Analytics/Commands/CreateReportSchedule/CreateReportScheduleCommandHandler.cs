@@ -16,29 +16,17 @@ namespace Merge.Application.Analytics.Commands.CreateReportSchedule;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class CreateReportScheduleCommandHandler : IRequestHandler<CreateReportScheduleCommand, ReportScheduleDto>
+public class CreateReportScheduleCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<CreateReportScheduleCommandHandler> logger,
+    IMapper mapper) : IRequestHandler<CreateReportScheduleCommand, ReportScheduleDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<CreateReportScheduleCommandHandler> _logger;
-    private readonly IMapper _mapper;
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-
-    public CreateReportScheduleCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<CreateReportScheduleCommandHandler> logger,
-        IMapper mapper)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-        _mapper = mapper;
-    }
 
     public async Task<ReportScheduleDto> Handle(CreateReportScheduleCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Creating report schedule. UserId: {UserId}, ReportType: {ReportType}, Frequency: {Frequency}",
+        logger.LogInformation("Creating report schedule. UserId: {UserId}, ReportType: {ReportType}, Frequency: {Frequency}",
             request.UserId, request.Type, request.Frequency);
         
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
@@ -55,13 +43,13 @@ public class CreateReportScheduleCommandHandler : IRequestHandler<CreateReportSc
             request.DayOfWeek,
             request.DayOfMonth);
 
-        await _context.Set<ReportSchedule>().AddAsync(schedule, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<ReportSchedule>().AddAsync(schedule, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Report schedule created successfully. ScheduleId: {ScheduleId}, UserId: {UserId}", schedule.Id, request.UserId);
+        logger.LogInformation("Report schedule created successfully. ScheduleId: {ScheduleId}, UserId: {UserId}", schedule.Id, request.UserId);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        return _mapper.Map<ReportScheduleDto>(schedule);
+        return mapper.Map<ReportScheduleDto>(schedule);
     }
 }
 

@@ -14,51 +14,41 @@ namespace Merge.Application.Cart.Commands.AddToWishlist;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class AddToWishlistCommandHandler : IRequestHandler<AddToWishlistCommand, bool>
+public class AddToWishlistCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<AddToWishlistCommandHandler> logger) : IRequestHandler<AddToWishlistCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<AddToWishlistCommandHandler> _logger;
-
-    public AddToWishlistCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<AddToWishlistCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(AddToWishlistCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Adding product {ProductId} to wishlist for user {UserId}",
+        logger.LogInformation("Adding product {ProductId} to wishlist for user {UserId}",
             request.ProductId, request.UserId);
 
         // ✅ PERFORMANCE: AsNoTracking for read-only check
         // ✅ PERFORMANCE: Removed manual !w.IsDeleted check (Global Query Filter handles it)
-        var existing = await _context.Set<Wishlist>()
+        var existing = await context.Set<Wishlist>()
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.UserId == request.UserId && w.ProductId == request.ProductId, cancellationToken);
 
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (existing is not null)
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "Product {ProductId} already exists in wishlist for user {UserId}",
                 request.ProductId, request.UserId);
             return false; // Zaten favorilerde
         }
 
         // ✅ PERFORMANCE: AsNoTracking for read-only product query
-        var product = await _context.Set<Merge.Domain.Modules.Catalog.Product>()
+        var product = await context.Set<Merge.Domain.Modules.Catalog.Product>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
         
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (product is null || !product.IsActive)
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "Product {ProductId} not found or inactive for user {UserId}",
                 request.ProductId, request.UserId);
             throw new NotFoundException("Ürün", request.ProductId);
@@ -67,10 +57,10 @@ public class AddToWishlistCommandHandler : IRequestHandler<AddToWishlistCommand,
         // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
         var wishlist = Wishlist.Create(request.UserId, request.ProductId);
 
-        await _context.Set<Wishlist>().AddAsync(wishlist, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<Wishlist>().AddAsync(wishlist, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Successfully added product {ProductId} to wishlist for user {UserId}",
+        logger.LogInformation("Successfully added product {ProductId} to wishlist for user {UserId}",
             request.ProductId, request.UserId);
 
         return true;

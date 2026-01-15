@@ -8,19 +8,14 @@ namespace Merge.Application.Catalog.EventHandlers;
 /// Popular Search Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class PopularSearchUpdatedEventHandler : INotificationHandler<PopularSearchUpdatedEvent>
+public class PopularSearchUpdatedEventHandler(
+    ILogger<PopularSearchUpdatedEventHandler> logger) : INotificationHandler<PopularSearchUpdatedEvent>
 {
-    private readonly ILogger<PopularSearchUpdatedEventHandler> _logger;
-
-    public PopularSearchUpdatedEventHandler(ILogger<PopularSearchUpdatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(PopularSearchUpdatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Popular search updated event received. PopularSearchId: {PopularSearchId}, SearchTerm: {SearchTerm}, SearchCount: {SearchCount}, ClickThroughCount: {ClickThroughCount}, ClickThroughRate: {ClickThroughRate}",
             notification.PopularSearchId, notification.SearchTerm, notification.SearchCount, notification.ClickThroughCount, notification.ClickThroughRate);
 
@@ -37,7 +32,7 @@ public class PopularSearchUpdatedEventHandler : INotificationHandler<PopularSear
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling PopularSearchUpdatedEvent. PopularSearchId: {PopularSearchId}, SearchTerm: {SearchTerm}",
                 notification.PopularSearchId, notification.SearchTerm);
             throw;

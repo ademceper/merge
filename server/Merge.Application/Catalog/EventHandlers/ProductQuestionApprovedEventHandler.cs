@@ -8,19 +8,14 @@ namespace Merge.Application.Catalog.EventHandlers;
 /// Product Question Approved Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class ProductQuestionApprovedEventHandler : INotificationHandler<ProductQuestionApprovedEvent>
+public class ProductQuestionApprovedEventHandler(
+    ILogger<ProductQuestionApprovedEventHandler> logger) : INotificationHandler<ProductQuestionApprovedEvent>
 {
-    private readonly ILogger<ProductQuestionApprovedEventHandler> _logger;
-
-    public ProductQuestionApprovedEventHandler(ILogger<ProductQuestionApprovedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(ProductQuestionApprovedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Product question approved event received. QuestionId: {QuestionId}, ProductId: {ProductId}",
             notification.QuestionId, notification.ProductId);
 
@@ -38,7 +33,7 @@ public class ProductQuestionApprovedEventHandler : INotificationHandler<ProductQ
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling ProductQuestionApprovedEvent. QuestionId: {QuestionId}, ProductId: {ProductId}",
                 notification.QuestionId, notification.ProductId);
             throw;

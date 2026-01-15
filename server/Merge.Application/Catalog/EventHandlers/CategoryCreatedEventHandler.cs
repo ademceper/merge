@@ -8,19 +8,14 @@ namespace Merge.Application.Catalog.EventHandlers;
 /// Category Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class CategoryCreatedEventHandler : INotificationHandler<CategoryCreatedEvent>
+public class CategoryCreatedEventHandler(
+    ILogger<CategoryCreatedEventHandler> logger) : INotificationHandler<CategoryCreatedEvent>
 {
-    private readonly ILogger<CategoryCreatedEventHandler> _logger;
-
-    public CategoryCreatedEventHandler(ILogger<CategoryCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(CategoryCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Category created event received. CategoryId: {CategoryId}, Name: {Name}, Slug: {Slug}, ParentCategoryId: {ParentCategoryId}",
             notification.CategoryId, notification.Name, notification.Slug, notification.ParentCategoryId);
 
@@ -38,7 +33,7 @@ public class CategoryCreatedEventHandler : INotificationHandler<CategoryCreatedE
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling CategoryCreatedEvent. CategoryId: {CategoryId}, Name: {Name}",
                 notification.CategoryId, notification.Name);
             throw;

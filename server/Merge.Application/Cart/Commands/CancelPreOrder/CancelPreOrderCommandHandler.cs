@@ -14,28 +14,18 @@ namespace Merge.Application.Cart.Commands.CancelPreOrder;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class CancelPreOrderCommandHandler : IRequestHandler<CancelPreOrderCommand, bool>
+public class CancelPreOrderCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<CancelPreOrderCommandHandler> logger) : IRequestHandler<CancelPreOrderCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<CancelPreOrderCommandHandler> _logger;
-
-    public CancelPreOrderCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<CancelPreOrderCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(CancelPreOrderCommand request, CancellationToken cancellationToken)
     {
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var preOrder = await _context.Set<Merge.Domain.Modules.Ordering.PreOrder>()
+            var preOrder = await context.Set<Merge.Domain.Modules.Ordering.PreOrder>()
                 .FirstOrDefaultAsync(po => po.Id == request.PreOrderId && po.UserId == request.UserId, cancellationToken);
 
             // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
@@ -48,7 +38,7 @@ public class CancelPreOrderCommandHandler : IRequestHandler<CancelPreOrderComman
 
             preOrder.Cancel();
 
-            var campaign = await _context.Set<Merge.Domain.Modules.Marketing.PreOrderCampaign>()
+            var campaign = await context.Set<Merge.Domain.Modules.Marketing.PreOrderCampaign>()
                 .FirstOrDefaultAsync(c => c.ProductId == preOrder.ProductId, cancellationToken);
 
             // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
@@ -57,17 +47,17 @@ public class CancelPreOrderCommandHandler : IRequestHandler<CancelPreOrderComman
                 campaign.DecrementQuantity(preOrder.Quantity);
             }
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "PreOrder iptal hatasi. PreOrderId: {PreOrderId}, UserId: {UserId}",
                 request.PreOrderId, request.UserId);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

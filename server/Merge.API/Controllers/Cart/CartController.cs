@@ -21,18 +21,10 @@ namespace Merge.API.Controllers.Cart;
 [ApiController]
 [Route("api/v{version:apiVersion}/cart")]
 [Authorize]
-public class CartController : BaseController
+public class CartController(
+    IMediator mediator,
+    IOptions<PaginationSettings> paginationSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-    private readonly PaginationSettings _paginationSettings;
-
-    public CartController(
-        IMediator mediator,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _mediator = mediator;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     /// <summary>
     /// Kullanıcının sepetini getirir
@@ -52,7 +44,7 @@ public class CartController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var query = new GetCartByUserIdQuery(userId);
-        var cart = await _mediator.Send(query, cancellationToken);
+        var cart = await mediator.Send(query, cancellationToken);
         
         // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
@@ -85,7 +77,7 @@ public class CartController : BaseController
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, manuel ValidateModelState() gereksiz
         var userId = GetUserId();
         var command = new AddItemToCartCommand(userId, dto.ProductId, dto.Quantity);
-        var cartItem = await _mediator.Send(command, cancellationToken);
+        var cartItem = await mediator.Send(command, cancellationToken);
         
         // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
@@ -125,7 +117,7 @@ public class CartController : BaseController
         
         // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         var cartQuery = new GetCartByCartItemIdQuery(cartItemId);
-        var cart = await _mediator.Send(cartQuery, cancellationToken);
+        var cart = await mediator.Send(cartQuery, cancellationToken);
         
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (cart is null)
@@ -139,7 +131,7 @@ public class CartController : BaseController
         }
 
         var command = new UpdateCartItemCommand(cartItemId, dto.Quantity);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {
@@ -173,7 +165,7 @@ public class CartController : BaseController
         
         // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         var cartQuery = new GetCartByCartItemIdQuery(cartItemId);
-        var cart = await _mediator.Send(cartQuery, cancellationToken);
+        var cart = await mediator.Send(cartQuery, cancellationToken);
         
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (cart is null)
@@ -187,7 +179,7 @@ public class CartController : BaseController
         }
 
         var command = new RemoveCartItemCommand(cartItemId);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {
@@ -216,7 +208,7 @@ public class CartController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var command = new ClearCartCommand(userId);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {

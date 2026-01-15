@@ -11,23 +11,15 @@ namespace Merge.Application.Cart.Commands.ProcessExpiredPreOrders;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class ProcessExpiredPreOrdersCommandHandler : IRequestHandler<ProcessExpiredPreOrdersCommand>
+public class ProcessExpiredPreOrdersCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork) : IRequestHandler<ProcessExpiredPreOrdersCommand>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-
-    public ProcessExpiredPreOrdersCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-    }
 
     public async Task Handle(ProcessExpiredPreOrdersCommand request, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
-        var expiredPreOrders = await _context.Set<Merge.Domain.Modules.Ordering.PreOrder>()
+        var expiredPreOrders = await context.Set<Merge.Domain.Modules.Ordering.PreOrder>()
             .Where(po => po.Status == PreOrderStatus.Pending && po.ExpiresAt < now)
             .ToListAsync(cancellationToken);
 
@@ -36,7 +28,7 @@ public class ProcessExpiredPreOrdersCommandHandler : IRequestHandler<ProcessExpi
             preOrder.MarkAsExpired();
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }
 

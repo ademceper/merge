@@ -18,59 +18,46 @@ namespace Merge.Application.Analytics.Queries.GetProductAnalytics;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetProductAnalyticsQueryHandler : IRequestHandler<GetProductAnalyticsQuery, ProductAnalyticsDto>
+public class GetProductAnalyticsQueryHandler(
+    IDbContext context,
+    ILogger<GetProductAnalyticsQueryHandler> logger,
+    IOptions<AnalyticsSettings> settings) : IRequestHandler<GetProductAnalyticsQuery, ProductAnalyticsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetProductAnalyticsQueryHandler> _logger;
-    private readonly AnalyticsSettings _settings;
-
-    public GetProductAnalyticsQueryHandler(
-        IDbContext context,
-        ILogger<GetProductAnalyticsQueryHandler> logger,
-        IOptions<AnalyticsSettings> settings)
-    {
-        _context = context;
-        _logger = logger;
-        _settings = settings.Value;
-    }
 
     public async Task<ProductAnalyticsDto> Handle(GetProductAnalyticsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching product analytics. StartDate: {StartDate}, EndDate: {EndDate}",
+        logger.LogInformation("Fetching product analytics. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
         // ✅ PERFORMANCE: Database'de aggregate query kullan (tüm ürünleri çekmek yerine)
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted check (Global Query Filter handles it)
-        var totalProducts = await _context.Set<ProductEntity>()
+        var totalProducts = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(cancellationToken);
 
-        var activeProducts = await _context.Set<ProductEntity>()
+        var activeProducts = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.IsActive, cancellationToken);
 
-        var outOfStock = await _context.Set<ProductEntity>()
+        var outOfStock = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StockQuantity == 0, cancellationToken);
 
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var lowStock = await _context.Set<ProductEntity>()
+        var lowStock = await context.Set<ProductEntity>()
             .AsNoTracking()
-            .CountAsync(p => p.StockQuantity > 0 && p.StockQuantity < _settings.LowStockThreshold, cancellationToken);
+            .CountAsync(p => p.StockQuantity > 0 && p.StockQuantity < settings.Value.LowStockThreshold, cancellationToken);
 
-        var totalValue = await _context.Set<ProductEntity>()
+        var totalValue = await context.Set<ProductEntity>()
             .AsNoTracking()
             .SumAsync(p => p.Price * p.StockQuantity, cancellationToken);
 
         var end = request.EndDate ?? DateTime.UtcNow;
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var start = request.StartDate ?? end.AddDays(-_settings.DefaultPeriodDays);
+        var start = request.StartDate ?? end.AddDays(-settings.Value.DefaultPeriodDays);
 
-        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var bestSellers = await GetBestSellersAsync(_settings.MaxQueryLimit, cancellationToken);
-        var worstPerformers = await GetWorstPerformersAsync(_settings.MaxQueryLimit, cancellationToken);
+        var bestSellers = await GetBestSellersAsync(settings.Value.MaxQueryLimit, cancellationToken);
+        var worstPerformers = await GetWorstPerformersAsync(settings.Value.MaxQueryLimit, cancellationToken);
         var categoryPerformance = await GetCategoryPerformanceAsync(cancellationToken);
         
         return new ProductAnalyticsDto(
@@ -89,9 +76,8 @@ public class GetProductAnalyticsQueryHandler : IRequestHandler<GetProductAnalyti
 
     private async Task<List<TopProductDto>> GetBestSellersAsync(int limit, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var last30Days = DateTime.UtcNow.AddDays(-_settings.DefaultPeriodDays);
-        return await _context.Set<OrderItem>()
+        var last30Days = DateTime.UtcNow.AddDays(-settings.Value.DefaultPeriodDays);
+        return await context.Set<OrderItem>()
             .AsNoTracking()
             .Include(oi => oi.Product)
             .Include(oi => oi.Order)
@@ -112,9 +98,8 @@ public class GetProductAnalyticsQueryHandler : IRequestHandler<GetProductAnalyti
 
     private async Task<List<TopProductDto>> GetWorstPerformersAsync(int limit, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var last30Days = DateTime.UtcNow.AddDays(-_settings.DefaultPeriodDays);
-        return await _context.Set<OrderItem>()
+        var last30Days = DateTime.UtcNow.AddDays(-settings.Value.DefaultPeriodDays);
+        return await context.Set<OrderItem>()
             .AsNoTracking()
             .Include(oi => oi.Product)
             .Include(oi => oi.Order)
@@ -135,7 +120,7 @@ public class GetProductAnalyticsQueryHandler : IRequestHandler<GetProductAnalyti
 
     private async Task<List<ProductCategoryPerformanceDto>> GetCategoryPerformanceAsync(CancellationToken cancellationToken)
     {
-        return await _context.Set<ProductEntity>()
+        return await context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.Category != null)

@@ -16,50 +16,38 @@ namespace Merge.Application.Cart.Commands.UpdateCartItem;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class UpdateCartItemCommandHandler : IRequestHandler<UpdateCartItemCommand, bool>
+public class UpdateCartItemCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<UpdateCartItemCommandHandler> logger,
+    IOptions<CartSettings> cartSettings) : IRequestHandler<UpdateCartItemCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<UpdateCartItemCommandHandler> _logger;
-    private readonly CartSettings _cartSettings;
-
-    public UpdateCartItemCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<UpdateCartItemCommandHandler> logger,
-        IOptions<CartSettings> cartSettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-        _cartSettings = cartSettings.Value;
-    }
 
     public async Task<bool> Handle(UpdateCartItemCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Updating cart item quantity. CartItemId: {CartItemId}, NewQuantity: {Quantity}",
             request.CartItemId, request.Quantity);
 
-        var cartItem = await _context.Set<CartItem>()
+        var cartItem = await context.Set<CartItem>()
             .FirstOrDefaultAsync(ci => ci.Id == request.CartItemId, cancellationToken);
         
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (cartItem is null)
         {
-            _logger.LogWarning("Cart item {CartItemId} not found", request.CartItemId);
+            logger.LogWarning("Cart item {CartItemId} not found", request.CartItemId);
             return false;
         }
 
         // ✅ PERFORMANCE: AsNoTracking for read-only product query
-        var product = await _context.Set<Merge.Domain.Modules.Catalog.Product>()
+        var product = await context.Set<Merge.Domain.Modules.Catalog.Product>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == cartItem.ProductId, cancellationToken);
         
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (product is null)
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "Product {ProductId} not found for cart item {CartItemId}",
                 cartItem.ProductId, request.CartItemId);
             throw new NotFoundException("Ürün", cartItem.ProductId);
@@ -67,33 +55,33 @@ public class UpdateCartItemCommandHandler : IRequestHandler<UpdateCartItemComman
 
         if (product.StockQuantity < request.Quantity)
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "Insufficient stock for product {ProductId}. Available: {Available}, Requested: {Requested}",
                 cartItem.ProductId, product.StockQuantity, request.Quantity);
             throw new BusinessException("Yeterli stok yok.");
         }
 
         // ✅ ARCHITECTURE: Transaction başlat - atomic operation (Cart + CartItem + Updates)
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Cart entity üzerinden domain method kullanımı
             // Cart aggregate root olduğu için, CartItem güncellemeleri Cart üzerinden yapılmalı
-            var cart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
+            var cart = await context.Set<Merge.Domain.Modules.Ordering.Cart>()
                 .Include(c => c.CartItems)
                 .FirstOrDefaultAsync(c => c.Id == cartItem.CartId, cancellationToken);
 
             // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
             if (cart is null)
             {
-                _logger.LogWarning("Cart not found for cart item {CartItemId}", request.CartItemId);
-                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                logger.LogWarning("Cart not found for cart item {CartItemId}", request.CartItemId);
+                await unitOfWork.RollbackTransactionAsync(cancellationToken);
                 return false;
             }
 
             // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration'dan al
-            var maxQuantity = _cartSettings.MaxCartItemQuantity;
+            var maxQuantity = cartSettings.Value.MaxCartItemQuantity;
 
             // ✅ BOLUM 1.1: Rich Domain Model - Cart entity method kullanımı
             // ✅ ARCHITECTURE: Domain event'ler Cart.UpdateItemQuantity() içinde otomatik olarak oluşturulur
@@ -101,10 +89,10 @@ public class UpdateCartItemCommandHandler : IRequestHandler<UpdateCartItemComman
             
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Successfully updated cart item quantity. CartItemId: {CartItemId}, NewQuantity: {Quantity}, ProductId: {ProductId}",
                 request.CartItemId, request.Quantity, cartItem.ProductId);
 
@@ -113,11 +101,11 @@ public class UpdateCartItemCommandHandler : IRequestHandler<UpdateCartItemComman
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error updating cart item quantity. CartItemId: {CartItemId}, Quantity: {Quantity}",
                 request.CartItemId, request.Quantity);
             // ✅ ARCHITECTURE: Hata olursa ROLLBACK - hiçbir şey yazılmaz
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

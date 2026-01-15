@@ -19,18 +19,10 @@ namespace Merge.API.Controllers.Catalog;
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/catalog/categories")]
-public class CategoriesController : BaseController
+public class CategoriesController(
+    IMediator mediator,
+    IOptions<PaginationSettings> paginationSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-    private readonly PaginationSettings _paginationSettings;
-
-    public CategoriesController(
-        IMediator mediator,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _mediator = mediator;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     /// <summary>
     /// Tüm kategorileri sayfalanmış olarak getirir
@@ -54,11 +46,11 @@ public class CategoriesController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var query = new GetAllCategoriesQuery(page, pageSize);
-        var categories = await _mediator.Send(query, cancellationToken);
+        var categories = await mediator.Send(query, cancellationToken);
         return Ok(categories);
     }
 
@@ -84,11 +76,11 @@ public class CategoriesController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var query = new GetMainCategoriesQuery(page, pageSize);
-        var categories = await _mediator.Send(query, cancellationToken);
+        var categories = await mediator.Send(query, cancellationToken);
         return Ok(categories);
     }
 
@@ -112,7 +104,7 @@ public class CategoriesController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetCategoryByIdQuery(id);
-        var category = await _mediator.Send(query, cancellationToken);
+        var category = await mediator.Send(query, cancellationToken);
         
         if (category == null)
         {
@@ -150,7 +142,7 @@ public class CategoriesController : BaseController
         if (validationResult != null) return validationResult;
 
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        var category = await _mediator.Send(command, cancellationToken);
+        var category = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = category.Id }, category);
     }
 
@@ -188,7 +180,7 @@ public class CategoriesController : BaseController
 
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var updateCommand = command with { Id = id };
-        var category = await _mediator.Send(updateCommand, cancellationToken);
+        var category = await mediator.Send(updateCommand, cancellationToken);
         return Ok(category);
     }
 
@@ -219,7 +211,7 @@ public class CategoriesController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteCategoryCommand(id);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {

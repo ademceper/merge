@@ -8,19 +8,14 @@ namespace Merge.Application.Catalog.EventHandlers;
 /// Product Deleted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class ProductDeletedEventHandler : INotificationHandler<ProductDeletedEvent>
+public class ProductDeletedEventHandler(
+    ILogger<ProductDeletedEventHandler> logger) : INotificationHandler<ProductDeletedEvent>
 {
-    private readonly ILogger<ProductDeletedEventHandler> _logger;
-
-    public ProductDeletedEventHandler(ILogger<ProductDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(ProductDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Product deleted event received. ProductId: {ProductId}, Name: {Name}, SKU: {SKU}",
             notification.ProductId, notification.Name, notification.SKU);
 
@@ -39,7 +34,7 @@ public class ProductDeletedEventHandler : INotificationHandler<ProductDeletedEve
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling ProductDeletedEvent. ProductId: {ProductId}, Name: {Name}, SKU: {SKU}",
                 notification.ProductId, notification.Name, notification.SKU);
             throw;

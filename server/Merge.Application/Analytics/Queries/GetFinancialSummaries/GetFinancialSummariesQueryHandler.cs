@@ -17,25 +17,15 @@ namespace Merge.Application.Analytics.Queries.GetFinancialSummaries;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetFinancialSummariesQueryHandler : IRequestHandler<GetFinancialSummariesQuery, List<FinancialSummaryDto>>
+public class GetFinancialSummariesQueryHandler(
+    IDbContext context,
+    ILogger<GetFinancialSummariesQueryHandler> logger,
+    IOptions<AnalyticsSettings> settings) : IRequestHandler<GetFinancialSummariesQuery, List<FinancialSummaryDto>>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetFinancialSummariesQueryHandler> _logger;
-    private readonly AnalyticsSettings _settings;
-
-    public GetFinancialSummariesQueryHandler(
-        IDbContext context,
-        ILogger<GetFinancialSummariesQueryHandler> logger,
-        IOptions<AnalyticsSettings> settings)
-    {
-        _context = context;
-        _logger = logger;
-        _settings = settings.Value;
-    }
 
     public async Task<List<FinancialSummaryDto>> Handle(GetFinancialSummariesQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching financial summaries. StartDate: {StartDate}, EndDate: {EndDate}, Period: {Period}",
+        logger.LogInformation("Fetching financial summaries. StartDate: {StartDate}, EndDate: {EndDate}, Period: {Period}",
             request.StartDate, request.EndDate, request.Period);
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
@@ -45,7 +35,7 @@ public class GetFinancialSummariesQueryHandler : IRequestHandler<GetFinancialSum
 
         if (request.Period == "daily")
         {
-            summaries = await _context.Set<OrderEntity>()
+            summaries = await context.Set<OrderEntity>()
                 .AsNoTracking()
                 .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                       o.CreatedAt >= request.StartDate &&
@@ -55,9 +45,9 @@ public class GetFinancialSummariesQueryHandler : IRequestHandler<GetFinancialSum
                 .Select(g => new FinancialSummaryDto(
                     g.Key,
                     g.Sum(o => o.TotalAmount),
-                    g.Sum(o => o.TotalAmount * _settings.DefaultCostPercentage),
-                    g.Sum(o => o.TotalAmount * _settings.DefaultProfitPercentage),
-                    (int)(_settings.DefaultProfitPercentage * 100),
+                    g.Sum(o => o.TotalAmount * settings.Value.DefaultCostPercentage),
+                    g.Sum(o => o.TotalAmount * settings.Value.DefaultProfitPercentage),
+                    (int)(settings.Value.DefaultProfitPercentage * 100),
                     g.Count()
                 ))
                 .OrderBy(s => s.Period)
@@ -68,13 +58,13 @@ public class GetFinancialSummariesQueryHandler : IRequestHandler<GetFinancialSum
             // ✅ PERFORMANCE: PostgreSQL'de date_trunc kullanarak database'de grouping yap
             // ISOWeek.GetWeekOfYear client-side function olduğu için raw SQL kullanıyoruz
             // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-            var costPercentage = _settings.DefaultCostPercentage;
-            var profitPercentage = _settings.DefaultProfitPercentage;
+            var costPercentage = settings.Value.DefaultCostPercentage;
+            var profitPercentage = settings.Value.DefaultProfitPercentage;
             var profitMargin = (int)(profitPercentage * 100);
             
             // ✅ BOLUM 1.2: Enum kullanımı (string 'Paid' YASAK) - PaymentStatus.Completed kullan
             var paymentStatusValue = (int)PaymentStatus.Completed;
-            summaries = await _context.Database
+            summaries = await context.Database
                 .SqlQueryRaw<FinancialSummaryDto>(@"
                     SELECT 
                         DATE_TRUNC('week', ""CreatedAt"")::date AS ""Period"",
@@ -94,7 +84,7 @@ public class GetFinancialSummariesQueryHandler : IRequestHandler<GetFinancialSum
         }
         else if (request.Period == "monthly")
         {
-            summaries = await _context.Set<OrderEntity>()
+            summaries = await context.Set<OrderEntity>()
                 .AsNoTracking()
                 .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                       o.CreatedAt >= request.StartDate &&
@@ -103,9 +93,9 @@ public class GetFinancialSummariesQueryHandler : IRequestHandler<GetFinancialSum
                 .Select(g => new FinancialSummaryDto(
                     new DateTime(g.Key.Year, g.Key.Month, 1),
                     g.Sum(o => o.TotalAmount),
-                    g.Sum(o => o.TotalAmount * _settings.DefaultCostPercentage),
-                    g.Sum(o => o.TotalAmount * _settings.DefaultProfitPercentage),
-                    (int)(_settings.DefaultProfitPercentage * 100),
+                    g.Sum(o => o.TotalAmount * settings.Value.DefaultCostPercentage),
+                    g.Sum(o => o.TotalAmount * settings.Value.DefaultProfitPercentage),
+                    (int)(settings.Value.DefaultProfitPercentage * 100),
                     g.Count()
                 ))
                 .OrderBy(s => s.Period)

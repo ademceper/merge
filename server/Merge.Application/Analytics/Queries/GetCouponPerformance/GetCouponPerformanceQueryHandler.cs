@@ -14,28 +14,20 @@ namespace Merge.Application.Analytics.Queries.GetCouponPerformance;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetCouponPerformanceQueryHandler : IRequestHandler<GetCouponPerformanceQuery, List<CouponPerformanceDto>>
+public class GetCouponPerformanceQueryHandler(
+    IDbContext context,
+    ILogger<GetCouponPerformanceQueryHandler> logger) : IRequestHandler<GetCouponPerformanceQuery, List<CouponPerformanceDto>>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetCouponPerformanceQueryHandler> _logger;
-
-    public GetCouponPerformanceQueryHandler(
-        IDbContext context,
-        ILogger<GetCouponPerformanceQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<List<CouponPerformanceDto>> Handle(GetCouponPerformanceQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching coupon performance. StartDate: {StartDate}, EndDate: {EndDate}",
+        logger.LogInformation("Fetching coupon performance. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !cu.IsDeleted check (Global Query Filter handles it)
-        return await _context.Set<CouponUsage>()
+        return await context.Set<CouponUsage>()
             .AsNoTracking()
             .Include(cu => cu.Coupon)
             .Include(cu => cu.Order)

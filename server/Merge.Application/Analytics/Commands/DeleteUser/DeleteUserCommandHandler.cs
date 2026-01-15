@@ -11,40 +11,30 @@ namespace Merge.Application.Analytics.Commands.DeleteUser;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class DeleteUserCommandHandler : IRequestHandler<DeleteUserCommand, bool>
+public class DeleteUserCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<DeleteUserCommandHandler> logger) : IRequestHandler<DeleteUserCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<DeleteUserCommandHandler> _logger;
-
-    public DeleteUserCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<DeleteUserCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(DeleteUserCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Deleting user. UserId: {UserId}", request.UserId);
+        logger.LogInformation("Deleting user. UserId: {UserId}", request.UserId);
         
         // ✅ FIX: Use FirstOrDefaultAsync instead of FindAsync to respect Global Query Filter
-        var user = await _context.Users
+        var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
         if (user == null)
         {
-            _logger.LogWarning("User not found for deletion. UserId: {UserId}", request.UserId);
+            logger.LogWarning("User not found for deletion. UserId: {UserId}", request.UserId);
             return false;
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Soft delete
         user.MarkAsDeleted();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         
-        _logger.LogInformation("User deleted successfully. UserId: {UserId}", request.UserId);
+        logger.LogInformation("User deleted successfully. UserId: {UserId}", request.UserId);
         return true;
     }
 }

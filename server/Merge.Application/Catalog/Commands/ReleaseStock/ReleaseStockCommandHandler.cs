@@ -17,32 +17,18 @@ namespace Merge.Application.Catalog.Commands.ReleaseStock;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class ReleaseStockCommandHandler : IRequestHandler<ReleaseStockCommand, bool>
+public class ReleaseStockCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    Merge.Application.Interfaces.IRepository<Inventory> inventoryRepository,
+    ICacheService cache,
+    ILogger<ReleaseStockCommandHandler> logger) : IRequestHandler<ReleaseStockCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly Merge.Application.Interfaces.IRepository<Inventory> _inventoryRepository;
-    private readonly ICacheService _cache;
-    private readonly ILogger<ReleaseStockCommandHandler> _logger;
     private const string CACHE_KEY_INVENTORY_BY_PRODUCT_WAREHOUSE = "inventory_product_warehouse_";
-
-    public ReleaseStockCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        Merge.Application.Interfaces.IRepository<Inventory> inventoryRepository,
-        ICacheService cache,
-        ILogger<ReleaseStockCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _inventoryRepository = inventoryRepository;
-        _cache = cache;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(ReleaseStockCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Releasing stock. ProductId: {ProductId}, WarehouseId: {WarehouseId}, Quantity: {Quantity}, OrderId: {OrderId}, UserId: {UserId}",
+        logger.LogInformation("Releasing stock. ProductId: {ProductId}, WarehouseId: {WarehouseId}, Quantity: {Quantity}, OrderId: {OrderId}, UserId: {UserId}",
             request.ProductId, request.WarehouseId, request.Quantity, request.OrderId, request.PerformedBy);
 
         if (request.Quantity <= 0)
@@ -51,11 +37,11 @@ public class ReleaseStockCommandHandler : IRequestHandler<ReleaseStockCommand, b
         }
 
         // ✅ ARCHITECTURE: Transaction başlat - atomic operation (Inventory + StockMovement)
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin stokunu serbest bırakabilmeli
-            var product = await _context.Set<ProductEntity>()
+            var product = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
@@ -66,13 +52,13 @@ public class ReleaseStockCommandHandler : IRequestHandler<ReleaseStockCommand, b
 
             if (product.SellerId.HasValue && product.SellerId != request.PerformedBy)
             {
-                _logger.LogWarning("IDOR attempt: User {UserId} tried to release stock for product {ProductId} owned by {OwnerId}",
+                logger.LogWarning("IDOR attempt: User {UserId} tried to release stock for product {ProductId} owned by {OwnerId}",
                     request.PerformedBy, request.ProductId, product.SellerId);
                 throw new BusinessException("Bu ürün için stok serbest bırakma yetkiniz yok.");
             }
 
             // ✅ PERFORMANCE: Removed manual !i.IsDeleted check (Global Query Filter handles it)
-            var inventory = await _context.Set<Inventory>()
+            var inventory = await context.Set<Inventory>()
                 .FirstOrDefaultAsync(i => i.ProductId == request.ProductId &&
                                         i.WarehouseId == request.WarehouseId, cancellationToken);
 
@@ -85,7 +71,7 @@ public class ReleaseStockCommandHandler : IRequestHandler<ReleaseStockCommand, b
             var quantityBefore = inventory.Quantity;
             inventory.ReleaseAndReduce(request.Quantity);
 
-            await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
+            await inventoryRepository.UpdateAsync(inventory, cancellationToken);
 
             // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var stockMovement = StockMovement.Create(
@@ -103,33 +89,33 @@ public class ReleaseStockCommandHandler : IRequestHandler<ReleaseStockCommand, b
                 null, // fromWarehouseId
                 null); // toWarehouseId
 
-            await _context.Set<StockMovement>().AddAsync(stockMovement, cancellationToken);
+            await context.Set<StockMovement>().AddAsync(stockMovement, cancellationToken);
 
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            _logger.LogInformation("Successfully released stock. ProductId: {ProductId}, Quantity: {Quantity}, OrderId: {OrderId}",
+            logger.LogInformation("Successfully released stock. ProductId: {ProductId}, Quantity: {Quantity}, OrderId: {OrderId}",
                 request.ProductId, request.Quantity, request.OrderId);
 
             // ✅ BOLUM 10.2: Cache invalidation
-            await _cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_PRODUCT_WAREHOUSE}{request.ProductId}_{request.WarehouseId}", cancellationToken);
-            await _cache.RemoveAsync($"inventories_by_product_{request.ProductId}", cancellationToken); // Invalidate product inventories list cache
+            await cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_PRODUCT_WAREHOUSE}{request.ProductId}_{request.WarehouseId}", cancellationToken);
+            await cache.RemoveAsync($"inventories_by_product_{request.ProductId}", cancellationToken); // Invalidate product inventories list cache
 
             return true;
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            _logger.LogError(ex, "Concurrency conflict while releasing stock. ProductId: {ProductId}", request.ProductId);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Concurrency conflict while releasing stock. ProductId: {ProductId}", request.ProductId);
             throw new BusinessException("Stok serbest bırakma çakışması. Başka bir kullanıcı aynı envanteri güncelledi. Lütfen tekrar deneyin.");
         }
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex, "Error releasing stock. ProductId: {ProductId}", request.ProductId);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Error releasing stock. ProductId: {ProductId}", request.ProductId);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

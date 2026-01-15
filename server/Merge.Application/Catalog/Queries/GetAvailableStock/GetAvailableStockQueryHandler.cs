@@ -16,59 +16,49 @@ namespace Merge.Application.Catalog.Queries.GetAvailableStock;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetAvailableStockQueryHandler : IRequestHandler<GetAvailableStockQuery, AvailableStockDto>
+public class GetAvailableStockQueryHandler(
+    IDbContext context,
+    ILogger<GetAvailableStockQueryHandler> logger,
+    ICacheService cache) : IRequestHandler<GetAvailableStockQuery, AvailableStockDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetAvailableStockQueryHandler> _logger;
-    private readonly ICacheService _cache;
     private const string CACHE_KEY_AVAILABLE_STOCK = "available_stock_";
     private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(1); // Very short TTL for available stock
 
-    public GetAvailableStockQueryHandler(
-        IDbContext context,
-        ILogger<GetAvailableStockQueryHandler> logger,
-        ICacheService cache)
-    {
-        _context = context;
-        _logger = logger;
-        _cache = cache;
-    }
-
     public async Task<AvailableStockDto> Handle(GetAvailableStockQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Retrieving available stock for ProductId: {ProductId}, WarehouseId: {WarehouseId}",
+        logger.LogInformation("Retrieving available stock for ProductId: {ProductId}, WarehouseId: {WarehouseId}",
             request.ProductId, request.WarehouseId);
 
         var cacheKey = $"{CACHE_KEY_AVAILABLE_STOCK}{request.ProductId}_{request.WarehouseId ?? Guid.Empty}";
 
         // ✅ BOLUM 10.2: Redis distributed cache for available stock
-        var cachedAvailableStock = await _cache.GetAsync<AvailableStockDto>(cacheKey, cancellationToken);
+        var cachedAvailableStock = await cache.GetAsync<AvailableStockDto>(cacheKey, cancellationToken);
         if (cachedAvailableStock != null)
         {
-            _logger.LogInformation("Cache hit for available stock. ProductId: {ProductId}, WarehouseId: {WarehouseId}",
+            logger.LogInformation("Cache hit for available stock. ProductId: {ProductId}, WarehouseId: {WarehouseId}",
                 request.ProductId, request.WarehouseId);
             return cachedAvailableStock;
         }
 
-        _logger.LogInformation("Cache miss for available stock. ProductId: {ProductId}, WarehouseId: {WarehouseId}",
+        logger.LogInformation("Cache miss for available stock. ProductId: {ProductId}, WarehouseId: {WarehouseId}",
             request.ProductId, request.WarehouseId);
 
         // ✅ BOLUM 3.2: IDOR Korumasi - Seller sadece kendi ürünlerinin stokunu görebilmeli
         if (request.PerformedBy.HasValue)
         {
-            var product = await _context.Set<ProductEntity>()
+            var product = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
             if (product == null)
             {
-                _logger.LogWarning("Product not found with Id: {ProductId}", request.ProductId);
+                logger.LogWarning("Product not found with Id: {ProductId}", request.ProductId);
                 throw new NotFoundException("Ürün", request.ProductId);
             }
 
             if (product.SellerId != request.PerformedBy.Value)
             {
-                _logger.LogWarning("Unauthorized attempt to access available stock for product {ProductId} by user {UserId}. Product belongs to {SellerId}",
+                logger.LogWarning("Unauthorized attempt to access available stock for product {ProductId} by user {UserId}. Product belongs to {SellerId}",
                     request.ProductId, request.PerformedBy.Value, product.SellerId);
                 throw new BusinessException("Bu ürünün stok bilgisine erişim yetkiniz bulunmamaktadır.");
             }
@@ -76,7 +66,7 @@ public class GetAvailableStockQueryHandler : IRequestHandler<GetAvailableStockQu
 
         // ✅ PERFORMANCE: Database'de Sum yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: Removed manual !i.IsDeleted check (Global Query Filter handles it)
-        var query = _context.Set<Inventory>()
+        var query = context.Set<Inventory>()
             .AsNoTracking()
             .Where(i => i.ProductId == request.ProductId);
 
@@ -87,7 +77,7 @@ public class GetAvailableStockQueryHandler : IRequestHandler<GetAvailableStockQu
 
         var availableStock = await query.SumAsync(i => i.AvailableQuantity, cancellationToken);
 
-        _logger.LogInformation("Available stock for ProductId: {ProductId}, WarehouseId: {WarehouseId} is {AvailableStock}",
+        logger.LogInformation("Available stock for ProductId: {ProductId}, WarehouseId: {WarehouseId} is {AvailableStock}",
             request.ProductId, request.WarehouseId, availableStock);
 
         // ✅ BOLUM 4.3: Over-Posting Koruması - Anonymous object YASAK, DTO kullan
@@ -99,7 +89,7 @@ public class GetAvailableStockQueryHandler : IRequestHandler<GetAvailableStockQu
         );
 
         // Cache the result
-        await _cache.SetAsync(cacheKey, availableStockDto, CACHE_EXPIRATION, cancellationToken);
+        await cache.SetAsync(cacheKey, availableStockDto, CACHE_EXPIRATION, cancellationToken);
 
         return availableStockDto;
     }

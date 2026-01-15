@@ -15,26 +15,16 @@ namespace Merge.Application.Cart.Commands.NotifyPreOrderAvailable;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class NotifyPreOrderAvailableCommandHandler : IRequestHandler<NotifyPreOrderAvailableCommand>
+public class NotifyPreOrderAvailableCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IEmailService emailService) : IRequestHandler<NotifyPreOrderAvailableCommand>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IEmailService _emailService;
-
-    public NotifyPreOrderAvailableCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IEmailService emailService)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _emailService = emailService;
-    }
 
     public async Task Handle(NotifyPreOrderAvailableCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        var preOrder = await _context.Set<Merge.Domain.Modules.Ordering.PreOrder>()
+        var preOrder = await context.Set<Merge.Domain.Modules.Ordering.PreOrder>()
             .AsSplitQuery()
             .Include(po => po.Product)
             .Include(po => po.User)
@@ -46,16 +36,18 @@ public class NotifyPreOrderAvailableCommandHandler : IRequestHandler<NotifyPreOr
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (preOrder.NotificationSentAt is not null) return;
 
-        await _emailService.SendEmailAsync(
+        await emailService.SendEmailAsync(
             preOrder.User.Email ?? string.Empty,
             "Your Pre-Order is Ready!",
-            $"Good news! Your pre-order for {preOrder.Product.Name} is now available and ready to ship."
+            $"Good news! Your pre-order for {preOrder.Product.Name} is now available and ready to ship.",
+            false,
+            cancellationToken
         );
 
         preOrder.MarkNotificationAsSent();
         preOrder.MarkAsReadyToShip();
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }
 

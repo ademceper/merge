@@ -8,19 +8,14 @@ namespace Merge.Application.Catalog.EventHandlers;
 /// Size Guide Deleted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class SizeGuideDeletedEventHandler : INotificationHandler<SizeGuideDeletedEvent>
+public class SizeGuideDeletedEventHandler(
+    ILogger<SizeGuideDeletedEventHandler> logger) : INotificationHandler<SizeGuideDeletedEvent>
 {
-    private readonly ILogger<SizeGuideDeletedEventHandler> _logger;
-
-    public SizeGuideDeletedEventHandler(ILogger<SizeGuideDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(SizeGuideDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Size guide deleted event received. SizeGuideId: {SizeGuideId}, Name: {Name}",
             notification.SizeGuideId, notification.Name);
 
@@ -37,7 +32,7 @@ public class SizeGuideDeletedEventHandler : INotificationHandler<SizeGuideDelete
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling SizeGuideDeletedEvent. SizeGuideId: {SizeGuideId}, Name: {Name}",
                 notification.SizeGuideId, notification.Name);
             throw;

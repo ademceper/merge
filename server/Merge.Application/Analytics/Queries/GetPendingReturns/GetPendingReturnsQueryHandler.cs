@@ -19,41 +19,27 @@ namespace Merge.Application.Analytics.Queries.GetPendingReturns;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetPendingReturnsQueryHandler : IRequestHandler<GetPendingReturnsQuery, PagedResult<ReturnRequestDto>>
+public class GetPendingReturnsQueryHandler(
+    IDbContext context,
+    ILogger<GetPendingReturnsQueryHandler> logger,
+    IOptions<AnalyticsSettings> settings,
+    IOptions<PaginationSettings> paginationSettings,
+    IMapper mapper) : IRequestHandler<GetPendingReturnsQuery, PagedResult<ReturnRequestDto>>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetPendingReturnsQueryHandler> _logger;
-    private readonly AnalyticsSettings _settings;
-    private readonly PaginationSettings _paginationSettings;
-    private readonly IMapper _mapper;
-
-    public GetPendingReturnsQueryHandler(
-        IDbContext context,
-        ILogger<GetPendingReturnsQueryHandler> logger,
-        IOptions<AnalyticsSettings> settings,
-        IOptions<PaginationSettings> paginationSettings,
-        IMapper mapper)
-    {
-        _context = context;
-        _logger = logger;
-        _settings = settings.Value;
-        _paginationSettings = paginationSettings.Value;
-        _mapper = mapper;
-    }
 
     public async Task<PagedResult<ReturnRequestDto>> Handle(GetPendingReturnsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching pending returns. Page: {Page}, PageSize: {PageSize}", request.Page, request.PageSize);
+        logger.LogInformation("Fetching pending returns. Page: {Page}, PageSize: {PageSize}", request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var pageSize = request.PageSize <= 0 ? _settings.DefaultPageSize : request.PageSize;
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        var pageSize = request.PageSize <= 0 ? settings.Value.DefaultPageSize : request.PageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
-        var query = _context.Set<ReturnRequest>()
+        var query = context.Set<ReturnRequest>()
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Order)
@@ -70,7 +56,7 @@ public class GetPendingReturnsQueryHandler : IRequestHandler<GetPendingReturnsQu
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return new PagedResult<ReturnRequestDto>
         {
-            Items = _mapper.Map<List<ReturnRequestDto>>(returns),
+            Items = mapper.Map<List<ReturnRequestDto>>(returns),
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize

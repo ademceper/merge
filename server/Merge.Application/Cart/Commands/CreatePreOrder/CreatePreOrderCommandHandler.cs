@@ -18,31 +18,19 @@ namespace Merge.Application.Cart.Commands.CreatePreOrder;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class CreatePreOrderCommandHandler : IRequestHandler<CreatePreOrderCommand, PreOrderDto>
+public class CreatePreOrderCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<CreatePreOrderCommandHandler> logger) : IRequestHandler<CreatePreOrderCommand, PreOrderDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreatePreOrderCommandHandler> _logger;
-
-    public CreatePreOrderCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreatePreOrderCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<PreOrderDto> Handle(CreatePreOrderCommand request, CancellationToken cancellationToken)
     {
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var product = await _context.Set<Merge.Domain.Modules.Catalog.Product>()
+            var product = await context.Set<Merge.Domain.Modules.Catalog.Product>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
@@ -52,7 +40,7 @@ public class CreatePreOrderCommandHandler : IRequestHandler<CreatePreOrderComman
                 throw new NotFoundException("Ürün", request.ProductId);
             }
 
-            var campaign = await _context.Set<PreOrderCampaign>()
+            var campaign = await context.Set<PreOrderCampaign>()
                 .AsNoTracking()
                 .Where(c => c.ProductId == request.ProductId && c.IsActive)
                 .Where(c => c.StartDate <= DateTime.UtcNow && c.EndDate >= DateTime.UtcNow)
@@ -74,7 +62,7 @@ public class CreatePreOrderCommandHandler : IRequestHandler<CreatePreOrderComman
 
             // ✅ BOLUM 1.1: Rich Domain Model - User entity'yi yükle (PreOrder.Create için gerekli)
             // ✅ User entity'si BaseEntity'den türemediği için IDbContext.Users property'si kullanılıyor
-            var user = await _context.Users
+            var user = await context.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
@@ -105,9 +93,9 @@ public class CreatePreOrderCommandHandler : IRequestHandler<CreatePreOrderComman
                 preOrder.Confirm();
             }
 
-            await _context.Set<PreOrder>().AddAsync(preOrder, cancellationToken);
+            await context.Set<PreOrder>().AddAsync(preOrder, cancellationToken);
 
-            var campaignToUpdate = await _context.Set<PreOrderCampaign>()
+            var campaignToUpdate = await context.Set<PreOrderCampaign>()
                 .FirstOrDefaultAsync(c => c.Id == campaign.Id, cancellationToken);
 
             // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
@@ -118,22 +106,22 @@ public class CreatePreOrderCommandHandler : IRequestHandler<CreatePreOrderComman
 
             campaignToUpdate.IncrementQuantity(request.Quantity);
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            preOrder = await _context.Set<PreOrder>()
+            preOrder = await context.Set<PreOrder>()
                 .AsNoTracking()
                 .Include(po => po.Product)
                 .FirstOrDefaultAsync(po => po.Id == preOrder.Id, cancellationToken);
 
-            return _mapper.Map<PreOrderDto>(preOrder!);
+            return mapper.Map<PreOrderDto>(preOrder!);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "PreOrder olusturma hatasi. UserId: {UserId}, ProductId: {ProductId}",
                 request.UserId, request.ProductId);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

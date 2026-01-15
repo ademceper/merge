@@ -8,19 +8,14 @@ namespace Merge.Application.Catalog.EventHandlers;
 /// Search Recorded Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class SearchRecordedEventHandler : INotificationHandler<SearchRecordedEvent>
+public class SearchRecordedEventHandler(
+    ILogger<SearchRecordedEventHandler> logger) : INotificationHandler<SearchRecordedEvent>
 {
-    private readonly ILogger<SearchRecordedEventHandler> _logger;
-
-    public SearchRecordedEventHandler(ILogger<SearchRecordedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(SearchRecordedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Search recorded event received. SearchHistoryId: {SearchHistoryId}, UserId: {UserId}, SearchTerm: {SearchTerm}, ResultCount: {ResultCount}",
             notification.SearchHistoryId, notification.UserId, notification.SearchTerm, notification.ResultCount);
 
@@ -37,7 +32,7 @@ public class SearchRecordedEventHandler : INotificationHandler<SearchRecordedEve
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling SearchRecordedEvent. SearchHistoryId: {SearchHistoryId}, SearchTerm: {SearchTerm}",
                 notification.SearchHistoryId, notification.SearchTerm);
             throw;

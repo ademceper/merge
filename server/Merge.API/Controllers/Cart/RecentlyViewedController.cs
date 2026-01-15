@@ -17,18 +17,10 @@ namespace Merge.API.Controllers.Cart;
 [ApiController]
 [Route("api/v{version:apiVersion}/cart/recently-viewed")]
 [Authorize]
-public class RecentlyViewedController : BaseController
+public class RecentlyViewedController(
+    IMediator mediator,
+    IOptions<PaginationSettings> paginationSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-    private readonly PaginationSettings _paginationSettings;
-
-    public RecentlyViewedController(
-        IMediator mediator,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _mediator = mediator;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     /// <summary>
     /// Son görüntülenen ürünleri getirir
@@ -54,12 +46,12 @@ public class RecentlyViewedController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var userId = GetUserId();
         var query = new GetRecentlyViewedQuery(userId, page, pageSize);
-        var products = await _mediator.Send(query, cancellationToken);
+        var products = await mediator.Send(query, cancellationToken);
         return Ok(products);
     }
 
@@ -86,7 +78,7 @@ public class RecentlyViewedController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var command = new AddToRecentlyViewedCommand(userId, productId);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -108,7 +100,7 @@ public class RecentlyViewedController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var userId = GetUserId();
         var command = new ClearRecentlyViewedCommand(userId);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 }

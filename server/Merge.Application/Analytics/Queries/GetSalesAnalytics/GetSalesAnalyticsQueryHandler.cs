@@ -18,31 +18,21 @@ namespace Merge.Application.Analytics.Queries.GetSalesAnalytics;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetSalesAnalyticsQueryHandler : IRequestHandler<GetSalesAnalyticsQuery, SalesAnalyticsDto>
+public class GetSalesAnalyticsQueryHandler(
+    IDbContext context,
+    ILogger<GetSalesAnalyticsQueryHandler> logger,
+    IOptions<AnalyticsSettings> settings) : IRequestHandler<GetSalesAnalyticsQuery, SalesAnalyticsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetSalesAnalyticsQueryHandler> _logger;
-    private readonly AnalyticsSettings _settings;
-
-    public GetSalesAnalyticsQueryHandler(
-        IDbContext context,
-        ILogger<GetSalesAnalyticsQueryHandler> logger,
-        IOptions<AnalyticsSettings> settings)
-    {
-        _context = context;
-        _logger = logger;
-        _settings = settings.Value;
-    }
 
     public async Task<SalesAnalyticsDto> Handle(GetSalesAnalyticsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching sales analytics. StartDate: {StartDate}, EndDate: {EndDate}",
+        logger.LogInformation("Fetching sales analytics. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
         
         // ✅ PERFORMANCE: Database'de aggregate query kullan (basit aggregateler için)
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
-        var ordersQuery = _context.Set<OrderEntity>()
+        var ordersQuery = context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.CreatedAt >= request.StartDate && o.CreatedAt <= request.EndDate);
 
@@ -52,14 +42,14 @@ public class GetSalesAnalyticsQueryHandler : IRequestHandler<GetSalesAnalyticsQu
         var totalShipping = await ordersQuery.SumAsync(o => o.ShippingCost, cancellationToken);
         var totalDiscounts = await ordersQuery.SumAsync(o => (o.CouponDiscount ?? 0) + (o.GiftCardDiscount ?? 0), cancellationToken);
 
-        _logger.LogInformation("Sales analytics calculated. TotalRevenue: {TotalRevenue}, TotalOrders: {TotalOrders}",
+        logger.LogInformation("Sales analytics calculated. TotalRevenue: {TotalRevenue}, TotalOrders: {TotalOrders}",
             totalRevenue, totalOrders);
 
         // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         // Revenue over time - Helper method çağrısı
         var revenueOverTime = await GetRevenueOverTimeAsync(request.StartDate, request.EndDate, cancellationToken);
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var topProducts = await GetTopProductsAsync(request.StartDate, request.EndDate, _settings.DefaultLimit, cancellationToken);
+        var topProducts = await GetTopProductsAsync(request.StartDate, request.EndDate, settings.Value.DefaultLimit, cancellationToken);
         var salesByCategory = await GetSalesByCategoryAsync(request.StartDate, request.EndDate, cancellationToken);
         
         return new SalesAnalyticsDto(
@@ -82,7 +72,7 @@ public class GetSalesAnalyticsQueryHandler : IRequestHandler<GetSalesAnalyticsQu
     private async Task<List<TimeSeriesDataPoint>> GetRevenueOverTimeAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil)
-        return await _context.Set<OrderEntity>()
+        return await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.CreatedAt >= startDate && o.CreatedAt <= endDate)
             .GroupBy(o => o.CreatedAt.Date)
@@ -98,7 +88,7 @@ public class GetSalesAnalyticsQueryHandler : IRequestHandler<GetSalesAnalyticsQu
 
     private async Task<List<TopProductDto>> GetTopProductsAsync(DateTime startDate, DateTime endDate, int limit, CancellationToken cancellationToken)
     {
-        return await _context.Set<OrderItem>()
+        return await context.Set<OrderItem>()
             .AsNoTracking()
             .Include(oi => oi.Product)
             .Include(oi => oi.Order)
@@ -119,7 +109,7 @@ public class GetSalesAnalyticsQueryHandler : IRequestHandler<GetSalesAnalyticsQu
 
     private async Task<List<CategorySalesDto>> GetSalesByCategoryAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
     {
-        return await _context.Set<OrderItem>()
+        return await context.Set<OrderItem>()
             .AsNoTracking()
             .Include(oi => oi.Product)
             .ThenInclude(p => p.Category)

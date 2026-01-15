@@ -17,34 +17,24 @@ namespace Merge.Application.Analytics.Queries.GetRevenueChart;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetRevenueChartQueryHandler : IRequestHandler<GetRevenueChartQuery, RevenueChartDto>
+public class GetRevenueChartQueryHandler(
+    IDbContext context,
+    ILogger<GetRevenueChartQueryHandler> logger,
+    IOptions<ServiceSettings> serviceSettings) : IRequestHandler<GetRevenueChartQuery, RevenueChartDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetRevenueChartQueryHandler> _logger;
-    private readonly ServiceSettings _serviceSettings;
-
-    public GetRevenueChartQueryHandler(
-        IDbContext context,
-        ILogger<GetRevenueChartQueryHandler> logger,
-        IOptions<ServiceSettings> serviceSettings)
-    {
-        _context = context;
-        _logger = logger;
-        _serviceSettings = serviceSettings.Value;
-    }
 
     public async Task<RevenueChartDto> Handle(GetRevenueChartQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching revenue chart. Days: {Days}", request.Days);
+        logger.LogInformation("Fetching revenue chart. Days: {Days}", request.Days);
         
         // ✅ BOLUM 12.0: Magic number config'den - eğer default değer kullanılıyorsa config'den al
-        var days = request.Days == 30 ? _serviceSettings.DefaultDateRangeDays : request.Days;
+        var days = request.Days == 30 ? serviceSettings.Value.DefaultDateRangeDays : request.Days;
         var startDate = DateTime.UtcNow.Date.AddDays(-days);
 
         // ✅ PERFORMANCE: Database'de toplam hesapla (memory'de Sum YASAK)
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
-        var ordersQuery = _context.Set<OrderEntity>()
+        var ordersQuery = context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed && o.CreatedAt >= startDate);
 
@@ -70,7 +60,7 @@ public class GetRevenueChartQueryHandler : IRequestHandler<GetRevenueChartQuery,
             DailyData: dailyRevenue
         );
 
-        _logger.LogInformation("Revenue chart calculated. Days: {Days}, TotalRevenue: {TotalRevenue}, TotalOrders: {TotalOrders}",
+        logger.LogInformation("Revenue chart calculated. Days: {Days}, TotalRevenue: {TotalRevenue}, TotalOrders: {TotalOrders}",
             days, totalRevenue, totalOrders);
 
         return chart;

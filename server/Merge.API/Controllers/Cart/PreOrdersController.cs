@@ -28,18 +28,10 @@ namespace Merge.API.Controllers.Cart;
 [ApiController]
 [Route("api/v{version:apiVersion}/cart/pre-orders")]
 [Authorize]
-public class PreOrdersController : BaseController
+public class PreOrdersController(
+    IMediator mediator,
+    IOptions<PaginationSettings> paginationSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-    private readonly PaginationSettings _paginationSettings;
-
-    public PreOrdersController(
-        IMediator mediator,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _mediator = mediator;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     /// <summary>
     /// Ön sipariş oluşturur
@@ -70,7 +62,7 @@ public class PreOrdersController : BaseController
             dto.Quantity,
             dto.VariantOptions,
             dto.Notes);
-        var preOrder = await _mediator.Send(command, cancellationToken);
+        var preOrder = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetPreOrder), new { id = preOrder.Id }, preOrder);
     }
 
@@ -98,7 +90,7 @@ public class PreOrdersController : BaseController
     {
         var userId = GetUserId();
         var query = new GetPreOrderQuery(id);
-        var preOrder = await _mediator.Send(query, cancellationToken);
+        var preOrder = await mediator.Send(query, cancellationToken);
 
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (preOrder is null)
@@ -137,12 +129,12 @@ public class PreOrdersController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var userId = GetUserId();
         var query = new GetUserPreOrdersQuery(userId, page, pageSize);
-        var preOrders = await _mediator.Send(query, cancellationToken);
+        var preOrders = await mediator.Send(query, cancellationToken);
         return Ok(preOrders);
     }
 
@@ -174,7 +166,7 @@ public class PreOrdersController : BaseController
         
         // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         var preOrderQuery = new GetPreOrderQuery(id);
-        var preOrder = await _mediator.Send(preOrderQuery, cancellationToken);
+        var preOrder = await mediator.Send(preOrderQuery, cancellationToken);
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (preOrder is null)
         {
@@ -187,7 +179,7 @@ public class PreOrdersController : BaseController
         }
 
         var command = new CancelPreOrderCommand(id, userId);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -228,7 +220,7 @@ public class PreOrdersController : BaseController
         
         // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         var preOrderQuery = new GetPreOrderQuery(dto.PreOrderId);
-        var preOrder = await _mediator.Send(preOrderQuery, cancellationToken);
+        var preOrder = await mediator.Send(preOrderQuery, cancellationToken);
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (preOrder is null)
         {
@@ -241,7 +233,7 @@ public class PreOrdersController : BaseController
         }
 
         var command = new PayPreOrderDepositCommand(userId, dto.PreOrderId, dto.Amount);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -276,7 +268,7 @@ public class PreOrdersController : BaseController
         CancellationToken cancellationToken = default)
     {
         var command = new ConvertPreOrderToOrderCommand(id);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -309,7 +301,7 @@ public class PreOrdersController : BaseController
         CancellationToken cancellationToken = default)
     {
         var command = new NotifyPreOrderAvailableCommand(id);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -350,7 +342,7 @@ public class PreOrdersController : BaseController
             dto.DepositPercentage,
             dto.SpecialPrice,
             dto.NotifyOnAvailable);
-        var campaign = await _mediator.Send(command, cancellationToken);
+        var campaign = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetCampaign), new { id = campaign.Id }, campaign);
     }
 
@@ -373,7 +365,7 @@ public class PreOrdersController : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetPreOrderCampaignQuery(id);
-        var campaign = await _mediator.Send(query, cancellationToken);
+        var campaign = await mediator.Send(query, cancellationToken);
 
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (campaign is null)
@@ -405,11 +397,11 @@ public class PreOrdersController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var query = new GetActivePreOrderCampaignsQuery(page, pageSize);
-        var campaigns = await _mediator.Send(query, cancellationToken);
+        var campaigns = await mediator.Send(query, cancellationToken);
         return Ok(campaigns);
     }
 
@@ -436,11 +428,11 @@ public class PreOrdersController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var query = new GetPreOrderCampaignsByProductQuery(productId, page, pageSize);
-        var campaigns = await _mediator.Send(query, cancellationToken);
+        var campaigns = await mediator.Send(query, cancellationToken);
         return Ok(campaigns);
     }
 
@@ -483,7 +475,7 @@ public class PreOrdersController : BaseController
             dto.MaxQuantity,
             dto.DepositPercentage,
             dto.SpecialPrice);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -517,7 +509,7 @@ public class PreOrdersController : BaseController
         CancellationToken cancellationToken = default)
     {
         var command = new DeactivatePreOrderCampaignCommand(id);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
         {
@@ -546,7 +538,7 @@ public class PreOrdersController : BaseController
     public async Task<ActionResult<PreOrderStatsDto>> GetStats(CancellationToken cancellationToken = default)
     {
         var query = new GetPreOrderStatsQuery();
-        var stats = await _mediator.Send(query, cancellationToken);
+        var stats = await mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 }

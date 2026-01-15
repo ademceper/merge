@@ -8,19 +8,14 @@ namespace Merge.Application.Catalog.EventHandlers;
 /// Product Bundle Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class ProductBundleUpdatedEventHandler : INotificationHandler<ProductBundleUpdatedEvent>
+public class ProductBundleUpdatedEventHandler(
+    ILogger<ProductBundleUpdatedEventHandler> logger) : INotificationHandler<ProductBundleUpdatedEvent>
 {
-    private readonly ILogger<ProductBundleUpdatedEventHandler> _logger;
-
-    public ProductBundleUpdatedEventHandler(ILogger<ProductBundleUpdatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(ProductBundleUpdatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Product bundle updated event received. BundleId: {BundleId}, Name: {Name}, BundlePrice: {BundlePrice}",
             notification.BundleId, notification.Name, notification.BundlePrice);
 
@@ -38,7 +33,7 @@ public class ProductBundleUpdatedEventHandler : INotificationHandler<ProductBund
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling ProductBundleUpdatedEvent. BundleId: {BundleId}, Name: {Name}",
                 notification.BundleId, notification.Name);
             throw;

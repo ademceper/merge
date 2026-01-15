@@ -13,28 +13,20 @@ namespace Merge.Application.Cart.Queries.IsInWishlist;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class IsInWishlistQueryHandler : IRequestHandler<IsInWishlistQuery, bool>
+public class IsInWishlistQueryHandler(
+    IDbContext context,
+    ILogger<IsInWishlistQueryHandler> logger) : IRequestHandler<IsInWishlistQuery, bool>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<IsInWishlistQueryHandler> _logger;
-
-    public IsInWishlistQueryHandler(
-        IDbContext context,
-        ILogger<IsInWishlistQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(IsInWishlistQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogDebug("Checking if product {ProductId} is in wishlist for user {UserId}",
+        logger.LogDebug("Checking if product {ProductId} is in wishlist for user {UserId}",
             request.ProductId, request.UserId);
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !w.IsDeleted check (Global Query Filter handles it)
         // ✅ PERFORMANCE: Pre-fetch IDs and use Contains() instead of .Any() for better performance
-        var wishlistProductIds = await _context.Set<Wishlist>()
+        var wishlistProductIds = await context.Set<Wishlist>()
             .AsNoTracking()
             .Where(w => w.UserId == request.UserId)
             .Select(w => w.ProductId)
@@ -42,7 +34,7 @@ public class IsInWishlistQueryHandler : IRequestHandler<IsInWishlistQuery, bool>
 
         var exists = wishlistProductIds.Contains(request.ProductId);
 
-        _logger.LogDebug("Product {ProductId} exists in wishlist for user {UserId}: {Exists}",
+        logger.LogDebug("Product {ProductId} exists in wishlist for user {UserId}: {Exists}",
             request.ProductId, request.UserId, exists);
 
         return exists;

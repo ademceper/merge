@@ -17,34 +17,24 @@ namespace Merge.Application.Analytics.Queries.GetTopReviewedProducts;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetTopReviewedProductsQueryHandler : IRequestHandler<GetTopReviewedProductsQuery, List<TopReviewedProductDto>>
+public class GetTopReviewedProductsQueryHandler(
+    IDbContext context,
+    ILogger<GetTopReviewedProductsQueryHandler> logger,
+    IOptions<AnalyticsSettings> settings) : IRequestHandler<GetTopReviewedProductsQuery, List<TopReviewedProductDto>>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetTopReviewedProductsQueryHandler> _logger;
-    private readonly AnalyticsSettings _settings;
-
-    public GetTopReviewedProductsQueryHandler(
-        IDbContext context,
-        ILogger<GetTopReviewedProductsQueryHandler> logger,
-        IOptions<AnalyticsSettings> settings)
-    {
-        _context = context;
-        _logger = logger;
-        _settings = settings.Value;
-    }
 
     public async Task<List<TopReviewedProductDto>> Handle(GetTopReviewedProductsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching top reviewed products. Limit: {Limit}", request.Limit);
+        logger.LogInformation("Fetching top reviewed products. Limit: {Limit}", request.Limit);
 
         // ✅ BOLUM 12.0: Magic number config'den - eğer default değer kullanılıyorsa config'den al
-        var limit = request.Limit == 10 ? _settings.TopProductsLimit : request.Limit;
+        var limit = request.Limit == 10 ? settings.Value.TopProductsLimit : request.Limit;
         
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
         // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
-        return await _context.Set<ReviewEntity>()
+        return await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.Product)
             .Where(r => r.IsApproved)

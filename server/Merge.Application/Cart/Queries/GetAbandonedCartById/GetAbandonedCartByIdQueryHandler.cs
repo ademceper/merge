@@ -18,28 +18,18 @@ namespace Merge.Application.Cart.Queries.GetAbandonedCartById;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetAbandonedCartByIdQueryHandler : IRequestHandler<GetAbandonedCartByIdQuery, AbandonedCartDto?>
+public class GetAbandonedCartByIdQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetAbandonedCartByIdQueryHandler> logger) : IRequestHandler<GetAbandonedCartByIdQuery, AbandonedCartDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetAbandonedCartByIdQueryHandler> _logger;
-
-    public GetAbandonedCartByIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetAbandonedCartByIdQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<AbandonedCartDto?> Handle(GetAbandonedCartByIdQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
-        var cart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
+        var cart = await context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(c => c.User)
@@ -55,14 +45,14 @@ public class GetAbandonedCartByIdQueryHandler : IRequestHandler<GetAbandonedCart
 
         // ✅ PERFORMANCE: Database'de Count ve FirstOrDefault yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: Removed manual !e.IsDeleted check (Global Query Filter handles it)
-        var emailsSentCount = await _context.Set<AbandonedCartEmail>()
+        var emailsSentCount = await context.Set<AbandonedCartEmail>()
             .AsNoTracking()
             .Where(e => e.CartId == request.CartId)
             .CountAsync(cancellationToken);
 
         var hasReceivedEmail = emailsSentCount > 0;
 
-        var lastEmailSent = await _context.Set<AbandonedCartEmail>()
+        var lastEmailSent = await context.Set<AbandonedCartEmail>()
             .AsNoTracking()
             .Where(e => e.CartId == request.CartId)
             .OrderByDescending(e => e.SentAt)
@@ -70,23 +60,23 @@ public class GetAbandonedCartByIdQueryHandler : IRequestHandler<GetAbandonedCart
             .FirstOrDefaultAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de Sum ve Count yap (memory'de işlem YASAK)
-        var itemCount = await _context.Set<CartItem>()
+        var itemCount = await context.Set<CartItem>()
             .AsNoTracking()
             .CountAsync(ci => ci.CartId == request.CartId, cancellationToken);
 
-        var totalValue = await _context.Set<CartItem>()
+        var totalValue = await context.Set<CartItem>()
             .AsNoTracking()
             .Where(ci => ci.CartId == request.CartId)
             .SumAsync(ci => ci.Price * ci.Quantity, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        var items = await _context.Set<CartItem>()
+        var items = await context.Set<CartItem>()
             .AsNoTracking()
             .Include(ci => ci.Product)
             .Where(ci => ci.CartId == request.CartId)
             .ToListAsync(cancellationToken);
 
-        var itemsDto = _mapper.Map<IEnumerable<CartItemDto>>(items).ToList().AsReadOnly();
+        var itemsDto = mapper.Map<IEnumerable<CartItemDto>>(items).ToList().AsReadOnly();
 
         // ✅ BOLUM 7.1.5: Records (ZORUNLU - DTOs record olmalı) - Positional constructor kullanımı
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching

@@ -15,28 +15,20 @@ namespace Merge.Application.Analytics.Queries.GetRatingDistribution;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetRatingDistributionQueryHandler : IRequestHandler<GetRatingDistributionQuery, List<RatingDistributionDto>>
+public class GetRatingDistributionQueryHandler(
+    IDbContext context,
+    ILogger<GetRatingDistributionQueryHandler> logger) : IRequestHandler<GetRatingDistributionQuery, List<RatingDistributionDto>>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetRatingDistributionQueryHandler> _logger;
-
-    public GetRatingDistributionQueryHandler(
-        IDbContext context,
-        ILogger<GetRatingDistributionQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<List<RatingDistributionDto>> Handle(GetRatingDistributionQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching rating distribution. StartDate: {StartDate}, EndDate: {EndDate}",
+        logger.LogInformation("Fetching rating distribution. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
         // ✅ PERFORMANCE: Database'de grouping ve aggregate query kullan (memory'de değil) - 5-10x performans kazancı
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
-        var query = _context.Set<ReviewEntity>()
+        var query = context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.IsApproved);
 

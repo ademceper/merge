@@ -18,50 +18,40 @@ namespace Merge.Application.Analytics.Queries.GetInventoryAnalytics;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetInventoryAnalyticsQueryHandler : IRequestHandler<GetInventoryAnalyticsQuery, InventoryAnalyticsDto>
+public class GetInventoryAnalyticsQueryHandler(
+    IDbContext context,
+    ILogger<GetInventoryAnalyticsQueryHandler> logger,
+    IOptions<AnalyticsSettings> settings) : IRequestHandler<GetInventoryAnalyticsQuery, InventoryAnalyticsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetInventoryAnalyticsQueryHandler> _logger;
-    private readonly AnalyticsSettings _settings;
-
-    public GetInventoryAnalyticsQueryHandler(
-        IDbContext context,
-        ILogger<GetInventoryAnalyticsQueryHandler> logger,
-        IOptions<AnalyticsSettings> settings)
-    {
-        _context = context;
-        _logger = logger;
-        _settings = settings.Value;
-    }
 
     public async Task<InventoryAnalyticsDto> Handle(GetInventoryAnalyticsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching inventory analytics");
+        logger.LogInformation("Fetching inventory analytics");
 
-        var totalProducts = await _context.Set<ProductEntity>()
+        var totalProducts = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(cancellationToken);
 
-        var totalStock = await _context.Set<ProductEntity>()
+        var totalStock = await context.Set<ProductEntity>()
             .AsNoTracking()
             .SumAsync(p => p.StockQuantity, cancellationToken);
 
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var lowStock = await _context.Set<ProductEntity>()
+        var lowStock = await context.Set<ProductEntity>()
             .AsNoTracking()
-            .CountAsync(p => p.StockQuantity > 0 && p.StockQuantity < _settings.LowStockThreshold, cancellationToken);
+            .CountAsync(p => p.StockQuantity > 0 && p.StockQuantity < settings.Value.LowStockThreshold, cancellationToken);
 
-        var outOfStock = await _context.Set<ProductEntity>()
+        var outOfStock = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StockQuantity == 0, cancellationToken);
 
-        var totalValue = await _context.Set<ProductEntity>()
+        var totalValue = await context.Set<ProductEntity>()
             .AsNoTracking()
             .SumAsync(p => p.Price * p.StockQuantity, cancellationToken);
 
         // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var lowStockProducts = await GetLowStockProductsAsync(_settings.MaxQueryLimit, cancellationToken);
+        var lowStockProducts = await GetLowStockProductsAsync(settings.Value.MaxQueryLimit, cancellationToken);
         var stockByWarehouse = await GetStockByWarehouseAsync(cancellationToken);
         
         return new InventoryAnalyticsDto(
@@ -78,8 +68,8 @@ public class GetInventoryAnalyticsQueryHandler : IRequestHandler<GetInventoryAna
 
     private async Task<List<LowStockProductDto>> GetLowStockProductsAsync(int limit, CancellationToken cancellationToken)
     {
-        var threshold = _settings.DefaultLowStockThreshold;
-        return await _context.Set<ProductEntity>()
+        var threshold = settings.Value.DefaultLowStockThreshold;
+        return await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.StockQuantity < threshold && p.StockQuantity > 0)
             .Select(p => new LowStockProductDto(
@@ -97,7 +87,7 @@ public class GetInventoryAnalyticsQueryHandler : IRequestHandler<GetInventoryAna
 
     private async Task<List<WarehouseStockDto>> GetStockByWarehouseAsync(CancellationToken cancellationToken)
     {
-        return await _context.Set<Inventory>()
+        return await context.Set<Inventory>()
             .AsNoTracking()
             .Include(i => i.Warehouse)
             .Include(i => i.Product)

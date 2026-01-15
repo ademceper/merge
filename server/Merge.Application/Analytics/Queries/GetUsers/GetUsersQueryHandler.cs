@@ -16,54 +16,40 @@ namespace Merge.Application.Analytics.Queries.GetUsers;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, PagedResult<UserDto>>
+public class GetUsersQueryHandler(
+    IDbContext context,
+    ILogger<GetUsersQueryHandler> logger,
+    IOptions<AnalyticsSettings> settings,
+    IOptions<PaginationSettings> paginationSettings,
+    IMapper mapper) : IRequestHandler<GetUsersQuery, PagedResult<UserDto>>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetUsersQueryHandler> _logger;
-    private readonly AnalyticsSettings _settings;
-    private readonly PaginationSettings _paginationSettings;
-    private readonly IMapper _mapper;
-
-    public GetUsersQueryHandler(
-        IDbContext context,
-        ILogger<GetUsersQueryHandler> logger,
-        IOptions<AnalyticsSettings> settings,
-        IOptions<PaginationSettings> paginationSettings,
-        IMapper mapper)
-    {
-        _context = context;
-        _logger = logger;
-        _settings = settings.Value;
-        _paginationSettings = paginationSettings.Value;
-        _mapper = mapper;
-    }
 
     public async Task<PagedResult<UserDto>> Handle(GetUsersQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching users. Page: {Page}, PageSize: {PageSize}, Role: {Role}", 
+        logger.LogInformation("Fetching users. Page: {Page}, PageSize: {PageSize}, Role: {Role}", 
             request.Page, request.PageSize, request.Role);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var pageSize = request.PageSize <= 0 ? _settings.DefaultPageSize : request.PageSize;
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        var pageSize = request.PageSize <= 0 ? settings.Value.DefaultPageSize : request.PageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !u.IsDeleted check (Global Query Filter handles it)
-        var query = _context.Users.AsNoTracking();
+        var query = context.Users.AsNoTracking();
 
         if (!string.IsNullOrEmpty(request.Role))
         {
             // ✅ Identity framework'ün Role ve UserRole entity'leri IDbContext üzerinden erişiliyor
             // ✅ PERFORMANCE: .Any() YASAK - .cursorrules - Role'ü önce bulup join yap
-            var role = await _context.Roles
+            var role = await context.Roles
                 .AsNoTracking()
                 .FirstOrDefaultAsync(r => r.Name == request.Role, cancellationToken);
             
             if (role != null)
             {
-                var userIdsWithRole = await _context.UserRoles
+                var userIdsWithRole = await context.UserRoles
                     .AsNoTracking()
                     .Where(ur => ur.RoleId == role.Id)
                     .Select(ur => ur.UserId)
@@ -97,7 +83,7 @@ public class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, PagedResult<U
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
         return new PagedResult<UserDto>
         {
-            Items = _mapper.Map<List<UserDto>>(users),
+            Items = mapper.Map<List<UserDto>>(users),
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize

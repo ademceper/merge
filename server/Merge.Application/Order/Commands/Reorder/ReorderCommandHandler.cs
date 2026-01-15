@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.DTOs.Order;
 using Merge.Application.Interfaces;
-using Merge.Application.Interfaces.Cart;
 using Merge.Application.Exceptions;
 using Merge.Application.Order.Commands.CreateOrderFromCart;
 using OrderEntity = Merge.Domain.Modules.Ordering.Order;

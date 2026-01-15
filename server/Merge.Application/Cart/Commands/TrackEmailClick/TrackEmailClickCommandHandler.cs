@@ -13,26 +13,16 @@ namespace Merge.Application.Cart.Commands.TrackEmailClick;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class TrackEmailClickCommandHandler : IRequestHandler<TrackEmailClickCommand, bool>
+public class TrackEmailClickCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<TrackEmailClickCommandHandler> logger) : IRequestHandler<TrackEmailClickCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<TrackEmailClickCommandHandler> _logger;
-
-    public TrackEmailClickCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<TrackEmailClickCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(TrackEmailClickCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Removed manual !e.IsDeleted check (Global Query Filter handles it)
-        var email = await _context.Set<AbandonedCartEmail>()
+        var email = await context.Set<AbandonedCartEmail>()
             .FirstOrDefaultAsync(e => e.Id == request.EmailId, cancellationToken);
 
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
@@ -43,7 +33,7 @@ public class TrackEmailClickCommandHandler : IRequestHandler<TrackEmailClickComm
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
         email.MarkAsClicked();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         
         return true;
     }

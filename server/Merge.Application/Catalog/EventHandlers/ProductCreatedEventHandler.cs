@@ -8,19 +8,14 @@ namespace Merge.Application.Catalog.EventHandlers;
 /// Product Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class ProductCreatedEventHandler : INotificationHandler<ProductCreatedEvent>
+public class ProductCreatedEventHandler(
+    ILogger<ProductCreatedEventHandler> logger) : INotificationHandler<ProductCreatedEvent>
 {
-    private readonly ILogger<ProductCreatedEventHandler> _logger;
-
-    public ProductCreatedEventHandler(ILogger<ProductCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(ProductCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Product created event received. ProductId: {ProductId}, Name: {Name}, SKU: {SKU}, CategoryId: {CategoryId}, SellerId: {SellerId}",
             notification.ProductId, notification.Name, notification.SKU, notification.CategoryId, notification.SellerId);
 
@@ -40,7 +35,7 @@ public class ProductCreatedEventHandler : INotificationHandler<ProductCreatedEve
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling ProductCreatedEvent. ProductId: {ProductId}, Name: {Name}, SKU: {SKU}",
                 notification.ProductId, notification.Name, notification.SKU);
             throw;

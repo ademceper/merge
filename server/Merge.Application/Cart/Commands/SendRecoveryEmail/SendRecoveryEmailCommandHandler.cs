@@ -23,36 +23,20 @@ namespace Merge.Application.Cart.Commands.SendRecoveryEmail;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class SendRecoveryEmailCommandHandler : IRequestHandler<SendRecoveryEmailCommand>
+public class SendRecoveryEmailCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IEmailService emailService,
+    IMediator mediator,
+    ILogger<SendRecoveryEmailCommandHandler> logger,
+    IOptions<CartSettings> cartSettings) : IRequestHandler<SendRecoveryEmailCommand>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IEmailService _emailService;
-    private readonly IMediator _mediator;
-    private readonly ILogger<SendRecoveryEmailCommandHandler> _logger;
-    private readonly CartSettings _cartSettings;
-
-    public SendRecoveryEmailCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IEmailService emailService,
-        IMediator mediator,
-        ILogger<SendRecoveryEmailCommandHandler> logger,
-        IOptions<CartSettings> cartSettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _emailService = emailService;
-        _mediator = mediator;
-        _logger = logger;
-        _cartSettings = cartSettings.Value;
-    }
 
     public async Task Handle(SendRecoveryEmailCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        var cart = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
+        var cart = await context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .AsSplitQuery()
             .Include(c => c.User)
             .Include(c => c.CartItems)
@@ -78,7 +62,7 @@ public class SendRecoveryEmailCommandHandler : IRequestHandler<SendRecoveryEmail
         if (request.IncludeCoupon)
         {
             // ✅ BOLUM 2.3: Hardcoded Values YASAK (Configuration Kullan)
-            var discount = request.CouponDiscountPercentage ?? _cartSettings.DefaultAbandonedCartCouponDiscount;
+            var discount = request.CouponDiscountPercentage ?? cartSettings.Value.DefaultAbandonedCartCouponDiscount;
             
             // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
             var createCouponCommand = new CreateCouponCommand(
@@ -87,7 +71,7 @@ public class SendRecoveryEmailCommandHandler : IRequestHandler<SendRecoveryEmail
                 DiscountAmount: null,
                 DiscountPercentage: discount,
                 StartDate: DateTime.UtcNow,
-                EndDate: DateTime.UtcNow.AddDays(_cartSettings.AbandonedCartCouponValidityDays),
+                EndDate: DateTime.UtcNow.AddDays(cartSettings.Value.AbandonedCartCouponValidityDays),
                 UsageLimit: 1,
                 MinimumPurchaseAmount: 0,
                 MaximumDiscountAmount: null,
@@ -95,7 +79,7 @@ public class SendRecoveryEmailCommandHandler : IRequestHandler<SendRecoveryEmail
                 ApplicableCategoryIds: null,
                 ApplicableProductIds: null);
 
-            var createdCoupon = await _mediator.Send(createCouponCommand, cancellationToken);
+            var createdCoupon = await mediator.Send(createCouponCommand, cancellationToken);
             couponId = createdCoupon.Id;
             couponCode = createdCoupon.Code;
         }
@@ -118,7 +102,7 @@ public class SendRecoveryEmailCommandHandler : IRequestHandler<SendRecoveryEmail
         }
 
         // ✅ PERFORMANCE: Database'de Sum yap (memory'de işlem YASAK)
-        var totalValue = await _context.Set<CartItem>()
+        var totalValue = await context.Set<CartItem>()
             .AsNoTracking()
             .Where(ci => ci.CartId == request.CartId)
             .SumAsync(ci => ci.Price * ci.Quantity, cancellationToken);
@@ -133,13 +117,13 @@ public class SendRecoveryEmailCommandHandler : IRequestHandler<SendRecoveryEmail
         ";
 
         // ✅ NOTE: IEmailService interface'inde CancellationToken var
-        await _emailService.SendEmailAsync(user.Email, subject, body, true, cancellationToken);
+        await emailService.SendEmailAsync(user.Email, subject, body, true, cancellationToken);
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
         var abandonedCartEmail = AbandonedCartEmail.Create(request.CartId, user.Id, request.EmailType, couponId);
 
-        await _context.Set<AbandonedCartEmail>().AddAsync(abandonedCartEmail, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<AbandonedCartEmail>().AddAsync(abandonedCartEmail, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }
 

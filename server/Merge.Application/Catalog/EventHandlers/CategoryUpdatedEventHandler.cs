@@ -8,19 +8,14 @@ namespace Merge.Application.Catalog.EventHandlers;
 /// Category Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class CategoryUpdatedEventHandler : INotificationHandler<CategoryUpdatedEvent>
+public class CategoryUpdatedEventHandler(
+    ILogger<CategoryUpdatedEventHandler> logger) : INotificationHandler<CategoryUpdatedEvent>
 {
-    private readonly ILogger<CategoryUpdatedEventHandler> _logger;
-
-    public CategoryUpdatedEventHandler(ILogger<CategoryUpdatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(CategoryUpdatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Category updated event received. CategoryId: {CategoryId}, Name: {Name}, Slug: {Slug}",
             notification.CategoryId, notification.Name, notification.Slug);
 
@@ -38,7 +33,7 @@ public class CategoryUpdatedEventHandler : INotificationHandler<CategoryUpdatedE
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling CategoryUpdatedEvent. CategoryId: {CategoryId}, Name: {Name}",
                 notification.CategoryId, notification.Name);
             throw;

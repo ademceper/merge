@@ -8,19 +8,14 @@ namespace Merge.Application.Catalog.EventHandlers;
 /// Shared Wishlist Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class SharedWishlistUpdatedEventHandler : INotificationHandler<SharedWishlistUpdatedEvent>
+public class SharedWishlistUpdatedEventHandler(
+    ILogger<SharedWishlistUpdatedEventHandler> logger) : INotificationHandler<SharedWishlistUpdatedEvent>
 {
-    private readonly ILogger<SharedWishlistUpdatedEventHandler> _logger;
-
-    public SharedWishlistUpdatedEventHandler(ILogger<SharedWishlistUpdatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(SharedWishlistUpdatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Shared wishlist updated event received. SharedWishlistId: {SharedWishlistId}, UserId: {UserId}, Name: {Name}",
             notification.SharedWishlistId, notification.UserId, notification.Name);
 
@@ -37,7 +32,7 @@ public class SharedWishlistUpdatedEventHandler : INotificationHandler<SharedWish
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling SharedWishlistUpdatedEvent. SharedWishlistId: {SharedWishlistId}, UserId: {UserId}",
                 notification.SharedWishlistId, notification.UserId);
             throw;

@@ -17,30 +17,20 @@ namespace Merge.Application.Cart.Queries.GetUserPreOrders;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetUserPreOrdersQueryHandler : IRequestHandler<GetUserPreOrdersQuery, PagedResult<PreOrderDto>>
+public class GetUserPreOrdersQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetUserPreOrdersQuery, PagedResult<PreOrderDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly PaginationSettings _paginationSettings;
-
-    public GetUserPreOrdersQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     public async Task<PagedResult<PreOrderDto>> Handle(GetUserPreOrdersQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize ? _paginationSettings.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        var query = _context.Set<PreOrder>()
+        var query = context.Set<PreOrder>()
             .AsNoTracking()
             .Include(po => po.Product)
             .Where(po => po.UserId == request.UserId);
@@ -55,7 +45,7 @@ public class GetUserPreOrdersQueryHandler : IRequestHandler<GetUserPreOrdersQuer
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        var items = _mapper.Map<List<PreOrderDto>>(preOrders);
+        var items = mapper.Map<List<PreOrderDto>>(preOrders);
 
         // ✅ BOLUM 3.4: Pagination (ZORUNLU) - PagedResult döndürüyor
         return new PagedResult<PreOrderDto>

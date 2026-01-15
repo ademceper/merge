@@ -21,34 +21,19 @@ namespace Merge.Application.Analytics.Queries.GetFinancialReport;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetFinancialReportQueryHandler : IRequestHandler<GetFinancialReportQuery, FinancialReportDto>
+public class GetFinancialReportQueryHandler(
+    IDbContext context,
+    ILogger<GetFinancialReportQueryHandler> logger,
+    IOptions<AnalyticsSettings> settings,
+    IMapper mapper) : IRequestHandler<GetFinancialReportQuery, FinancialReportDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetFinancialReportQueryHandler> _logger;
-    private readonly AnalyticsSettings _settings;
-    private readonly IMapper _mapper;
-
-    public GetFinancialReportQueryHandler(
-        IDbContext context,
-        ILogger<GetFinancialReportQueryHandler> logger,
-        IOptions<AnalyticsSettings> settings,
-        IMapper mapper)
-    {
-        _context = context;
-        _logger = logger;
-        _settings = settings.Value;
-        _mapper = mapper;
-    }
 
     public async Task<FinancialReportDto> Handle(GetFinancialReportQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching financial report. StartDate: {StartDate}, EndDate: {EndDate}",
+        logger.LogInformation("Fetching financial report. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
-        // ✅ PERFORMANCE: Database'de aggregate query kullan (basit aggregateler için)
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
-        var ordersQuery = _context.Set<OrderEntity>()
+        var ordersQuery = context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= request.StartDate &&
@@ -68,25 +53,25 @@ public class GetFinancialReportQueryHandler : IRequestHandler<GetFinancialReport
         // ✅ PERFORMANCE: orderIds boşsa Contains() hiçbir şey döndürmez, direkt SumAsync çağırabiliriz
         // List.Count kontrolü gerekmez çünkü boş liste Contains() ile hiçbir şey match etmez
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var productCosts = await _context.Set<OrderItem>()
+        var productCosts = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => orderIds.Contains(oi.OrderId))
-            .SumAsync(oi => oi.UnitPrice * oi.Quantity * _settings.ProductCostPercentage, cancellationToken);
+            .SumAsync(oi => oi.UnitPrice * oi.Quantity * settings.Value.ProductCostPercentage, cancellationToken);
         
         // ✅ PERFORMANCE: Basit aggregateler database'de yapılabilir ama orders zaten çekilmiş (OrderItems için)
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var shippingCosts = await ordersQuery.SumAsync(o => o.ShippingCost * _settings.ShippingCostPercentage, cancellationToken);
-        var platformFees = await ordersQuery.SumAsync(o => o.TotalAmount * _settings.PlatformFeePercentage, cancellationToken);
+        var shippingCosts = await ordersQuery.SumAsync(o => o.ShippingCost * settings.Value.ShippingCostPercentage, cancellationToken);
+        var platformFees = await ordersQuery.SumAsync(o => o.TotalAmount * settings.Value.PlatformFeePercentage, cancellationToken);
         var discountGiven = await ordersQuery.SumAsync(o => (o.CouponDiscount ?? 0) + (o.GiftCardDiscount ?? 0), cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !sc.IsDeleted and !r.IsDeleted checks (Global Query Filter handles it)
-        var commissionPaid = await _context.Set<SellerCommission>()
+        var commissionPaid = await context.Set<SellerCommission>()
             .AsNoTracking()
             .Where(sc => sc.CreatedAt >= request.StartDate &&
                   sc.CreatedAt <= request.EndDate)
             .SumAsync(sc => sc.CommissionAmount, cancellationToken);
-        var refundAmount = await _context.Set<ReturnRequest>()
+        var refundAmount = await context.Set<ReturnRequest>()
             .AsNoTracking()
             .Where(r => r.Status == ReturnRequestStatus.Approved &&
                   r.CreatedAt >= request.StartDate &&
@@ -106,7 +91,7 @@ public class GetFinancialReportQueryHandler : IRequestHandler<GetFinancialReport
         // ✅ PERFORMANCE: Database'de toplam hesapla (memory'de Sum YASAK)
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted check (Global Query Filter handles it)
-        var previousOrdersQuery = _context.Set<OrderEntity>()
+        var previousOrdersQuery = context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= previousStartDate &&
@@ -114,12 +99,12 @@ public class GetFinancialReportQueryHandler : IRequestHandler<GetFinancialReport
 
         var previousRevenue = await previousOrdersQuery.SumAsync(o => o.TotalAmount, cancellationToken);
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var previousProfit = previousRevenue - (previousRevenue * _settings.DefaultCostPercentage);
+        var previousProfit = previousRevenue - (previousRevenue * settings.Value.DefaultCostPercentage);
         var revenueGrowth = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0;
         var profitGrowth = previousProfit > 0 ? ((netProfit - previousProfit) / previousProfit) * 100 : 0;
 
         // ✅ PERFORMANCE: Revenue by category - Database'de grouping yap (memory'de değil)
-        var revenueByCategory = await _context.Set<OrderItem>()
+        var revenueByCategory = await context.Set<OrderItem>()
             .AsNoTracking()
             .Include(oi => oi.Product)
             .ThenInclude(p => p.Category)
@@ -139,7 +124,7 @@ public class GetFinancialReportQueryHandler : IRequestHandler<GetFinancialReport
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Revenue by date - Database'de grouping yap (memory'de değil)
-        var revenueByDate = await _context.Set<OrderEntity>()
+        var revenueByDate = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= request.StartDate &&
@@ -148,8 +133,8 @@ public class GetFinancialReportQueryHandler : IRequestHandler<GetFinancialReport
             .Select(g => new RevenueByDateDto(
                 g.Key,
                 g.Sum(o => o.TotalAmount),
-                g.Sum(o => o.TotalAmount * _settings.DefaultCostPercentage),
-                g.Sum(o => o.TotalAmount * _settings.DefaultProfitPercentage),
+                g.Sum(o => o.TotalAmount * settings.Value.DefaultCostPercentage),
+                g.Sum(o => o.TotalAmount * settings.Value.DefaultProfitPercentage),
                 g.Count()
             ))
             .OrderBy(r => r.Date)
@@ -168,7 +153,7 @@ public class GetFinancialReportQueryHandler : IRequestHandler<GetFinancialReport
         };
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        var expensesByType = _mapper.Map<List<ExpenseByTypeDto>>(expensesByTypeData);
+        var expensesByType = mapper.Map<List<ExpenseByTypeDto>>(expensesByTypeData);
 
         // ✅ ARCHITECTURE: FinancialReportDto entity'den gelmiyor, hesaplanmış değerler olduğu için
         // anonymous type'dan DTO'ya AutoMapper ile mapping yapıyoruz (property isimleri aynı olduğu için otomatik map eder)
@@ -200,7 +185,7 @@ public class GetFinancialReportQueryHandler : IRequestHandler<GetFinancialReport
         };
 
         // ✅ ARCHITECTURE: AutoMapper kullanımı (manuel mapping yerine)
-        return _mapper.Map<FinancialReportDto>(financialReportData);
+        return mapper.Map<FinancialReportDto>(financialReportData);
     }
 }
 

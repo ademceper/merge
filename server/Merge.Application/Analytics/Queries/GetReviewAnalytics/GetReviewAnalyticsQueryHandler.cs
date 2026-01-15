@@ -19,31 +19,21 @@ namespace Merge.Application.Analytics.Queries.GetReviewAnalytics;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetReviewAnalyticsQueryHandler : IRequestHandler<GetReviewAnalyticsQuery, ReviewAnalyticsDto>
+public class GetReviewAnalyticsQueryHandler(
+    IDbContext context,
+    ILogger<GetReviewAnalyticsQueryHandler> logger,
+    IOptions<AnalyticsSettings> settings) : IRequestHandler<GetReviewAnalyticsQuery, ReviewAnalyticsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetReviewAnalyticsQueryHandler> _logger;
-    private readonly AnalyticsSettings _settings;
-
-    public GetReviewAnalyticsQueryHandler(
-        IDbContext context,
-        ILogger<GetReviewAnalyticsQueryHandler> logger,
-        IOptions<AnalyticsSettings> settings)
-    {
-        _context = context;
-        _logger = logger;
-        _settings = settings.Value;
-    }
 
     public async Task<ReviewAnalyticsDto> Handle(GetReviewAnalyticsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching review analytics. StartDate: {StartDate}, EndDate: {EndDate}",
+        logger.LogInformation("Fetching review analytics. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
         // ✅ PERFORMANCE: Database'de aggregate query kullan (memory'de değil) - 5-10x performans kazancı
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted check (Global Query Filter handles it)
-        var reviewsQuery = _context.Set<ReviewEntity>()
+        var reviewsQuery = context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.CreatedAt >= request.StartDate && r.CreatedAt <= request.EndDate);
 
@@ -66,7 +56,7 @@ public class GetReviewAnalyticsQueryHandler : IRequestHandler<GetReviewAnalytics
         // ✅ PERFORMANCE: .Any() YASAK - .cursorrules - .Count() > 0 kullan
         var reviewIds = await reviewsQuery.Select(r => r.Id).ToListAsync(cancellationToken);
         var reviewsWithMedia = reviewIds.Count > 0
-            ? await _context.Set<ReviewMedia>()
+            ? await context.Set<ReviewMedia>()
                 .AsNoTracking()
                 .Where(rm => reviewIds.Contains(rm.ReviewId))
                 .Select(rm => rm.ReviewId)
@@ -89,14 +79,14 @@ public class GetReviewAnalyticsQueryHandler : IRequestHandler<GetReviewAnalytics
             await GetRatingDistributionAsync(request.StartDate, request.EndDate, cancellationToken),
             await GetReviewTrendsAsync(request.StartDate, request.EndDate, cancellationToken),
             // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-            await GetTopReviewedProductsAsync(_settings.MaxQueryLimit, cancellationToken),
-            await GetTopReviewersAsync(_settings.MaxQueryLimit, cancellationToken)
+            await GetTopReviewedProductsAsync(settings.Value.MaxQueryLimit, cancellationToken),
+            await GetTopReviewersAsync(settings.Value.MaxQueryLimit, cancellationToken)
         );
     }
 
     private async Task<List<RatingDistributionDto>> GetRatingDistributionAsync(DateTime? startDate, DateTime? endDate, CancellationToken cancellationToken)
     {
-        var query = _context.Set<ReviewEntity>()
+        var query = context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.IsApproved);
 
@@ -131,7 +121,7 @@ public class GetReviewAnalyticsQueryHandler : IRequestHandler<GetReviewAnalytics
 
     private async Task<List<ReviewTrendDto>> GetReviewTrendsAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
     {
-        return await _context.Set<ReviewEntity>()
+        return await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.IsApproved && r.CreatedAt >= startDate && r.CreatedAt <= endDate)
             .GroupBy(r => r.CreatedAt.Date)
@@ -146,7 +136,7 @@ public class GetReviewAnalyticsQueryHandler : IRequestHandler<GetReviewAnalytics
 
     private async Task<List<TopReviewedProductDto>> GetTopReviewedProductsAsync(int limit, CancellationToken cancellationToken)
     {
-        return await _context.Set<ReviewEntity>()
+        return await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.Product)
             .Where(r => r.IsApproved)
@@ -166,7 +156,7 @@ public class GetReviewAnalyticsQueryHandler : IRequestHandler<GetReviewAnalytics
 
     private async Task<List<ReviewerStatsDto>> GetTopReviewersAsync(int limit, CancellationToken cancellationToken)
     {
-        return await _context.Set<ReviewEntity>()
+        return await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.User)
             .Where(r => r.IsApproved)

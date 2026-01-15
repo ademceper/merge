@@ -23,18 +23,10 @@ namespace Merge.API.Controllers.Cart;
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/cart/abandoned")]
-public class AbandonedCartsController : BaseController
+public class AbandonedCartsController(
+    IMediator mediator,
+    IOptions<PaginationSettings> paginationSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-    private readonly PaginationSettings _paginationSettings;
-
-    public AbandonedCartsController(
-        IMediator mediator,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _mediator = mediator;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     /// <summary>
     /// Tüm terk edilmiş sepetleri getirir (Admin/Manager only)
@@ -67,11 +59,11 @@ public class AbandonedCartsController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var query = new GetAbandonedCartsQuery(minHours, maxDays, page, pageSize);
-        var carts = await _mediator.Send(query, cancellationToken);
+        var carts = await mediator.Send(query, cancellationToken);
         return Ok(carts);
     }
 
@@ -100,7 +92,7 @@ public class AbandonedCartsController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetAbandonedCartByIdQuery(cartId);
-        var cart = await _mediator.Send(query, cancellationToken);
+        var cart = await mediator.Send(query, cancellationToken);
 
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (cart is null)
@@ -134,7 +126,7 @@ public class AbandonedCartsController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetRecoveryStatsQuery(days);
-        var stats = await _mediator.Send(query, cancellationToken);
+        var stats = await mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 
@@ -173,7 +165,7 @@ public class AbandonedCartsController : BaseController
             dto.IncludeCoupon,
             dto.CouponDiscountPercentage);
         
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -203,7 +195,7 @@ public class AbandonedCartsController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 1.2: Enum Kullanimi (ZORUNLU - String Status YASAK)
         var command = new SendBulkRecoveryEmailsCommand(minHours, emailType);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -226,7 +218,7 @@ public class AbandonedCartsController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new TrackEmailOpenCommand(emailId);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
 
         // Return a 1x1 transparent pixel
         var pixel = Convert.FromBase64String("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
@@ -252,7 +244,7 @@ public class AbandonedCartsController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new TrackEmailClickCommand(emailId);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return Redirect("/cart"); // Redirect to cart page
     }
 
@@ -286,7 +278,7 @@ public class AbandonedCartsController : BaseController
 
         // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
         var cartQuery = new GetAbandonedCartByIdQuery(cartId);
-        var cart = await _mediator.Send(cartQuery, cancellationToken);
+        var cart = await mediator.Send(cartQuery, cancellationToken);
         
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
         if (cart is null)
@@ -301,7 +293,7 @@ public class AbandonedCartsController : BaseController
 
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new MarkCartAsRecoveredCommand(cartId);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return NoContent();
     }
 
@@ -334,7 +326,7 @@ public class AbandonedCartsController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
@@ -348,7 +340,7 @@ public class AbandonedCartsController : BaseController
             }
 
             var cartQuery = new GetAbandonedCartByIdQuery(cartId);
-            var cart = await _mediator.Send(cartQuery, cancellationToken);
+            var cart = await mediator.Send(cartQuery, cancellationToken);
             
             // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
             if (cart is null || cart.UserId != userId)
@@ -358,7 +350,7 @@ public class AbandonedCartsController : BaseController
         }
 
         var query = new GetCartEmailHistoryQuery(cartId, page, pageSize);
-        var history = await _mediator.Send(query, cancellationToken);
+        var history = await mediator.Send(query, cancellationToken);
         return Ok(history);
     }
 }

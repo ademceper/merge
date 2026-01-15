@@ -17,34 +17,24 @@ namespace Merge.Application.Analytics.Queries.GetTopProducts;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetTopProductsQueryHandler : IRequestHandler<GetTopProductsQuery, List<TopProductDto>>
+public class GetTopProductsQueryHandler(
+    IDbContext context,
+    ILogger<GetTopProductsQueryHandler> logger,
+    IOptions<AnalyticsSettings> settings) : IRequestHandler<GetTopProductsQuery, List<TopProductDto>>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetTopProductsQueryHandler> _logger;
-    private readonly AnalyticsSettings _settings;
-
-    public GetTopProductsQueryHandler(
-        IDbContext context,
-        ILogger<GetTopProductsQueryHandler> logger,
-        IOptions<AnalyticsSettings> settings)
-    {
-        _context = context;
-        _logger = logger;
-        _settings = settings.Value;
-    }
 
     public async Task<List<TopProductDto>> Handle(GetTopProductsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching top products. StartDate: {StartDate}, EndDate: {EndDate}, Limit: {Limit}",
+        logger.LogInformation("Fetching top products. StartDate: {StartDate}, EndDate: {EndDate}, Limit: {Limit}",
             request.StartDate, request.EndDate, request.Limit);
 
         // ✅ BOLUM 12.0: Magic number config'den - eğer default değer kullanılıyorsa config'den al
-        var limit = request.Limit == 10 ? _settings.TopProductsLimit : request.Limit;
+        var limit = request.Limit == 10 ? settings.Value.TopProductsLimit : request.Limit;
         
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de değil) - 10x+ performans kazancı
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !oi.IsDeleted and !oi.Order.IsDeleted checks (Global Query Filter handles it)
-        return await _context.Set<OrderItem>()
+        return await context.Set<OrderItem>()
             .AsNoTracking()
             .Include(oi => oi.Product)
             .Include(oi => oi.Order)

@@ -21,29 +21,17 @@ namespace Merge.Application.Cart.Queries.GetAbandonedCarts;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQuery, PagedResult<AbandonedCartDto>>
+public class GetAbandonedCartsQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetAbandonedCartsQueryHandler> logger,
+    IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetAbandonedCartsQuery, PagedResult<AbandonedCartDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetAbandonedCartsQueryHandler> _logger;
-    private readonly PaginationSettings _paginationSettings;
-
-    public GetAbandonedCartsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetAbandonedCartsQueryHandler> logger,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     public async Task<PagedResult<AbandonedCartDto>> Handle(GetAbandonedCartsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize ? _paginationSettings.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var minDate = DateTime.UtcNow.AddDays(-request.MaxDays);
@@ -53,7 +41,7 @@ public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQu
         // ✅ PERFORMANCE: Database'de tüm hesaplamaları yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         // Step 1: Get abandoned cart IDs (carts with items, updated in date range)
-        var abandonedCartIds = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
+        var abandonedCartIds = await context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .AsNoTracking()
             .Where(c => c.CartItems.Any() &&
                        c.UpdatedAt >= minDate &&
@@ -73,7 +61,7 @@ public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQu
         }
 
         // Step 2: Get user IDs for these carts
-        var userIds = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
+        var userIds = await context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .AsNoTracking()
             .Where(c => abandonedCartIds.Contains(c.Id))
             .Select(c => c.UserId)
@@ -81,7 +69,7 @@ public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQu
             .ToListAsync(cancellationToken);
 
         // Step 3: Filter out carts that have been converted to orders
-        var userIdsWithOrders = await _context.Set<Merge.Domain.Modules.Ordering.Order>()
+        var userIdsWithOrders = await context.Set<Merge.Domain.Modules.Ordering.Order>()
             .AsNoTracking()
             .Where(o => userIds.Contains(o.UserId))
             .Select(o => o.UserId)
@@ -89,7 +77,7 @@ public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQu
             .ToListAsync(cancellationToken);
 
         // Step 4: Get final abandoned cart IDs (excluding those converted to orders)
-        var finalAbandonedCartIds = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
+        var finalAbandonedCartIds = await context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .AsNoTracking()
             .Where(c => abandonedCartIds.Contains(c.Id) && 
                        !userIdsWithOrders.Contains(c.UserId))
@@ -111,7 +99,7 @@ public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQu
         var totalCount = finalAbandonedCartIds.Count;
 
         // Step 5: Get cart data with computed properties from database
-        var cartsData = await _context.Set<Merge.Domain.Modules.Ordering.Cart>()
+        var cartsData = await context.Set<Merge.Domain.Modules.Ordering.Cart>()
             .AsNoTracking()
             .Where(c => finalAbandonedCartIds.Contains(c.Id))
             .Select(c => new
@@ -134,7 +122,7 @@ public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQu
             .ToListAsync(cancellationToken);
 
         // Step 6: Get email stats for all carts in one query (database'de GroupBy)
-        var emailStats = await _context.Set<AbandonedCartEmail>()
+        var emailStats = await context.Set<AbandonedCartEmail>()
             .AsNoTracking()
             .Where(e => finalAbandonedCartIds.Contains(e.CartId))
             .GroupBy(e => e.CartId)
@@ -156,7 +144,7 @@ public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQu
         }
 
         // Step 7: Get cart items for all carts in one query
-        var cartItems = await _context.Set<CartItem>()
+        var cartItems = await context.Set<CartItem>()
             .AsNoTracking()
             .Include(ci => ci.Product)
             .Where(ci => finalAbandonedCartIds.Contains(ci.CartId))
@@ -179,7 +167,7 @@ public class GetAbandonedCartsQueryHandler : IRequestHandler<GetAbandonedCartsQu
         foreach (var c in cartsData)
         {
             var items = cartItemsDict.ContainsKey(c.CartId)
-                ? _mapper.Map<IEnumerable<CartItemDto>>(cartItemsDict[c.CartId]).ToList().AsReadOnly()
+                ? mapper.Map<IEnumerable<CartItemDto>>(cartItemsDict[c.CartId]).ToList().AsReadOnly()
                 : new List<CartItemDto>().AsReadOnly();
             
             var dto = new AbandonedCartDto(

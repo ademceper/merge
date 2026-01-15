@@ -13,49 +13,35 @@ namespace Merge.Application.Catalog.Commands.DeleteCategory;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategoryCommand, bool>
+public class DeleteCategoryCommandHandler(
+    Merge.Application.Interfaces.IRepository<Category> categoryRepository,
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ICacheService cache,
+    ILogger<DeleteCategoryCommandHandler> logger) : IRequestHandler<DeleteCategoryCommand, bool>
 {
-    private readonly Merge.Application.Interfaces.IRepository<Category> _categoryRepository;
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ICacheService _cache;
-    private readonly ILogger<DeleteCategoryCommandHandler> _logger;
     private const string CACHE_KEY_ALL_CATEGORIES = "categories_all";
     private const string CACHE_KEY_MAIN_CATEGORIES = "categories_main";
     private const string CACHE_KEY_ALL_CATEGORIES_PAGED = "categories_all_paged";
     private const string CACHE_KEY_MAIN_CATEGORIES_PAGED = "categories_main_paged";
 
-    public DeleteCategoryCommandHandler(
-        Merge.Application.Interfaces.IRepository<Category> categoryRepository,
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ICacheService cache,
-        ILogger<DeleteCategoryCommandHandler> logger)
-    {
-        _categoryRepository = categoryRepository;
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _cache = cache;
-        _logger = logger;
-    }
-
     public async Task<bool> Handle(DeleteCategoryCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Deleting category with Id: {CategoryId}", request.Id);
+        logger.LogInformation("Deleting category with Id: {CategoryId}", request.Id);
 
         // ✅ ARCHITECTURE: Transaction başlat - atomic operation
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var category = await _categoryRepository.GetByIdAsync(request.Id, cancellationToken);
+            var category = await categoryRepository.GetByIdAsync(request.Id, cancellationToken);
             if (category == null)
             {
-                _logger.LogWarning("Category not found with Id: {CategoryId}", request.Id);
+                logger.LogWarning("Category not found with Id: {CategoryId}", request.Id);
                 return false;
             }
 
             // Check for subcategories
-            var hasSubCategories = await _context.Set<Category>()
+            var hasSubCategories = await context.Set<Category>()
                 .AsNoTracking()
                 .AnyAsync(c => c.ParentCategoryId == request.Id && !c.IsDeleted, cancellationToken);
 
@@ -65,7 +51,7 @@ public class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategoryComman
             }
 
             // Check for associated products
-            var hasProducts = await _context.Set<Merge.Domain.Modules.Catalog.Product>()
+            var hasProducts = await context.Set<Merge.Domain.Modules.Catalog.Product>()
                 .AsNoTracking()
                 .AnyAsync(p => p.CategoryId == request.Id && !p.IsDeleted, cancellationToken);
 
@@ -76,36 +62,36 @@ public class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategoryComman
 
             // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı (soft delete)
             category.MarkAsDeleted();
-            await _categoryRepository.UpdateAsync(category, cancellationToken);
+            await categoryRepository.UpdateAsync(category, cancellationToken);
             
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             // ✅ BOLUM 10.2: Cache invalidation - Remove all category-related cache
-            await _cache.RemoveAsync(CACHE_KEY_ALL_CATEGORIES, cancellationToken);
-            await _cache.RemoveAsync(CACHE_KEY_MAIN_CATEGORIES, cancellationToken);
-            await _cache.RemoveAsync($"category_{request.Id}", cancellationToken); // Single category cache
+            await cache.RemoveAsync(CACHE_KEY_ALL_CATEGORIES, cancellationToken);
+            await cache.RemoveAsync(CACHE_KEY_MAIN_CATEGORIES, cancellationToken);
+            await cache.RemoveAsync($"category_{request.Id}", cancellationToken); // Single category cache
             // Note: Paginated cache'ler (categories_all_paged_*, categories_main_paged_*) 
             // pattern-based invalidation gerektirir. ICacheService'de RemoveByPrefixAsync yok.
             // Şimdilik cache expiration'a güveniyoruz (1 saat TTL)
 
-            _logger.LogInformation("Category deleted successfully with Id: {CategoryId}", request.Id);
+            logger.LogInformation("Category deleted successfully with Id: {CategoryId}", request.Id);
 
             return true;
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            _logger.LogError(ex, "Concurrency conflict while deleting category Id: {CategoryId}", request.Id);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Concurrency conflict while deleting category Id: {CategoryId}", request.Id);
             throw new BusinessException("Kategori silme çakışması. Başka bir kullanıcı aynı kategoriyi güncelledi. Lütfen tekrar deneyin.");
         }
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex, "Error deleting category Id: {CategoryId}", request.Id);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Error deleting category Id: {CategoryId}", request.Id);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

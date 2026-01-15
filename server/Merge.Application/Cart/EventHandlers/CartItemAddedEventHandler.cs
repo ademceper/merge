@@ -9,32 +9,24 @@ namespace Merge.Application.Cart.EventHandlers;
 /// Cart Item Added Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class CartItemAddedEventHandler : INotificationHandler<CartItemAddedEvent>
+public class CartItemAddedEventHandler(
+    ILogger<CartItemAddedEventHandler> logger,
+    ICacheService? cacheService = null) : INotificationHandler<CartItemAddedEvent>
 {
-    private readonly ILogger<CartItemAddedEventHandler> _logger;
-    private readonly ICacheService? _cacheService;
-
-    public CartItemAddedEventHandler(
-        ILogger<CartItemAddedEventHandler> logger,
-        ICacheService? cacheService = null)
-    {
-        _logger = logger;
-        _cacheService = cacheService;
-    }
 
     public async Task Handle(CartItemAddedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Cart item added event received. CartId: {CartId}, ProductId: {ProductId}, Quantity: {Quantity}",
             notification.CartId, notification.ProductId, notification.Quantity);
 
         try
         {
             // ✅ BOLUM 10.2: Cache invalidation - Cart cache'i temizle
-            if (_cacheService != null)
+            if (cacheService != null)
             {
-                await _cacheService.RemoveAsync($"cart_{notification.CartId}", cancellationToken);
+                await cacheService.RemoveAsync($"cart_{notification.CartId}", cancellationToken);
                 // User cart cache'i de temizle (cart user ID'den bulunabilir)
                 // Not: UserId event'te yok, bu yüzden sadece cart ID cache'i temizleniyor
             }
@@ -58,7 +50,7 @@ public class CartItemAddedEventHandler : INotificationHandler<CartItemAddedEvent
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling CartItemAddedEvent. CartId: {CartId}, ProductId: {ProductId}",
                 notification.CartId, notification.ProductId);
             throw;

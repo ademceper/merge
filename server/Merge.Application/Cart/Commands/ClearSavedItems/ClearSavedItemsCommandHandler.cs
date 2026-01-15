@@ -12,27 +12,17 @@ namespace Merge.Application.Cart.Commands.ClearSavedItems;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class ClearSavedItemsCommandHandler : IRequestHandler<ClearSavedItemsCommand, bool>
+public class ClearSavedItemsCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<ClearSavedItemsCommandHandler> logger) : IRequestHandler<ClearSavedItemsCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<ClearSavedItemsCommandHandler> _logger;
-
-    public ClearSavedItemsCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<ClearSavedItemsCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(ClearSavedItemsCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Use bulk update instead of foreach DeleteAsync (N+1 fix)
         // ✅ PERFORMANCE: Removed manual !sci.IsDeleted check (Global Query Filter handles it)
-        var items = await _context.Set<SavedCartItem>()
+        var items = await context.Set<SavedCartItem>()
             .Where(sci => sci.UserId == request.UserId)
             .ToListAsync(cancellationToken);
 
@@ -44,7 +34,7 @@ public class ClearSavedItemsCommandHandler : IRequestHandler<ClearSavedItemsComm
                 item.MarkAsDeleted();
             }
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Single SaveChanges
+            await unitOfWork.SaveChangesAsync(cancellationToken); // ✅ CRITICAL FIX: Single SaveChanges
         }
 
         return true;

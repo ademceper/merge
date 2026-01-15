@@ -9,33 +9,25 @@ namespace Merge.Application.Cart.EventHandlers;
 /// Cart Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class CartCreatedEventHandler : INotificationHandler<CartCreatedEvent>
+public class CartCreatedEventHandler(
+    ILogger<CartCreatedEventHandler> logger,
+    ICacheService? cacheService = null) : INotificationHandler<CartCreatedEvent>
 {
-    private readonly ILogger<CartCreatedEventHandler> _logger;
-    private readonly ICacheService? _cacheService;
-
-    public CartCreatedEventHandler(
-        ILogger<CartCreatedEventHandler> logger,
-        ICacheService? cacheService = null)
-    {
-        _logger = logger;
-        _cacheService = cacheService;
-    }
 
     public async Task Handle(CartCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Cart created event received. CartId: {CartId}, UserId: {UserId}",
             notification.CartId, notification.UserId);
 
         try
         {
             // ✅ BOLUM 10.2: Cache invalidation - User cart cache'i temizle
-            if (_cacheService != null)
+            if (cacheService != null)
             {
-                await _cacheService.RemoveAsync($"cart_user_{notification.UserId}", cancellationToken);
-                await _cacheService.RemoveAsync($"cart_{notification.CartId}", cancellationToken);
+                await cacheService.RemoveAsync($"cart_user_{notification.UserId}", cancellationToken);
+                await cacheService.RemoveAsync($"cart_{notification.CartId}", cancellationToken);
             }
 
             // Analytics tracking
@@ -49,7 +41,7 @@ public class CartCreatedEventHandler : INotificationHandler<CartCreatedEvent>
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling CartCreatedEvent. CartId: {CartId}, UserId: {UserId}",
                 notification.CartId, notification.UserId);
             throw;

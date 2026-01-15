@@ -11,22 +11,14 @@ namespace Merge.Application.Cart.Commands.UpdatePreOrderCampaign;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class UpdatePreOrderCampaignCommandHandler : IRequestHandler<UpdatePreOrderCampaignCommand, bool>
+public class UpdatePreOrderCampaignCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork) : IRequestHandler<UpdatePreOrderCampaignCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-
-    public UpdatePreOrderCampaignCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-    }
 
     public async Task<bool> Handle(UpdatePreOrderCampaignCommand request, CancellationToken cancellationToken)
     {
-        var campaign = await _context.Set<Merge.Domain.Modules.Marketing.PreOrderCampaign>()
+        var campaign = await context.Set<Merge.Domain.Modules.Marketing.PreOrderCampaign>()
             .FirstOrDefaultAsync(c => c.Id == request.CampaignId, cancellationToken);
 
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
@@ -36,7 +28,7 @@ public class UpdatePreOrderCampaignCommandHandler : IRequestHandler<UpdatePreOrd
         campaign.UpdateDates(request.StartDate, request.EndDate, request.ExpectedDeliveryDate);
         campaign.UpdatePricing(request.DepositPercentage, request.SpecialPrice);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
