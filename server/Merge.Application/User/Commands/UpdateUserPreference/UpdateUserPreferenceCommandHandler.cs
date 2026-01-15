@@ -14,7 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.User.Commands.UpdateUserPreference;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateUserPreferenceCommandHandler : IRequestHandler<UpdateUserPreferenceCommand, UserPreferenceDto>
 {
     private readonly IDbContext _context;
@@ -22,11 +21,7 @@ public class UpdateUserPreferenceCommandHandler : IRequestHandler<UpdateUserPref
     private readonly IMapper _mapper;
     private readonly ILogger<UpdateUserPreferenceCommandHandler> _logger;
 
-    public UpdateUserPreferenceCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<UpdateUserPreferenceCommandHandler> logger)
+    public UpdateUserPreferenceCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateUserPreferenceCommandHandler> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -36,6 +31,8 @@ public class UpdateUserPreferenceCommandHandler : IRequestHandler<UpdateUserPref
 
     public async Task<UserPreferenceDto> Handle(UpdateUserPreferenceCommand request, CancellationToken cancellationToken)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+
         _logger.LogInformation("Updating preferences for user: {UserId}", request.UserId);
 
         var preferences = await _context.Set<UserPreference>()
@@ -49,8 +46,7 @@ public class UpdateUserPreferenceCommandHandler : IRequestHandler<UpdateUserPref
             await _context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
-        Theme? theme = null;
+                Theme? theme = null;
         if (!string.IsNullOrEmpty(request.Theme) && Enum.TryParse<Theme>(request.Theme, true, out var parsedTheme))
             theme = parsedTheme;
 
@@ -86,9 +82,12 @@ public class UpdateUserPreferenceCommandHandler : IRequestHandler<UpdateUserPref
             showOutOfStockItems: request.ShowOutOfStockItems);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        
+        // ✅ ARCHITECTURE: Domain event\'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
 
         _logger.LogInformation("Preferences updated successfully for user: {UserId}", request.UserId);
 
+                // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<UserPreferenceDto>(preferences);
     }
 }

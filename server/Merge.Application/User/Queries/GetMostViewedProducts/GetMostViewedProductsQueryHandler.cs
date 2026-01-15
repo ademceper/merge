@@ -17,17 +17,13 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 namespace Merge.Application.User.Queries.GetMostViewedProducts;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetMostViewedProductsQueryHandler : IRequestHandler<GetMostViewedProductsQuery, List<PopularProductDto>>
 {
     private readonly IDbContext _context;
     private readonly ILogger<GetMostViewedProductsQueryHandler> _logger;
     private readonly UserSettings _userSettings;
 
-    public GetMostViewedProductsQueryHandler(
-        IDbContext context,
-        ILogger<GetMostViewedProductsQueryHandler> logger,
-        IOptions<UserSettings> userSettings)
+    public GetMostViewedProductsQueryHandler(IDbContext context, ILogger<GetMostViewedProductsQueryHandler> logger, IOptions<UserSettings> userSettings)
     {
         _context = context;
         _logger = logger;
@@ -36,9 +32,9 @@ public class GetMostViewedProductsQueryHandler : IRequestHandler<GetMostViewedPr
 
     public async Task<List<PopularProductDto>> Handle(GetMostViewedProductsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Retrieving most viewed products for last {Days} days, top {TopN}", request.Days, request.TopN);
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
-        // ✅ BOLUM 12.0: Magic numbers configuration'dan alınıyor
+        _logger.LogInformation("Retrieving most viewed products for last {Days} days, top {TopN}", request.Days, request.TopN);
         var days = request.Days;
         if (days > _userSettings.Activity.MaxDays) days = _userSettings.Activity.MaxDays;
         if (days < 1) days = _userSettings.Activity.DefaultDays;
@@ -49,7 +45,8 @@ public class GetMostViewedProductsQueryHandler : IRequestHandler<GetMostViewedPr
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
-        var productIds = await _context.Set<UserActivityLog>()
+        var productIds =         // ✅ PERFORMANCE: AsNoTracking
+        await _context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
                        a.EntityType == EntityType.Product &&
@@ -67,7 +64,8 @@ public class GetMostViewedProductsQueryHandler : IRequestHandler<GetMostViewedPr
             .Select(p => p.ProductId)
             .ToListAsync(cancellationToken);
 
-        var productActivitiesData = await _context.Set<UserActivityLog>()
+        var productActivitiesData =         // ✅ PERFORMANCE: AsNoTracking
+        await _context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
                        a.EntityType == EntityType.Product &&
@@ -86,12 +84,14 @@ public class GetMostViewedProductsQueryHandler : IRequestHandler<GetMostViewedPr
             .Take(topN)
             .ToListAsync(cancellationToken);
 
-        var products = await _context.Set<ProductEntity>()
+        var products =         // ✅ PERFORMANCE: AsNoTracking
+        await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.Name, cancellationToken);
 
-        var purchases = await _context.Set<OrderItem>()
+        var purchases =         // ✅ PERFORMANCE: AsNoTracking
+        await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => productIds.Contains(oi.ProductId) &&
                         oi.Order.CreatedAt >= startDate)
@@ -117,7 +117,6 @@ public class GetMostViewedProductsQueryHandler : IRequestHandler<GetMostViewedPr
                 ConversionRate = conversionRate
             });
         }
-        
         return result;
     }
 }

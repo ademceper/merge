@@ -19,32 +19,14 @@ namespace Merge.API.Controllers.Marketing;
 [ApiController]
 [Route("api/v{version:apiVersion}/marketing/referrals")]
 [Authorize]
-public class ReferralsController : BaseController
+public class ReferralsController(
+    IMediator mediator,
+    IOptions<MarketingSettings> marketingSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-    private readonly MarketingSettings _marketingSettings;
+    private readonly MarketingSettings _marketingSettings = marketingSettings.Value;
 
-    public ReferralsController(
-        IMediator mediator,
-        IOptions<MarketingSettings> marketingSettings)
-    {
-        _mediator = mediator;
-        _marketingSettings = marketingSettings.Value;
-    }
-
-    /// <summary>
-    /// Kullanıcının referans kodunu getirir
-    /// </summary>
-    /// <param name="cancellationToken">İptal token'ı</param>
-    /// <returns>Referans kodu detayları</returns>
-    /// <response code="200">Referans kodu başarıyla getirildi</response>
-    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
-    /// <response code="429">Çok fazla istek</response>
     [HttpGet("my-code")]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
-    [SwaggerOperation(
-        Summary = "Kullanıcının referans kodunu getirir",
-        Description = "Kullanıcının referans kodunu getirir. Kod yoksa otomatik olarak oluşturulur.")]
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(ReferralCodeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -56,36 +38,20 @@ public class ReferralsController : BaseController
             return Unauthorized();
         }
         
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.0: CQRS - Query handler'lar SADECE okuma yapmalı
         var query = new GetMyReferralCodeQuery(userId);
-        var code = await _mediator.Send(query, cancellationToken);
+        var code = await mediator.Send(query, cancellationToken);
         
-        // ✅ BOLUM 2.0: CQRS - Entity oluşturma command handler'da yapılmalı
         if (code == null)
         {
             var createCommand = new CreateReferralCodeCommand(userId);
-            code = await _mediator.Send(createCommand, cancellationToken);
+            code = await mediator.Send(createCommand, cancellationToken);
         }
         
         return Ok(code);
     }
 
-    /// <summary>
-    /// Kullanıcının referanslarını getirir (pagination ile)
-    /// </summary>
-    /// <param name="page">Sayfa numarası (varsayılan: 1)</param>
-    /// <param name="pageSize">Sayfa başına kayıt sayısı (varsayılan: 20, maksimum: 100)</param>
-    /// <param name="cancellationToken">İptal token'ı</param>
-    /// <returns>Referans listesi</returns>
-    /// <response code="200">Referanslar başarıyla getirildi</response>
-    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
-    /// <response code="429">Çok fazla istek</response>
     [HttpGet("my-referrals")]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
-    [SwaggerOperation(
-        Summary = "Kullanıcının referanslarını getirir",
-        Description = "Sayfalama ile kullanıcının referanslarını getirir.")]
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(PagedResult<ReferralDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -94,8 +60,6 @@ public class ReferralsController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-        // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
         if (pageSize > _marketingSettings.MaxPageSize) pageSize = _marketingSettings.MaxPageSize;
 
         if (!TryGetUserId(out var userId))
@@ -103,28 +67,13 @@ public class ReferralsController : BaseController
             return Unauthorized();
         }
         
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetMyReferralsQuery(userId, PageNumber: page, PageSize: pageSize);
-        var referrals = await _mediator.Send(query, cancellationToken);
+        var referrals = await mediator.Send(query, cancellationToken);
         return Ok(referrals);
     }
 
-    /// <summary>
-    /// Referans kodunu uygular
-    /// </summary>
-    /// <param name="code">Referans kodu</param>
-    /// <param name="cancellationToken">İptal token'ı</param>
-    /// <returns>Uygulama işlemi sonucu</returns>
-    /// <response code="204">Referans kodu başarıyla uygulandı</response>
-    /// <response code="400">Geçersiz kod veya kod zaten uygulanmış</response>
-    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
-    /// <response code="429">Çok fazla istek</response>
     [HttpPost("apply")]
-    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5 istek / dakika (kritik işlem)
-    [SwaggerOperation(
-        Summary = "Referans kodunu uygular",
-        Description = "Yeni kullanıcı kaydı sırasında referans kodunu uygular.")]
+    [RateLimit(5, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -143,27 +92,14 @@ public class ReferralsController : BaseController
             return Unauthorized();
         }
         
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new ApplyReferralCodeCommand(userId, code);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         
         return success ? NoContent() : BadRequest(new { message = "Geçersiz kod" });
     }
 
-    /// <summary>
-    /// Kullanıcının referans istatistiklerini getirir
-    /// </summary>
-    /// <param name="cancellationToken">İptal token'ı</param>
-    /// <returns>Referans istatistikleri</returns>
-    /// <response code="200">Referans istatistikleri başarıyla getirildi</response>
-    /// <response code="401">Kullanıcı kimlik doğrulaması gerekli</response>
-    /// <response code="429">Çok fazla istek</response>
     [HttpGet("stats")]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
-    [SwaggerOperation(
-        Summary = "Kullanıcının referans istatistiklerini getirir",
-        Description = "Kullanıcının referans istatistiklerini getirir (toplam referans, tamamlanan referans, kazanılan puanlar vb.).")]
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(ReferralStatsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -175,10 +111,8 @@ public class ReferralsController : BaseController
             return Unauthorized();
         }
         
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var query = new GetReferralStatsQuery(userId);
-        var stats = await _mediator.Send(query, cancellationToken);
+        var stats = await mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 }

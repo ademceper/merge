@@ -13,7 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.User.Commands.LogActivity;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class LogActivityCommandHandler : IRequestHandler<LogActivityCommand>
 {
     private readonly IDbContext _context;
@@ -21,11 +20,7 @@ public class LogActivityCommandHandler : IRequestHandler<LogActivityCommand>
     private readonly ILogger<LogActivityCommandHandler> _logger;
     private readonly UserSettings _userSettings;
 
-    public LogActivityCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<LogActivityCommandHandler> logger,
-        IOptions<UserSettings> userSettings)
+    public LogActivityCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<LogActivityCommandHandler> logger, IOptions<UserSettings> userSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -35,6 +30,8 @@ public class LogActivityCommandHandler : IRequestHandler<LogActivityCommand>
 
     public async Task Handle(LogActivityCommand request, CancellationToken cancellationToken)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+
         _logger.LogDebug("Logging activity: {ActivityType} for user: {UserId}", request.ActivityType, request.UserId);
 
         var deviceInfo = ParseUserAgent(request.UserAgent);
@@ -58,8 +55,7 @@ public class LogActivityCommandHandler : IRequestHandler<LogActivityCommand>
             if (!Enum.TryParse<DeviceType>(deviceInfo.DeviceType, true, out deviceType))
                 deviceType = DeviceType.Other;
         }
-
-        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
+                // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var activity = UserActivityLog.Create(
             activityType: activityType,
             entityType: entityType,
@@ -78,6 +74,8 @@ public class LogActivityCommandHandler : IRequestHandler<LogActivityCommand>
 
         await _context.Set<UserActivityLog>().AddAsync(activity, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        
+        // ✅ ARCHITECTURE: Domain event\'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
 
         _logger.LogDebug("Activity logged successfully with ID: {ActivityId}", activity.Id);
     }

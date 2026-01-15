@@ -12,17 +12,13 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 namespace Merge.Application.User.Queries.GetActivityById;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetActivityByIdQueryHandler : IRequestHandler<GetActivityByIdQuery, UserActivityLogDto?>
 {
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<GetActivityByIdQueryHandler> _logger;
 
-    public GetActivityByIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetActivityByIdQueryHandler> logger)
+    public GetActivityByIdQueryHandler(IDbContext context, IMapper mapper, ILogger<GetActivityByIdQueryHandler> logger)
     {
         _context = context;
         _mapper = mapper;
@@ -31,9 +27,12 @@ public class GetActivityByIdQueryHandler : IRequestHandler<GetActivityByIdQuery,
 
     public async Task<UserActivityLogDto?> Handle(GetActivityByIdQuery request, CancellationToken cancellationToken)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+
         _logger.LogDebug("Retrieving activity with ID: {ActivityId}", request.Id);
 
-        var activity = await _context.Set<UserActivityLog>()
+        var activity =         // ✅ PERFORMANCE: AsNoTracking
+        await _context.Set<UserActivityLog>()
             .AsNoTracking()
             .Include(a => a.User)
             .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
@@ -44,6 +43,7 @@ public class GetActivityByIdQueryHandler : IRequestHandler<GetActivityByIdQuery,
             return null;
         }
 
+                // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<UserActivityLogDto>(activity);
     }
 }

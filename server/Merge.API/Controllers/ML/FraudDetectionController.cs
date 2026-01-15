@@ -23,24 +23,11 @@ namespace Merge.API.Controllers.ML;
 [ApiController]
 [Route("api/v{version:apiVersion}/ml/fraud-detection")]
 [Authorize]
-public class FraudDetectionController : BaseController
+public class FraudDetectionController(IMediator mediator) : BaseController
 {
-    private readonly IMediator _mediator;
-
-    public FraudDetectionController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
-    /// <summary>
-    /// Yeni fraud detection rule oluşturur (Admin, Manager)
-    /// </summary>
-    /// <param name="dto">Fraud detection rule oluşturma verileri</param>
-    /// <param name="cancellationToken">İptal token'ı</param>
-    /// <returns>Oluşturulan fraud detection rule</returns>
     [HttpPost("rules")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
+    [RateLimit(10, 60)]
     [ProducesResponseType(typeof(FraudDetectionRuleDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -50,7 +37,6 @@ public class FraudDetectionController : BaseController
         [FromBody] CreateFraudDetectionRuleDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new CreateFraudDetectionRuleCommand(
             dto.Name,
             dto.RuleType,
@@ -60,19 +46,13 @@ public class FraudDetectionController : BaseController
             dto.IsActive,
             dto.Priority,
             dto.Description);
-        var rule = await _mediator.Send(command, cancellationToken);
+        var rule = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetRuleById), new { id = rule.Id }, rule);
     }
 
-    /// <summary>
-    /// Fraud detection rule detaylarını getirir (Admin, Manager)
-    /// </summary>
-    /// <param name="id">Fraud detection rule ID</param>
-    /// <param name="cancellationToken">İptal token'ı</param>
-    /// <returns>Fraud detection rule detayları</returns>
     [HttpGet("rules/{id}")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(FraudDetectionRuleDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -82,9 +62,8 @@ public class FraudDetectionController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetFraudDetectionRuleByIdQuery(id);
-        var rule = await _mediator.Send(query, cancellationToken);
+        var rule = await mediator.Send(query, cancellationToken);
         if (rule == null)
         {
             return NotFound();
@@ -92,18 +71,9 @@ public class FraudDetectionController : BaseController
         return Ok(rule);
     }
 
-    /// <summary>
-    /// Tüm fraud detection rule'ları getirir (pagination ile) (Admin, Manager)
-    /// </summary>
-    /// <param name="ruleType">Rule tipi filtresi (opsiyonel)</param>
-    /// <param name="isActive">Aktif durum filtresi (opsiyonel)</param>
-    /// <param name="page">Sayfa numarası (varsayılan: 1)</param>
-    /// <param name="pageSize">Sayfa boyutu (varsayılan: 20)</param>
-    /// <param name="cancellationToken">İptal token'ı</param>
-    /// <returns>Sayfalanmış fraud detection rule listesi</returns>
     [HttpGet("rules")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(PagedResult<FraudDetectionRuleDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -115,22 +85,14 @@ public class FraudDetectionController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetAllFraudDetectionRulesQuery(ruleType, isActive, page, pageSize);
-        var result = await _mediator.Send(query, cancellationToken);
+        var result = await mediator.Send(query, cancellationToken);
         return Ok(result);
     }
 
-    /// <summary>
-    /// Fraud detection rule günceller (Admin, Manager)
-    /// </summary>
-    /// <param name="id">Fraud detection rule ID</param>
-    /// <param name="dto">Güncelleme verileri</param>
-    /// <param name="cancellationToken">İptal token'ı</param>
-    /// <returns>Güncelleme sonucu</returns>
     [HttpPut("rules/{id}")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(10, 60)] // ✅ BOLUM 3.3: Rate Limiting - 10/dakika
+    [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -142,7 +104,6 @@ public class FraudDetectionController : BaseController
         [FromBody] CreateFraudDetectionRuleDto dto,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new UpdateFraudDetectionRuleCommand(
             id,
             dto.Name,
@@ -153,7 +114,7 @@ public class FraudDetectionController : BaseController
             dto.IsActive,
             dto.Priority,
             dto.Description);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -161,15 +122,9 @@ public class FraudDetectionController : BaseController
         return NoContent();
     }
 
-    /// <summary>
-    /// Fraud detection rule siler (Admin, Manager)
-    /// </summary>
-    /// <param name="id">Fraud detection rule ID</param>
-    /// <param name="cancellationToken">İptal token'ı</param>
-    /// <returns>Silme sonucu</returns>
     [HttpDelete("rules/{id}")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(5, 60)] // ✅ BOLUM 3.3: Rate Limiting - 5/dakika
+    [RateLimit(5, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -179,9 +134,8 @@ public class FraudDetectionController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteFraudDetectionRuleCommand(id);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -189,15 +143,9 @@ public class FraudDetectionController : BaseController
         return NoContent();
     }
 
-    /// <summary>
-    /// Sipariş için fraud değerlendirmesi yapar (Admin, Manager)
-    /// </summary>
-    /// <param name="orderId">Sipariş ID</param>
-    /// <param name="cancellationToken">İptal token'ı</param>
-    /// <returns>Fraud alert sonucu</returns>
     [HttpPost("evaluate/order/{orderId}")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(FraudAlertDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -207,21 +155,14 @@ public class FraudDetectionController : BaseController
         Guid orderId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new EvaluateOrderCommand(orderId);
-        var alert = await _mediator.Send(command, cancellationToken);
+        var alert = await mediator.Send(command, cancellationToken);
         return Ok(alert);
     }
 
-    /// <summary>
-    /// Ödeme için fraud değerlendirmesi yapar (Admin, Manager)
-    /// </summary>
-    /// <param name="paymentId">Ödeme ID</param>
-    /// <param name="cancellationToken">İptal token'ı</param>
-    /// <returns>Fraud alert sonucu</returns>
     [HttpPost("evaluate/payment/{paymentId}")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(FraudAlertDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -231,21 +172,14 @@ public class FraudDetectionController : BaseController
         Guid paymentId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new EvaluatePaymentCommand(paymentId);
-        var alert = await _mediator.Send(command, cancellationToken);
+        var alert = await mediator.Send(command, cancellationToken);
         return Ok(alert);
     }
 
-    /// <summary>
-    /// Kullanıcı için fraud değerlendirmesi yapar (Admin, Manager)
-    /// </summary>
-    /// <param name="userId">Kullanıcı ID</param>
-    /// <param name="cancellationToken">İptal token'ı</param>
-    /// <returns>Fraud alert sonucu</returns>
     [HttpPost("evaluate/user/{userId}")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(FraudAlertDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -255,25 +189,14 @@ public class FraudDetectionController : BaseController
         Guid userId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new EvaluateUserCommand(userId);
-        var alert = await _mediator.Send(command, cancellationToken);
+        var alert = await mediator.Send(command, cancellationToken);
         return Ok(alert);
     }
 
-    /// <summary>
-    /// Fraud alert'leri getirir (pagination ile) (Admin, Manager)
-    /// </summary>
-    /// <param name="status">Alert durumu filtresi (opsiyonel)</param>
-    /// <param name="alertType">Alert tipi filtresi (opsiyonel)</param>
-    /// <param name="minRiskScore">Minimum risk score filtresi (opsiyonel)</param>
-    /// <param name="page">Sayfa numarası (varsayılan: 1)</param>
-    /// <param name="pageSize">Sayfa boyutu (varsayılan: 20)</param>
-    /// <param name="cancellationToken">İptal token'ı</param>
-    /// <returns>Sayfalanmış fraud alert listesi</returns>
     [HttpGet("alerts")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
+    [RateLimit(60, 60)]
     [ProducesResponseType(typeof(PagedResult<FraudAlertDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -286,22 +209,14 @@ public class FraudDetectionController : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetFraudAlertsQuery(status, alertType, minRiskScore, page, pageSize);
-        var result = await _mediator.Send(query, cancellationToken);
+        var result = await mediator.Send(query, cancellationToken);
         return Ok(result);
     }
 
-    /// <summary>
-    /// Fraud alert'i gözden geçirir (Admin, Manager)
-    /// </summary>
-    /// <param name="alertId">Fraud alert ID</param>
-    /// <param name="dto">Gözden geçirme verileri</param>
-    /// <param name="cancellationToken">İptal token'ı</param>
-    /// <returns>Gözden geçirme sonucu</returns>
     [HttpPost("alerts/{alertId}/review")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -314,9 +229,9 @@ public class FraudDetectionController : BaseController
         CancellationToken cancellationToken = default)
     {
         var reviewedByUserId = GetUserId();
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
+       
         var command = new ReviewFraudAlertCommand(alertId, reviewedByUserId, dto.Status, dto.Notes);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -324,16 +239,9 @@ public class FraudDetectionController : BaseController
         return NoContent();
     }
 
-    /// <summary>
-    /// Fraud analytics verilerini getirir (Admin, Manager)
-    /// </summary>
-    /// <param name="startDate">Başlangıç tarihi (opsiyonel)</param>
-    /// <param name="endDate">Bitiş tarihi (opsiyonel)</param>
-    /// <param name="cancellationToken">İptal token'ı</param>
-    /// <returns>Fraud analytics verileri</returns>
     [HttpGet("analytics")]
     [Authorize(Roles = "Admin,Manager")]
-    [RateLimit(30, 60)] // ✅ BOLUM 3.3: Rate Limiting - 30/dakika
+    [RateLimit(30, 60)]
     [ProducesResponseType(typeof(FraudAnalyticsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -343,9 +251,8 @@ public class FraudDetectionController : BaseController
         [FromQuery] DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetFraudAnalyticsQuery(startDate, endDate);
-        var analytics = await _mediator.Send(query, cancellationToken);
+        var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 }

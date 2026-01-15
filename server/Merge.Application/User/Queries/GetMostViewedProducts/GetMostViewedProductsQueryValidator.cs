@@ -4,8 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.User.Queries.GetMostViewedProducts;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-// ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
 public class GetMostViewedProductsQueryValidator : AbstractValidator<GetMostViewedProductsQuery>
 {
     public GetMostViewedProductsQueryValidator(IOptions<UserSettings> userSettings)

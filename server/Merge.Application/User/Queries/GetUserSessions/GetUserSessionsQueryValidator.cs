@@ -4,8 +4,6 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.User.Queries.GetUserSessions;
 
-// ✅ BOLUM 2.0: FluentValidation (ZORUNLU)
-// ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
 public class GetUserSessionsQueryValidator : AbstractValidator<GetUserSessionsQuery>
 {
     public GetUserSessionsQueryValidator(IOptions<UserSettings> userSettings)

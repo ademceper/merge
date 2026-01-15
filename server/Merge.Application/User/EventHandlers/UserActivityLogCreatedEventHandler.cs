@@ -4,9 +4,7 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.User.EventHandlers;
 
-/// <summary>
-/// UserActivityLog Created Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
-/// </summary>
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class UserActivityLogCreatedEventHandler : INotificationHandler<UserActivityLogCreatedEvent>
 {
     private readonly ILogger<UserActivityLogCreatedEventHandler> _logger;
@@ -19,12 +17,12 @@ public class UserActivityLogCreatedEventHandler : INotificationHandler<UserActiv
     public async Task Handle(UserActivityLogCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+
         _logger.LogInformation(
             "User activity log created event received. ActivityLogId: {ActivityLogId}, UserId: {UserId}, ActivityType: {ActivityType}, EntityType: {EntityType}, EntityId: {EntityId}",
             notification.ActivityLogId, notification.UserId, notification.ActivityType, notification.EntityType, notification.EntityId);
 
-        // TODO: İleride burada şunlar yapılabilir:
-        // - Analytics tracking (activity metrics)
+                // - Analytics tracking (activity metrics)
         // - Real-time activity feed (SignalR, WebSocket)
         // - External system integration (analytics service, BI tools)
         // - Fraud detection (suspicious activity patterns)

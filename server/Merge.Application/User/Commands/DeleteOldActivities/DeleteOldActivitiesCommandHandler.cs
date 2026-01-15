@@ -13,7 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.User.Commands.DeleteOldActivities;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteOldActivitiesCommandHandler : IRequestHandler<DeleteOldActivitiesCommand>
 {
     private readonly IDbContext _context;
@@ -21,11 +20,7 @@ public class DeleteOldActivitiesCommandHandler : IRequestHandler<DeleteOldActivi
     private readonly ILogger<DeleteOldActivitiesCommandHandler> _logger;
     private readonly UserSettings _userSettings;
 
-    public DeleteOldActivitiesCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<DeleteOldActivitiesCommandHandler> logger,
-        IOptions<UserSettings> userSettings)
+    public DeleteOldActivitiesCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<DeleteOldActivitiesCommandHandler> logger, IOptions<UserSettings> userSettings)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -35,9 +30,9 @@ public class DeleteOldActivitiesCommandHandler : IRequestHandler<DeleteOldActivi
 
     public async Task Handle(DeleteOldActivitiesCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Deleting old activities older than {Days} days", request.DaysToKeep);
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
-        // ✅ BOLUM 12.0: Magic numbers configuration'dan alınıyor
+        _logger.LogInformation("Deleting old activities older than {Days} days", request.DaysToKeep);
         var daysToKeep = request.DaysToKeep;
         if (daysToKeep < _userSettings.Activity.MinDaysToKeep) daysToKeep = _userSettings.Activity.MinDaysToKeep;
         if (daysToKeep > _userSettings.Activity.MaxDaysToKeep) daysToKeep = _userSettings.Activity.MaxDaysToKeep;
@@ -50,6 +45,8 @@ public class DeleteOldActivitiesCommandHandler : IRequestHandler<DeleteOldActivi
 
         _context.Set<UserActivityLog>().RemoveRange(oldActivities);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        
+        // ✅ ARCHITECTURE: Domain event\'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
 
         _logger.LogWarning("Deleted {Count} old activity records", oldActivities.Count);
     }

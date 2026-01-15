@@ -14,7 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.User.Commands.UpdateAddress;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateAddressCommandHandler : IRequestHandler<UpdateAddressCommand, AddressDto>
 {
     private readonly IDbContext _context;
@@ -22,11 +21,7 @@ public class UpdateAddressCommandHandler : IRequestHandler<UpdateAddressCommand,
     private readonly IMapper _mapper;
     private readonly ILogger<UpdateAddressCommandHandler> _logger;
 
-    public UpdateAddressCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<UpdateAddressCommandHandler> logger)
+    public UpdateAddressCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateAddressCommandHandler> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -36,6 +31,8 @@ public class UpdateAddressCommandHandler : IRequestHandler<UpdateAddressCommand,
 
     public async Task<AddressDto> Handle(UpdateAddressCommand request, CancellationToken cancellationToken)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+
         _logger.LogInformation("Updating address with ID: {AddressId}", request.Id);
 
         var address = await _context.Set<Merge.Domain.Modules.Identity.Address>()
@@ -47,8 +44,6 @@ public class UpdateAddressCommandHandler : IRequestHandler<UpdateAddressCommand,
             _logger.LogWarning("Address not found with ID: {AddressId}", request.Id);
             throw new Application.Exceptions.NotFoundException("Address", request.Id);
         }
-
-        // ✅ BOLUM 3.2: IDOR koruması - Kullanıcı sadece kendi adreslerini güncelleyebilmeli
         if (request.UserId.HasValue && address.UserId != request.UserId.Value && !request.IsAdminOrManager)
         {
             _logger.LogWarning("Unauthorized update attempt to address {AddressId} by user {UserId}", 
@@ -70,12 +65,11 @@ public class UpdateAddressCommandHandler : IRequestHandler<UpdateAddressCommand,
 
             if (existingDefaults.Count > 0)
             {
-                _logger.LogInformation("Removed default flag from {Count} existing addresses", existingDefaults.Count);
+        _logger.LogInformation("Removed default flag from {Count} existing addresses", existingDefaults.Count);
             }
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
-        address.UpdateAddress(
+                address.UpdateAddress(
             title: request.Title,
             firstName: request.FirstName,
             lastName: request.LastName,
@@ -97,9 +91,12 @@ public class UpdateAddressCommandHandler : IRequestHandler<UpdateAddressCommand,
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        
+        // ✅ ARCHITECTURE: Domain event\'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
 
         _logger.LogInformation("Address updated successfully with ID: {AddressId}", request.Id);
 
+                // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<AddressDto>(address);
     }
 }

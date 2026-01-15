@@ -12,17 +12,13 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 namespace Merge.Application.User.Queries.GetAddressesByUserId;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetAddressesByUserIdQueryHandler : IRequestHandler<GetAddressesByUserIdQuery, IEnumerable<AddressDto>>
 {
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<GetAddressesByUserIdQueryHandler> _logger;
 
-    public GetAddressesByUserIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetAddressesByUserIdQueryHandler> logger)
+    public GetAddressesByUserIdQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAddressesByUserIdQueryHandler> logger)
     {
         _context = context;
         _mapper = mapper;
@@ -31,9 +27,12 @@ public class GetAddressesByUserIdQueryHandler : IRequestHandler<GetAddressesByUs
 
     public async Task<IEnumerable<AddressDto>> Handle(GetAddressesByUserIdQuery request, CancellationToken cancellationToken)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+
         _logger.LogInformation("Retrieving addresses for user ID: {UserId}", request.UserId);
 
-        var addresses = await _context.Set<Address>()
+        var addresses =         // ✅ PERFORMANCE: AsNoTracking
+        await _context.Set<Address>()
             .AsNoTracking()
             .Where(a => a.UserId == request.UserId && !a.IsDeleted)
             .OrderByDescending(a => a.IsDefault)

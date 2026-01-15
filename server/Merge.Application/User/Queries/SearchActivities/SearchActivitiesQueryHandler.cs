@@ -15,7 +15,6 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 namespace Merge.Application.User.Queries.SearchActivities;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class SearchActivitiesQueryHandler : IRequestHandler<SearchActivitiesQuery, IEnumerable<UserActivityLogDto>>
 {
     private readonly IDbContext _context;
@@ -23,11 +22,7 @@ public class SearchActivitiesQueryHandler : IRequestHandler<SearchActivitiesQuer
     private readonly ILogger<SearchActivitiesQueryHandler> _logger;
     private readonly PaginationSettings _paginationSettings;
 
-    public SearchActivitiesQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<SearchActivitiesQueryHandler> logger,
-        IOptions<PaginationSettings> paginationSettings)
+    public SearchActivitiesQueryHandler(IDbContext context, IMapper mapper, ILogger<SearchActivitiesQueryHandler> logger, IOptions<PaginationSettings> paginationSettings)
     {
         _context = context;
         _mapper = mapper;
@@ -37,10 +32,10 @@ public class SearchActivitiesQueryHandler : IRequestHandler<SearchActivitiesQuer
 
     public async Task<IEnumerable<UserActivityLogDto>> Handle(SearchActivitiesQuery request, CancellationToken cancellationToken)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+
         _logger.LogInformation("Retrieving filtered activities - Page: {PageNumber}, Size: {PageSize}", 
             request.Filter.PageNumber, request.Filter.PageSize);
-
-        // ✅ BOLUM 12.0: Magic numbers configuration'dan alınıyor
         var pageSize = request.Filter.PageSize;
         if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
         if (pageSize < 1) pageSize = _paginationSettings.DefaultPageSize;

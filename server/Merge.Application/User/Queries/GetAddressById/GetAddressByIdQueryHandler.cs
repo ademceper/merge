@@ -12,17 +12,13 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 namespace Merge.Application.User.Queries.GetAddressById;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetAddressByIdQueryHandler : IRequestHandler<GetAddressByIdQuery, AddressDto?>
 {
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<GetAddressByIdQueryHandler> _logger;
 
-    public GetAddressByIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetAddressByIdQueryHandler> logger)
+    public GetAddressByIdQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAddressByIdQueryHandler> logger)
     {
         _context = context;
         _mapper = mapper;
@@ -31,9 +27,12 @@ public class GetAddressByIdQueryHandler : IRequestHandler<GetAddressByIdQuery, A
 
     public async Task<AddressDto?> Handle(GetAddressByIdQuery request, CancellationToken cancellationToken)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+
         _logger.LogInformation("Retrieving address with ID: {AddressId}", request.Id);
 
-        var address = await _context.Set<Address>()
+        var address =         // ✅ PERFORMANCE: AsNoTracking
+        await _context.Set<Address>()
             .AsNoTracking()
             .Where(a => a.Id == request.Id && !a.IsDeleted)
             .FirstOrDefaultAsync(cancellationToken);
@@ -43,8 +42,6 @@ public class GetAddressByIdQueryHandler : IRequestHandler<GetAddressByIdQuery, A
             _logger.LogWarning("Address not found with ID: {AddressId}", request.Id);
             return null;
         }
-
-        // ✅ BOLUM 3.2: IDOR koruması - Kullanıcı sadece kendi adreslerine erişebilmeli
         if (request.UserId.HasValue && address.UserId != request.UserId.Value && !request.IsAdminOrManager)
         {
             _logger.LogWarning("Unauthorized access attempt to address {AddressId} by user {UserId}", 
@@ -52,6 +49,7 @@ public class GetAddressByIdQueryHandler : IRequestHandler<GetAddressByIdQuery, A
             throw new Application.Exceptions.BusinessException("Bu adrese erişim yetkiniz bulunmamaktadır.");
         }
 
+                // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<AddressDto>(address);
     }
 }

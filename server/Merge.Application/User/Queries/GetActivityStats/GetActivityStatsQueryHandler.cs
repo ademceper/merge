@@ -19,17 +19,13 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 namespace Merge.Application.User.Queries.GetActivityStats;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuery, ActivityStatsDto>
 {
     private readonly IDbContext _context;
     private readonly ILogger<GetActivityStatsQueryHandler> _logger;
     private readonly UserSettings _userSettings;
 
-    public GetActivityStatsQueryHandler(
-        IDbContext context,
-        ILogger<GetActivityStatsQueryHandler> logger,
-        IOptions<UserSettings> userSettings)
+    public GetActivityStatsQueryHandler(IDbContext context, ILogger<GetActivityStatsQueryHandler> logger, IOptions<UserSettings> userSettings)
     {
         _context = context;
         _logger = logger;
@@ -38,9 +34,9 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
 
     public async Task<ActivityStatsDto> Handle(GetActivityStatsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Generating activity statistics for last {Days} days", request.Days);
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
-        // ✅ BOLUM 12.0: Magic numbers configuration'dan alınıyor
+        _logger.LogInformation("Generating activity statistics for last {Days} days", request.Days);
         var days = request.Days;
         if (days > _userSettings.Activity.MaxDays) days = _userSettings.Activity.MaxDays;
         if (days < 1) days = _userSettings.Activity.DefaultDays;
@@ -85,7 +81,6 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
             .Take(_userSettings.Activity.DefaultTopN)
             .Select(u => u.UserId)
             .ToListAsync(cancellationToken);
-        
         var userEmails = await _context.Users
             .AsNoTracking()
             .Where(u => userIds.Contains(u.Id))
@@ -112,7 +107,6 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
                 user.UserEmail = email;
             }
         }
-        
         var mostViewedProducts = await GetMostViewedProductsAsync(days, _userSettings.Activity.DefaultTopN, cancellationToken);
 
         var avgSessionDuration = await query
@@ -138,7 +132,8 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
     {
         var startDate = DateTime.UtcNow.AddDays(-days);
 
-        var productIds = await _context.Set<UserActivityLog>()
+        var productIds =         // ✅ PERFORMANCE: AsNoTracking
+        await _context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
                        a.EntityType == EntityType.Product &&
@@ -156,7 +151,8 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
             .Select(p => p.ProductId)
             .ToListAsync(cancellationToken);
 
-        var productActivitiesData = await _context.Set<UserActivityLog>()
+        var productActivitiesData =         // ✅ PERFORMANCE: AsNoTracking
+        await _context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
                        a.EntityType == EntityType.Product &&
@@ -175,12 +171,14 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
             .Take(topN)
             .ToListAsync(cancellationToken);
 
-        var products = await _context.Set<ProductEntity>()
+        var products =         // ✅ PERFORMANCE: AsNoTracking
+        await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.Name, cancellationToken);
 
-        var purchases = await _context.Set<OrderItem>()
+        var purchases =         // ✅ PERFORMANCE: AsNoTracking
+        await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => productIds.Contains(oi.ProductId) &&
                         oi.Order.CreatedAt >= startDate)
@@ -206,7 +204,6 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
                 ConversionRate = conversionRate
             });
         }
-        
         return result;
     }
 }

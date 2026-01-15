@@ -11,17 +11,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.User.Commands.SetDefaultAddress;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class SetDefaultAddressCommandHandler : IRequestHandler<SetDefaultAddressCommand, bool>
 {
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<SetDefaultAddressCommandHandler> _logger;
 
-    public SetDefaultAddressCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<SetDefaultAddressCommandHandler> logger)
+    public SetDefaultAddressCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<SetDefaultAddressCommandHandler> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -30,6 +26,8 @@ public class SetDefaultAddressCommandHandler : IRequestHandler<SetDefaultAddress
 
     public async Task<bool> Handle(SetDefaultAddressCommand request, CancellationToken cancellationToken)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+
         _logger.LogInformation("Setting address {AddressId} as default for user {UserId}", request.Id, request.UserId);
 
         var address = await _context.Set<Address>()
@@ -52,10 +50,11 @@ public class SetDefaultAddressCommandHandler : IRequestHandler<SetDefaultAddress
             addr.RemoveDefault();
         }
 
-        // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
-        address.SetAsDefault();
+                address.SetAsDefault();
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        
+        // ✅ ARCHITECTURE: Domain event\'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
 
         _logger.LogInformation("Address {AddressId} set as default successfully. Cleared {Count} previous defaults", 
             request.Id, existingDefaults.Count);

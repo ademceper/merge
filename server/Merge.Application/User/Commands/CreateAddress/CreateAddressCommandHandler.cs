@@ -14,7 +14,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.User.Commands.CreateAddress;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateAddressCommandHandler : IRequestHandler<CreateAddressCommand, AddressDto>
 {
     private readonly IDbContext _context;
@@ -36,6 +35,8 @@ public class CreateAddressCommandHandler : IRequestHandler<CreateAddressCommand,
 
     public async Task<AddressDto> Handle(CreateAddressCommand request, CancellationToken cancellationToken)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+
         _logger.LogInformation("Creating new address for user ID: {UserId}", request.UserId);
 
         // Eger default olarak isaretleniyorsa, diger adreslerin default'unu kaldir
@@ -56,6 +57,7 @@ public class CreateAddressCommandHandler : IRequestHandler<CreateAddressCommand,
             }
         }
 
+        // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var address = Merge.Domain.Modules.Identity.Address.Create(
             userId: request.UserId,
             title: request.Title,
@@ -71,10 +73,14 @@ public class CreateAddressCommandHandler : IRequestHandler<CreateAddressCommand,
             isDefault: request.IsDefault);
 
         await _context.Set<Merge.Domain.Modules.Identity.Address>().AddAsync(address, cancellationToken);
+        
+        // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
+        // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Address created successfully with ID: {AddressId}", address.Id);
 
+        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<AddressDto>(address);
     }
 }

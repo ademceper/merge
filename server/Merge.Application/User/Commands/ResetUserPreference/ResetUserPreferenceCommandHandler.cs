@@ -13,7 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.User.Commands.ResetUserPreference;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class ResetUserPreferenceCommandHandler : IRequestHandler<ResetUserPreferenceCommand, UserPreferenceDto>
 {
     private readonly IDbContext _context;
@@ -21,11 +20,7 @@ public class ResetUserPreferenceCommandHandler : IRequestHandler<ResetUserPrefer
     private readonly IMapper _mapper;
     private readonly ILogger<ResetUserPreferenceCommandHandler> _logger;
 
-    public ResetUserPreferenceCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<ResetUserPreferenceCommandHandler> logger)
+    public ResetUserPreferenceCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ResetUserPreferenceCommandHandler> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -35,6 +30,8 @@ public class ResetUserPreferenceCommandHandler : IRequestHandler<ResetUserPrefer
 
     public async Task<UserPreferenceDto> Handle(ResetUserPreferenceCommand request, CancellationToken cancellationToken)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+
         _logger.LogInformation("Resetting preferences to defaults for user: {UserId}", request.UserId);
 
         var preferences = await _context.Set<UserPreference>()
@@ -49,14 +46,16 @@ public class ResetUserPreferenceCommandHandler : IRequestHandler<ResetUserPrefer
         }
         else
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullanımı
-            preferences.ResetToDefaults();
+                        preferences.ResetToDefaults();
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        
+        // ✅ ARCHITECTURE: Domain event\'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
 
         _logger.LogInformation("Preferences reset to defaults successfully for user: {UserId}", request.UserId);
 
+                // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<UserPreferenceDto>(preferences);
     }
 }

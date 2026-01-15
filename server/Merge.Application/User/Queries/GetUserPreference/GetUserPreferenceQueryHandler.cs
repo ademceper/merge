@@ -13,7 +13,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.User.Queries.GetUserPreference;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetUserPreferenceQueryHandler : IRequestHandler<GetUserPreferenceQuery, UserPreferenceDto>
 {
     private readonly IDbContext _context;
@@ -21,11 +20,7 @@ public class GetUserPreferenceQueryHandler : IRequestHandler<GetUserPreferenceQu
     private readonly IMapper _mapper;
     private readonly ILogger<GetUserPreferenceQueryHandler> _logger;
 
-    public GetUserPreferenceQueryHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<GetUserPreferenceQueryHandler> logger)
+    public GetUserPreferenceQueryHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<GetUserPreferenceQueryHandler> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
@@ -35,9 +30,12 @@ public class GetUserPreferenceQueryHandler : IRequestHandler<GetUserPreferenceQu
 
     public async Task<UserPreferenceDto> Handle(GetUserPreferenceQuery request, CancellationToken cancellationToken)
     {
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+
         _logger.LogInformation("Retrieving preferences for user: {UserId}", request.UserId);
 
-        var preferences = await _context.Set<UserPreference>()
+        var preferences =         // ✅ PERFORMANCE: AsNoTracking
+        await _context.Set<UserPreference>()
             .AsNoTracking()
             .Where(up => up.UserId == request.UserId && !up.IsDeleted)
             .FirstOrDefaultAsync(cancellationToken);
@@ -49,10 +47,13 @@ public class GetUserPreferenceQueryHandler : IRequestHandler<GetUserPreferenceQu
             preferences = UserPreference.Create(request.UserId);
             await _context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+        
+        // ✅ ARCHITECTURE: Domain event\'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
 
             _logger.LogInformation("Default preferences created for user: {UserId}", request.UserId);
         }
 
+                // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<UserPreferenceDto>(preferences);
     }
 }

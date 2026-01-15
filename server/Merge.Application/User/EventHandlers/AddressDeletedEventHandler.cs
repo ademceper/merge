@@ -4,9 +4,7 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.User.EventHandlers;
 
-/// <summary>
-/// Address Deleted Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
-/// </summary>
+// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class AddressDeletedEventHandler : INotificationHandler<AddressDeletedEvent>
 {
     private readonly ILogger<AddressDeletedEventHandler> _logger;
@@ -19,12 +17,12 @@ public class AddressDeletedEventHandler : INotificationHandler<AddressDeletedEve
     public async Task Handle(AddressDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
+
         _logger.LogInformation(
             "Address deleted event received. AddressId: {AddressId}, UserId: {UserId}",
             notification.AddressId, notification.UserId);
 
-        // TODO: İleride burada şunlar yapılabilir:
-        // - Analytics tracking (address deletion metrics)
+                // - Analytics tracking (address deletion metrics)
         // - Cache invalidation (user addresses cache)
         // - External system integration (address cleanup service)
         // - Order shipping address update (eğer bu address kullanılıyorsa)

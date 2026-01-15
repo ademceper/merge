@@ -15,7 +15,6 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 namespace Merge.Application.User.Queries.GetUserSessions;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetUserSessionsQueryHandler : IRequestHandler<GetUserSessionsQuery, IEnumerable<UserSessionDto>>
 {
     private readonly IDbContext _context;
@@ -23,11 +22,7 @@ public class GetUserSessionsQueryHandler : IRequestHandler<GetUserSessionsQuery,
     private readonly ILogger<GetUserSessionsQueryHandler> _logger;
     private readonly UserSettings _userSettings;
 
-    public GetUserSessionsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetUserSessionsQueryHandler> logger,
-        IOptions<UserSettings> userSettings)
+    public GetUserSessionsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetUserSessionsQueryHandler> logger, IOptions<UserSettings> userSettings)
     {
         _context = context;
         _mapper = mapper;
@@ -37,16 +32,17 @@ public class GetUserSessionsQueryHandler : IRequestHandler<GetUserSessionsQuery,
 
     public async Task<IEnumerable<UserSessionDto>> Handle(GetUserSessionsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Retrieving user sessions for user: {UserId} for last {Days} days", request.UserId, request.Days);
+        // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
-        // ✅ BOLUM 12.0: Magic numbers configuration'dan alınıyor
+        _logger.LogInformation("Retrieving user sessions for user: {UserId} for last {Days} days", request.UserId, request.Days);
         var days = request.Days;
         if (days > _userSettings.Activity.MaxSessionDays) days = _userSettings.Activity.MaxSessionDays;
         if (days < 1) days = _userSettings.Activity.DefaultSessionDays;
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
-        var activities = await _context.Set<UserActivityLog>()
+        var activities =         // ✅ PERFORMANCE: AsNoTracking
+        await _context.Set<UserActivityLog>()
             .AsNoTracking()
             .Include(a => a.User)
             .Where(a => a.UserId == request.UserId && a.CreatedAt >= startDate)
