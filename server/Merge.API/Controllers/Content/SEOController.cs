@@ -26,18 +26,10 @@ namespace Merge.API.Controllers.Content;
 [ApiController]
 [Route("api/v{version:apiVersion}/content/seo")]
 [Authorize(Roles = "Admin,Manager")]
-public class SEOController : BaseController
+public class SEOController(
+    IMediator mediator,
+    IOptions<PaginationSettings> paginationSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-    private readonly PaginationSettings _paginationSettings;
-
-    public SEOController(
-        IMediator mediator,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _mediator = mediator;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     /// <summary>
     /// SEO ayarlarını oluşturur veya günceller
@@ -64,7 +56,7 @@ public class SEOController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        var settings = await _mediator.Send(command, cancellationToken);
+        var settings = await mediator.Send(command, cancellationToken);
         return Ok(settings);
     }
 
@@ -91,7 +83,7 @@ public class SEOController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetSEOSettingsQuery(pageType, entityId);
-        var settings = await _mediator.Send(query, cancellationToken);
+        var settings = await mediator.Send(query, cancellationToken);
         if (settings == null)
         {
             return NotFound();
@@ -127,7 +119,7 @@ public class SEOController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteSEOSettingsCommand(pageType, entityId);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -161,7 +153,7 @@ public class SEOController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new GenerateProductSEOCommand(productId);
-        var settings = await _mediator.Send(command, cancellationToken);
+        var settings = await mediator.Send(command, cancellationToken);
         return Ok(settings);
     }
 
@@ -191,7 +183,7 @@ public class SEOController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new GenerateCategorySEOCommand(categoryId);
-        var settings = await _mediator.Send(command, cancellationToken);
+        var settings = await mediator.Send(command, cancellationToken);
         return Ok(settings);
     }
 
@@ -221,7 +213,7 @@ public class SEOController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new GenerateBlogPostSEOCommand(postId);
-        var settings = await _mediator.Send(command, cancellationToken);
+        var settings = await mediator.Send(command, cancellationToken);
         return Ok(settings);
     }
 
@@ -250,7 +242,7 @@ public class SEOController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        var entry = await _mediator.Send(command, cancellationToken);
+        var entry = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetSitemapEntries), new { id = entry.Id }, entry);
     }
 
@@ -279,7 +271,7 @@ public class SEOController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetSitemapEntriesQuery(isActive, page, pageSize);
-        var entries = await _mediator.Send(query, cancellationToken);
+        var entries = await mediator.Send(query, cancellationToken);
         return Ok(entries);
     }
 
@@ -313,7 +305,7 @@ public class SEOController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var updateCommand = command with { Id = id };
-        var result = await _mediator.Send(updateCommand, cancellationToken);
+        var result = await mediator.Send(updateCommand, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -347,7 +339,7 @@ public class SEOController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteSitemapEntryCommand(id);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -372,7 +364,7 @@ public class SEOController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetSitemapXmlQuery();
-        var xml = await _mediator.Send(query, cancellationToken);
+        var xml = await mediator.Send(query, cancellationToken);
         return Content(xml, "application/xml");
     }
 
@@ -393,7 +385,7 @@ public class SEOController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetRobotsTxtQuery();
-        var content = await _mediator.Send(query, cancellationToken);
+        var content = await mediator.Send(query, cancellationToken);
         return Content(content, "text/plain");
     }
 }

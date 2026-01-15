@@ -4,10 +4,9 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Content.Queries.GetSitemapEntries;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetSitemapEntriesQueryValidator : AbstractValidator<GetSitemapEntriesQuery>
+public class GetSitemapEntriesQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetSitemapEntriesQuery>
 {
-    public GetSitemapEntriesQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    public GetSitemapEntriesQueryValidator()
     {
         var settings = paginationSettings.Value;
 

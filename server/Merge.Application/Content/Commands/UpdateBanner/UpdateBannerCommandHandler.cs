@@ -16,47 +16,31 @@ namespace Merge.Application.Content.Commands.UpdateBanner;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class UpdateBannerCommandHandler : IRequestHandler<UpdateBannerCommand, BannerDto>
+public class UpdateBannerCommandHandler(
+    Merge.Application.Interfaces.IRepository<Banner> bannerRepository,
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ICacheService cache,
+    IMapper mapper,
+    ILogger<UpdateBannerCommandHandler> logger) : IRequestHandler<UpdateBannerCommand, BannerDto>
 {
-    private readonly Merge.Application.Interfaces.IRepository<Banner> _bannerRepository;
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ICacheService _cache;
-    private readonly IMapper _mapper;
-    private readonly ILogger<UpdateBannerCommandHandler> _logger;
     private const string CACHE_KEY_BANNER_BY_ID = "banner_";
     private const string CACHE_KEY_ACTIVE_BANNERS = "banners_active_";
     private const string CACHE_KEY_ALL_BANNERS = "banners_all_";
 
-    public UpdateBannerCommandHandler(
-        Merge.Application.Interfaces.IRepository<Banner> bannerRepository,
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ICacheService cache,
-        IMapper mapper,
-        ILogger<UpdateBannerCommandHandler> logger)
-    {
-        _bannerRepository = bannerRepository;
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _cache = cache;
-        _mapper = mapper;
-        _logger = logger;
-    }
-
     public async Task<BannerDto> Handle(UpdateBannerCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Updating banner. BannerId: {BannerId}, Title: {Title}",
+        logger.LogInformation("Updating banner. BannerId: {BannerId}, Title: {Title}",
             request.Id, request.Title);
 
         // ✅ ARCHITECTURE: Transaction başlat - atomic operation
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var banner = await _bannerRepository.GetByIdAsync(request.Id, cancellationToken);
+            var banner = await bannerRepository.GetByIdAsync(request.Id, cancellationToken);
             if (banner == null)
             {
-                _logger.LogWarning("Banner not found. BannerId: {BannerId}", request.Id);
+                logger.LogWarning("Banner not found. BannerId: {BannerId}", request.Id);
                 throw new NotFoundException("Banner", request.Id);
             }
 
@@ -79,41 +63,41 @@ public class UpdateBannerCommandHandler : IRequestHandler<UpdateBannerCommand, B
             else
                 banner.Deactivate();
 
-            await _bannerRepository.UpdateAsync(banner, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await bannerRepository.UpdateAsync(banner, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            _logger.LogInformation("Banner updated successfully. BannerId: {BannerId}, Title: {Title}",
+            logger.LogInformation("Banner updated successfully. BannerId: {BannerId}, Title: {Title}",
                 banner.Id, banner.Title);
 
             // ✅ BOLUM 10.2: Cache invalidation - Remove all banner-related cache
-            await _cache.RemoveAsync($"{CACHE_KEY_BANNER_BY_ID}{request.Id}", cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_BANNER_BY_ID}{request.Id}", cancellationToken);
             if (oldPosition != request.Position)
             {
-                await _cache.RemoveAsync($"{CACHE_KEY_ACTIVE_BANNERS}{oldPosition}", cancellationToken);
-                await _cache.RemoveAsync($"{CACHE_KEY_ACTIVE_BANNERS}{request.Position}", cancellationToken);
+                await cache.RemoveAsync($"{CACHE_KEY_ACTIVE_BANNERS}{oldPosition}", cancellationToken);
+                await cache.RemoveAsync($"{CACHE_KEY_ACTIVE_BANNERS}{request.Position}", cancellationToken);
             }
             else
             {
-                await _cache.RemoveAsync($"{CACHE_KEY_ACTIVE_BANNERS}{request.Position}", cancellationToken);
+                await cache.RemoveAsync($"{CACHE_KEY_ACTIVE_BANNERS}{request.Position}", cancellationToken);
             }
-            await _cache.RemoveAsync(CACHE_KEY_ALL_BANNERS, cancellationToken);
+            await cache.RemoveAsync(CACHE_KEY_ALL_BANNERS, cancellationToken);
 
-            return _mapper.Map<BannerDto>(banner);
+            return mapper.Map<BannerDto>(banner);
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            _logger.LogError(ex, "Concurrency conflict while updating banner. BannerId: {BannerId}",
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Concurrency conflict while updating banner. BannerId: {BannerId}",
                 request.Id);
             throw new BusinessException("Banner güncelleme çakışması. Başka bir kullanıcı aynı banner'ı güncelledi. Lütfen tekrar deneyin.");
         }
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex, "Error updating banner. BannerId: {BannerId}",
+            logger.LogError(ex, "Error updating banner. BannerId: {BannerId}",
                 request.Id);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

@@ -17,50 +17,36 @@ namespace Merge.Application.Content.Queries.GetActiveBanners;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetActiveBannersQueryHandler : IRequestHandler<GetActiveBannersQuery, PagedResult<BannerDto>>
+public class GetActiveBannersQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetActiveBannersQueryHandler> logger,
+    ICacheService cache,
+    IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetActiveBannersQuery, PagedResult<BannerDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetActiveBannersQueryHandler> _logger;
-    private readonly ICacheService _cache;
-    private readonly PaginationSettings _paginationSettings;
     private const string CACHE_KEY_ACTIVE_BANNERS_PAGED = "banners_active_paged";
     private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(5); // Active banners change more frequently
 
-    public GetActiveBannersQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetActiveBannersQueryHandler> logger,
-        ICacheService cache,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _cache = cache;
-        _paginationSettings = paginationSettings.Value;
-    }
-
     public async Task<PagedResult<BannerDto>> Handle(GetActiveBannersQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Retrieving active banners. Position: {Position}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Retrieving active banners. Position: {Position}, Page: {Page}, PageSize: {PageSize}",
             request.Position, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize ? _paginationSettings.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var cacheKey = $"{CACHE_KEY_ACTIVE_BANNERS_PAGED}_{request.Position ?? "all"}_{page}_{pageSize}";
 
         // ✅ BOLUM 10.2: Redis distributed cache for active banners
-        var cachedResult = await _cache.GetOrCreateAsync(
+        var cachedResult = await cache.GetOrCreateAsync(
             cacheKey,
             async () =>
             {
-                _logger.LogInformation("Cache miss for active banners (paged). Fetching from database.");
+                logger.LogInformation("Cache miss for active banners (paged). Fetching from database.");
 
                 var now = DateTime.UtcNow;
-                var query = _context.Set<Banner>()
+                var query = context.Set<Banner>()
                     .AsNoTracking()
                     .Where(b => b.IsActive &&
                           (!b.StartDate.HasValue || b.StartDate.Value <= now) &&
@@ -80,7 +66,7 @@ public class GetActiveBannersQueryHandler : IRequestHandler<GetActiveBannersQuer
 
                 return new PagedResult<BannerDto>
                 {
-                    Items = _mapper.Map<List<BannerDto>>(banners),
+                    Items = mapper.Map<List<BannerDto>>(banners),
                     TotalCount = totalCount,
                     Page = page,
                     PageSize = pageSize

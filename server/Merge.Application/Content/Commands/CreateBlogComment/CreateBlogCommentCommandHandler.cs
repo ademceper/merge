@@ -14,58 +14,35 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.CreateBlogComment;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class CreateBlogCommentCommandHandler : IRequestHandler<CreateBlogCommentCommand, BlogCommentDto>
+public class CreateBlogCommentCommandHandler(
+    Merge.Application.Interfaces.IRepository<BlogComment> commentRepository,
+    Merge.Application.Interfaces.IRepository<BlogPost> postRepository,
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ICacheService cache,
+    IMapper mapper,
+    ILogger<CreateBlogCommentCommandHandler> logger) : IRequestHandler<CreateBlogCommentCommand, BlogCommentDto>
 {
-    private readonly Merge.Application.Interfaces.IRepository<BlogComment> _commentRepository;
-    private readonly Merge.Application.Interfaces.IRepository<BlogPost> _postRepository;
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ICacheService _cache;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateBlogCommentCommandHandler> _logger;
     private const string CACHE_KEY_POST_COMMENTS = "blog_post_comments_";
-
-    public CreateBlogCommentCommandHandler(
-        Merge.Application.Interfaces.IRepository<BlogComment> commentRepository,
-        Merge.Application.Interfaces.IRepository<BlogPost> postRepository,
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ICacheService cache,
-        IMapper mapper,
-        ILogger<CreateBlogCommentCommandHandler> logger)
-    {
-        _commentRepository = commentRepository;
-        _postRepository = postRepository;
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _cache = cache;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<BlogCommentDto> Handle(CreateBlogCommentCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Creating blog comment. BlogPostId: {BlogPostId}, UserId: {UserId}",
+        logger.LogInformation("Creating blog comment. BlogPostId: {BlogPostId}, UserId: {UserId}",
             request.BlogPostId, request.UserId);
 
-        // ✅ ARCHITECTURE: Transaction başlat - atomic operation
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            // Post validation
-            var post = await _context.Set<BlogPost>()
+            var post = await context.Set<BlogPost>()
                 .FirstOrDefaultAsync(p => p.Id == request.BlogPostId && p.AllowComments, cancellationToken);
 
             if (post == null)
             {
-                _logger.LogWarning("Blog post not found or comments not allowed. BlogPostId: {BlogPostId}", request.BlogPostId);
+                logger.LogWarning("Blog post not found or comments not allowed. BlogPostId: {BlogPostId}", request.BlogPostId);
                 throw new NotFoundException("Blog yazısı", request.BlogPostId);
             }
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-            var autoApprove = request.UserId.HasValue; // Auto-approve for logged-in users
+            var autoApprove = request.UserId.HasValue;
             var comment = BlogComment.Create(
                 request.BlogPostId,
                 request.Content,
@@ -75,17 +52,15 @@ public class CreateBlogCommentCommandHandler : IRequestHandler<CreateBlogComment
                 request.AuthorEmail,
                 autoApprove);
 
-            comment = await _commentRepository.AddAsync(comment, cancellationToken);
+            comment = await commentRepository.AddAsync(comment, cancellationToken);
 
-            // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             post.IncrementCommentCount();
 
-            await _postRepository.UpdateAsync(post, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await postRepository.UpdateAsync(post, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-            var reloadedComment = await _context.Set<BlogComment>()
+            var reloadedComment = await context.Set<BlogComment>()
                 .AsNoTracking()
                 .Include(c => c.User)
                 .Include(c => c.ParentComment)
@@ -93,29 +68,27 @@ public class CreateBlogCommentCommandHandler : IRequestHandler<CreateBlogComment
 
             if (reloadedComment == null)
             {
-                _logger.LogWarning("Blog comment {CommentId} not found after creation", comment.Id);
+                logger.LogWarning("Blog comment {CommentId} not found after creation", comment.Id);
                 throw new NotFoundException("Blog Yorumu", comment.Id);
             }
 
-            // ✅ BOLUM 10.2: Cache invalidation
-            await _cache.RemoveAsync($"{CACHE_KEY_POST_COMMENTS}{request.BlogPostId}", cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_POST_COMMENTS}{request.BlogPostId}", cancellationToken);
 
-            _logger.LogInformation("Blog comment created. CommentId: {CommentId}, BlogPostId: {BlogPostId}",
+            logger.LogInformation("Blog comment created. CommentId: {CommentId}, BlogPostId: {BlogPostId}",
                 comment.Id, request.BlogPostId);
 
-            return _mapper.Map<BlogCommentDto>(reloadedComment);
+            return mapper.Map<BlogCommentDto>(reloadedComment);
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            _logger.LogError(ex, "Concurrency conflict while creating blog comment for BlogPostId: {BlogPostId}", request.BlogPostId);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Concurrency conflict while creating blog comment for BlogPostId: {BlogPostId}", request.BlogPostId);
             throw new BusinessException("Blog yorumu oluşturma çakışması. Lütfen tekrar deneyin.");
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex, "Error creating blog comment for BlogPostId: {BlogPostId}", request.BlogPostId);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Error creating blog comment for BlogPostId: {BlogPostId}", request.BlogPostId);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

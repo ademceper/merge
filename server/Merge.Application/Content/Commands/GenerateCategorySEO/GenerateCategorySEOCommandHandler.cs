@@ -15,38 +15,23 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.GenerateCategorySEO;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GenerateCategorySEOCommandHandler : IRequestHandler<GenerateCategorySEOCommand, SEOSettingsDto>
+public class GenerateCategorySEOCommandHandler(
+    IDbContext context,
+    IMediator mediator,
+    IMapper mapper,
+    ILogger<GenerateCategorySEOCommandHandler> logger) : IRequestHandler<GenerateCategorySEOCommand, SEOSettingsDto>
 {
-    private readonly IDbContext _context;
-    private readonly IMediator _mediator;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GenerateCategorySEOCommandHandler> _logger;
-
-    public GenerateCategorySEOCommandHandler(
-        IDbContext context,
-        IMediator mediator,
-        IMapper mapper,
-        ILogger<GenerateCategorySEOCommandHandler> logger)
-    {
-        _context = context;
-        _mediator = mediator;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<SEOSettingsDto> Handle(GenerateCategorySEOCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Generating SEO for category. CategoryId: {CategoryId}", request.CategoryId);
+        logger.LogInformation("Generating SEO for category. CategoryId: {CategoryId}", request.CategoryId);
 
-        // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
-        var category = await _context.Set<Category>()
+        var category = await context.Set<Category>()
             .FirstOrDefaultAsync(c => c.Id == request.CategoryId, cancellationToken);
 
         if (category == null)
         {
-            _logger.LogWarning("Category not found. CategoryId: {CategoryId}", request.CategoryId);
+            logger.LogWarning("Category not found. CategoryId: {CategoryId}", request.CategoryId);
             throw new NotFoundException("Kategori", request.CategoryId);
         }
 
@@ -57,7 +42,6 @@ public class GenerateCategorySEOCommandHandler : IRequestHandler<GenerateCategor
                 : category.Description
             : $"Browse {category.Name} products. Wide selection and best prices.";
 
-        // ✅ BOLUM 2.0: MediatR + CQRS pattern - CreateOrUpdateSEOSettingsCommand kullan
         var command = new CreateOrUpdateSEOSettingsCommand(
             PageType: "Category",
             EntityId: request.CategoryId,
@@ -70,7 +54,7 @@ public class GenerateCategorySEOCommandHandler : IRequestHandler<GenerateCategor
             Priority: 0.7m,
             ChangeFrequency: "daily");
 
-        return await _mediator.Send(command, cancellationToken);
+        return await mediator.Send(command, cancellationToken);
     }
 }
 

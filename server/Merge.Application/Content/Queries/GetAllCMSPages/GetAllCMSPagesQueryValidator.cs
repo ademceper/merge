@@ -4,10 +4,9 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Content.Queries.GetAllCMSPages;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetAllCMSPagesQueryValidator : AbstractValidator<GetAllCMSPagesQuery>
+public class GetAllCMSPagesQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetAllCMSPagesQuery>
 {
-    public GetAllCMSPagesQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    public GetAllCMSPagesQueryValidator()
     {
         var settings = paginationSettings.Value;
 

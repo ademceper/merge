@@ -11,39 +11,25 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Queries.GetSitemapXml;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetSitemapXmlQueryHandler : IRequestHandler<GetSitemapXmlQuery, string>
+public class GetSitemapXmlQueryHandler(
+    IDbContext context,
+    ILogger<GetSitemapXmlQueryHandler> logger,
+    ICacheService cache) : IRequestHandler<GetSitemapXmlQuery, string>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetSitemapXmlQueryHandler> _logger;
-    private readonly ICacheService _cache;
     private const string CACHE_KEY_SITEMAP_XML = "sitemap_xml";
-    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromHours(1); // Sitemap XML changes less frequently
-
-    public GetSitemapXmlQueryHandler(
-        IDbContext context,
-        ILogger<GetSitemapXmlQueryHandler> logger,
-        ICacheService cache)
-    {
-        _context = context;
-        _logger = logger;
-        _cache = cache;
-    }
+    private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromHours(1);
 
     public async Task<string> Handle(GetSitemapXmlQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Generating sitemap XML");
+        logger.LogInformation("Generating sitemap XML");
 
-        // ✅ BOLUM 10.2: Redis distributed cache for sitemap XML
-        var cachedXml = await _cache.GetOrCreateAsync(
+        var cachedXml = await cache.GetOrCreateAsync(
             CACHE_KEY_SITEMAP_XML,
             async () =>
             {
-                _logger.LogInformation("Cache miss for sitemap XML. Generating from database.");
+                logger.LogInformation("Cache miss for sitemap XML. Generating from database.");
 
-                // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
-                var entries = await _context.Set<SitemapEntry>()
+                var entries = await context.Set<SitemapEntry>()
                     .AsNoTracking()
                     .Where(e => e.IsActive)
                     .ToListAsync(cancellationToken);

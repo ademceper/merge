@@ -23,18 +23,10 @@ namespace Merge.API.Controllers.Content;
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/content/cms-pages")]
-public class CMSPagesController : BaseController
+public class CMSPagesController(
+    IMediator mediator,
+    IOptions<PaginationSettings> paginationSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-    private readonly PaginationSettings _paginationSettings;
-
-    public CMSPagesController(
-        IMediator mediator,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _mediator = mediator;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     /// <summary>
     /// Yeni CMS sayfası oluşturur
@@ -67,7 +59,7 @@ public class CMSPagesController : BaseController
         var authorId = GetUserId();
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var createCommand = command with { AuthorId = authorId };
-        var page = await _mediator.Send(createCommand, cancellationToken);
+        var page = await mediator.Send(createCommand, cancellationToken);
         return CreatedAtAction(nameof(GetPageById), new { id = page.Id }, page);
     }
 
@@ -92,7 +84,7 @@ public class CMSPagesController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetCMSPageByIdQuery(id);
-        var page = await _mediator.Send(query, cancellationToken);
+        var page = await mediator.Send(query, cancellationToken);
         
         if (page == null)
         {
@@ -122,7 +114,7 @@ public class CMSPagesController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetCMSPageBySlugQuery(slug);
-        var page = await _mediator.Send(query, cancellationToken);
+        var page = await mediator.Send(query, cancellationToken);
         
         if (page == null)
         {
@@ -150,7 +142,7 @@ public class CMSPagesController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetHomePageCMSPageQuery();
-        var page = await _mediator.Send(query, cancellationToken);
+        var page = await mediator.Send(query, cancellationToken);
         
         if (page == null)
         {
@@ -186,11 +178,11 @@ public class CMSPagesController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var query = new GetAllCMSPagesQuery(status, showInMenu, page, pageSize);
-        var pages = await _mediator.Send(query, cancellationToken);
+        var pages = await mediator.Send(query, cancellationToken);
         return Ok(pages);
     }
 
@@ -212,7 +204,7 @@ public class CMSPagesController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ⚠️ NOT: GetMenuCMSPagesQuery handler'da unbounded query koruması var (max 100 sayfa)
         var query = new GetMenuCMSPagesQuery();
-        var pages = await _mediator.Send(query, cancellationToken);
+        var pages = await mediator.Send(query, cancellationToken);
         return Ok(pages);
     }
 
@@ -258,7 +250,7 @@ public class CMSPagesController : BaseController
         // Admin ise PerformedBy = null (tüm sayfaları güncelleyebilir), Manager ise PerformedBy = userId
         Guid? performedBy = User.IsInRole("Admin") ? null : userId;
         var updateCommand = command with { Id = id, PerformedBy = performedBy };
-        var result = await _mediator.Send(updateCommand, cancellationToken);
+        var result = await mediator.Send(updateCommand, cancellationToken);
         
         if (!result)
         {
@@ -302,7 +294,7 @@ public class CMSPagesController : BaseController
         // Admin ise PerformedBy = null (tüm sayfaları silebilir), Manager ise PerformedBy = userId
         Guid? performedBy = User.IsInRole("Admin") ? null : userId;
         var command = new DeleteCMSPageCommand(id, performedBy);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {
@@ -346,7 +338,7 @@ public class CMSPagesController : BaseController
         // Admin ise PerformedBy = null (tüm sayfaları yayınlayabilir), Manager ise PerformedBy = userId
         Guid? performedBy = User.IsInRole("Admin") ? null : userId;
         var command = new PublishCMSPageCommand(id, performedBy);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {
@@ -390,7 +382,7 @@ public class CMSPagesController : BaseController
         // Admin ise PerformedBy = null (tüm sayfaları ana sayfa yapabilir), Manager ise PerformedBy = userId
         Guid? performedBy = User.IsInRole("Admin") ? null : userId;
         var command = new SetHomePageCMSPageCommand(id, performedBy);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {

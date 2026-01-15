@@ -4,8 +4,6 @@ using FluentValidation;
 using MediatR;
 using Merge.Application.Common.Behaviors;
 
-using Merge.Application.Interfaces.Content;
-
 using Merge.Application.Interfaces.Logistics;
 using Merge.Application.Interfaces.Marketing;
 using Merge.Application.Interfaces.ML;
@@ -54,14 +52,6 @@ public static class DependencyInjection
 
         services.AddAutoMapper(assembly);
         services.AddValidatorsFromAssembly(assembly);
-
-        // ✅ BOLUM 1.1: Application Services (Managed transition to CQRS)
-        // #pragma warning disable CS0618
-
-
-
-
-
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<INotificationTemplateService, NotificationTemplateService>();
         services.AddScoped<IReturnRequestService, ReturnRequestService>();
@@ -71,9 +61,6 @@ public static class DependencyInjection
         services.AddScoped<IProductBundleService, ProductBundleService>();
         services.AddScoped<IInvoiceService, InvoiceService>();
         services.AddScoped<ISellerDashboardService, SellerDashboardService>();
-
-        services.AddScoped<IBannerService, BannerService>();
-
 
         services.AddScoped<IBulkProductService, BulkProductService>();
 
@@ -89,18 +76,13 @@ public static class DependencyInjection
         services.AddScoped<IProductTemplateService, ProductTemplateService>();
         services.AddScoped<IPaymentMethodService, PaymentMethodService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
-        services.AddScoped<IBlogService, BlogService>();
-        services.AddScoped<ISEOService, SEOService>();
         services.AddScoped<IProductQuestionService, ProductQuestionService>();
         services.AddScoped<ISellerCommissionService, SellerCommissionService>();
-        services.AddScoped<ICMSService, CMSService>();
-        services.AddScoped<ILandingPageService, LandingPageService>();
         services.AddScoped<IFraudDetectionService, FraudDetectionService>();
         services.AddScoped<IPriceOptimizationService, PriceOptimizationService>();
         services.AddScoped<IDemandForecastingService, DemandForecastingService>();
         services.AddScoped<IElasticsearchService, ElasticsearchService>();
         services.AddScoped<IPersonalizationService, PersonalizationService>();
-        services.AddScoped<IPageBuilderService, PageBuilderService>();
         // #pragma warning restore CS0618
 
         return services;

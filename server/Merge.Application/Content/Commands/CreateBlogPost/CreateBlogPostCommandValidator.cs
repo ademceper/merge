@@ -3,8 +3,7 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Content.Commands.CreateBlogPost;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class CreateBlogPostCommandValidator : AbstractValidator<CreateBlogPostCommand>
+public class CreateBlogPostCommandValidator() : AbstractValidator<CreateBlogPostCommand>
 {
     public CreateBlogPostCommandValidator()
     {

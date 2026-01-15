@@ -4,10 +4,9 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Content.Queries.GetBlogPostComments;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetBlogPostCommentsQueryValidator : AbstractValidator<GetBlogPostCommentsQuery>
+public class GetBlogPostCommentsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetBlogPostCommentsQuery>
 {
-    public GetBlogPostCommentsQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    public GetBlogPostCommentsQueryValidator()
     {
         var settings = paginationSettings.Value;
 

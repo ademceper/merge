@@ -5,10 +5,9 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Content.Queries.GetBlogPosts;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetBlogPostsQueryValidator : AbstractValidator<GetBlogPostsQuery>
+public class GetBlogPostsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetBlogPostsQuery>
 {
-    public GetBlogPostsQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    public GetBlogPostsQueryValidator()
     {
         var settings = paginationSettings.Value;
 

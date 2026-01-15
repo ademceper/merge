@@ -19,18 +19,10 @@ namespace Merge.API.Controllers.Content;
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/content/banners")]
-public class BannersController : BaseController
+public class BannersController(
+    IMediator mediator,
+    IOptions<PaginationSettings> paginationSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-    private readonly PaginationSettings _paginationSettings;
-
-    public BannersController(
-        IMediator mediator,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _mediator = mediator;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     /// <summary>
     /// Aktif banner'ları getirir
@@ -56,11 +48,11 @@ public class BannersController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var query = new GetActiveBannersQuery(position, page, pageSize);
-        var banners = await _mediator.Send(query, cancellationToken);
+        var banners = await mediator.Send(query, cancellationToken);
         return Ok(banners);
     }
 
@@ -91,11 +83,11 @@ public class BannersController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Config'den al
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
         if (page < 1) page = 1;
 
         var query = new GetAllBannersQuery(page, pageSize);
-        var banners = await _mediator.Send(query, cancellationToken);
+        var banners = await mediator.Send(query, cancellationToken);
         return Ok(banners);
     }
 
@@ -119,7 +111,7 @@ public class BannersController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetBannerByIdQuery(id);
-        var banner = await _mediator.Send(query, cancellationToken);
+        var banner = await mediator.Send(query, cancellationToken);
         
         if (banner == null)
         {
@@ -157,7 +149,7 @@ public class BannersController : BaseController
         if (validationResult != null) return validationResult;
 
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        var banner = await _mediator.Send(command, cancellationToken);
+        var banner = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = banner.Id }, banner);
     }
 
@@ -195,7 +187,7 @@ public class BannersController : BaseController
 
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var updateCommand = command with { Id = id };
-        var banner = await _mediator.Send(updateCommand, cancellationToken);
+        var banner = await mediator.Send(updateCommand, cancellationToken);
         return Ok(banner);
     }
 
@@ -226,7 +218,7 @@ public class BannersController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteBannerCommand(id);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {

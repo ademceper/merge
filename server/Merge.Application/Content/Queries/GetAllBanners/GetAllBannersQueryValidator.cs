@@ -4,10 +4,9 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Content.Queries.GetAllBanners;
 
-// ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetAllBannersQueryValidator : AbstractValidator<GetAllBannersQuery>
+public class GetAllBannersQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetAllBannersQuery>
 {
-    public GetAllBannersQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    public GetAllBannersQueryValidator()
     {
         var settings = paginationSettings.Value;
 

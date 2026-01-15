@@ -21,18 +21,10 @@ namespace Merge.API.Controllers.Content;
 [ApiVersion("1.0")] // ✅ BOLUM 4.1: API Versioning (ZORUNLU)
 [Route("api/v{version:apiVersion}/content/page-builders")]
 [Authorize]
-public class PageBuildersController : BaseController
+public class PageBuildersController(
+    IMediator mediator,
+    IOptions<PaginationSettings> paginationSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-    private readonly PaginationSettings _paginationSettings;
-
-    public PageBuildersController(
-        IMediator mediator,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _mediator = mediator;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     /// <summary>
     /// Yeni page builder sayfası oluşturur
@@ -62,7 +54,7 @@ public class PageBuildersController : BaseController
         var authorId = GetUserId();
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var createCommand = command with { AuthorId = authorId };
-        var page = await _mediator.Send(createCommand, cancellationToken);
+        var page = await mediator.Send(createCommand, cancellationToken);
         return CreatedAtAction(nameof(GetPage), new { id = page.Id }, page);
     }
 
@@ -90,7 +82,7 @@ public class PageBuildersController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetPageBuilderByIdQuery(id, trackView);
-        var page = await _mediator.Send(query, cancellationToken);
+        var page = await mediator.Send(query, cancellationToken);
         if (page == null)
         {
             return NotFound();
@@ -122,7 +114,7 @@ public class PageBuildersController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetPageBuilderBySlugQuery(slug, trackView);
-        var page = await _mediator.Send(query, cancellationToken);
+        var page = await mediator.Send(query, cancellationToken);
         if (page == null)
         {
             return NotFound();
@@ -159,7 +151,7 @@ public class PageBuildersController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetAllPageBuildersQuery(status, page, pageSize);
-        var pages = await _mediator.Send(query, cancellationToken);
+        var pages = await mediator.Send(query, cancellationToken);
         return Ok(pages);
     }
 
@@ -200,7 +192,7 @@ public class PageBuildersController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.2: IDOR Koruması - Handler içinde yapılıyor
         var updateCommand = command with { Id = id, PerformedBy = userId };
-        var result = await _mediator.Send(updateCommand, cancellationToken);
+        var result = await mediator.Send(updateCommand, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -241,7 +233,7 @@ public class PageBuildersController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.2: IDOR Koruması - Handler içinde yapılıyor
         var command = new DeletePageBuilderCommand(id, userId);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -282,7 +274,7 @@ public class PageBuildersController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.2: IDOR Koruması - Handler içinde yapılıyor
         var command = new PublishPageBuilderCommand(id, userId);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -323,7 +315,7 @@ public class PageBuildersController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.2: IDOR Koruması - Handler içinde yapılıyor
         var command = new UnpublishPageBuilderCommand(id, userId);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();

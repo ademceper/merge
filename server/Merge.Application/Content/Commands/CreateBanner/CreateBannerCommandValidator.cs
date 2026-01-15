@@ -3,7 +3,7 @@ using Merge.Domain.Modules.Content;
 
 namespace Merge.Application.Content.Commands.CreateBanner;
 
-public class CreateBannerCommandValidator : AbstractValidator<CreateBannerCommand>
+public class CreateBannerCommandValidator() : AbstractValidator<CreateBannerCommand>
 {
     public CreateBannerCommandValidator()
     {

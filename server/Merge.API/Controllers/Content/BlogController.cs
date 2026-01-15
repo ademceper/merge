@@ -35,18 +35,10 @@ namespace Merge.API.Controllers.Content;
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/content/blog")]
-public class BlogController : BaseController
+public class BlogController(
+    IMediator mediator,
+    IOptions<PaginationSettings> paginationSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-    private readonly PaginationSettings _paginationSettings;
-
-    public BlogController(
-        IMediator mediator,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _mediator = mediator;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     // Categories
     /// <summary>
@@ -68,7 +60,7 @@ public class BlogController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetAllBlogCategoriesQuery(isActive);
-        var categories = await _mediator.Send(query, cancellationToken);
+        var categories = await mediator.Send(query, cancellationToken);
         return Ok(categories);
     }
 
@@ -93,7 +85,7 @@ public class BlogController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetBlogCategoryByIdQuery(id);
-        var category = await _mediator.Send(query, cancellationToken);
+        var category = await mediator.Send(query, cancellationToken);
         if (category == null)
         {
             return NotFound();
@@ -122,7 +114,7 @@ public class BlogController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetBlogCategoryBySlugQuery(slug);
-        var category = await _mediator.Send(query, cancellationToken);
+        var category = await mediator.Send(query, cancellationToken);
         if (category == null)
         {
             return NotFound();
@@ -156,7 +148,7 @@ public class BlogController : BaseController
         CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-        var category = await _mediator.Send(command, cancellationToken);
+        var category = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
     }
 
@@ -191,7 +183,7 @@ public class BlogController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var updateCommand = command with { Id = id };
-        var result = await _mediator.Send(updateCommand, cancellationToken);
+        var result = await mediator.Send(updateCommand, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -226,7 +218,7 @@ public class BlogController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteBlogCategoryCommand(id);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -262,7 +254,7 @@ public class BlogController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetBlogPostsQuery(categoryId, status, page, pageSize);
-        var posts = await _mediator.Send(query, cancellationToken);
+        var posts = await mediator.Send(query, cancellationToken);
         return Ok(posts);
     }
 
@@ -289,7 +281,7 @@ public class BlogController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetBlogPostByIdQuery(id, trackView);
-        var post = await _mediator.Send(query, cancellationToken);
+        var post = await mediator.Send(query, cancellationToken);
         if (post == null)
         {
             return NotFound();
@@ -320,7 +312,7 @@ public class BlogController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetBlogPostBySlugQuery(slug, trackView);
-        var post = await _mediator.Send(query, cancellationToken);
+        var post = await mediator.Send(query, cancellationToken);
         if (post == null)
         {
             return NotFound();
@@ -347,7 +339,7 @@ public class BlogController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetFeaturedBlogPostsQuery(count);
-        var posts = await _mediator.Send(query, cancellationToken);
+        var posts = await mediator.Send(query, cancellationToken);
         return Ok(posts);
     }
 
@@ -370,7 +362,7 @@ public class BlogController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetRecentBlogPostsQuery(count);
-        var posts = await _mediator.Send(query, cancellationToken);
+        var posts = await mediator.Send(query, cancellationToken);
         return Ok(posts);
     }
 
@@ -399,7 +391,7 @@ public class BlogController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var searchQuery = new SearchBlogPostsQuery(query, page, pageSize);
-        var posts = await _mediator.Send(searchQuery, cancellationToken);
+        var posts = await mediator.Send(searchQuery, cancellationToken);
         return Ok(posts);
     }
 
@@ -431,7 +423,7 @@ public class BlogController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var authorId = GetUserId();
         var createCommand = command with { AuthorId = authorId };
-        var post = await _mediator.Send(createCommand, cancellationToken);
+        var post = await mediator.Send(createCommand, cancellationToken);
         return CreatedAtAction(nameof(GetPost), new { id = post.Id }, post);
     }
 
@@ -470,7 +462,7 @@ public class BlogController : BaseController
         var userId = GetUserId();
         var performedBy = User.IsInRole("Admin") || User.IsInRole("Manager") ? (Guid?)null : userId;
         var updateCommand = command with { Id = id, PerformedBy = performedBy };
-        var result = await _mediator.Send(updateCommand, cancellationToken);
+        var result = await mediator.Send(updateCommand, cancellationToken);
         
         if (!result)
         {
@@ -510,7 +502,7 @@ public class BlogController : BaseController
         var userId = GetUserId();
         var performedBy = User.IsInRole("Admin") ? (Guid?)null : userId;
         var command = new DeleteBlogPostCommand(id, performedBy);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {
@@ -550,7 +542,7 @@ public class BlogController : BaseController
         var userId = GetUserId();
         var performedBy = User.IsInRole("Admin") ? (Guid?)null : userId;
         var command = new PublishBlogPostCommand(id, performedBy);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         
         if (!result)
         {
@@ -587,7 +579,7 @@ public class BlogController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetBlogPostCommentsQuery(postId, isApproved, page, pageSize);
-        var comments = await _mediator.Send(query, cancellationToken);
+        var comments = await mediator.Send(query, cancellationToken);
         return Ok(comments);
     }
 
@@ -621,7 +613,7 @@ public class BlogController : BaseController
             userId = GetUserId();
         }
         var createCommand = command with { UserId = userId };
-        var comment = await _mediator.Send(createCommand, cancellationToken);
+        var comment = await mediator.Send(createCommand, cancellationToken);
         return CreatedAtAction(nameof(GetPostComments), new { postId = comment.BlogPostId }, comment);
     }
 
@@ -652,7 +644,7 @@ public class BlogController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new ApproveBlogCommentCommand(id);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -687,7 +679,7 @@ public class BlogController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteBlogCommentCommand(id);
-        var result = await _mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
         if (!result)
         {
             return NotFound();
@@ -721,7 +713,7 @@ public class BlogController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetBlogAnalyticsQuery(startDate, endDate);
-        var analytics = await _mediator.Send(query, cancellationToken);
+        var analytics = await mediator.Send(query, cancellationToken);
         return Ok(analytics);
     }
 }

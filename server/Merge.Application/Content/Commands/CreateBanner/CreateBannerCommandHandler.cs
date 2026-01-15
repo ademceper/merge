@@ -15,41 +15,25 @@ namespace Merge.Application.Content.Commands.CreateBanner;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class CreateBannerCommandHandler : IRequestHandler<CreateBannerCommand, BannerDto>
+public class CreateBannerCommandHandler(
+    Merge.Application.Interfaces.IRepository<Banner> bannerRepository,
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ICacheService cache,
+    IMapper mapper,
+    ILogger<CreateBannerCommandHandler> logger) : IRequestHandler<CreateBannerCommand, BannerDto>
 {
-    private readonly Merge.Application.Interfaces.IRepository<Banner> _bannerRepository;
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ICacheService _cache;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateBannerCommandHandler> _logger;
     private const string CACHE_KEY_BANNER_BY_ID = "banner_";
     private const string CACHE_KEY_ACTIVE_BANNERS = "banners_active_";
     private const string CACHE_KEY_ALL_BANNERS = "banners_all_";
 
-    public CreateBannerCommandHandler(
-        Merge.Application.Interfaces.IRepository<Banner> bannerRepository,
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ICacheService cache,
-        IMapper mapper,
-        ILogger<CreateBannerCommandHandler> logger)
-    {
-        _bannerRepository = bannerRepository;
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _cache = cache;
-        _mapper = mapper;
-        _logger = logger;
-    }
-
     public async Task<BannerDto> Handle(CreateBannerCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Creating banner. Title: {Title}, Position: {Position}",
+        logger.LogInformation("Creating banner. Title: {Title}, Position: {Position}",
             request.Title, request.Position);
 
         // ✅ ARCHITECTURE: Transaction başlat - atomic operation
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
@@ -66,33 +50,33 @@ public class CreateBannerCommandHandler : IRequestHandler<CreateBannerCommand, B
                 request.CategoryId,
                 request.ProductId);
 
-            banner = await _bannerRepository.AddAsync(banner, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            banner = await bannerRepository.AddAsync(banner, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            _logger.LogInformation("Banner created successfully. BannerId: {BannerId}, Title: {Title}",
+            logger.LogInformation("Banner created successfully. BannerId: {BannerId}, Title: {Title}",
                 banner.Id, banner.Title);
 
             // ✅ BOLUM 10.2: Cache invalidation - Remove all banner-related cache
-            await _cache.RemoveAsync($"{CACHE_KEY_BANNER_BY_ID}{banner.Id}", cancellationToken);
-            await _cache.RemoveAsync($"{CACHE_KEY_ACTIVE_BANNERS}{request.Position}", cancellationToken);
-            await _cache.RemoveAsync(CACHE_KEY_ALL_BANNERS, cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_BANNER_BY_ID}{banner.Id}", cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_ACTIVE_BANNERS}{request.Position}", cancellationToken);
+            await cache.RemoveAsync(CACHE_KEY_ALL_BANNERS, cancellationToken);
 
-            return _mapper.Map<BannerDto>(banner);
+            return mapper.Map<BannerDto>(banner);
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            _logger.LogError(ex, "Concurrency conflict while creating banner. Title: {Title}, Position: {Position}",
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Concurrency conflict while creating banner. Title: {Title}, Position: {Position}",
                 request.Title, request.Position);
             throw new BusinessException("Banner oluşturma çakışması. Lütfen tekrar deneyin.");
         }
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex, "Error creating banner. Title: {Title}, Position: {Position}",
+            logger.LogError(ex, "Error creating banner. Title: {Title}, Position: {Position}",
                 request.Title, request.Position);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }
