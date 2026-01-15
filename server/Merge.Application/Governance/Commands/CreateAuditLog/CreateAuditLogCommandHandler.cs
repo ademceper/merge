@@ -10,31 +10,19 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Governance.Commands.CreateAuditLog;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreateAuditLogCommandHandler : IRequestHandler<CreateAuditLogCommand>
+public class CreateAuditLogCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<CreateAuditLogCommandHandler> logger) : IRequestHandler<CreateAuditLogCommand>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<CreateAuditLogCommandHandler> _logger;
-
-    public CreateAuditLogCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<CreateAuditLogCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task Handle(CreateAuditLogCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Creating audit log. Action: {Action}, EntityType: {EntityType}, UserId: {UserId}",
+        logger.LogInformation("Creating audit log. Action: {Action}, EntityType: {EntityType}, UserId: {UserId}",
             request.Action, request.EntityType, request.UserId);
 
         try
         {
-            // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             var audit = AuditLog.Create(
                 action: request.Action,
                 entityType: request.EntityType,
@@ -54,18 +42,15 @@ public class CreateAuditLogCommandHandler : IRequestHandler<CreateAuditLogComman
                 isSuccessful: request.IsSuccessful,
                 errorMessage: request.ErrorMessage);
 
-            await _context.Set<AuditLog>().AddAsync(audit, cancellationToken);
-            // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await context.Set<AuditLog>().AddAsync(audit, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation("Audit log created. AuditLogId: {AuditLogId}, Action: {Action}",
+            logger.LogInformation("Audit log created. AuditLogId: {AuditLogId}, Action: {Action}",
                 audit.Id, request.Action);
         }
         catch (Exception ex)
         {
-            // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex, "Error creating audit log. Action: {Action}, EntityType: {EntityType}",
+            logger.LogError(ex, "Error creating audit log. Action: {Action}, EntityType: {EntityType}",
                 request.Action, request.EntityType);
             throw;
         }

@@ -17,38 +17,24 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Governance.Queries.SearchAuditLogs;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class SearchAuditLogsQueryHandler : IRequestHandler<SearchAuditLogsQuery, PagedResult<AuditLogDto>>
+public class SearchAuditLogsQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<SearchAuditLogsQueryHandler> logger,
+    IOptions<PaginationSettings> paginationSettings) : IRequestHandler<SearchAuditLogsQuery, PagedResult<AuditLogDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<SearchAuditLogsQueryHandler> _logger;
-    private readonly PaginationSettings _paginationSettings;
-
-    public SearchAuditLogsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<SearchAuditLogsQueryHandler> logger,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     public async Task<PagedResult<AuditLogDto>> Handle(SearchAuditLogsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Searching audit logs. PageNumber: {PageNumber}, PageSize: {PageSize}",
+        logger.LogInformation("Searching audit logs. PageNumber: {PageNumber}, PageSize: {PageSize}",
             request.PageNumber, request.PageSize);
 
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize ? _paginationSettings.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize 
+            ? paginationSettings.Value.MaxPageSize 
+            : request.PageSize;
         var pageNumber = request.PageNumber < 1 ? 1 : request.PageNumber;
 
-        // ✅ PERFORMANCE: Global Query Filter automatically filters !a.IsDeleted
-        // ✅ FIX: Explicitly type as IQueryable to avoid IIncludableQueryable type mismatch
-        IQueryable<AuditLog> query = _context.Set<AuditLog>()
+        IQueryable<AuditLog> query = context.Set<AuditLog>()
             .AsNoTracking()
             .Include(a => a.User);
 
@@ -99,12 +85,10 @@ public class SearchAuditLogsQueryHandler : IRequestHandler<SearchAuditLogsQuery,
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
         var items = new List<AuditLogDto>(audits.Count);
         foreach (var audit in audits)
         {
-            items.Add(_mapper.Map<AuditLogDto>(audit));
+            items.Add(mapper.Map<AuditLogDto>(audit));
         }
 
         return new PagedResult<AuditLogDto>

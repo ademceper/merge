@@ -3,8 +3,7 @@ using Merge.Domain.Modules.Content;
 
 namespace Merge.Application.Governance.Commands.UpdatePolicy;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
-public class UpdatePolicyCommandValidator : AbstractValidator<UpdatePolicyCommand>
+public class UpdatePolicyCommandValidator() : AbstractValidator<UpdatePolicyCommand>
 {
     public UpdatePolicyCommandValidator()
     {

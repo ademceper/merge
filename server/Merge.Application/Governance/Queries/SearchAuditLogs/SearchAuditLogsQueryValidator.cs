@@ -5,19 +5,18 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Governance.Queries.SearchAuditLogs;
 
-// ✅ BOLUM 2.3: FluentValidation (ZORUNLU)
-public class SearchAuditLogsQueryValidator : AbstractValidator<SearchAuditLogsQuery>
+public class SearchAuditLogsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<SearchAuditLogsQuery>
 {
-    public SearchAuditLogsQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    public SearchAuditLogsQueryValidator()
     {
-        var maxPageSize = paginationSettings.Value.MaxPageSize;
+        var settings = paginationSettings.Value;
 
         RuleFor(x => x.PageNumber)
             .GreaterThan(0).WithMessage("Page number 0'dan büyük olmalıdır");
 
         RuleFor(x => x.PageSize)
             .GreaterThan(0).WithMessage("Page size 0'dan büyük olmalıdır")
-            .LessThanOrEqualTo(maxPageSize).WithMessage($"Page size en fazla {maxPageSize} olabilir");
+            .LessThanOrEqualTo(settings.MaxPageSize).WithMessage($"Page size en fazla {settings.MaxPageSize} olabilir");
 
         RuleFor(x => x.UserEmail)
             .EmailAddress().WithMessage("Geçerli bir e-posta adresi giriniz")
@@ -51,5 +50,4 @@ public class SearchAuditLogsQueryValidator : AbstractValidator<SearchAuditLogsQu
             .Must(x => !x.StartDate.HasValue || !x.EndDate.HasValue || x.StartDate.Value <= x.EndDate.Value)
             .WithMessage("Start date, end date'den önce veya eşit olmalıdır")
             .When(x => x.StartDate.HasValue && x.EndDate.HasValue);
-    }
 }

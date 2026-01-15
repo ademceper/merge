@@ -26,18 +26,10 @@ namespace Merge.API.Controllers.Governance;
 [ApiController]
 [ApiVersion("1.0")] // ✅ BOLUM 4.1: API Versioning (ZORUNLU)
 [Route("api/v{version:apiVersion}/governance/policies")]
-public class PoliciesController : BaseController
+public class PoliciesController(
+    IMediator mediator,
+    IOptions<PaginationSettings> paginationSettings) : BaseController
 {
-    private readonly IMediator _mediator;
-    private readonly PaginationSettings _paginationSettings;
-
-    public PoliciesController(
-        IMediator mediator,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _mediator = mediator;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     // Public endpoints
     /// <summary>
@@ -56,7 +48,7 @@ public class PoliciesController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetActivePolicyQuery(policyType, language);
-        var policy = await _mediator.Send(query, cancellationToken);
+        var policy = await mediator.Send(query, cancellationToken);
         if (policy == null)
         {
             return NotFound();
@@ -83,7 +75,7 @@ public class PoliciesController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetPoliciesQuery(policyType, language, activeOnly, page, pageSize);
-        var policies = await _mediator.Send(query, cancellationToken);
+        var policies = await mediator.Send(query, cancellationToken);
         return Ok(policies);
     }
 
@@ -102,7 +94,7 @@ public class PoliciesController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetPolicyByIdQuery(id);
-        var policy = await _mediator.Send(query, cancellationToken);
+        var policy = await mediator.Send(query, cancellationToken);
         if (policy == null)
         {
             return NotFound();
@@ -138,7 +130,7 @@ public class PoliciesController : BaseController
 
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new AcceptPolicyCommand(userId, dto.PolicyId, ipAddress, userAgent);
-        var acceptance = await _mediator.Send(command, cancellationToken);
+        var acceptance = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetMyAcceptances), new { }, acceptance);
     }
 
@@ -161,7 +153,7 @@ public class PoliciesController : BaseController
 
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetUserAcceptancesQuery(userId);
-        var acceptances = await _mediator.Send(query, cancellationToken);
+        var acceptances = await mediator.Send(query, cancellationToken);
         return Ok(acceptances);
     }
 
@@ -184,7 +176,7 @@ public class PoliciesController : BaseController
 
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetPendingPoliciesQuery(userId);
-        var policies = await _mediator.Send(query, cancellationToken);
+        var policies = await mediator.Send(query, cancellationToken);
         return Ok(policies);
     }
 
@@ -210,7 +202,7 @@ public class PoliciesController : BaseController
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 3.2: IDOR Koruması - Handler'da userId kontrolü var
         var command = new RevokeAcceptanceCommand(userId, policyId);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -255,7 +247,7 @@ public class PoliciesController : BaseController
             dto.ExpiryDate,
             dto.ChangeLog,
             dto.Language ?? "tr");
-        var policy = await _mediator.Send(command, cancellationToken);
+        var policy = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetPolicy), new { id = policy.Id }, policy);
     }
 
@@ -297,7 +289,7 @@ public class PoliciesController : BaseController
             dto.ExpiryDate,
             dto.ChangeLog,
             userId); // PerformedBy for IDOR protection
-        var policy = await _mediator.Send(command, cancellationToken);
+        var policy = await mediator.Send(command, cancellationToken);
         return Ok(policy);
     }
 
@@ -318,7 +310,7 @@ public class PoliciesController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeletePolicyCommand(id);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -343,7 +335,7 @@ public class PoliciesController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new ActivatePolicyCommand(id);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -368,7 +360,7 @@ public class PoliciesController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeactivatePolicyCommand(id);
-        var success = await _mediator.Send(command, cancellationToken);
+        var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -391,7 +383,7 @@ public class PoliciesController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetAcceptanceStatsQuery();
-        var stats = await _mediator.Send(query, cancellationToken);
+        var stats = await mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 
@@ -412,7 +404,7 @@ public class PoliciesController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetAcceptanceCountQuery(id);
-        var count = await _mediator.Send(query, cancellationToken);
+        var count = await mediator.Send(query, cancellationToken);
         return Ok(new { count });
     }
 }

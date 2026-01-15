@@ -19,14 +19,8 @@ namespace Merge.API.Controllers.Governance;
 [ApiVersion("1.0")] // ✅ BOLUM 4.1: API Versioning (ZORUNLU)
 [Route("api/v{version:apiVersion}/governance/audit-logs")]
 [Authorize(Roles = "Admin,Manager")]
-public class AuditLogsController : BaseController
+public class AuditLogsController(IMediator mediator) : BaseController
 {
-    private readonly IMediator _mediator;
-
-    public AuditLogsController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
 
     /// <summary>
     /// Audit log entry oluşturur
@@ -79,7 +73,7 @@ public class AuditLogsController : BaseController
             auditDto.AdditionalData,
             ipAddress,
             userAgent);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return Ok();
     }
 
@@ -99,7 +93,7 @@ public class AuditLogsController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetAuditLogByIdQuery(id);
-        var audit = await _mediator.Send(query, cancellationToken);
+        var audit = await mediator.Send(query, cancellationToken);
 
         if (audit == null)
         {
@@ -142,7 +136,7 @@ public class AuditLogsController : BaseController
             filter.IpAddress,
             filter.PageNumber,
             filter.PageSize);
-        var audits = await _mediator.Send(query, cancellationToken);
+        var audits = await mediator.Send(query, cancellationToken);
         return Ok(audits);
     }
 
@@ -163,7 +157,7 @@ public class AuditLogsController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetEntityHistoryQuery(entityType, entityId);
-        var history = await _mediator.Send(query, cancellationToken);
+        var history = await mediator.Send(query, cancellationToken);
 
         if (history == null)
         {
@@ -188,7 +182,7 @@ public class AuditLogsController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetAuditStatsQuery(days);
-        var stats = await _mediator.Send(query, cancellationToken);
+        var stats = await mediator.Send(query, cancellationToken);
         return Ok(stats);
     }
 
@@ -208,7 +202,7 @@ public class AuditLogsController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetUserAuditHistoryQuery(userId, days);
-        var audits = await _mediator.Send(query, cancellationToken);
+        var audits = await mediator.Send(query, cancellationToken);
         return Ok(audits);
     }
 
@@ -233,7 +227,7 @@ public class AuditLogsController : BaseController
         // ✅ BOLUM 3.2: IDOR Koruması - Kullanıcı sadece kendi audit geçmişini görebilir
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new GetUserAuditHistoryQuery(userId, days);
-        var audits = await _mediator.Send(query, cancellationToken);
+        var audits = await mediator.Send(query, cancellationToken);
         return Ok(audits);
     }
 
@@ -253,7 +247,7 @@ public class AuditLogsController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var query = new CompareChangesQuery(auditLogId);
-        var comparisons = await _mediator.Send(query, cancellationToken);
+        var comparisons = await mediator.Send(query, cancellationToken);
         return Ok(comparisons);
     }
 
@@ -273,7 +267,7 @@ public class AuditLogsController : BaseController
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var command = new DeleteOldAuditLogsCommand(daysToKeep);
-        await _mediator.Send(command, cancellationToken);
+        await mediator.Send(command, cancellationToken);
         return Ok(new { message = $"Audit logs older than {daysToKeep} days deleted successfully" });
     }
 }

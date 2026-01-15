@@ -16,14 +16,12 @@ using Merge.Application.Interfaces.Review;
 using Merge.Application.Interfaces.Search;
 using Merge.Application.Interfaces.Security;
 using Merge.Application.Interfaces.Seller;
-using Merge.Application.Interfaces.Governance;
 using Merge.Application.Services.Order;
 using Merge.Application.Services.Payment;
 using Merge.Application.Interfaces.Order;
 using Merge.Application.Interfaces.Payment;
 
 using Merge.Application.Services.Content;
-using Merge.Application.Services.Governance;
 
 using Merge.Application.Services.Logistics;
 using Merge.Application.Services.Marketing;
@@ -65,11 +63,9 @@ public static class DependencyInjection
         services.AddScoped<IBulkProductService, BulkProductService>();
 
         services.AddScoped<ISellerOnboardingService, SellerOnboardingService>();
-        services.AddScoped<IAuditLogService, AuditLogService>();
         services.AddScoped<ISharedWishlistService, SharedWishlistService>();
         services.AddScoped<IProductComparisonService, ProductComparisonService>();
         services.AddScoped<ISizeGuideService, SizeGuideService>();
-        services.AddScoped<IPolicyService, PolicyService>();
         services.AddScoped<INotificationPreferenceService, NotificationPreferenceService>();
         services.AddScoped<ISellerFinanceService, SellerFinanceService>();
         services.AddScoped<IStoreService, StoreService>();

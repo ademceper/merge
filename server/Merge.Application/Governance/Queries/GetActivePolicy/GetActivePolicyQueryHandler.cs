@@ -12,44 +12,30 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Governance.Queries.GetActivePolicy;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetActivePolicyQueryHandler : IRequestHandler<GetActivePolicyQuery, PolicyDto?>
+public class GetActivePolicyQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetActivePolicyQueryHandler> logger,
+    ICacheService cache) : IRequestHandler<GetActivePolicyQuery, PolicyDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetActivePolicyQueryHandler> _logger;
-    private readonly ICacheService _cache;
     private const string CACHE_KEY_ACTIVE_POLICY = "policy_active_";
     private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(10);
 
-    public GetActivePolicyQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetActivePolicyQueryHandler> logger,
-        ICacheService cache)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _cache = cache;
-    }
-
     public async Task<PolicyDto?> Handle(GetActivePolicyQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Retrieving active policy. PolicyType: {PolicyType}, Language: {Language}",
+        logger.LogInformation("Retrieving active policy. PolicyType: {PolicyType}, Language: {Language}",
             request.PolicyType, request.Language);
 
         var cacheKey = $"{CACHE_KEY_ACTIVE_POLICY}{request.PolicyType}_{request.Language}";
 
-        // ✅ BOLUM 10.2: Redis distributed cache
-        var cachedPolicy = await _cache.GetOrCreateNullableAsync<PolicyDto>(
+        var cachedPolicy = await cache.GetOrCreateNullableAsync<PolicyDto>(
             cacheKey,
             async () =>
             {
-                _logger.LogInformation("Cache miss for active policy. PolicyType: {PolicyType}, Language: {Language}",
+                logger.LogInformation("Cache miss for active policy. PolicyType: {PolicyType}, Language: {Language}",
                     request.PolicyType, request.Language);
 
-                var policy = await _context.Set<Policy>()
+                var policy = await context.Set<Policy>()
                     .AsNoTracking()
                     .Include(p => p.CreatedBy)
                     .Where(p => p.PolicyType == request.PolicyType && 
@@ -62,19 +48,17 @@ public class GetActivePolicyQueryHandler : IRequestHandler<GetActivePolicyQuery,
 
                 if (policy == null)
                 {
-                    _logger.LogWarning("Active policy not found. PolicyType: {PolicyType}, Language: {Language}",
+                    logger.LogWarning("Active policy not found. PolicyType: {PolicyType}, Language: {Language}",
                         request.PolicyType, request.Language);
                     return null;
                 }
 
-                var policyDto = _mapper.Map<PolicyDto>(policy);
+                var policyDto = mapper.Map<PolicyDto>(policy);
                 
-                // ✅ PERFORMANCE: AcceptanceCount database'de hesapla
-                var acceptanceCount = await _context.Set<PolicyAcceptance>()
+                var acceptanceCount = await context.Set<PolicyAcceptance>()
                     .AsNoTracking()
                     .CountAsync(pa => pa.PolicyId == policy.Id && pa.IsActive, cancellationToken);
                 
-                // ✅ BOLUM 7.1.5: Records - with expression kullanımı
                 policyDto = policyDto with { AcceptanceCount = acceptanceCount };
 
                 return policyDto;

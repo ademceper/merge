@@ -13,29 +13,19 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Governance.Queries.GetAuditStats;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetAuditStatsQueryHandler : IRequestHandler<GetAuditStatsQuery, AuditStatsDto>
+public class GetAuditStatsQueryHandler(
+    IDbContext context,
+    ILogger<GetAuditStatsQueryHandler> logger) : IRequestHandler<GetAuditStatsQuery, AuditStatsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetAuditStatsQueryHandler> _logger;
-
-    public GetAuditStatsQueryHandler(
-        IDbContext context,
-        ILogger<GetAuditStatsQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<AuditStatsDto> Handle(GetAuditStatsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Retrieving audit stats. Days: {Days}", request.Days);
+        logger.LogInformation("Retrieving audit stats. Days: {Days}", request.Days);
 
         var startDate = DateTime.UtcNow.AddDays(-request.Days);
         var today = DateTime.UtcNow.Date;
 
-        // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        var query = _context.Set<AuditLog>()
+        var query = context.Set<AuditLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate);
 
@@ -61,8 +51,7 @@ public class GetAuditStatsQueryHandler : IRequestHandler<GetAuditStatsQuery, Aud
             .Select(g => new { Severity = g.Key, Count = g.Count() })
             .ToDictionaryAsync(g => g.Severity, g => g.Count, cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de grouping yap
-        var mostActiveUsers = await _context.Set<AuditLog>()
+        var mostActiveUsers = await context.Set<AuditLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate && a.UserId.HasValue)
             .Include(a => a.User)
@@ -78,8 +67,7 @@ public class GetAuditStatsQueryHandler : IRequestHandler<GetAuditStatsQuery, Aud
             .Take(10)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Database'de filtering yap
-        var recentCriticalEvents = await _context.Set<AuditLog>()
+        var recentCriticalEvents = await context.Set<AuditLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
                        a.Severity == AuditSeverity.Critical)

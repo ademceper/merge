@@ -12,32 +12,22 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Application.Governance.Queries.CompareChanges;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CompareChangesQueryHandler : IRequestHandler<CompareChangesQuery, IEnumerable<AuditComparisonDto>>
+public class CompareChangesQueryHandler(
+    IDbContext context,
+    ILogger<CompareChangesQueryHandler> logger) : IRequestHandler<CompareChangesQuery, IEnumerable<AuditComparisonDto>>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<CompareChangesQueryHandler> _logger;
-
-    public CompareChangesQueryHandler(
-        IDbContext context,
-        ILogger<CompareChangesQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<IEnumerable<AuditComparisonDto>> Handle(CompareChangesQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Comparing changes for audit log. AuditLogId: {AuditLogId}", request.AuditLogId);
+        logger.LogInformation("Comparing changes for audit log. AuditLogId: {AuditLogId}", request.AuditLogId);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        var audit = await _context.Set<AuditLog>()
+        var audit = await context.Set<AuditLog>()
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == request.AuditLogId, cancellationToken);
 
         if (audit == null || string.IsNullOrEmpty(audit.OldValues) || string.IsNullOrEmpty(audit.NewValues))
         {
-            _logger.LogWarning("Audit log not found or missing values. AuditLogId: {AuditLogId}", request.AuditLogId);
+            logger.LogWarning("Audit log not found or missing values. AuditLogId: {AuditLogId}", request.AuditLogId);
             return new List<AuditComparisonDto>();
         }
 
@@ -48,11 +38,10 @@ public class CompareChangesQueryHandler : IRequestHandler<CompareChangesQuery, I
 
             if (oldValues == null || newValues == null)
             {
-                _logger.LogWarning("Failed to deserialize audit log values. AuditLogId: {AuditLogId}", request.AuditLogId);
+                logger.LogWarning("Failed to deserialize audit log values. AuditLogId: {AuditLogId}", request.AuditLogId);
                 return new List<AuditComparisonDto>();
             }
 
-            // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
             var comparisons = new List<AuditComparisonDto>(newValues.Count);
 
             foreach (var key in newValues.Keys)
@@ -75,8 +64,7 @@ public class CompareChangesQueryHandler : IRequestHandler<CompareChangesQuery, I
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error comparing audit log changes. AuditLogId: {AuditLogId}", request.AuditLogId);
-            // ✅ BOLUM 2.1: Exception yutulmamali - ama burada boş liste döndürmek mantıklı
+            logger.LogError(ex, "Error comparing audit log changes. AuditLogId: {AuditLogId}", request.AuditLogId);
             return new List<AuditComparisonDto>();
         }
     }
