@@ -121,6 +121,7 @@ public class ProductBundleService : IProductBundleService
             dto.Name, dto.Products.Count);
 
         // ✅ PERFORMANCE: Fetch all products in a single query to avoid N+1
+        // Not: dto.Products zaten memory'de (DTO), bu yüzden ToList() kullanmak gerekiyor
         var productIds = dto.Products.Select(p => p.ProductId).ToList();
         var products = await _context.Set<ProductEntity>()
             .AsNoTracking()

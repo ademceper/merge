@@ -78,19 +78,21 @@ public class GetProductQuestionsQueryHandler : IRequestHandler<GetProductQuestio
 
                 var totalCount = await query.CountAsync(cancellationToken);
 
-                var questions = await query
+                var paginatedQuestionsQuery = query
                     .OrderByDescending(q => q.HasSellerAnswer)
                     .ThenByDescending(q => q.HelpfulCount)
                     .ThenByDescending(q => q.CreatedAt)
                     .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToListAsync(cancellationToken);
+                    .Take(pageSize);
 
-                var questionIds = questions.Select(q => q.Id).ToList();
-                var userVotes = request.UserId.HasValue && questionIds.Any()
+                var questions = await paginatedQuestionsQuery.ToListAsync(cancellationToken);
+
+                // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
+                var questionIdsSubquery = from q in paginatedQuestionsQuery select q.Id;
+                var userVotes = request.UserId.HasValue
                     ? await _context.Set<QuestionHelpfulness>()
                         .AsNoTracking()
-                        .Where(qh => questionIds.Contains(qh.QuestionId) && qh.UserId == request.UserId.Value)
+                        .Where(qh => questionIdsSubquery.Contains(qh.QuestionId) && qh.UserId == request.UserId.Value)
                         .ToDictionaryAsync(qh => qh.QuestionId, cancellationToken)
                     : new Dictionary<Guid, QuestionHelpfulness>();
 

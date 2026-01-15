@@ -17,8 +17,6 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.GetUserComparisons;
 
-// ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-// ✅ BOLUM 3.4: Pagination (ZORUNLU)
 public class GetUserComparisonsQueryHandler : IRequestHandler<GetUserComparisonsQuery, PagedResult<ProductComparisonDto>>
 {
     private readonly IDbContext _context;
@@ -110,37 +108,33 @@ public class GetUserComparisonsQueryHandler : IRequestHandler<GetUserComparisons
 
     private async Task<ProductComparisonDto> MapToDto(ProductComparison comparison, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
-        var items = await _context.Set<ProductComparisonItem>()
+        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
+        var itemsQuery = _context.Set<ProductComparisonItem>()
             .AsNoTracking()
+            .Where(i => i.ComparisonId == comparison.Id)
+            .OrderBy(i => i.Position);
+
+        var items = await itemsQuery
             .AsSplitQuery()
             .Include(i => i.Product)
                 .ThenInclude(p => p.Category)
-            .Where(i => i.ComparisonId == comparison.Id)
-            .OrderBy(i => i.Position)
             .ToListAsync(cancellationToken);
 
-        var productIds = items.Select(i => i.ProductId).ToList();
+        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
+        var productIdsSubquery = from i in itemsQuery select i.ProductId;
         Dictionary<Guid, (decimal Rating, int Count)> reviewsDict;
-        if (productIds.Any())
-        {
-            var reviews = await _context.Set<ReviewEntity>()
-                .AsNoTracking()
-                .Where(r => productIds.Contains(r.ProductId))
-                .GroupBy(r => r.ProductId)
-                .Select(g => new
-                {
-                    ProductId = g.Key,
-                    Rating = (decimal)g.Average(r => r.Rating),
-                    Count = g.Count()
-                })
-                .ToListAsync(cancellationToken);
-            reviewsDict = reviews.ToDictionary(x => x.ProductId, x => (x.Rating, x.Count));
-        }
-        else
-        {
-            reviewsDict = new Dictionary<Guid, (decimal Rating, int Count)>();
-        }
+        var reviews = await _context.Set<ReviewEntity>()
+            .AsNoTracking()
+            .Where(r => productIdsSubquery.Contains(r.ProductId))
+            .GroupBy(r => r.ProductId)
+            .Select(g => new
+            {
+                ProductId = g.Key,
+                Rating = (decimal)g.Average(r => r.Rating),
+                Count = g.Count()
+            })
+            .ToListAsync(cancellationToken);
+        reviewsDict = reviews.ToDictionary(x => x.ProductId, x => (x.Rating, x.Count));
 
         // ✅ BOLUM 7.1.5: Records - with expression kullanımı (immutable record'lar için)
         var products = new List<ComparisonProductDto>();

@@ -28,24 +28,24 @@ public class GetAcceptanceStatsQueryHandler(
             {
                 logger.LogInformation("Cache miss for acceptance stats");
 
-                var policies = await context.Set<Policy>()
+                // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
+                var policiesQuery = context.Set<Policy>()
                     .AsNoTracking()
-                    .Select(p => new { p.Id, p.PolicyType, p.Version })
-                    .ToListAsync(cancellationToken);
+                    .Select(p => new { p.Id, p.PolicyType, p.Version });
 
+                var policyIdsSubquery = from p in policiesQuery select p.Id;
+                var acceptanceCounts = await context.Set<PolicyAcceptance>()
+                    .AsNoTracking()
+                    .Where(pa => policyIdsSubquery.Contains(pa.PolicyId) && pa.IsActive)
+                    .GroupBy(pa => pa.PolicyId)
+                    .Select(g => new { PolicyId = g.Key, Count = g.Count() })
+                    .ToDictionaryAsync(x => x.PolicyId, x => x.Count, cancellationToken);
+
+                var policies = await policiesQuery.ToListAsync(cancellationToken);
                 if (policies.Count == 0)
                 {
                     return new Dictionary<string, int>();
                 }
-
-                var policyIds = policies.Select(p => p.Id).ToList();
-                
-                var acceptanceCounts = await context.Set<PolicyAcceptance>()
-                    .AsNoTracking()
-                    .Where(pa => policyIds.Contains(pa.PolicyId) && pa.IsActive)
-                    .GroupBy(pa => pa.PolicyId)
-                    .Select(g => new { PolicyId = g.Key, Count = g.Count() })
-                    .ToDictionaryAsync(x => x.PolicyId, x => x.Count, cancellationToken);
 
                 var stats = new Dictionary<string, int>();
                 foreach (var policy in policies)

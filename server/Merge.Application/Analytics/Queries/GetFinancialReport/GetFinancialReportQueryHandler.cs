@@ -36,10 +36,11 @@ public class GetFinancialReportQueryHandler(
         var shippingRevenue = await ordersQuery.SumAsync(o => o.ShippingCost, cancellationToken);
         var taxCollected = await ordersQuery.SumAsync(o => o.Tax, cancellationToken);
         var totalOrdersCount = await ordersQuery.CountAsync(cancellationToken);
-        var orderIds = await ordersQuery.Select(o => o.Id).ToListAsync(cancellationToken);
+        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
+        var orderIdsSubquery = from o in ordersQuery select o.Id;
         var productCosts = await context.Set<OrderItem>()
             .AsNoTracking()
-            .Where(oi => orderIds.Contains(oi.OrderId))
+            .Where(oi => orderIdsSubquery.Contains(oi.OrderId))
             .SumAsync(oi => oi.UnitPrice * oi.Quantity * settings.Value.ProductCostPercentage, cancellationToken);
         
         var shippingCosts = await ordersQuery.SumAsync(o => o.ShippingCost * settings.Value.ShippingCostPercentage, cancellationToken);

@@ -57,21 +57,23 @@ public class GetQuestionAnswersQueryHandler : IRequestHandler<GetQuestionAnswers
 
         _logger.LogInformation("Cache miss for answers. QuestionId: {QuestionId}", request.QuestionId);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        var answers = await _context.Set<ProductAnswer>()
+        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
+        var answersQuery = _context.Set<ProductAnswer>()
             .AsNoTracking()
-            .Include(a => a.User)
             .Where(a => a.QuestionId == request.QuestionId && a.IsApproved)
             .OrderByDescending(a => a.IsSellerAnswer)
             .ThenByDescending(a => a.HelpfulCount)
-            .ThenByDescending(a => a.CreatedAt)
+            .ThenByDescending(a => a.CreatedAt);
+
+        var answers = await answersQuery
+            .Include(a => a.User)
             .ToListAsync(cancellationToken);
 
-        var answerIds = answers.Select(a => a.Id).ToList();
-        var userVotes = request.UserId.HasValue && answerIds.Any()
+        var answerIdsSubquery = from a in answersQuery select a.Id;
+        var userVotes = request.UserId.HasValue
             ? await _context.Set<AnswerHelpfulness>()
                 .AsNoTracking()
-                .Where(ah => answerIds.Contains(ah.AnswerId) && ah.UserId == request.UserId.Value)
+                .Where(ah => answerIdsSubquery.Contains(ah.AnswerId) && ah.UserId == request.UserId.Value)
                 .ToDictionaryAsync(ah => ah.AnswerId, cancellationToken)
             : new Dictionary<Guid, AnswerHelpfulness>();
 

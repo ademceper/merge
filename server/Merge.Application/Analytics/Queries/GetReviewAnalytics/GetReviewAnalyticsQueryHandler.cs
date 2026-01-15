@@ -53,16 +53,14 @@ public class GetReviewAnalyticsQueryHandler(
 
         // Reviews with media - Database'de count
         // ✅ PERFORMANCE: Removed manual !rm.IsDeleted check (Global Query Filter handles it)
-        // ✅ PERFORMANCE: .Any() YASAK - .cursorrules - .Count() > 0 kullan
-        var reviewIds = await reviewsQuery.Select(r => r.Id).ToListAsync(cancellationToken);
-        var reviewsWithMedia = reviewIds.Count > 0
-            ? await context.Set<ReviewMedia>()
-                .AsNoTracking()
-                .Where(rm => reviewIds.Contains(rm.ReviewId))
-                .Select(rm => rm.ReviewId)
-                .Distinct()
-                .CountAsync(cancellationToken)
-            : 0;
+        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
+        var reviewIdsSubquery = from r in reviewsQuery select r.Id;
+        var reviewsWithMedia = await context.Set<ReviewMedia>()
+            .AsNoTracking()
+            .Where(rm => reviewIdsSubquery.Contains(rm.ReviewId))
+            .Select(rm => rm.ReviewId)
+            .Distinct()
+            .CountAsync(cancellationToken);
 
         // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
         return new ReviewAnalyticsDto(

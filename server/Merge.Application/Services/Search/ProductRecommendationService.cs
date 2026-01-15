@@ -87,22 +87,21 @@ public class ProductRecommendationService : IProductRecommendationService
     {
         // ✅ PERFORMANCE: Removed manual !oi.IsDeleted, !oi2.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
+        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Find products that are frequently purchased together
-        var frequentlyBought = await _context.Set<OrderItem>()
-            .AsNoTracking()
-            .Where(oi => _context.Set<OrderItem>().Any(oi2 =>
-                            oi2.OrderId == oi.OrderId &&
-                            oi2.ProductId == productId))
-            .Where(oi => oi.ProductId != productId)
-            .GroupBy(oi => oi.ProductId)
-            .Select(g => new
+        var frequentlyBought = await (
+            from oi1 in _context.Set<OrderItem>().AsNoTracking()
+            join oi2 in _context.Set<OrderItem>().AsNoTracking()
+                on oi1.OrderId equals oi2.OrderId
+            where oi1.ProductId == productId && oi2.ProductId != productId
+            group oi2 by oi2.ProductId into g
+            orderby g.Count() descending
+            select new
             {
                 ProductId = g.Key,
                 Count = g.Count()
-            })
-            .OrderByDescending(x => x.Count)
-            .Take(maxResults)
-            .ToListAsync(cancellationToken);
+            }
+        ).Take(maxResults).ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load products to avoid N+1 queries
         var productIds = frequentlyBought.Select(fb => fb.ProductId).ToList();
@@ -140,31 +139,28 @@ public class ProductRecommendationService : IProductRecommendationService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<ProductRecommendationDto>> GetPersonalizedRecommendationsAsync(Guid userId, int maxResults = 10, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
-        // Get user's purchase history and preferences
-        var userOrders = await (
+        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
+        // Get user's purchase history categories
+        var userOrderCategoriesSubquery = (
             from o in _context.Set<OrderEntity>().AsNoTracking()
             join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
             join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
             where o.UserId == userId
             select p.CategoryId
-        ).Distinct().ToListAsync(cancellationToken);
+        ).Distinct();
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
         // Get user's wishlist categories
-        var wishlistCategories = await _context.Set<Wishlist>()
-            .AsNoTracking()
-            .Include(w => w.Product)
-            .Where(w => w.UserId == userId)
-            .Select(w => w.Product.CategoryId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
+        var wishlistCategoriesSubquery = from w in _context.Set<Wishlist>().AsNoTracking()
+                                        join p in _context.Set<ProductEntity>().AsNoTracking() on w.ProductId equals p.Id
+                                        where w.UserId == userId
+                                        select p.CategoryId;
 
-        // ✅ PERFORMANCE: ToListAsync() sonrası memory'de işlem YASAK - ama bu batch loading için gerekli (kabul edilebilir)
-        var preferredCategories = userOrders.Union(wishlistCategories).ToList();
+        // Combine categories using Union in subquery
+        var preferredCategoriesSubquery = userOrderCategoriesSubquery.Union(wishlistCategoriesSubquery);
 
-        if (preferredCategories.Count == 0)
+        // Check if user has any preferences
+        var hasPreferences = await preferredCategoriesSubquery.AnyAsync(cancellationToken);
+        if (!hasPreferences)
         {
             // If no history, return trending products
             return await GetTrendingProductsAsync(7, maxResults, cancellationToken);
@@ -175,7 +171,7 @@ public class ProductRecommendationService : IProductRecommendationService
         var recommendations = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive &&
-                       preferredCategories.Contains(p.CategoryId) &&
+                       preferredCategoriesSubquery.Contains(p.CategoryId) &&
                        p.Rating >= 4.0m)
             .OrderByDescending(p => p.Rating)
             .ThenByDescending(p => p.ReviewCount)
@@ -222,16 +218,27 @@ public class ProductRecommendationService : IProductRecommendationService
             return Enumerable.Empty<ProductRecommendationDto>();
         }
 
-        // ✅ PERFORMANCE: ToListAsync() sonrası memory'de işlem YASAK - ama bu batch loading için gerekli (kabul edilebilir)
-        var viewedCategories = recentlyViewed.Select(rv => rv.Product.CategoryId).Distinct().ToList();
+        // ✅ PERFORMANCE: recentlyViewed zaten materialize edilmiş küçük liste (5 item), bu yüzden ID'leri almak kabul edilebilir
+        // Ancak category'ler için subquery kullanıyoruz (ISSUE #3.1 fix)
         var viewedProductIds = recentlyViewed.Select(rv => rv.ProductId).ToList();
+        
+        // Category'ler için subquery kullan (büyük olabilir)
+        var viewedProductIdsSubquery = from rv in _context.Set<Merge.Domain.Modules.Catalog.RecentlyViewedProduct>().AsNoTracking()
+                                      where rv.UserId == userId
+                                      orderby rv.ViewedAt descending
+                                      select rv.ProductId;
+        var viewedCategoriesSubquery = from rv in _context.Set<Merge.Domain.Modules.Catalog.RecentlyViewedProduct>().AsNoTracking()
+                                      join p in _context.Set<ProductEntity>().AsNoTracking() on rv.ProductId equals p.Id
+                                      where rv.UserId == userId
+                                      orderby rv.ViewedAt descending
+                                      select p.CategoryId;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // Get products from same categories, excluding already viewed
         var recommendations = await _context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive &&
-                       viewedCategories.Contains(p.CategoryId) &&
+                       viewedCategoriesSubquery.Distinct().Contains(p.CategoryId) &&
                        !viewedProductIds.Contains(p.Id))
             .OrderByDescending(p => p.Rating)
             .ThenByDescending(p => p.ReviewCount)

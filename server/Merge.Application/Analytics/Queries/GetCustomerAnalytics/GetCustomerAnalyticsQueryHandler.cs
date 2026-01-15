@@ -36,30 +36,28 @@ public class GetCustomerAnalyticsQueryHandler(
         var customerRole = await context.Roles
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Name == "Customer", cancellationToken);
-        // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
-        var customerUserIds = customerRole != null
-            ? await context.UserRoles
-                .AsNoTracking()
-                .Where(ur => ur.RoleId == customerRole.Id)
-                .Select(ur => ur.UserId)
-                .ToListAsync(cancellationToken)
-            : new List<Guid>(0); // Pre-allocate with known capacity (0)
+        
+        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
+        var customerUserIdsSubquery = customerRole != null
+            ? from ur in context.UserRoles.AsNoTracking()
+              where ur.RoleId == customerRole.Id
+              select ur.UserId
+            : context.UserRoles.AsNoTracking().Where(ur => false).Select(ur => ur.UserId);
         
         // ✅ PERFORMANCE: Database'de filtreleme yap (memory'de değil)
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
         // ✅ PERFORMANCE: Removed manual !u.IsDeleted and !o.IsDeleted checks (Global Query Filter handles it)
-        // ✅ PERFORMANCE: List.Count > 0 kullan (Any() YASAK - .cursorrules)
-        var totalCustomers = customerUserIds.Count > 0
+        var totalCustomers = customerRole != null
             ? await context.Users
                 .AsNoTracking()
-                .Where(u => customerUserIds.Contains(u.Id))
+                .Where(u => customerUserIdsSubquery.Contains(u.Id))
                 .CountAsync(cancellationToken)
             : 0;
 
-        var newCustomers = customerUserIds.Count > 0
+        var newCustomers = customerRole != null
             ? await context.Users
                 .AsNoTracking()
-                .Where(u => customerUserIds.Contains(u.Id) && u.CreatedAt >= request.StartDate && u.CreatedAt <= request.EndDate)
+                .Where(u => customerUserIdsSubquery.Contains(u.Id) && u.CreatedAt >= request.StartDate && u.CreatedAt <= request.EndDate)
                 .CountAsync(cancellationToken)
             : 0;
 
@@ -125,23 +123,17 @@ public class GetCustomerAnalyticsQueryHandler(
         var newCustomerDateThreshold = now.AddDays(-newCustomerDays);
 
         // VIP Customers - Toplam harcaması threshold'dan fazla olanlar
-        var vipCustomers = await context.Set<OrderEntity>()
-            .AsNoTracking()
-            .GroupBy(o => o.UserId)
-            .Select(g => new
-            {
-                UserId = g.Key,
-                TotalRevenue = g.Sum(o => o.TotalAmount)
-            })
-            .Where(x => x.TotalRevenue >= vipThreshold)
-            .Select(x => x.UserId)
-            .ToListAsync(cancellationToken);
+        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
+        var vipCustomersSubquery = from o in context.Set<OrderEntity>().AsNoTracking()
+                                   group o by o.UserId into g
+                                   where g.Sum(o => o.TotalAmount) >= vipThreshold
+                                   select g.Key;
 
-        var vipCount = vipCustomers.Count;
+        var vipCount = await vipCustomersSubquery.CountAsync(cancellationToken);
         var vipOrdersQuery = vipCount > 0
             ? context.Set<OrderEntity>()
                 .AsNoTracking()
-                .Where(o => vipCustomers.Contains(o.UserId))
+                .Where(o => vipCustomersSubquery.Contains(o.UserId))
             : context.Set<OrderEntity>().AsNoTracking().Where(o => false);
 
         var vipRevenue = vipCount > 0
@@ -153,18 +145,16 @@ public class GetCustomerAnalyticsQueryHandler(
         var vipAvgOrderValue = vipOrderCount > 0 ? vipRevenue / vipOrderCount : 0m;
 
         // Active Customers - Son X gün içinde sipariş verenler
-        var activeCustomers = await context.Set<OrderEntity>()
-            .AsNoTracking()
-            .Where(o => o.CreatedAt >= activeDateThreshold)
-            .Select(o => o.UserId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
+        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
+        var activeCustomersSubquery = from o in context.Set<OrderEntity>().AsNoTracking()
+                                       where o.CreatedAt >= activeDateThreshold
+                                       select o.UserId;
 
-        var activeCount = activeCustomers.Count;
+        var activeCount = await activeCustomersSubquery.Distinct().CountAsync(cancellationToken);
         var activeOrdersQuery = activeCount > 0
             ? context.Set<OrderEntity>()
                 .AsNoTracking()
-                .Where(o => activeCustomers.Contains(o.UserId) && o.CreatedAt >= activeDateThreshold)
+                .Where(o => activeCustomersSubquery.Contains(o.UserId) && o.CreatedAt >= activeDateThreshold)
             : context.Set<OrderEntity>().AsNoTracking().Where(o => false);
 
         var activeRevenue = activeCount > 0
@@ -176,17 +166,16 @@ public class GetCustomerAnalyticsQueryHandler(
         var activeAvgOrderValue = activeOrderCount > 0 ? activeRevenue / activeOrderCount : 0m;
 
         // New Customers - Son X gün içinde kayıt olanlar
-        var newCustomers = await context.Users
-            .AsNoTracking()
-            .Where(u => u.CreatedAt >= newCustomerDateThreshold)
-            .Select(u => u.Id)
-            .ToListAsync(cancellationToken);
+        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
+        var newCustomersSubquery = from u in context.Users.AsNoTracking()
+                                    where u.CreatedAt >= newCustomerDateThreshold
+                                    select u.Id;
 
-        var newCount = newCustomers.Count;
+        var newCount = await newCustomersSubquery.CountAsync(cancellationToken);
         var newOrdersQuery = newCount > 0
             ? context.Set<OrderEntity>()
                 .AsNoTracking()
-                .Where(o => newCustomers.Contains(o.UserId))
+                .Where(o => newCustomersSubquery.Contains(o.UserId))
             : context.Set<OrderEntity>().AsNoTracking().Where(o => false);
 
         var newRevenue = newCount > 0

@@ -100,23 +100,22 @@ public class SharedWishlistService : ISharedWishlistService
         Guid userId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: Include ile N+1 önlenir
-        var wishlists = await _context.Set<SharedWishlist>()
+        // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
+        var wishlistsQuery = _context.Set<SharedWishlist>()
             .AsNoTracking()
+            .Where(w => w.UserId == userId);
+
+        // ✅ PERFORMANCE: Include ile N+1 önlenir
+        var wishlists = await wishlistsQuery
             .Include(w => w.User)
-            .Where(w => w.UserId == userId)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Batch load items (N+1 fix)
-        // ✅ PERFORMANCE: wishlistIds'i memory'den al (zaten yüklenmiş wishlists'ten)
-        var wishlistIds = wishlists.Select(w => w.Id).ToList();
-        
-        // ✅ PERFORMANCE: Database'de GroupBy ve ToDictionaryAsync yap (ToListAsync() sonrası memory'de işlem YASAK)
+        // ✅ PERFORMANCE: Batch load items (N+1 fix) - subquery ile
+        var wishlistIdsSubquery = from w in wishlistsQuery select w.Id;
         var itemsByWishlist = await _context.Set<SharedWishlistItem>()
             .AsNoTracking()
             .Include(i => i.Product)
-            .Where(i => wishlistIds.Contains(i.SharedWishlistId))
+            .Where(i => wishlistIdsSubquery.Contains(i.SharedWishlistId))
             .GroupBy(i => i.SharedWishlistId)
             .ToDictionaryAsync(g => g.Key, g => g.ToList(), cancellationToken);
 

@@ -137,20 +137,21 @@ public class ProductQuestionService : IProductQuestionService
 
         var totalCount = await query.CountAsync(cancellationToken);
 
-        var questions = await query
+        var paginatedQuestionsQuery = query
             .OrderByDescending(q => q.HasSellerAnswer)
             .ThenByDescending(q => q.HelpfulCount)
             .ThenByDescending(q => q.CreatedAt)
             .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+            .Take(pageSize);
 
-        // ✅ PERFORMANCE: Batch load QuestionHelpfulness to avoid N+1 queries
-        var questionIds = questions.Select(q => q.Id).ToList();
-        var userVotes = userId.HasValue && questionIds.Any()
+        var questions = await paginatedQuestionsQuery.ToListAsync(cancellationToken);
+
+        // ✅ PERFORMANCE: Batch load QuestionHelpfulness to avoid N+1 queries (subquery ile)
+        var questionIdsSubquery = from q in paginatedQuestionsQuery select q.Id;
+        var userVotes = userId.HasValue
             ? await _context.Set<QuestionHelpfulness>()
                 .AsNoTracking()
-                .Where(qh => questionIds.Contains(qh.QuestionId) && qh.UserId == userId.Value)
+                .Where(qh => questionIdsSubquery.Contains(qh.QuestionId) && qh.UserId == userId.Value)
                 .ToDictionaryAsync(qh => qh.QuestionId, cancellationToken)
             : new Dictionary<Guid, QuestionHelpfulness>();
 
@@ -193,20 +194,19 @@ public class ProductQuestionService : IProductQuestionService
 
         var totalCount = await query.CountAsync(cancellationToken);
 
-        var questions = await query
+        var paginatedQuestionsQuery = query
             .OrderByDescending(q => q.CreatedAt)
             .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+            .Take(pageSize);
 
-        // ✅ PERFORMANCE: Batch load QuestionHelpfulness to avoid N+1 queries
-        var questionIds = questions.Select(q => q.Id).ToList();
-        var userVotes = questionIds.Any()
-            ? await _context.Set<QuestionHelpfulness>()
-                .AsNoTracking()
-                .Where(qh => questionIds.Contains(qh.QuestionId) && qh.UserId == userId)
-                .ToDictionaryAsync(qh => qh.QuestionId, cancellationToken)
-            : new Dictionary<Guid, QuestionHelpfulness>();
+        var questions = await paginatedQuestionsQuery.ToListAsync(cancellationToken);
+
+        // ✅ PERFORMANCE: Batch load QuestionHelpfulness to avoid N+1 queries (subquery ile)
+        var questionIdsSubquery = from q in paginatedQuestionsQuery select q.Id;
+        var userVotes = await _context.Set<QuestionHelpfulness>()
+            .AsNoTracking()
+            .Where(qh => questionIdsSubquery.Contains(qh.QuestionId) && qh.UserId == userId)
+            .ToDictionaryAsync(qh => qh.QuestionId, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ BOLUM 7.1.5: Records - with expression kullanımı (object initializer YASAK)
@@ -319,21 +319,23 @@ public class ProductQuestionService : IProductQuestionService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
-        var answers = await _context.Set<ProductAnswer>()
+        var answersQuery = _context.Set<ProductAnswer>()
             .AsNoTracking()
-            .Include(a => a.User)
             .Where(a => a.QuestionId == questionId && a.IsApproved)
             .OrderByDescending(a => a.IsSellerAnswer)
             .ThenByDescending(a => a.HelpfulCount)
-            .ThenByDescending(a => a.CreatedAt)
+            .ThenByDescending(a => a.CreatedAt);
+
+        var answers = await answersQuery
+            .Include(a => a.User)
             .ToListAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Batch load AnswerHelpfulness to avoid N+1 queries
-        var answerIds = answers.Select(a => a.Id).ToList();
-        var userVotes = userId.HasValue && answerIds.Any()
+        // ✅ PERFORMANCE: Batch load AnswerHelpfulness to avoid N+1 queries (subquery ile)
+        var answerIdsSubquery = from a in answersQuery select a.Id;
+        var userVotes = userId.HasValue
             ? await _context.Set<AnswerHelpfulness>()
                 .AsNoTracking()
-                .Where(ah => answerIds.Contains(ah.AnswerId) && ah.UserId == userId.Value)
+                .Where(ah => answerIdsSubquery.Contains(ah.AnswerId) && ah.UserId == userId.Value)
                 .ToDictionaryAsync(ah => ah.AnswerId, cancellationToken)
             : new Dictionary<Guid, AnswerHelpfulness>();
 

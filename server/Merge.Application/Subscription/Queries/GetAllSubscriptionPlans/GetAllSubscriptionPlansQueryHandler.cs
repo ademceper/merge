@@ -51,11 +51,11 @@ public class GetAllSubscriptionPlansQueryHandler : IRequestHandler<GetAllSubscri
             return Enumerable.Empty<SubscriptionPlanDto>();
         }
 
-        // ✅ PERFORMANCE: Batch load subscriber counts for all plans
-        var planIds = plans.Select(p => p.Id).ToList();
+        // ✅ PERFORMANCE: Batch load subscriber counts for all plans (subquery ile)
+        var planIdsSubquery = from p in query select p.Id;
         var subscriberCounts = await _context.Set<UserSubscription>()
             .AsNoTracking()
-            .Where(us => planIds.Contains(us.SubscriptionPlanId) && 
+            .Where(us => planIdsSubquery.Contains(us.SubscriptionPlanId) && 
                         (us.Status == SubscriptionStatus.Active || us.Status == SubscriptionStatus.Trial))
             .GroupBy(us => us.SubscriptionPlanId)
             .Select(g => new { PlanId = g.Key, Count = g.Count() })
