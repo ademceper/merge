@@ -1,5 +1,5 @@
 {
-  "name": "@workspace/ui",
+  "name": "@merge/ui",
   "version": "0.0.0",
   "type": "module",
   "private": true,
@@ -33,8 +33,8 @@
     "@types/node": "^20.19.9",
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
-    "@workspace/eslint-config": "workspace:*",
-    "@workspace/typescript-config": "workspace:*",
+    "@merge/lint-cfg": "workspace:*",
+    "@merge/ts-cfg": "workspace:*",
     "eslint": "^9.32.0",
     "tailwindcss": "^4.1.11",
     "typescript": "^5.9.2"

@@ -17,9 +17,9 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@workspace/ui/components/alert-dialog"
-import { Badge } from "@workspace/ui/components/badge"
-import { Button } from "@workspace/ui/components/button"
+} from "@merge/ui/components/alert-dialog"
+import { Badge } from "@merge/ui/components/badge"
+import { Button } from "@merge/ui/components/button"
 import {
   Card,
   CardAction,
@@ -28,7 +28,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@workspace/ui/components/card"
+} from "@merge/ui/components/card"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -45,9 +45,9 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@workspace/ui/components/dropdown-menu"
-import { Field, FieldGroup, FieldLabel } from "@workspace/ui/components/field"
-import { Input } from "@workspace/ui/components/input"
+} from "@merge/ui/components/dropdown-menu"
+import { Field, FieldGroup, FieldLabel } from "@merge/ui/components/field"
+import { Input } from "@merge/ui/components/input"
 import {
   Select,
   SelectContent,
@@ -55,8 +55,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@workspace/ui/components/select"
-import { Textarea } from "@workspace/ui/components/textarea"
+} from "@merge/ui/components/select"
+import { Textarea } from "@merge/ui/components/textarea"
 import { PlusIcon, BluetoothIcon, DotsThreeVerticalIcon, FileIcon, FolderIcon, FolderOpenIcon, CodeIcon, DotsThreeOutlineIcon, MagnifyingGlassIcon, FloppyDiskIcon, DownloadIcon, EyeIcon, LayoutIcon, PaletteIcon, SunIcon, MoonIcon, MonitorIcon, UserIcon, CreditCardIcon, GearIcon, KeyboardIcon, TranslateIcon, BellIcon, EnvelopeIcon, ShieldIcon, QuestionIcon, FileTextIcon, SignOutIcon } from "@phosphor-icons/react"
 
 export function ComponentExample() {

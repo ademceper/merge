@@ -1,10 +1,12 @@
 {
-  "extends": "@workspace/typescript-config/react-library.json",
+  "extends": "@merge/ts-cfg/react-library.json",
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@workspace/ui/*": ["./src/*"]
-    }
+      "@merge/ui/*": ["./src/*"]
+    },
+    "module": "ES2022",
+    "moduleResolution": "bundler"
   },
   "include": ["."],
   "exclude": ["node_modules", "dist"]

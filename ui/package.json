@@ -1,5 +1,5 @@
 {
-  "name": "ui",
+  "name": "merge",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -9,8 +9,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
-    "@workspace/eslint-config": "workspace:*",
-    "@workspace/typescript-config": "workspace:*",
+    "@merge/lint-cfg": "workspace:*",
+    "@merge/ts-cfg": "workspace:*",
     "prettier": "^3.7.4",
     "turbo": "^2.6.3",
     "typescript": "5.7.3"

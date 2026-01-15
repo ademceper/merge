@@ -3,8 +3,8 @@
 import * as React from "react"
 import { Accordion as AccordionPrimitive } from "radix-ui"
 
-import { cn } from "@workspace/ui/lib/utils"
-import { CaretDown, CaretUp } from "@phosphor-icons/react"
+import { cn } from "@merge/ui/lib/utils"
+import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react"
 
 function Accordion({
   className,
@@ -48,8 +48,8 @@ function AccordionTrigger({
         {...props}
       >
         {children}
-        <CaretDown data-slot="accordion-trigger-icon" className="pointer-events-none shrink-0 group-aria-expanded/accordion-trigger:hidden" />
-        <CaretUp data-slot="accordion-trigger-icon" className="pointer-events-none hidden shrink-0 group-aria-expanded/accordion-trigger:inline" />
+        <CaretDownIcon data-slot="accordion-trigger-icon" className="pointer-events-none shrink-0 group-aria-expanded/accordion-trigger:hidden" />
+        <CaretUpIcon data-slot="accordion-trigger-icon" className="pointer-events-none hidden shrink-0 group-aria-expanded/accordion-trigger:inline" />
       </AccordionPrimitive.Trigger>
     </AccordionPrimitive.Header>
   )

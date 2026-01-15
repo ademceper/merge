@@ -3,7 +3,7 @@
 import * as React from "react"
 import { RadioGroup as RadioGroupPrimitive } from "radix-ui"
 
-import { cn } from "@workspace/ui/lib/utils"
+import { cn } from "@merge/ui/lib/utils"
 import { CircleIcon } from "@phosphor-icons/react"
 
 function RadioGroup({
