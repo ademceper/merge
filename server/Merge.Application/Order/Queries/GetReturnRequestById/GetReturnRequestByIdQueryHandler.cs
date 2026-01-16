@@ -28,10 +28,8 @@ public class GetReturnRequestByIdQueryHandler : IRequestHandler<GetReturnRequest
 
     public async Task<ReturnRequestDto?> Handle(GetReturnRequestByIdQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var returnRequest = await _context.Set<ReturnRequest>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(r => r.Order)
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.Id == request.ReturnRequestId, cancellationToken);

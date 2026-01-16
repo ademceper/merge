@@ -471,9 +471,9 @@ public class OrderTests
 
     #region Helper Methods
 
-    private static Merge.Domain.Modules.Identity.Address CreateTestAddress(Guid addressId, Guid userId)
+    private static Address CreateTestAddress(Guid addressId, Guid userId)
     {
-        return Merge.Domain.Modules.Identity.Address.Create(
+        return Address.Create(
             userId: userId,
             title: "Home",
             firstName: "John",

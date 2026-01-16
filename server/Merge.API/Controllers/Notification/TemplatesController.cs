@@ -136,6 +136,37 @@ public class NotificationTemplatesController(
         return Ok(template);
     }
 
+    /// <summary>
+    /// Bildirim şablonunu kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [RateLimit(10, 60)]
+    [ProducesResponseType(typeof(NotificationTemplateDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<NotificationTemplateDto>> PatchTemplate(
+        Guid id,
+        [FromBody] PatchNotificationTemplateDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new UpdateTemplateCommand(id, new UpdateNotificationTemplateDto(
+            patchDto.Name,
+            patchDto.Description,
+            patchDto.Type,
+            patchDto.TitleTemplate,
+            patchDto.MessageTemplate,
+            patchDto.LinkTemplate,
+            patchDto.IsActive,
+            patchDto.Variables,
+            patchDto.DefaultData));
+        var template = await mediator.Send(command, cancellationToken);
+        return Ok(template);
+    }
+
     [HttpDelete("{id}")]
     [RateLimit(5, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

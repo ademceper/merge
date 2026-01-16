@@ -22,6 +22,10 @@ using Merge.Application.B2B.Commands.UpdateCreditTerm;
 using Merge.Application.B2B.Commands.DeleteCreditTerm;
 using Merge.Application.B2B.Commands.CreateVolumeDiscount;
 using Merge.Application.B2B.Commands.UpdateVolumeDiscount;
+using Merge.Application.B2B.Commands.PatchWholesalePrice;
+using Merge.Application.B2B.Commands.PatchCreditTerm;
+using Merge.Application.B2B.Commands.PatchVolumeDiscount;
+using Merge.Application.B2B.Commands.PatchCreditUsage;
 using Merge.Application.B2B.Commands.DeleteVolumeDiscount;
 using Merge.Application.B2B.Queries.GetB2BUserById;
 using Merge.Application.B2B.Queries.GetB2BUserByUserId;
@@ -379,6 +383,37 @@ public class B2BController(
     }
 
     /// <summary>
+    /// Toptan satış fiyatını kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("wholesale-prices/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchWholesalePrice(
+        Guid id,
+        [FromBody] PatchWholesalePriceDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var command = new PatchWholesalePriceCommand(id, patchDto);
+        var success = await mediator.Send(command, cancellationToken);
+        
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
     /// Toptan satış fiyatını siler
     /// </summary>
     [HttpDelete("wholesale-prices/{id}")]
@@ -529,6 +564,37 @@ public class B2BController(
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new UpdateCreditTermCommand(id, dto);
+        var success = await mediator.Send(command, cancellationToken);
+        
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Kredi koşulunu kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("credit-terms/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchCreditTerm(
+        Guid id,
+        [FromBody] PatchCreditTermDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var command = new PatchCreditTermCommand(id, patchDto);
         var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
@@ -972,6 +1038,37 @@ public class B2BController(
     }
 
     /// <summary>
+    /// Hacim indirimini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("volume-discounts/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchVolumeDiscount(
+        Guid id,
+        [FromBody] PatchVolumeDiscountDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var command = new PatchVolumeDiscountCommand(id, patchDto);
+        var success = await mediator.Send(command, cancellationToken);
+        
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
     /// Hacim indirimini siler
     /// </summary>
     [HttpDelete("volume-discounts/{id}")]
@@ -988,6 +1085,52 @@ public class B2BController(
         var command = new DeleteVolumeDiscountCommand(id);
         var success = await mediator.Send(command, cancellationToken);
         
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
+    /// B2B kullanıcısını kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("users/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchB2BUser(Guid id, [FromBody] PatchB2BUserDto patchDto, CancellationToken cancellationToken = default)
+    {
+        var userId = GetUserId();
+        var b2bUserQuery = new GetB2BUserByIdQuery(id);
+        var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
+        
+        if (b2bUser == null)
+        {
+            return NotFound();
+        }
+        
+        if (!User.IsInRole("Admin") && !User.IsInRole("Manager") && b2bUser.UserId != userId)
+        {
+            return Forbid();
+        }
+        
+        var command = new UpdateB2BUserCommand(id, new UpdateB2BUserDto
+        {
+            EmployeeId = patchDto.EmployeeId,
+            Department = patchDto.Department,
+            JobTitle = patchDto.JobTitle,
+            Status = patchDto.Status,
+            CreditLimit = patchDto.CreditLimit,
+            Settings = patchDto.Settings
+        });
+        var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();
@@ -1066,6 +1209,42 @@ public class B2BController(
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder
         var command = new UpdateCreditUsageCommand(id, dto.Amount);
+        var success = await mediator.Send(command, cancellationToken);
+        
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Kredi kullanımını kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("credit-terms/{id}/credit-usage")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchCreditUsage(
+        Guid id,
+        [FromBody] PatchCreditUsageDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        if (!patchDto.Amount.HasValue)
+        {
+            return BadRequest("Amount is required for PATCH operation.");
+        }
+
+        var command = new PatchCreditUsageCommand(id, patchDto);
         var success = await mediator.Send(command, cancellationToken);
         
         if (!success)

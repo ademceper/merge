@@ -7,11 +7,12 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Identity;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<TwoFactorAuth>;
 
 namespace Merge.Application.Identity.Commands.VerifyBackupCode;
 
 public class VerifyBackupCodeCommandHandler(
-    Merge.Application.Interfaces.IRepository<TwoFactorAuth> twoFactorRepository,
+    IRepository twoFactorRepository,
     IDbContext context,
     IUnitOfWork unitOfWork,
     ILogger<VerifyBackupCodeCommandHandler> logger) : IRequestHandler<VerifyBackupCodeCommand, bool>

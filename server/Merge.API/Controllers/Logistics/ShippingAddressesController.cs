@@ -160,6 +160,57 @@ public class ShippingAddressesController(IMediator mediator) : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Kargo adresini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchAddress(
+        Guid id,
+        [FromBody] PatchShippingAddressDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var userId = GetUserId();
+        var addressQuery = new GetShippingAddressByIdQuery(id);
+        var address = await mediator.Send(addressQuery, cancellationToken);
+        if (address == null)
+        {
+            return NotFound();
+        }
+        if (address.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
+        {
+            return Forbid();
+        }
+
+        var command = new UpdateShippingAddressCommand(
+            id,
+            patchDto.Label,
+            patchDto.FirstName,
+            patchDto.LastName,
+            patchDto.Phone,
+            patchDto.AddressLine1,
+            patchDto.City,
+            patchDto.State,
+            patchDto.PostalCode,
+            patchDto.Country,
+            patchDto.AddressLine2,
+            patchDto.IsDefault,
+            patchDto.IsActive,
+            patchDto.Instructions);
+        await mediator.Send(command, cancellationToken);
+        return NoContent();
+    }
+
     [HttpDelete("{id}")]
     [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

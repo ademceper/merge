@@ -52,8 +52,6 @@ public class CreateEmailCampaignCommandHandler(
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
-        // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery + Removed manual !c.IsDeleted (Global Query Filter)
         var createdCampaign = await context.Set<EmailCampaign>()
             .AsNoTracking()
             .Include(c => c.Template)

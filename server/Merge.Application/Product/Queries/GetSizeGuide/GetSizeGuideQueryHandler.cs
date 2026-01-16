@@ -53,11 +53,8 @@ public class GetSizeGuideQueryHandler : IRequestHandler<GetSizeGuideQuery, SizeG
 
         _logger.LogInformation("Cache miss for size guide. SizeGuideId: {SizeGuideId}", request.Id);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var sizeGuide = await _context.Set<SizeGuide>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(sg => sg.Category)
             .Include(sg => sg.Entries)
             .FirstOrDefaultAsync(sg => sg.Id == request.Id, cancellationToken);

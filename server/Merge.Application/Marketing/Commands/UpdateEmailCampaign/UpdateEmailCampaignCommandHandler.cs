@@ -68,8 +68,6 @@ public class UpdateEmailCampaignCommandHandler(
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
-        // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery + Removed manual !c.IsDeleted (Global Query Filter)
         var updatedCampaign = await context.Set<EmailCampaign>()
             .AsNoTracking()
             .Include(c => c.Template)

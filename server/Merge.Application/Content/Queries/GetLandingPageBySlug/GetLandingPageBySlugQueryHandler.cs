@@ -11,12 +11,13 @@ using Merge.Domain.Modules.Content;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.LandingPage>;
 
 namespace Merge.Application.Content.Queries.GetLandingPageBySlug;
 
 public class GetLandingPageBySlugQueryHandler(
     IDbContext context,
-    Merge.Application.Interfaces.IRepository<LandingPage> landingPageRepository,
+    IRepository landingPageRepository,
     IUnitOfWork unitOfWork,
     IMapper mapper,
     ILogger<GetLandingPageBySlugQueryHandler> logger,
@@ -47,7 +48,6 @@ public class GetLandingPageBySlugQueryHandler(
                 .FirstOrDefaultAsync(lp => lp.Slug == request.Slug && lp.Status == ContentStatus.Published && lp.IsActive, cancellationToken)
             : await context.Set<LandingPage>()
                 .AsNoTracking()
-                .AsSplitQuery()
                 .Include(lp => lp.Author)
                 .Include(lp => lp.VariantOf)
                 .FirstOrDefaultAsync(lp => lp.Slug == request.Slug && lp.Status == ContentStatus.Published && lp.IsActive, cancellationToken);

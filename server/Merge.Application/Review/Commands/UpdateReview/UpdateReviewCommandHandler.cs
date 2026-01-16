@@ -79,11 +79,8 @@ public class UpdateReviewCommandHandler : IRequestHandler<UpdateReviewCommand, R
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Single query instead of multiple LoadAsync calls
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         review = await _context.Set<ReviewEntity>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(r => r.User)
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);

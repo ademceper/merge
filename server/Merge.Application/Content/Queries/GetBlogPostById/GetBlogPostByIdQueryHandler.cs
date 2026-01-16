@@ -11,6 +11,7 @@ using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Content;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.BlogPost>;
 
 namespace Merge.Application.Content.Queries.GetBlogPostById;
 
@@ -18,7 +19,7 @@ namespace Merge.Application.Content.Queries.GetBlogPostById;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class GetBlogPostByIdQueryHandler(
     IDbContext context,
-    Merge.Application.Interfaces.IRepository<BlogPost> postRepository,
+    IRepository postRepository,
     IUnitOfWork unitOfWork,
     IMapper mapper,
     ILogger<GetBlogPostByIdQueryHandler> logger,
@@ -51,7 +52,6 @@ public class GetBlogPostByIdQueryHandler(
                 .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken)
             : await context.Set<BlogPost>()
                 .AsNoTracking()
-                .AsSplitQuery()
                 .Include(p => p.Category)
                 .Include(p => p.Author)
                 .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);

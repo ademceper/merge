@@ -109,7 +109,6 @@ public class AddMessageCommandHandler : IRequestHandler<AddMessageCommand, Ticke
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         message = await _context.Set<TicketMessage>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(m => m.User)
             .Include(m => m.Attachments)
             .FirstOrDefaultAsync(m => m.Id == message.Id, cancellationToken);

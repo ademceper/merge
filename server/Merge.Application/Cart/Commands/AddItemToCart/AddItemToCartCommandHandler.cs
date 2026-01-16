@@ -13,6 +13,7 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Ordering;
 using Merge.Domain.Modules.Identity;
+using Product = Merge.Domain.Modules.Catalog.Product;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -67,7 +68,7 @@ public class AddItemToCartCommandHandler(
             }
 
             // ✅ PERFORMANCE: AsNoTracking for read-only product query
-            var product = await context.Set<Merge.Domain.Modules.Catalog.Product>()
+            var product = await context.Set<Product>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
             
@@ -100,7 +101,7 @@ public class AddItemToCartCommandHandler(
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
             // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
             var itemPrice = product.DiscountPrice ?? product.Price;
-            var itemPriceMoney = new Merge.Domain.ValueObjects.Money(itemPrice);
+            var itemPriceMoney = new Money(itemPrice);
             var cartItem = CartItem.Create(
                 cart.Id,
                 request.ProductId,

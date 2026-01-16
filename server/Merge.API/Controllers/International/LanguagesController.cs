@@ -9,6 +9,7 @@ using Merge.Application.International.Queries.GetLanguageById;
 using Merge.Application.International.Queries.GetLanguageByCode;
 using Merge.Application.International.Commands.CreateLanguage;
 using Merge.Application.International.Commands.UpdateLanguage;
+using Merge.Application.International.Commands.PatchLanguage;
 using Merge.Application.International.Commands.DeleteLanguage;
 using Merge.Application.International.Commands.CreateProductTranslation;
 using Merge.Application.International.Commands.UpdateProductTranslation;
@@ -22,6 +23,9 @@ using Merge.Application.International.Queries.GetCategoryTranslations;
 using Merge.Application.International.Queries.GetStaticTranslations;
 using Merge.Application.International.Commands.CreateStaticTranslation;
 using Merge.Application.International.Commands.UpdateStaticTranslation;
+using Merge.Application.International.Commands.PatchProductTranslation;
+using Merge.Application.International.Commands.PatchCategoryTranslation;
+using Merge.Application.International.Commands.PatchStaticTranslation;
 using Merge.Application.International.Commands.DeleteStaticTranslation;
 using Merge.Application.International.Commands.BulkCreateStaticTranslations;
 using Merge.Application.International.Commands.SetUserLanguagePreference;
@@ -172,6 +176,29 @@ public class LanguagesController(IMediator mediator) : BaseController
     }
 
     /// <summary>
+    /// Dili kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(10, 60)]
+    [ProducesResponseType(typeof(LanguageDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<LanguageDto>> PatchLanguage(
+        Guid id,
+        [FromBody] PatchLanguageDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new PatchLanguageCommand(id, patchDto);
+        var language = await mediator.Send(command, cancellationToken);
+        return Ok(language);
+    }
+
+    /// <summary>
     /// Dili siler (Admin only)
     /// </summary>
     [HttpDelete("{id}")]
@@ -292,6 +319,32 @@ public class LanguagesController(IMediator mediator) : BaseController
     }
 
     /// <summary>
+    /// Ürün çevirisini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("products/translations/{id}")]
+    [Authorize(Roles = "Admin,Seller")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(typeof(ProductTranslationDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<ProductTranslationDto>> PatchProductTranslation(
+        Guid id,
+        [FromBody] PatchProductTranslationDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var command = new PatchProductTranslationCommand(id, patchDto);
+        var translation = await mediator.Send(command, cancellationToken);
+        return Ok(translation);
+    }
+
+    /// <summary>
     /// Ürün çevirisini siler (Admin, Seller)
     /// </summary>
     [HttpDelete("products/translations/{id}")]
@@ -371,6 +424,32 @@ public class LanguagesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var command = new UpdateCategoryTranslationCommand(id, dto.Name, dto.Description);
+        var translation = await mediator.Send(command, cancellationToken);
+        return Ok(translation);
+    }
+
+    /// <summary>
+    /// Kategori çevirisini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("categories/translations/{id}")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(typeof(CategoryTranslationDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<CategoryTranslationDto>> PatchCategoryTranslation(
+        Guid id,
+        [FromBody] PatchCategoryTranslationDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var command = new PatchCategoryTranslationCommand(id, patchDto);
         var translation = await mediator.Send(command, cancellationToken);
         return Ok(translation);
     }
@@ -458,6 +537,32 @@ public class LanguagesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var command = new UpdateStaticTranslationCommand(id, dto.Value, dto.Category);
+        var translation = await mediator.Send(command, cancellationToken);
+        return Ok(translation);
+    }
+
+    /// <summary>
+    /// Statik çeviriyi kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("translations/{id}")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(typeof(StaticTranslationDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<StaticTranslationDto>> PatchStaticTranslation(
+        Guid id,
+        [FromBody] PatchStaticTranslationDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var command = new PatchStaticTranslationCommand(id, patchDto);
         var translation = await mediator.Send(command, cancellationToken);
         return Ok(translation);
     }

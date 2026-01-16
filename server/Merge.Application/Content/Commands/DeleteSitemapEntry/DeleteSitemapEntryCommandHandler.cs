@@ -8,11 +8,12 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Content;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.SitemapEntry>;
 
 namespace Merge.Application.Content.Commands.DeleteSitemapEntry;
 
 public class DeleteSitemapEntryCommandHandler(
-    Merge.Application.Interfaces.IRepository<SitemapEntry> sitemapEntryRepository,
+    IRepository sitemapEntryRepository,
     IUnitOfWork unitOfWork,
     ICacheService cache,
     ILogger<DeleteSitemapEntryCommandHandler> logger) : IRequestHandler<DeleteSitemapEntryCommand, bool>

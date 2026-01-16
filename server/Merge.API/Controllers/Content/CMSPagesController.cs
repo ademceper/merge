@@ -268,6 +268,58 @@ public class CMSPagesController(
     /// <response code="204">CMS sayfası başarıyla silindi</response>
     /// <response code="401">Kullanıcı kimlik doğrulaması yapılmamış</response>
     /// <response code="403">Kullanıcının bu işlem için yetkisi yok</response>
+    /// <summary>
+    /// CMS sayfasını kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchPage(
+        Guid id,
+        [FromBody] PatchCMSPageDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+        var performedBy = User.IsInRole("Admin") ? (Guid?)null : userId;
+        var command = new UpdateCMSPageCommand(
+            id,
+            performedBy,
+            patchDto.Title,
+            patchDto.Content,
+            patchDto.Excerpt,
+            patchDto.PageType,
+            patchDto.Status,
+            patchDto.Template,
+            patchDto.MetaTitle,
+            patchDto.MetaDescription,
+            patchDto.MetaKeywords,
+            patchDto.IsHomePage,
+            patchDto.DisplayOrder,
+            patchDto.ShowInMenu,
+            patchDto.MenuTitle,
+            patchDto.ParentPageId);
+        var result = await mediator.Send(command, cancellationToken);
+        if (!result)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
     /// <response code="404">CMS sayfası bulunamadı</response>
     /// <response code="422">İş kuralı ihlali veya concurrency conflict</response>
     /// <response code="429">Çok fazla istek - Rate limit aşıldı</response>

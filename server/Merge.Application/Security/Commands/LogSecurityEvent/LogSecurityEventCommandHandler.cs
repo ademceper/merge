@@ -99,11 +99,8 @@ public class LogSecurityEventCommandHandler : IRequestHandler<LogSecurityEventCo
         // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için Cartesian Explosion önleme
         securityEvent = await _context.Set<AccountSecurityEvent>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(e => e.User)
             .Include(e => e.ActionTakenBy)
             .FirstOrDefaultAsync(e => e.Id == securityEvent.Id, cancellationToken);

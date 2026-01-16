@@ -9,6 +9,7 @@ using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
 using Merge.Application.Marketing.Commands.ValidateCoupon;
 using Merge.Application.Marketing.Queries.GetCouponByCode;
+using Merge.Application.Cart.Commands.ClearCart;
 using Merge.Domain.Entities;
 using Merge.Domain.ValueObjects;
 using OrderEntity = Merge.Domain.Modules.Ordering.Order;
@@ -63,11 +64,8 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
 
         try
         {
-            // ✅ PERFORMANCE: AsNoTracking for read-only query (check için)
-            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
             var cart = await _context.Set<CartEntity>()
                 .AsNoTracking()
-                .AsSplitQuery()
                 .Include(c => c.CartItems)
                     .ThenInclude(ci => ci.Product)
                 .FirstOrDefaultAsync(c => c.UserId == request.UserId, cancellationToken);
@@ -133,15 +131,13 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
 
             // Sepeti temizle
             // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-            await _mediator.Send(new Merge.Application.Cart.Commands.ClearCart.ClearCartCommand(request.UserId), cancellationToken);
+            await _mediator.Send(new ClearCartCommand(request.UserId), cancellationToken);
 
             // ✅ CRITICAL: Commit all changes atomically
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
             order = await _context.Set<OrderEntity>()
                 .AsNoTracking()
-                .AsSplitQuery()
                 .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.Product)
                 .Include(o => o.Address)

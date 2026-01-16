@@ -1,4 +1,7 @@
 using Merge.Application;
+using Merge.Application.Configuration;
+using Merge.Application.Interfaces;
+using Merge.Application.Services;
 using Merge.Infrastructure;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Entities;
@@ -33,56 +36,56 @@ builder.Services.AddOpenTelemetry()
         .AddPrometheusExporter());
 
 // ✅ CONFIGURATION: Business settings (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
-builder.Services.Configure<Merge.Application.Configuration.OrderSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.OrderSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.PaymentSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.PaymentSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.LoyaltySettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.LoyaltySettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.ReferralSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.ReferralSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.MarketingSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.MarketingSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.B2BSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.B2BSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.AnalyticsSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.AnalyticsSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.CartSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.CartSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.ContentSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.ContentSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.PaginationSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.PaginationSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.ReviewSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.ReviewSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.SellerSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.SellerSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.EmailSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.EmailSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.SecuritySettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.SecuritySettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.JwtSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.JwtSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.TwoFactorAuthSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.TwoFactorAuthSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.SupportSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.SupportSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.MLSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.MLSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.ServiceSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.ServiceSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.SearchSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.SearchSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.UserSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.UserSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.InternationalSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.InternationalSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.ShippingSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.ShippingSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.CacheSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.CacheSettings.SectionName));
-builder.Services.Configure<Merge.Application.Configuration.RecommendationSettings>(
-    builder.Configuration.GetSection(Merge.Application.Configuration.RecommendationSettings.SectionName));
+builder.Services.Configure<OrderSettings>(
+    builder.Configuration.GetSection(OrderSettings.SectionName));
+builder.Services.Configure<PaymentSettings>(
+    builder.Configuration.GetSection(PaymentSettings.SectionName));
+builder.Services.Configure<LoyaltySettings>(
+    builder.Configuration.GetSection(LoyaltySettings.SectionName));
+builder.Services.Configure<ReferralSettings>(
+    builder.Configuration.GetSection(ReferralSettings.SectionName));
+builder.Services.Configure<MarketingSettings>(
+    builder.Configuration.GetSection(MarketingSettings.SectionName));
+builder.Services.Configure<B2BSettings>(
+    builder.Configuration.GetSection(B2BSettings.SectionName));
+builder.Services.Configure<AnalyticsSettings>(
+    builder.Configuration.GetSection(AnalyticsSettings.SectionName));
+builder.Services.Configure<CartSettings>(
+    builder.Configuration.GetSection(CartSettings.SectionName));
+builder.Services.Configure<ContentSettings>(
+    builder.Configuration.GetSection(ContentSettings.SectionName));
+builder.Services.Configure<PaginationSettings>(
+    builder.Configuration.GetSection(PaginationSettings.SectionName));
+builder.Services.Configure<ReviewSettings>(
+    builder.Configuration.GetSection(ReviewSettings.SectionName));
+builder.Services.Configure<SellerSettings>(
+    builder.Configuration.GetSection(SellerSettings.SectionName));
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection(EmailSettings.SectionName));
+builder.Services.Configure<SecuritySettings>(
+    builder.Configuration.GetSection(SecuritySettings.SectionName));
+builder.Services.Configure<JwtSettings>(
+    builder.Configuration.GetSection(JwtSettings.SectionName));
+builder.Services.Configure<TwoFactorAuthSettings>(
+    builder.Configuration.GetSection(TwoFactorAuthSettings.SectionName));
+builder.Services.Configure<SupportSettings>(
+    builder.Configuration.GetSection(SupportSettings.SectionName));
+builder.Services.Configure<MLSettings>(
+    builder.Configuration.GetSection(MLSettings.SectionName));
+builder.Services.Configure<ServiceSettings>(
+    builder.Configuration.GetSection(ServiceSettings.SectionName));
+builder.Services.Configure<SearchSettings>(
+    builder.Configuration.GetSection(SearchSettings.SectionName));
+builder.Services.Configure<UserSettings>(
+    builder.Configuration.GetSection(UserSettings.SectionName));
+builder.Services.Configure<InternationalSettings>(
+    builder.Configuration.GetSection(InternationalSettings.SectionName));
+builder.Services.Configure<ShippingSettings>(
+    builder.Configuration.GetSection(ShippingSettings.SectionName));
+builder.Services.Configure<CacheSettings>(
+    builder.Configuration.GetSection(CacheSettings.SectionName));
+builder.Services.Configure<RecommendationSettings>(
+    builder.Configuration.GetSection(RecommendationSettings.SectionName));
 
 // Add services to the container
 // ✅ BOLUM 4.0: API Versioning (ZORUNLU)
@@ -236,7 +239,7 @@ builder.Services.AddStackExchangeRedisCache(options =>
 });
 
 // ✅ BOLUM 10.2: Cache service registration
-builder.Services.AddScoped<Merge.Application.Interfaces.ICacheService, Merge.Application.Services.CacheService>();
+builder.Services.AddScoped<ICacheService, CacheService>();
 
 // Identity configuration
 builder.Services.AddIdentity<Merge.Domain.Modules.Identity.User, Merge.Domain.Modules.Identity.Role>(options =>

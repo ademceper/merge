@@ -32,9 +32,7 @@ public class CancelOrderSplitCommandHandler : IRequestHandler<CancelOrderSplitCo
 
     public async Task<bool> Handle(CancelOrderSplitCommand request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var split = await _context.Set<OrderSplit>()
-            .AsSplitQuery()
             .Include(s => s.SplitOrder)
             .Include(s => s.OriginalOrder)
             .FirstOrDefaultAsync(s => s.Id == request.SplitId, cancellationToken);

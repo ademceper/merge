@@ -151,6 +151,47 @@ public class PaymentMethodsController(IMediator mediator) : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Ödeme yöntemini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchPaymentMethod(
+        Guid id,
+        [FromBody] PatchPaymentMethodDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new UpdatePaymentMethodCommand(
+            id,
+            patchDto.Name,
+            patchDto.Description,
+            patchDto.IconUrl,
+            patchDto.IsActive,
+            patchDto.RequiresOnlinePayment,
+            patchDto.RequiresManualVerification,
+            patchDto.MinimumAmount,
+            patchDto.MaximumAmount,
+            patchDto.ProcessingFee,
+            patchDto.ProcessingFeePercentage,
+            patchDto.Settings,
+            patchDto.DisplayOrder,
+            patchDto.IsDefault);
+        var success = await mediator.Send(command, cancellationToken);
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(10, 60)]

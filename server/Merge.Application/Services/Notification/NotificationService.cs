@@ -14,13 +14,14 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Notifications;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<NotificationEntity>;
 
 
 namespace Merge.Application.Services.Notification;
 
 public class NotificationService : INotificationService
 {
-    private readonly Merge.Application.Interfaces.IRepository<NotificationEntity> _notificationRepository;
+    private readonly IRepository _notificationRepository;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
@@ -28,7 +29,7 @@ public class NotificationService : INotificationService
     private readonly PaginationSettings _paginationSettings;
 
     public NotificationService(
-        Merge.Application.Interfaces.IRepository<NotificationEntity> notificationRepository,
+        IRepository notificationRepository,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,

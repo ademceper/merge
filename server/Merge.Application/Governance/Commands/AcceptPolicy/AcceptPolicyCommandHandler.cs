@@ -40,7 +40,6 @@ public class AcceptPolicyCommandHandler(
             }
 
             var existingAcceptance = await context.Set<PolicyAcceptance>()
-            .AsSplitQuery()
                 .Include(pa => pa.Policy)
                 .Include(pa => pa.User)
                 .FirstOrDefaultAsync(pa => pa.UserId == request.UserId && 
@@ -80,7 +79,6 @@ public class AcceptPolicyCommandHandler(
 
             var reloadedAcceptance = await context.Set<PolicyAcceptance>()
                 .AsNoTracking()
-            .AsSplitQuery()
                 .Include(pa => pa.Policy)
                 .Include(pa => pa.User)
                 .FirstOrDefaultAsync(pa => pa.Id == acceptance.Id, cancellationToken);

@@ -53,10 +53,8 @@ public class GetComparisonByShareCodeQueryHandler : IRequestHandler<GetCompariso
             {
                 _logger.LogInformation("Cache miss for comparison by share code. Fetching from database.");
 
-                // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
                 var comparison = await _context.Set<ProductComparison>()
                     .AsNoTracking()
-                    .AsSplitQuery()
                     .Include(c => c.Items)
                         .ThenInclude(i => i.Product)
                             .ThenInclude(p => p.Category)

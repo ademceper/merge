@@ -35,11 +35,8 @@ public class GetReviewByIdQueryHandler : IRequestHandler<GetReviewByIdQuery, Rev
     {
         _logger.LogInformation("Fetching review by Id: {ReviewId}", request.ReviewId);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var review = await _context.Set<ReviewEntity>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(r => r.User)
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);

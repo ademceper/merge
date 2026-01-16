@@ -72,10 +72,8 @@ public class AwardProductBadgeCommandHandler : IRequestHandler<AwardProductBadge
 
     private async Task<ProductTrustBadgeDto> GetProductBadgeDtoAsync(Guid productId, Guid badgeId, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var productBadge = await _context.Set<ProductTrustBadge>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(ptb => ptb.TrustBadge)
             .Include(ptb => ptb.Product)
             .FirstOrDefaultAsync(ptb => ptb.ProductId == productId && ptb.TrustBadgeId == badgeId, cancellationToken);

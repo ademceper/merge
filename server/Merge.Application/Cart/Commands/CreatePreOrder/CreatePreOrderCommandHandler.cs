@@ -11,6 +11,7 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Marketing;
 using Merge.Domain.Modules.Ordering;
+using Product = Merge.Domain.Modules.Catalog.Product;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -30,7 +31,7 @@ public class CreatePreOrderCommandHandler(
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var product = await context.Set<Merge.Domain.Modules.Catalog.Product>()
+            var product = await context.Set<Product>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
@@ -73,8 +74,8 @@ public class CreatePreOrderCommandHandler(
 
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullanımı
             // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
-            var priceMoney = new Merge.Domain.ValueObjects.Money(price);
-            var depositAmountMoney = new Merge.Domain.ValueObjects.Money(depositAmount);
+            var priceMoney = new Money(price);
+            var depositAmountMoney = new Money(depositAmount);
             var preOrder = PreOrder.Create(
                 request.UserId,
                 request.ProductId,

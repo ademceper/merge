@@ -24,9 +24,7 @@ public class SendEmailCampaignCommandHandler(
 {
     public async Task<bool> Handle(SendEmailCampaignCommand request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery + Removed manual !c.IsDeleted (Global Query Filter)
         var campaign = await context.Set<EmailCampaign>()
-            .AsSplitQuery()
             .Include(c => c.Recipients)
             .Include(c => c.Template)
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);

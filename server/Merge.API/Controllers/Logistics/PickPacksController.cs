@@ -213,6 +213,31 @@ public class PickPacksController(
         return NoContent();
     }
 
+    /// <summary>
+    /// Pick pack detaylarını kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}/details")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchDetails(
+        Guid id,
+        [FromBody] PatchPickPackDetailsDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var command = new UpdatePickPackDetailsCommand(id, patchDto.Notes, patchDto.Weight, patchDto.Dimensions, patchDto.PackageCount);
+        await mediator.Send(command, cancellationToken);
+        return NoContent();
+    }
+
     [HttpPost("{id}/start-picking")]
     [RateLimit(20, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -326,6 +351,31 @@ public class PickPacksController(
         if (validationResult != null) return validationResult;
 
         var command = new UpdatePickPackItemStatusCommand(itemId, dto.IsPicked, dto.IsPacked, dto.Location);
+        await mediator.Send(command, cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Pick pack öğe durumunu kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("items/{itemId}/status")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchItemStatus(
+        Guid itemId,
+        [FromBody] PatchPickPackItemStatusDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var command = new UpdatePickPackItemStatusCommand(itemId, patchDto.IsPicked, patchDto.IsPacked, patchDto.Location);
         await mediator.Send(command, cancellationToken);
         return NoContent();
     }

@@ -4,6 +4,7 @@ using AutoMapper;
 using Merge.Application.DTOs.Order;
 using Merge.Application.Interfaces;
 using Merge.Domain.Modules.Ordering;
+using Order = Merge.Domain.Modules.Ordering.Order;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 
 namespace Merge.Application.Order.Queries.GetOrderById;
@@ -21,12 +22,8 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
 
     public async Task<OrderDto?> Handle(GetOrderByIdQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor
-        var order = await _context.Set<Merge.Domain.Modules.Ordering.Order>()
+        var order = await _context.Set<Order>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .Include(o => o.Address)

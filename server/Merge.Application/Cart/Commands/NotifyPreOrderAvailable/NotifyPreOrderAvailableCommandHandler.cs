@@ -8,6 +8,7 @@ using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Notifications;
 using Merge.Domain.Modules.Ordering;
 using Merge.Domain.ValueObjects;
+using PreOrder = Merge.Domain.Modules.Ordering.PreOrder;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -23,9 +24,8 @@ public class NotifyPreOrderAvailableCommandHandler(
 
     public async Task Handle(NotifyPreOrderAvailableCommand request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        var preOrder = await context.Set<Merge.Domain.Modules.Ordering.PreOrder>()
-            .AsSplitQuery()
+
+        var preOrder = await context.Set<PreOrder>()
             .Include(po => po.Product)
             .Include(po => po.User)
             .FirstOrDefaultAsync(po => po.Id == request.PreOrderId, cancellationToken);

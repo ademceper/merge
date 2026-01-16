@@ -11,13 +11,14 @@ using Merge.Domain.Modules.Content;
 using Merge.Domain.Modules.Marketplace;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.Banner>;
 
 namespace Merge.Application.Content.Commands.UpdateBanner;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateBannerCommandHandler(
-    Merge.Application.Interfaces.IRepository<Banner> bannerRepository,
+    IRepository bannerRepository,
     IDbContext context,
     IUnitOfWork unitOfWork,
     ICacheService cache,

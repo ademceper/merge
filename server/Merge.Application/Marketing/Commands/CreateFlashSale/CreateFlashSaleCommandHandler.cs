@@ -40,10 +40,9 @@ public class CreateFlashSaleCommandHandler(
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery ile tek query'de getir (N+1 query önleme)
+ 
         var createdFlashSale = await context.Set<FlashSale>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(fs => fs.FlashSaleProducts)
                 .ThenInclude(fsp => fsp.Product)
             .FirstOrDefaultAsync(fs => fs.Id == flashSale.Id, cancellationToken);

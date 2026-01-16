@@ -48,10 +48,7 @@ public class EvaluatePaymentCommandHandler : IRequestHandler<EvaluatePaymentComm
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Evaluating payment for fraud. PaymentId: {PaymentId}", request.PaymentId);
 
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var payment = await _context.Set<PaymentEntity>()
-            .AsSplitQuery()
             .Include(p => p.Order)
                 .ThenInclude(o => o.User)
             .FirstOrDefaultAsync(p => p.Id == request.PaymentId, cancellationToken);
@@ -81,12 +78,8 @@ public class EvaluatePaymentCommandHandler : IRequestHandler<EvaluatePaymentComm
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var createdAlert = await _context.Set<FraudAlert>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Order)
             .Include(a => a.Payment)

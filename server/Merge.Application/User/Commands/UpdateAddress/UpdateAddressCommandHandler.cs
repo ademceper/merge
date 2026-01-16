@@ -8,6 +8,7 @@ using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.ValueObjects;
+using AddressEntity = Merge.Domain.Modules.Identity.Address;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -35,7 +36,7 @@ public class UpdateAddressCommandHandler : IRequestHandler<UpdateAddressCommand,
 
         _logger.LogInformation("Updating address with ID: {AddressId}", request.Id);
 
-        var address = await _context.Set<Merge.Domain.Modules.Identity.Address>()
+        var address = await _context.Set<AddressEntity>()
             .Where(a => a.Id == request.Id && !a.IsDeleted)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -54,7 +55,7 @@ public class UpdateAddressCommandHandler : IRequestHandler<UpdateAddressCommand,
         // Eğer default olarak işaretleniyorsa, diğer adreslerin default'unu kaldır
         if (request.IsDefault && !address.IsDefault)
         {
-            var existingDefaults = await _context.Set<Merge.Domain.Modules.Identity.Address>()
+            var existingDefaults = await _context.Set<AddressEntity>()
                 .Where(a => a.UserId == address.UserId && a.Id != request.Id && a.IsDefault && !a.IsDeleted)
                 .ToListAsync(cancellationToken);
 

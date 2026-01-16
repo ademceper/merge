@@ -136,6 +136,48 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Abonelik planını kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("plans/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchPlan(
+        Guid id,
+        [FromBody] PatchSubscriptionPlanDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+        var command = new UpdateSubscriptionPlanCommand(
+            id,
+            patchDto.Name,
+            patchDto.Description,
+            patchDto.Price,
+            patchDto.DurationDays,
+            patchDto.TrialDays,
+            patchDto.Features,
+            patchDto.IsActive,
+            patchDto.DisplayOrder,
+            patchDto.BillingCycle,
+            patchDto.MaxUsers,
+            patchDto.SetupFee,
+            patchDto.Currency);
+        var success = await mediator.Send(command, cancellationToken);
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
     [HttpDelete("plans/{id}")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(30, 60)]
@@ -247,6 +289,45 @@ public class SubscriptionsController(IMediator mediator) : BaseController
             return Forbid();
         }
         var command = new UpdateUserSubscriptionCommand(id, dto.AutoRenew, dto.PaymentMethodId);
+        var success = await mediator.Send(command, cancellationToken);
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Kullanıcı aboneliğini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("subscriptions/{id}")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchSubscription(
+        Guid id,
+        [FromBody] PatchUserSubscriptionDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+        var userId = GetUserId();
+        var getQuery = new GetUserSubscriptionByIdQuery(id);
+        var subscription = await mediator.Send(getQuery, cancellationToken);
+        if (subscription == null)
+        {
+            return NotFound();
+        }
+        if (subscription.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
+        {
+            return Forbid();
+        }
+        var command = new UpdateUserSubscriptionCommand(id, patchDto.AutoRenew, patchDto.PaymentMethodId);
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {

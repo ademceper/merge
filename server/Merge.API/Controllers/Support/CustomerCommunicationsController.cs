@@ -245,6 +245,47 @@ public class CustomerCommunicationsController(IMediator mediator, IOptions<Suppo
         return NoContent();
     }
 
+    /// <summary>
+    /// Müşteri iletişim durumunu kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}/status")]
+    [Authorize(Roles = "Admin,Manager,Support")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchStatus(
+        Guid id,
+        [FromBody] PatchCommunicationStatusDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        // Status is required for UpdateCustomerCommunicationStatusCommand, but we can make it optional for PATCH
+        // If status is not provided, we'll skip the update
+        if (string.IsNullOrEmpty(patchDto.Status) && !patchDto.DeliveredAt.HasValue && !patchDto.ReadAt.HasValue)
+        {
+            return BadRequest("En az bir alan güncellenmelidir.");
+        }
+
+        var command = new UpdateCustomerCommunicationStatusCommand(
+            id,
+            patchDto.Status ?? "Sent", // Default status if not provided
+            patchDto.DeliveredAt,
+            patchDto.ReadAt);
+        var success = await mediator.Send(command, cancellationToken);
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
     [HttpGet("stats")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(60, 60)]     [ProducesResponseType(typeof(Dictionary<string, int>), StatusCodes.Status200OK)]

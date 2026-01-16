@@ -8,11 +8,12 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Content;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.BlogComment>;
 
 namespace Merge.Application.Content.Commands.ApproveBlogComment;
 
 public class ApproveBlogCommentCommandHandler(
-    Merge.Application.Interfaces.IRepository<BlogComment> commentRepository,
+    IRepository commentRepository,
     IUnitOfWork unitOfWork,
     ICacheService cache,
     ILogger<ApproveBlogCommentCommandHandler> logger) : IRequestHandler<ApproveBlogCommentCommand, bool>

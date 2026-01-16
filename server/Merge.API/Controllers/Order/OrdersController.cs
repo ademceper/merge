@@ -13,6 +13,8 @@ using Merge.Application.Order.Queries.GetOrderById;
 using Merge.Application.Order.Queries.GetOrdersByUserId;
 using Merge.Application.Order.Queries.FilterOrders;
 using Merge.Application.Order.Queries.GetOrderStatistics;
+using FilterOrdersQuery = Merge.Application.Order.Queries.FilterOrders.FilterOrdersQuery;
+using GetOrderStatisticsQuery = Merge.Application.Order.Queries.GetOrderStatistics.GetOrderStatisticsQuery;
 using Merge.Domain.Enums;
 using Merge.API.Middleware;
 using Merge.API.Extensions;
@@ -122,6 +124,35 @@ public class OrdersController(
         return Ok(order);
     }
 
+    /// <summary>
+    /// Sipariş durumunu kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}/status")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<OrderDto>> PatchStatus(
+        Guid id,
+        [FromBody] PatchOrderStatusDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+        if (!patchDto.Status.HasValue)
+        {
+            return BadRequest("Status güncellenmelidir.");
+        }
+        var command = new UpdateOrderStatusCommand(id, patchDto.Status.Value);
+        var order = await mediator.Send(command, cancellationToken);
+        return Ok(order);
+    }
+
     [HttpPost("{id}/cancel")]
     [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -191,7 +222,7 @@ public class OrdersController(
         if (filter.PageSize > _orderSettings.MaxPageSize) filter.PageSize = _orderSettings.MaxPageSize;
         if (filter.Page < 1) filter.Page = 1;
         var userId = GetUserId();
-        var query = new Merge.Application.Order.Queries.FilterOrders.FilterOrdersQuery(
+        var query = new FilterOrdersQuery(
             UserId: userId,
             Status: filter.Status,
             PaymentStatus: filter.PaymentStatus,
@@ -219,7 +250,7 @@ public class OrdersController(
         CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var query = new Merge.Application.Order.Queries.GetOrderStatistics.GetOrderStatisticsQuery(
+        var query = new GetOrderStatisticsQuery(
             userId, startDate, endDate);
         var stats = await mediator.Send(query, cancellationToken);
         return Ok(stats);

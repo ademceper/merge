@@ -15,11 +15,12 @@ using Merge.Domain.Modules.Identity;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<TwoFactorAuth>;
 
 namespace Merge.Application.Identity.Commands.Setup2FA;
 
 public class Setup2FACommandHandler(
-    Merge.Application.Interfaces.IRepository<TwoFactorAuth> twoFactorRepository,
+    IRepository twoFactorRepository,
     IDbContext context,
     IUnitOfWork unitOfWork,
     IMediator mediator,

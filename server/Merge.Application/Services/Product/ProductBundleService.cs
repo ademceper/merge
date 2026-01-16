@@ -13,26 +13,31 @@ using Microsoft.Extensions.Logging;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Identity;
+using ProductBundle = Merge.Domain.Modules.Catalog.ProductBundle;
+using BundleItem = Merge.Domain.Modules.Catalog.BundleItem;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IBundleRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.ProductBundle>;
+using IBundleItemRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.BundleItem>;
+using IProductRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.Product>;
 
 
 namespace Merge.Application.Services.Product;
 
 public class ProductBundleService : IProductBundleService
 {
-    private readonly Merge.Application.Interfaces.IRepository<ProductBundle> _bundleRepository;
-    private readonly Merge.Application.Interfaces.IRepository<BundleItem> _bundleItemRepository;
-    private readonly Merge.Application.Interfaces.IRepository<ProductEntity> _productRepository;
+    private readonly IBundleRepository _bundleRepository;
+    private readonly IBundleItemRepository _bundleItemRepository;
+    private readonly IProductRepository _productRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<ProductBundleService> _logger;
 
     public ProductBundleService(
-        Merge.Application.Interfaces.IRepository<ProductBundle> bundleRepository,
-        Merge.Application.Interfaces.IRepository<BundleItem> bundleItemRepository,
-        Merge.Application.Interfaces.IRepository<ProductEntity> productRepository,
+        IBundleRepository bundleRepository,
+        IBundleItemRepository bundleItemRepository,
+        IProductRepository productRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
@@ -50,11 +55,8 @@ public class ProductBundleService : IProductBundleService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ProductBundleDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries, removed !b.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var bundle = await _context.Set<ProductBundle>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
@@ -219,11 +221,8 @@ public class ProductBundleService : IProductBundleService
         await _bundleRepository.UpdateAsync(bundle);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var reloadedBundle = await _context.Set<ProductBundle>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);

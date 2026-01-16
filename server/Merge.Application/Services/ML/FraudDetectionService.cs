@@ -177,10 +177,7 @@ public class FraudDetectionService : IFraudDetectionService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<FraudAlertDto> EvaluateOrderAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var order = await _context.Set<OrderEntity>()
-            .AsSplitQuery()
             .Include(o => o.User)
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
@@ -207,12 +204,8 @@ public class FraudDetectionService : IFraudDetectionService
         await _context.Set<FraudAlert>().AddAsync(alert, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var createdAlert = await _context.Set<FraudAlert>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Order)
             .Include(a => a.Payment)
@@ -226,10 +219,8 @@ public class FraudDetectionService : IFraudDetectionService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<FraudAlertDto> EvaluatePaymentAsync(Guid paymentId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
+
         var payment = await _context.Set<PaymentEntity>()
-            .AsSplitQuery()
             .Include(p => p.Order)
                 .ThenInclude(o => o.User)
             .FirstOrDefaultAsync(p => p.Id == paymentId, cancellationToken);
@@ -256,12 +247,8 @@ public class FraudDetectionService : IFraudDetectionService
         await _context.Set<FraudAlert>().AddAsync(alert, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var createdAlert = await _context.Set<FraudAlert>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Order)
             .Include(a => a.Payment)
@@ -300,12 +287,8 @@ public class FraudDetectionService : IFraudDetectionService
         await _context.Set<FraudAlert>().AddAsync(alert, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var createdAlert = await _context.Set<FraudAlert>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Order)
             .Include(a => a.Payment)

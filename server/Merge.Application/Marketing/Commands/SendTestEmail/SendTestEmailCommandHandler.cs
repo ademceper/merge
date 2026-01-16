@@ -21,7 +21,6 @@ public class SendTestEmailCommandHandler(
 {
     public async Task Handle(SendTestEmailCommand request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery + Removed manual !c.IsDeleted (Global Query Filter)
         var campaign = await context.Set<EmailCampaign>()
             .AsNoTracking()
             .Include(c => c.Template)

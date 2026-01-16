@@ -7,6 +7,9 @@ using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Marketing;
 using Merge.Domain.ValueObjects;
+using EmailCampaignRecipient = Merge.Domain.Modules.Marketing.EmailCampaignRecipient;
+using EmailCampaign = Merge.Domain.Modules.Marketing.EmailCampaign;
+using EmailSubscriber = Merge.Domain.Modules.Marketing.EmailSubscriber;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -26,7 +29,7 @@ public class RecordEmailOpenCommandHandler(
             "Email açılması kaydediliyor. CampaignId: {CampaignId}, SubscriberId: {SubscriberId}",
             request.CampaignId, request.SubscriberId);
 
-        var recipient = await context.Set<Merge.Domain.Modules.Marketing.EmailCampaignRecipient>()
+        var recipient = await context.Set<EmailCampaignRecipient>()
             .FirstOrDefaultAsync(r => r.CampaignId == request.CampaignId && r.SubscriberId == request.SubscriberId, cancellationToken);
 
         if (recipient == null)
@@ -44,7 +47,7 @@ public class RecordEmailOpenCommandHandler(
         if (wasFirstOpen)
         {
             // ✅ PERFORMANCE: Batch load campaign and subscriber (N+1 fix)
-            var campaign = await context.Set<Merge.Domain.Modules.Marketing.EmailCampaign>()
+            var campaign = await context.Set<EmailCampaign>()
                 .FirstOrDefaultAsync(c => c.Id == request.CampaignId, cancellationToken);
 
             if (campaign != null)
@@ -61,7 +64,7 @@ public class RecordEmailOpenCommandHandler(
                 );
             }
 
-            var subscriber = await context.Set<Merge.Domain.Modules.Marketing.EmailSubscriber>()
+            var subscriber = await context.Set<EmailSubscriber>()
                 .FirstOrDefaultAsync(s => s.Id == request.SubscriberId, cancellationToken);
 
             if (subscriber != null)

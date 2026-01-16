@@ -9,11 +9,12 @@ using Merge.Domain.Modules.Content;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.BlogCategory>;
 
 namespace Merge.Application.Content.Commands.UpdateBlogCategory;
 
 public class UpdateBlogCategoryCommandHandler(
-    Merge.Application.Interfaces.IRepository<BlogCategory> categoryRepository,
+    IRepository categoryRepository,
     IUnitOfWork unitOfWork,
     ICacheService cache,
     ILogger<UpdateBlogCategoryCommandHandler> logger) : IRequestHandler<UpdateBlogCategoryCommand, bool>

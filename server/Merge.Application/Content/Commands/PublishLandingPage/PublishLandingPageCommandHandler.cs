@@ -9,11 +9,12 @@ using Merge.Domain.Modules.Content;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.LandingPage>;
 
 namespace Merge.Application.Content.Commands.PublishLandingPage;
 
 public class PublishLandingPageCommandHandler(
-    Merge.Application.Interfaces.IRepository<LandingPage> landingPageRepository,
+    IRepository landingPageRepository,
     IUnitOfWork unitOfWork,
     ICacheService cache,
     ILogger<PublishLandingPageCommandHandler> logger) : IRequestHandler<PublishLandingPageCommand, bool>

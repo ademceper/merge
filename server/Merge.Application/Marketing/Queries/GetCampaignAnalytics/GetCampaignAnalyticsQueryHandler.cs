@@ -5,6 +5,7 @@ using Merge.Application.DTOs.Marketing;
 using Merge.Application.Interfaces;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Marketing;
+using EmailCampaign = Merge.Domain.Modules.Marketing.EmailCampaign;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -17,7 +18,7 @@ public class GetCampaignAnalyticsQueryHandler(IDbContext context, IMapper mapper
     public async Task<EmailCampaignAnalyticsDto?> Handle(GetCampaignAnalyticsQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        var campaign = await context.Set<Merge.Domain.Modules.Marketing.EmailCampaign>()
+        var campaign = await context.Set<EmailCampaign>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == request.CampaignId, cancellationToken);
 

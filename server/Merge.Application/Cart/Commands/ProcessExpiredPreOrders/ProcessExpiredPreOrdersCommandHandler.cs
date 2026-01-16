@@ -4,6 +4,7 @@ using Merge.Application.Interfaces;
 using Merge.Domain.Enums;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Ordering;
+using PreOrder = Merge.Domain.Modules.Ordering.PreOrder;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -19,7 +20,7 @@ public class ProcessExpiredPreOrdersCommandHandler(
     public async Task Handle(ProcessExpiredPreOrdersCommand request, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
-        var expiredPreOrders = await context.Set<Merge.Domain.Modules.Ordering.PreOrder>()
+        var expiredPreOrders = await context.Set<PreOrder>()
             .Where(po => po.Status == PreOrderStatus.Pending && po.ExpiresAt < now)
             .ToListAsync(cancellationToken);
 

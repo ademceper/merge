@@ -9,6 +9,7 @@ using Merge.Application.Logistics.Queries.GetWarehouseById;
 using Merge.Application.Logistics.Queries.GetWarehouseByCode;
 using Merge.Application.Logistics.Commands.CreateWarehouse;
 using Merge.Application.Logistics.Commands.UpdateWarehouse;
+using Merge.Application.Logistics.Commands.PatchWarehouse;
 using Merge.Application.Logistics.Commands.DeleteWarehouse;
 using Merge.Application.Logistics.Commands.ActivateWarehouse;
 using Merge.Application.Logistics.Commands.DeactivateWarehouse;
@@ -158,6 +159,38 @@ public class WarehousesController(IMediator mediator) : BaseController
             updateDto.Capacity ?? existingWarehouse.Capacity,
             updateDto.IsActive ?? existingWarehouse.IsActive,
             updateDto.Description);
+        var warehouse = await mediator.Send(command, cancellationToken);
+        return Ok(warehouse);
+    }
+
+    /// <summary>
+    /// Depoyu kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(typeof(WarehouseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<WarehouseDto>> Patch(
+        Guid id,
+        [FromBody] PatchWarehouseDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var existingQuery = new GetWarehouseByIdQuery(id);
+        var existingWarehouse = await mediator.Send(existingQuery, cancellationToken);
+        if (existingWarehouse == null)
+        {
+            return NotFound();
+        }
+
+        var command = new PatchWarehouseCommand(id, patchDto);
         var warehouse = await mediator.Send(command, cancellationToken);
         return Ok(warehouse);
     }

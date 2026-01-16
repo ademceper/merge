@@ -9,11 +9,12 @@ using Merge.Domain.Modules.Content;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.BlogCategory>;
 
 namespace Merge.Application.Content.Commands.DeleteBlogCategory;
 
 public class DeleteBlogCategoryCommandHandler(
-    Merge.Application.Interfaces.IRepository<BlogCategory> categoryRepository,
+    IRepository categoryRepository,
     IDbContext context,
     IUnitOfWork unitOfWork,
     ICacheService cache,

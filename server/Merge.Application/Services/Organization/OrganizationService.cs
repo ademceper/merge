@@ -321,11 +321,8 @@ public class OrganizationService : IOrganizationService
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         team = await _context.Set<Team>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(t => t.Organization)
             .Include(t => t.TeamLead)
             .FirstOrDefaultAsync(t => t.Id == team.Id, cancellationToken);
@@ -358,11 +355,8 @@ public class OrganizationService : IOrganizationService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<TeamDto?> GetTeamByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var team = await _context.Set<Team>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(t => t.Organization)
             .Include(t => t.TeamLead)
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
@@ -552,7 +546,6 @@ public class OrganizationService : IOrganizationService
         // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
         teamMember = await _context.Set<TeamMember>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(tm => tm.Team)
             .Include(tm => tm.User)
             .FirstOrDefaultAsync(tm => tm.Id == teamMember.Id, cancellationToken);

@@ -6,6 +6,7 @@ using Merge.Application.DTOs.Content;
 using Merge.Application.Interfaces;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Payment;
+using FraudDetectionRule = Merge.Domain.Modules.Payment.FraudDetectionRule;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -35,7 +36,7 @@ public class GetFraudDetectionRuleByIdQueryHandler : IRequestHandler<GetFraudDet
         _logger.LogInformation("Getting fraud detection rule by ID. RuleId: {RuleId}", request.Id);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
-        var rule = await _context.Set<Merge.Domain.Modules.Payment.FraudDetectionRule>()
+        var rule = await _context.Set<FraudDetectionRule>()
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken);
 

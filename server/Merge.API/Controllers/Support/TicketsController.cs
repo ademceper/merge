@@ -249,6 +249,45 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
         return NoContent();
     }
 
+    /// <summary>
+    /// Destek biletini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin,Manager,Support")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchTicket(
+        Guid id,
+        [FromBody] PatchSupportTicketDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var command = new UpdateTicketCommand(
+            id,
+            patchDto.Subject,
+            patchDto.Description,
+            patchDto.Category,
+            patchDto.Priority,
+            patchDto.Status,
+            patchDto.AssignedToId);
+        var success = await mediator.Send(command, cancellationToken);
+
+        if (!success)
+        {
+            return NotFound();
+        }
+
+        return NoContent();
+    }
+
     [HttpPost("{id}/assign", Name = "AssignTicket")]
     [Authorize(Roles = "Admin,Manager,Support")]
     [RateLimit(30, 60)]     [ProducesResponseType(StatusCodes.Status204NoContent)]

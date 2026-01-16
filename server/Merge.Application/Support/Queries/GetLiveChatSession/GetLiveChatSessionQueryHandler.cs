@@ -33,10 +33,8 @@ public class GetLiveChatSessionQueryHandler : IRequestHandler<GetLiveChatSession
 
     public async Task<LiveChatSessionDto?> Handle(GetLiveChatSessionQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
         var session = await _context.Set<LiveChatSession>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(s => s.User)
             .Include(s => s.Agent)
             .Include(s => s.Messages.OrderByDescending(m => m.CreatedAt).Take(_settings.MaxRecentChatMessages))

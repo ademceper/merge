@@ -35,11 +35,8 @@ public class GetPayoutQueryHandler : IRequestHandler<GetPayoutQuery, CommissionP
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Getting payout. PayoutId: {PayoutId}", request.PayoutId);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         var payout = await _context.Set<CommissionPayout>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(p => p.Seller)
             .Include(p => p.Items)
                 .ThenInclude(i => i.Commission)

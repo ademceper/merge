@@ -14,13 +14,14 @@ using Merge.Domain.Modules.Content;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.BlogPost>;
 
 namespace Merge.Application.Content.Commands.CreateBlogPost;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateBlogPostCommandHandler(
-    Merge.Application.Interfaces.IRepository<BlogPost> postRepository,
+    IRepository postRepository,
     IDbContext context,
     IUnitOfWork unitOfWork,
     ICacheService cache,
@@ -95,7 +96,6 @@ public class CreateBlogPostCommandHandler(
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             var reloadedPost = await context.Set<BlogPost>()
                 .AsNoTracking()
-                .AsSplitQuery()
                 .Include(p => p.Category)
                 .Include(p => p.Author)
                 .FirstOrDefaultAsync(p => p.Id == post.Id, cancellationToken);

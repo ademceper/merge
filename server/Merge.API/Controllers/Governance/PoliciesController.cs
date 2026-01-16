@@ -294,6 +294,46 @@ public class PoliciesController(
     }
 
     /// <summary>
+    /// Politikayı kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(typeof(PolicyDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<PolicyDto>> PatchPolicy(
+        Guid id,
+        [FromBody] PatchPolicyDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+        var command = new UpdatePolicyCommand(
+            id,
+            userId,
+            patchDto.Title,
+            patchDto.Content,
+            patchDto.Version,
+            patchDto.IsActive,
+            patchDto.RequiresAcceptance,
+            patchDto.EffectiveDate,
+            patchDto.ExpiryDate,
+            patchDto.ChangeLog);
+        var policy = await mediator.Send(command, cancellationToken);
+        return Ok(policy);
+    }
+
+    /// <summary>
     /// Policy'yi siler
     /// </summary>
     [HttpDelete("{id}")]

@@ -25,6 +25,9 @@ using Merge.Domain.Modules.Ordering;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using ISellerProfileRepository = Merge.Application.Interfaces.IRepository<SellerProfile>;
+using IProductRepository = Merge.Application.Interfaces.IRepository<ProductEntity>;
+using IOrderRepository = Merge.Application.Interfaces.IRepository<OrderEntity>;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
@@ -32,9 +35,9 @@ namespace Merge.Application.Services.Seller;
 
 public class SellerDashboardService : ISellerDashboardService
 {
-    private readonly Merge.Application.Interfaces.IRepository<SellerProfile> _sellerProfileRepository;
-    private readonly Merge.Application.Interfaces.IRepository<ProductEntity> _productRepository;
-    private readonly Merge.Application.Interfaces.IRepository<OrderEntity> _orderRepository;
+    private readonly ISellerProfileRepository _sellerProfileRepository;
+    private readonly IProductRepository _productRepository;
+    private readonly IOrderRepository _orderRepository;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly ILogger<SellerDashboardService> _logger;
@@ -42,9 +45,9 @@ public class SellerDashboardService : ISellerDashboardService
     private readonly PaginationSettings _paginationSettings;
 
     public SellerDashboardService(
-        Merge.Application.Interfaces.IRepository<SellerProfile> sellerProfileRepository,
-        Merge.Application.Interfaces.IRepository<ProductEntity> productRepository,
-        Merge.Application.Interfaces.IRepository<OrderEntity> orderRepository,
+        ISellerProfileRepository sellerProfileRepository,
+        IProductRepository productRepository,
+        IOrderRepository orderRepository,
         IDbContext context,
         IMapper mapper,
         ILogger<SellerDashboardService> logger,

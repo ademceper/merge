@@ -13,24 +13,28 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Ordering;
 using Merge.Domain.Modules.Payment;
+using Merge.Domain.ValueObjects;
+using ReturnRequest = Merge.Domain.Modules.Ordering.ReturnRequest;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IReturnRequestRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Ordering.ReturnRequest>;
+using IOrderRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Ordering.Order>;
 
 
 namespace Merge.Application.Services.Order;
 
 public class ReturnRequestService : IReturnRequestService
 {
-    private readonly Merge.Application.Interfaces.IRepository<ReturnRequest> _returnRequestRepository;
-    private readonly Merge.Application.Interfaces.IRepository<OrderEntity> _orderRepository;
+    private readonly IReturnRequestRepository _returnRequestRepository;
+    private readonly IOrderRepository _orderRepository;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<ReturnRequestService> _logger;
 
     public ReturnRequestService(
-        Merge.Application.Interfaces.IRepository<ReturnRequest> returnRequestRepository,
-        Merge.Application.Interfaces.IRepository<OrderEntity> orderRepository,
+        IReturnRequestRepository returnRequestRepository,
+        IOrderRepository orderRepository,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
@@ -50,7 +54,6 @@ public class ReturnRequestService : IReturnRequestService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var returnRequest = await _context.Set<ReturnRequest>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(r => r.Order)
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
@@ -203,7 +206,7 @@ public class ReturnRequestService : IReturnRequestService
         }
 
         // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
-        var refundAmountMoney = new Merge.Domain.ValueObjects.Money(refundAmount);
+        var refundAmountMoney = new Money(refundAmount);
         var returnRequest = ReturnRequest.Create(
             dto.OrderId,
             dto.UserId,
@@ -219,7 +222,6 @@ public class ReturnRequestService : IReturnRequestService
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
         var reloadedReturnRequest = await _context.Set<ReturnRequest>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(r => r.Order)
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.Id == returnRequest.Id, cancellationToken);
@@ -275,7 +277,6 @@ public class ReturnRequestService : IReturnRequestService
         // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
         returnRequest = await _context.Set<ReturnRequest>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(r => r.Order)
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);

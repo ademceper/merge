@@ -201,6 +201,51 @@ public class PageBuildersController(
     }
 
     /// <summary>
+    /// Page builder sayfasını kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchPage(
+        Guid id,
+        [FromBody] PatchPageBuilderDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+        var performedBy = User.IsInRole("Admin") ? (Guid?)null : userId;
+        var command = new UpdatePageBuilderCommand(
+            id,
+            patchDto.Slug,
+            patchDto.Name,
+            patchDto.Title,
+            patchDto.Content,
+            patchDto.Template,
+            patchDto.PageType,
+            patchDto.RelatedEntityId,
+            patchDto.MetaTitle,
+            patchDto.MetaDescription,
+            patchDto.OgImageUrl,
+            performedBy);
+        var result = await mediator.Send(command, cancellationToken);
+        if (!result)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
     /// Page builder sayfasını siler
     /// </summary>
     /// <param name="id">Silinecek page builder ID</param>

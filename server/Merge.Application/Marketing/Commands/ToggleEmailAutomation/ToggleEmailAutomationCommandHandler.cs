@@ -6,6 +6,7 @@ using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Notifications;
 using Merge.Domain.ValueObjects;
+using EmailAutomation = Merge.Domain.Modules.Notifications.EmailAutomation;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -21,7 +22,7 @@ public class ToggleEmailAutomationCommandHandler(
     public async Task<bool> Handle(ToggleEmailAutomationCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-        var automation = await context.Set<Merge.Domain.Modules.Notifications.EmailAutomation>()
+        var automation = await context.Set<EmailAutomation>()
             .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
 
         if (automation == null)

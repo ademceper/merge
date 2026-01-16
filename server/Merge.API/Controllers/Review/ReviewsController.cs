@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MediatR;
 using Merge.Application.Review.Commands.CreateReview;
 using Merge.Application.Review.Commands.UpdateReview;
+using Merge.Application.Review.Commands.PatchReview;
 using Merge.Application.Review.Commands.DeleteReview;
 using Merge.Application.Review.Commands.ApproveReview;
 using Merge.Application.Review.Commands.RejectReview;
@@ -105,6 +106,42 @@ public class ReviewsController(IMediator mediator) : BaseController
             return Forbid();
         }
         var command = new UpdateReviewCommand(id, userId, dto.Rating, dto.Title, dto.Comment);
+        var review = await mediator.Send(command, cancellationToken);
+        return Ok(review);
+    }
+
+    /// <summary>
+    /// Değerlendirmeyi kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(typeof(ReviewDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<ReviewDto>> Patch(
+        Guid id,
+        [FromBody] PatchReviewDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+        var userId = GetUserId();
+        var existingReviewQuery = new GetReviewByIdQuery(id);
+        var existingReview = await mediator.Send(existingReviewQuery, cancellationToken);
+        if (existingReview == null)
+        {
+            return NotFound();
+        }
+        if (existingReview.UserId != userId && !User.IsInRole("Admin"))
+        {
+            return Forbid();
+        }
+        var command = new PatchReviewCommand(id, userId, patchDto);
         var review = await mediator.Send(command, cancellationToken);
         return Ok(review);
     }

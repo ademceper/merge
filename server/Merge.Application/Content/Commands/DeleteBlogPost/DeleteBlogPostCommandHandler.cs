@@ -10,11 +10,12 @@ using Merge.Domain.Modules.Content;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.BlogPost>;
 
 namespace Merge.Application.Content.Commands.DeleteBlogPost;
 
 public class DeleteBlogPostCommandHandler(
-    Merge.Application.Interfaces.IRepository<BlogPost> postRepository,
+    IRepository postRepository,
     IUnitOfWork unitOfWork,
     ICacheService cache,
     ILogger<DeleteBlogPostCommandHandler> logger) : IRequestHandler<DeleteBlogPostCommand, bool>

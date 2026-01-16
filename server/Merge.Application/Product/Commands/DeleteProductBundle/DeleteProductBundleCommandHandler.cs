@@ -7,6 +7,7 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<ProductBundle>;
 
 namespace Merge.Application.Product.Commands.DeleteProductBundle;
 
@@ -14,7 +15,7 @@ namespace Merge.Application.Product.Commands.DeleteProductBundle;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteProductBundleCommandHandler : IRequestHandler<DeleteProductBundleCommand, bool>
 {
-    private readonly Merge.Application.Interfaces.IRepository<ProductBundle> _bundleRepository;
+    private readonly IRepository _bundleRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
     private readonly ILogger<DeleteProductBundleCommandHandler> _logger;
@@ -23,7 +24,7 @@ public class DeleteProductBundleCommandHandler : IRequestHandler<DeleteProductBu
     private const string CACHE_KEY_ACTIVE_BUNDLES = "bundles_active";
 
     public DeleteProductBundleCommandHandler(
-        Merge.Application.Interfaces.IRepository<ProductBundle> bundleRepository,
+        IRepository bundleRepository,
         IUnitOfWork unitOfWork,
         ICacheService cache,
         ILogger<DeleteProductBundleCommandHandler> logger)

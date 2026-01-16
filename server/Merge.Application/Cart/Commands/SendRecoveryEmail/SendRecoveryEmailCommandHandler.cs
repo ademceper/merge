@@ -7,6 +7,7 @@ using Merge.Application.Services.Notification;
 using Merge.Application.Exceptions;
 using Merge.Application.Configuration;
 using Merge.Application.Marketing.Commands.CreateCoupon;
+using CreateCouponCommand = Merge.Application.Marketing.Commands.CreateCoupon.CreateCouponCommand;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Domain.Interfaces;
@@ -16,6 +17,7 @@ using Merge.Domain.Modules.Marketing;
 using Merge.Domain.Modules.Notifications;
 using Merge.Domain.Modules.Ordering;
 using Merge.Domain.ValueObjects;
+using CartEntity = Merge.Domain.Modules.Ordering.Cart;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -34,10 +36,8 @@ public class SendRecoveryEmailCommandHandler(
 
     public async Task Handle(SendRecoveryEmailCommand request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        var cart = await context.Set<Merge.Domain.Modules.Ordering.Cart>()
-            .AsSplitQuery()
+
+        var cart = await context.Set<CartEntity>()
             .Include(c => c.User)
             .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.Product)

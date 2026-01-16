@@ -11,6 +11,7 @@ using Merge.Domain.Modules.Marketplace;
 using Merge.Domain.Modules.Ordering;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<ProductEntity>;
 
 namespace Merge.Application.Product.Commands.DeleteProduct;
 
@@ -18,7 +19,7 @@ namespace Merge.Application.Product.Commands.DeleteProduct;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand, bool>
 {
-    private readonly Merge.Application.Interfaces.IRepository<ProductEntity> _productRepository;
+    private readonly IRepository _productRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -29,7 +30,7 @@ public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand,
     private const string CACHE_KEY_PRODUCTS_SEARCH = "products_search_";
 
     public DeleteProductCommandHandler(
-        Merge.Application.Interfaces.IRepository<ProductEntity> productRepository,
+        IRepository productRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,

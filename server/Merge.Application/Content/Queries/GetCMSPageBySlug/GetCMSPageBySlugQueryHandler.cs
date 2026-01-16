@@ -40,7 +40,6 @@ public class GetCMSPageBySlugQueryHandler(
 
         var page = await context.Set<CMSPage>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(p => p.Author)
             .Include(p => p.ParentPage)
             .FirstOrDefaultAsync(p => p.Slug == request.Slug && p.Status == ContentStatus.Published, cancellationToken);

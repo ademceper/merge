@@ -14,6 +14,7 @@ using Merge.Application.Seller.Commands.CancelCommission;
 using Merge.Application.Seller.Commands.CreateCommissionTier;
 using Merge.Application.Seller.Queries.GetAllCommissionTiers;
 using Merge.Application.Seller.Commands.UpdateCommissionTier;
+using Merge.Application.Seller.Commands.PatchCommissionTier;
 using Merge.Application.Seller.Commands.DeleteCommissionTier;
 using Merge.Application.Seller.Queries.GetSellerCommissionSettings;
 using Merge.Application.Seller.Commands.UpdateSellerCommissionSettings;
@@ -253,6 +254,33 @@ public class CommissionsController(IMediator mediator) : BaseController
         return Ok();
     }
 
+    /// <summary>
+    /// Komisyon seviyesini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("tiers/{id}")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchTier(
+        Guid id,
+        [FromBody] PatchCommissionTierDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new PatchCommissionTierCommand(id, patchDto);
+        var success = await mediator.Send(command, cancellationToken);
+        if (!success)
+        {
+            return NotFound();
+        }
+        return Ok();
+    }
+
     [HttpDelete("tiers/{id}")]
     [Authorize(Roles = "Admin")]
     [RateLimit(30, 60)]
@@ -332,6 +360,46 @@ public class CommissionsController(IMediator mediator) : BaseController
             dto.MinimumPayoutAmount,
             dto.PaymentMethod,
             dto.PaymentDetails);
+        var settings = await mediator.Send(command, cancellationToken);
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateSelfLink(Url, "GetSellerSettings", new { version, sellerId }, version);
+        return Ok(new { settings, _links = links });
+    }
+
+    /// <summary>
+    /// Satıcı komisyon ayarlarını kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("settings/{sellerId}")]
+    [Authorize(Roles = "Admin,Manager,Seller")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(typeof(SellerCommissionSettingsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<SellerCommissionSettingsDto>> PatchSellerSettings(
+        Guid sellerId,
+        [FromBody] PatchCommissionSettingsDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var isSeller = User.IsInRole("Seller");
+
+        if (isSeller && TryGetUserId(out var userId) && userId != sellerId)
+        {
+            return Forbid();
+        }
+
+        var command = new UpdateSellerCommissionSettingsCommand(
+            sellerId,
+            patchDto.CustomCommissionRate,
+            patchDto.UseCustomRate,
+            patchDto.MinimumPayoutAmount,
+            patchDto.PaymentMethod,
+            patchDto.PaymentDetails);
         var settings = await mediator.Send(command, cancellationToken);
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
         var links = HateoasHelper.CreateSelfLink(Url, "GetSellerSettings", new { version, sellerId }, version);

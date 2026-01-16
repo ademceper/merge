@@ -109,11 +109,8 @@ public class RequestPayoutCommandHandler : IRequestHandler<RequestPayoutCommand,
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         payout = await _context.Set<CommissionPayout>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(p => p.Seller)
             .Include(p => p.Items)
                 .ThenInclude(i => i.Commission)

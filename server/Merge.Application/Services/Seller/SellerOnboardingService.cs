@@ -25,6 +25,7 @@ using Merge.Domain.Modules.Ordering;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<SellerApplication>;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
@@ -32,7 +33,7 @@ namespace Merge.Application.Services.Seller;
 
 public class SellerOnboardingService : ISellerOnboardingService
 {
-    private readonly Merge.Application.Interfaces.IRepository<SellerApplication> _applicationRepository;
+    private readonly IRepository _applicationRepository;
     private readonly UserManager<UserEntity> _userManager;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
@@ -43,7 +44,7 @@ public class SellerOnboardingService : ISellerOnboardingService
     private readonly PaginationSettings _paginationSettings;
 
     public SellerOnboardingService(
-        Merge.Application.Interfaces.IRepository<SellerApplication> applicationRepository,
+        IRepository applicationRepository,
         UserManager<UserEntity> userManager,
         IDbContext context,
         IMapper mapper,
@@ -136,7 +137,6 @@ public class SellerOnboardingService : ISellerOnboardingService
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         application = await _context.Set<SellerApplication>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Reviewer)
             .FirstOrDefaultAsync(a => a.Id == application.Id, cancellationToken);
@@ -149,7 +149,6 @@ public class SellerOnboardingService : ISellerOnboardingService
     {
         var application = await _context.Set<SellerApplication>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Reviewer)
             .FirstOrDefaultAsync(a => a.Id == applicationId, cancellationToken);
@@ -162,7 +161,6 @@ public class SellerOnboardingService : ISellerOnboardingService
     {
         var application = await _context.Set<SellerApplication>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Reviewer)
             .Where(a => a.UserId == userId)
@@ -279,7 +277,6 @@ public class SellerOnboardingService : ISellerOnboardingService
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             application = await _context.Set<SellerApplication>()
                 .AsNoTracking()
-            .AsSplitQuery()
                 .Include(a => a.User)
                 .Include(a => a.Reviewer)
                 .FirstOrDefaultAsync(a => a.Id == application.Id, cancellationToken);

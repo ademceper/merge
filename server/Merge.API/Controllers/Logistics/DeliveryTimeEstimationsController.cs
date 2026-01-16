@@ -136,6 +136,39 @@ public class DeliveryTimeEstimationsController(IMediator mediator) : BaseControl
         return NoContent();
     }
 
+    /// <summary>
+    /// Teslimat süresi tahminini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchEstimation(
+        Guid id,
+        [FromBody] PatchDeliveryTimeEstimationDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var command = new UpdateDeliveryTimeEstimationCommand(
+            id,
+            patchDto.MinDays,
+            patchDto.MaxDays,
+            patchDto.AverageDays,
+            patchDto.IsActive,
+            patchDto.Conditions);
+        await mediator.Send(command, cancellationToken);
+        return NoContent();
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(10, 60)]

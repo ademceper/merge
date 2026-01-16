@@ -34,10 +34,7 @@ public class FailPayoutCommandHandler : IRequestHandler<FailPayoutCommand, bool>
         _logger.LogInformation("Failing payout. PayoutId: {PayoutId}, Reason: {Reason}",
             request.PayoutId, request.Reason);
 
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var payout = await _context.Set<CommissionPayout>()
-            .AsSplitQuery()
             .Include(p => p.Items)
                 .ThenInclude(i => i.Commission)
             .FirstOrDefaultAsync(p => p.Id == request.PayoutId, cancellationToken);

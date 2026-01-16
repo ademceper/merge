@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Merge.Domain.Modules.Notifications;
+using Merge.Domain.Modules.Identity;
 using Merge.Application.Interfaces;
 using Merge.Domain.SharedKernel;
+using User = Merge.Domain.Modules.Identity.User;
+using Role = Merge.Domain.Modules.Identity.Role;
 
 namespace Merge.Infrastructure.Data.Contexts;
 
@@ -22,9 +25,9 @@ public class NotificationDbContext : DbContext, IDbContext
     DbSet<TEntity> IDbContext.Set<TEntity>() => base.Set<TEntity>();
     
     // ✅ LSP FIX: Anlamlı hata mesajı - ISP gerektirir
-    DbSet<Merge.Domain.Modules.Identity.User> IDbContext.Users =>
+    DbSet<User> IDbContext.Users =>
         throw new InvalidOperationException("NotificationDbContext does not support Users. Use ApplicationDbContext for identity operations.");
-    DbSet<Merge.Domain.Modules.Identity.Role> IDbContext.Roles =>
+    DbSet<Role> IDbContext.Roles =>
         throw new InvalidOperationException("NotificationDbContext does not support Roles. Use ApplicationDbContext for identity operations.");
     DbSet<Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>> IDbContext.UserRoles =>
         throw new InvalidOperationException("NotificationDbContext does not support UserRoles. Use ApplicationDbContext for identity operations.");

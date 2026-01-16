@@ -11,6 +11,8 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Ordering;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -30,7 +32,6 @@ public class ConvertPreOrderToOrderCommandHandler(
         try
         {
             var preOrder = await context.Set<PreOrder>()
-            .AsSplitQuery()
                 .Include(po => po.Product)
                 .Include(po => po.User)
                 .FirstOrDefaultAsync(po => po.Id == request.PreOrderId, cancellationToken);
@@ -59,9 +60,9 @@ public class ConvertPreOrderToOrderCommandHandler(
                 throw new BusinessException("Sipariş oluşturmak için adres bilgisi gereklidir.");
             }
 
-            var order = Merge.Domain.Modules.Ordering.Order.Create(preOrder.UserId, address.Id, address);
+            var order = OrderEntity.Create(preOrder.UserId, address.Id, address);
 
-            var product = await context.Set<Merge.Domain.Modules.Catalog.Product>()
+            var product = await context.Set<ProductEntity>()
                 .FirstOrDefaultAsync(p => p.Id == preOrder.ProductId, cancellationToken);
 
             // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
@@ -78,7 +79,7 @@ public class ConvertPreOrderToOrderCommandHandler(
             var tax = new Money(0);
             order.SetTax(tax);
 
-            await context.Set<Merge.Domain.Modules.Ordering.Order>().AddAsync(order, cancellationToken);
+            await context.Set<OrderEntity>().AddAsync(order, cancellationToken);
 
             preOrder.ConvertToOrder(order.Id);
 

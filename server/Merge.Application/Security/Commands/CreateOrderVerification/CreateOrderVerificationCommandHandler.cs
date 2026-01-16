@@ -85,11 +85,8 @@ public class CreateOrderVerificationCommandHandler : IRequestHandler<CreateOrder
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için Cartesian Explosion önleme
         verification = await _context.Set<OrderVerification>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(v => v.Order)
             .Include(v => v.VerifiedBy)
             .FirstOrDefaultAsync(v => v.Id == verification.Id, cancellationToken);
@@ -102,10 +99,8 @@ public class CreateOrderVerificationCommandHandler : IRequestHandler<CreateOrder
 
     private async Task<int> CalculateOrderRiskScoreAsync(Guid orderId, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için Cartesian Explosion önleme
         var order = await _context.Set<OrderEntity>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(o => o.OrderItems)
             .Include(o => o.User)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);

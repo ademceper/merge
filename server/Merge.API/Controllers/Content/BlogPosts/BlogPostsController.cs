@@ -274,6 +274,52 @@ public class BlogPostsController(
     }
 
     /// <summary>
+    /// Blog post'u kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("/{id}")]
+    [Authorize(Roles = "Admin,Manager,Writer")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchPost(
+        Guid id,
+        [FromBody] PatchBlogPostDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetUserId();
+        var performedBy = User.IsInRole("Admin") || User.IsInRole("Manager") ? (Guid?)null : userId;
+        var command = new UpdateBlogPostCommand(
+            Id: id,
+            CategoryId: patchDto.CategoryId,
+            Title: patchDto.Title,
+            Excerpt: patchDto.Excerpt,
+            Content: patchDto.Content,
+            FeaturedImageUrl: patchDto.FeaturedImageUrl,
+            Status: patchDto.Status,
+            Tags: patchDto.Tags,
+            IsFeatured: patchDto.IsFeatured,
+            AllowComments: patchDto.AllowComments,
+            MetaTitle: patchDto.MetaTitle,
+            MetaDescription: patchDto.MetaDescription,
+            MetaKeywords: patchDto.MetaKeywords,
+            OgImageUrl: patchDto.OgImageUrl,
+            PerformedBy: performedBy);
+        var result = await mediator.Send(command, cancellationToken);
+        
+        if (!result)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
     /// Blog post'u siler
     /// </summary>
     /// <param name="id">Silinecek blog post ID</param>

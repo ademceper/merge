@@ -123,6 +123,40 @@ public class EmailTemplatesController(
         return Ok(template);
     }
 
+    /// <summary>
+    /// Email şablonunu kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(typeof(EmailTemplateDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<EmailTemplateDto>> PatchTemplate(
+        Guid id,
+        [FromBody] PatchEmailTemplateDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new UpdateEmailTemplateCommand(
+            id,
+            patchDto.Name,
+            patchDto.Description,
+            patchDto.Subject,
+            patchDto.HtmlContent,
+            patchDto.TextContent,
+            patchDto.Type,
+            patchDto.Variables,
+            patchDto.Thumbnail,
+            patchDto.IsActive);
+
+        var template = await mediator.Send(command, cancellationToken);
+        return Ok(template);
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(10, 60)]

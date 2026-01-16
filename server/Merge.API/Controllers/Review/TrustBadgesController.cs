@@ -111,6 +111,40 @@ public class TrustBadgesController(IMediator mediator) : BaseController
         return Ok(badge);
     }
 
+    /// <summary>
+    /// Güven rozetini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(typeof(TrustBadgeDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<TrustBadgeDto>> PatchBadge(
+        Guid id,
+        [FromBody] PatchTrustBadgeDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+        var command = new UpdateTrustBadgeCommand(
+            id,
+            patchDto.Name,
+            patchDto.Description,
+            patchDto.IconUrl,
+            patchDto.BadgeType,
+            patchDto.Criteria,
+            patchDto.IsActive,
+            patchDto.DisplayOrder,
+            patchDto.Color);
+        var badge = await mediator.Send(command, cancellationToken);
+        return Ok(badge);
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
     [RateLimit(10, 60)]

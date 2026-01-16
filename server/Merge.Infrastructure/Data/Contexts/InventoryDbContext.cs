@@ -1,7 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Merge.Domain.Modules.Inventory;
+using Merge.Domain.Modules.Identity;
 using Merge.Application.Interfaces;
 using Merge.Domain.SharedKernel;
+using Inventory = Merge.Domain.Modules.Inventory.Inventory;
+using User = Merge.Domain.Modules.Identity.User;
+using Role = Merge.Domain.Modules.Identity.Role;
 
 namespace Merge.Infrastructure.Data.Contexts;
 
@@ -12,7 +16,7 @@ public class InventoryDbContext : DbContext, IDbContext
     }
 
     public DbSet<Warehouse> Warehouses { get; set; }
-    public DbSet<Merge.Domain.Modules.Inventory.Inventory> Inventories { get; set; }
+    public DbSet<Inventory> Inventories { get; set; }
     public DbSet<StockMovement> StockMovements { get; set; }
     public DbSet<PickPack> PickPacks { get; set; }
     public DbSet<PickPackItem> PickPackItems { get; set; }
@@ -20,9 +24,9 @@ public class InventoryDbContext : DbContext, IDbContext
     DbSet<TEntity> IDbContext.Set<TEntity>() => base.Set<TEntity>();
     
     // ✅ LSP FIX: Anlamlı hata mesajı - ISP gerektirir
-    DbSet<Merge.Domain.Modules.Identity.User> IDbContext.Users =>
+    DbSet<User> IDbContext.Users =>
         throw new InvalidOperationException("InventoryDbContext does not support Users. Use ApplicationDbContext for identity operations.");
-    DbSet<Merge.Domain.Modules.Identity.Role> IDbContext.Roles =>
+    DbSet<Role> IDbContext.Roles =>
         throw new InvalidOperationException("InventoryDbContext does not support Roles. Use ApplicationDbContext for identity operations.");
     DbSet<Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>> IDbContext.UserRoles =>
         throw new InvalidOperationException("InventoryDbContext does not support UserRoles. Use ApplicationDbContext for identity operations.");

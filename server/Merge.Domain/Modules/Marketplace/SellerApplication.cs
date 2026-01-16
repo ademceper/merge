@@ -102,7 +102,7 @@ public class SellerApplication : BaseEntity, IAggregateRoot
         var emailValueObject = new Email(email);
         var phoneNumberValueObject = new PhoneNumber(phoneNumber);
         var ibanValueObject = new IBAN(iban);
-        var addressValueObject = new Merge.Domain.ValueObjects.Address(address, city, country, postalCode);
+        var addressValueObject = new Address(address, city, country, postalCode);
 
         var application = new SellerApplication
         {

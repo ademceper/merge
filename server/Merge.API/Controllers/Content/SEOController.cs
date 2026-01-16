@@ -314,6 +314,40 @@ public class SEOController(
     }
 
     /// <summary>
+    /// Sitemap entry'yi kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("sitemap/entries/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchSitemapEntry(
+        Guid id,
+        [FromBody] PatchSitemapEntryDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+        var command = new UpdateSitemapEntryCommand(
+            id,
+            patchDto.Url,
+            patchDto.ChangeFrequency,
+            patchDto.Priority);
+        var result = await mediator.Send(command, cancellationToken);
+        if (!result)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
     /// Sitemap entry'yi siler
     /// </summary>
     /// <param name="id">Silinecek sitemap entry ID</param>

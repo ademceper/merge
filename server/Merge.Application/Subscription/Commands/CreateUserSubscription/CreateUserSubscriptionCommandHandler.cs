@@ -104,7 +104,6 @@ public class CreateUserSubscriptionCommandHandler : IRequestHandler<CreateUserSu
         // ✅ PERFORMANCE: Reload with includes for mapping
         subscription = await _context.Set<UserSubscription>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(us => us.User)
             .Include(us => us.SubscriptionPlan)
             .FirstOrDefaultAsync(us => us.Id == subscription.Id, cancellationToken);

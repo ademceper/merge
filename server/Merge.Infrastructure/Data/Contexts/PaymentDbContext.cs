@@ -1,8 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Merge.Domain.Modules.Payment;
 using Merge.Domain.Modules.Ordering;
+using Merge.Domain.Modules.Identity;
 using Merge.Application.Interfaces;
 using Merge.Domain.SharedKernel;
+using Payment = Merge.Domain.Modules.Payment.Payment;
+using Currency = Merge.Domain.Modules.Payment.Currency;
+using User = Merge.Domain.Modules.Identity.User;
+using Role = Merge.Domain.Modules.Identity.Role;
 
 namespace Merge.Infrastructure.Data.Contexts;
 
@@ -12,12 +17,12 @@ public class PaymentDbContext : DbContext, IDbContext
     {
     }
 
-    public DbSet<Merge.Domain.Modules.Payment.Payment> Payments { get; set; }
+    public DbSet<Payment> Payments { get; set; }
     public DbSet<PaymentMethod> PaymentMethods { get; set; }
     public DbSet<Invoice> Invoices { get; set; }
     public DbSet<GiftCard> GiftCards { get; set; }
     public DbSet<GiftCardTransaction> GiftCardTransactions { get; set; }
-    public DbSet<Merge.Domain.Modules.Payment.Currency> Currencies { get; set; }
+    public DbSet<Currency> Currencies { get; set; }
     public DbSet<CreditTerm> CreditTerms { get; set; }
     public DbSet<UserSubscription> UserSubscriptions { get; set; }
     public DbSet<SubscriptionPayment> SubscriptionPayments { get; set; }
@@ -33,9 +38,9 @@ public class PaymentDbContext : DbContext, IDbContext
     DbSet<TEntity> IDbContext.Set<TEntity>() => base.Set<TEntity>();
     
     // ✅ LSP FIX: Anlamlı hata mesajı - ISP gerektirir
-    DbSet<Merge.Domain.Modules.Identity.User> IDbContext.Users =>
+    DbSet<User> IDbContext.Users =>
         throw new InvalidOperationException("PaymentDbContext does not support Users. Use ApplicationDbContext for identity operations.");
-    DbSet<Merge.Domain.Modules.Identity.Role> IDbContext.Roles =>
+    DbSet<Role> IDbContext.Roles =>
         throw new InvalidOperationException("PaymentDbContext does not support Roles. Use ApplicationDbContext for identity operations.");
     DbSet<Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>> IDbContext.UserRoles =>
         throw new InvalidOperationException("PaymentDbContext does not support UserRoles. Use ApplicationDbContext for identity operations.");

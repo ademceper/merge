@@ -227,6 +227,64 @@ public class StoresController(IMediator mediator) : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Mağazayı kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Seller,Admin")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchStore(
+        Guid id,
+        [FromBody] PatchStoreDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var sellerId = GetUserId();
+        var getQuery = new GetStoreQuery(id);
+        var store = await mediator.Send(getQuery, cancellationToken);
+
+        if (store == null)
+        {
+            return NotFound();
+        }
+        if (store.SellerId != sellerId && !User.IsInRole("Admin"))
+        {
+            return Forbid();
+        }
+        var command = new UpdateStoreCommand(id, new UpdateStoreDto
+        {
+            StoreName = patchDto.StoreName,
+            Description = patchDto.Description,
+            LogoUrl = patchDto.LogoUrl,
+            BannerUrl = patchDto.BannerUrl,
+            ContactEmail = patchDto.ContactEmail,
+            ContactPhone = patchDto.ContactPhone,
+            Address = patchDto.Address,
+            City = patchDto.City,
+            Country = patchDto.Country,
+            PostalCode = patchDto.PostalCode,
+            Status = patchDto.Status,
+            IsPrimary = patchDto.IsPrimary,
+            Settings = patchDto.Settings
+        });
+        var success = await mediator.Send(command, cancellationToken);
+
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Seller,Admin")]
     [RateLimit(10, 60)]

@@ -7,6 +7,7 @@ using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces;
 using Merge.Application.Marketing.Commands.AddPoints;
+using AddPointsCommand = Merge.Application.Marketing.Commands.AddPoints.AddPointsCommand;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using Merge.Application.DTOs.Marketing;

@@ -4,6 +4,7 @@ using Merge.Application.Interfaces;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Marketing;
 using Merge.Domain.Modules.Ordering;
+using PreOrderCampaign = Merge.Domain.Modules.Marketing.PreOrderCampaign;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -18,7 +19,7 @@ public class DeactivatePreOrderCampaignCommandHandler(
 
     public async Task<bool> Handle(DeactivatePreOrderCampaignCommand request, CancellationToken cancellationToken)
     {
-        var campaign = await context.Set<Merge.Domain.Modules.Marketing.PreOrderCampaign>()
+        var campaign = await context.Set<PreOrderCampaign>()
             .FirstOrDefaultAsync(c => c.Id == request.CampaignId, cancellationToken);
 
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching

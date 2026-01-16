@@ -9,11 +9,12 @@ using Merge.Domain.Modules.Content;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.PageBuilder>;
 
 namespace Merge.Application.Content.Commands.UnpublishPageBuilder;
 
 public class UnpublishPageBuilderCommandHandler(
-    Merge.Application.Interfaces.IRepository<PageBuilder> pageBuilderRepository,
+    IRepository pageBuilderRepository,
     IUnitOfWork unitOfWork,
     ICacheService cache,
     ILogger<UnpublishPageBuilderCommandHandler> logger) : IRequestHandler<UnpublishPageBuilderCommand, bool>

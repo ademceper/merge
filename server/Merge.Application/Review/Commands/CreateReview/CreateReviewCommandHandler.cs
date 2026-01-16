@@ -73,11 +73,9 @@ public class CreateReviewCommandHandler : IRequestHandler<CreateReviewCommand, R
         // Not: Review henüz approved değil, bu yüzden product rating güncellemesi yapılmıyor
         // Product rating, review approve edildiğinde (ApproveReviewCommandHandler'da) güncellenecek
 
-        // ✅ PERFORMANCE: Single query instead of multiple LoadAsync calls
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
+
         review = await _context.Set<ReviewEntity>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(r => r.User)
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == review.Id, cancellationToken);

@@ -9,6 +9,7 @@ using Merge.Application.Cart.Queries.GetCartByUserId;
 using Merge.Application.Cart.Queries.GetCartByCartItemId;
 using Merge.Application.Cart.Commands.AddItemToCart;
 using Merge.Application.Cart.Commands.UpdateCartItem;
+using Merge.Application.Cart.Commands.PatchCartItem;
 using Merge.Application.Cart.Commands.RemoveCartItem;
 using Merge.Application.Cart.Commands.ClearCart;
 using Merge.API.Middleware;
@@ -147,6 +148,53 @@ public class CartController(
         var command = new UpdateCartItemCommand(cartItemId, dto.Quantity);
         var result = await mediator.Send(command, cancellationToken);
         
+        if (!result)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Sepet öğesini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("items/{cartItemId}")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchItem(
+        Guid cartItemId,
+        [FromBody] PatchCartItemDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var userId = GetUserId();
+
+        // ✅ BOLUM 3.2: IDOR Korumasi - Ownership check (ZORUNLU)
+        var cartQuery = new GetCartByCartItemIdQuery(cartItemId);
+        var cart = await mediator.Send(cartQuery, cancellationToken);
+
+        if (cart is null)
+        {
+            return NotFound();
+        }
+
+        if (cart.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
+        {
+            return Forbid();
+        }
+
+        var command = new PatchCartItemCommand(cartItemId, patchDto.Quantity);
+        var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
         {
             return NotFound();

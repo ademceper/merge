@@ -12,6 +12,7 @@ using Merge.Domain.Modules.Inventory;
 using Merge.Domain.Modules.Marketplace;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Inventory.Inventory>;
 
 namespace Merge.Application.Catalog.Commands.DeleteInventory;
 
@@ -20,7 +21,7 @@ namespace Merge.Application.Catalog.Commands.DeleteInventory;
 public class DeleteInventoryCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
-    Merge.Application.Interfaces.IRepository<Inventory> inventoryRepository,
+    IRepository inventoryRepository,
     ICacheService cache,
     ILogger<DeleteInventoryCommandHandler> logger) : IRequestHandler<DeleteInventoryCommand, bool>
 {

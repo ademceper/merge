@@ -83,7 +83,6 @@ public class CreateKnowledgeBaseArticleCommandHandler : IRequestHandler<CreateKn
         // ✅ PERFORMANCE: Reload with includes for mapping
         article = await _context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.Category)
             .Include(a => a.Author)
             .FirstOrDefaultAsync(a => a.Id == article.Id, cancellationToken);

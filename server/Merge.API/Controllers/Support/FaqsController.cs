@@ -7,6 +7,7 @@ using Merge.Application.Common;
 using Merge.Application.Configuration;
 using Merge.Application.Support.Commands.CreateFaq;
 using Merge.Application.Support.Commands.UpdateFaq;
+using Merge.Application.Support.Commands.PatchFaq;
 using Merge.Application.Support.Commands.DeleteFaq;
 using Merge.Application.Support.Commands.IncrementFaqViewCount;
 using Merge.Application.Support.Queries.GetFaq;
@@ -221,6 +222,41 @@ public class FaqsController(IMediator mediator, IOptions<SupportSettings> suppor
         var links = HateoasHelper.CreateFaqLinks(Url, faq.Id, version);
         faq = faq with { Links = links.ToDictionary(kvp => kvp.Key, kvp => (object)kvp.Value) };
         
+        return Ok(faq);
+    }
+
+    /// <summary>
+    /// FAQ'yi kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(typeof(FaqDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<FaqDto>> Patch(
+        Guid id,
+        [FromBody] PatchFaqDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var command = new PatchFaqCommand(id, patchDto);
+        var faq = await mediator.Send(command, cancellationToken);
+        if (faq == null)
+        {
+            return NotFound();
+        }
+
+        var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateFaqLinks(Url, faq.Id, version);
+        faq = faq with { Links = links.ToDictionary(kvp => kvp.Key, kvp => (object)kvp.Value) };
+
         return Ok(faq);
     }
 

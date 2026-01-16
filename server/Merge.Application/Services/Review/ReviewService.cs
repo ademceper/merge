@@ -19,22 +19,24 @@ using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Ordering;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IReviewRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.Review>;
+using IProductRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.Product>;
 
 
 namespace Merge.Application.Services.Review;
 
 public class ReviewService : IReviewService
 {
-    private readonly Merge.Application.Interfaces.IRepository<ReviewEntity> _reviewRepository;
-    private readonly Merge.Application.Interfaces.IRepository<ProductEntity> _productRepository;
+    private readonly IReviewRepository _reviewRepository;
+    private readonly IProductRepository _productRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<ReviewService> _logger;
 
     public ReviewService(
-        Merge.Application.Interfaces.IRepository<ReviewEntity> reviewRepository,
-        Merge.Application.Interfaces.IRepository<ProductEntity> productRepository,
+        IReviewRepository reviewRepository,
+        IProductRepository productRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,
@@ -54,7 +56,6 @@ public class ReviewService : IReviewService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
         var review = await _context.Set<ReviewEntity>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(r => r.User)
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
@@ -250,7 +251,6 @@ public class ReviewService : IReviewService
         // ✅ PERFORMANCE: Single query instead of multiple LoadAsync calls
         review = await _context.Set<ReviewEntity>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(r => r.User)
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);

@@ -4,6 +4,8 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Ordering;
+using Merge.Domain.ValueObjects;
+using PreOrder = Merge.Domain.Modules.Ordering.PreOrder;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -18,7 +20,7 @@ public class PayPreOrderDepositCommandHandler(
 
     public async Task<bool> Handle(PayPreOrderDepositCommand request, CancellationToken cancellationToken)
     {
-        var preOrder = await context.Set<Merge.Domain.Modules.Ordering.PreOrder>()
+        var preOrder = await context.Set<PreOrder>()
             .FirstOrDefaultAsync(po => po.Id == request.PreOrderId && po.UserId == request.UserId, cancellationToken);
 
         // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
@@ -29,7 +31,7 @@ public class PayPreOrderDepositCommandHandler(
             throw new BusinessException("Depozito zaten ödenmiş.");
         }
 
-        var depositAmountMoney = new Merge.Domain.ValueObjects.Money(request.Amount);
+        var depositAmountMoney = new Money(request.Amount);
         preOrder.PayDeposit(depositAmountMoney);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

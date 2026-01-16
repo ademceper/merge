@@ -3,12 +3,13 @@ using Merge.Domain.SharedKernel;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Application.Interfaces;
+using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 using Merge.Infrastructure.Data;
 
 namespace Merge.Infrastructure.Repositories;
 
 // ✅ BOLUM 1.1: UnitOfWork Application katmanındaki IUnitOfWork interface'ini implement ediyor
-public class UnitOfWork : Merge.Application.Interfaces.IUnitOfWork
+public class UnitOfWork : IUnitOfWork
 {
     private readonly ApplicationDbContext _context;
     private readonly IDomainEventDispatcher? _domainEventDispatcher;

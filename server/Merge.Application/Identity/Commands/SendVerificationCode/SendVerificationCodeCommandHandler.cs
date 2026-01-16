@@ -15,11 +15,12 @@ using Merge.Domain.Modules.Notifications;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<TwoFactorCode>;
 
 namespace Merge.Application.Identity.Commands.SendVerificationCode;
 
 public class SendVerificationCodeCommandHandler(
-    Merge.Application.Interfaces.IRepository<TwoFactorCode> codeRepository,
+    IRepository codeRepository,
     IDbContext context,
     IUnitOfWork unitOfWork,
     IOptions<TwoFactorAuthSettings> twoFactorSettings,

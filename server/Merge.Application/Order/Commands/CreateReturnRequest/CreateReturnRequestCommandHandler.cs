@@ -64,7 +64,6 @@ public class CreateReturnRequestCommandHandler : IRequestHandler<CreateReturnReq
             throw new ValidationException("İade nedeni boş olamaz.");
         }
 
-        // ✅ PERFORMANCE: Single Include, AsSplitQuery not needed but tracking is required for updates
         var order = await _context.Set<OrderEntity>()
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.Id == request.Dto.OrderId && o.UserId == request.Dto.UserId, cancellationToken);
@@ -104,7 +103,7 @@ public class CreateReturnRequestCommandHandler : IRequestHandler<CreateReturnReq
         }
 
         // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
-        var refundAmountMoney = new Merge.Domain.ValueObjects.Money(refundAmount);
+        var refundAmountMoney = new Money(refundAmount);
         var returnRequest = ReturnRequest.Create(
             request.Dto.OrderId,
             request.Dto.UserId,
@@ -118,10 +117,8 @@ public class CreateReturnRequestCommandHandler : IRequestHandler<CreateReturnReq
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var reloadedReturnRequest = await _context.Set<ReturnRequest>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(r => r.Order)
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.Id == returnRequest.Id, cancellationToken);

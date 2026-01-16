@@ -28,11 +28,8 @@ public class GetKnowledgeBaseArticleQueryHandler : IRequestHandler<GetKnowledgeB
 
     public async Task<KnowledgeBaseArticleDto?> Handle(GetKnowledgeBaseArticleQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
         var article = await _context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.Category)
             .Include(a => a.Author)
             .FirstOrDefaultAsync(a => a.Id == request.ArticleId, cancellationToken);

@@ -7,6 +7,7 @@ using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Ordering;
+using Product = Merge.Domain.Modules.Catalog.Product;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -41,7 +42,7 @@ public class AddToWishlistCommandHandler(
         }
 
         // ✅ PERFORMANCE: AsNoTracking for read-only product query
-        var product = await context.Set<Merge.Domain.Modules.Catalog.Product>()
+        var product = await context.Set<Product>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
         

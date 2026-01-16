@@ -2,14 +2,10 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.DTOs.Cart;
-using Merge.Application.Interfaces;
-using Merge.Domain.Entities;
 using AutoMapper;
-using Merge.Domain.Interfaces;
-using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Ordering;
+using CartEntity = Merge.Domain.Modules.Ordering.Cart;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
-using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Queries.GetCartByCartItemId;
 
@@ -35,11 +31,9 @@ public class GetCartByCartItemIdQueryHandler(
             return null;
         }
 
-        // Load cart with items for mapping
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        var cart = await context.Set<Merge.Domain.Modules.Ordering.Cart>()
+
+        var cart = await context.Set<CartEntity>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.Product)
             .FirstOrDefaultAsync(c => c.Id == cartItem.Cart.Id, cancellationToken);

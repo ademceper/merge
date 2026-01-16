@@ -6,6 +6,7 @@ using Merge.Application.User.Commands.CreateAddress;
 using Merge.Application.User.Commands.DeleteAddress;
 using Merge.Application.User.Commands.SetDefaultAddress;
 using Merge.Application.User.Commands.UpdateAddress;
+using Merge.Application.User.Commands.PatchAddress;
 using Merge.Application.User.Queries.GetAddressById;
 using Merge.Application.User.Queries.GetAddressesByUserId;
 using Merge.API.Middleware;
@@ -108,6 +109,31 @@ public class AddressesController(IMediator mediator) : BaseController
             dto.PostalCode,
             dto.Country,
             dto.IsDefault);
+        var updatedAddress = await mediator.Send(command, cancellationToken);
+        return Ok(updatedAddress);
+    }
+
+    /// <summary>
+    /// Adresi kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(typeof(AddressDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<AddressDto>> Patch(Guid id, [FromBody] PatchAddressDto patchDto, CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var userId = GetUserId();
+        var isAdminOrManager = User.IsInRole("Admin") || User.IsInRole("Manager");
+
+        var command = new PatchAddressCommand(id, patchDto, userId, isAdminOrManager);
         var updatedAddress = await mediator.Send(command, cancellationToken);
         return Ok(updatedAddress);
     }

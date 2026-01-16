@@ -12,6 +12,7 @@ using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Inventory;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Inventory.Inventory>;
 
 namespace Merge.Application.Catalog.Commands.TransferStock;
 
@@ -20,7 +21,7 @@ namespace Merge.Application.Catalog.Commands.TransferStock;
 public class TransferStockCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
-    Merge.Application.Interfaces.IRepository<Inventory> inventoryRepository,
+    IRepository inventoryRepository,
     ICacheService cache,
     ILogger<TransferStockCommandHandler> logger) : IRequestHandler<TransferStockCommand, bool>
 {

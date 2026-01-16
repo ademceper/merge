@@ -8,13 +8,14 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Content;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.LandingPage>;
 
 namespace Merge.Application.Content.Commands.TrackLandingPageConversion;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class TrackLandingPageConversionCommandHandler(
-    Merge.Application.Interfaces.IRepository<LandingPage> landingPageRepository,
+    IRepository landingPageRepository,
     IUnitOfWork unitOfWork,
     ILogger<TrackLandingPageConversionCommandHandler> logger) : IRequestHandler<TrackLandingPageConversionCommand, bool>
 {

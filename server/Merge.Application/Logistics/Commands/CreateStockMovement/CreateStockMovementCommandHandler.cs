@@ -85,11 +85,8 @@ public class CreateStockMovementCommandHandler(
 
             logger.LogInformation("Stock movement created successfully. StockMovementId: {StockMovementId}", stockMovement.Id);
 
-            // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
-            // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
             var createdMovement = await context.Set<StockMovement>()
                 .AsNoTracking()
-                .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
                 .Include(sm => sm.Product)
                 .Include(sm => sm.Warehouse)
                 .Include(sm => sm.User)

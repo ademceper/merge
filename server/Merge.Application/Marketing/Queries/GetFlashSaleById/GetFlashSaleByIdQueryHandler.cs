@@ -17,10 +17,8 @@ public class GetFlashSaleByIdQueryHandler(IDbContext context, IMapper mapper) : 
 {
     public async Task<FlashSaleDto?> Handle(GetFlashSaleByIdQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery - N+1 query önleme (Cartesian Explosion önleme)
         var flashSale = await context.Set<FlashSale>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(fs => fs.FlashSaleProducts)
                 .ThenInclude(fsp => fsp.Product)
             .FirstOrDefaultAsync(fs => fs.Id == request.Id, cancellationToken);

@@ -16,20 +16,21 @@ using Merge.Domain.Modules.Inventory;
 using Merge.Domain.Modules.Ordering;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<StockMovement>;
 
 
 namespace Merge.Application.Services.Logistics;
 
 public class StockMovementService : IStockMovementService
 {
-    private readonly Merge.Application.Interfaces.IRepository<StockMovement> _stockMovementRepository;
+    private readonly IRepository _stockMovementRepository;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<StockMovementService> _logger;
 
     public StockMovementService(
-        Merge.Application.Interfaces.IRepository<StockMovement> stockMovementRepository,
+        IRepository stockMovementRepository,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
@@ -45,11 +46,9 @@ public class StockMovementService : IStockMovementService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<StockMovementDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
+
         var movement = await _context.Set<StockMovement>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(sm => sm.Product)
             .Include(sm => sm.Warehouse)
             .Include(sm => sm.User)
@@ -280,12 +279,8 @@ public class StockMovementService : IStockMovementService
             _logger.LogInformation("Stock movement created successfully. StockMovementId: {StockMovementId}",
                 stockMovement.Id);
 
-            // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
-            // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
-            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
             stockMovement = await _context.Set<StockMovement>()
                 .AsNoTracking()
-                .AsSplitQuery()
                 .Include(sm => sm.Product)
                 .Include(sm => sm.Warehouse)
                 .Include(sm => sm.User)

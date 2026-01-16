@@ -11,11 +11,12 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Content;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.LandingPage>;
 
 namespace Merge.Application.Content.Commands.CreateLandingPageVariant;
 
 public class CreateLandingPageVariantCommandHandler(
-    Merge.Application.Interfaces.IRepository<LandingPage> landingPageRepository,
+    IRepository landingPageRepository,
     IDbContext context,
     IUnitOfWork unitOfWork,
     ICacheService cache,
@@ -71,7 +72,6 @@ public class CreateLandingPageVariantCommandHandler(
 
             var reloadedVariant = await context.Set<LandingPage>()
                 .AsNoTracking()
-            .AsSplitQuery()
                 .Include(lp => lp.Author)
                 .Include(lp => lp.VariantOf)
                 .FirstOrDefaultAsync(lp => lp.Id == variant.Id, cancellationToken);

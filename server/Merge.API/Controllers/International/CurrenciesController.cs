@@ -9,6 +9,7 @@ using Merge.Application.International.Queries.GetCurrencyById;
 using Merge.Application.International.Queries.GetCurrencyByCode;
 using Merge.Application.International.Commands.CreateCurrency;
 using Merge.Application.International.Commands.UpdateCurrency;
+using Merge.Application.International.Commands.PatchCurrency;
 using Merge.Application.International.Commands.DeleteCurrency;
 using Merge.Application.International.Commands.UpdateExchangeRate;
 using Merge.Application.International.Commands.ConvertPrice;
@@ -164,6 +165,29 @@ public class CurrenciesController(IMediator mediator) : BaseController
     }
 
     /// <summary>
+    /// Para birimini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(typeof(CurrencyDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<CurrencyDto>> PatchCurrency(
+        Guid id,
+        [FromBody] PatchCurrencyDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new PatchCurrencyCommand(id, patchDto);
+        var currency = await mediator.Send(command, cancellationToken);
+        return Ok(currency);
+    }
+
+    /// <summary>
     /// Para birimini siler (Admin only)
     /// </summary>
     [HttpDelete("{id}")]
@@ -201,6 +225,36 @@ public class CurrenciesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var command = new UpdateExchangeRateCommand(currencyCode, newRate, source);
+        await mediator.Send(command, cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Döviz kurunu kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{currencyCode}/exchange-rate")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchExchangeRate(
+        string currencyCode,
+        [FromBody] PatchExchangeRateDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        if (!patchDto.NewRate.HasValue)
+        {
+            return BadRequest("NewRate is required for PATCH operation.");
+        }
+
+        var command = new UpdateExchangeRateCommand(currencyCode, patchDto.NewRate.Value, patchDto.Source ?? "Manual");
         await mediator.Send(command, cancellationToken);
         return NoContent();
     }

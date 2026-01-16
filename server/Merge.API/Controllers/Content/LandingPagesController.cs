@@ -199,6 +199,53 @@ public class LandingPagesController(
     }
 
     /// <summary>
+    /// Landing page'i kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchLandingPage(
+        Guid id,
+        [FromBody] PatchLandingPageDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+        var performedBy = User.IsInRole("Admin") ? (Guid?)null : userId;
+        var command = new UpdateLandingPageCommand(
+            id,
+            patchDto.Name,
+            patchDto.Title,
+            patchDto.Content,
+            patchDto.Template,
+            patchDto.Status,
+            patchDto.StartDate,
+            patchDto.EndDate,
+            patchDto.MetaTitle,
+            patchDto.MetaDescription,
+            patchDto.OgImageUrl,
+            patchDto.EnableABTesting,
+            patchDto.TrafficSplit,
+            performedBy);
+        var result = await mediator.Send(command, cancellationToken);
+        if (!result)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
     /// Landing page'i siler
     /// </summary>
     /// <param name="id">Silinecek landing page ID</param>

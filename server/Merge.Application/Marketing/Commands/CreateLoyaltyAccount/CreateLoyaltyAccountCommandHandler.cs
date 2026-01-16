@@ -57,7 +57,6 @@ public class CreateLoyaltyAccountCommandHandler(
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery ile tek query'de getir (N+1 query önleme)
         var createdAccount = await context.Set<LoyaltyAccount>()
             .AsNoTracking()
             .Include(a => a.Tier)

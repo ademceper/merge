@@ -2,6 +2,7 @@ using MediatR;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Interfaces.Search;
 using Merge.Application.Search.Queries.SearchProducts;
+using SearchProductsQuery = Merge.Application.Search.Queries.SearchProducts.SearchProductsQuery;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Merge.Application.DTOs.Product;

@@ -19,20 +19,21 @@ using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Identity;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<ProductEntity>;
 
 
 namespace Merge.Application.Services.Product;
 
 public class BulkProductService : IBulkProductService
 {
-    private readonly Merge.Application.Interfaces.IRepository<ProductEntity> _productRepository;
+    private readonly IRepository _productRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<BulkProductService> _logger;
 
     public BulkProductService(
-        Merge.Application.Interfaces.IRepository<ProductEntity> productRepository,
+        IRepository productRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         IMapper mapper,

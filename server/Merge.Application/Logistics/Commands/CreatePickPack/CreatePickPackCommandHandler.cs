@@ -32,7 +32,6 @@ public class CreatePickPackCommandHandler(
 
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         var order = await context.Set<OrderEntity>()
-        .AsSplitQuery()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
@@ -93,11 +92,8 @@ public class CreatePickPackCommandHandler(
         await context.Set<PickPackItem>().AddRangeAsync(items, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
         var createdPickPack = await context.Set<PickPack>()
             .AsNoTracking()
-            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(pp => pp.Order)
             .Include(pp => pp.Warehouse)
             .Include(pp => pp.PickedBy)

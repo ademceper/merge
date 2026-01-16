@@ -28,10 +28,8 @@ public class GetOrderSplitQueryHandler : IRequestHandler<GetOrderSplitQuery, Ord
 
     public async Task<OrderSplitDto?> Handle(GetOrderSplitQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var split = await _context.Set<OrderSplit>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(s => s.OriginalOrder)
             .Include(s => s.SplitOrder)
             .Include(s => s.NewAddress)

@@ -17,6 +17,7 @@ using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Ordering;
 using Merge.Domain.Modules.Payment;
+using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -193,7 +194,7 @@ public class CreatePurchaseOrderCommandHandler(
 
                 // ✅ BOLUM 1.1: Rich Domain Model - Entity method kullanımı
                 // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
-                var unitPriceMoney = new Merge.Domain.ValueObjects.Money(unitPrice);
+                var unitPriceMoney = new Money(unitPrice);
                 purchaseOrder.AddItem(
                     products[itemDto.ProductId],
                     itemDto.Quantity,
@@ -205,17 +206,14 @@ public class CreatePurchaseOrderCommandHandler(
             // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullan
             // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
             var subTotal = purchaseOrder.SubTotal;
-            var taxAmount = new Merge.Domain.ValueObjects.Money(subTotal * b2bSettings.Value.DefaultTaxRate);
+            var taxAmount = new Money(subTotal * b2bSettings.Value.DefaultTaxRate);
             purchaseOrder.SetTax(taxAmount);
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ ARCHITECTURE: Reload with Include for AutoMapper
-            // ✅ PERFORMANCE: AsSplitQuery to avoid Cartesian Explosion (multiple collection includes)
             purchaseOrder = await context.Set<PurchaseOrder>()
                 .AsNoTracking()
-                .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting - Multiple Include'lar için
                 .Include(po => po.Organization)
                 .Include(po => po.B2BUser!)
                     .ThenInclude(b => b.User)

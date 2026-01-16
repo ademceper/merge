@@ -11,6 +11,7 @@ using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Marketing;
 using Merge.Domain.Modules.Ordering;
 using Merge.Domain.ValueObjects;
+using CartEntity = Merge.Domain.Modules.Ordering.Cart;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -26,12 +27,9 @@ public class GetAbandonedCartByIdQueryHandler(
 
     public async Task<AbandonedCartDto?> Handle(GetAbandonedCartByIdQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
-        var cart = await context.Set<Merge.Domain.Modules.Ordering.Cart>()
+
+        var cart = await context.Set<CartEntity>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(c => c.User)
             .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.Product)

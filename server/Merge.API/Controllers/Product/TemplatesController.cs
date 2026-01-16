@@ -143,6 +143,47 @@ public class ProductTemplatesController(IMediator mediator) : BaseController
         return NoContent();
     }
 
+    /// <summary>
+    /// Ürün şablonunu kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchTemplate(
+        Guid id,
+        [FromBody] PatchProductTemplateDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+        var command = new UpdateProductTemplateCommand(
+            id,
+            patchDto.Name,
+            patchDto.Description,
+            patchDto.CategoryId,
+            patchDto.Brand,
+            patchDto.DefaultSKUPrefix,
+            patchDto.DefaultPrice,
+            patchDto.DefaultStockQuantity,
+            patchDto.DefaultImageUrl,
+            patchDto.Specifications,
+            patchDto.Attributes,
+            patchDto.IsActive);
+        var success = await mediator.Send(command, cancellationToken);
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(10, 60)]

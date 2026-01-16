@@ -10,7 +10,9 @@ using Merge.Application.Logistics.Queries.CalculateShippingCost;
 using Merge.Application.Logistics.Queries.GetAvailableShippingProviders;
 using Merge.Application.Logistics.Commands.CreateShipping;
 using Merge.Application.Logistics.Commands.UpdateShippingTracking;
+using Merge.Application.Logistics.Commands.PatchShippingTracking;
 using Merge.Application.Logistics.Commands.UpdateShippingStatus;
+using Merge.Application.Logistics.Commands.PatchShippingStatus;
 using Merge.Application.Order.Queries.GetOrderById;
 
 namespace Merge.API.Controllers.Logistics;
@@ -198,6 +200,59 @@ public class ShippingsController(IMediator mediator) : BaseController
         }
 
         var command = new UpdateShippingStatusCommand(shippingId, statusEnum);
+        var shipping = await mediator.Send(command, cancellationToken);
+        return Ok(shipping);
+    }
+
+    /// <summary>
+    /// Kargo takip numarasını kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{shippingId}/tracking")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(typeof(ShippingDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<ShippingDto>> PatchTracking(
+        Guid shippingId,
+        [FromBody] PatchShippingTrackingDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var command = new PatchShippingTrackingCommand(shippingId, patchDto);
+        var shipping = await mediator.Send(command, cancellationToken);
+        return Ok(shipping);
+    }
+
+    /// <summary>
+    /// Kargo durumunu kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{shippingId}/status")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(typeof(ShippingDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<ShippingDto>> PatchStatus(
+        Guid shippingId,
+        [FromBody] PatchShippingStatusDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var command = new PatchShippingStatusCommand(shippingId, patchDto);
         var shipping = await mediator.Send(command, cancellationToken);
         return Ok(shipping);
     }

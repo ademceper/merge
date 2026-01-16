@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Content;
+using Merge.Application.DTOs.ML;
 using Merge.Application.Common;
 using Merge.Application.ML.Commands.CreateFraudDetectionRule;
 using Merge.Application.ML.Commands.UpdateFraudDetectionRule;
+using Merge.Application.ML.Commands.PatchFraudDetectionRule;
 using Merge.Application.ML.Commands.DeleteFraudDetectionRule;
 using Merge.Application.ML.Commands.EvaluateOrder;
 using Merge.Application.ML.Commands.EvaluatePayment;
@@ -116,6 +118,35 @@ public class FraudDetectionController(IMediator mediator) : BaseController
             dto.Description);
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Fraud detection kuralını kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("rules/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(10, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchRule(
+        Guid id,
+        [FromBody] PatchFraudDetectionRuleDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+        var command = new PatchFraudDetectionRuleCommand(id, patchDto);
+        var success = await mediator.Send(command, cancellationToken);
+        if (!success)
         {
             return NotFound();
         }

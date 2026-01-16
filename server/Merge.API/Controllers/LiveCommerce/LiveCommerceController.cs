@@ -17,6 +17,7 @@ using Merge.Application.LiveCommerce.Commands.LeaveStream;
 using Merge.Application.LiveCommerce.Commands.CreateOrderFromStream;
 using Merge.Application.LiveCommerce.Queries.GetStreamStats;
 using Merge.Application.LiveCommerce.Commands.UpdateLiveStream;
+using Merge.Application.LiveCommerce.Commands.PatchLiveStream;
 using Merge.Application.LiveCommerce.Commands.DeleteLiveStream;
 using Merge.Application.LiveCommerce.Commands.PauseStream;
 using Merge.Application.LiveCommerce.Commands.ResumeStream;
@@ -101,6 +102,43 @@ public class LiveCommerceController(IMediator mediator) : BaseController
             dto.ThumbnailUrl,
             dto.Category,
             dto.Tags);
+        var stream = await mediator.Send(command, cancellationToken);
+        return Ok(stream);
+    }
+
+    /// <summary>
+    /// Canlı yayını kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("streams/{id}")]
+    [Authorize(Roles = "Seller,Admin")]
+    [RateLimit(10, 60)]
+    [ProducesResponseType(typeof(LiveStreamDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<LiveStreamDto>> PatchStream(
+        Guid id,
+        [FromBody] PatchLiveStreamDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+        var streamQuery = new GetLiveStreamQuery(id);
+        var existingStream = await mediator.Send(streamQuery, cancellationToken);
+        if (existingStream == null)
+        {
+            return NotFound();
+        }
+        if (existingStream.SellerId != userId && !User.IsInRole("Admin"))
+        {
+            return Forbid();
+        }
+        var command = new PatchLiveStreamCommand(id, patchDto);
         var stream = await mediator.Send(command, cancellationToken);
         return Ok(stream);
     }

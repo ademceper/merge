@@ -27,12 +27,8 @@ public class GetStockMovementByIdQueryHandler(
     {
         logger.LogInformation("Getting stock movement. StockMovementId: {StockMovementId}", request.Id);
 
-        // ✅ PERFORMANCE: AsNoTracking (read-only query)
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
-        // ✅ PERFORMANCE: Include ile N+1 önlenir
         var movement = await context.Set<StockMovement>()
             .AsNoTracking()
-            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(sm => sm.Product)
             .Include(sm => sm.Warehouse)
             .Include(sm => sm.User)

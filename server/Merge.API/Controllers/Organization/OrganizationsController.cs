@@ -86,6 +86,51 @@ public class OrganizationsController(IOrganizationService organizationService) :
         return NoContent();
     }
 
+    /// <summary>
+    /// Organizasyonu kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchOrganization(
+        Guid id,
+        [FromBody] PatchOrganizationDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+        var dto = new UpdateOrganizationDto
+        {
+            Name = patchDto.Name,
+            LegalName = patchDto.LegalName,
+            TaxNumber = patchDto.TaxNumber,
+            RegistrationNumber = patchDto.RegistrationNumber,
+            Email = patchDto.Email,
+            Phone = patchDto.Phone,
+            Website = patchDto.Website,
+            Address = patchDto.Address,
+            AddressLine2 = patchDto.AddressLine2,
+            City = patchDto.City,
+            State = patchDto.State,
+            PostalCode = patchDto.PostalCode,
+            Country = patchDto.Country,
+            Status = patchDto.Status,
+            Settings = patchDto.Settings
+        };
+        var success = await organizationService.UpdateOrganizationAsync(id, dto, cancellationToken);
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
     [HttpDelete("{id}")]
     [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -211,6 +256,33 @@ public class OrganizationsController(IOrganizationService organizationService) :
         return NoContent();
     }
 
+    /// <summary>
+    /// Takımı kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("teams/{id}")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchTeam(
+        Guid id,
+        [FromBody] UpdateTeamDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+        var success = await organizationService.UpdateTeamAsync(id, dto, cancellationToken);
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
     [HttpDelete("teams/{id}")]
     [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -292,6 +364,34 @@ public class OrganizationsController(IOrganizationService organizationService) :
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> UpdateTeamMember(
+        Guid teamId,
+        Guid userId,
+        [FromBody] UpdateTeamMemberDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+        var success = await organizationService.UpdateTeamMemberAsync(teamId, userId, dto, cancellationToken);
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Takım üyesini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("teams/{teamId}/members/{userId}")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchTeamMember(
         Guid teamId,
         Guid userId,
         [FromBody] UpdateTeamMemberDto dto,

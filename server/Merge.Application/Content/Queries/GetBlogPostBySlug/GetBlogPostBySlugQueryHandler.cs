@@ -12,12 +12,13 @@ using Merge.Domain.Modules.Content;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.BlogPost>;
 
 namespace Merge.Application.Content.Queries.GetBlogPostBySlug;
 
 public class GetBlogPostBySlugQueryHandler(
     IDbContext context,
-    Merge.Application.Interfaces.IRepository<BlogPost> postRepository,
+    IRepository postRepository,
     IUnitOfWork unitOfWork,
     IMapper mapper,
     ILogger<GetBlogPostBySlugQueryHandler> logger,
@@ -48,7 +49,6 @@ public class GetBlogPostBySlugQueryHandler(
                 .FirstOrDefaultAsync(p => p.Slug == request.Slug && p.Status == ContentStatus.Published, cancellationToken)
             : await context.Set<BlogPost>()
                 .AsNoTracking()
-                .AsSplitQuery()
                 .Include(p => p.Category)
                 .Include(p => p.Author)
                 .FirstOrDefaultAsync(p => p.Slug == request.Slug && p.Status == ContentStatus.Published, cancellationToken);

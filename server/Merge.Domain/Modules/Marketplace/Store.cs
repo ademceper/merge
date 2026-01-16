@@ -97,7 +97,7 @@ public class Store : BaseEntity, IAggregateRoot
         if (!string.IsNullOrWhiteSpace(address) && !string.IsNullOrWhiteSpace(city) && 
             !string.IsNullOrWhiteSpace(country) && !string.IsNullOrWhiteSpace(postalCode))
         {
-            var addressValueObject = new Merge.Domain.ValueObjects.Address(
+            var addressValueObject = new Address(
                 address, city, country, postalCode);
             validatedAddress = addressValueObject.AddressLine1;
             validatedCity = addressValueObject.City;
@@ -185,7 +185,7 @@ public class Store : BaseEntity, IAggregateRoot
         if (!string.IsNullOrWhiteSpace(address) && !string.IsNullOrWhiteSpace(city) && 
             !string.IsNullOrWhiteSpace(country) && !string.IsNullOrWhiteSpace(postalCode))
         {
-            var addressValueObject = new Merge.Domain.ValueObjects.Address(
+            var addressValueObject = new Address(
                 address, city, country, postalCode);
             Address = addressValueObject.AddressLine1;
             City = addressValueObject.City;

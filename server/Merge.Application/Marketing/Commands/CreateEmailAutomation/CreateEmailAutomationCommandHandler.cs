@@ -45,8 +45,6 @@ public class CreateEmailAutomationCommandHandler(
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
-        // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery + Removed manual !a.IsDeleted (Global Query Filter)
         var createdAutomation = await context.Set<EmailAutomation>()
             .AsNoTracking()
             .Include(a => a.Template)

@@ -9,6 +9,9 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IBundleRepository = Merge.Application.Interfaces.IRepository<ProductBundle>;
+using IBundleItemRepository = Merge.Application.Interfaces.IRepository<BundleItem>;
+using IProductRepository = Merge.Application.Interfaces.IRepository<ProductEntity>;
 
 namespace Merge.Application.Product.Commands.AddProductToBundle;
 
@@ -16,9 +19,9 @@ namespace Merge.Application.Product.Commands.AddProductToBundle;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class AddProductToBundleCommandHandler : IRequestHandler<AddProductToBundleCommand, bool>
 {
-    private readonly Merge.Application.Interfaces.IRepository<ProductBundle> _bundleRepository;
-    private readonly Merge.Application.Interfaces.IRepository<BundleItem> _bundleItemRepository;
-    private readonly Merge.Application.Interfaces.IRepository<ProductEntity> _productRepository;
+    private readonly IBundleRepository _bundleRepository;
+    private readonly IBundleItemRepository _bundleItemRepository;
+    private readonly IProductRepository _productRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -28,9 +31,9 @@ public class AddProductToBundleCommandHandler : IRequestHandler<AddProductToBund
     private const string CACHE_KEY_ACTIVE_BUNDLES = "bundles_active";
 
     public AddProductToBundleCommandHandler(
-        Merge.Application.Interfaces.IRepository<ProductBundle> bundleRepository,
-        Merge.Application.Interfaces.IRepository<BundleItem> bundleItemRepository,
-        Merge.Application.Interfaces.IRepository<ProductEntity> productRepository,
+        IBundleRepository bundleRepository,
+        IBundleItemRepository bundleItemRepository,
+        IProductRepository productRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,

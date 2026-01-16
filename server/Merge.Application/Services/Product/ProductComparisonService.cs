@@ -87,7 +87,6 @@ public class ProductComparisonService : IProductComparisonService
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         comparison = await _context.Set<ProductComparison>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)
@@ -105,11 +104,9 @@ public class ProductComparisonService : IProductComparisonService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ProductComparisonDto?> GetComparisonAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
+
         var comparison = await _context.Set<ProductComparison>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)
@@ -122,11 +119,8 @@ public class ProductComparisonService : IProductComparisonService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ProductComparisonDto?> GetUserComparisonAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
         var comparison = await _context.Set<ProductComparison>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)
@@ -272,7 +266,6 @@ public class ProductComparisonService : IProductComparisonService
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         comparison = await _context.Set<ProductComparison>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)
@@ -402,11 +395,9 @@ public class ProductComparisonService : IProductComparisonService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ComparisonMatrixDto> GetComparisonMatrixAsync(Guid comparisonId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
+
         var comparison = await _context.Set<ProductComparison>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(c => c.Items)
                 .ThenInclude(i => i.Product)
                     .ThenInclude(p => p.Category)

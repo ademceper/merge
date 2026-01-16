@@ -30,11 +30,8 @@ public class GetKnowledgeBaseArticleBySlugQueryHandler : IRequestHandler<GetKnow
 
     public async Task<KnowledgeBaseArticleDto?> Handle(GetKnowledgeBaseArticleBySlugQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
         var article = await _context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.Category)
             .Include(a => a.Author)
             .FirstOrDefaultAsync(a => a.Slug == request.Slug && a.Status == ContentStatus.Published, cancellationToken);

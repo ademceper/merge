@@ -10,6 +10,7 @@ using Merge.Application.Marketing.Queries.GetCouponByCode;
 using Merge.Application.Marketing.Queries.GetCouponById;
 using Merge.Application.Marketing.Commands.CreateCoupon;
 using Merge.Application.Marketing.Commands.UpdateCoupon;
+using Merge.Application.Marketing.Commands.PatchCoupon;
 using Merge.Application.Marketing.Commands.DeleteCoupon;
 using Merge.Application.Marketing.Commands.ValidateCoupon;
 using Microsoft.Extensions.Options;
@@ -165,6 +166,29 @@ public class CouponsController(
             dto.ApplicableCategoryIds,
             dto.ApplicableProductIds);
         
+        var coupon = await mediator.Send(command, cancellationToken);
+        return Ok(coupon);
+    }
+
+    /// <summary>
+    /// Kuponu kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(typeof(CouponDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<CouponDto>> Patch(
+        Guid id,
+        [FromBody] PatchCouponDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new PatchCouponCommand(id, patchDto);
         var coupon = await mediator.Send(command, cancellationToken);
         return Ok(coupon);
     }

@@ -91,10 +91,8 @@ public class AddProductToComparisonCommandHandler : IRequestHandler<AddProductTo
             await _cache.RemoveAsync($"{CACHE_KEY_COMPARISON_BY_ID}{comparison.Id}", cancellationToken);
             await _cache.RemoveAsync($"{CACHE_KEY_COMPARISON_MATRIX}{comparison.Id}", cancellationToken);
 
-            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
             comparison = await _context.Set<ProductComparison>()
                 .AsNoTracking()
-                .AsSplitQuery()
                 .Include(c => c.Items)
                     .ThenInclude(i => i.Product)
                         .ThenInclude(p => p.Category)

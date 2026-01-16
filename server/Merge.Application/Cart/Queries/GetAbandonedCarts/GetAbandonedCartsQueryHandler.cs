@@ -14,6 +14,8 @@ using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Marketing;
 using Merge.Domain.Modules.Ordering;
 using Merge.Domain.ValueObjects;
+using Cart = Merge.Domain.Modules.Ordering.Cart;
+using Order = Merge.Domain.Modules.Ordering.Order;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -42,7 +44,7 @@ public class GetAbandonedCartsQueryHandler(
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         // Step 1-4: Get final abandoned cart IDs using subqueries (no materialization)
-        var abandonedCartsQuery = context.Set<Merge.Domain.Modules.Ordering.Cart>()
+        var abandonedCartsQuery = context.Set<Cart>()
             .AsNoTracking()
             .Where(c => c.CartItems.Any() &&
                        c.UpdatedAt >= minDate &&
@@ -53,7 +55,7 @@ public class GetAbandonedCartsQueryHandler(
                           select c.UserId;
 
         // Filter out carts that have been converted to orders (subquery)
-        var userIdsWithOrdersQuery = from o in context.Set<Merge.Domain.Modules.Ordering.Order>().AsNoTracking()
+        var userIdsWithOrdersQuery = from o in context.Set<Order>().AsNoTracking()
                                      where userIdsQuery.Contains(o.UserId)
                                      select o.UserId;
 
@@ -91,7 +93,7 @@ public class GetAbandonedCartsQueryHandler(
 
         // Step 5: Get cart data with computed properties from database (subquery ile pagination)
         var cartsDataQuery = (
-            from c in context.Set<Merge.Domain.Modules.Ordering.Cart>().AsNoTracking()
+            from c in context.Set<Cart>().AsNoTracking()
             where finalAbandonedCartIdsQuery.Contains(c.Id)
             select new
             {

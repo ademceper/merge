@@ -75,12 +75,8 @@ public class EvaluateUserCommandHandler : IRequestHandler<EvaluateUserCommand, F
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var createdAlert = await _context.Set<FraudAlert>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Order)
             .Include(a => a.Payment)

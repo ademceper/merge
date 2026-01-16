@@ -6,6 +6,7 @@ using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Marketing;
 using Merge.Domain.ValueObjects;
+using EmailSubscriber = Merge.Domain.Modules.Marketing.EmailSubscriber;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -21,7 +22,7 @@ public class UnsubscribeEmailCommandHandler(
     public async Task<bool> Handle(UnsubscribeEmailCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var subscriber = await context.Set<Merge.Domain.Modules.Marketing.EmailSubscriber>()
+        var subscriber = await context.Set<EmailSubscriber>()
             .FirstOrDefaultAsync(s => s.Email.ToLower() == request.Email.ToLower(), cancellationToken);
 
         if (subscriber == null)

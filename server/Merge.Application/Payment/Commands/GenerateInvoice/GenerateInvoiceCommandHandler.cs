@@ -15,6 +15,7 @@ using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Ordering;
 using Merge.Domain.Modules.Payment;
+using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -53,9 +54,7 @@ public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceComm
 
         try
         {
-            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
             var order = await _context.Set<OrderEntity>()
-                .AsSplitQuery()
                 .Include(o => o.Address)
                 .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.Product)
@@ -83,11 +82,9 @@ public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceComm
             {
                 _logger.LogInformation("Invoice already exists. InvoiceId: {InvoiceId}, OrderId: {OrderId}",
                     existingInvoice.Id, request.OrderId);
-                // Reload with includes
-                // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
+
                 var reloadedInvoice = await _context.Set<Invoice>()
                     .AsNoTracking()
-                    .AsSplitQuery()
                     .Include(i => i.Order)
                         .ThenInclude(o => o.Address)
                     .Include(i => i.Order)
@@ -105,11 +102,11 @@ public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceComm
 
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
             // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
-            var subTotalMoney = new Merge.Domain.ValueObjects.Money(order.SubTotal);
-            var taxMoney = new Merge.Domain.ValueObjects.Money(order.Tax);
-            var shippingCostMoney = new Merge.Domain.ValueObjects.Money(order.ShippingCost);
-            var discountMoney = new Merge.Domain.ValueObjects.Money(order.CouponDiscount ?? 0);
-            var totalAmountMoney = new Merge.Domain.ValueObjects.Money(order.TotalAmount);
+            var subTotalMoney = new Money(order.SubTotal);
+            var taxMoney = new Money(order.Tax);
+            var shippingCostMoney = new Money(order.ShippingCost);
+            var discountMoney = new Money(order.CouponDiscount ?? 0);
+            var totalAmountMoney = new Money(order.TotalAmount);
             var invoice = Invoice.Create(
                 request.OrderId,
                 invoiceNumber,
@@ -125,11 +122,8 @@ public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceComm
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
-            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
             invoice = await _context.Set<Invoice>()
                 .AsNoTracking()
-                .AsSplitQuery()
                 .Include(i => i.Order)
                     .ThenInclude(o => o.Address)
                 .Include(i => i.Order)

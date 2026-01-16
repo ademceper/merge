@@ -27,12 +27,8 @@ public class GetDeliveryTimeEstimationByIdQueryHandler(
     {
         logger.LogInformation("Getting delivery time estimation. EstimationId: {EstimationId}", request.Id);
 
-        // ✅ PERFORMANCE: AsNoTracking (read-only query)
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
-        // ✅ PERFORMANCE: Include ile N+1 önlenir
         var estimation = await context.Set<DeliveryTimeEstimation>()
             .AsNoTracking()
-            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(e => e.Product)
             .Include(e => e.Category)
             .Include(e => e.Warehouse)

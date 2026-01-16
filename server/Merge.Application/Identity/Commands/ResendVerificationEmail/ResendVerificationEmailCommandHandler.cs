@@ -17,11 +17,12 @@ using Merge.Domain.Modules.Notifications;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<EmailVerification>;
 
 namespace Merge.Application.Identity.Commands.ResendVerificationEmail;
 
 public class ResendVerificationEmailCommandHandler(
-    Merge.Application.Interfaces.IRepository<EmailVerification> emailVerificationRepository,
+    IRepository emailVerificationRepository,
     UserManager<UserEntity> userManager,
     IDbContext context,
     IUnitOfWork unitOfWork,

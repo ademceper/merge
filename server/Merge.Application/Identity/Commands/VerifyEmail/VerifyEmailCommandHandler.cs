@@ -13,11 +13,12 @@ using Merge.Domain.Modules.Marketing;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<EmailVerification>;
 
 namespace Merge.Application.Identity.Commands.VerifyEmail;
 
 public class VerifyEmailCommandHandler(
-    Merge.Application.Interfaces.IRepository<EmailVerification> emailVerificationRepository,
+    IRepository emailVerificationRepository,
     IDbContext context,
     UserManager<UserEntity> userManager,
     IUnitOfWork unitOfWork,

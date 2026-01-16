@@ -53,10 +53,8 @@ public class GetComparisonMatrixQueryHandler : IRequestHandler<GetComparisonMatr
             {
                 _logger.LogInformation("Cache miss for comparison matrix. Fetching from database.");
 
-                // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
                 var comparison = await _context.Set<ProductComparison>()
                     .AsNoTracking()
-                    .AsSplitQuery()
                     .Include(c => c.Items)
                         .ThenInclude(i => i.Product)
                             .ThenInclude(p => p.Category)

@@ -129,10 +129,8 @@ public class CreatePaymentFraudCheckCommandHandler : IRequestHandler<CreatePayme
 
     private async Task<int> PerformFraudChecksAsync(CreatePaymentFraudCheckCommand request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery - ThenInclude kullanımı için Cartesian Explosion önleme
         var payment = await _context.Set<PaymentEntity>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(p => p.Order)
                 .ThenInclude(o => o.User)
             .FirstOrDefaultAsync(p => p.Id == request.PaymentId, cancellationToken);

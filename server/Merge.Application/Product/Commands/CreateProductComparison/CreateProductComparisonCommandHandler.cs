@@ -86,11 +86,8 @@ public class CreateProductComparisonCommandHandler : IRequestHandler<CreateProdu
             await _cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_true_", cancellationToken);
             await _cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_false_", cancellationToken);
 
-            // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
             comparison = await _context.Set<ProductComparison>()
                 .AsNoTracking()
-                .AsSplitQuery()
                 .Include(c => c.Items)
                     .ThenInclude(i => i.Product)
                         .ThenInclude(p => p.Category)

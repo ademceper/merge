@@ -242,6 +242,47 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         return Ok(article);
     }
 
+    /// <summary>
+    /// Bilgi bankası makalesini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("articles/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(typeof(KnowledgeBaseArticleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<KnowledgeBaseArticleDto>> PatchArticle(
+        Guid id,
+        [FromBody] PatchKnowledgeBaseArticleDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new UpdateKnowledgeBaseArticleCommand(
+            id,
+            patchDto.Title,
+            patchDto.Content,
+            patchDto.Excerpt,
+            patchDto.CategoryId,
+            patchDto.Status,
+            patchDto.IsFeatured,
+            patchDto.DisplayOrder,
+            patchDto.Tags);
+        var article = await mediator.Send(command, cancellationToken);
+        if (article == null)
+        {
+            return NotFound();
+        }
+
+        var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateKnowledgeBaseArticleLinks(Url, article.Id, version);
+        article = article with { Links = links.ToDictionary(kvp => kvp.Key, kvp => (object)kvp.Value) };
+
+        return Ok(article);
+    }
+
     [HttpDelete("articles/{id}", Name = "DeleteArticle")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(30, 60)]     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -439,6 +480,45 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         var links = HateoasHelper.CreateKnowledgeBaseCategoryLinks(Url, category.Id, version);
         category = category with { Links = links.ToDictionary(kvp => kvp.Key, kvp => (object)kvp.Value) };
         
+        return Ok(category);
+    }
+
+    /// <summary>
+    /// Bilgi bankası kategorisini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("categories/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(typeof(KnowledgeBaseCategoryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<KnowledgeBaseCategoryDto>> PatchCategory(
+        Guid id,
+        [FromBody] PatchKnowledgeBaseCategoryDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new UpdateKnowledgeBaseCategoryCommand(
+            id,
+            patchDto.Name,
+            patchDto.Description,
+            patchDto.ParentCategoryId,
+            patchDto.DisplayOrder,
+            patchDto.IsActive,
+            patchDto.IconUrl);
+        var category = await mediator.Send(command, cancellationToken);
+        if (category == null)
+        {
+            return NotFound();
+        }
+
+        var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateKnowledgeBaseCategoryLinks(Url, category.Id, version);
+        category = category with { Links = links.ToDictionary(kvp => kvp.Key, kvp => (object)kvp.Value) };
+
         return Ok(category);
     }
 

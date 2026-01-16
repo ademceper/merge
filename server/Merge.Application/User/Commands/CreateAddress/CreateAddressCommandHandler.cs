@@ -8,6 +8,8 @@ using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.ValueObjects;
+using AddressEntity = Merge.Domain.Modules.Identity.Address;
+using Address = Merge.Domain.Modules.Identity.Address;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -42,7 +44,7 @@ public class CreateAddressCommandHandler : IRequestHandler<CreateAddressCommand,
         // Eger default olarak isaretleniyorsa, diger adreslerin default'unu kaldir
         if (request.IsDefault)
         {
-            var existingDefaults = await _context.Set<Merge.Domain.Modules.Identity.Address>()
+            var existingDefaults = await _context.Set<AddressEntity>()
                 .Where(a => a.UserId == request.UserId && a.IsDefault && !a.IsDeleted)
                 .ToListAsync(cancellationToken);
 
@@ -58,7 +60,7 @@ public class CreateAddressCommandHandler : IRequestHandler<CreateAddressCommand,
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
-        var address = Merge.Domain.Modules.Identity.Address.Create(
+        var address = AddressEntity.Create(
             userId: request.UserId,
             title: request.Title,
             firstName: request.FirstName,
@@ -72,7 +74,7 @@ public class CreateAddressCommandHandler : IRequestHandler<CreateAddressCommand,
             addressLine2: request.AddressLine2,
             isDefault: request.IsDefault);
 
-        await _context.Set<Merge.Domain.Modules.Identity.Address>().AddAsync(address, cancellationToken);
+        await _context.Set<AddressEntity>().AddAsync(address, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir

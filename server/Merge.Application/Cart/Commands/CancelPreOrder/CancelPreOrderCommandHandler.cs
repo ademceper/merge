@@ -7,6 +7,8 @@ using Merge.Domain.Enums;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Marketing;
 using Merge.Domain.Modules.Ordering;
+using PreOrder = Merge.Domain.Modules.Ordering.PreOrder;
+using PreOrderCampaign = Merge.Domain.Modules.Marketing.PreOrderCampaign;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -25,7 +27,7 @@ public class CancelPreOrderCommandHandler(
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var preOrder = await context.Set<Merge.Domain.Modules.Ordering.PreOrder>()
+            var preOrder = await context.Set<PreOrder>()
                 .FirstOrDefaultAsync(po => po.Id == request.PreOrderId && po.UserId == request.UserId, cancellationToken);
 
             // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching
@@ -38,7 +40,7 @@ public class CancelPreOrderCommandHandler(
 
             preOrder.Cancel();
 
-            var campaign = await context.Set<Merge.Domain.Modules.Marketing.PreOrderCampaign>()
+            var campaign = await context.Set<PreOrderCampaign>()
                 .FirstOrDefaultAsync(c => c.ProductId == preOrder.ProductId, cancellationToken);
 
             // ✅ BOLUM 7.1.6: Pattern Matching - Null pattern matching

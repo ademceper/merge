@@ -20,7 +20,7 @@ public class OrderTests
         // Arrange
         var userId = Guid.NewGuid();
         var addressId = Guid.NewGuid();
-        var address = Merge.Domain.Modules.Identity.Address.Create(
+        var address = Address.Create(
             userId: userId,
             title: "Home",
             firstName: "Test",
@@ -48,7 +48,7 @@ public class OrderTests
     {
         // Arrange
         var addressId = Guid.NewGuid();
-        var address = Merge.Domain.Modules.Identity.Address.Create(
+        var address = Address.Create(
             userId: Guid.NewGuid(),
             title: "Home",
             firstName: "Test",
@@ -88,7 +88,7 @@ public class OrderTests
     {
         // Arrange
         var addressId = Guid.NewGuid();
-        var address = Merge.Domain.Modules.Identity.Address.Create(
+        var address = Address.Create(
             userId: Guid.NewGuid(),
             title: "Home",
             firstName: "Test",

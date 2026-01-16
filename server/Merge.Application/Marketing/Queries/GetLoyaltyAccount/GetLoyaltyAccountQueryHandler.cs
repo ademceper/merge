@@ -16,7 +16,6 @@ public class GetLoyaltyAccountQueryHandler(IDbContext context, IMapper mapper) :
 {
     public async Task<LoyaltyAccountDto?> Handle(GetLoyaltyAccountQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery - N+1 query önleme (Cartesian Explosion önleme)
         var account = await context.Set<LoyaltyAccount>()
             .AsNoTracking()
             .Include(a => a.Tier)

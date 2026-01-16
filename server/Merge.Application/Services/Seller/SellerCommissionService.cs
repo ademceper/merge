@@ -61,9 +61,7 @@ public class SellerCommissionService : ISellerCommissionService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SellerCommissionDto> CalculateAndRecordCommissionAsync(Guid orderId, Guid orderItemId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var orderItem = await _context.Set<OrderItem>()
-            .AsSplitQuery()
             .Include(oi => oi.Order)
             .Include(oi => oi.Product)
             .FirstOrDefaultAsync(oi => oi.Id == orderItemId && oi.OrderId == orderId, cancellationToken);
@@ -80,12 +78,8 @@ public class SellerCommissionService : ISellerCommissionService
 
         var sellerId = orderItem.Product.SellerId.Value;
 
-        // ✅ PERFORMANCE: Removed manual !sc.IsDeleted (Global Query Filter)
-        // Check if commission already exists
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var existing = await _context.Set<SellerCommission>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(sc => sc.Seller)
             .Include(sc => sc.Order)
             .Include(sc => sc.OrderItem)
@@ -149,11 +143,8 @@ public class SellerCommissionService : ISellerCommissionService
         await _context.Set<SellerCommission>().AddAsync(commission, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         commission = await _context.Set<SellerCommission>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(sc => sc.Seller)
             .Include(sc => sc.Order)
             .Include(sc => sc.OrderItem)
@@ -166,11 +157,8 @@ public class SellerCommissionService : ISellerCommissionService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SellerCommissionDto?> GetCommissionAsync(Guid commissionId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !sc.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var commission = await _context.Set<SellerCommission>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(sc => sc.Seller)
             .Include(sc => sc.Order)
             .Include(sc => sc.OrderItem)
@@ -492,11 +480,8 @@ public class SellerCommissionService : ISellerCommissionService
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
         payout = await _context.Set<CommissionPayout>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(p => p.Seller)
             .Include(p => p.Items)
                 .ThenInclude(i => i.Commission)
@@ -510,11 +495,8 @@ public class SellerCommissionService : ISellerCommissionService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<CommissionPayoutDto?> GetPayoutAsync(Guid payoutId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
         var payout = await _context.Set<CommissionPayout>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(p => p.Seller)
             .Include(p => p.Items)
                 .ThenInclude(i => i.Commission)
@@ -638,10 +620,7 @@ public class SellerCommissionService : ISellerCommissionService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> FailPayoutAsync(Guid payoutId, string reason, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
         var payout = await _context.Set<CommissionPayout>()
-            .AsSplitQuery()
             .Include(p => p.Items)
                 .ThenInclude(i => i.Commission)
             .FirstOrDefaultAsync(p => p.Id == payoutId, cancellationToken);

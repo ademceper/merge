@@ -8,11 +8,12 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Content;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.SEOSettings>;
 
 namespace Merge.Application.Content.Commands.DeleteSEOSettings;
 
 public class DeleteSEOSettingsCommandHandler(
-    Merge.Application.Interfaces.IRepository<SEOSettings> seoSettingsRepository,
+    IRepository seoSettingsRepository,
     IDbContext context,
     IUnitOfWork unitOfWork,
     ICacheService cache,

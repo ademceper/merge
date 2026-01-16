@@ -64,11 +64,8 @@ public class CreateSecurityAlertCommandHandler : IRequestHandler<CreateSecurityA
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için Cartesian Explosion önleme
         alert = await _context.Set<SecurityAlert>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.AcknowledgedBy)
             .Include(a => a.ResolvedBy)

@@ -5,6 +5,7 @@ using Merge.Application.DTOs.Marketing;
 using Merge.Application.Interfaces;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Marketing;
+using EmailSubscriber = Merge.Domain.Modules.Marketing.EmailSubscriber;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -17,7 +18,7 @@ public class GetEmailSubscriberByIdQueryHandler(IDbContext context, IMapper mapp
     public async Task<EmailSubscriberDto?> Handle(GetEmailSubscriberByIdQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-        var subscriber = await context.Set<Merge.Domain.Modules.Marketing.EmailSubscriber>()
+        var subscriber = await context.Set<EmailSubscriber>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 

@@ -13,6 +13,7 @@ using Merge.Application.Catalog.Queries.GetStockReportByProduct;
 using Merge.Application.Catalog.Queries.GetAvailableStock;
 using Merge.Application.Catalog.Commands.CreateInventory;
 using Merge.Application.Catalog.Commands.UpdateInventory;
+using Merge.Application.Catalog.Commands.PatchInventory;
 using Merge.Application.Catalog.Commands.DeleteInventory;
 using Merge.Application.Catalog.Commands.AdjustStock;
 using Merge.Application.Catalog.Commands.TransferStock;
@@ -351,6 +352,37 @@ public class InventoryController(
         // ✅ BOLUM 3.2: IDOR Korumasi - Handler seviyesinde yapılıyor (UpdateInventoryCommandHandler)
 
         return Ok(updatedInventory);
+    }
+
+    /// <summary>
+    /// Envanteri kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(typeof(InventoryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<InventoryDto>> Patch(
+        Guid id,
+        [FromBody] PatchInventoryDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var command = new PatchInventoryCommand(id, patchDto, userId);
+        var inventory = await mediator.Send(command, cancellationToken);
+        return Ok(inventory);
     }
 
     /// <summary>

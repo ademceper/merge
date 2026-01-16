@@ -11,6 +11,8 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IBundleRepository = Merge.Application.Interfaces.IRepository<ProductBundle>;
+using IBundleItemRepository = Merge.Application.Interfaces.IRepository<BundleItem>;
 
 namespace Merge.Application.Product.Commands.CreateProductBundle;
 
@@ -18,8 +20,8 @@ namespace Merge.Application.Product.Commands.CreateProductBundle;
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateProductBundleCommandHandler : IRequestHandler<CreateProductBundleCommand, ProductBundleDto>
 {
-    private readonly Merge.Application.Interfaces.IRepository<ProductBundle> _bundleRepository;
-    private readonly Merge.Application.Interfaces.IRepository<BundleItem> _bundleItemRepository;
+    private readonly IBundleRepository _bundleRepository;
+    private readonly IBundleItemRepository _bundleItemRepository;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICacheService _cache;
@@ -30,8 +32,8 @@ public class CreateProductBundleCommandHandler : IRequestHandler<CreateProductBu
     private const string CACHE_KEY_ACTIVE_BUNDLES = "bundles_active";
 
     public CreateProductBundleCommandHandler(
-        Merge.Application.Interfaces.IRepository<ProductBundle> bundleRepository,
-        Merge.Application.Interfaces.IRepository<BundleItem> bundleItemRepository,
+        IBundleRepository bundleRepository,
+        IBundleItemRepository bundleItemRepository,
         IDbContext context,
         IUnitOfWork unitOfWork,
         ICacheService cache,
@@ -103,11 +105,8 @@ public class CreateProductBundleCommandHandler : IRequestHandler<CreateProductBu
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
-            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
             var reloadedBundle = await _context.Set<ProductBundle>()
                 .AsNoTracking()
-                .AsSplitQuery()
                 .Include(b => b.BundleItems)
                     .ThenInclude(bi => bi.Product)
                 .FirstOrDefaultAsync(b => b.Id == bundle.Id, cancellationToken);

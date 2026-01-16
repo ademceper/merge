@@ -38,7 +38,6 @@ public class CreateLiveStreamCommandHandler(
 
         var createdStream = await context.Set<LiveStream>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(s => s.Seller)
             .Include(s => s.Products)
                 .ThenInclude(p => p.Product)

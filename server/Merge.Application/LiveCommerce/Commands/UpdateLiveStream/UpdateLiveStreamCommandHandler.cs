@@ -45,7 +45,6 @@ public class UpdateLiveStreamCommandHandler(
 
         var updatedStream = await context.Set<LiveStream>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(s => s.Seller)
             .Include(s => s.Products)
                 .ThenInclude(p => p.Product)

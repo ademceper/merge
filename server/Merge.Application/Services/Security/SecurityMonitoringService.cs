@@ -95,11 +95,8 @@ public class OrderVerificationService : IOrderVerificationService
         await _context.Set<OrderVerification>().AddAsync(verification, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         verification = await _context.Set<OrderVerification>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(v => v.Order)
             .Include(v => v.VerifiedBy)
             .FirstOrDefaultAsync(v => v.Id == verification.Id, cancellationToken);
@@ -118,7 +115,6 @@ public class OrderVerificationService : IOrderVerificationService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !v.IsDeleted (Global Query Filter)
         var verification = await _context.Set<OrderVerification>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(v => v.Order)
             .Include(v => v.VerifiedBy)
             .FirstOrDefaultAsync(v => v.OrderId == orderId, cancellationToken);
@@ -250,31 +246,31 @@ public class OrderVerificationService : IOrderVerificationService
 
         // ✅ HIGH-CQ-002 FIX: Magic numbers yerine constants kullanılıyor
         // High value order
-        if (order.TotalAmount > Merge.Application.Common.RiskScoreConstants.HighValueOrderThreshold) 
-            riskScore += Merge.Application.Common.RiskScoreConstants.HighValueOrderScore;
+        if (order.TotalAmount > RiskScoreConstants.HighValueOrderThreshold) 
+            riskScore += RiskScoreConstants.HighValueOrderScore;
 
         // New user
         var daysSinceRegistration = (DateTime.UtcNow - order.User.CreatedAt).Days;
-        if (daysSinceRegistration < Merge.Application.Common.RiskScoreConstants.NewUserDaysThreshold) 
-            riskScore += Merge.Application.Common.RiskScoreConstants.NewUserScore;
+        if (daysSinceRegistration < RiskScoreConstants.NewUserDaysThreshold) 
+            riskScore += RiskScoreConstants.NewUserScore;
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         // Multiple items
         var itemCount = await _context.Set<OrderItem>()
             .AsNoTracking()
             .CountAsync(oi => oi.OrderId == orderId, cancellationToken);
-        if (itemCount > Merge.Application.Common.RiskScoreConstants.MultipleItemsThreshold) 
-            riskScore += Merge.Application.Common.RiskScoreConstants.MultipleItemsScore;
+        if (itemCount > RiskScoreConstants.MultipleItemsThreshold) 
+            riskScore += RiskScoreConstants.MultipleItemsScore;
 
         // High quantity
         var totalQuantity = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.OrderId == orderId)
             .SumAsync(oi => oi.Quantity, cancellationToken);
-        if (totalQuantity > Merge.Application.Common.RiskScoreConstants.HighQuantityThreshold) 
-            riskScore += Merge.Application.Common.RiskScoreConstants.HighQuantityScore;
+        if (totalQuantity > RiskScoreConstants.HighQuantityThreshold) 
+            riskScore += RiskScoreConstants.HighQuantityScore;
 
-        return Math.Min(riskScore, Merge.Application.Common.RiskScoreConstants.MaxRiskScore);
+        return Math.Min(riskScore, RiskScoreConstants.MaxRiskScore);
     }
 
 }
@@ -379,7 +375,6 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         var check = await _context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(c => c.Payment)
             .FirstOrDefaultAsync(c => c.PaymentId == paymentId, cancellationToken);
 
@@ -499,7 +494,6 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         var payment = await _context.Set<PaymentEntity>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(p => p.Order)
                 .ThenInclude(o => o.User)
             .FirstOrDefaultAsync(p => p.Id == dto.PaymentId, cancellationToken);
@@ -510,29 +504,29 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
 
         // ✅ HIGH-CQ-002 FIX: Magic numbers yerine constants kullanılıyor
         // High value payment
-        if (payment.Amount > Merge.Application.Common.RiskScoreConstants.HighValuePaymentThreshold) 
-            riskScore += Merge.Application.Common.RiskScoreConstants.HighValuePaymentScore;
+        if (payment.Amount > RiskScoreConstants.HighValuePaymentThreshold) 
+            riskScore += RiskScoreConstants.HighValuePaymentScore;
 
         // New user
         var daysSinceRegistration = (DateTime.UtcNow - payment.Order.User.CreatedAt).Days;
-        if (daysSinceRegistration < Merge.Application.Common.RiskScoreConstants.NewUserDaysThreshold) 
-            riskScore += Merge.Application.Common.RiskScoreConstants.NewUserScore;
+        if (daysSinceRegistration < RiskScoreConstants.NewUserDaysThreshold) 
+            riskScore += RiskScoreConstants.NewUserScore;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         // Multiple payments from same IP in short time
         var recentPayments = await _context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
-            .Where(c => c.IpAddress == dto.IpAddress && c.CreatedAt >= DateTime.UtcNow.AddHours(-Merge.Application.Common.RiskScoreConstants.RecentPaymentsTimeWindowHours))
+            .Where(c => c.IpAddress == dto.IpAddress && c.CreatedAt >= DateTime.UtcNow.AddHours(-RiskScoreConstants.RecentPaymentsTimeWindowHours))
             .CountAsync(cancellationToken);
 
-        if (recentPayments > Merge.Application.Common.RiskScoreConstants.RecentPaymentsThreshold) 
-            riskScore += Merge.Application.Common.RiskScoreConstants.RecentPaymentsScore;
+        if (recentPayments > RiskScoreConstants.RecentPaymentsThreshold) 
+            riskScore += RiskScoreConstants.RecentPaymentsScore;
 
         // Device fingerprint check
         if (string.IsNullOrEmpty(dto.DeviceFingerprint)) 
-            riskScore += Merge.Application.Common.RiskScoreConstants.MissingDeviceFingerprintScore;
+            riskScore += RiskScoreConstants.MissingDeviceFingerprintScore;
 
-        return Math.Min(riskScore, Merge.Application.Common.RiskScoreConstants.MaxRiskScore);
+        return Math.Min(riskScore, RiskScoreConstants.MaxRiskScore);
     }
 
 }
@@ -625,7 +619,6 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         securityEvent = await _context.Set<AccountSecurityEvent>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(e => e.User)
             .Include(e => e.ActionTakenBy)
             .FirstOrDefaultAsync(e => e.Id == securityEvent.Id, cancellationToken);
@@ -776,7 +769,6 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         alert = await _context.Set<SecurityAlert>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.AcknowledgedBy)
             .Include(a => a.ResolvedBy)

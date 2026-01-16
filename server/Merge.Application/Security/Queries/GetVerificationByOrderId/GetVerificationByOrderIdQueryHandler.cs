@@ -34,11 +34,8 @@ public class GetVerificationByOrderIdQueryHandler : IRequestHandler<GetVerificat
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Order verification sorgulanıyor. OrderId: {OrderId}", request.OrderId);
 
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !v.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için Cartesian Explosion önleme
         var verification = await _context.Set<OrderVerification>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(v => v.Order)
             .Include(v => v.VerifiedBy)
             .FirstOrDefaultAsync(v => v.OrderId == request.OrderId, cancellationToken);

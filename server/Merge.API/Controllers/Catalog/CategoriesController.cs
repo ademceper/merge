@@ -10,6 +10,7 @@ using Merge.Application.Catalog.Queries.GetAllCategories;
 using Merge.Application.Catalog.Queries.GetMainCategories;
 using Merge.Application.Catalog.Commands.CreateCategory;
 using Merge.Application.Catalog.Commands.UpdateCategory;
+using Merge.Application.Catalog.Commands.PatchCategory;
 using Merge.Application.Catalog.Commands.DeleteCategory;
 using Merge.API.Middleware;
 
@@ -181,6 +182,33 @@ public class CategoriesController(
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var updateCommand = command with { Id = id };
         var category = await mediator.Send(updateCommand, cancellationToken);
+        return Ok(category);
+    }
+
+    /// <summary>
+    /// Kategoriyi kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(typeof(CategoryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<CategoryDto>> Patch(
+        Guid id,
+        [FromBody] PatchCategoryDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+
+        var command = new PatchCategoryCommand(id, patchDto);
+        var category = await mediator.Send(command, cancellationToken);
         return Ok(category);
     }
 

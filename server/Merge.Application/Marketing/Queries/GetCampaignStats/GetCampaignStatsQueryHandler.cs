@@ -6,6 +6,8 @@ using Merge.Application.Interfaces;
 using Merge.Domain.Enums;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Marketing;
+using EmailCampaign = Merge.Domain.Modules.Marketing.EmailCampaign;
+using EmailSubscriber = Merge.Domain.Modules.Marketing.EmailSubscriber;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -19,47 +21,47 @@ public class GetCampaignStatsQueryHandler(IDbContext context, IMapper mapper) : 
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        var totalCampaigns = await context.Set<Merge.Domain.Modules.Marketing.EmailCampaign>()
+        var totalCampaigns = await context.Set<EmailCampaign>()
             .AsNoTracking()
             .CountAsync(cancellationToken);
 
-        var activeCampaigns = await context.Set<Merge.Domain.Modules.Marketing.EmailCampaign>()
+        var activeCampaigns = await context.Set<EmailCampaign>()
             .AsNoTracking()
             .CountAsync(c => c.Status == EmailCampaignStatus.Sending || c.Status == EmailCampaignStatus.Scheduled, cancellationToken);
 
-        var totalSubscribers = await context.Set<Merge.Domain.Modules.Marketing.EmailSubscriber>()
+        var totalSubscribers = await context.Set<EmailSubscriber>()
             .AsNoTracking()
             .CountAsync(cancellationToken);
 
-        var activeSubscribers = await context.Set<Merge.Domain.Modules.Marketing.EmailSubscriber>()
+        var activeSubscribers = await context.Set<EmailSubscriber>()
             .AsNoTracking()
             .CountAsync(s => s.IsSubscribed, cancellationToken);
 
-        var totalEmailsSent = await context.Set<Merge.Domain.Modules.Marketing.EmailCampaign>()
+        var totalEmailsSent = await context.Set<EmailCampaign>()
             .AsNoTracking()
             .SumAsync(c => (long)c.SentCount, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        var sentCampaignsCount = await context.Set<Merge.Domain.Modules.Marketing.EmailCampaign>()
+        var sentCampaignsCount = await context.Set<EmailCampaign>()
             .AsNoTracking()
             .CountAsync(c => c.Status == EmailCampaignStatus.Sent, cancellationToken);
 
         var avgOpenRate = sentCampaignsCount > 0
-            ? await context.Set<Merge.Domain.Modules.Marketing.EmailCampaign>()
+            ? await context.Set<EmailCampaign>()
                 .AsNoTracking()
                 .Where(c => c.Status == EmailCampaignStatus.Sent)
                 .AverageAsync(c => (decimal?)c.OpenRate, cancellationToken) ?? 0
             : 0;
 
         var avgClickRate = sentCampaignsCount > 0
-            ? await context.Set<Merge.Domain.Modules.Marketing.EmailCampaign>()
+            ? await context.Set<EmailCampaign>()
                 .AsNoTracking()
                 .Where(c => c.Status == EmailCampaignStatus.Sent)
                 .AverageAsync(c => (decimal?)c.ClickRate, cancellationToken) ?? 0
             : 0;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        var recentCampaigns = await context.Set<Merge.Domain.Modules.Marketing.EmailCampaign>()
+        var recentCampaigns = await context.Set<EmailCampaign>()
             .AsNoTracking()
             .OrderByDescending(c => c.CreatedAt)
             .Take(5)

@@ -20,17 +20,20 @@ using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Ordering;
 using Merge.Domain.Modules.Payment;
+using Invoice = Merge.Domain.Modules.Ordering.Invoice;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IInvoiceRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Ordering.Invoice>;
+using IOrderRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Ordering.Order>;
 
 
 namespace Merge.Application.Services.Payment;
 
 public class InvoiceService : IInvoiceService
 {
-    private readonly Merge.Application.Interfaces.IRepository<Invoice> _invoiceRepository;
-    private readonly Merge.Application.Interfaces.IRepository<OrderEntity> _orderRepository;
+    private readonly IInvoiceRepository _invoiceRepository;
+    private readonly IOrderRepository _orderRepository;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
@@ -38,8 +41,8 @@ public class InvoiceService : IInvoiceService
     private readonly PaymentSettings _paymentSettings;
 
     public InvoiceService(
-        Merge.Application.Interfaces.IRepository<Invoice> invoiceRepository,
-        Merge.Application.Interfaces.IRepository<OrderEntity> orderRepository,
+        IInvoiceRepository invoiceRepository,
+        IOrderRepository orderRepository,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,
@@ -58,11 +61,9 @@ public class InvoiceService : IInvoiceService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<InvoiceDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
+
         var invoice = await _context.Set<Invoice>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(i => i.Order)
                 .ThenInclude(o => o.Address)
             .Include(i => i.Order)
@@ -82,11 +83,8 @@ public class InvoiceService : IInvoiceService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<InvoiceDto?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         var invoice = await _context.Set<Invoice>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(i => i.Order)
                 .ThenInclude(o => o.Address)
             .Include(i => i.Order)
@@ -187,11 +185,11 @@ public class InvoiceService : IInvoiceService
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
-        var subTotalMoney = new Merge.Domain.ValueObjects.Money(order.SubTotal);
-        var taxMoney = new Merge.Domain.ValueObjects.Money(order.Tax);
-        var shippingCostMoney = new Merge.Domain.ValueObjects.Money(order.ShippingCost);
-        var discountMoney = new Merge.Domain.ValueObjects.Money(order.CouponDiscount ?? 0);
-        var totalAmountMoney = new Merge.Domain.ValueObjects.Money(order.TotalAmount);
+        var subTotalMoney = new Money(order.SubTotal);
+        var taxMoney = new Money(order.Tax);
+        var shippingCostMoney = new Money(order.ShippingCost);
+        var discountMoney = new Money(order.CouponDiscount ?? 0);
+        var totalAmountMoney = new Money(order.TotalAmount);
         var invoice = Invoice.Create(
             orderId: orderId,
             invoiceNumber: invoiceNumber,
@@ -206,11 +204,8 @@ public class InvoiceService : IInvoiceService
         invoice = await _invoiceRepository.AddAsync(invoice);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with all includes in one query instead of multiple LoadAsync calls (N+1 fix)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         invoice = await _context.Set<Invoice>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(i => i.Order)
                 .ThenInclude(o => o.Address)
             .Include(i => i.Order)

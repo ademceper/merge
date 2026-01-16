@@ -36,7 +36,6 @@ public class GetUserActiveSubscriptionQueryHandler : IRequestHandler<GetUserActi
         // ✅ PERFORMANCE: AsNoTracking for read-only query
         var subscription = await _context.Set<UserSubscription>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(us => us.User)
             .Include(us => us.SubscriptionPlan)
             .Where(us => us.UserId == request.UserId && 

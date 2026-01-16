@@ -131,6 +131,40 @@ public class EmailCampaignsController(
         return Ok(campaign);
     }
 
+    /// <summary>
+    /// Email kampanyasını kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(typeof(EmailCampaignDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<EmailCampaignDto>> PatchCampaign(
+        Guid id,
+        [FromBody] PatchEmailCampaignDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new UpdateEmailCampaignCommand(
+            id,
+            patchDto.Name,
+            patchDto.Subject,
+            patchDto.FromName,
+            patchDto.FromEmail,
+            patchDto.ReplyToEmail,
+            patchDto.TemplateId,
+            patchDto.Content,
+            patchDto.ScheduledAt,
+            patchDto.TargetSegment);
+
+        var campaign = await mediator.Send(command, cancellationToken);
+        return Ok(campaign);
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Manager")]
     [RateLimit(10, 60)]

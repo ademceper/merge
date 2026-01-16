@@ -11,13 +11,14 @@ using Merge.Domain.Modules.Catalog;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.Category>;
 
 namespace Merge.Application.Catalog.Commands.UpdateCategory;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class UpdateCategoryCommandHandler(
-    Merge.Application.Interfaces.IRepository<Category> categoryRepository,
+    IRepository categoryRepository,
     IDbContext context,
     IUnitOfWork unitOfWork,
     ICacheService cache,
@@ -65,7 +66,6 @@ public class UpdateCategoryCommandHandler(
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             var reloadedCategory = await context.Set<Category>()
                 .AsNoTracking()
-                .AsSplitQuery()
                 .Include(c => c.ParentCategory)
                 .Include(c => c.SubCategories)
                 .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);

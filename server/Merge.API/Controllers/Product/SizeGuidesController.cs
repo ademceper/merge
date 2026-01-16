@@ -5,6 +5,7 @@ using MediatR;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Product.Commands.CreateSizeGuide;
 using Merge.Application.Product.Commands.UpdateSizeGuide;
+using Merge.Application.Product.Commands.PatchSizeGuide;
 using Merge.Application.Product.Commands.DeleteSizeGuide;
 using Merge.Application.Product.Commands.AssignSizeGuideToProduct;
 using Merge.Application.Product.Commands.RemoveSizeGuideFromProduct;
@@ -125,6 +126,35 @@ public class SizeGuidesController(IMediator mediator) : BaseController
             dto.Entries.ToList());
         var success = await mediator.Send(command, cancellationToken);
 
+        if (!success)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Beden kılavuzunu kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchSizeGuide(
+        Guid id,
+        [FromBody] PatchSizeGuideDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+        var command = new PatchSizeGuideCommand(id, patchDto);
+        var success = await mediator.Send(command, cancellationToken);
         if (!success)
         {
             return NotFound();

@@ -11,12 +11,14 @@ using Merge.Domain.Modules.Content;
 using Merge.Domain.Modules.Identity;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using ICommentRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.BlogComment>;
+using IPostRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.BlogPost>;
 
 namespace Merge.Application.Content.Commands.CreateBlogComment;
 
 public class CreateBlogCommentCommandHandler(
-    Merge.Application.Interfaces.IRepository<BlogComment> commentRepository,
-    Merge.Application.Interfaces.IRepository<BlogPost> postRepository,
+    ICommentRepository commentRepository,
+    IPostRepository postRepository,
     IDbContext context,
     IUnitOfWork unitOfWork,
     ICacheService cache,
@@ -62,7 +64,6 @@ public class CreateBlogCommentCommandHandler(
 
             var reloadedComment = await context.Set<BlogComment>()
                 .AsNoTracking()
-            .AsSplitQuery()
                 .Include(c => c.User)
                 .Include(c => c.ParentComment)
                 .FirstOrDefaultAsync(c => c.Id == comment.Id, cancellationToken);

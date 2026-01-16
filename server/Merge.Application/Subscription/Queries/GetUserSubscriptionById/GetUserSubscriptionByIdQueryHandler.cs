@@ -35,7 +35,6 @@ public class GetUserSubscriptionByIdQueryHandler : IRequestHandler<GetUserSubscr
         // ✅ PERFORMANCE: AsNoTracking for read-only query
         var subscription = await _context.Set<UserSubscription>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(us => us.User)
             .Include(us => us.SubscriptionPlan)
             .FirstOrDefaultAsync(us => us.Id == request.Id, cancellationToken);

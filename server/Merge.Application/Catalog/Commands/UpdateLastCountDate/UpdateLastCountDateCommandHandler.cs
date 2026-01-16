@@ -12,6 +12,7 @@ using Merge.Domain.Modules.Inventory;
 using Merge.Domain.Modules.Marketplace;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Inventory.Inventory>;
 
 namespace Merge.Application.Catalog.Commands.UpdateLastCountDate;
 
@@ -20,7 +21,7 @@ namespace Merge.Application.Catalog.Commands.UpdateLastCountDate;
 public class UpdateLastCountDateCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
-    Merge.Application.Interfaces.IRepository<Inventory> inventoryRepository,
+    IRepository inventoryRepository,
     ICacheService cache,
     ILogger<UpdateLastCountDateCommandHandler> logger) : IRequestHandler<UpdateLastCountDateCommand, bool>
 {

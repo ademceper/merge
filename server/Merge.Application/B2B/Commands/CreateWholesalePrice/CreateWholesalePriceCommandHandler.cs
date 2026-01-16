@@ -65,11 +65,8 @@ public class CreateWholesalePriceCommandHandler(
         await context.Set<WholesalePrice>().AddAsync(wholesalePrice, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ ARCHITECTURE: Reload with Include for AutoMapper
-        // ✅ PERFORMANCE: AsSplitQuery to avoid Cartesian Explosion (multiple Include'lar)
         wholesalePrice = await context.Set<WholesalePrice>()
             .AsNoTracking()
-            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting - Multiple Include'lar için
             .Include(wp => wp.Product)
             .Include(wp => wp.Organization)
             .FirstOrDefaultAsync(wp => wp.Id == wholesalePrice.Id, cancellationToken);

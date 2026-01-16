@@ -10,6 +10,7 @@ using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Merge.Application.DTOs.Product;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
+using RecentlyViewedProduct = Merge.Domain.Modules.Catalog.RecentlyViewedProduct;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Ordering;
 using Merge.Domain.ValueObjects;
@@ -203,7 +204,7 @@ public class ProductRecommendationService : IProductRecommendationService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !rv.IsDeleted (Global Query Filter)
         // Get recently viewed products
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
-        var recentlyViewed = await _context.Set<Merge.Domain.Modules.Catalog.RecentlyViewedProduct>()
+        var recentlyViewed = await _context.Set<RecentlyViewedProduct>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(rv => rv.Product)
@@ -223,11 +224,11 @@ public class ProductRecommendationService : IProductRecommendationService
         var viewedProductIds = recentlyViewed.Select(rv => rv.ProductId).ToList();
         
         // Category'ler için subquery kullan (büyük olabilir)
-        var viewedProductIdsSubquery = from rv in _context.Set<Merge.Domain.Modules.Catalog.RecentlyViewedProduct>().AsNoTracking()
+        var viewedProductIdsSubquery = from rv in _context.Set<RecentlyViewedProduct>().AsNoTracking()
                                       where rv.UserId == userId
                                       orderby rv.ViewedAt descending
                                       select rv.ProductId;
-        var viewedCategoriesSubquery = from rv in _context.Set<Merge.Domain.Modules.Catalog.RecentlyViewedProduct>().AsNoTracking()
+        var viewedCategoriesSubquery = from rv in _context.Set<RecentlyViewedProduct>().AsNoTracking()
                                       join p in _context.Set<ProductEntity>().AsNoTracking() on rv.ProductId equals p.Id
                                       where rv.UserId == userId
                                       orderby rv.ViewedAt descending

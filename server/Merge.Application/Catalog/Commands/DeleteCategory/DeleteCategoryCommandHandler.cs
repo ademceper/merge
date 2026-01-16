@@ -6,15 +6,17 @@ using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
+using Product = Merge.Domain.Modules.Catalog.Product;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.Category>;
 
 namespace Merge.Application.Catalog.Commands.DeleteCategory;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class DeleteCategoryCommandHandler(
-    Merge.Application.Interfaces.IRepository<Category> categoryRepository,
+    IRepository categoryRepository,
     IDbContext context,
     IUnitOfWork unitOfWork,
     ICacheService cache,
@@ -51,7 +53,7 @@ public class DeleteCategoryCommandHandler(
             }
 
             // Check for associated products
-            var hasProducts = await context.Set<Merge.Domain.Modules.Catalog.Product>()
+            var hasProducts = await context.Set<Product>()
                 .AsNoTracking()
                 .AnyAsync(p => p.CategoryId == request.Id && !p.IsDeleted, cancellationToken);
 

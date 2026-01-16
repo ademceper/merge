@@ -149,7 +149,6 @@ public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceComm
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         invoice = await _context.Set<SellerInvoice>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(i => i.Seller)
             .FirstOrDefaultAsync(i => i.Id == invoice.Id, cancellationToken);
 

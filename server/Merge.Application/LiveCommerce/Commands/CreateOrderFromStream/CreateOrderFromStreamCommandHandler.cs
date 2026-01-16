@@ -8,6 +8,7 @@ using Merge.Application.Exceptions;
 using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using Merge.Domain.Modules.Marketing;
 using Merge.Domain.Modules.Ordering;
+using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -42,7 +43,7 @@ public class CreateOrderFromStreamCommandHandler(
             throw new NotFoundException("Canlı yayın", request.StreamId);
         }
 
-        var orderAmountMoney = new Merge.Domain.ValueObjects.Money(order.TotalAmount);
+        var orderAmountMoney = new Money(order.TotalAmount);
         var streamOrder = LiveStreamOrder.Create(
             request.StreamId,
             request.OrderId,

@@ -17,6 +17,7 @@ using Merge.Application.Cart.Queries.GetPreOrderCampaign;
 using Merge.Application.Cart.Queries.GetActivePreOrderCampaigns;
 using Merge.Application.Cart.Queries.GetPreOrderCampaignsByProduct;
 using Merge.Application.Cart.Commands.UpdatePreOrderCampaign;
+using Merge.Application.Cart.Commands.PatchPreOrderCampaign;
 using Merge.Application.Cart.Commands.DeactivatePreOrderCampaign;
 using Merge.Application.Cart.Queries.GetPreOrderStats;
 using Merge.API.Middleware;
@@ -482,6 +483,34 @@ public class PreOrdersController(
             return NotFound();
         }
 
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Ön sipariş kampanyasını kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("campaigns/{id}")]
+    [Authorize(Roles = "Admin,Manager")]
+    [RateLimit(5, 60)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PatchCampaign(
+        Guid id,
+        [FromBody] PatchPreOrderCampaignDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new PatchPreOrderCampaignCommand(id, patchDto);
+        var success = await mediator.Send(command, cancellationToken);
+        if (!success)
+        {
+            return NotFound();
+        }
         return NoContent();
     }
 

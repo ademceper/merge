@@ -16,8 +16,6 @@ public class GetEmailCampaignByIdQueryHandler(IDbContext context, IMapper mapper
 {
     public async Task<EmailCampaignDto?> Handle(GetEmailCampaignByIdQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking + AsSplitQuery - N+1 query önleme (Cartesian Explosion önleme)
-        // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         var campaign = await context.Set<EmailCampaign>()
             .AsNoTracking()
             .Include(c => c.Template)

@@ -57,10 +57,7 @@ public class OrderSplitService : IOrderSplitService
             "Sipariş bölme işlemi başlatılıyor. OrderId: {OrderId}, ItemsCount: {ItemsCount}",
             orderId, dto.Items?.Count ?? 0);
 
-        // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var originalOrder = await _context.Set<OrderEntity>()
-            .AsSplitQuery()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .Include(o => o.Address)
@@ -120,7 +117,7 @@ public class OrderSplitService : IOrderSplitService
             var splitOrder = OrderEntity.Create(originalOrder.UserId, addressId, address);
             
             // Split order için özel ayarlar
-            // Not: Merge.Domain.Modules.Ordering.Order.Create factory method OrderNumber'ı otomatik oluşturuyor
+            // Not: OrderEntity.Create factory method OrderNumber'ı otomatik oluşturuyor
             // Split order için özel order number gerekiyorsa, Order entity'sine SetOrderNumber method'u eklenebilir
             // Şimdilik factory method'un oluşturduğu order number kullanılıyor
 
@@ -219,11 +216,8 @@ public class OrderSplitService : IOrderSplitService
                 "Sipariş başarıyla bölündü. OriginalOrderId: {OriginalOrderId}, SplitOrderId: {SplitOrderId}",
                 orderId, splitOrder.Id);
 
-            // ✅ PERFORMANCE: Reload with all includes in one query (N+1 fix)
-            // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
             orderSplit = await _context.Set<OrderSplit>()
                 .AsNoTracking()
-                .AsSplitQuery()
                 .Include(s => s.OriginalOrder)
                 .Include(s => s.SplitOrder)
                 .Include(s => s.NewAddress)
@@ -249,11 +243,8 @@ public class OrderSplitService : IOrderSplitService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<OrderSplitDto?> GetSplitAsync(Guid splitId, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
         var split = await _context.Set<OrderSplit>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(s => s.OriginalOrder)
             .Include(s => s.SplitOrder)
             .Include(s => s.NewAddress)

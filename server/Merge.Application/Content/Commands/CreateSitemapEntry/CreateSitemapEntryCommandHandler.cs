@@ -10,11 +10,12 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Content;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.SitemapEntry>;
 
 namespace Merge.Application.Content.Commands.CreateSitemapEntry;
 
 public class CreateSitemapEntryCommandHandler(
-    Merge.Application.Interfaces.IRepository<SitemapEntry> sitemapEntryRepository,
+    IRepository sitemapEntryRepository,
     IDbContext context,
     IUnitOfWork unitOfWork,
     ICacheService cache,

@@ -14,20 +14,21 @@ using Merge.Domain.Modules.Inventory;
 using Merge.Domain.Modules.Ordering;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Warehouse>;
 
 
 namespace Merge.Application.Services.Logistics;
 
 public class WarehouseService : IWarehouseService
 {
-    private readonly Merge.Application.Interfaces.IRepository<Warehouse> _warehouseRepository;
+    private readonly IRepository _warehouseRepository;
     private readonly IDbContext _context;
     private readonly IMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<WarehouseService> _logger;
 
     public WarehouseService(
-        Merge.Application.Interfaces.IRepository<Warehouse> warehouseRepository,
+        IRepository warehouseRepository,
         IDbContext context,
         IMapper mapper,
         IUnitOfWork unitOfWork,

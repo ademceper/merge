@@ -14,6 +14,7 @@ using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Inventory;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Inventory.Inventory>;
 
 namespace Merge.Application.Catalog.Commands.AdjustStock;
 
@@ -22,7 +23,7 @@ namespace Merge.Application.Catalog.Commands.AdjustStock;
 public class AdjustStockCommandHandler(
     IDbContext context,
     IUnitOfWork unitOfWork,
-    Merge.Application.Interfaces.IRepository<Inventory> inventoryRepository,
+    IRepository inventoryRepository,
     ICacheService cache,
     IMapper mapper,
     ILogger<AdjustStockCommandHandler> logger) : IRequestHandler<AdjustStockCommand, InventoryDto>
@@ -41,7 +42,6 @@ public class AdjustStockCommandHandler(
         try
         {
             var inventory = await context.Set<Inventory>()
-            .AsSplitQuery()
                 .Include(i => i.Product)
                 .Include(i => i.Warehouse)
                 .FirstOrDefaultAsync(i => i.Id == request.InventoryId, cancellationToken);
@@ -96,7 +96,6 @@ public class AdjustStockCommandHandler(
             // Reload with includes for AutoMapper
             inventory = await context.Set<Inventory>()
                 .AsNoTracking()
-            .AsSplitQuery()
                 .Include(i => i.Product)
                 .Include(i => i.Warehouse)
                 .FirstOrDefaultAsync(i => i.Id == request.InventoryId, cancellationToken);

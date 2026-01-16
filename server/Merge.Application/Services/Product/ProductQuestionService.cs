@@ -65,11 +65,8 @@ public class ProductQuestionService : IProductQuestionService
         await _context.Set<ProductQuestion>().AddAsync(question, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         question = await _context.Set<ProductQuestion>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))
@@ -90,11 +87,8 @@ public class ProductQuestionService : IProductQuestionService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ProductQuestionDto?> GetQuestionAsync(Guid questionId, Guid? userId = null, CancellationToken cancellationToken = default)
     {
-        // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
         var question = await _context.Set<ProductQuestion>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(q => q.Product)
             .Include(q => q.User)
             .Include(q => q.Answers.Where(a => a.IsApproved))

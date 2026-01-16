@@ -10,6 +10,7 @@ using Merge.Application.Content.Queries.GetAllBanners;
 using Merge.Application.Content.Queries.GetActiveBanners;
 using Merge.Application.Content.Commands.CreateBanner;
 using Merge.Application.Content.Commands.UpdateBanner;
+using Merge.Application.Content.Commands.PatchBanner;
 using Merge.Application.Content.Commands.DeleteBanner;
 using Merge.API.Middleware;
 
@@ -188,6 +189,32 @@ public class BannersController(
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var updateCommand = command with { Id = id };
         var banner = await mediator.Send(updateCommand, cancellationToken);
+        return Ok(banner);
+    }
+
+    /// <summary>
+    /// Banner'ı kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(typeof(BannerDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<BannerDto>> Patch(
+        Guid id,
+        [FromBody] PatchBannerDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+        var command = new PatchBannerCommand(id, patchDto);
+        var banner = await mediator.Send(command, cancellationToken);
         return Ok(banner);
     }
 

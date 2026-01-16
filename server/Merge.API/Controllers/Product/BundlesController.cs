@@ -5,6 +5,7 @@ using MediatR;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Product.Commands.CreateProductBundle;
 using Merge.Application.Product.Commands.UpdateProductBundle;
+using Merge.Application.Product.Commands.PatchProductBundle;
 using Merge.Application.Product.Commands.DeleteProductBundle;
 using Merge.Application.Product.Commands.AddProductToBundle;
 using Merge.Application.Product.Commands.RemoveProductFromBundle;
@@ -105,6 +106,33 @@ public class BundlesController(IMediator mediator) : BaseController
         if (validationResult != null) return validationResult;
         var updatedCommand = command with { Id = id };
         var bundle = await mediator.Send(updatedCommand, cancellationToken);
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateProductBundleLinks(Url, bundle.Id, version);
+        return Ok(new { bundle, _links = links });
+    }
+
+    /// <summary>
+    /// Ürün paketini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(typeof(ProductBundleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<ProductBundleDto>> Patch(
+        Guid id,
+        [FromBody] PatchProductBundleDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+        var command = new PatchProductBundleCommand(id, patchDto);
+        var bundle = await mediator.Send(command, cancellationToken);
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
         var links = HateoasHelper.CreateProductBundleLinks(Url, bundle.Id, version);
         return Ok(new { bundle, _links = links });

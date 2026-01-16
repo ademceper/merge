@@ -162,7 +162,6 @@ public class SellerFinanceService : ISellerFinanceService
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
         transaction = await _context.Set<SellerTransaction>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(t => t.Seller)
             .FirstOrDefaultAsync(t => t.Id == transaction.Id, cancellationToken);
 

@@ -12,12 +12,14 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Identity;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using ITwoFactorAuthRepository = Merge.Application.Interfaces.IRepository<TwoFactorAuth>;
+using ITwoFactorCodeRepository = Merge.Application.Interfaces.IRepository<TwoFactorCode>;
 
 namespace Merge.Application.Identity.Commands.Verify2FACode;
 
 public class Verify2FACodeCommandHandler(
-    Merge.Application.Interfaces.IRepository<TwoFactorAuth> twoFactorRepository,
-    Merge.Application.Interfaces.IRepository<TwoFactorCode> codeRepository,
+    ITwoFactorAuthRepository twoFactorRepository,
+    ITwoFactorCodeRepository codeRepository,
     IDbContext context,
     IUnitOfWork unitOfWork,
     IOptions<TwoFactorAuthSettings> twoFactorSettings,

@@ -129,6 +129,36 @@ public class NotificationPreferencesController(
         return Ok(preference);
     }
 
+    /// <summary>
+    /// Bildirim tercihini kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// UpdateNotificationPreferenceDto zaten optional parametreler kullanıyor, direkt kullanılıyor
+    /// </summary>
+    [HttpPatch("{notificationType}/{channel}")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(typeof(NotificationPreferenceDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<NotificationPreferenceDto>> PatchPreference(
+        string notificationType,
+        string channel,
+        [FromBody] UpdateNotificationPreferenceDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Enum.TryParse<NotificationType>(notificationType, true, out var notificationTypeEnum) ||
+            !Enum.TryParse<NotificationChannel>(channel, true, out var channelEnum))
+        {
+            return BadRequest("Geçersiz notification type veya channel.");
+        }
+
+        var userId = GetUserId();
+        var command = new UpdatePreferenceCommand(userId, notificationTypeEnum, channelEnum, dto);
+        var preference = await mediator.Send(command, cancellationToken);
+        return Ok(preference);
+    }
+
     [HttpPost("bulk")]
     [RateLimit(10, 60)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

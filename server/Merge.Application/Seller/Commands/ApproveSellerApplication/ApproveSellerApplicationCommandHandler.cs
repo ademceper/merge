@@ -17,13 +17,14 @@ using Merge.Domain.Modules.Notifications;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Marketplace.SellerApplication>;
 
 namespace Merge.Application.Seller.Commands.ApproveSellerApplication;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 public class ApproveSellerApplicationCommandHandler : IRequestHandler<ApproveSellerApplicationCommand, bool>
 {
-    private readonly Merge.Application.Interfaces.IRepository<SellerApplication> _applicationRepository;
+    private readonly IRepository _applicationRepository;
     private readonly UserManager<UserEntity> _userManager;
     private readonly IDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
@@ -32,7 +33,7 @@ public class ApproveSellerApplicationCommandHandler : IRequestHandler<ApproveSel
     private readonly ILogger<ApproveSellerApplicationCommandHandler> _logger;
 
     public ApproveSellerApplicationCommandHandler(
-        Merge.Application.Interfaces.IRepository<SellerApplication> applicationRepository,
+        IRepository applicationRepository,
         UserManager<UserEntity> userManager,
         IDbContext context,
         IUnitOfWork unitOfWork,

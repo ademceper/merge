@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Modules.Ordering;
+using Order = Merge.Domain.Modules.Ordering.Order;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -30,7 +31,7 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
         _logger.LogInformation("Updating order status. OrderId: {OrderId}, NewStatus: {NewStatus}",
             request.OrderId, request.Status);
 
-        var order = await _context.Set<Merge.Domain.Modules.Ordering.Order>()
+        var order = await _context.Set<Order>()
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
         if (order == null)

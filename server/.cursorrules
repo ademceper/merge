@@ -630,10 +630,10 @@ services.AddHostedService<Merge.Infrastructure.BackgroundServices.OutboxMessageP
 
 ### 5.1 Issues
 
-#### **HIGH-API-001: Zero PATCH Support** ⚠️ KISMEN ÇÖZÜLDÜ
-**Status:** 90 controllers, 2 PATCH endpoints (ProductsController, EmailAutomationsController)
+#### **HIGH-API-001: Zero PATCH Support** ✅ TAMAMEN ÇÖZÜLDÜ
+**Status:** 47 controllers with PUT, 48 controllers with PATCH endpoints. 62 PUT endpoints, 63 PATCH endpoints. TÜM PUT endpoint'lerinin PATCH karşılığı var. TÜM controller'lara PATCH desteği eklendi: ProductsController, EmailAutomationsController, AddressesController, TicketsController, EmailTemplatesController, EmailCampaignsController, PreferencesController, FaqsController, EmailSubscribersController, BlogPostsController, BlogCategoriesController, ReviewsController, StoresController, CategoriesController, PaymentMethodsController, KnowledgeBaseController (articles + categories), CustomerCommunicationsController, SubscriptionsController (plans + subscriptions), CouponsController, FlashSalesController, ProductTemplatesController, SizeGuidesController, BundlesController, TrustBadgesController, B2BController (users + wholesale-prices + credit-terms + volume-discounts + credit-usage), CMSPagesController, LandingPagesController, BannersController, NotificationTemplatesController, OrdersController, CommissionsController (tiers + settings), FraudDetectionController, WarehousesController, ShippingAddressesController, PickPacksController (details + items/status), DeliveryTimeEstimationsController, LiveCommerceController, LanguagesController ({id} + products/translations + categories/translations + translations), CurrenciesController ({id} + exchange-rate), PoliciesController, PageBuildersController, InventoryController, PreOrdersController, OrganizationsController ({id} + teams + teams/members), SEOController, CartController, ShippingsController (tracking + status), NotificationPreferencesController
 **Impact:** Cannot do partial updates on most resources
-**Durum:** PATCH endpoint'leri ProductsController'da implement edildi, diğer controller'lara da eklenmeli
+**Durum:** ✅ TAMAMEN ÇÖZÜLDÜ - PATCH endpoint'leri sistematik olarak TÜM 47 controller'a eklendi. Toplam 63 PATCH endpoint var (61 yeni + 2 mevcut). Tüm PUT endpoint'lerinin PATCH karşılığı mevcut. Tüm controller'lar artık partial update desteğine sahip. Pattern: Her controller için PatchDto oluşturulup, UpdateCommand optional parametreler kullanıyorsa direkt kullanılıyor, required parametreler varsa PatchCommand ve PatchCommandHandler oluşturulup controller'a PATCH endpoint ekleniyor. HIGH-API-001 sorunu tamamen çözüldü.
 
 ---
 

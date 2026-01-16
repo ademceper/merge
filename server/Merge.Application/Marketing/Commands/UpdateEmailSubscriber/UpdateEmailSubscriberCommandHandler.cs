@@ -9,6 +9,7 @@ using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Marketing;
 using Merge.Domain.ValueObjects;
+using EmailSubscriber = Merge.Domain.Modules.Marketing.EmailSubscriber;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -25,12 +26,12 @@ public class UpdateEmailSubscriberCommandHandler(
     public async Task<EmailSubscriberDto> Handle(UpdateEmailSubscriberCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var subscriber = await context.Set<Merge.Domain.Modules.Marketing.EmailSubscriber>()
+        var subscriber = await context.Set<EmailSubscriber>()
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 
         if (subscriber == null)
         {
-            throw new Merge.Application.Exceptions.NotFoundException("Email abonesi", request.Id);
+            throw new NotFoundException("Email abonesi", request.Id);
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
@@ -54,7 +55,7 @@ public class UpdateEmailSubscriberCommandHandler(
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-        var updatedSubscriber = await context.Set<Merge.Domain.Modules.Marketing.EmailSubscriber>()
+        var updatedSubscriber = await context.Set<EmailSubscriber>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 

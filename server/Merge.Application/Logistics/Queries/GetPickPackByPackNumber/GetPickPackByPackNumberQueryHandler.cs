@@ -27,12 +27,8 @@ public class GetPickPackByPackNumberQueryHandler(
     {
         logger.LogInformation("Getting pick-pack by pack number. PackNumber: {PackNumber}", request.PackNumber);
 
-        // ✅ PERFORMANCE: AsNoTracking (read-only query)
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için cartesian explosion önleme
-        // ✅ PERFORMANCE: Include ile N+1 önlenir
         var pickPack = await context.Set<PickPack>()
             .AsNoTracking()
-            .AsSplitQuery() // ✅ BOLUM 8.1.4: Query Splitting (AsSplitQuery) - Cartesian explosion önleme
             .Include(pp => pp.Order)
             .Include(pp => pp.Warehouse)
             .Include(pp => pp.PickedBy)

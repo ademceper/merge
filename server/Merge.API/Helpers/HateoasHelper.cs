@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json.Serialization;
+using Merge.Application.DTOs.Search;
 
 namespace Merge.API.Helpers;
 
@@ -340,7 +341,7 @@ public static class HateoasHelper
     /// <summary>
     /// Adds HATEOAS links to SearchResultDto
     /// </summary>
-    public static object AddSearchLinks(Merge.Application.DTOs.Search.SearchResultDto result, Microsoft.AspNetCore.Http.HttpRequest request)
+    public static object AddSearchLinks(SearchResultDto result, Microsoft.AspNetCore.Http.HttpRequest request)
     {
         var version = request.RouteValues["version"]?.ToString() ?? "1.0";
         var baseUrl = $"{request.Scheme}://{request.Host}/api/v{version}/search";

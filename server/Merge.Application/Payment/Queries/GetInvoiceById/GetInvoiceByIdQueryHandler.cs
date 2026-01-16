@@ -37,11 +37,8 @@ public class GetInvoiceByIdQueryHandler : IRequestHandler<GetInvoiceByIdQuery, I
     {
         _logger.LogInformation("Retrieving invoice. InvoiceId: {InvoiceId}", request.InvoiceId);
 
-        // ✅ PERFORMANCE: AsNoTracking for read-only query
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var invoice = await _context.Set<Invoice>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(i => i.Order)
                 .ThenInclude(o => o.Address)
             .Include(i => i.Order)

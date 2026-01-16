@@ -12,13 +12,14 @@ using Merge.Domain.Modules.Content;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.LandingPage>;
 
 namespace Merge.Application.Content.Commands.CreateLandingPage;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateLandingPageCommandHandler(
-    Merge.Application.Interfaces.IRepository<LandingPage> landingPageRepository,
+    IRepository landingPageRepository,
     IDbContext context,
     IUnitOfWork unitOfWork,
     ICacheService cache,
@@ -121,7 +122,6 @@ public class CreateLandingPageCommandHandler(
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             var reloadedPage = await context.Set<LandingPage>()
                 .AsNoTracking()
-                .AsSplitQuery()
                 .Include(lp => lp.Author)
                 .Include(lp => lp.VariantOf)
                 .FirstOrDefaultAsync(lp => lp.Id == landingPage.Id, cancellationToken);

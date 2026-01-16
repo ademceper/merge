@@ -10,6 +10,7 @@ using Merge.Application.Marketing.Queries.GetAllFlashSales;
 using Merge.Application.Marketing.Queries.GetFlashSaleById;
 using Merge.Application.Marketing.Commands.CreateFlashSale;
 using Merge.Application.Marketing.Commands.UpdateFlashSale;
+using Merge.Application.Marketing.Commands.PatchFlashSale;
 using Merge.Application.Marketing.Commands.DeleteFlashSale;
 using Merge.Application.Marketing.Commands.AddProductToFlashSale;
 using Merge.Application.Marketing.Commands.RemoveProductFromFlashSale;
@@ -130,6 +131,29 @@ public class FlashSalesController(
             dto.IsActive,
             dto.BannerImageUrl);
         
+        var sale = await mediator.Send(command, cancellationToken);
+        return Ok(sale);
+    }
+
+    /// <summary>
+    /// Flash sale'i kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin")]
+    [RateLimit(20, 60)]
+    [ProducesResponseType(typeof(FlashSaleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<FlashSaleDto>> Patch(
+        Guid id,
+        [FromBody] PatchFlashSaleDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new PatchFlashSaleCommand(id, patchDto);
         var sale = await mediator.Send(command, cancellationToken);
         return Ok(sale);
     }

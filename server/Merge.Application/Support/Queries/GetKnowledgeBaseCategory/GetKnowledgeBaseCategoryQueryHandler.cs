@@ -27,11 +27,8 @@ public class GetKnowledgeBaseCategoryQueryHandler : IRequestHandler<GetKnowledge
 
     public async Task<KnowledgeBaseCategoryDto?> Handle(GetKnowledgeBaseCategoryQuery request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
-        // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
         var category = await _context.Set<KnowledgeBaseCategory>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(c => c.ParentCategory)
             .Include(c => c.SubCategories)
             .FirstOrDefaultAsync(c => c.Id == request.CategoryId, cancellationToken);

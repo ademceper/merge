@@ -35,10 +35,8 @@ public class GetUserSellerApplicationQueryHandler : IRequestHandler<GetUserSelle
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation("Getting user seller application. UserId: {UserId}", request.UserId);
 
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var application = await _context.Set<SellerApplication>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(a => a.User)
             .Include(a => a.Reviewer)
             .Where(a => a.UserId == request.UserId)

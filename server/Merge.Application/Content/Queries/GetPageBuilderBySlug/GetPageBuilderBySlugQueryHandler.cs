@@ -11,12 +11,13 @@ using Merge.Domain.Modules.Content;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.PageBuilder>;
 
 namespace Merge.Application.Content.Queries.GetPageBuilderBySlug;
 
 public class GetPageBuilderBySlugQueryHandler(
     IDbContext context,
-    Merge.Application.Interfaces.IRepository<PageBuilder> pageBuilderRepository,
+    IRepository pageBuilderRepository,
     IUnitOfWork unitOfWork,
     IMapper mapper,
     ILogger<GetPageBuilderBySlugQueryHandler> logger,
@@ -42,7 +43,6 @@ public class GetPageBuilderBySlugQueryHandler(
 
         var pageBuilder = request.TrackView
             ? await context.Set<PageBuilder>()
-            .AsSplitQuery()
                 .Include(pb => pb.Author)
                 .FirstOrDefaultAsync(pb => pb.Slug == request.Slug && pb.Status == ContentStatus.Published, cancellationToken)
             : await context.Set<PageBuilder>()

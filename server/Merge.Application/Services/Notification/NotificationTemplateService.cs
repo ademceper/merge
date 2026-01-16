@@ -7,6 +7,7 @@ using Merge.Application.Interfaces;
 using Merge.Application.Interfaces.Notification;
 using Merge.Application.Exceptions;
 using Merge.Application.Notification.Commands.CreateNotification;
+using CreateNotificationCommand = Merge.Application.Notification.Commands.CreateNotification.CreateNotificationCommand;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
 using System.Text.Json;

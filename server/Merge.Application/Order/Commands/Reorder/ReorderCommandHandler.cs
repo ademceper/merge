@@ -5,6 +5,7 @@ using Merge.Application.DTOs.Order;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Application.Order.Commands.CreateOrderFromCart;
+using Merge.Application.Cart.Commands.AddItemToCart;
 using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
@@ -35,10 +36,8 @@ public class ReorderCommandHandler : IRequestHandler<ReorderCommand, OrderDto>
 
     public async Task<OrderDto> Handle(ReorderCommand request, CancellationToken cancellationToken)
     {
-        // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
         var originalOrder = await _context.Set<OrderEntity>()
             .AsNoTracking()
-            .AsSplitQuery()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .Include(o => o.Address)
@@ -60,7 +59,7 @@ public class ReorderCommandHandler : IRequestHandler<ReorderCommand, OrderDto>
                 try
                 {
                     // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-                    await _mediator.Send(new Merge.Application.Cart.Commands.AddItemToCart.AddItemToCartCommand(request.UserId, orderItem.ProductId, orderItem.Quantity), cancellationToken);
+                    await _mediator.Send(new AddItemToCartCommand(request.UserId, orderItem.ProductId, orderItem.Quantity), cancellationToken);
                     addedItems++;
                 }
                 catch (Exception ex)

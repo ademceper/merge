@@ -13,13 +13,14 @@ using Merge.Domain.Modules.Content;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.CMSPage>;
 
 namespace Merge.Application.Content.Commands.CreateCMSPage;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
 public class CreateCMSPageCommandHandler(
-    Merge.Application.Interfaces.IRepository<CMSPage> cmsPageRepository,
+    IRepository cmsPageRepository,
     IDbContext context,
     IUnitOfWork unitOfWork,
     ICacheService cache,
@@ -81,7 +82,6 @@ public class CreateCMSPageCommandHandler(
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
             var reloadedPage = await context.Set<CMSPage>()
                 .AsNoTracking()
-                .AsSplitQuery()
                 .Include(p => p.Author)
                 .Include(p => p.ParentPage)
                 .FirstOrDefaultAsync(p => p.Id == page.Id, cancellationToken);
