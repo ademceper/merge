@@ -5,6 +5,7 @@ using Merge.Domain.SharedKernel.DomainEvents;
 using Merge.Domain.Exceptions;
 using Merge.Domain.ValueObjects;
 using Merge.Domain.Modules.Identity;
+using Address = Merge.Domain.ValueObjects.Address;
 using Merge.Domain.Modules.Catalog;
 
 namespace Merge.Domain.Modules.Marketplace;

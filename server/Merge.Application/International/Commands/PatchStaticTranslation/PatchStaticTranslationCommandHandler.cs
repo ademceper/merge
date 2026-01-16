@@ -3,11 +3,9 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.DTOs.International;
-using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
-using Merge.Domain.Entities;
-using Merge.Domain.Interfaces;
-using Merge.Domain.Modules.Catalog;
+using Merge.Domain.Modules.Content;
+using Merge.Application.International.Commands.UpdateStaticTranslation;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 

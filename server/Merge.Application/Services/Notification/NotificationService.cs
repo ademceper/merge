@@ -14,7 +14,7 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Notifications;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
-using IRepository = Merge.Application.Interfaces.IRepository<NotificationEntity>;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Notifications.Notification>;
 
 
 namespace Merge.Application.Services.Notification;

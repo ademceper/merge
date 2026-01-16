@@ -13,7 +13,7 @@ using Merge.Domain.Modules.Marketing;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
-using IRepository = Merge.Application.Interfaces.IRepository<EmailVerification>;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Marketing.EmailVerification>;
 
 namespace Merge.Application.Identity.Commands.VerifyEmail;
 

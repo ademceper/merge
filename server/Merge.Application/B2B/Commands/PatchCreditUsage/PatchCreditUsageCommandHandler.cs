@@ -1,12 +1,6 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Merge.Application.DTOs.B2B;
-using Merge.Application.Interfaces;
-using Merge.Application.Exceptions;
-using Merge.Domain.Entities;
-using Merge.Domain.Interfaces;
-using Merge.Domain.Modules.Marketplace;
+using Merge.Application.B2B.Commands.UpdateCreditUsage;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 

@@ -9,6 +9,8 @@ using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Marketing;
 using Merge.Domain.Modules.Payment;
+using Address = Merge.Domain.Modules.Identity.Address;
+using PaymentEntity = Merge.Domain.Modules.Payment.Payment;
 
 namespace Merge.Domain.Modules.Ordering;
 
@@ -141,9 +143,9 @@ public class Order : BaseEntity, IAggregateRoot
 
     // Navigation properties
     public User User { get; private set; } = null!;
-    public Merge.Domain.Modules.Identity.Address Address { get; private set; } = null!; 
+    public Address Address { get; private set; } = null!; 
     public Coupon? Coupon { get; private set; }
-    public Merge.Domain.Modules.Payment.Payment? Payment { get; private set; }
+    public PaymentEntity? Payment { get; private set; }
     public Shipping? Shipping { get; private set; }
     public ICollection<ReturnRequest> ReturnRequests { get; private set; } = new List<ReturnRequest>();
     public Invoice? Invoice { get; private set; }
@@ -157,7 +159,7 @@ public class Order : BaseEntity, IAggregateRoot
     private Order() { }
 
     // ✅ BOLUM 1.1: Factory Method with validation
-    public static Order Create(Guid userId, Guid addressId, Merge.Domain.Modules.Identity.Address address)
+    public static Order Create(Guid userId, Guid addressId, Address address)
     {
         Guard.AgainstDefault(userId, nameof(userId));
         Guard.AgainstDefault(addressId, nameof(addressId));

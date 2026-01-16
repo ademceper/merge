@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using MediatR;
 using Merge.Application.DTOs.Marketing;
+using Merge.Application.DTOs.Content;
 using Merge.Application.Common;
 using Merge.Application.Configuration;
 using Merge.Application.Content.Queries.GetBannerById;

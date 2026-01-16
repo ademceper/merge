@@ -166,7 +166,7 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
             articles.Page,
             articles.PageSize,
             articles.TotalPages,
-            new { query = searchDto.Query, categoryId = searchDto.CategoryId, featuredOnly = searchDto.FeaturedOnly },
+            new { query, categoryId, featuredOnly },
             version);
         articles.Items = updatedItems;
         articles.Links = paginationLinks.ToDictionary(kvp => kvp.Key, kvp => (object)kvp.Value);

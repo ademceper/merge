@@ -25,9 +25,9 @@ using Merge.Domain.Modules.Ordering;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
-using ISellerProfileRepository = Merge.Application.Interfaces.IRepository<SellerProfile>;
-using IProductRepository = Merge.Application.Interfaces.IRepository<ProductEntity>;
-using IOrderRepository = Merge.Application.Interfaces.IRepository<OrderEntity>;
+using ISellerProfileRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Marketplace.SellerProfile>;
+using IProductRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.Product>;
+using IOrderRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Ordering.Order>;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
 // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)

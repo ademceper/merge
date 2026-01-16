@@ -1,3 +1,5 @@
+using Merge.Application.DTOs.Content;
+
 namespace Merge.Application.DTOs.ML;
 
 /// <summary>

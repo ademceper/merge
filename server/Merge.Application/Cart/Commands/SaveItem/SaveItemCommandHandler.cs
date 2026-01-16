@@ -9,7 +9,8 @@ using AutoMapper;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Ordering;
-using Product = Merge.Domain.Modules.Catalog.Product;
+using Merge.Domain.ValueObjects;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -27,7 +28,7 @@ public class SaveItemCommandHandler(
     public async Task<SavedCartItemDto> Handle(SaveItemCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only product query
-        var product = await context.Set<Product>()
+        var product = await context.Set<ProductEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
         

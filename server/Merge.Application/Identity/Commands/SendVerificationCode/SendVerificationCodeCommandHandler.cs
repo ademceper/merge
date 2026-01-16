@@ -15,7 +15,7 @@ using Merge.Domain.Modules.Notifications;
 using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
-using IRepository = Merge.Application.Interfaces.IRepository<TwoFactorCode>;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Identity.TwoFactorCode>;
 
 namespace Merge.Application.Identity.Commands.SendVerificationCode;
 

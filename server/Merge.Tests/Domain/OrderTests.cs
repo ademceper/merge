@@ -2,9 +2,8 @@ using FluentAssertions;
 
 using Merge.Domain.Enums;
 using Merge.Domain.Exceptions;
-using Merge.Domain.ValueObjects;
-
 using Merge.Domain.Modules.Identity;
+using AddressEntity = Merge.Domain.Modules.Identity.Address;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Ordering;
 using Merge.Domain.SharedKernel;
@@ -20,7 +19,7 @@ public class OrderTests
         // Arrange
         var userId = Guid.NewGuid();
         var addressId = Guid.NewGuid();
-        var address = Address.Create(
+        var address = AddressEntity.Create(
             userId: userId,
             title: "Home",
             firstName: "Test",
@@ -48,7 +47,7 @@ public class OrderTests
     {
         // Arrange
         var addressId = Guid.NewGuid();
-        var address = Address.Create(
+        var address = AddressEntity.Create(
             userId: Guid.NewGuid(),
             title: "Home",
             firstName: "Test",
@@ -65,8 +64,8 @@ public class OrderTests
         var product = Product.Create(
             name: "Test Product",
             description: "Test Description",
-            sku: new SKU("TEST-001"),
-            price: new Money(100),
+            sku: new Merge.Domain.ValueObjects.SKU("TEST-001"),
+            price: new Merge.Domain.ValueObjects.Money(100),
             stockQuantity: 10,
             categoryId: Guid.NewGuid(),
             brand: "Test Brand");
@@ -88,7 +87,7 @@ public class OrderTests
     {
         // Arrange
         var addressId = Guid.NewGuid();
-        var address = Address.Create(
+        var address = AddressEntity.Create(
             userId: Guid.NewGuid(),
             title: "Home",
             firstName: "Test",

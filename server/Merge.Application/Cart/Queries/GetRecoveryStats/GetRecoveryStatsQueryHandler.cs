@@ -7,10 +7,9 @@ using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Marketing;
 using Merge.Domain.Modules.Ordering;
-using Cart = Merge.Domain.Modules.Ordering.Cart;
-using Order = Merge.Domain.Modules.Ordering.Order;
+using CartEntity = Merge.Domain.Modules.Ordering.Cart;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
-using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Queries.GetRecoveryStats;
 
@@ -29,7 +28,7 @@ public class GetRecoveryStatsQueryHandler(
 
         // ✅ PERFORMANCE: Database'de Count ve Sum yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted check (Global Query Filter handles it)
-        var abandonedCartIds = await context.Set<Cart>()
+        var abandonedCartIds = await context.Set<CartEntity>()
             .AsNoTracking()
             .Where(c => c.CartItems.Any() &&
                        c.UpdatedAt >= minDate &&
@@ -38,21 +37,21 @@ public class GetRecoveryStatsQueryHandler(
             .ToListAsync(cancellationToken);
 
         // Filter out carts that have been converted to orders
-        var abandonedCartUserIds = await context.Set<Cart>()
+        var abandonedCartUserIds = await context.Set<CartEntity>()
             .AsNoTracking()
             .Where(c => abandonedCartIds.Contains(c.Id))
             .Select(c => c.UserId)
             .Distinct()
             .ToListAsync(cancellationToken);
 
-        var userIdsWithOrders = await context.Set<Order>()
+        var userIdsWithOrders = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => abandonedCartUserIds.Contains(o.UserId))
             .Select(o => o.UserId)
             .Distinct()
             .ToListAsync(cancellationToken);
 
-        var finalAbandonedCartIds = await context.Set<Cart>()
+        var finalAbandonedCartIds = await context.Set<CartEntity>()
             .AsNoTracking()
             .Where(c => abandonedCartIds.Contains(c.Id) && 
                        !userIdsWithOrders.Contains(c.UserId))
@@ -91,7 +90,7 @@ public class GetRecoveryStatsQueryHandler(
             .CountAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de Sum yap (memory'de işlem YASAK)
-        var recoveredRevenue = await context.Set<Order>()
+        var recoveredRevenue = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.CreatedAt >= startDate)
             .Join(

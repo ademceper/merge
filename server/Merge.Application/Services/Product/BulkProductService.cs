@@ -19,7 +19,7 @@ using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Identity;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
-using IRepository = Merge.Application.Interfaces.IRepository<ProductEntity>;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.Product>;
 
 
 namespace Merge.Application.Services.Product;

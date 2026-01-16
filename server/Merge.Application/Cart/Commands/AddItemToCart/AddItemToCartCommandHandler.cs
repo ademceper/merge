@@ -13,9 +13,10 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Ordering;
 using Merge.Domain.Modules.Identity;
-using Product = Merge.Domain.Modules.Catalog.Product;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Cart.Commands.AddItemToCart;
 
@@ -68,7 +69,7 @@ public class AddItemToCartCommandHandler(
             }
 
             // ✅ PERFORMANCE: AsNoTracking for read-only product query
-            var product = await context.Set<Product>()
+            var product = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
             

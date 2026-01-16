@@ -4,7 +4,7 @@ using AutoMapper;
 using Merge.Application.DTOs.Order;
 using Merge.Application.Interfaces;
 using Merge.Domain.Modules.Ordering;
-using Order = Merge.Domain.Modules.Ordering.Order;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 
 namespace Merge.Application.Order.Queries.GetOrderById;
@@ -22,7 +22,7 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
 
     public async Task<OrderDto?> Handle(GetOrderByIdQuery request, CancellationToken cancellationToken)
     {
-        var order = await _context.Set<Order>()
+        var order = await _context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)

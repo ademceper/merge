@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Merge.Domain.Modules.Inventory;
+using InventoryEntity = Merge.Domain.Modules.Inventory.Inventory;
 
 namespace Merge.Infrastructure.Data.Configurations.Inventory;
 
-public class InventoryConfiguration : IEntityTypeConfiguration<Merge.Domain.Modules.Inventory.Inventory>
+public class InventoryConfiguration : IEntityTypeConfiguration<InventoryEntity>
 {
-    public void Configure(EntityTypeBuilder<Merge.Domain.Modules.Inventory.Inventory> builder)
+    public void Configure(EntityTypeBuilder<InventoryEntity> builder)
     {
         builder.HasKey(e => e.Id);
         builder.Property(e => e.UnitCost).HasPrecision(18, 2);

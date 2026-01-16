@@ -1,5 +1,6 @@
 using MediatR;
 using Merge.Application.DTOs.Content;
+using Merge.Application.DTOs.Marketing;
 
 namespace Merge.Application.Content.Commands.PatchBanner;
 

@@ -8,9 +8,10 @@ using Merge.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
+using ProductBundle = Merge.Domain.Modules.Catalog.ProductBundle;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
-using IRepository = Merge.Application.Interfaces.IRepository<ProductBundle>;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.ProductBundle>;
 
 namespace Merge.Application.Product.Commands.UpdateProductBundle;
 

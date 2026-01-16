@@ -6,6 +6,8 @@ using Merge.Application.Product.Queries.GetProductById;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
+using IProductRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.Product>;
 
 namespace Merge.Application.Product.Commands.PatchProduct;
 
@@ -92,7 +94,7 @@ public class PatchProductCommandHandler(
             if (request.PatchDto.ImageUrl != null || request.PatchDto.ImageUrls != null)
             {
                 var imageUrl = request.PatchDto.ImageUrl ?? product.ImageUrl;
-                var imageUrls = request.PatchDto.ImageUrls ?? product.ImageUrls;
+                var imageUrls = request.PatchDto.ImageUrls?.ToList() ?? product.ImageUrls.ToList();
                 product.UpdateImages(imageUrl, imageUrls);
             }
 

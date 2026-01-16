@@ -1,20 +1,13 @@
 using AutoMapper;
-using UserEntity = Merge.Domain.Modules.Identity.User;
 using Microsoft.EntityFrameworkCore;
 using Merge.Application.Interfaces.User;
 using Merge.Application.Exceptions;
-using Merge.Domain.Entities;
-using Merge.Application.Interfaces;
 using Merge.Application.DTOs.User;
 using Microsoft.Extensions.Logging;
-using Merge.Domain.Interfaces;
-using Merge.Domain.Modules.Identity;
-using Merge.Domain.ValueObjects;
+using AddressEntity = Merge.Domain.Modules.Identity.Address;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
-using Address = Merge.Domain.Modules.Identity.Address;
-using AddressEntity = Merge.Domain.Modules.Identity.Address;
-using IRepository = Merge.Application.Interfaces.IRepository<AddressEntity>;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Identity.Address>;
 
 
 namespace Merge.Application.Services.User;
@@ -116,7 +109,7 @@ public class AddressService : IAddressService
         }
 
         // ✅ BOLUM 11.0: Rich Domain Model - Factory method kullan
-        var address = Address.Create(
+        var address = AddressEntity.Create(
             userId: dto.UserId,
             title: dto.Title ?? string.Empty,
             firstName: dto.FirstName,

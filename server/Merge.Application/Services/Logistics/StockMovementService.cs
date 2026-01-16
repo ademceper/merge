@@ -16,7 +16,7 @@ using Merge.Domain.Modules.Inventory;
 using Merge.Domain.Modules.Ordering;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
-using IRepository = Merge.Application.Interfaces.IRepository<StockMovement>;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Inventory.StockMovement>;
 
 
 namespace Merge.Application.Services.Logistics;

@@ -2,12 +2,12 @@ using MediatR;
 using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Merge.Application.DTOs.Content;
+using Merge.Application.DTOs.Marketing;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
-using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Content;
-using IRepository = Merge.Application.Interfaces.IRepository;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Content.Banner>;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Content.Commands.PatchBanner;
@@ -17,7 +17,7 @@ namespace Merge.Application.Content.Commands.PatchBanner;
 /// HIGH-API-001: PATCH Support - Partial updates implementation
 /// </summary>
 public class PatchBannerCommandHandler(
-    IRepository<Banner> bannerRepository,
+    IRepository bannerRepository,
     IUnitOfWork unitOfWork,
     IMapper mapper,
     ILogger<PatchBannerCommandHandler> logger) : IRequestHandler<PatchBannerCommand, BannerDto>

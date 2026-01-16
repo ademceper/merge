@@ -20,8 +20,8 @@ using Merge.Domain.Modules.Notifications;
 using Merge.Domain.Modules.Ordering;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
-using IShippingRepository = Merge.Application.Interfaces.IRepository<Shipping>;
-using IOrderRepository = Merge.Application.Interfaces.IRepository<OrderEntity>;
+using IShippingRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Ordering.Shipping>;
+using IOrderRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Ordering.Order>;
 
 
 namespace Merge.Application.Services.Logistics;

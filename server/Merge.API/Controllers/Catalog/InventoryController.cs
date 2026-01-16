@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
 using Merge.Application.DTOs.Logistics;
+using Merge.Application.DTOs.Catalog;
 using Merge.Application.Common;
 using Merge.API.Middleware;
 using Merge.Application.Catalog.Queries.GetInventoryById;

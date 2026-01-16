@@ -3,15 +3,14 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Microsoft.EntityFrameworkCore;
-using ProductEntity = Merge.Domain.Modules.Catalog.Product;
-using OrderItemEntity = Merge.Domain.Modules.Ordering.OrderItem;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Marketplace;
 using Merge.Domain.Modules.Ordering;
+using OrderItemEntity = Merge.Domain.Modules.Ordering.OrderItem;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
-using IRepository = Merge.Application.Interfaces.IRepository<ProductEntity>;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.Product>;
 
 namespace Merge.Application.Product.Commands.DeleteProduct;
 

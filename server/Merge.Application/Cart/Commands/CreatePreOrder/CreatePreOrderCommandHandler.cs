@@ -11,7 +11,8 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Marketing;
 using Merge.Domain.Modules.Ordering;
-using Product = Merge.Domain.Modules.Catalog.Product;
+using Merge.Domain.ValueObjects;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
@@ -31,7 +32,7 @@ public class CreatePreOrderCommandHandler(
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var product = await context.Set<Product>()
+            var product = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 

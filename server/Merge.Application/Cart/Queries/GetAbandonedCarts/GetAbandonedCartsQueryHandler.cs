@@ -14,10 +14,9 @@ using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Marketing;
 using Merge.Domain.Modules.Ordering;
 using Merge.Domain.ValueObjects;
-using Cart = Merge.Domain.Modules.Ordering.Cart;
-using Order = Merge.Domain.Modules.Ordering.Order;
+using CartEntity = Merge.Domain.Modules.Ordering.Cart;
+using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
-using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Cart.Queries.GetAbandonedCarts;
 
@@ -44,24 +43,29 @@ public class GetAbandonedCartsQueryHandler(
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         // Step 1-4: Get final abandoned cart IDs using subqueries (no materialization)
-        var abandonedCartsQuery = context.Set<Cart>()
+        var abandonedCartsQuery = context.Set<CartEntity>()
             .AsNoTracking()
             .Where(c => c.CartItems.Any() &&
                        c.UpdatedAt >= minDate &&
                        c.UpdatedAt <= maxDate);
 
-        // Get user IDs for abandoned carts (subquery)
-        var userIdsQuery = from c in abandonedCartsQuery
-                          select c.UserId;
+        // Get user IDs for abandoned carts (materialize for Contains)
+        var userIds = await (from c in abandonedCartsQuery
+                          select c.UserId)
+                          .Distinct()
+                          .ToListAsync(cancellationToken);
 
-        // Filter out carts that have been converted to orders (subquery)
-        var userIdsWithOrdersQuery = from o in context.Set<Order>().AsNoTracking()
-                                     where userIdsQuery.Contains(o.UserId)
-                                     select o.UserId;
+        // Filter out carts that have been converted to orders
+        var userIdsWithOrders = await context.Set<OrderEntity>()
+            .AsNoTracking()
+            .Where(o => userIds.Contains(o.UserId))
+            .Select(o => o.UserId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
 
-        // Get final abandoned cart IDs (excluding those converted to orders) - subquery
+        // Get final abandoned cart IDs (excluding those converted to orders)
         var finalAbandonedCartIdsQuery = from c in abandonedCartsQuery
-                                         where !userIdsWithOrdersQuery.Contains(c.UserId)
+                                         where !userIdsWithOrders.Contains(c.UserId)
                                          select c.Id;
 
         // Check if any abandoned carts exist
@@ -93,7 +97,7 @@ public class GetAbandonedCartsQueryHandler(
 
         // Step 5: Get cart data with computed properties from database (subquery ile pagination)
         var cartsDataQuery = (
-            from c in context.Set<Cart>().AsNoTracking()
+            from c in context.Set<CartEntity>().AsNoTracking()
             where finalAbandonedCartIdsQuery.Contains(c.Id)
             select new
             {
@@ -117,10 +121,10 @@ public class GetAbandonedCartsQueryHandler(
         var cartsData = await cartsDataQuery.ToListAsync(cancellationToken);
 
         // Step 6: Get email stats for all carts in one query (database'de GroupBy) - subquery ile
-        var paginatedCartIdsSubquery = from c in cartsDataQuery select c.CartId;
+        var paginatedCartIds = await (from c in cartsDataQuery select c.CartId).ToListAsync(cancellationToken);
         var emailStats = await context.Set<AbandonedCartEmail>()
             .AsNoTracking()
-            .Where(e => paginatedCartIdsSubquery.Contains(e.CartId))
+            .Where(e => paginatedCartIds.Contains(e.CartId))
             .GroupBy(e => e.CartId)
             .Select(g => new
             {
@@ -143,7 +147,7 @@ public class GetAbandonedCartsQueryHandler(
         var cartItems = await context.Set<CartItem>()
             .AsNoTracking()
             .Include(ci => ci.Product)
-            .Where(ci => paginatedCartIdsSubquery.Contains(ci.CartId))
+            .Where(ci => paginatedCartIds.Contains(ci.CartId))
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Dictionary oluşturma minimal bir işlem (O(1) lookup için gerekli)

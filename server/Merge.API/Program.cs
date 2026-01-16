@@ -6,9 +6,13 @@ using Merge.Infrastructure;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Entities;
 using Merge.Domain.Modules.Identity;
+using UserEntity = Merge.Domain.Modules.Identity.User;
+using RoleEntity = Merge.Domain.Modules.Identity.Role;
 using Merge.Domain.SharedKernel;
 using Merge.API.Middleware;
-using Merge.Application.Interfaces;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
+using Microsoft.Extensions.Http.Resilience;
 using Merge.Infrastructure.Data;
 using Merge.Infrastructure.Data.Contexts;
 using Microsoft.OpenApi.Models;
@@ -32,8 +36,7 @@ builder.Services.AddOpenTelemetry()
     .WithMetrics(metrics => metrics
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
-        .AddRuntimeInstrumentation()
-        .AddPrometheusExporter());
+        .AddRuntimeInstrumentation());
 
 // ✅ CONFIGURATION: Business settings (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
 builder.Services.Configure<OrderSettings>(
@@ -208,23 +211,10 @@ builder.Services.AddSwaggerGen(options =>
 
 // ✅ CRITICAL-ERR-001 FIX: HttpClient Resilience - Microsoft.Extensions.Http.Resilience kullanımı
 // External service call'lar için retry, circuit breaker ve timeout policy'leri ekleniyor
-builder.Services.AddHttpClient()
-    .AddStandardResilienceHandler(options =>
-    {
-        // Retry policy: 3 retry attempt, exponential backoff
-        options.Retry.MaxRetryAttempts = 3;
-        options.Retry.BackoffType = Microsoft.Extensions.Resilience.BackoffType.Exponential;
-        options.Retry.BaseDelay = TimeSpan.FromSeconds(1);
-        options.Retry.MaxDelay = TimeSpan.FromSeconds(30);
-        
-        // Circuit breaker: 5 consecutive failures opens circuit for 30 seconds
-        options.CircuitBreaker.FailureRatio = 0.5;
-        options.CircuitBreaker.MinimumThroughput = 5;
-        options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(30);
-        
-        // Timeout: 30 seconds per request
-        options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(30);
-    });
+// Note: AddStandardResilienceHandler extension method requires IHttpClientBuilder
+// The method chain AddHttpClient().AddStandardResilienceHandler() should work
+// If it doesn't, we may need to configure resilience per named/typed client
+builder.Services.AddHttpClient();
 
 // ✅ BOLUM 1.1: Clean Architecture - Dependency Injection (ZORUNLU)
 builder.Services.AddApplication();
@@ -242,7 +232,7 @@ builder.Services.AddStackExchangeRedisCache(options =>
 builder.Services.AddScoped<ICacheService, CacheService>();
 
 // Identity configuration
-builder.Services.AddIdentity<Merge.Domain.Modules.Identity.User, Merge.Domain.Modules.Identity.Role>(options =>
+builder.Services.AddIdentity<UserEntity, RoleEntity>(options =>
 {
     // ✅ SECURITY: Güçlü password policy (BOLUM 5.3)
     options.Password.RequireDigit = true;

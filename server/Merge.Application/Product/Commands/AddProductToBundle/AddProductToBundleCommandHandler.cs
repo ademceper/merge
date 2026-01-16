@@ -4,14 +4,14 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
+using BundleItem = Merge.Domain.Modules.Catalog.BundleItem;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
-using IBundleRepository = Merge.Application.Interfaces.IRepository<ProductBundle>;
-using IBundleItemRepository = Merge.Application.Interfaces.IRepository<BundleItem>;
-using IProductRepository = Merge.Application.Interfaces.IRepository<ProductEntity>;
+using IBundleRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.ProductBundle>;
+using IBundleItemRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.BundleItem>;
+using IProductRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.Product>;
 
 namespace Merge.Application.Product.Commands.AddProductToBundle;
 

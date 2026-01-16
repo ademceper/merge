@@ -43,7 +43,7 @@ public class PatchShippingStatusCommandHandler(
             {
                 throw new BusinessException("Geçersiz kargo durumu.");
             }
-            shipping.UpdateStatus(statusEnum);
+            shipping.TransitionTo(statusEnum);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

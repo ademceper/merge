@@ -7,6 +7,7 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Merge.Domain.Enums;
+using Merge.Domain.ValueObjects;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
 using OrderEntity = Merge.Domain.Modules.Ordering.Order;

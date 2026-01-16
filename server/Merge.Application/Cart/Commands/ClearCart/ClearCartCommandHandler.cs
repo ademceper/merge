@@ -5,7 +5,7 @@ using Merge.Application.Interfaces;
 using Merge.Domain.Entities;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Ordering;
-using Cart = Merge.Domain.Modules.Ordering.Cart;
+using CartEntity = Merge.Domain.Modules.Ordering.Cart;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using Merge.Domain.SharedKernel.DomainEvents;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
@@ -28,7 +28,7 @@ public class ClearCartCommandHandler(
         try
         {
             // ✅ PERFORMANCE: Removed manual !ci.IsDeleted check (Global Query Filter)
-            var cart = await context.Set<Cart>()
+            var cart = await context.Set<CartEntity>()
                 .Include(c => c.CartItems)
                 .FirstOrDefaultAsync(c => c.UserId == request.UserId, cancellationToken);
 

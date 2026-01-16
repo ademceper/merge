@@ -6,13 +6,15 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
+using ProductBundle = Merge.Domain.Modules.Catalog.ProductBundle;
+using BundleItem = Merge.Domain.Modules.Catalog.BundleItem;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
-using IBundleRepository = Merge.Application.Interfaces.IRepository<ProductBundle>;
-using IBundleItemRepository = Merge.Application.Interfaces.IRepository<BundleItem>;
+using IBundleRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.ProductBundle>;
+using IBundleItemRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.BundleItem>;
 
 namespace Merge.Application.Product.Commands.CreateProductBundle;
 

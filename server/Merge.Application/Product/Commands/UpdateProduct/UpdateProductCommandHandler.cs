@@ -6,13 +6,13 @@ using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
-using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Marketplace;
+using ProductEntity = Merge.Domain.Modules.Catalog.Product;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
-using IRepository = Merge.Application.Interfaces.IRepository<ProductEntity>;
+using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Catalog.Product>;
 
 namespace Merge.Application.Product.Commands.UpdateProduct;
 

@@ -15,8 +15,8 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Identity;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
-using ITwoFactorAuthRepository = Merge.Application.Interfaces.IRepository<TwoFactorAuth>;
-using ITwoFactorCodeRepository = Merge.Application.Interfaces.IRepository<TwoFactorCode>;
+using ITwoFactorAuthRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Identity.TwoFactorAuth>;
+using ITwoFactorCodeRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Identity.TwoFactorCode>;
 
 namespace Merge.Application.Identity.Commands.Enable2FA;
 

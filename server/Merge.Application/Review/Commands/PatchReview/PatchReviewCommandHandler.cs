@@ -112,14 +112,13 @@ public class PatchReviewCommandHandler : IRequestHandler<PatchReviewCommand, Rev
             return;
         }
 
-        var averageRating = reviews.Average(r => r.Rating);
+        var averageRating = (decimal)reviews.Average(r => r.Rating);
         var product = await _context.Set<ProductEntity>()
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
         if (product != null)
         {
-            var rating = new Rating((int)Math.Round(averageRating));
-            product.UpdateAverageRating(rating);
+            product.UpdateRating(averageRating, reviews.Count);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
     }
