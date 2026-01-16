@@ -79,7 +79,7 @@ public class OptimizePricesForCategoryQueryHandler : IRequestHandler<OptimizePri
             // ✅ PERFORMANCE: Memory'den similar products al (N+1 fix)
             var similarProducts = similarProductsByCategory.TryGetValue(product.CategoryId, out var similar) 
                 ? similar.Where(p => p.Id != product.Id).ToList() 
-                : new List<ProductEntity>();
+                : [];
             
             var recommendation = await _helper.CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
             results.Add(new PriceOptimizationDto(

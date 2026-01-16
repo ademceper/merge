@@ -7,32 +7,44 @@ using Merge.API.Helpers;
 
 namespace Merge.API.Controllers.Search;
 
+[ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/search")]
 public class SearchController(IMediator mediator) : BaseController
 {
-    [HttpPost]
+    /// <summary>
+    /// Ürün arama (GET endpoint - REST best practice)
+    /// HIGH-API-004: POST yerine GET kullanımı - Search operations should use GET with query params
+    /// </summary>
+    [HttpGet]
     [RateLimit(60, 60)]
     [ProducesResponseType(typeof(SearchResultDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<SearchResultDto>> Search(
-        [FromBody] SearchRequestDto request,
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] Guid? categoryId = null,
+        [FromQuery] string? brand = null,
+        [FromQuery] decimal? minPrice = null,
+        [FromQuery] decimal? maxPrice = null,
+        [FromQuery] decimal? minRating = null,
+        [FromQuery] bool? inStockOnly = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
         var query = new SearchProductsQuery(
-            request.SearchTerm,
-            request.CategoryId,
-            request.Brand,
-            request.MinPrice,
-            request.MaxPrice,
-            request.MinRating,
-            request.InStockOnly,
-            request.SortBy,
-            request.Page ?? 1,
-            request.PageSize ?? 20
+            searchTerm ?? string.Empty,
+            categoryId,
+            brand,
+            minPrice,
+            maxPrice,
+            minRating,
+            inStockOnly ?? false,
+            sortBy,
+            page < 1 ? 1 : page,
+            pageSize > 100 ? 100 : pageSize
         );
         var result = await mediator.Send(query, cancellationToken);
         return Ok(HateoasHelper.AddSearchLinks(result, Request));

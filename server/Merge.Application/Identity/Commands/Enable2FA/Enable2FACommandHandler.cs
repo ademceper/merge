@@ -120,8 +120,7 @@ public class Enable2FACommandHandler(
             Array.Reverse(timeBytes);
         }
 
-        using var hmac = new HMACSHA1(keyBytes);
-
+        using var hmac = new HMACSHA256(keyBytes);
 
         var hash = hmac.ComputeHash(timeBytes);
 

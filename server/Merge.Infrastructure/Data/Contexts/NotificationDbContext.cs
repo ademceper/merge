@@ -21,9 +21,13 @@ public class NotificationDbContext : DbContext, IDbContext
 
     DbSet<TEntity> IDbContext.Set<TEntity>() => base.Set<TEntity>();
     
-    DbSet<Merge.Domain.Modules.Identity.User> IDbContext.Users => throw new NotImplementedException();
-    DbSet<Merge.Domain.Modules.Identity.Role> IDbContext.Roles => throw new NotImplementedException();
-    DbSet<Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>> IDbContext.UserRoles => throw new NotImplementedException();
+    // ✅ LSP FIX: Anlamlı hata mesajı - ISP gerektirir
+    DbSet<Merge.Domain.Modules.Identity.User> IDbContext.Users =>
+        throw new InvalidOperationException("NotificationDbContext does not support Users. Use ApplicationDbContext for identity operations.");
+    DbSet<Merge.Domain.Modules.Identity.Role> IDbContext.Roles =>
+        throw new InvalidOperationException("NotificationDbContext does not support Roles. Use ApplicationDbContext for identity operations.");
+    DbSet<Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>> IDbContext.UserRoles =>
+        throw new InvalidOperationException("NotificationDbContext does not support UserRoles. Use ApplicationDbContext for identity operations.");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

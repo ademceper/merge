@@ -505,6 +505,7 @@ public class SellerDashboardService : ISellerDashboardService
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
+        // ✅ PERFORMANCE FIX: Redundant Distinct().Count() hesaplaması düzeltildi - let ile tek hesaplama
         // Sales trends
         var salesTrends = await (
             from o in _context.Set<OrderEntity>().AsNoTracking()
@@ -514,14 +515,14 @@ public class SellerDashboardService : ISellerDashboardService
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   p.SellerId == sellerId
             group new { o, oi } by o.CreatedAt.Date into g
+            let totalSalesAmount = g.Sum(x => x.oi.TotalPrice)
+            let orderCount = g.Select(x => x.o.Id).Distinct().Count()
             select new SalesTrendDto
             {
                 Date = g.Key,
-                Sales = g.Sum(x => x.oi.TotalPrice),
-                OrderCount = g.Select(x => x.o.Id).Distinct().Count(),
-                AverageOrderValue = g.Select(x => x.o.Id).Distinct().Count() > 0 
-                    ? g.Sum(x => x.oi.TotalPrice) / g.Select(x => x.o.Id).Distinct().Count()
-                    : 0
+                Sales = totalSalesAmount,
+                OrderCount = orderCount,
+                AverageOrderValue = orderCount > 0 ? totalSalesAmount / orderCount : 0
             }
         ).OrderBy(t => t.Date).ToListAsync(cancellationToken);
 
@@ -641,13 +642,14 @@ public class SellerDashboardService : ISellerDashboardService
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   p.SellerId == sellerId
             group new { oi, c } by new { CategoryId = c.Id, CategoryName = c.Name } into g
+            let orderCount = g.Select(x => x.oi.OrderId).Distinct().Count()
             select new CategoryPerformanceDto
             {
                 CategoryId = g.Key.CategoryId,
                 CategoryName = g.Key.CategoryName,
                 ProductCount = g.Select(x => x.oi.ProductId).Distinct().Count(),
-                OrderCount = g.Select(x => x.oi.OrderId).Distinct().Count(),
-                OrdersCount = g.Select(x => x.oi.OrderId).Distinct().Count(),
+                OrderCount = orderCount,
+                OrdersCount = orderCount, // ✅ PERFORMANCE FIX: Redundant Distinct().Count() hesaplaması düzeltildi
                 Revenue = g.Sum(x => x.oi.TotalPrice),
                 AverageRating = 0
             })

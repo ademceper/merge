@@ -15,7 +15,8 @@ public class ValidateTokenQueryHandler(
 
     public Task<bool> Handle(ValidateTokenQuery request, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Token validation attempt. Token: {Token}", request.Token);
+        // ✅ SECURITY FIX: Token'ı loglama - PII/Secret exposure riski
+        logger.LogInformation("Token validation attempt");
 
         try
         {
@@ -34,12 +35,14 @@ public class ValidateTokenQueryHandler(
                 ClockSkew = TimeSpan.FromSeconds(jwtSettings.Value.ClockSkewSeconds)
             }, out _);
 
-            logger.LogInformation("Token validation successful. Token: {Token}", request.Token);
+            // ✅ SECURITY FIX: Token'ı loglama
+            logger.LogInformation("Token validation successful");
             return Task.FromResult(true);
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Token validation failed. Token: {Token}", request.Token);
+            // ✅ SECURITY FIX: Token'ı loglama - sadece hata tipini logla
+            logger.LogWarning(ex, "Token validation failed. Error: {ErrorType}", ex.GetType().Name);
             return Task.FromResult(false);
         }
     }

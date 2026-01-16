@@ -148,9 +148,16 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
                 .Include(o => o.User)
                 .FirstOrDefaultAsync(o => o.Id == order.Id, cancellationToken);
 
+            // ✅ ERROR HANDLING FIX: Null check instead of null-forgiving operator
+            if (order == null)
+            {
+                _logger.LogError("Order not found after creation. OrderId: {OrderId}", order?.Id);
+                throw new InvalidOperationException("Order could not be retrieved after creation");
+            }
+
             _logger.LogInformation(
                 "Order created successfully. OrderId: {OrderId}, OrderNumber: {OrderNumber}, UserId: {UserId}, TotalAmount: {TotalAmount}",
-                order!.Id, order.OrderNumber, request.UserId, order.TotalAmount);
+                order.Id, order.OrderNumber, request.UserId, order.TotalAmount);
 
             return _mapper.Map<OrderDto>(order);
         }

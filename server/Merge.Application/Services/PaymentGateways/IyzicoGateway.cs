@@ -111,8 +111,47 @@ public class IyzicoGateway : IPaymentGateway
 
     public Task<bool> VerifyWebhookAsync(string signature, string payload)
     {
-        // Gerçek implementasyonda Iyzico webhook signature doğrulaması yapılacak
-        return Task.FromResult(true);
+        // ✅ SECURITY FIX: Iyzico webhook signature doğrulama implement edildi
+        var webhookSecret = _configuration["PaymentGateways:Iyzico:WebhookSecret"];
+
+        if (string.IsNullOrEmpty(webhookSecret))
+        {
+            _logger.LogWarning("Iyzico webhook secret not configured - webhook verification skipped");
+            return Task.FromResult(false);
+        }
+
+        if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(payload))
+        {
+            _logger.LogWarning("Iyzico webhook verification failed - missing signature or payload");
+            return Task.FromResult(false);
+        }
+
+        try
+        {
+            // Iyzico webhook signature format: HMAC-SHA256 hash of payload
+            // Gerçek implementasyonda Iyzico SDK kullanılmalı:
+            // var isValid = IyzicoWebhookSignature.Verify(payload, signature, webhookSecret);
+
+            // Basit HMAC-SHA256 doğrulama
+            using var hmac = new System.Security.Cryptography.HMACSHA256(
+                System.Text.Encoding.UTF8.GetBytes(webhookSecret));
+            var hash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(payload));
+            var computedSignature = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+
+            var isValid = string.Equals(computedSignature, signature, StringComparison.OrdinalIgnoreCase);
+
+            if (!isValid)
+            {
+                _logger.LogWarning("Iyzico webhook signature verification failed");
+            }
+
+            return Task.FromResult(isValid);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Iyzico webhook verification error");
+            return Task.FromResult(false);
+        }
     }
 
     public Task<PaymentGatewayWebhookDto?> ProcessWebhookAsync(string payload)

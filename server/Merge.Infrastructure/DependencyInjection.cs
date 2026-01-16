@@ -80,15 +80,13 @@ public static class DependencyInjection
         services.AddScoped<TwilioProvider>();
         services.AddScoped<NetgsmProvider>();
 
-        // Background Services
-        // services.AddHostedService<OutboxMessagePublisher>();
+        // ✅ CRITICAL FIX: Background Services - Outbox pattern için event publisher aktif edildi
+        services.AddHostedService<Merge.Infrastructure.BackgroundServices.OutboxMessagePublisher>();
 
-        // Health Checks
-        /*
+        // ✅ CRITICAL FIX: Health Checks aktif edildi
         services.AddHealthChecks()
-            .AddNpgSql(connectionString!, name: "postgres", tags: new[] { "db", "postgres" })
-            .AddRedis(configuration.GetConnectionString("Redis") ?? "localhost:6379", name: "redis", tags: new[] { "cache", "redis" });
-        */
+            .AddNpgSql(connectionString!, name: "postgres", tags: new[] { "db", "postgres", "ready" })
+            .AddRedis(configuration.GetConnectionString("Redis") ?? "localhost:6379", name: "redis", tags: new[] { "cache", "redis", "ready" });
 
         return services;
     }

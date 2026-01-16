@@ -13,6 +13,7 @@ using Merge.Application.Cart.Commands.RemoveCartItem;
 using Merge.Application.Cart.Commands.ClearCart;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
+using Merge.API.Extensions;
 
 namespace Merge.API.Controllers.Cart;
 
@@ -38,6 +39,7 @@ public class CartController(
     [RateLimit(60, 60)] // ✅ BOLUM 3.3: Rate Limiting - 60/dakika (DoS koruması)
     [ProducesResponseType(typeof(CartDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status304NotModified)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<CartDto>> GetCart(CancellationToken cancellationToken = default)
     {
@@ -45,6 +47,18 @@ public class CartController(
         var userId = GetUserId();
         var query = new GetCartByUserIdQuery(userId);
         var cart = await mediator.Send(query, cancellationToken);
+        
+        // ✅ HIGH-API-003: ETag/Cache-Control Headers - HTTP caching support
+        var cartJson = System.Text.Json.JsonSerializer.Serialize(cart);
+        Response.SetETag(cartJson);
+        Response.SetCacheControl(maxAgeSeconds: 30, isPublic: false); // Cache for 30 seconds (private - user-specific)
+
+        // Check if client has cached version (304 Not Modified)
+        var etag = Response.Headers["ETag"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(etag) && Request.IsNotModified(etag))
+        {
+            return StatusCode(StatusCodes.Status304NotModified);
+        }
         
         // ✅ BOLUM 4.1.3: HATEOAS - Hypermedia links (ZORUNLU)
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";

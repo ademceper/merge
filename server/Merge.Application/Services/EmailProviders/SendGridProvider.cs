@@ -51,8 +51,8 @@ public class SendGridProvider : IEmailProvider
             MessageId = messageId,
             Metadata = new Dictionary<string, object>
             {
-                { "provider", "SendGrid" },
-                { "to", message.To }
+                ["provider"] = "SendGrid",
+                ["to"] = message.To
             }
         };
     }

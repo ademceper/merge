@@ -77,6 +77,12 @@ public class GetUserSessionsQueryHandler : IRequestHandler<GetUserSessionsQuery,
 
     private UserSessionDto CreateSessionDto(List<UserActivityLog> activities)
     {
+        // ✅ ERROR HANDLING FIX: Safe First()/Last() operations with null check
+        if (activities == null || activities.Count == 0)
+        {
+            throw new ArgumentException("Activities list cannot be empty", nameof(activities));
+        }
+        
         var first = activities.First();
         var last = activities.Last();
 

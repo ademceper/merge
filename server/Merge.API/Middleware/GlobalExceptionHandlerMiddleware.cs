@@ -4,6 +4,7 @@ using System.Diagnostics;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Merge.Application.Exceptions;
 using Merge.Domain.Exceptions;
@@ -129,10 +130,37 @@ public class GlobalExceptionHandlerMiddleware
                 problemDetails.Detail = exception.Message;
                 problemDetails.Extensions["traceId"] = traceId;
                 problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
-                
+
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 break;
-                
+
+            // ✅ ERROR HANDLING FIX: DbUpdateConcurrencyException - optimistic concurrency conflict
+            case DbUpdateConcurrencyException:
+                problemDetails.Type = "https://api.merge.com/errors/concurrency-conflict";
+                problemDetails.Title = "Concurrency Conflict";
+                problemDetails.Status = (int)HttpStatusCode.Conflict;
+                problemDetails.Instance = context.Request.Path;
+                problemDetails.Detail = "The record has been modified by another user. Please refresh and try again.";
+                problemDetails.Extensions["traceId"] = traceId;
+                problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
+
+                context.Response.StatusCode = (int)HttpStatusCode.Conflict;
+                break;
+
+            // ✅ ERROR HANDLING FIX: DbUpdateException - database constraint violations
+            case DbUpdateException dbEx:
+                problemDetails.Type = "https://api.merge.com/errors/database-error";
+                problemDetails.Title = "Database Error";
+                problemDetails.Status = (int)HttpStatusCode.BadRequest;
+                problemDetails.Instance = context.Request.Path;
+                // User-friendly message, hide internal details
+                problemDetails.Detail = GetDbErrorMessage(dbEx);
+                problemDetails.Extensions["traceId"] = traceId;
+                problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
+
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                break;
+
             default:
                 problemDetails.Type = "https://api.merge.com/errors/internal-server-error";
                 problemDetails.Title = "An unexpected error occurred";
@@ -142,10 +170,17 @@ public class GlobalExceptionHandlerMiddleware
                 problemDetails.Extensions["traceId"] = traceId;
                 problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
                 
+                // ✅ SECURITY FIX: Stack trace sadece Development'ta ve sınırlı bilgi ile
                 if (_environment.IsDevelopment())
                 {
                     problemDetails.Extensions["exception"] = exception.GetType().Name;
-                    problemDetails.Extensions["stackTrace"] = exception.StackTrace;
+                    // Stack trace'i sadece ilk 500 karakter ile sınırla (güvenlik için)
+                    var stackTrace = exception.StackTrace;
+                    if (!string.IsNullOrEmpty(stackTrace) && stackTrace.Length > 500)
+                    {
+                        stackTrace = stackTrace.Substring(0, 500) + "... (truncated)";
+                    }
+                    problemDetails.Extensions["stackTrace"] = stackTrace;
                 }
                 
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
@@ -162,6 +197,36 @@ public class GlobalExceptionHandlerMiddleware
         
         var result = JsonSerializer.Serialize(problemDetails, options);
         return context.Response.WriteAsync(result);
+    }
+
+    // ✅ ERROR HANDLING FIX: User-friendly database error messages
+    private static string GetDbErrorMessage(DbUpdateException ex)
+    {
+        var innerMessage = ex.InnerException?.Message ?? ex.Message;
+
+        // PostgreSQL error codes
+        if (innerMessage.Contains("23505") || innerMessage.Contains("duplicate key"))
+        {
+            return "A record with this identifier already exists.";
+        }
+
+        if (innerMessage.Contains("23503") || innerMessage.Contains("foreign key"))
+        {
+            return "The operation cannot be completed because it references data that no longer exists.";
+        }
+
+        if (innerMessage.Contains("23502") || innerMessage.Contains("not-null"))
+        {
+            return "A required field is missing.";
+        }
+
+        if (innerMessage.Contains("23514") || innerMessage.Contains("check constraint"))
+        {
+            return "The data provided violates a business rule.";
+        }
+
+        // Generic fallback - don't expose internal details
+        return "A database error occurred. Please try again.";
     }
 }
 

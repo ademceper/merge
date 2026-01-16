@@ -20,11 +20,8 @@ public class TwilioProvider : ISmsProvider
 
     public async Task<SmsSendResult> SendSmsAsync(SmsMessage message)
     {
-        // ✅ ARCHITECTURE: Null check (ZORUNLU)
-        if (message == null)
-        {
-            throw new ArgumentNullException(nameof(message));
-        }
+        // ✅ MODERN C#: ArgumentNullException.ThrowIfNull (C# 10+)
+        ArgumentNullException.ThrowIfNull(message);
 
         // ✅ ARCHITECTURE: Input validation
         if (string.IsNullOrWhiteSpace(message.To))
@@ -69,8 +66,8 @@ public class TwilioProvider : ISmsProvider
             MessageId = messageId,
             Metadata = new Dictionary<string, object>
             {
-                { "provider", "Twilio" },
-                { "to", message.To }
+                ["provider"] = "Twilio",
+                ["to"] = message.To
             }
         };
     }

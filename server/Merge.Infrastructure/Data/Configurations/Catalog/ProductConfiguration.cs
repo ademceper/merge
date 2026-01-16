@@ -14,9 +14,17 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.HasIndex(e => e.IsActive);
         builder.HasIndex(e => new { e.CategoryId, e.IsActive });
         
+        // ✅ HIGH-DB-004 FIX: Foreign key index for better query performance
+        builder.HasIndex(e => e.StoreId);
+        
         builder.Property(e => e.Price).HasPrecision(18, 2);
         builder.Property(e => e.DiscountPrice).HasPrecision(18, 2);
         builder.Property(e => e.Rating).HasPrecision(3, 2); // 0.00-5.00 arası rating
+        
+        // ✅ CRITICAL-DB-002 FIX: RowVersion configuration for optimistic concurrency
+        builder.Property(e => e.RowVersion)
+            .IsRowVersion()
+            .IsRequired(false);
         
         builder.ToTable(t =>
         {

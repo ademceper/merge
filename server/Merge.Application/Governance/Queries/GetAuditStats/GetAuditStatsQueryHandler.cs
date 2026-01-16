@@ -56,6 +56,7 @@ public class GetAuditStatsQueryHandler(
             .Where(a => a.CreatedAt >= startDate && a.UserId.HasValue)
             .Include(a => a.User)
             .GroupBy(a => a.UserId)
+            .Where(g => g.Any()) // ✅ ERROR HANDLING FIX: Ensure group has elements before First()
             .Select(g => new TopAuditUserDto
             {
                 UserId = g.Key!.Value,

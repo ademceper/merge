@@ -88,14 +88,15 @@ public class CreateProductFromTemplateCommandHandler : IRequestHandler<CreatePro
 
             if (!string.IsNullOrEmpty(request.ImageUrl))
             {
-                product.UpdateImages(request.ImageUrl, request.ImageUrls ?? new List<string>());
+                product.UpdateImages(request.ImageUrl, request.ImageUrls ?? []);
             }
             else if (!string.IsNullOrEmpty(template.DefaultImageUrl))
             {
-                product.UpdateImages(template.DefaultImageUrl, request.ImageUrls ?? new List<string>());
+                product.UpdateImages(template.DefaultImageUrl, request.ImageUrls ?? []);
             }
             else if (request.ImageUrls != null && request.ImageUrls.Any())
             {
+                // ✅ ERROR HANDLING FIX: Safe First() operation - Any() kontrolü yapıldı
                 // ✅ FIX: CS8625 - UpdateImages non-nullable string bekliyor, ilk imageUrl'i kullan
                 product.UpdateImages(request.ImageUrls.First(), request.ImageUrls);
             }
@@ -122,8 +123,15 @@ public class CreateProductFromTemplateCommandHandler : IRequestHandler<CreatePro
                 .Include(p => p.Category)
                 .FirstOrDefaultAsync(p => p.Id == product.Id, cancellationToken);
 
+            // ✅ ERROR HANDLING FIX: Null check instead of null-forgiving operator
+            if (product == null)
+            {
+                _logger.LogError("Product not found after creation. ProductId: {ProductId}", product?.Id);
+                throw new InvalidOperationException("Product could not be retrieved after creation");
+            }
+
             _logger.LogInformation("Product created from template successfully. ProductId: {ProductId}, TemplateId: {TemplateId}",
-                product!.Id, request.TemplateId);
+                product.Id, request.TemplateId);
 
             // ✅ BOLUM 10.2: Cache invalidation
             // Invalidate template cache (usage count changed)

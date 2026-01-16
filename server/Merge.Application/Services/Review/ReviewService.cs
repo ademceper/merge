@@ -147,10 +147,8 @@ public class ReviewService : IReviewService
 
     public async Task<ReviewDto> CreateAsync(CreateReviewDto dto, CancellationToken cancellationToken = default)
     {
-        if (dto == null)
-        {
-            throw new ArgumentNullException(nameof(dto));
-        }
+        // ✅ MODERN C#: ArgumentNullException.ThrowIfNull (C# 10+)
+        ArgumentNullException.ThrowIfNull(dto);
 
         if (dto.Rating < 1 || dto.Rating > 5)
         {
@@ -196,9 +194,16 @@ public class ReviewService : IReviewService
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == review.Id, cancellationToken);
 
+        // ✅ ERROR HANDLING FIX: Null check instead of null-forgiving operator
+        if (review == null)
+        {
+            _logger.LogError("Review not found after creation. ReviewId: {ReviewId}", review?.Id);
+            throw new InvalidOperationException("Review could not be retrieved after creation");
+        }
+
         _logger.LogInformation(
             "Review created. ReviewId: {ReviewId}, ProductId: {ProductId}, UserId: {UserId}, Rating: {Rating}",
-            review!.Id, dto.ProductId, dto.UserId, dto.Rating);
+            review.Id, dto.ProductId, dto.UserId, dto.Rating);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // Not: UserName ve ProductName AutoMapper'da map edilmeli
@@ -207,10 +212,8 @@ public class ReviewService : IReviewService
 
     public async Task<ReviewDto> UpdateAsync(Guid id, UpdateReviewDto dto, CancellationToken cancellationToken = default)
     {
-        if (dto == null)
-        {
-            throw new ArgumentNullException(nameof(dto));
-        }
+        // ✅ MODERN C#: ArgumentNullException.ThrowIfNull (C# 10+)
+        ArgumentNullException.ThrowIfNull(dto);
 
         if (dto.Rating < 1 || dto.Rating > 5)
         {

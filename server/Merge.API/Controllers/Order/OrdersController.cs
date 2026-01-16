@@ -15,6 +15,7 @@ using Merge.Application.Order.Queries.FilterOrders;
 using Merge.Application.Order.Queries.GetOrderStatistics;
 using Merge.Domain.Enums;
 using Merge.API.Middleware;
+using Merge.API.Extensions;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
 namespace Merge.API.Controllers.Order;
@@ -50,6 +51,7 @@ public class OrdersController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status304NotModified)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<OrderDto>> GetById(Guid id, CancellationToken cancellationToken = default)
     {
@@ -64,6 +66,19 @@ public class OrdersController(
         {
             return Forbid();
         }
+
+        // ✅ HIGH-API-003: ETag/Cache-Control Headers - HTTP caching support
+        var orderJson = System.Text.Json.JsonSerializer.Serialize(order);
+        Response.SetETag(orderJson);
+        Response.SetCacheControl(maxAgeSeconds: 60, isPublic: false); // Cache for 1 minute (private)
+
+        // Check if client has cached version (304 Not Modified)
+        var etag = Response.Headers["ETag"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(etag) && Request.IsNotModified(etag))
+        {
+            return StatusCode(StatusCodes.Status304NotModified);
+        }
+
         return Ok(order);
     }
 

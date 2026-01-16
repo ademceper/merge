@@ -108,7 +108,70 @@ public class StripeGateway : IPaymentGateway
 
     public Task<bool> VerifyWebhookAsync(string signature, string payload)
     {
-        return Task.FromResult(true);
+        // ✅ SECURITY FIX: Webhook signature doğrulama implement edildi
+        // Gerçek implementasyonda Stripe webhook secret kullanılmalı
+        var webhookSecret = _configuration["PaymentGateways:Stripe:WebhookSecret"];
+
+        if (string.IsNullOrEmpty(webhookSecret))
+        {
+            _logger.LogWarning("Stripe webhook secret not configured - webhook verification skipped");
+            return Task.FromResult(false);
+        }
+
+        if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(payload))
+        {
+            _logger.LogWarning("Stripe webhook verification failed - missing signature or payload");
+            return Task.FromResult(false);
+        }
+
+        try
+        {
+            // Stripe signature format: t=timestamp,v1=signature
+            // Gerçek implementasyonda Stripe.NET SDK kullanılmalı:
+            // var stripeEvent = EventUtility.ConstructEvent(payload, signature, webhookSecret);
+
+            // Basit HMAC-SHA256 doğrulama (Stripe formatına göre)
+            var signatureParts = signature.Split(',');
+            if (signatureParts.Length < 2)
+            {
+                _logger.LogWarning("Stripe webhook verification failed - invalid signature format");
+                return Task.FromResult(false);
+            }
+
+            var timestampPart = signatureParts.FirstOrDefault(p => p.StartsWith("t="));
+            var signaturePart = signatureParts.FirstOrDefault(p => p.StartsWith("v1="));
+
+            if (string.IsNullOrEmpty(timestampPart) || string.IsNullOrEmpty(signaturePart))
+            {
+                _logger.LogWarning("Stripe webhook verification failed - missing timestamp or signature");
+                return Task.FromResult(false);
+            }
+
+            var timestamp = timestampPart.Substring(2);
+            var expectedSignature = signaturePart.Substring(3);
+
+            // Signed payload = timestamp.payload
+            var signedPayload = $"{timestamp}.{payload}";
+
+            using var hmac = new System.Security.Cryptography.HMACSHA256(
+                System.Text.Encoding.UTF8.GetBytes(webhookSecret));
+            var hash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(signedPayload));
+            var computedSignature = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+
+            var isValid = string.Equals(computedSignature, expectedSignature, StringComparison.OrdinalIgnoreCase);
+
+            if (!isValid)
+            {
+                _logger.LogWarning("Stripe webhook signature verification failed");
+            }
+
+            return Task.FromResult(isValid);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Stripe webhook verification error");
+            return Task.FromResult(false);
+        }
     }
 
     public Task<PaymentGatewayWebhookDto?> ProcessWebhookAsync(string payload)

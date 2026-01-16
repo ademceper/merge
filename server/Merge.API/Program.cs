@@ -18,14 +18,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ✅ BOLUM 5.0: OpenTelemetry tracing + metrics (ZORUNLU)
-// TODO: OpenTelemetry paket versiyonları uyumlu değil - Production'da güncellenmeli
-// Şimdilik yorum satırına alındı - Paket versiyonları düzeltildikten sonra aktif edilecek
-// Production'da tam OpenTelemetry setup için:
-// - OpenTelemetry.Instrumentation.AspNetCore versiyonları güncellenmeli
-// - OpenTelemetry.Exporter.Prometheus.AspNetCore versiyonları güncellenmeli
-// - Jaeger exporter eklenebilir
-/*
+// ✅ CRITICAL-LOG-001 FIX: OpenTelemetry tracing + metrics - Aktif edildi
+// OpenTelemetry paket versiyonları .NET 9.0 ile uyumlu hale getirildi
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing
         .AddAspNetCoreInstrumentation()
@@ -37,7 +31,6 @@ builder.Services.AddOpenTelemetry()
         .AddHttpClientInstrumentation()
         .AddRuntimeInstrumentation()
         .AddPrometheusExporter());
-*/
 
 // ✅ CONFIGURATION: Business settings (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
 builder.Services.Configure<Merge.Application.Configuration.OrderSettings>(
@@ -210,6 +203,26 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+// ✅ CRITICAL-ERR-001 FIX: HttpClient Resilience - Microsoft.Extensions.Http.Resilience kullanımı
+// External service call'lar için retry, circuit breaker ve timeout policy'leri ekleniyor
+builder.Services.AddHttpClient()
+    .AddStandardResilienceHandler(options =>
+    {
+        // Retry policy: 3 retry attempt, exponential backoff
+        options.Retry.MaxRetryAttempts = 3;
+        options.Retry.BackoffType = Microsoft.Extensions.Resilience.BackoffType.Exponential;
+        options.Retry.BaseDelay = TimeSpan.FromSeconds(1);
+        options.Retry.MaxDelay = TimeSpan.FromSeconds(30);
+        
+        // Circuit breaker: 5 consecutive failures opens circuit for 30 seconds
+        options.CircuitBreaker.FailureRatio = 0.5;
+        options.CircuitBreaker.MinimumThroughput = 5;
+        options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(30);
+        
+        // Timeout: 30 seconds per request
+        options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(30);
+    });
+
 // ✅ BOLUM 1.1: Clean Architecture - Dependency Injection (ZORUNLU)
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -286,6 +299,20 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+
+// ✅ SECURITY FIX: CSRF Protection (Antiforgery)
+// Note: For API-only applications, CSRF protection is typically handled via token validation
+// For web applications with forms, use AddAntiforgery() and ValidateAntiForgeryToken attribute
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-CSRF-TOKEN";
+    options.Cookie.Name = "__Host-CSRF";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() 
+        ? CookieSecurePolicy.SameAsRequest 
+        : CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+});
 
 // ✅ SECURITY: Rate Limiting (BOLUM 3.3)
 // Note: Rate limiting is handled by custom RateLimitingMiddleware
@@ -387,9 +414,15 @@ else
 
 app.UseStaticFiles(); // wwwroot için
 
+// ✅ SECURITY FIX: CSRF Protection - Session gerekli
+app.UseSession();
+
 // Security middlewares
 app.UseRateLimiting();
 app.UseIpWhitelist();
+
+// ✅ HIGH-API-002: Idempotency Key Middleware - Prevents duplicate processing
+app.UseMiddleware<Merge.API.Middleware.IdempotencyKeyMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();

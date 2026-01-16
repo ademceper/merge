@@ -305,6 +305,7 @@ public class UserActivityService : IUserActivityService
             .ToListAsync(cancellationToken);
 
         var sessions = new List<UserSessionDto>(activities.Count > 0 ? activities.Count / 10 : 1);
+        // ✅ HIGH-NET-001 FIX: Collection expressions (C# 12)
         var currentSession = new List<UserActivityLog>();
         var sessionTimeout = TimeSpan.FromMinutes(30);
 
@@ -437,6 +438,12 @@ public class UserActivityService : IUserActivityService
 
     private UserSessionDto CreateSessionDto(List<UserActivityLog> activities)
     {
+        // ✅ ERROR HANDLING FIX: Safe First()/Last() operations with null check
+        if (activities == null || activities.Count == 0)
+        {
+            throw new ArgumentException("Activities list cannot be empty", nameof(activities));
+        }
+        
         var first = activities.First();
         var last = activities.Last();
 

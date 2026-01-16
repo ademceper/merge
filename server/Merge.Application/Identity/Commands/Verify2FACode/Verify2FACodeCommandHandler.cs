@@ -123,7 +123,8 @@ public class Verify2FACodeCommandHandler(
             Array.Reverse(timeBytes);
         }
 
-        using var hmac = new HMACSHA1(keyBytes);
+        // ✅ SECURITY FIX: HMACSHA256 kullan (HMACSHA1 zayıf algoritma)
+        using var hmac = new HMACSHA256(keyBytes);
 
 
         var hash = hmac.ComputeHash(timeBytes);

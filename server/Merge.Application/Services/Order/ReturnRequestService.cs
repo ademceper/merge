@@ -148,10 +148,8 @@ public class ReturnRequestService : IReturnRequestService
             "Return request oluşturuluyor. OrderId: {OrderId}, UserId: {UserId}, Reason: {Reason}",
             dto.OrderId, dto.UserId, dto.Reason);
 
-        if (dto == null)
-        {
-            throw new ArgumentNullException(nameof(dto));
-        }
+        // ✅ MODERN C#: ArgumentNullException.ThrowIfNull (C# 10+)
+        ArgumentNullException.ThrowIfNull(dto);
 
         if (dto.OrderItemIds == null || !dto.OrderItemIds.Any())
         {

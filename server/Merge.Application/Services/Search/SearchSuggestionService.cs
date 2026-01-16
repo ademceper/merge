@@ -213,6 +213,7 @@ public class SearchSuggestionService : ISearchSuggestionService
             .AsNoTracking()
             .Where(sh => sh.CreatedAt >= startDate)
             .GroupBy(sh => sh.SearchTerm.ToLower())
+            .Where(g => g.Any()) // ✅ ERROR HANDLING FIX: Ensure group has elements before First()
             .Select(g => new SearchSuggestionDto(
                 g.First().SearchTerm,
                 "Trending",

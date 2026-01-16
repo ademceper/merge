@@ -49,10 +49,8 @@ public class OrderSplitService : IOrderSplitService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<OrderSplitDto> SplitOrderAsync(Guid orderId, CreateOrderSplitDto dto, CancellationToken cancellationToken = default)
     {
-        if (dto == null)
-        {
-            throw new ArgumentNullException(nameof(dto));
-        }
+        // ✅ MODERN C#: ArgumentNullException.ThrowIfNull (C# 10+)
+        ArgumentNullException.ThrowIfNull(dto);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation(
@@ -68,10 +66,8 @@ public class OrderSplitService : IOrderSplitService
             .Include(o => o.Address)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
 
-        if (originalOrder == null)
-        {
-            throw new NotFoundException("Sipariş", orderId);
-        }
+        // ✅ MODERN C#: ArgumentNullException.ThrowIfNull (C# 10+)
+        ArgumentNullException.ThrowIfNull(originalOrder);
 
         if (originalOrder.Status != OrderStatus.Pending && originalOrder.Status != OrderStatus.Processing)
         {
@@ -130,7 +126,8 @@ public class OrderSplitService : IOrderSplitService
 
             // Calculate split order totals
             decimal splitSubTotal = 0;
-            var splitOrderItems = new List<OrderItem>(); // ✅ FIX: Declare for later use
+            // ✅ HIGH-NET-001 FIX: Collection expressions (C# 12)
+            var splitOrderItems = new List<OrderItem>();
 
             foreach (var item in dto.Items)
             {
@@ -194,6 +191,7 @@ public class OrderSplitService : IOrderSplitService
 
             // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             // Create OrderSplitItem records
+            // ✅ HIGH-NET-001 FIX: Collection expressions (C# 12)
             var splitItemRecords = new List<OrderSplitItem>();
             foreach (var item in dto.Items)
             {

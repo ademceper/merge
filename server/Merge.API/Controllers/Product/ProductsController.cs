@@ -12,9 +12,12 @@ using Merge.Application.Product.Queries.GetProductsByCategory;
 using Merge.Application.Product.Queries.SearchProducts;
 using Merge.Application.Product.Commands.CreateProduct;
 using Merge.Application.Product.Commands.UpdateProduct;
+using Merge.Application.Product.Commands.PatchProduct;
 using Merge.Application.Product.Commands.DeleteProduct;
+using Merge.Application.DTOs.Product;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
+using Merge.API.Extensions;
 
 namespace Merge.API.Controllers.Product;
 
@@ -56,6 +59,7 @@ public class ProductsController(
     [RateLimit(60, 60)]
     [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status304NotModified)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<ProductDto>> GetById(Guid id, CancellationToken cancellationToken = default)
     {
@@ -65,6 +69,20 @@ public class ProductsController(
         {
             return NotFound();
         }
+
+        // ✅ HIGH-API-003: ETag/Cache-Control Headers - HTTP caching support
+        // Generate ETag from product data (in real scenario, use RowVersion or LastModified)
+        var productJson = System.Text.Json.JsonSerializer.Serialize(product);
+        Response.SetETag(productJson);
+        Response.SetCacheControl(maxAgeSeconds: 300, isPublic: true); // Cache for 5 minutes
+
+        // Check if client has cached version (304 Not Modified)
+        var etag = Response.Headers["ETag"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(etag) && Request.IsNotModified(etag))
+        {
+            return StatusCode(StatusCodes.Status304NotModified);
+        }
+
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
         var links = HateoasHelper.CreateProductLinks(Url, id, version);
         return Ok(new { product, _links = links });
@@ -183,6 +201,48 @@ public class ProductsController(
         }
         var updatedCommand = command with { Id = id, SellerId = existingProduct.SellerId, PerformedBy = userId };
         var product = await mediator.Send(updatedCommand, cancellationToken);
+        var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
+        var links = HateoasHelper.CreateProductLinks(Url, product.Id, version);
+        return Ok(new { product, _links = links });
+    }
+
+    /// <summary>
+    /// Ürünü kısmi olarak günceller (PATCH)
+    /// HIGH-API-001: PATCH Support - Partial updates without requiring all fields
+    /// </summary>
+    [HttpPatch("{id}")]
+    [Authorize(Roles = "Admin,Seller")]
+    [RateLimit(30, 60)]
+    [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<ProductDto>> Patch(
+        Guid id,
+        [FromBody] PatchProductDto patchDto,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = ValidateModelState();
+        if (validationResult != null) return validationResult;
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+        var getQuery = new GetProductByIdQuery(id);
+        var existingProduct = await mediator.Send(getQuery, cancellationToken);
+        if (existingProduct == null)
+        {
+            return NotFound();
+        }
+        if (existingProduct.SellerId != userId && !User.IsInRole("Admin"))
+        {
+            return Forbid();
+        }
+        var command = new PatchProductCommand(id, patchDto, userId);
+        var product = await mediator.Send(command, cancellationToken);
         var version = HttpContext.GetRequestedApiVersion()?.ToString() ?? "1.0";
         var links = HateoasHelper.CreateProductLinks(Url, product.Id, version);
         return Ok(new { product, _links = links });

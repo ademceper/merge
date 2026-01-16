@@ -248,28 +248,33 @@ public class OrderVerificationService : IOrderVerificationService
 
         int riskScore = 0;
 
+        // ✅ HIGH-CQ-002 FIX: Magic numbers yerine constants kullanılıyor
         // High value order
-        if (order.TotalAmount > 10000) riskScore += 30;
+        if (order.TotalAmount > Merge.Application.Common.RiskScoreConstants.HighValueOrderThreshold) 
+            riskScore += Merge.Application.Common.RiskScoreConstants.HighValueOrderScore;
 
         // New user
         var daysSinceRegistration = (DateTime.UtcNow - order.User.CreatedAt).Days;
-        if (daysSinceRegistration < 7) riskScore += 20;
+        if (daysSinceRegistration < Merge.Application.Common.RiskScoreConstants.NewUserDaysThreshold) 
+            riskScore += Merge.Application.Common.RiskScoreConstants.NewUserScore;
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         // Multiple items
         var itemCount = await _context.Set<OrderItem>()
             .AsNoTracking()
             .CountAsync(oi => oi.OrderId == orderId, cancellationToken);
-        if (itemCount > 10) riskScore += 15;
+        if (itemCount > Merge.Application.Common.RiskScoreConstants.MultipleItemsThreshold) 
+            riskScore += Merge.Application.Common.RiskScoreConstants.MultipleItemsScore;
 
         // High quantity
         var totalQuantity = await _context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.OrderId == orderId)
             .SumAsync(oi => oi.Quantity, cancellationToken);
-        if (totalQuantity > 20) riskScore += 15;
+        if (totalQuantity > Merge.Application.Common.RiskScoreConstants.HighQuantityThreshold) 
+            riskScore += Merge.Application.Common.RiskScoreConstants.HighQuantityScore;
 
-        return Math.Min(riskScore, 100);
+        return Math.Min(riskScore, Merge.Application.Common.RiskScoreConstants.MaxRiskScore);
     }
 
 }
@@ -503,26 +508,31 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
 
         int riskScore = 0;
 
+        // ✅ HIGH-CQ-002 FIX: Magic numbers yerine constants kullanılıyor
         // High value payment
-        if (payment.Amount > 5000) riskScore += 25;
+        if (payment.Amount > Merge.Application.Common.RiskScoreConstants.HighValuePaymentThreshold) 
+            riskScore += Merge.Application.Common.RiskScoreConstants.HighValuePaymentScore;
 
         // New user
         var daysSinceRegistration = (DateTime.UtcNow - payment.Order.User.CreatedAt).Days;
-        if (daysSinceRegistration < 7) riskScore += 20;
+        if (daysSinceRegistration < Merge.Application.Common.RiskScoreConstants.NewUserDaysThreshold) 
+            riskScore += Merge.Application.Common.RiskScoreConstants.NewUserScore;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         // Multiple payments from same IP in short time
         var recentPayments = await _context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
-            .Where(c => c.IpAddress == dto.IpAddress && c.CreatedAt >= DateTime.UtcNow.AddHours(-1)) // ✅ BOLUM 12.0: ShortDateRangeDays kullanılabilir ama bu özel durum (1 saat)
+            .Where(c => c.IpAddress == dto.IpAddress && c.CreatedAt >= DateTime.UtcNow.AddHours(-Merge.Application.Common.RiskScoreConstants.RecentPaymentsTimeWindowHours))
             .CountAsync(cancellationToken);
 
-        if (recentPayments > 3) riskScore += 30;
+        if (recentPayments > Merge.Application.Common.RiskScoreConstants.RecentPaymentsThreshold) 
+            riskScore += Merge.Application.Common.RiskScoreConstants.RecentPaymentsScore;
 
         // Device fingerprint check
-        if (string.IsNullOrEmpty(dto.DeviceFingerprint)) riskScore += 15;
+        if (string.IsNullOrEmpty(dto.DeviceFingerprint)) 
+            riskScore += Merge.Application.Common.RiskScoreConstants.MissingDeviceFingerprintScore;
 
-        return Math.Min(riskScore, 100);
+        return Math.Min(riskScore, Merge.Application.Common.RiskScoreConstants.MaxRiskScore);
     }
 
 }

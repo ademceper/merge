@@ -1,15 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System.Security.Cryptography;
-using Merge.Application.DTOs.Identity;
-using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Application.Identity.Commands.Verify2FACode;
-using Merge.Domain.Entities;
-using Merge.Domain.SharedKernel.DomainEvents;
-using Merge.Domain.Enums;
-using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Identity;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;

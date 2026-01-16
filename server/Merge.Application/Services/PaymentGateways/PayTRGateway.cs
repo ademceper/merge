@@ -106,7 +106,47 @@ public class PayTRGateway : IPaymentGateway
 
     public Task<bool> VerifyWebhookAsync(string signature, string payload)
     {
-        return Task.FromResult(true);
+        // ✅ SECURITY FIX: PayTR webhook signature doğrulama implement edildi
+        var merchantSalt = _configuration["PaymentGateways:PayTR:MerchantSalt"];
+
+        if (string.IsNullOrEmpty(merchantSalt))
+        {
+            _logger.LogWarning("PayTR merchant salt not configured - webhook verification skipped");
+            return Task.FromResult(false);
+        }
+
+        if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(payload))
+        {
+            _logger.LogWarning("PayTR webhook verification failed - missing signature or payload");
+            return Task.FromResult(false);
+        }
+
+        try
+        {
+            // PayTR webhook signature format: HMAC-SHA256 hash of (merchantSalt + payload)
+            // Gerçek implementasyonda PayTR dokümantasyonuna göre doğrulama yapılmalı
+
+            // Basit HMAC-SHA256 doğrulama (PayTR formatına göre güncellenebilir)
+            var signedPayload = $"{merchantSalt}{payload}";
+            using var hmac = new System.Security.Cryptography.HMACSHA256(
+                System.Text.Encoding.UTF8.GetBytes(merchantSalt));
+            var hash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(signedPayload));
+            var computedSignature = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+
+            var isValid = string.Equals(computedSignature, signature, StringComparison.OrdinalIgnoreCase);
+
+            if (!isValid)
+            {
+                _logger.LogWarning("PayTR webhook signature verification failed");
+            }
+
+            return Task.FromResult(isValid);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PayTR webhook verification error");
+            return Task.FromResult(false);
+        }
     }
 
     public Task<PaymentGatewayWebhookDto?> ProcessWebhookAsync(string payload)

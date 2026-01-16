@@ -138,7 +138,7 @@ public class PriceOptimizationService : IPriceOptimizationService
             // Ancak business logic için gerekli (aynı product'ı exclude etmek için)
             var similarProducts = similarProductsByCategory.TryGetValue(product.CategoryId, out var similar) 
                 ? similar.Where(p => p.Id != product.Id).ToList() 
-                : new List<ProductEntity>();
+                : [];
             
             var recommendation = await _helper.CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
             results.Add(new PriceOptimizationDto(

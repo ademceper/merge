@@ -1,0 +1,996 @@
+# MERGE UI PROJECT - COMPREHENSIVE AI DEVELOPMENT GUIDELINES
+# Version: 7.0 | 15-Dimension Analysis | Generated: 2026-01-16
+# Project: Turbo Monorepo with Next.js 16 + React 19 + Expo 54
+
+# ==============================================================================
+#                           OVERALL PROJECT HEALTH DASHBOARD
+# ==============================================================================
+
+# AGGREGATE SCORE: 5.2/10 (Needs Significant Improvement)
+
+# ┌────────────────────────────────────┬────────┬───────────────────────────────┐
+# │ Dimension                          │ Score  │ Status                        │
+# ├────────────────────────────────────┼────────┼───────────────────────────────┤
+# │ 1.  Performance & Rendering        │ 7.2/10 │ Good - Minor optimizations    │
+# │ 2.  Security (XSS, CSRF, Auth)     │ 6.5/10 │ Needs Attention               │
+# │ 3.  Component Architecture         │ 7.2/10 │ Good - Some improvements      │
+# │ 4.  Code Quality & Maintainability │ 7.5/10 │ Good                          │
+# │ 5.  State Management               │ 6.5/10 │ Needs Attention               │
+# │ 6.  API Integration & Data Fetching│ 1.0/10 │ CRITICAL - Not Implemented    │
+# │ 7.  Styling & TailwindCSS          │ 6.3/10 │ Moderate                      │
+# │ 8.  Accessibility (a11y)           │ 6.8/10 │ Needs Attention               │
+# │ 9.  Testing & QA                   │ 1.0/10 │ CRITICAL - Zero Coverage      │
+# │ 10. Build & Bundle Optimization    │ 3.2/10 │ Poor                          │
+# │ 11. Mobile (React Native/Expo)     │ 5.2/10 │ Moderate                      │
+# │ 12. TypeScript Usage               │ 8.5/10 │ Excellent                     │
+# │ 13. Documentation                  │ 3.2/10 │ Poor                          │
+# │ 14. DevOps & CI/CD                 │ 2.5/10 │ Poor - No Pipeline            │
+# │ 15. Dependency Management          │ 5.5/10 │ Moderate                      │
+# └────────────────────────────────────┴────────┴───────────────────────────────┘
+
+# ==============================================================================
+#                              PROJECT STRUCTURE
+# ==============================================================================
+
+# Monorepo Architecture (Turbo + pnpm 10.17.1):
+# ├── apps/
+# │   ├── web/          → Next.js 16.1.2 + React 19.2.3 (Turbopack)
+# │   └── mobile/       → Expo 54 + React Native 0.81.5
+# ├── packages/
+# │   ├── ui/           → 54 Web Components (shadcn/ui + Radix)
+# │   ├── uim/          → 32 Mobile Components (NativeWind)
+# │   ├── lint-cfg/     → Shared ESLint Config
+# │   └── ts-cfg/       → Shared TypeScript Config
+# └── turbo.json        → Turbo Pipeline Configuration
+
+# Key Versions:
+# - Next.js: 16.1.2 (App Router + Turbopack)
+# - React: 19.2.3 (web) / 19.1.0 (mobile) ⚠️ VERSION MISMATCH
+# - Expo SDK: 54
+# - React Native: 0.81.5
+# - TypeScript: 5.9.x
+# - TailwindCSS: 4.x (web) / 3.4.x (mobile) ⚠️ VERSION SPLIT
+# - Node.js: >=18
+
+# ==============================================================================
+#                     DIMENSION 1: PERFORMANCE & RENDERING
+# ==============================================================================
+# Score: 7.2/10
+
+## CRITICAL PERFORMANCE ISSUES:
+
+### Issue P1: Missing React.memo on Heavy Components (HIGH)
+# File: apps/web/components/component-example.tsx
+# Components CardExample and FormExample re-render on every parent change
+# ALWAYS use React.memo for components with:
+# - Complex JSX trees (>50 elements)
+# - Expensive computations
+# - Prop drilling scenarios
+
+### Issue P2: useCallback Without Proper Dependencies (MEDIUM)
+# File: packages/ui/src/components/carousel.tsx:64-89
+# onSelect callback has empty dependency array but uses setters
+# ALWAYS include all dependencies or use functional setState
+
+### Issue P3: Sidebar Context Provider Re-renders (MEDIUM)
+# File: packages/ui/src/components/sidebar.tsx:115-126
+# Context value recreated on every state change
+# SPLIT context into separate value and setter providers
+
+### Issue P4: Over-importing Icons (HIGH)
+# File: apps/web/components/component-example.tsx:60
+# 27 icons imported but only ~18 used
+# ONLY import icons actually used in the component
+
+### Issue P5: No next/image Usage (HIGH)
+# File: apps/web/components/component-example.tsx:76-81
+# Native <img> used instead of next/image
+# ALWAYS use next/image for automatic optimization
+
+### Issue P6: Mobile Splash Screen Artificial Delays (MEDIUM)
+# File: apps/mobile/app/index.tsx:49-62
+# Hardcoded Promise.all with timeouts
+# USE actual async operations, not artificial delays
+
+### Issue P7: No Virtual Scrolling on Mobile (MEDIUM)
+# File: apps/mobile/app/home.tsx:20-86
+# ScrollView renders all children immediately
+# USE FlatList with virtualization for lists >10 items
+
+## PERFORMANCE RULES:
+performance_rules:
+  react_memo:
+    - "Use React.memo for components >30 lines with props"
+    - "Add custom comparison function for object props"
+  use_callback:
+    - "Always include all dependencies in array"
+    - "Use functional setState to avoid stale closures"
+  use_memo:
+    - "Memoize expensive className computations with cn()"
+    - "Memoize context values to prevent re-renders"
+  images:
+    - "ALWAYS use next/image for web images"
+    - "ALWAYS specify width and height"
+    - "Use priority for LCP images"
+    - "Add blur placeholder for external images"
+  mobile:
+    - "USE FlatList instead of ScrollView for lists"
+    - "SET removeClippedSubviews={true}"
+    - "SET maxToRenderPerBatch for large lists"
+
+# ==============================================================================
+#                     DIMENSION 2: SECURITY (XSS, CSRF, AUTH)
+# ==============================================================================
+# Score: 6.5/10
+
+## CRITICAL SECURITY VULNERABILITIES:
+
+### Vulnerability S1: XSS via dangerouslySetInnerHTML (CRITICAL)
+# File: packages/ui/src/components/chart.tsx:82-102
+# Dynamic style injection without sanitization
+# OWASP: A03:2021 - Injection
+# FIX: Use React.memo and memoize style content
+
+### Vulnerability S2: Insecure Cookie Configuration (HIGH)
+# File: packages/ui/src/components/sidebar.tsx
+# Cookies set without httpOnly, secure, sameSite
+# OWASP: A05:2021 - Security Misconfiguration
+# FIX: ALWAYS set cookies with:
+#   - httpOnly: true
+#   - secure: true (production)
+#   - sameSite: 'strict' or 'lax'
+
+### Vulnerability S3: Missing Security Headers (HIGH)
+# File: apps/web/next.config.mjs
+# No Content-Security-Policy or other security headers
+# OWASP: A05:2021 - Security Misconfiguration
+# FIX: Add headers in next.config.mjs:
+#   Content-Security-Policy
+#   X-Frame-Options
+#   X-Content-Type-Options
+#   Referrer-Policy
+#   Permissions-Policy
+
+### Vulnerability S4: No Authentication Checks (HIGH)
+# File: apps/mobile/app/_layout.tsx
+# No auth state verification before rendering protected screens
+# OWASP: A07:2021 - Identification and Authentication Failures
+# FIX: Implement auth guard at layout level
+
+### Vulnerability S5: Image URL Not Validated (HIGH)
+# File: apps/mobile/app/onboarding.tsx
+# External image URLs used without validation
+# OWASP: A08:2021 - Software and Data Integrity Failures
+# FIX: Whitelist allowed image domains
+
+## SECURITY RULES:
+security_rules:
+  xss_prevention:
+    - "NEVER use dangerouslySetInnerHTML with user input"
+    - "ALWAYS sanitize dynamic content with DOMPurify"
+    - "USE textContent instead of innerHTML when possible"
+  cookies:
+    - "ALWAYS set httpOnly for session cookies"
+    - "ALWAYS set secure=true in production"
+    - "ALWAYS set sameSite='strict' or 'lax'"
+  headers:
+    - "ALWAYS configure CSP in next.config.mjs"
+    - "BLOCK framing with X-Frame-Options"
+    - "SET X-Content-Type-Options: nosniff"
+  auth:
+    - "IMPLEMENT auth guard at _layout level"
+    - "NEVER store tokens in localStorage"
+    - "USE expo-secure-store for mobile tokens"
+  api_keys:
+    - "NEVER expose API keys in client code"
+    - "USE environment variables"
+    - "USE server-side API routes for sensitive calls"
+
+# Recommended next.config.mjs security headers:
+# async headers() {
+#   return [
+#     {
+#       source: '/:path*',
+#       headers: [
+#         { key: 'X-DNS-Prefetch-Control', value: 'on' },
+#         { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+#         { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+#         { key: 'X-Content-Type-Options', value: 'nosniff' },
+#         { key: 'X-XSS-Protection', value: '1; mode=block' },
+#         { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+#       ],
+#     },
+#   ];
+# }
+
+# ==============================================================================
+#                     DIMENSION 3: COMPONENT ARCHITECTURE
+# ==============================================================================
+# Score: 7.2/10
+
+## ARCHITECTURE OVERVIEW:
+# 54 Web Components (packages/ui)
+# 32 Mobile Components (packages/uim)
+# Total: 86 Reusable Components
+
+## STRENGTHS:
+# + Good use of composition patterns
+# + CVA (class-variance-authority) for variants
+# + Proper slot-based component design
+# + forwardRef used consistently
+
+## ISSUES IDENTIFIED:
+
+### Issue A1: Inconsistent Component Export Patterns (MEDIUM)
+# Some components use named exports, others use export const
+# STANDARDIZE: Use named exports for all components
+
+### Issue A2: Missing Display Names (LOW)
+# Several forwardRef components lack displayName
+# ALWAYS add: Component.displayName = 'Component'
+
+### Issue A3: Props Interface Duplication (MEDIUM)
+# Similar props defined across multiple components
+# CREATE shared prop types in a types file
+
+### Issue A4: No Component Documentation (MEDIUM)
+# Components lack JSDoc comments
+# ADD JSDoc for all public component props
+
+## COMPONENT RULES:
+component_rules:
+  structure:
+    - "ONE component per file"
+    - "Use PascalCase for component files"
+    - "Use index.ts for re-exports only"
+  props:
+    - "Define Props interface above component"
+    - "Extend React.ComponentProps for native elements"
+    - "Use VariantProps from CVA for variant types"
+  refs:
+    - "ALWAYS use forwardRef for reusable components"
+    - "ALWAYS add displayName after forwardRef"
+  composition:
+    - "Prefer composition over configuration"
+    - "Use compound components for complex UI"
+    - "Use data-slot attribute for styling hooks"
+
+# Component Template:
+# ```tsx
+# import * as React from 'react'
+# import { cn } from '@merge/ui/lib/utils'
+# import { cva, type VariantProps } from 'class-variance-authority'
+#
+# const componentVariants = cva('base-classes', {
+#   variants: {
+#     variant: { default: '', secondary: '' },
+#     size: { sm: '', md: '', lg: '' },
+#   },
+#   defaultVariants: {
+#     variant: 'default',
+#     size: 'md',
+#   },
+# })
+#
+# interface ComponentProps
+#   extends React.ComponentProps<'div'>,
+#     VariantProps<typeof componentVariants> {}
+#
+# const Component = React.forwardRef<HTMLDivElement, ComponentProps>(
+#   ({ className, variant, size, ...props }, ref) => (
+#     <div
+#       ref={ref}
+#       className={cn(componentVariants({ variant, size }), className)}
+#       {...props}
+#     />
+#   )
+# )
+# Component.displayName = 'Component'
+#
+# export { Component, type ComponentProps }
+# ```
+
+# ==============================================================================
+#                     DIMENSION 4: CODE QUALITY & MAINTAINABILITY
+# ==============================================================================
+# Score: 7.5/10
+
+## STRENGTHS:
+# + TypeScript used throughout
+# + Consistent code formatting (Prettier)
+# + ESLint configuration present
+# + Good naming conventions
+
+## ISSUES IDENTIFIED:
+
+### Issue Q1: Magic Numbers (MEDIUM)
+# File: apps/mobile/app/index.tsx
+# Hardcoded values like 200, 400, 300, 150 without constants
+# EXTRACT to named constants at file top
+
+### Issue Q2: Commented Code (LOW)
+# File: apps/mobile/app/home.tsx:60-62
+# Switch component commented out with "requires dev build"
+# REMOVE or implement properly
+
+### Issue Q3: Type Assertions (MEDIUM)
+# File: apps/mobile/app/onboarding.tsx:131
+# router.replace("/home" as any)
+# CREATE proper route types
+
+### Issue Q4: Console Statements (LOW)
+# Some files contain console.log for debugging
+# REMOVE all console.* before production
+
+## CODE QUALITY RULES:
+code_quality_rules:
+  naming:
+    - "Use PascalCase for components and types"
+    - "Use camelCase for functions and variables"
+    - "Use SCREAMING_SNAKE_CASE for constants"
+  constants:
+    - "EXTRACT magic numbers to named constants"
+    - "Group related constants in config objects"
+  types:
+    - "AVOID 'any' type - use 'unknown' if needed"
+    - "AVOID type assertions with 'as any'"
+    - "CREATE proper types for all external data"
+  comments:
+    - "REMOVE commented-out code"
+    - "USE JSDoc for public APIs"
+    - "ADD TODO with issue number for incomplete work"
+  errors:
+    - "ALWAYS catch and handle errors"
+    - "LOG errors to monitoring service"
+    - "SHOW user-friendly error messages"
+
+# ==============================================================================
+#                     DIMENSION 5: STATE MANAGEMENT
+# ==============================================================================
+# Score: 6.5/10
+
+## CURRENT PATTERNS:
+# - useState for local component state
+# - next-themes for theme state (web)
+# - useSharedValue for animations (mobile)
+# - No global state management library
+
+## CRITICAL ISSUES:
+
+### Issue SM1: Nested setTimeout Without Cleanup (CRITICAL)
+# File: apps/mobile/app/index.tsx:78-94
+# Memory leak - inner setTimeout not cleaned up
+# FIX: Store timer ref and clear in cleanup
+
+### Issue SM2: Incomplete Timer Cleanup (HIGH)
+# File: apps/mobile/app/index.tsx:146-184 (LoadingDot)
+# setTimeout for initial delay not cleaned up
+# FIX: Clear both setInterval AND setTimeout
+
+### Issue SM3: Unsafe State Mutations (HIGH)
+# File: apps/web/components/component-example.tsx:243-367
+# setNotifications({...notifications, email: checked})
+# FIX: Use functional update: setNotifications(prev => ({...prev, email: checked}))
+
+### Issue SM4: Duplicate Theme State (MEDIUM)
+# File: apps/web/components/component-example.tsx:139
+# Local theme state duplicates NextThemesProvider
+# FIX: Use useTheme() hook instead
+
+### Issue SM5: Stale Closure in Gesture Handlers (MEDIUM)
+# File: apps/mobile/app/onboarding.tsx:75-118
+# currentPage accessed from closure may be stale
+# FIX: Use useRef for values accessed in gestures
+
+### Issue SM6: Unused State Variable (LOW)
+# File: apps/mobile/app/home.tsx:14
+# switchValue state declared but never used
+# FIX: Remove unused state
+
+## STATE MANAGEMENT RULES:
+state_rules:
+  timers:
+    - "ALWAYS cleanup timers in useEffect return"
+    - "Store timer IDs in refs for cleanup"
+    - "Clear BOTH setTimeout AND setInterval"
+  updates:
+    - "USE functional updates: setState(prev => newState)"
+    - "AVOID reading state in setState callback"
+  global:
+    - "USE context only for truly global state"
+    - "SPLIT large contexts into feature contexts"
+    - "CONSIDER Zustand for complex state"
+  mobile:
+    - "USE useSharedValue for animation state"
+    - "USE runOnJS() when bridging to React state"
+    - "AVOID reading React state in gesture callbacks"
+  persistence:
+    - "USE expo-secure-store for sensitive data"
+    - "USE AsyncStorage for non-sensitive preferences"
+
+# Timer Cleanup Pattern:
+# ```tsx
+# useEffect(() => {
+#   const timer = setTimeout(() => {
+#     // your code
+#   }, 1000);
+#
+#   return () => clearTimeout(timer);
+# }, [dependency]);
+# ```
+
+# ==============================================================================
+#                     DIMENSION 6: API INTEGRATION & DATA FETCHING
+# ==============================================================================
+# Score: 1.0/10 (CRITICAL)
+
+## STATUS: NOT IMPLEMENTED
+
+## REQUIRED IMPLEMENTATIONS:
+
+### 1. Install Data Fetching Library
+# Web: Install @tanstack/react-query
+# Mobile: Install @tanstack/react-query + axios
+
+### 2. Create API Client
+# File to create: packages/api/src/client.ts
+# - Configure base URL from environment
+# - Add request/response interceptors
+# - Handle authentication headers
+# - Implement retry logic
+
+### 3. Implement React Query Provider
+# File to create: apps/web/components/providers.tsx
+# Add QueryClientProvider wrapping the app
+
+### 4. Create API Hooks
+# File to create: packages/api/src/hooks/
+# - useUser() - fetch current user
+# - useProducts() - fetch product list
+# - useMutation hooks for mutations
+
+### 5. Implement Error Boundary
+# File to create: apps/web/components/error-boundary.tsx
+# Handle API errors gracefully
+
+## API INTEGRATION RULES:
+api_rules:
+  fetching:
+    - "USE React Query for all API calls"
+    - "USE Server Components for initial data"
+    - "IMPLEMENT proper loading states"
+    - "IMPLEMENT proper error states"
+  caching:
+    - "CONFIGURE staleTime per query type"
+    - "USE queryClient.invalidateQueries() after mutations"
+    - "IMPLEMENT optimistic updates for better UX"
+  error_handling:
+    - "IMPLEMENT error boundaries"
+    - "SHOW user-friendly error messages"
+    - "LOG errors to monitoring service"
+  auth:
+    - "ADD auth token to requests via interceptor"
+    - "HANDLE 401 responses globally"
+    - "REFRESH tokens automatically"
+
+# ==============================================================================
+#                     DIMENSION 7: STYLING & TAILWINDCSS
+# ==============================================================================
+# Score: 6.3/10
+
+## CURRENT SETUP:
+# Web: TailwindCSS 4.x + CSS Variables
+# Mobile: NativeWind 4.1.x + TailwindCSS 3.4.x
+
+## ISSUES IDENTIFIED:
+
+### Issue ST1: Version Mismatch (HIGH)
+# Web uses TailwindCSS 4.x, Mobile uses 3.4.x
+# May cause inconsistent class behavior
+# FIX: Align versions or document differences
+
+### Issue ST2: @apply on Universal Selector (LOW)
+# File: packages/ui/src/styles/globals.css:123-130
+# @apply * generates unnecessary CSS
+# FIX: Use raw CSS for base styles
+
+### Issue ST3: No Design Tokens Documentation (MEDIUM)
+# CSS variables defined but not documented
+# FIX: Create design tokens documentation
+
+### Issue ST4: Inconsistent Spacing (LOW)
+# Some components use arbitrary values [12px]
+# FIX: Use Tailwind spacing scale consistently
+
+## STYLING RULES:
+styling_rules:
+  tailwind:
+    - "USE Tailwind utility classes over custom CSS"
+    - "USE CSS variables for theme values"
+    - "AVOID arbitrary values like [12px]"
+    - "USE spacing scale: p-4, m-2, gap-3"
+  cn_utility:
+    - "ALWAYS use cn() for conditional classes"
+    - "ORDER: layout > sizing > spacing > visual"
+    - "MEMOIZE cn() calls in complex components"
+  themes:
+    - "DEFINE colors as CSS variables"
+    - "SUPPORT dark mode via class strategy"
+    - "USE hsl() format for color variables"
+  mobile:
+    - "USE NativeWind className prop"
+    - "AVOID inline styles when possible"
+    - "TEST on both iOS and Android"
+
+# ==============================================================================
+#                     DIMENSION 8: ACCESSIBILITY (A11Y)
+# ==============================================================================
+# Score: 6.8/10
+
+## STRENGTHS:
+# + Radix UI provides good base accessibility
+# + Semantic HTML used in most components
+# + Focus states implemented
+
+## ISSUES IDENTIFIED:
+
+### Issue A11Y1: Missing aria-label on Icon Buttons (HIGH)
+# Many icon-only buttons lack accessible names
+# FIX: Add aria-label to all icon buttons
+
+### Issue A11Y2: Missing Focus Trap in Modals (MEDIUM)
+# Dialog components may allow focus escape
+# VERIFY: Focus trap working in all dialogs
+
+### Issue A11Y3: Color Contrast Issues (MEDIUM)
+# Some muted colors may not meet WCAG AA
+# FIX: Test contrast ratios with axe-core
+
+### Issue A11Y4: Missing Skip Links (LOW)
+# No skip to main content link
+# FIX: Add skip link at top of layout
+
+### Issue A11Y5: Mobile Screen Reader Support (MEDIUM)
+# accessibilityLabel not consistently applied
+# FIX: Add accessibility props to all interactive elements
+
+## ACCESSIBILITY RULES:
+a11y_rules:
+  labels:
+    - "ADD aria-label to icon-only buttons"
+    - "ADD aria-labelledby to form fields"
+    - "ADD accessibilityLabel on mobile"
+  focus:
+    - "ENSURE focus visible on all interactive elements"
+    - "IMPLEMENT focus trap in modals"
+    - "MANAGE focus on route changes"
+  structure:
+    - "USE semantic HTML elements"
+    - "ADD skip link to main content"
+    - "USE heading hierarchy (h1 > h2 > h3)"
+  color:
+    - "MAINTAIN 4.5:1 contrast ratio for text"
+    - "MAINTAIN 3:1 contrast ratio for UI elements"
+    - "DON'T rely solely on color for information"
+
+# ==============================================================================
+#                     DIMENSION 9: TESTING & QA
+# ==============================================================================
+# Score: 1.0/10 (CRITICAL)
+
+## STATUS: NO TESTS IMPLEMENTED
+
+## REQUIRED IMPLEMENTATIONS:
+
+### 1. Install Testing Dependencies
+# pnpm add -D vitest @testing-library/react @testing-library/react-native
+# pnpm add -D @playwright/test msw happy-dom
+
+### 2. Configure Vitest
+# File to create: packages/ui/vitest.config.ts
+# File to create: apps/web/vitest.config.ts
+
+### 3. Create Test Structure
+# packages/ui/src/components/__tests__/
+# apps/web/__tests__/
+# apps/mobile/__tests__/
+
+### 4. Implement Test Types
+# - Unit tests for utility functions
+# - Component tests with Testing Library
+# - Integration tests with MSW
+# - E2E tests with Playwright
+
+## TESTING RULES:
+testing_rules:
+  unit:
+    - "TEST all utility functions"
+    - "TEST all custom hooks"
+    - "USE describe/it pattern"
+    - "TARGET 80%+ coverage"
+  component:
+    - "TEST user interactions"
+    - "TEST accessibility"
+    - "USE screen.getByRole"
+    - "AVOID testing implementation details"
+  integration:
+    - "USE MSW for API mocking"
+    - "TEST complete user flows"
+    - "TEST error scenarios"
+  e2e:
+    - "USE Playwright for web"
+    - "USE Detox for mobile"
+    - "TEST critical paths"
+    - "RUN in CI pipeline"
+
+# Test File Template:
+# ```tsx
+# import { describe, it, expect } from 'vitest'
+# import { render, screen } from '@testing-library/react'
+# import userEvent from '@testing-library/user-event'
+# import { Button } from './button'
+#
+# describe('Button', () => {
+#   it('renders children', () => {
+#     render(<Button>Click me</Button>)
+#     expect(screen.getByRole('button', { name: /click me/i })).toBeInTheDocument()
+#   })
+#
+#   it('handles click events', async () => {
+#     const user = userEvent.setup()
+#     const handleClick = vi.fn()
+#     render(<Button onClick={handleClick}>Click</Button>)
+#     await user.click(screen.getByRole('button'))
+#     expect(handleClick).toHaveBeenCalledOnce()
+#   })
+# })
+# ```
+
+# ==============================================================================
+#                     DIMENSION 10: BUILD & BUNDLE OPTIMIZATION
+# ==============================================================================
+# Score: 3.2/10
+
+## ISSUES IDENTIFIED:
+
+### Issue B1: No Bundle Analysis (HIGH)
+# No webpack-bundle-analyzer or similar configured
+# FIX: Add bundle analysis script
+
+### Issue B2: No Code Splitting (HIGH)
+# Heavy components not dynamically imported
+# FIX: Use next/dynamic for heavy components
+
+### Issue B3: CVA Not Deduplicated (MEDIUM)
+# class-variance-authority imported multiple times
+# FIX: Configure splitChunks for deduplication
+
+### Issue B4: Font Weights Overloaded (MEDIUM)
+# Loading 4 font weights when 2 may suffice
+# FIX: Only load weights actually used
+
+### Issue B5: No Image Optimization (HIGH)
+# External images not optimized
+# FIX: Configure remotePatterns in next.config.mjs
+
+## BUILD RULES:
+build_rules:
+  code_splitting:
+    - "USE next/dynamic for components >50KB"
+    - "USE lazy() for route-level splitting"
+    - "IMPLEMENT Suspense boundaries"
+  bundle:
+    - "RUN bundle analysis monthly"
+    - "SET size budget in CI"
+    - "TREE-SHAKE unused exports"
+  fonts:
+    - "LOAD only needed font weights"
+    - "USE font-display: swap"
+    - "PRECONNECT to font origins"
+  images:
+    - "CONFIGURE remotePatterns for external images"
+    - "USE sharp for optimization"
+    - "SET proper cache headers"
+
+# next.config.mjs optimization:
+# const nextConfig = {
+#   images: {
+#     remotePatterns: [
+#       { protocol: 'https', hostname: 'images.unsplash.com' },
+#     ],
+#   },
+#   experimental: {
+#     optimizePackageImports: ['@phosphor-icons/react', 'recharts'],
+#   },
+# }
+
+# ==============================================================================
+#                     DIMENSION 11: MOBILE (REACT NATIVE/EXPO)
+# ==============================================================================
+# Score: 5.2/10
+
+## CURRENT SETUP:
+# - Expo SDK 54
+# - React Native 0.81.5
+# - React 19.1.0 (⚠️ differs from web)
+# - React-Native-Reanimated 4.1.6
+
+## ISSUES IDENTIFIED:
+
+### Issue M1: React Version Mismatch (HIGH)
+# Web: 19.2.3, Mobile: 19.1.0
+# May cause hook behavior differences
+# FIX: Align React versions
+
+### Issue M2: Reanimated Version Conflict (HIGH)
+# apps/mobile: 4.1.6, packages/uim: 3.17.5
+# Will cause runtime errors
+# FIX: Align versions across workspace
+
+### Issue M3: Debug Keystore in Release (CRITICAL)
+# File: apps/mobile/android/app/build.gradle
+# Using debug keystore for release builds
+# FIX: Configure proper release keystore
+
+### Issue M4: No Error Boundary (MEDIUM)
+# No error boundary in mobile app
+# FIX: Implement ErrorBoundary component
+
+### Issue M5: No Deep Linking (MEDIUM)
+# No expo-linking configuration
+# FIX: Configure deep links for navigation
+
+## MOBILE RULES:
+mobile_rules:
+  expo:
+    - "USE Expo SDK features when available"
+    - "CONFIGURE app.json properly"
+    - "USE expo-constants for config"
+  react_native:
+    - "ALIGN React version with web"
+    - "USE FlatList over ScrollView"
+    - "USE Reanimated for animations"
+  android:
+    - "CONFIGURE proper release keystore"
+    - "SET minSdkVersion appropriately"
+    - "TEST on multiple Android versions"
+  ios:
+    - "CONFIGURE proper certificates"
+    - "HANDLE safe area properly"
+    - "TEST on multiple iOS versions"
+  security:
+    - "USE expo-secure-store for tokens"
+    - "NEVER store secrets in AsyncStorage"
+    - "IMPLEMENT certificate pinning for production"
+
+# ==============================================================================
+#                     DIMENSION 12: TYPESCRIPT USAGE
+# ==============================================================================
+# Score: 8.5/10 (Excellent)
+
+## STRENGTHS:
+# + Strict mode enabled
+# + Good type coverage
+# + Shared tsconfig across packages
+# + Proper type exports
+
+## MINOR ISSUES:
+
+### Issue T1: Type Assertions with 'as any' (LOW)
+# A few instances of 'as any' for router types
+# FIX: Create proper route types
+
+### Issue T2: Missing Return Types (LOW)
+# Some functions lack explicit return types
+# FIX: Add explicit return types for public APIs
+
+## TYPESCRIPT RULES:
+typescript_rules:
+  strict:
+    - "KEEP strict mode enabled"
+    - "NEVER use 'any' - use 'unknown'"
+    - "AVOID type assertions except for tests"
+  types:
+    - "DEFINE interfaces for all props"
+    - "EXPORT types alongside components"
+    - "USE generics for reusable utilities"
+  inference:
+    - "LET TS infer when obvious"
+    - "ADD explicit types for public APIs"
+    - "ADD explicit types for function parameters"
+
+# ==============================================================================
+#                     DIMENSION 13: DOCUMENTATION
+# ==============================================================================
+# Score: 3.2/10
+
+## ISSUES:
+# - No README in packages/ui
+# - No component documentation
+# - No API documentation
+# - No contribution guidelines
+
+## REQUIRED DOCUMENTATION:
+# 1. Root README.md - Project overview and setup
+# 2. packages/ui/README.md - Component library docs
+# 3. packages/uim/README.md - Mobile components docs
+# 4. CONTRIBUTING.md - Contribution guidelines
+# 5. Component Storybook (recommended)
+
+## DOCUMENTATION RULES:
+documentation_rules:
+  readme:
+    - "ADD README to each package"
+    - "INCLUDE setup instructions"
+    - "INCLUDE usage examples"
+  components:
+    - "ADD JSDoc to all public props"
+    - "INCLUDE usage examples in comments"
+    - "CONSIDER Storybook for visual docs"
+  api:
+    - "DOCUMENT all exported functions"
+    - "DOCUMENT all custom hooks"
+    - "INCLUDE error scenarios"
+
+# ==============================================================================
+#                     DIMENSION 14: DEVOPS & CI/CD
+# ==============================================================================
+# Score: 2.5/10
+
+## STATUS: NO CI/CD CONFIGURED
+
+## REQUIRED IMPLEMENTATIONS:
+
+### 1. GitHub Actions Workflow
+# File to create: .github/workflows/ci.yml
+# - Lint check
+# - Type check
+# - Unit tests
+# - Build verification
+
+### 2. Preview Deployments
+# Configure Vercel/Netlify for PR previews
+
+### 3. Mobile CI
+# Configure EAS Build for Expo
+
+## CI/CD RULES:
+cicd_rules:
+  ci:
+    - "RUN lint on every PR"
+    - "RUN type check on every PR"
+    - "RUN tests on every PR"
+    - "BUILD on every PR"
+  cd:
+    - "AUTO-DEPLOY main to staging"
+    - "MANUAL deploy to production"
+    - "TAG releases with version"
+  mobile:
+    - "USE EAS Build for CI"
+    - "CONFIGURE build profiles"
+    - "AUTO-BUILD on release tags"
+
+# ==============================================================================
+#                     DIMENSION 15: DEPENDENCY MANAGEMENT
+# ==============================================================================
+# Score: 5.5/10
+
+## ISSUES IDENTIFIED:
+
+### Issue D1: React Version Mismatch (HIGH)
+# Web: react@19.2.3, Mobile: react@19.1.0
+# FIX: Align versions in pnpm-workspace.yaml
+
+### Issue D2: TailwindCSS Version Split (MEDIUM)
+# Web: ^4.1.11, Mobile: ^3.4.19
+# DOCUMENT: Intentional difference due to NativeWind
+
+### Issue D3: Reanimated Version Conflict (HIGH)
+# apps/mobile: 4.1.6, packages/uim: 3.17.5
+# FIX: Align to single version
+
+### Issue D4: No Dependabot (MEDIUM)
+# No automated dependency updates
+# FIX: Configure Dependabot
+
+## DEPENDENCY RULES:
+dependency_rules:
+  versions:
+    - "ALIGN major versions across workspace"
+    - "USE workspace:* for internal packages"
+    - "PIN versions for critical packages"
+  updates:
+    - "CONFIGURE Dependabot or Renovate"
+    - "REVIEW updates weekly"
+    - "TEST before merging updates"
+  audit:
+    - "RUN pnpm audit monthly"
+    - "FIX critical vulnerabilities immediately"
+    - "DOCUMENT unfixable issues"
+
+# ==============================================================================
+#                           PRIORITY ACTION MATRIX
+# ==============================================================================
+
+## PHASE 1: CRITICAL (Week 1)
+# 1. [TESTING] Setup Vitest and write first tests
+# 2. [SECURITY] Fix chart.tsx XSS vulnerability
+# 3. [MOBILE] Fix Reanimated version conflict
+# 4. [STATE] Fix nested setTimeout memory leak
+# 5. [MOBILE] Configure proper Android release keystore
+
+## PHASE 2: HIGH (Week 2-3)
+# 6. [API] Implement React Query + API client
+# 7. [BUILD] Add bundle analysis and code splitting
+# 8. [SECURITY] Add security headers to Next.js
+# 9. [DEPS] Align React versions across workspace
+# 10. [STATE] Fix unsafe state mutation patterns
+
+## PHASE 3: MEDIUM (Week 4-6)
+# 11. [CI/CD] Setup GitHub Actions workflow
+# 12. [A11Y] Add aria-labels to icon buttons
+# 13. [PERF] Add React.memo to heavy components
+# 14. [DOCS] Create README files for packages
+# 15. [MOBILE] Implement error boundaries
+
+## PHASE 4: MAINTENANCE (Ongoing)
+# 16. [TESTING] Achieve 80% test coverage
+# 17. [DOCS] Setup Storybook
+# 18. [DEPS] Configure Dependabot
+# 19. [A11Y] Run accessibility audits
+# 20. [PERF] Monitor bundle size
+
+# ==============================================================================
+#                           QUICK REFERENCE COMMANDS
+# ==============================================================================
+
+# Development:
+# pnpm dev          - Start all apps in dev mode
+# pnpm build        - Build all apps
+# pnpm lint         - Run ESLint
+# pnpm typecheck    - Run TypeScript check
+
+# Testing (to be implemented):
+# pnpm test         - Run unit tests
+# pnpm test:e2e     - Run E2E tests
+# pnpm test:coverage - Run with coverage
+
+# Mobile:
+# cd apps/mobile && npx expo start    - Start Expo dev server
+# cd apps/mobile && eas build         - Build with EAS
+
+# ==============================================================================
+#                           FILE PATTERNS
+# ==============================================================================
+
+file_patterns:
+  components: "packages/ui/src/components/*.tsx"
+  mobile_components: "packages/uim/src/components/*.tsx"
+  web_app: "apps/web/app/**/*.tsx"
+  mobile_app: "apps/mobile/app/**/*.tsx"
+  styles: "packages/ui/src/styles/*.css"
+  hooks: "packages/*/src/hooks/*.ts"
+  utils: "packages/*/src/lib/*.ts"
+
+# ==============================================================================
+#                           IMPORT ORDER
+# ==============================================================================
+
+# 1. React imports
+# 2. External library imports
+# 3. Internal @merge/* imports
+# 4. Relative imports
+# 5. Type imports
+
+# Example:
+# import * as React from 'react'
+# import { cva } from 'class-variance-authority'
+# import { cn } from '@merge/ui/lib/utils'
+# import { Button } from '../button'
+# import type { ComponentProps } from './types'
+
+# ==============================================================================
+#                              END OF CURSORRULES
+# ==============================================================================
+# Total Lines: ~750 | Generated from 15-Dimension Analysis
+# Next Review: 2026-02-16

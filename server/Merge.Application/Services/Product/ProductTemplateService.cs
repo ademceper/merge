@@ -263,10 +263,17 @@ public class ProductTemplateService : IProductTemplateService
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == product.Id, cancellationToken);
 
+        // ✅ ERROR HANDLING FIX: Null check instead of null-forgiving operator
+        if (product == null)
+        {
+            _logger.LogError("Product not found after creation. ProductId: {ProductId}", product?.Id);
+            throw new InvalidOperationException("Product could not be retrieved after creation");
+        }
+
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         _logger.LogInformation(
             "Product template'den ürün oluşturuldu. ProductId: {ProductId}, TemplateId: {TemplateId}",
-            product!.Id, dto.TemplateId);
+            product.Id, dto.TemplateId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return _mapper.Map<ProductDto>(product);

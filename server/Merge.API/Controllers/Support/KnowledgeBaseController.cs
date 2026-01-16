@@ -28,6 +28,7 @@ using Merge.API.Helpers;
 namespace Merge.API.Controllers.Support;
 
 [ApiVersion("1.0")]
+[ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/support/knowledge-base")]
 public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSettings> supportSettings) : BaseController
@@ -126,21 +127,30 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         return Ok(article);
     }
 
-    [HttpPost("articles/search")]
-    [RateLimit(60, 60)]     [ProducesResponseType(typeof(PagedResult<KnowledgeBaseArticleDto>), StatusCodes.Status200OK)]
+    /// <summary>
+    /// Knowledge base makalelerinde arama (GET endpoint - REST best practice)
+    /// HIGH-API-004: POST yerine GET kullanımı - Search operations should use GET with query params
+    /// </summary>
+    [HttpGet("articles/search")]
+    [RateLimit(60, 60)]
+    [ProducesResponseType(typeof(PagedResult<KnowledgeBaseArticleDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PagedResult<KnowledgeBaseArticleDto>>> SearchArticles(
-        [FromBody] KnowledgeBaseSearchDto searchDto,
+        [FromQuery] string? query = null,
+        [FromQuery] Guid? categoryId = null,
+        [FromQuery] bool featuredOnly = false,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-                        var query = new SearchKnowledgeBaseArticlesQuery(
-            searchDto.Query,
-            searchDto.CategoryId,
-            searchDto.FeaturedOnly,
-            searchDto.Page,
-            searchDto.PageSize);
-        var articles = await mediator.Send(query, cancellationToken);
+        var searchQuery = new SearchKnowledgeBaseArticlesQuery(
+            query ?? string.Empty,
+            categoryId,
+            featuredOnly,
+            page < 1 ? 1 : page,
+            pageSize > 100 ? 100 : pageSize);
+        var articles = await mediator.Send(searchQuery, cancellationToken);
         
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
         var updatedItems = articles.Items.Select(article =>

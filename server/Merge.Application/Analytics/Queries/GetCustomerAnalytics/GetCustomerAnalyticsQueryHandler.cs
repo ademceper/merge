@@ -186,13 +186,13 @@ public class GetCustomerAnalyticsQueryHandler(
             : 0;
         var newAvgOrderValue = newOrderCount > 0 ? newRevenue / newOrderCount : 0m;
 
-        // ✅ BOLUM 7.1: Records kullanımı - Constructor syntax
-        return new List<CustomerSegmentDto>
-        {
+        // ✅ HIGH-NET-001: Collection expressions (C# 12) - new List<> yerine [] kullanımı
+        return
+        [
             new CustomerSegmentDto("VIP", vipCount, vipRevenue, vipAvgOrderValue),
             new CustomerSegmentDto("Active", activeCount, activeRevenue, activeAvgOrderValue),
             new CustomerSegmentDto("New", newCount, newRevenue, newAvgOrderValue)
-        };
+        ];
     }
 }
 

@@ -58,10 +58,8 @@ public class StoreService : IStoreService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<StoreDto> CreateStoreAsync(Guid sellerId, CreateStoreDto dto, CancellationToken cancellationToken = default)
     {
-        if (dto == null)
-        {
-            throw new ArgumentNullException(nameof(dto));
-        }
+        // ✅ MODERN C#: ArgumentNullException.ThrowIfNull (C# 10+)
+        ArgumentNullException.ThrowIfNull(dto);
 
         if (string.IsNullOrWhiteSpace(dto.StoreName))
         {
@@ -295,10 +293,8 @@ public class StoreService : IStoreService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> UpdateStoreAsync(Guid storeId, UpdateStoreDto dto, CancellationToken cancellationToken = default)
     {
-        if (dto == null)
-        {
-            throw new ArgumentNullException(nameof(dto));
-        }
+        // ✅ MODERN C#: ArgumentNullException.ThrowIfNull (C# 10+)
+        ArgumentNullException.ThrowIfNull(dto);
 
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         var store = await _context.Set<Store>()

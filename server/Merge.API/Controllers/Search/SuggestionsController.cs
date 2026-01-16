@@ -10,6 +10,7 @@ using Merge.API.Middleware;
 
 namespace Merge.API.Controllers.Search;
 
+[ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/search/suggestions")]
 public class SearchSuggestionsController(IMediator mediator) : BaseController

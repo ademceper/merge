@@ -40,14 +40,16 @@ public class ExportProductsToCsvQueryHandler : IRequestHandler<ExportProductsToC
         var csv = new StringBuilder();
         csv.AppendLine("Name,Description,SKU,Price,DiscountPrice,StockQuantity,Brand,Category,ImageUrl,IsActive");
 
-        foreach (var product in products)
+        // ✅ PERFORMANCE FIX: IndexOf() O(n) yerine for loop ile O(1) index erişimi
+        for (var i = 0; i < products.Count; i++)
         {
             if (cancellationToken.IsCancellationRequested)
             {
-                _logger.LogWarning("CSV export cancelled. Exported {Count} products so far", products.IndexOf(product));
+                _logger.LogWarning("CSV export cancelled. Exported {Count} products so far", i);
                 break;
             }
 
+            var product = products[i];
             csv.AppendLine($"\"{EscapeCsv(product.Name)}\"," +
                           $"\"{EscapeCsv(product.Description)}\"," +
                           $"\"{product.SKU}\"," +

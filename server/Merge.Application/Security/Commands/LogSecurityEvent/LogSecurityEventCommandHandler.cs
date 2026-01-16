@@ -84,10 +84,11 @@ public class LogSecurityEventCommandHandler : IRequestHandler<LogSecurityEventCo
                 ? AlertSeverity.Critical
                 : (severity == SecurityEventSeverity.Warning ? AlertSeverity.High : AlertSeverity.Medium);
 
+            // ✅ SECURITY FIX: Email'i loglama - PII exposure riski, sadece UserId kullan
             var alert = SecurityAlert.Create(
                 alertType: AlertType.Account,
                 title: $"Suspicious activity detected: {request.EventType}",
-                description: $"Security event: {request.EventType} for user {user.Email}",
+                description: $"Security event: {request.EventType} for user ID: {request.UserId}",
                 severity: alertSeverity,
                 userId: request.UserId,
                 metadata: request.Details != null ? JsonSerializer.Serialize(request.Details) : null);

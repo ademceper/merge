@@ -31,7 +31,9 @@ public class IpWhitelistMiddleware
 
             if (remoteIp == null || !IsIpAllowed(remoteIp))
             {
-                _logger.LogWarning($"Forbidden request from IP {remoteIp}");
+                // ✅ LOGGING FIX: Structured logging kullan (string interpolation yerine)
+                _logger.LogWarning("Forbidden request from IP {RemoteIp}. Endpoint: {Endpoint}",
+                    remoteIp, context.Request.Path);
                 context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
 
                 await context.Response.WriteAsJsonAsync(new
