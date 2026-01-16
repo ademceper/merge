@@ -2,7 +2,7 @@ import { cn } from '../lib/utils';
 import * as React from 'react';
 import { TextInput, type TextInputProps } from 'react-native';
 
-function Textarea({
+export function Textarea({
   className,
   multiline = true,
   numberOfLines = 8,
@@ -25,4 +25,3 @@ function Textarea({
   );
 }
 
-export { Textarea };

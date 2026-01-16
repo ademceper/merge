@@ -6,7 +6,7 @@ import { Tabs as TabsPrimitive } from "radix-ui"
 
 import { cn } from "@merge/ui/lib/utils"
 
-function Tabs({
+export function Tabs({
   className,
   orientation = "horizontal",
   ...props
@@ -24,7 +24,7 @@ function Tabs({
   )
 }
 
-const tabsListVariants = cva(
+export const tabsListVariants = cva(
   "rounded-lg p-[3px] group-data-horizontal/tabs:h-8 data-[variant=line]:rounded-none group/tabs-list text-muted-foreground inline-flex w-fit items-center justify-center group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:flex-col",
   {
     variants: {
@@ -39,7 +39,7 @@ const tabsListVariants = cva(
   }
 )
 
-function TabsList({
+export function TabsList({
   className,
   variant = "default",
   ...props
@@ -55,7 +55,7 @@ function TabsList({
   )
 }
 
-function TabsTrigger({
+export function TabsTrigger({
   className,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
@@ -74,7 +74,7 @@ function TabsTrigger({
   )
 }
 
-function TabsContent({
+export function TabsContent({
   className,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.Content>) {
@@ -86,5 +86,3 @@ function TabsContent({
     />
   )
 }
-
-export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants }

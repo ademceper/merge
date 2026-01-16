@@ -11,7 +11,7 @@ import { cn } from "@merge/ui/lib/utils"
 import { Button, buttonVariants } from "@merge/ui/components/button"
 import { CaretLeftIcon, CaretRightIcon, CaretDownIcon } from "@phosphor-icons/react"
 
-function Calendar({
+export function Calendar({
   className,
   classNames,
   showOutsideDays = true,
@@ -175,7 +175,7 @@ function Calendar({
   )
 }
 
-function CalendarDayButton({
+export function CalendarDayButton({
   className,
   day,
   modifiers,
@@ -213,4 +213,3 @@ function CalendarDayButton({
   )
 }
 
-export { Calendar, CalendarDayButton }

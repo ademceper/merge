@@ -2,7 +2,7 @@ import { cn } from '../lib/utils';
 import * as SeparatorPrimitive from '@rn-primitives/separator';
 import * as React from 'react';
 
-function Separator({
+export function Separator({
   className,
   orientation = 'horizontal',
   decorative = true,
@@ -22,4 +22,3 @@ function Separator({
   );
 }
 
-export { Separator };

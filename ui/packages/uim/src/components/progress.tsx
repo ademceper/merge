@@ -9,7 +9,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-function Progress({
+export function Progress({
   className,
   value,
   indicatorClassName,
@@ -40,4 +40,3 @@ function Progress({
   );
 }
 
-export { Progress };

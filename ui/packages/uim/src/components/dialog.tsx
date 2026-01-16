@@ -8,17 +8,17 @@ import { Platform, Text, View, type ViewProps } from 'react-native';
 import { FadeIn, FadeOut } from 'react-native-reanimated';
 import { FullWindowOverlay as RNFullWindowOverlay } from 'react-native-screens';
 
-const Dialog = DialogPrimitive.Root;
+export const Dialog = DialogPrimitive.Root;
 
-const DialogTrigger = DialogPrimitive.Trigger;
+export const DialogTrigger = DialogPrimitive.Trigger;
 
-const DialogPortal = DialogPrimitive.Portal;
+export const DialogPortal = DialogPrimitive.Portal;
 
-const DialogClose = DialogPrimitive.Close;
+export const DialogClose = DialogPrimitive.Close;
 
 const FullWindowOverlay = Platform.OS === 'ios' ? RNFullWindowOverlay : React.Fragment;
 
-function DialogOverlay({
+export function DialogOverlay({
   className,
   children,
   ...props
@@ -44,7 +44,7 @@ function DialogOverlay({
     </FullWindowOverlay>
   );
 }
-function DialogContent({
+export function DialogContent({
   className,
   portalHost,
   children,
@@ -80,13 +80,13 @@ function DialogContent({
   );
 }
 
-function DialogHeader({ className, ...props }: ViewProps) {
+export function DialogHeader({ className, ...props }: ViewProps) {
   return (
     <View className={cn('flex flex-col gap-2 text-center', className)} {...props} />
   );
 }
 
-function DialogFooter({ className, ...props }: ViewProps) {
+export function DialogFooter({ className, ...props }: ViewProps) {
   return (
     <View
       className={cn('flex flex-col-reverse gap-2', className)}
@@ -95,7 +95,7 @@ function DialogFooter({ className, ...props }: ViewProps) {
   );
 }
 
-function DialogTitle({
+export function DialogTitle({
   className,
   ...props
 }: DialogPrimitive.TitleProps & React.RefAttributes<DialogPrimitive.TitleRef>) {
@@ -107,7 +107,7 @@ function DialogTitle({
   );
 }
 
-function DialogDescription({
+export function DialogDescription({
   className,
   ...props
 }: DialogPrimitive.DescriptionProps & React.RefAttributes<DialogPrimitive.DescriptionRef>) {
@@ -118,16 +118,3 @@ function DialogDescription({
     />
   );
 }
-
-export {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-  DialogTrigger,
-};

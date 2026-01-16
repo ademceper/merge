@@ -3,14 +3,14 @@ import { cn } from '../lib/utils';
 import * as TabsPrimitive from '@rn-primitives/tabs';
 import * as React from 'react';
 
-function Tabs({
+export function Tabs({
   className,
   ...props
 }: TabsPrimitive.RootProps & React.RefAttributes<TabsPrimitive.RootRef>) {
   return <TabsPrimitive.Root className={cn('flex flex-col gap-2', className)} {...props} />;
 }
 
-function TabsList({
+export function TabsList({
   className,
   ...props
 }: TabsPrimitive.ListProps & React.RefAttributes<TabsPrimitive.ListRef>) {
@@ -25,7 +25,7 @@ function TabsList({
   );
 }
 
-function TabsTrigger({
+export function TabsTrigger({
   className,
   ...props
 }: TabsPrimitive.TriggerProps & React.RefAttributes<TabsPrimitive.TriggerRef>) {
@@ -49,7 +49,7 @@ function TabsTrigger({
   );
 }
 
-function TabsContent({
+export function TabsContent({
   className,
   ...props
 }: TabsPrimitive.ContentProps & React.RefAttributes<TabsPrimitive.ContentRef>) {
@@ -61,4 +61,3 @@ function TabsContent({
   );
 }
 
-export { Tabs, TabsContent, TabsList, TabsTrigger };

@@ -2,14 +2,14 @@ import { cn } from '../lib/utils';
 import * as RadioGroupPrimitive from '@rn-primitives/radio-group';
 import * as React from 'react';
 
-function RadioGroup({
+export function RadioGroup({
   className,
   ...props
 }: RadioGroupPrimitive.RootProps & React.RefAttributes<RadioGroupPrimitive.RootRef>) {
   return <RadioGroupPrimitive.Root className={cn('gap-3', className)} {...props} />;
 }
 
-function RadioGroupItem({
+export function RadioGroupItem({
   className,
   ...props
 }: RadioGroupPrimitive.ItemProps & React.RefAttributes<RadioGroupPrimitive.ItemRef>) {
@@ -26,4 +26,3 @@ function RadioGroupItem({
   );
 }
 
-export { RadioGroup, RadioGroupItem };

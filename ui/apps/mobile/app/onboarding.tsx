@@ -3,10 +3,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import * as React from "react";
+import { Routes } from "./types/routes";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withTiming,
   withSpring,
   runOnJS,
 } from "react-native-reanimated";
@@ -127,12 +127,12 @@ export default function OnboardingScreen() {
     });
 
   const handleSkip = () => {
-    router.replace("/home" as any);
+    router.replace(Routes.home);
   };
 
   const handleButtonPress = () => {
     if (currentPageData.isLastPage) {
-      router.replace("/home" as any);
+      router.replace(Routes.home);
     } else {
       const nextPage = currentPage + 1;
       translateX.value = withSpring(-nextPage * SCREEN_WIDTH, {

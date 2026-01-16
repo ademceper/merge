@@ -8,7 +8,7 @@ import { Button } from "@merge/ui/components/button"
 import { Input } from "@merge/ui/components/input"
 import { Textarea } from "@merge/ui/components/textarea"
 
-function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
+export function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="input-group"
@@ -41,7 +41,7 @@ const inputGroupAddonVariants = cva(
   }
 )
 
-function InputGroupAddon({
+export function InputGroupAddon({
   className,
   align = "inline-start",
   ...props
@@ -80,7 +80,7 @@ const inputGroupButtonVariants = cva(
   }
 )
 
-function InputGroupButton({
+export function InputGroupButton({
   className,
   type = "button",
   variant = "ghost",
@@ -99,7 +99,7 @@ function InputGroupButton({
   )
 }
 
-function InputGroupText({ className, ...props }: React.ComponentProps<"span">) {
+export function InputGroupText({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
       className={cn(
@@ -111,7 +111,7 @@ function InputGroupText({ className, ...props }: React.ComponentProps<"span">) {
   )
 }
 
-function InputGroupInput({
+export function InputGroupInput({
   className,
   ...props
 }: React.ComponentProps<"input">) {
@@ -124,7 +124,7 @@ function InputGroupInput({
   )
 }
 
-function InputGroupTextarea({
+export function InputGroupTextarea({
   className,
   ...props
 }: React.ComponentProps<"textarea">) {
@@ -135,13 +135,4 @@ function InputGroupTextarea({
       {...props}
     />
   )
-}
-
-export {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupText,
-  InputGroupInput,
-  InputGroupTextarea,
 }

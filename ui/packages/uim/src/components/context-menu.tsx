@@ -17,13 +17,13 @@ import {
 import { FadeIn } from 'react-native-reanimated';
 import { FullWindowOverlay as RNFullWindowOverlay } from 'react-native-screens';
 
-const ContextMenu = ContextMenuPrimitive.Root;
-const ContextMenuTrigger = ContextMenuPrimitive.Trigger;
-const ContextMenuGroup = ContextMenuPrimitive.Group;
-const ContextMenuSub = ContextMenuPrimitive.Sub;
-const ContextMenuRadioGroup = ContextMenuPrimitive.RadioGroup;
+export const ContextMenu = ContextMenuPrimitive.Root;
+export const ContextMenuTrigger = ContextMenuPrimitive.Trigger;
+export const ContextMenuGroup = ContextMenuPrimitive.Group;
+export const ContextMenuSub = ContextMenuPrimitive.Sub;
+export const ContextMenuRadioGroup = ContextMenuPrimitive.RadioGroup;
 
-function ContextMenuSubTrigger({
+export function ContextMenuSubTrigger({
   className,
   inset,
   children,
@@ -57,7 +57,7 @@ function ContextMenuSubTrigger({
   );
 }
 
-function ContextMenuSubContent({
+export function ContextMenuSubContent({
   className,
   ...props
 }: ContextMenuPrimitive.SubContentProps & React.RefAttributes<ContextMenuPrimitive.SubContentRef>) {
@@ -76,7 +76,7 @@ function ContextMenuSubContent({
 
 const FullWindowOverlay = Platform.OS === 'ios' ? RNFullWindowOverlay : React.Fragment;
 
-function ContextMenuContent({
+export function ContextMenuContent({
   className,
   overlayClassName,
   overlayStyle,
@@ -118,7 +118,7 @@ function ContextMenuContent({
   );
 }
 
-function ContextMenuItem({
+export function ContextMenuItem({
   className,
   inset,
   variant,
@@ -149,7 +149,7 @@ function ContextMenuItem({
   );
 }
 
-function ContextMenuCheckboxItem({
+export function ContextMenuCheckboxItem({
   className,
   children,
   ...props
@@ -182,7 +182,7 @@ function ContextMenuCheckboxItem({
   );
 }
 
-function ContextMenuRadioItem({
+export function ContextMenuRadioItem({
   className,
   children,
   ...props
@@ -210,7 +210,7 @@ function ContextMenuRadioItem({
   );
 }
 
-function ContextMenuLabel({
+export function ContextMenuLabel({
   className,
   inset,
   ...props
@@ -231,7 +231,7 @@ function ContextMenuLabel({
   );
 }
 
-function ContextMenuSeparator({
+export function ContextMenuSeparator({
   className,
   ...props
 }: ContextMenuPrimitive.SeparatorProps & React.RefAttributes<ContextMenuPrimitive.SeparatorRef>) {
@@ -243,7 +243,7 @@ function ContextMenuSeparator({
   );
 }
 
-function ContextMenuShortcut({ className, ...props }: TextProps & React.RefAttributes<Text>) {
+export function ContextMenuShortcut({ className, ...props }: TextProps & React.RefAttributes<Text>) {
   return (
     <Text
       className={cn('text-muted-foreground ml-auto text-xs tracking-widest', className)}
@@ -251,20 +251,3 @@ function ContextMenuShortcut({ className, ...props }: TextProps & React.RefAttri
     />
   );
 }
-
-export {
-  ContextMenu,
-  ContextMenuCheckboxItem,
-  ContextMenuContent,
-  ContextMenuGroup,
-  ContextMenuItem,
-  ContextMenuLabel,
-  ContextMenuRadioGroup,
-  ContextMenuRadioItem,
-  ContextMenuSeparator,
-  ContextMenuShortcut,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
-  ContextMenuTrigger,
-};

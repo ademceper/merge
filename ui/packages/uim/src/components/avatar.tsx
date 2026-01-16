@@ -2,7 +2,7 @@ import { cn } from '../lib/utils';
 import * as AvatarPrimitive from '@rn-primitives/avatar';
 import * as React from 'react';
 
-function Avatar({
+export function Avatar({
   className,
   ...props
 }: AvatarPrimitive.RootProps & React.RefAttributes<AvatarPrimitive.RootRef>) {
@@ -14,14 +14,14 @@ function Avatar({
   );
 }
 
-function AvatarImage({
+export function AvatarImage({
   className,
   ...props
 }: AvatarPrimitive.ImageProps & React.RefAttributes<AvatarPrimitive.ImageRef>) {
   return <AvatarPrimitive.Image className={cn('aspect-square size-full', className)} {...props} />;
 }
 
-function AvatarFallback({
+export function AvatarFallback({
   className,
   ...props
 }: AvatarPrimitive.FallbackProps & React.RefAttributes<AvatarPrimitive.FallbackRef>) {
@@ -36,4 +36,3 @@ function AvatarFallback({
   );
 }
 
-export { Avatar, AvatarFallback, AvatarImage };

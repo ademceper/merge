@@ -5,7 +5,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import * as React from 'react';
 import { View, type ViewProps } from 'react-native';
 
-function Alert({
+export function Alert({
   className,
   variant,
   children,
@@ -44,7 +44,7 @@ function Alert({
   );
 }
 
-function AlertTitle({
+export function AlertTitle({
   className,
   ...props
 }: React.ComponentProps<typeof Text> & React.RefAttributes<Text>) {
@@ -56,7 +56,7 @@ function AlertTitle({
   );
 }
 
-function AlertDescription({
+export function AlertDescription({
   className,
   ...props
 }: React.ComponentProps<typeof Text> & React.RefAttributes<Text>) {
@@ -73,4 +73,3 @@ function AlertDescription({
   );
 }
 
-export { Alert, AlertDescription, AlertTitle };

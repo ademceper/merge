@@ -6,7 +6,7 @@ import { Checkbox as CheckboxPrimitive } from "radix-ui"
 import { cn } from "@merge/ui/lib/utils"
 import { CheckIcon } from "@phosphor-icons/react"
 
-function Checkbox({
+export function Checkbox({
   className,
   ...props
 }: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
@@ -30,4 +30,3 @@ function Checkbox({
   )
 }
 
-export { Checkbox }

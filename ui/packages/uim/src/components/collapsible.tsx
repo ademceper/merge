@@ -1,22 +1,21 @@
 import * as CollapsiblePrimitive from '@rn-primitives/collapsible';
 import * as React from 'react';
 
-function Collapsible({
+export function Collapsible({
   ...props
 }: CollapsiblePrimitive.RootProps & React.RefAttributes<CollapsiblePrimitive.RootRef>) {
   return <CollapsiblePrimitive.Root {...props} />;
 }
 
-function CollapsibleTrigger({
+export function CollapsibleTrigger({
   ...props
 }: CollapsiblePrimitive.TriggerProps & React.RefAttributes<CollapsiblePrimitive.TriggerRef>) {
   return <CollapsiblePrimitive.Trigger {...props} />;
 }
 
-function CollapsibleContent({
+export function CollapsibleContent({
   ...props
 }: CollapsiblePrimitive.ContentProps & React.RefAttributes<CollapsiblePrimitive.ContentRef>) {
   return <CollapsiblePrimitive.Content {...props} />;
 }
 
-export { Collapsible, CollapsibleTrigger, CollapsibleContent };

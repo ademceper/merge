@@ -6,7 +6,7 @@ import { OTPInput, OTPInputContext } from "input-otp"
 import { cn } from "@merge/ui/lib/utils"
 import { MinusIcon } from "@phosphor-icons/react"
 
-function InputOTP({
+export function InputOTP({
   className,
   containerClassName,
   ...props
@@ -30,7 +30,7 @@ function InputOTP({
   )
 }
 
-function InputOTPGroup({ className, ...props }: React.ComponentProps<"div">) {
+export function InputOTPGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="input-otp-group"
@@ -40,7 +40,7 @@ function InputOTPGroup({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function InputOTPSlot({
+export function InputOTPSlot({
   index,
   className,
   ...props
@@ -70,7 +70,7 @@ function InputOTPSlot({
   )
 }
 
-function InputOTPSeparator({ ...props }: React.ComponentProps<"div">) {
+export function InputOTPSeparator({ ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="input-otp-separator"
@@ -84,4 +84,3 @@ function InputOTPSeparator({ ...props }: React.ComponentProps<"div">) {
   )
 }
 
-export { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator }

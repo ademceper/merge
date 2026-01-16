@@ -2,7 +2,7 @@ import { cn } from '../lib/utils';
 import * as SwitchPrimitives from '@rn-primitives/switch';
 import * as React from 'react';
 
-function Switch({
+export function Switch({
   className,
   ...props
 }: SwitchPrimitives.RootProps & React.RefAttributes<SwitchPrimitives.RootRef>) {
@@ -27,4 +27,3 @@ function Switch({
   );
 }
 
-export { Switch };

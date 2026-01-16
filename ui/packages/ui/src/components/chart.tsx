@@ -34,7 +34,7 @@ function useChart() {
   return context
 }
 
-function ChartContainer({
+export function ChartContainer({
   id,
   className,
   children,
@@ -69,7 +69,7 @@ function ChartContainer({
   )
 }
 
-const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
+export function ChartStyle({ id, config }: { id: string; config: ChartConfig }) {
   const colorConfig = (Object.entries(config) as Array<[string, ChartConfig[string]]>).filter(
     ([, itemConfig]: [string, ChartConfig[string]]) => itemConfig.theme || itemConfig.color
   )
@@ -102,9 +102,9 @@ ${colorConfig
   )
 }
 
-const ChartTooltip = RechartsPrimitive.Tooltip
+export const ChartTooltip = RechartsPrimitive.Tooltip
 
-function ChartTooltipContent({
+export function ChartTooltipContent({
   active,
   payload,
   className,
@@ -250,9 +250,9 @@ function ChartTooltipContent({
   )
 }
 
-const ChartLegend = RechartsPrimitive.Legend
+export const ChartLegend = RechartsPrimitive.Legend
 
-function ChartLegendContent({
+export function ChartLegendContent({
   className,
   hideIcon = false,
   payload,
@@ -344,13 +344,4 @@ function getPayloadConfigFromPayload(
   return configLabelKey in config
     ? config[configLabelKey]
     : config[key as keyof typeof config]
-}
-
-export {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
-  ChartStyle,
 }

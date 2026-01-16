@@ -5,7 +5,7 @@ import { Slider as SliderPrimitive } from "radix-ui"
 
 import { cn } from "@merge/ui/lib/utils"
 
-function Slider({
+export function Slider({
   className,
   defaultValue,
   value,
@@ -56,4 +56,3 @@ function Slider({
   )
 }
 
-export { Slider }

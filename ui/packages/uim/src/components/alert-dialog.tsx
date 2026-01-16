@@ -8,15 +8,15 @@ import { Platform, View, type ViewProps } from 'react-native';
 import { FadeIn, FadeOut } from 'react-native-reanimated';
 import { FullWindowOverlay as RNFullWindowOverlay } from 'react-native-screens';
 
-const AlertDialog = AlertDialogPrimitive.Root;
+export const AlertDialog = AlertDialogPrimitive.Root;
 
-const AlertDialogTrigger = AlertDialogPrimitive.Trigger;
+export const AlertDialogTrigger = AlertDialogPrimitive.Trigger;
 
-const AlertDialogPortal = AlertDialogPrimitive.Portal;
+export const AlertDialogPortal = AlertDialogPrimitive.Portal;
 
 const FullWindowOverlay = Platform.OS === 'ios' ? RNFullWindowOverlay : React.Fragment;
 
-function AlertDialogOverlay({
+export function AlertDialogOverlay({
   className,
   children,
   ...props
@@ -42,7 +42,7 @@ function AlertDialogOverlay({
   );
 }
 
-function AlertDialogContent({
+export function AlertDialogContent({
   className,
   portalHost,
   ...props
@@ -65,7 +65,7 @@ function AlertDialogContent({
   );
 }
 
-function AlertDialogHeader({ className, ...props }: ViewProps) {
+export function AlertDialogHeader({ className, ...props }: ViewProps) {
   return (
     <TextClassContext.Provider value="text-center">
       <View className={cn('flex flex-col gap-2', className)} {...props} />
@@ -73,7 +73,7 @@ function AlertDialogHeader({ className, ...props }: ViewProps) {
   );
 }
 
-function AlertDialogFooter({ className, ...props }: ViewProps) {
+export function AlertDialogFooter({ className, ...props }: ViewProps) {
   return (
     <View
       className={cn('flex flex-col-reverse gap-2', className)}
@@ -82,7 +82,7 @@ function AlertDialogFooter({ className, ...props }: ViewProps) {
   );
 }
 
-function AlertDialogTitle({
+export function AlertDialogTitle({
   className,
   ...props
 }: AlertDialogPrimitive.TitleProps & React.RefAttributes<AlertDialogPrimitive.TitleRef>) {
@@ -94,7 +94,7 @@ function AlertDialogTitle({
   );
 }
 
-function AlertDialogDescription({
+export function AlertDialogDescription({
   className,
   ...props
 }: AlertDialogPrimitive.DescriptionProps &
@@ -107,7 +107,7 @@ function AlertDialogDescription({
   );
 }
 
-function AlertDialogAction({
+export function AlertDialogAction({
   className,
   ...props
 }: AlertDialogPrimitive.ActionProps & React.RefAttributes<AlertDialogPrimitive.ActionRef>) {
@@ -118,7 +118,7 @@ function AlertDialogAction({
   );
 }
 
-function AlertDialogCancel({
+export function AlertDialogCancel({
   className,
   ...props
 }: AlertDialogPrimitive.CancelProps & React.RefAttributes<AlertDialogPrimitive.CancelRef>) {
@@ -131,17 +131,3 @@ function AlertDialogCancel({
     </TextClassContext.Provider>
   );
 }
-
-export {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogOverlay,
-  AlertDialogPortal,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-};

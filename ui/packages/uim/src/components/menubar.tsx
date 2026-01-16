@@ -19,19 +19,19 @@ import {
 import { FadeIn } from 'react-native-reanimated';
 import { FullWindowOverlay as RNFullWindowOverlay } from 'react-native-screens';
 
-const MenubarMenu = MenubarPrimitive.Menu;
+export const MenubarMenu = MenubarPrimitive.Menu;
 
-const MenubarGroup = MenubarPrimitive.Group;
+export const MenubarGroup = MenubarPrimitive.Group;
 
-const MenubarPortal = MenubarPrimitive.Portal;
+export const MenubarPortal = MenubarPrimitive.Portal;
 
-const MenubarSub = MenubarPrimitive.Sub;
+export const MenubarSub = MenubarPrimitive.Sub;
 
-const MenubarRadioGroup = MenubarPrimitive.RadioGroup;
+export const MenubarRadioGroup = MenubarPrimitive.RadioGroup;
 
 const FullWindowOverlay = Platform.OS === 'ios' ? RNFullWindowOverlay : React.Fragment;
 
-function Menubar({
+export function Menubar({
   className,
   value: valueProp,
   onValueChange: onValueChangeProp,
@@ -68,7 +68,7 @@ function Menubar({
   );
 }
 
-function MenubarTrigger({
+export function MenubarTrigger({
   className,
   ...props
 }: MenubarPrimitive.TriggerProps & React.RefAttributes<MenubarPrimitive.TriggerRef>) {
@@ -93,7 +93,7 @@ function MenubarTrigger({
   );
 }
 
-function MenubarSubTrigger({
+export function MenubarSubTrigger({
   className,
   inset,
   children,
@@ -127,7 +127,7 @@ function MenubarSubTrigger({
   );
 }
 
-function MenubarSubContent({
+export function MenubarSubContent({
   className,
   ...props
 }: MenubarPrimitive.SubContentProps & React.RefAttributes<MenubarPrimitive.SubContentRef>) {
@@ -144,7 +144,7 @@ function MenubarSubContent({
   );
 }
 
-function MenubarContent({
+export function MenubarContent({
   className,
   overlayClassName,
   overlayStyle,
@@ -184,7 +184,7 @@ function MenubarContent({
   );
 }
 
-function MenubarItem({
+export function MenubarItem({
   className,
   inset,
   variant,
@@ -215,7 +215,7 @@ function MenubarItem({
   );
 }
 
-function MenubarCheckboxItem({
+export function MenubarCheckboxItem({
   className,
   children,
   ...props
@@ -248,7 +248,7 @@ function MenubarCheckboxItem({
   );
 }
 
-function MenubarRadioItem({
+export function MenubarRadioItem({
   className,
   children,
   ...props
@@ -276,7 +276,7 @@ function MenubarRadioItem({
   );
 }
 
-function MenubarLabel({
+export function MenubarLabel({
   className,
   inset,
   ...props
@@ -297,7 +297,7 @@ function MenubarLabel({
   );
 }
 
-function MenubarSeparator({
+export function MenubarSeparator({
   className,
   ...props
 }: MenubarPrimitive.SeparatorProps & React.RefAttributes<MenubarPrimitive.SeparatorRef>) {
@@ -306,7 +306,7 @@ function MenubarSeparator({
   );
 }
 
-function MenubarShortcut({ className, ...props }: TextProps & React.RefAttributes<Text>) {
+export function MenubarShortcut({ className, ...props }: TextProps & React.RefAttributes<Text>) {
   return (
     <Text
       className={cn('text-muted-foreground ml-auto text-xs tracking-widest', className)}
@@ -314,22 +314,3 @@ function MenubarShortcut({ className, ...props }: TextProps & React.RefAttribute
     />
   );
 }
-
-export {
-  Menubar,
-  MenubarCheckboxItem,
-  MenubarContent,
-  MenubarGroup,
-  MenubarItem,
-  MenubarLabel,
-  MenubarMenu,
-  MenubarPortal,
-  MenubarRadioGroup,
-  MenubarRadioItem,
-  MenubarSeparator,
-  MenubarShortcut,
-  MenubarSub,
-  MenubarSubContent,
-  MenubarSubTrigger,
-  MenubarTrigger,
-};

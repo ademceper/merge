@@ -11,7 +11,7 @@ import {
 
 import { cn } from "@merge/ui/lib/utils"
 
-function ResizablePanelGroup({
+export function ResizablePanelGroup({
   className,
   ...props
 }: GroupProps) {
@@ -27,13 +27,13 @@ function ResizablePanelGroup({
   )
 }
 
-function ResizablePanel({
+export function ResizablePanel({
   ...props
 }: PanelProps) {
   return <Panel data-slot="resizable-panel" {...props} />
 }
 
-function ResizableHandle({
+export function ResizableHandle({
   withHandle,
   className,
   ...props
@@ -56,4 +56,3 @@ function ResizableHandle({
   )
 }
 
-export { ResizablePanelGroup, ResizablePanel, ResizableHandle }

@@ -9,13 +9,13 @@ import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { FadeIn, FadeOut } from 'react-native-reanimated';
 import { FullWindowOverlay as RNFullWindowOverlay } from 'react-native-screens';
 
-type Option = SelectPrimitive.Option;
+export type Option = SelectPrimitive.Option;
 
-const Select = SelectPrimitive.Root;
+export const Select = SelectPrimitive.Root;
 
-const SelectGroup = SelectPrimitive.Group;
+export const SelectGroup = SelectPrimitive.Group;
 
-function SelectValue({
+export function SelectValue({
   ref,
   className,
   ...props
@@ -37,7 +37,7 @@ function SelectValue({
   );
 }
 
-function SelectTrigger({
+export function SelectTrigger({
   ref,
   className,
   children,
@@ -66,7 +66,7 @@ function SelectTrigger({
 
 const FullWindowOverlay = Platform.OS === 'ios' ? RNFullWindowOverlay : React.Fragment;
 
-function SelectContent({
+export function SelectContent({
   className,
   children,
   position = 'popper',
@@ -109,7 +109,7 @@ function SelectContent({
   );
 }
 
-function SelectLabel({
+export function SelectLabel({
   className,
   ...props
 }: SelectPrimitive.LabelProps & React.RefAttributes<SelectPrimitive.LabelRef>) {
@@ -121,7 +121,7 @@ function SelectLabel({
   );
 }
 
-function SelectItem({
+export function SelectItem({
   className,
   children,
   ...props
@@ -144,7 +144,7 @@ function SelectItem({
   );
 }
 
-function SelectSeparator({
+export function SelectSeparator({
   className,
   ...props
 }: SelectPrimitive.SeparatorProps & React.RefAttributes<SelectPrimitive.SeparatorRef>) {
@@ -159,29 +159,15 @@ function SelectSeparator({
   );
 }
 
-function SelectScrollUpButton() {
+export function SelectScrollUpButton() {
   return null;
 }
 
-function SelectScrollDownButton() {
+export function SelectScrollDownButton() {
   return null;
 }
 
-function NativeSelectScrollView({ className, ...props }: React.ComponentProps<typeof ScrollView>) {
+export function NativeSelectScrollView({ className, ...props }: React.ComponentProps<typeof ScrollView>) {
   return <ScrollView className={cn('max-h-52', className)} {...props} />;
 }
 
-export {
-  NativeSelectScrollView,
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectScrollDownButton,
-  SelectScrollUpButton,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-  type Option,
-};

@@ -5,7 +5,7 @@ import * as TogglePrimitive from '@rn-primitives/toggle';
 import { cva, type VariantProps } from 'class-variance-authority';
 import * as React from 'react';
 
-const toggleVariants = cva(
+export const toggleVariants = cva(
   'active:bg-muted group flex flex-row items-center justify-center gap-2 rounded-md',
   {
     variants: {
@@ -26,7 +26,7 @@ const toggleVariants = cva(
   }
 );
 
-function Toggle({
+export function Toggle({
   className,
   variant,
   size,
@@ -54,9 +54,7 @@ function Toggle({
   );
 }
 
-function ToggleIcon({ className, ...props }: React.ComponentProps<typeof Icon>) {
+export function ToggleIcon({ className, ...props }: React.ComponentProps<typeof Icon>) {
   const textClass = React.useContext(TextClassContext);
   return <Icon className={cn('size-4 shrink-0', textClass, className)} {...props} />;
 }
-
-export { Toggle, ToggleIcon, toggleVariants };

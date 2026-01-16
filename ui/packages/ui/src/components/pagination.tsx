@@ -4,7 +4,7 @@ import { cn } from "@merge/ui/lib/utils"
 import { Button } from "@merge/ui/components/button"
 import { CaretLeftIcon, CaretRightIcon, DotsThreeIcon } from "@phosphor-icons/react"
 
-function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
+export function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
   return (
     <nav
       role="navigation"
@@ -19,7 +19,7 @@ function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
   )
 }
 
-function PaginationContent({
+export function PaginationContent({
   className,
   ...props
 }: React.ComponentProps<"ul">) {
@@ -32,7 +32,7 @@ function PaginationContent({
   )
 }
 
-function PaginationItem({ ...props }: React.ComponentProps<"li">) {
+export function PaginationItem({ ...props }: React.ComponentProps<"li">) {
   return <li data-slot="pagination-item" {...props} />
 }
 
@@ -41,7 +41,7 @@ type PaginationLinkProps = {
 } & Pick<React.ComponentProps<typeof Button>, "size"> &
   React.ComponentProps<"a">
 
-function PaginationLink({
+export function PaginationLink({
   className,
   isActive,
   size = "icon",
@@ -64,7 +64,7 @@ function PaginationLink({
   )
 }
 
-function PaginationPrevious({
+export function PaginationPrevious({
   className,
   ...props
 }: React.ComponentProps<typeof PaginationLink>) {
@@ -83,7 +83,7 @@ function PaginationPrevious({
   )
 }
 
-function PaginationNext({
+export function PaginationNext({
   className,
   ...props
 }: React.ComponentProps<typeof PaginationLink>) {
@@ -100,7 +100,7 @@ function PaginationNext({
   )
 }
 
-function PaginationEllipsis({
+export function PaginationEllipsis({
   className,
   ...props
 }: React.ComponentProps<"span">) {
@@ -119,14 +119,4 @@ function PaginationEllipsis({
       <span className="sr-only">More pages</span>
     </span>
   )
-}
-
-export {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
 }

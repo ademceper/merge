@@ -14,7 +14,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-function Accordion({
+export function Accordion({
   children,
   ...props
 }: Omit<AccordionPrimitive.RootProps, 'asChild'> &
@@ -30,7 +30,7 @@ function Accordion({
   );
 }
 
-function AccordionItem({
+export function AccordionItem({
   children,
   className,
   value,
@@ -56,7 +56,7 @@ function AccordionItem({
 
 const Trigger = Pressable;
 
-function AccordionTrigger({
+export function AccordionTrigger({
   className,
   children,
   ...props
@@ -105,7 +105,7 @@ function AccordionTrigger({
   );
 }
 
-function AccordionContent({
+export function AccordionContent({
   className,
   children,
   ...props
@@ -128,4 +128,3 @@ function AccordionContent({
   );
 }
 
-export { Accordion, AccordionContent, AccordionItem, AccordionTrigger };

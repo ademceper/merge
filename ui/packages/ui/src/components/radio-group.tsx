@@ -6,7 +6,7 @@ import { RadioGroup as RadioGroupPrimitive } from "radix-ui"
 import { cn } from "@merge/ui/lib/utils"
 import { CircleIcon } from "@phosphor-icons/react"
 
-function RadioGroup({
+export function RadioGroup({
   className,
   ...props
 }: React.ComponentProps<typeof RadioGroupPrimitive.Root>) {
@@ -19,7 +19,7 @@ function RadioGroup({
   )
 }
 
-function RadioGroupItem({
+export function RadioGroupItem({
   className,
   ...props
 }: React.ComponentProps<typeof RadioGroupPrimitive.Item>) {
@@ -42,4 +42,3 @@ function RadioGroupItem({
   )
 }
 
-export { RadioGroup, RadioGroupItem }

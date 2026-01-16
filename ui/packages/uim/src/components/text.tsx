@@ -40,16 +40,9 @@ const ROLE: Partial<Record<TextVariant, Role>> = {
   h4: 'heading',
 };
 
-const ARIA_LEVEL: Partial<Record<TextVariant, string>> = {
-  h1: '1',
-  h2: '2',
-  h3: '3',
-  h4: '4',
-};
+export const TextClassContext = React.createContext<string | undefined>(undefined);
 
-const TextClassContext = React.createContext<string | undefined>(undefined);
-
-function Text({
+export function Text({
   className,
   asChild = false,
   variant = 'default',
@@ -69,5 +62,3 @@ function Text({
     />
   );
 }
-
-export { Text, TextClassContext };

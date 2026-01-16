@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import * as React from "react";
+import { Routes } from "./types/routes";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -86,7 +87,7 @@ export default function SplashScreen() {
       loadingOpacity.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.ease) });
 
       setTimeout(() => {
-        router.replace("/onboarding" as any);
+        router.replace(Routes.onboarding);
       }, 300);
     }, remaining);
 

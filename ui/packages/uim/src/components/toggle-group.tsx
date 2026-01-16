@@ -8,7 +8,7 @@ import * as React from 'react';
 
 const ToggleGroupContext = React.createContext<VariantProps<typeof toggleVariants> | null>(null);
 
-function ToggleGroup({
+export function ToggleGroup({
   className,
   variant,
   size,
@@ -42,7 +42,7 @@ function useToggleGroupContext() {
   return context;
 }
 
-function ToggleGroupItem({
+export function ToggleGroupItem({
   className,
   children,
   variant,
@@ -87,9 +87,8 @@ function ToggleGroupItem({
   );
 }
 
-function ToggleGroupIcon({ className, ...props }: React.ComponentProps<typeof Icon>) {
+export function ToggleGroupIcon({ className, ...props }: React.ComponentProps<typeof Icon>) {
   const textClass = React.useContext(TextClassContext);
   return <Icon className={cn('size-4 shrink-0', textClass, className)} {...props} />;
 }
 
-export { ToggleGroup, ToggleGroupIcon, ToggleGroupItem };

@@ -19,7 +19,7 @@ const ToggleGroupContext = React.createContext<
   orientation: "horizontal",
 })
 
-function ToggleGroup({
+export function ToggleGroup({
   className,
   variant,
   size,
@@ -55,7 +55,7 @@ function ToggleGroup({
   )
 }
 
-function ToggleGroupItem({
+export function ToggleGroupItem({
   className,
   children,
   variant = "default",
@@ -86,4 +86,3 @@ function ToggleGroupItem({
   )
 }
 
-export { ToggleGroup, ToggleGroupItem }

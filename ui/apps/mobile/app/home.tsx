@@ -11,7 +11,6 @@ import { Separator } from "@merge/uim/components/separator";
 import * as React from "react";
 
 export default function Home() {
-  const [switchValue, setSwitchValue] = React.useState(false);
   const [checkboxValue, setCheckboxValue] = React.useState(false);
 
   return (

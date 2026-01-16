@@ -6,7 +6,7 @@ import { Accordion as AccordionPrimitive } from "radix-ui"
 import { cn } from "@merge/ui/lib/utils"
 import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react"
 
-function Accordion({
+export function Accordion({
   className,
   ...props
 }: React.ComponentProps<typeof AccordionPrimitive.Root>) {
@@ -19,7 +19,7 @@ function Accordion({
   )
 }
 
-function AccordionItem({
+export function AccordionItem({
   className,
   ...props
 }: React.ComponentProps<typeof AccordionPrimitive.Item>) {
@@ -32,7 +32,7 @@ function AccordionItem({
   )
 }
 
-function AccordionTrigger({
+export function AccordionTrigger({
   className,
   children,
   ...props
@@ -55,7 +55,7 @@ function AccordionTrigger({
   )
 }
 
-function AccordionContent({
+export function AccordionContent({
   className,
   children,
   ...props
@@ -78,4 +78,3 @@ function AccordionContent({
   )
 }
 
-export { Accordion, AccordionItem, AccordionTrigger, AccordionContent }

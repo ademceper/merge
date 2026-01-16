@@ -6,13 +6,13 @@ import { Select as SelectPrimitive } from "radix-ui"
 import { cn } from "@merge/ui/lib/utils"
 import { CaretDownIcon, CheckIcon, CaretUpIcon } from "@phosphor-icons/react"
 
-function Select({
+export function Select({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
   return <SelectPrimitive.Root data-slot="select" {...props} />
 }
 
-function SelectGroup({
+export function SelectGroup({
   className,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Group>) {
@@ -25,13 +25,13 @@ function SelectGroup({
   )
 }
 
-function SelectValue({
+export function SelectValue({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Value>) {
   return <SelectPrimitive.Value data-slot="select-value" {...props} />
 }
 
-function SelectTrigger({
+export function SelectTrigger({
   className,
   size = "default",
   children,
@@ -57,7 +57,7 @@ function SelectTrigger({
   )
 }
 
-function SelectContent({
+export function SelectContent({
   className,
   children,
   position = "item-aligned",
@@ -89,7 +89,7 @@ function SelectContent({
   )
 }
 
-function SelectLabel({
+export function SelectLabel({
   className,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Label>) {
@@ -102,7 +102,7 @@ function SelectLabel({
   )
 }
 
-function SelectItem({
+export function SelectItem({
   className,
   children,
   ...props
@@ -126,7 +126,7 @@ function SelectItem({
   )
 }
 
-function SelectSeparator({
+export function SelectSeparator({
   className,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Separator>) {
@@ -139,7 +139,7 @@ function SelectSeparator({
   )
 }
 
-function SelectScrollUpButton({
+export function SelectScrollUpButton({
   className,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.ScrollUpButton>) {
@@ -155,7 +155,7 @@ function SelectScrollUpButton({
   )
 }
 
-function SelectScrollDownButton({
+export function SelectScrollDownButton({
   className,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.ScrollDownButton>) {
@@ -169,17 +169,4 @@ function SelectScrollDownButton({
       />
     </SelectPrimitive.ScrollDownButton>
   )
-}
-
-export {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectScrollDownButton,
-  SelectScrollUpButton,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
 }

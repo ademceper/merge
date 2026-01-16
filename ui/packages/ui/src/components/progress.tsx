@@ -5,7 +5,7 @@ import { Progress as ProgressPrimitive } from "radix-ui"
 
 import { cn } from "@merge/ui/lib/utils"
 
-function Progress({
+export function Progress({
   className,
   value,
   ...props
@@ -28,4 +28,3 @@ function Progress({
   )
 }
 
-export { Progress }

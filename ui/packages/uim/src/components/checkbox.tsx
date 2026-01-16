@@ -6,7 +6,7 @@ import * as React from 'react';
 
 const DEFAULT_HIT_SLOP = 24;
 
-function Checkbox({
+export function Checkbox({
   className,
   checkedClassName,
   indicatorClassName,
@@ -41,4 +41,3 @@ function Checkbox({
   );
 }
 
-export { Checkbox };

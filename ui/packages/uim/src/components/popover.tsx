@@ -7,13 +7,13 @@ import { Platform, StyleSheet } from 'react-native';
 import { FadeIn, FadeOut } from 'react-native-reanimated';
 import { FullWindowOverlay as RNFullWindowOverlay } from 'react-native-screens';
 
-const Popover = PopoverPrimitive.Root;
+export const Popover = PopoverPrimitive.Root;
 
-const PopoverTrigger = PopoverPrimitive.Trigger;
+export const PopoverTrigger = PopoverPrimitive.Trigger;
 
 const FullWindowOverlay = Platform.OS === 'ios' ? RNFullWindowOverlay : React.Fragment;
 
-function PopoverContent({
+export function PopoverContent({
   className,
   align = 'center',
   sideOffset = 4,
@@ -45,5 +45,3 @@ function PopoverContent({
     </PopoverPrimitive.Portal>
   );
 }
-
-export { Popover, PopoverContent, PopoverTrigger };

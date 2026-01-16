@@ -5,7 +5,7 @@ import { ScrollArea as ScrollAreaPrimitive } from "radix-ui"
 
 import { cn } from "@merge/ui/lib/utils"
 
-function ScrollArea({
+export function ScrollArea({
   className,
   children,
   ...props
@@ -28,7 +28,7 @@ function ScrollArea({
   )
 }
 
-function ScrollBar({
+export function ScrollBar({
   className,
   orientation = "vertical",
   ...props
@@ -52,4 +52,3 @@ function ScrollBar({
   )
 }
 
-export { ScrollArea, ScrollBar }

@@ -4,7 +4,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import * as React from 'react';
 import { Pressable } from 'react-native';
 
-const buttonVariants = cva(
+export const buttonVariants = cva(
   'group shrink-0 flex-row items-center justify-center gap-2 rounded-md shadow-none',
   {
     variants: {
@@ -30,7 +30,7 @@ const buttonVariants = cva(
   }
 );
 
-const buttonTextVariants = cva(
+export const buttonTextVariants = cva(
   'text-foreground text-sm font-medium',
   {
     variants: {
@@ -56,12 +56,12 @@ const buttonTextVariants = cva(
   }
 );
 
-type ButtonProps = React.ComponentProps<typeof Pressable> &
+export type ButtonProps = React.ComponentProps<typeof Pressable> &
   VariantProps<typeof buttonVariants> & {
     children?: React.ReactNode;
   };
 
-function Button({ className, variant, size, children, disabled, ...props }: ButtonProps) {
+export function Button({ className, variant, size, children, disabled, ...props }: ButtonProps) {
   const wrappedChildren = React.Children.map(children, (child) => {
     if (typeof child === 'string' || typeof child === 'number') {
       return <Text>{child}</Text>;
@@ -82,6 +82,3 @@ function Button({ className, variant, size, children, disabled, ...props }: Butt
     </TextClassContext.Provider>
   );
 }
-
-export { Button, buttonTextVariants, buttonVariants };
-export type { ButtonProps };

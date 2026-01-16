@@ -1,6 +1,6 @@
 import { cn } from "@merge/ui/lib/utils"
 
-function ExampleWrapper({ className, ...props }: React.ComponentProps<"div">) {
+export function ExampleWrapper({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div className="bg-background w-full">
       <div
@@ -15,7 +15,7 @@ function ExampleWrapper({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function Example({
+export function Example({
   title,
   children,
   className,
@@ -49,5 +49,3 @@ function Example({
     </div>
   )
 }
-
-export { ExampleWrapper, Example }

@@ -12,7 +12,7 @@ import {
 
 SplashScreen.preventAutoHideAsync()
 
-const AppLayout = () => {
+export default function AppLayout() {
   const [fontsLoaded, fontError] = useFonts({
     "SpaceGrotesk-Light": SpaceGrotesk_300Light,
     "SpaceGrotesk-Regular": SpaceGrotesk_400Regular,
@@ -38,5 +38,3 @@ const AppLayout = () => {
     />
   )
 }
-
-export default AppLayout
