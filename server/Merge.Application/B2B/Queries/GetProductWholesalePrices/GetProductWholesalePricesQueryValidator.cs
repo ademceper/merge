@@ -5,9 +5,11 @@ using Merge.Application.Configuration;
 namespace Merge.Application.B2B.Queries.GetProductWholesalePrices;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetProductWholesalePricesQueryValidator : AbstractValidator<GetProductWholesalePricesQuery>
+public class GetProductWholesalePricesQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetProductWholesalePricesQuery>
 {
-    public GetProductWholesalePricesQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    private readonly PaginationSettings settings = paginationSettings.Value;
+
+    public GetProductWholesalePricesQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
         RuleFor(x => x.ProductId)
             .NotEmpty().WithMessage("Ürün ID boş olamaz");
@@ -17,8 +19,8 @@ public class GetProductWholesalePricesQueryValidator : AbstractValidator<GetProd
 
         RuleFor(x => x.PageSize)
             .GreaterThan(0).WithMessage("Sayfa boyutu 0'dan büyük olmalıdır")
-            .LessThanOrEqualTo(paginationSettings.Value.MaxPageSize)
-            .WithMessage($"Sayfa boyutu en fazla {paginationSettings.Value.MaxPageSize} olabilir");
+            .LessThanOrEqualTo(settings.MaxPageSize)
+            .WithMessage($"Sayfa boyutu en fazla {settings.MaxPageSize} olabilir");
     }
 }
 

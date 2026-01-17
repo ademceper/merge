@@ -15,31 +15,22 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Queries.GetTicketStats;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetTicketStatsQueryHandler : IRequestHandler<GetTicketStatsQuery, TicketStatsDto>
+public class GetTicketStatsQueryHandler(IDbContext context, IOptions<SupportSettings> settings) : IRequestHandler<GetTicketStatsQuery, TicketStatsDto>
 {
-    private readonly IDbContext _context;
-    private readonly SupportSettings _settings;
-
-    public GetTicketStatsQueryHandler(
-        IDbContext context,
-        IOptions<SupportSettings> settings)
-    {
-        _context = context;
-        _settings = settings.Value;
-    }
+    private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<TicketStatsDto> Handle(GetTicketStatsQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        IQueryable<SupportTicket> query = _context.Set<SupportTicket>()
+        IQueryable<SupportTicket> query = context.Set<SupportTicket>()
             .AsNoTracking();
 
         var now = DateTime.UtcNow;
         var today = now.Date;
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
-        var weekAgo = now.AddDays(-_settings.WeeklyReportDays);
-        var monthAgo = now.AddDays(-_settings.DefaultStatsPeriodDays);
+        var weekAgo = now.AddDays(-supportConfig.WeeklyReportDays);
+        var monthAgo = now.AddDays(-supportConfig.DefaultStatsPeriodDays);
 
         var totalTickets = await query.CountAsync(cancellationToken);
         var openTickets = await query.CountAsync(t => t.Status == TicketStatus.Open, cancellationToken);

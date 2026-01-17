@@ -5,12 +5,12 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Catalog.Queries.GetInventoriesByWarehouseId;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetInventoriesByWarehouseIdQueryValidator : AbstractValidator<GetInventoriesByWarehouseIdQuery>
+public class GetInventoriesByWarehouseIdQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetInventoriesByWarehouseIdQuery>
 {
-    public GetInventoriesByWarehouseIdQueryValidator(IOptions<PaginationSettings> paginationSettings)
-    {
-        var settings = paginationSettings.Value;
+    private readonly PaginationSettings config = paginationSettings.Value;
 
+    public GetInventoriesByWarehouseIdQueryValidator() : this(Options.Create(new PaginationSettings()))
+    {
         RuleFor(x => x.WarehouseId)
             .NotEmpty()
             .WithMessage("Depo ID'si zorunludur.");
@@ -25,8 +25,8 @@ public class GetInventoriesByWarehouseIdQueryValidator : AbstractValidator<GetIn
         RuleFor(x => x.PageSize)
             .GreaterThan(0)
             .WithMessage("Sayfa boyutu 1'den büyük olmalıdır.")
-            .LessThanOrEqualTo(settings.MaxPageSize)
-            .WithMessage($"Sayfa boyutu en fazla {settings.MaxPageSize} olabilir.");
+            .LessThanOrEqualTo(config.MaxPageSize)
+            .WithMessage($"Sayfa boyutu en fazla {config.MaxPageSize} olabilir.");
     }
 }
 

@@ -5,18 +5,9 @@ using Merge.Application.Interfaces.SmsProviders;
 
 namespace Merge.Application.Services.SmsProviders;
 
-public class NetgsmProvider : ISmsProvider
+public class NetgsmProvider(IConfiguration configuration, ILogger<NetgsmProvider> logger) : ISmsProvider
 {
     public string ProviderName => "Netgsm";
-    
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<NetgsmProvider> _logger;
-
-    public NetgsmProvider(IConfiguration configuration, ILogger<NetgsmProvider> logger)
-    {
-        _configuration = configuration;
-        _logger = logger;
-    }
 
     public async Task<SmsSendResult> SendSmsAsync(SmsMessage message)
     {
@@ -37,15 +28,15 @@ public class NetgsmProvider : ISmsProvider
             throw new ValidationException("SMS mesajı boş olamaz.");
         }
 
-        _logger.LogInformation("Netgsm SMS sending started. To: {To}", message.To);
+        logger.LogInformation("Netgsm SMS sending started. To: {To}", message.To);
         
-        var username = _configuration["SmsProviders:Netgsm:Username"];
-        var password = _configuration["SmsProviders:Netgsm:Password"];
-        var senderId = _configuration["SmsProviders:Netgsm:SenderId"] ?? "MERGE";
+        var username = configuration["SmsProviders:Netgsm:Username"];
+        var password = configuration["SmsProviders:Netgsm:Password"];
+        var senderId = configuration["SmsProviders:Netgsm:SenderId"] ?? "MERGE";
         
         if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
         {
-            _logger.LogWarning("Netgsm API credentials not configured");
+            logger.LogWarning("Netgsm API credentials not configured");
             return new SmsSendResult
             {
                 Success = false,
@@ -61,7 +52,7 @@ public class NetgsmProvider : ISmsProvider
         
         var messageId = $"NETGSM_{Guid.NewGuid():N}";
         
-        _logger.LogInformation("Netgsm SMS sent successfully. MessageId: {MessageId}", messageId);
+        logger.LogInformation("Netgsm SMS sent successfully. MessageId: {MessageId}", messageId);
         
         return new SmsSendResult
         {
@@ -78,8 +69,8 @@ public class NetgsmProvider : ISmsProvider
 
     public Task<bool> VerifyConfigurationAsync()
     {
-        var username = _configuration["SmsProviders:Netgsm:Username"];
-        var password = _configuration["SmsProviders:Netgsm:Password"];
+        var username = configuration["SmsProviders:Netgsm:Username"];
+        var password = configuration["SmsProviders:Netgsm:Password"];
         return Task.FromResult(!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password));
     }
 }

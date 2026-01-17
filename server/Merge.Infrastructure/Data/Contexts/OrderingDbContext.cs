@@ -11,11 +11,8 @@ using Merge.Infrastructure.Data.Configurations.Ordering;
 
 namespace Merge.Infrastructure.Data.Contexts;
 
-public class OrderingDbContext : DbContext, IDbContext
+public class OrderingDbContext(DbContextOptions<OrderingDbContext> options) : DbContext(options), IDbContext
 {
-    public OrderingDbContext(DbContextOptions<OrderingDbContext> options) : base(options)
-    {
-    }
 
     public DbSet<Order> Orders { get; set; }
     public DbSet<OrderItem> OrderItems { get; set; }

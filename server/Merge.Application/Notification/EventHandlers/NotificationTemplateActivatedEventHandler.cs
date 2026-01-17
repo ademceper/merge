@@ -7,19 +7,13 @@ namespace Merge.Application.Notification.EventHandlers;
 /// <summary>
 /// NotificationTemplate Activated Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
 /// </summary>
-public class NotificationTemplateActivatedEventHandler : INotificationHandler<NotificationTemplateActivatedEvent>
+public class NotificationTemplateActivatedEventHandler(ILogger<NotificationTemplateActivatedEventHandler> logger) : INotificationHandler<NotificationTemplateActivatedEvent>
 {
-    private readonly ILogger<NotificationTemplateActivatedEventHandler> _logger;
-
-    public NotificationTemplateActivatedEventHandler(ILogger<NotificationTemplateActivatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(NotificationTemplateActivatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "NotificationTemplate activated event received. TemplateId: {TemplateId}, Name: {Name}",
             notification.TemplateId, notification.Name);
 

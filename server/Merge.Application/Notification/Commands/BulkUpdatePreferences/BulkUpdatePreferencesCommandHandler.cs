@@ -16,21 +16,8 @@ namespace Merge.Application.Notification.Commands.BulkUpdatePreferences;
 /// <summary>
 /// Bulk Update Preferences Command Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class BulkUpdatePreferencesCommandHandler : IRequestHandler<BulkUpdatePreferencesCommand, bool>
+public class BulkUpdatePreferencesCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<BulkUpdatePreferencesCommandHandler> logger) : IRequestHandler<BulkUpdatePreferencesCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<BulkUpdatePreferencesCommandHandler> _logger;
-
-    public BulkUpdatePreferencesCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<BulkUpdatePreferencesCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(BulkUpdatePreferencesCommand request, CancellationToken cancellationToken)
     {
@@ -43,7 +30,7 @@ public class BulkUpdatePreferencesCommandHandler : IRequestHandler<BulkUpdatePre
         var notificationTypes = request.Dto.Preferences.Select(p => p.NotificationType).Distinct().ToList();
         var channels = request.Dto.Preferences.Select(p => p.Channel).Distinct().ToList();
         
-        var existingPreferencesList = await _context.Set<NotificationPreference>()
+        var existingPreferencesList = await context.Set<NotificationPreference>()
             .Where(np => np.UserId == request.UserId && 
                         notificationTypes.Contains(np.NotificationType) && 
                         channels.Contains(np.Channel))
@@ -80,14 +67,14 @@ public class BulkUpdatePreferencesCommandHandler : IRequestHandler<BulkUpdatePre
         // ✅ PERFORMANCE: ToListAsync() sonrası Any() YASAK - List.Count kullan
         if (preferencesToAdd.Count > 0)
         {
-            await _context.Set<NotificationPreference>().AddRangeAsync(preferencesToAdd, cancellationToken);
+            await context.Set<NotificationPreference>().AddRangeAsync(preferencesToAdd, cancellationToken);
         }
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Toplu notification preference güncellendi. UserId: {UserId}, Count: {Count}",
             request.UserId, request.Dto.Preferences.Count);
 

@@ -6,33 +6,33 @@ using Merge.Domain.Modules.Catalog;
 namespace Merge.Application.Support.Commands.CreateTicket;
 
 // ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
-public class CreateTicketCommandValidator : AbstractValidator<CreateTicketCommand>
+public class CreateTicketCommandValidator(IOptions<SupportSettings> settings) : AbstractValidator<CreateTicketCommand>
 {
-    public CreateTicketCommandValidator(IOptions<SupportSettings> settings)
-    {
-        var supportSettings = settings.Value;
+    private readonly SupportSettings config = settings.Value;
 
+    public CreateTicketCommandValidator() : this(Options.Create(new SupportSettings()))
+    {
         RuleFor(x => x.UserId)
             .NotEmpty().WithMessage("Kullanıcı ID boş olamaz");
 
         RuleFor(x => x.Category)
             .NotEmpty().WithMessage("Kategori boş olamaz")
-            .MaximumLength(supportSettings.MaxCategoryEnumLength).WithMessage($"Kategori en fazla {supportSettings.MaxCategoryEnumLength} karakter olmalıdır");
+            .MaximumLength(config.MaxCategoryEnumLength).WithMessage($"Kategori en fazla {config.MaxCategoryEnumLength} karakter olmalıdır");
 
         RuleFor(x => x.Priority)
             .NotEmpty().WithMessage("Öncelik boş olamaz")
-            .MaximumLength(supportSettings.MaxPriorityEnumLength).WithMessage($"Öncelik en fazla {supportSettings.MaxPriorityEnumLength} karakter olmalıdır");
+            .MaximumLength(config.MaxPriorityEnumLength).WithMessage($"Öncelik en fazla {config.MaxPriorityEnumLength} karakter olmalıdır");
 
         RuleFor(x => x.Subject)
             .NotEmpty().WithMessage("Konu boş olamaz")
-            .MinimumLength(supportSettings.MinTicketSubjectLength).WithMessage($"Konu en az {supportSettings.MinTicketSubjectLength} karakter olmalıdır")
-            .MaximumLength(supportSettings.MaxTicketSubjectLength)
-            .WithMessage($"Konu en fazla {supportSettings.MaxTicketSubjectLength} karakter olmalıdır");
+            .MinimumLength(config.MinTicketSubjectLength).WithMessage($"Konu en az {config.MinTicketSubjectLength} karakter olmalıdır")
+            .MaximumLength(config.MaxTicketSubjectLength)
+            .WithMessage($"Konu en fazla {config.MaxTicketSubjectLength} karakter olmalıdır");
 
         RuleFor(x => x.Description)
             .NotEmpty().WithMessage("Açıklama boş olamaz")
-            .MinimumLength(supportSettings.MinTicketDescriptionLength).WithMessage($"Açıklama en az {supportSettings.MinTicketDescriptionLength} karakter olmalıdır")
-            .MaximumLength(supportSettings.MaxTicketDescriptionLength)
-            .WithMessage($"Açıklama en fazla {supportSettings.MaxTicketDescriptionLength} karakter olmalıdır");
+            .MinimumLength(config.MinTicketDescriptionLength).WithMessage($"Açıklama en az {config.MinTicketDescriptionLength} karakter olmalıdır")
+            .MaximumLength(config.MaxTicketDescriptionLength)
+            .WithMessage($"Açıklama en fazla {config.MaxTicketDescriptionLength} karakter olmalıdır");
     }
 }

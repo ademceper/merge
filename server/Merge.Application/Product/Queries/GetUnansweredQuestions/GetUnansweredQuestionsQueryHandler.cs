@@ -11,63 +11,51 @@ using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Identity;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
+using AutoMapper;
 
 namespace Merge.Application.Product.Queries.GetUnansweredQuestions;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetUnansweredQuestionsQueryHandler : IRequestHandler<GetUnansweredQuestionsQuery, IEnumerable<ProductQuestionDto>>
+public class GetUnansweredQuestionsQueryHandler(
+    IDbContext context,
+    ILogger<GetUnansweredQuestionsQueryHandler> logger,
+    ICacheService cache,
+    IOptions<PaginationSettings> paginationSettings,
+    IOptions<CacheSettings> cacheSettings,
+    IMapper mapper) : IRequestHandler<GetUnansweredQuestionsQuery, IEnumerable<ProductQuestionDto>>
 {
-    private readonly IDbContext _context;
-    private readonly AutoMapper.IMapper _mapper;
-    private readonly ILogger<GetUnansweredQuestionsQueryHandler> _logger;
-    private readonly ICacheService _cache;
-    private readonly PaginationSettings _paginationSettings;
-    private readonly CacheSettings _cacheSettings;
-    private const string CACHE_KEY_UNANSWERED_QUESTIONS = "unanswered_questions_";
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
+    private readonly CacheSettings cacheConfig = cacheSettings.Value;
 
-    public GetUnansweredQuestionsQueryHandler(
-        IDbContext context,
-        AutoMapper.IMapper mapper,
-        ILogger<GetUnansweredQuestionsQueryHandler> logger,
-        ICacheService cache,
-        IOptions<PaginationSettings> paginationSettings,
-        IOptions<CacheSettings> cacheSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _cache = cache;
-        _paginationSettings = paginationSettings.Value;
-        _cacheSettings = cacheSettings.Value;
-    }
+    private const string CACHE_KEY_UNANSWERED_QUESTIONS = "unanswered_questions_";
 
     public async Task<IEnumerable<ProductQuestionDto>> Handle(GetUnansweredQuestionsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic number YASAK - Config kullan (ZORUNLU)
-        var limit = request.Limit > _paginationSettings.MaxPageSize
-            ? _paginationSettings.MaxPageSize
+        var limit = request.Limit > paginationConfig.MaxPageSize
+            ? paginationConfig.MaxPageSize
             : request.Limit;
-        if (limit < 1) limit = _paginationSettings.DefaultPageSize;
+        if (limit < 1) limit = paginationConfig.DefaultPageSize;
 
-        _logger.LogInformation("Fetching unanswered questions. ProductId: {ProductId}, Limit: {Limit}", 
+        logger.LogInformation("Fetching unanswered questions. ProductId: {ProductId}, Limit: {Limit}", 
             request.ProductId, limit);
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern
         var cacheKey = $"{CACHE_KEY_UNANSWERED_QUESTIONS}{request.ProductId ?? Guid.Empty}_{limit}";
-        var cachedQuestions = await _cache.GetAsync<IEnumerable<ProductQuestionDto>>(cacheKey, cancellationToken);
+        var cachedQuestions = await cache.GetAsync<IEnumerable<ProductQuestionDto>>(cacheKey, cancellationToken);
         if (cachedQuestions != null)
         {
-            _logger.LogInformation("Unanswered questions retrieved from cache. ProductId: {ProductId}, Limit: {Limit}",
+            logger.LogInformation("Unanswered questions retrieved from cache. ProductId: {ProductId}, Limit: {Limit}",
                 request.ProductId, limit);
             return cachedQuestions;
         }
 
-        _logger.LogInformation("Cache miss for unanswered questions. Fetching from database.");
+        logger.LogInformation("Cache miss for unanswered questions. Fetching from database.");
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        var query = _context.Set<ProductQuestion>()
+        var query = context.Set<ProductQuestion>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(q => q.Product)
@@ -84,13 +72,13 @@ public class GetUnansweredQuestionsQueryHandler : IRequestHandler<GetUnansweredQ
             .Take(limit)
             .ToListAsync(cancellationToken);
 
-        var questionDtos = questions.Select(q => _mapper.Map<ProductQuestionDto>(q)).ToList();
+        var questionDtos = questions.Select(q => mapper.Map<ProductQuestionDto>(q)).ToList();
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
-        await _cache.SetAsync(cacheKey, questionDtos, TimeSpan.FromMinutes(_cacheSettings.UnansweredQuestionsCacheExpirationMinutes), cancellationToken);
+        await cache.SetAsync(cacheKey, questionDtos, TimeSpan.FromMinutes(cacheConfig.UnansweredQuestionsCacheExpirationMinutes), cancellationToken);
 
-        _logger.LogInformation("Retrieved unanswered questions. ProductId: {ProductId}, Count: {Count}, Limit: {Limit}",
+        logger.LogInformation("Retrieved unanswered questions. ProductId: {ProductId}, Count: {Count}, Limit: {Limit}",
             request.ProductId, questions.Count, limit);
 
         return questionDtos;

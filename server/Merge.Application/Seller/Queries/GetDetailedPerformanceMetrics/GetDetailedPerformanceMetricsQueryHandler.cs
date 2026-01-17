@@ -18,23 +18,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Queries.GetDetailedPerformanceMetrics;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetDetailedPerformanceMetricsQueryHandler : IRequestHandler<GetDetailedPerformanceMetricsQuery, SellerPerformanceMetricsDto>
+public class GetDetailedPerformanceMetricsQueryHandler(IDbContext context, ILogger<GetDetailedPerformanceMetricsQueryHandler> logger) : IRequestHandler<GetDetailedPerformanceMetricsQuery, SellerPerformanceMetricsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetDetailedPerformanceMetricsQueryHandler> _logger;
-
-    public GetDetailedPerformanceMetricsQueryHandler(
-        IDbContext context,
-        ILogger<GetDetailedPerformanceMetricsQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<SellerPerformanceMetricsDto> Handle(GetDetailedPerformanceMetricsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting detailed performance metrics. SellerId: {SellerId}, StartDate: {StartDate}, EndDate: {EndDate}",
+        logger.LogInformation("Getting detailed performance metrics. SellerId: {SellerId}, StartDate: {StartDate}, EndDate: {EndDate}",
             request.SellerId, request.StartDate, request.EndDate);
 
         var periodDays = (request.EndDate - request.StartDate).Days;
@@ -45,9 +35,9 @@ public class GetDetailedPerformanceMetricsQueryHandler : IRequestHandler<GetDeta
         // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Sales metrics
         var totalSales = await (
-            from o in _context.Set<OrderEntity>().AsNoTracking()
-            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
-            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            from o in context.Set<OrderEntity>().AsNoTracking()
+            join oi in context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
             where o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= request.StartDate && o.CreatedAt <= request.EndDate &&
                   p.SellerId == request.SellerId
@@ -55,9 +45,9 @@ public class GetDetailedPerformanceMetricsQueryHandler : IRequestHandler<GetDeta
         ).SumAsync(cancellationToken);
 
         var previousSales = await (
-            from o in _context.Set<OrderEntity>().AsNoTracking()
-            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
-            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            from o in context.Set<OrderEntity>().AsNoTracking()
+            join oi in context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
             where o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= previousStartDate && o.CreatedAt < previousEndDate &&
                   p.SellerId == request.SellerId
@@ -66,14 +56,14 @@ public class GetDetailedPerformanceMetricsQueryHandler : IRequestHandler<GetDeta
 
         var salesGrowth = previousSales > 0 ? ((totalSales - previousSales) / previousSales) * 100 : 0;
 
-        var totalOrders = await _context.Set<OrderEntity>()
+        var totalOrders = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= request.StartDate && o.CreatedAt <= request.EndDate &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId))
             .CountAsync(cancellationToken);
 
-        var previousOrders = await _context.Set<OrderEntity>()
+        var previousOrders = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= previousStartDate && o.CreatedAt < previousEndDate &&
@@ -85,7 +75,7 @@ public class GetDetailedPerformanceMetricsQueryHandler : IRequestHandler<GetDeta
         var averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
 
         // ✅ PERFORMANCE: Database'de distinct count yap (memory'de işlem YASAK)
-        var uniqueCustomers = await _context.Set<OrderEntity>()
+        var uniqueCustomers = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= request.StartDate && o.CreatedAt <= request.EndDate &&
@@ -95,7 +85,7 @@ public class GetDetailedPerformanceMetricsQueryHandler : IRequestHandler<GetDeta
             .CountAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de average yap (memory'de işlem YASAK)
-        var averageRating = await _context.Set<ReviewEntity>()
+        var averageRating = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.IsApproved &&
                   r.Product.SellerId == request.SellerId &&

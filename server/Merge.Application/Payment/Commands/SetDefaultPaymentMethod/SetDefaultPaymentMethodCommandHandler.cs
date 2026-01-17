@@ -12,42 +12,29 @@ namespace Merge.Application.Payment.Commands.SetDefaultPaymentMethod;
 
 // BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullaniyor (Service layer bypass)
-public class SetDefaultPaymentMethodCommandHandler : IRequestHandler<SetDefaultPaymentMethodCommand, bool>
+public class SetDefaultPaymentMethodCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<SetDefaultPaymentMethodCommandHandler> logger) : IRequestHandler<SetDefaultPaymentMethodCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<SetDefaultPaymentMethodCommandHandler> _logger;
-
-    public SetDefaultPaymentMethodCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<SetDefaultPaymentMethodCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(SetDefaultPaymentMethodCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Setting default payment method. PaymentMethodId: {PaymentMethodId}", request.PaymentMethodId);
+        logger.LogInformation("Setting default payment method. PaymentMethodId: {PaymentMethodId}", request.PaymentMethodId);
 
         // CRITICAL: Transaction baslat - atomic operation
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            var paymentMethod = await _context.Set<PaymentMethod>()
+            var paymentMethod = await context.Set<PaymentMethod>()
                 .FirstOrDefaultAsync(pm => pm.Id == request.PaymentMethodId, cancellationToken);
 
             if (paymentMethod == null)
             {
-                _logger.LogWarning("Payment method not found. PaymentMethodId: {PaymentMethodId}", request.PaymentMethodId);
+                logger.LogWarning("Payment method not found. PaymentMethodId: {PaymentMethodId}", request.PaymentMethodId);
                 return false;
             }
 
             // Unset other default methods
-            var existingDefault = await _context.Set<PaymentMethod>()
+            var existingDefault = await context.Set<PaymentMethod>()
                 .Where(pm => pm.IsDefault && pm.Id != request.PaymentMethodId)
                 .ToListAsync(cancellationToken);
 
@@ -60,16 +47,16 @@ public class SetDefaultPaymentMethodCommandHandler : IRequestHandler<SetDefaultP
             // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             paymentMethod.SetAsDefault();
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            _logger.LogInformation("Default payment method set successfully. PaymentMethodId: {PaymentMethodId}", request.PaymentMethodId);
+            logger.LogInformation("Default payment method set successfully. PaymentMethodId: {PaymentMethodId}", request.PaymentMethodId);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error setting default payment method. PaymentMethodId: {PaymentMethodId}", request.PaymentMethodId);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Error setting default payment method. PaymentMethodId: {PaymentMethodId}", request.PaymentMethodId);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

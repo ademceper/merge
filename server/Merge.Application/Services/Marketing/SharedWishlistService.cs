@@ -12,18 +12,8 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Services.Marketing;
 
-public class SharedWishlistService : ISharedWishlistService
+public class SharedWishlistService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper) : ISharedWishlistService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-
-    public SharedWishlistService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SharedWishlistDto> CreateSharedWishlistAsync(
@@ -40,8 +30,8 @@ public class SharedWishlistService : ISharedWishlistService
 
         wishlist.GenerateShareCode();
 
-        await _context.Set<SharedWishlist>().AddAsync(wishlist, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<SharedWishlist>().AddAsync(wishlist, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         foreach (var productId in dto.ProductIds)
         {
@@ -49,14 +39,14 @@ public class SharedWishlistService : ISharedWishlistService
             var item = SharedWishlistItem.Create(
                 wishlist.Id,
                 productId);
-            await _context.Set<SharedWishlistItem>().AddAsync(item, cancellationToken);
+            await context.Set<SharedWishlistItem>().AddAsync(item, cancellationToken);
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         var created = await GetSharedWishlistByCodeAsync(wishlist.ShareCode, cancellationToken);
         if (created == null)
         {
-            var items = _mapper.Map<List<SharedWishlistItemDto>>(dto.ProductIds.Select(id => new { ProductId = id }));
+            var items = mapper.Map<List<SharedWishlistItemDto>>(dto.ProductIds.Select(id => new { ProductId = id }));
             return new SharedWishlistDto(
                 wishlist.Id,
                 wishlist.ShareCode,
@@ -76,22 +66,22 @@ public class SharedWishlistService : ISharedWishlistService
         CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !w.IsDeleted (Global Query Filter)
-        var wishlist = await _context.Set<SharedWishlist>()
+        var wishlist = await context.Set<SharedWishlist>()
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.ShareCode == shareCode, cancellationToken);
 
         if (wishlist == null) return null;
 
         // ✅ PERFORMANCE: Removed manual !i.IsDeleted (Global Query Filter)
-        var items = await _context.Set<SharedWishlistItem>()
+        var items = await context.Set<SharedWishlistItem>()
             .AsNoTracking()
             .Include(i => i.Product)
             .Where(i => i.SharedWishlistId == wishlist.Id)
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var baseDto = _mapper.Map<SharedWishlistDto>(wishlist);
-        var mappedItems = _mapper.Map<List<SharedWishlistItemDto>>(items);
+        var baseDto = mapper.Map<SharedWishlistDto>(wishlist);
+        var mappedItems = mapper.Map<List<SharedWishlistItemDto>>(items);
         return baseDto with { Items = mappedItems, ItemCount = items.Count };
     }
 
@@ -101,7 +91,7 @@ public class SharedWishlistService : ISharedWishlistService
         CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
-        var wishlistsQuery = _context.Set<SharedWishlist>()
+        var wishlistsQuery = context.Set<SharedWishlist>()
             .AsNoTracking()
             .Where(w => w.UserId == userId);
 
@@ -112,7 +102,7 @@ public class SharedWishlistService : ISharedWishlistService
 
         // ✅ PERFORMANCE: Batch load items (N+1 fix) - subquery ile
         var wishlistIdsSubquery = from w in wishlistsQuery select w.Id;
-        var itemsByWishlist = await _context.Set<SharedWishlistItem>()
+        var itemsByWishlist = await context.Set<SharedWishlistItem>()
             .AsNoTracking()
             .Include(i => i.Product)
             .Where(i => wishlistIdsSubquery.Contains(i.SharedWishlistId))
@@ -123,10 +113,10 @@ public class SharedWishlistService : ISharedWishlistService
         var result = new List<SharedWishlistDto>();
         foreach (var wishlist in wishlists)
         {
-            var baseDto = _mapper.Map<SharedWishlistDto>(wishlist);
+            var baseDto = mapper.Map<SharedWishlistDto>(wishlist);
             if (itemsByWishlist.TryGetValue(wishlist.Id, out var wishlistItems))
             {
-                var mappedItems = _mapper.Map<List<SharedWishlistItemDto>>(wishlistItems);
+                var mappedItems = mapper.Map<List<SharedWishlistItemDto>>(wishlistItems);
                 result.Add(baseDto with { Items = mappedItems, ItemCount = wishlistItems.Count });
             }
             else
@@ -144,12 +134,12 @@ public class SharedWishlistService : ISharedWishlistService
         CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: FindAsync yerine FirstOrDefaultAsync (Global Query Filter)
-        var wishlist = await _context.Set<SharedWishlist>()
+        var wishlist = await context.Set<SharedWishlist>()
             .FirstOrDefaultAsync(w => w.Id == wishlistId, cancellationToken);
         if (wishlist != null)
         {
             wishlist.MarkAsDeleted();
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
     }
 
@@ -160,13 +150,13 @@ public class SharedWishlistService : ISharedWishlistService
         CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: FindAsync yerine FirstOrDefaultAsync (Global Query Filter)
-        var item = await _context.Set<SharedWishlistItem>()
+        var item = await context.Set<SharedWishlistItem>()
             .FirstOrDefaultAsync(i => i.Id == itemId, cancellationToken);
         if (item != null)
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             item.MarkAsPurchased(purchasedBy);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
     }
 }

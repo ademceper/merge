@@ -14,26 +14,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Subscription.Queries.GetAllSubscriptionPlans;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetAllSubscriptionPlansQueryHandler : IRequestHandler<GetAllSubscriptionPlansQuery, IEnumerable<SubscriptionPlanDto>>
+public class GetAllSubscriptionPlansQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAllSubscriptionPlansQueryHandler> logger) : IRequestHandler<GetAllSubscriptionPlansQuery, IEnumerable<SubscriptionPlanDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetAllSubscriptionPlansQueryHandler> _logger;
-
-    public GetAllSubscriptionPlansQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetAllSubscriptionPlansQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<IEnumerable<SubscriptionPlanDto>> Handle(GetAllSubscriptionPlansQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query
-        IQueryable<SubscriptionPlan> query = _context.Set<SubscriptionPlan>()
+        IQueryable<SubscriptionPlan> query = context.Set<SubscriptionPlan>()
             .AsNoTracking();
 
         if (request.IsActive.HasValue)
@@ -53,7 +40,7 @@ public class GetAllSubscriptionPlansQueryHandler : IRequestHandler<GetAllSubscri
 
         // ✅ PERFORMANCE: Batch load subscriber counts for all plans (subquery ile)
         var planIdsSubquery = from p in query select p.Id;
-        var subscriberCounts = await _context.Set<UserSubscription>()
+        var subscriberCounts = await context.Set<UserSubscription>()
             .AsNoTracking()
             .Where(us => planIdsSubquery.Contains(us.SubscriptionPlanId) && 
                         (us.Status == SubscriptionStatus.Active || us.Status == SubscriptionStatus.Trial))
@@ -64,7 +51,7 @@ public class GetAllSubscriptionPlansQueryHandler : IRequestHandler<GetAllSubscri
         var result = new List<SubscriptionPlanDto>();
         foreach (var plan in plans)
         {
-            var dto = _mapper.Map<SubscriptionPlanDto>(plan);
+            var dto = mapper.Map<SubscriptionPlanDto>(plan);
             dto.SubscriberCount = subscriberCounts.TryGetValue(plan.Id, out var count) ? count : 0;
             result.Add(dto);
         }

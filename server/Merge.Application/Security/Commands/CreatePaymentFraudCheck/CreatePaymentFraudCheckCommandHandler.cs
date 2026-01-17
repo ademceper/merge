@@ -21,34 +21,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Security.Commands.CreatePaymentFraudCheck;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreatePaymentFraudCheckCommandHandler : IRequestHandler<CreatePaymentFraudCheckCommand, PaymentFraudPreventionDto>
+public class CreatePaymentFraudCheckCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreatePaymentFraudCheckCommandHandler> logger, IOptions<SecuritySettings> securitySettings) : IRequestHandler<CreatePaymentFraudCheckCommand, PaymentFraudPreventionDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreatePaymentFraudCheckCommandHandler> _logger;
-    private readonly SecuritySettings _securitySettings;
-
-    public CreatePaymentFraudCheckCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreatePaymentFraudCheckCommandHandler> logger,
-        IOptions<SecuritySettings> securitySettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _securitySettings = securitySettings.Value;
-    }
+    private readonly SecuritySettings securityConfig = securitySettings.Value;
 
     public async Task<PaymentFraudPreventionDto> Handle(CreatePaymentFraudCheckCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Payment fraud check yapılıyor. PaymentId: {PaymentId}, CheckType: {CheckType}",
+        logger.LogInformation("Payment fraud check yapılıyor. PaymentId: {PaymentId}, CheckType: {CheckType}",
             request.PaymentId, request.CheckType);
 
-        var payment = await _context.Set<PaymentEntity>()
+        var payment = await context.Set<PaymentEntity>()
             .FirstOrDefaultAsync(p => p.Id == request.PaymentId, cancellationToken);
 
         if (payment == null)
@@ -57,16 +39,16 @@ public class CreatePaymentFraudCheckCommandHandler : IRequestHandler<CreatePayme
         }
 
         // Check if check already exists
-        var existing = await _context.Set<PaymentFraudPrevention>()
+        var existing = await context.Set<PaymentFraudPrevention>()
             .FirstOrDefaultAsync(c => c.PaymentId == request.PaymentId, cancellationToken);
 
         if (existing != null)
         {
-            existing = await _context.Set<PaymentFraudPrevention>()
+            existing = await context.Set<PaymentFraudPrevention>()
                 .AsNoTracking()
                 .Include(c => c.Payment)
                 .FirstOrDefaultAsync(c => c.Id == existing.Id, cancellationToken);
-            return _mapper.Map<PaymentFraudPreventionDto>(existing!);
+            return mapper.Map<PaymentFraudPreventionDto>(existing!);
         }
 
         // Perform fraud checks
@@ -78,21 +60,21 @@ public class CreatePaymentFraudCheckCommandHandler : IRequestHandler<CreatePayme
             : throw new BusinessException($"Invalid CheckType: {request.CheckType}");
 
         // ✅ BOLUM 12.0: Magic number config'den - Risk score'a göre isBlocked ve status belirleme
-        var isBlocked = riskScore >= _securitySettings.PaymentFraudHighRiskThreshold;
+        var isBlocked = riskScore >= securityConfig.PaymentFraudHighRiskThreshold;
         var status = isBlocked 
             ? VerificationStatus.Failed 
-            : (riskScore >= _securitySettings.PaymentFraudMediumRiskThreshold 
+            : (riskScore >= securityConfig.PaymentFraudMediumRiskThreshold 
                 ? VerificationStatus.Pending 
                 : VerificationStatus.Verified);
-        var blockReason = isBlocked ? $"High risk score: {riskScore} (threshold: {_securitySettings.PaymentFraudHighRiskThreshold})" : null;
+        var blockReason = isBlocked ? $"High risk score: {riskScore} (threshold: {securityConfig.PaymentFraudHighRiskThreshold})" : null;
 
         // ✅ SECURITY: Dictionary<string,object> yerine typed DTO kullaniyoruz
         var checkResultDto = new FraudDetectionMetadataDto
         {
             RiskScore = (decimal)riskScore, // int'ten decimal'e cast
-            RiskLevel = riskScore >= _securitySettings.PaymentFraudHighRiskThreshold ? "High" :
-                       riskScore >= _securitySettings.PaymentFraudMediumRiskThreshold ? "Medium" : "Low",
-            Decision = riskScore >= _securitySettings.PaymentFraudHighRiskThreshold ? "Block" : "Allow",
+            RiskLevel = riskScore >= securityConfig.PaymentFraudHighRiskThreshold ? "High" :
+                       riskScore >= securityConfig.PaymentFraudMediumRiskThreshold ? "Medium" : "Low",
+            Decision = riskScore >= securityConfig.PaymentFraudHighRiskThreshold ? "Block" : "Allow",
             DecisionReason = $"Risk score: {riskScore}, Check type: {request.CheckType}"
         };
         var checkResult = JsonSerializer.Serialize(checkResultDto);
@@ -111,25 +93,25 @@ public class CreatePaymentFraudCheckCommandHandler : IRequestHandler<CreatePayme
             ipAddress: request.IpAddress,
             userAgent: request.UserAgent);
 
-        await _context.Set<PaymentFraudPrevention>().AddAsync(check, cancellationToken);
+        await context.Set<PaymentFraudPrevention>().AddAsync(check, cancellationToken);
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        check = await _context.Set<PaymentFraudPrevention>()
+        check = await context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
             .Include(c => c.Payment)
             .FirstOrDefaultAsync(c => c.Id == check.Id, cancellationToken);
 
-        _logger.LogInformation("Payment fraud check tamamlandı. CheckId: {CheckId}, PaymentId: {PaymentId}, RiskScore: {RiskScore}, IsBlocked: {IsBlocked}",
+        logger.LogInformation("Payment fraud check tamamlandı. CheckId: {CheckId}, PaymentId: {PaymentId}, RiskScore: {RiskScore}, IsBlocked: {IsBlocked}",
             check!.Id, request.PaymentId, riskScore, check.IsBlocked);
 
-        return _mapper.Map<PaymentFraudPreventionDto>(check);
+        return mapper.Map<PaymentFraudPreventionDto>(check);
     }
 
     private async Task<int> PerformFraudChecksAsync(CreatePaymentFraudCheckCommand request, CancellationToken cancellationToken)
     {
-        var payment = await _context.Set<PaymentEntity>()
+        var payment = await context.Set<PaymentEntity>()
             .AsNoTracking()
             .Include(p => p.Order)
                 .ThenInclude(o => o.User)
@@ -140,28 +122,28 @@ public class CreatePaymentFraudCheckCommandHandler : IRequestHandler<CreatePayme
         int riskScore = 0;
 
         // High value payment - ✅ BOLUM 12.0: Magic number config'den
-        if (payment.Amount > _securitySettings.HighValuePaymentThreshold) 
-            riskScore += _securitySettings.HighValuePaymentRiskWeight;
+        if (payment.Amount > securityConfig.HighValuePaymentThreshold) 
+            riskScore += securityConfig.HighValuePaymentRiskWeight;
 
         // New user - ✅ BOLUM 12.0: Magic number config'den
         var daysSinceRegistration = (DateTime.UtcNow - payment.Order.User.CreatedAt).Days;
-        if (daysSinceRegistration < _securitySettings.NewUserRiskDays) 
-            riskScore += _securitySettings.NewUserRiskWeight;
+        if (daysSinceRegistration < securityConfig.NewUserRiskDays) 
+            riskScore += securityConfig.NewUserRiskWeight;
 
         // Multiple payments from same IP in short time - ✅ BOLUM 12.0: Magic number config'den
-        var recentPayments = await _context.Set<PaymentFraudPrevention>()
+        var recentPayments = await context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
             .Where(c => c.IpAddress == request.IpAddress && 
-                       c.CreatedAt >= DateTime.UtcNow.AddHours(-_securitySettings.RecentPaymentsTimeWindowHours))
+                       c.CreatedAt >= DateTime.UtcNow.AddHours(-securityConfig.RecentPaymentsTimeWindowHours))
             .CountAsync(cancellationToken);
 
-        if (recentPayments > _securitySettings.RecentPaymentsFromSameIpThreshold) 
-            riskScore += _securitySettings.MultiplePaymentsFromSameIpRiskWeight;
+        if (recentPayments > securityConfig.RecentPaymentsFromSameIpThreshold) 
+            riskScore += securityConfig.MultiplePaymentsFromSameIpRiskWeight;
 
         // Device fingerprint check - ✅ BOLUM 12.0: Magic number config'den
         if (string.IsNullOrEmpty(request.DeviceFingerprint)) 
-            riskScore += _securitySettings.MissingDeviceFingerprintRiskWeight;
+            riskScore += securityConfig.MissingDeviceFingerprintRiskWeight;
 
-        return Math.Min(riskScore, _securitySettings.MaxRiskScore);
+        return Math.Min(riskScore, securityConfig.MaxRiskScore);
     }
 }

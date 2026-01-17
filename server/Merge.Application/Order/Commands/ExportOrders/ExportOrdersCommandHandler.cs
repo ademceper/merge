@@ -18,21 +18,8 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Order.Commands.ExportOrders;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class ExportOrdersCommandHandler : IRequestHandler<ExportOrdersCommand, byte[]>
+public class ExportOrdersCommandHandler(IDbContext context, IMapper mapper, ILogger<ExportOrdersCommandHandler> logger) : IRequestHandler<ExportOrdersCommand, byte[]>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<ExportOrdersCommandHandler> _logger;
-
-    public ExportOrdersCommandHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<ExportOrdersCommandHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<byte[]> Handle(ExportOrdersCommand request, CancellationToken cancellationToken)
     {
@@ -50,7 +37,7 @@ public class ExportOrdersCommandHandler : IRequestHandler<ExportOrdersCommand, b
     private async Task<List<OrderDto>> GetOrdersForExportAsync(ExportOrdersCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        var query = _context.Set<OrderEntity>()
+        var query = context.Set<OrderEntity>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(o => o.OrderItems)
@@ -89,11 +76,11 @@ public class ExportOrdersCommandHandler : IRequestHandler<ExportOrdersCommand, b
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Orders exported. Count: {Count}, StartDate: {StartDate}, EndDate: {EndDate}",
             orders.Count, request.StartDate, request.EndDate);
 
-        return _mapper.Map<List<OrderDto>>(orders);
+        return mapper.Map<List<OrderDto>>(orders);
     }
 
     private byte[] ExportToCsv(List<OrderDto> orders)

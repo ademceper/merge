@@ -17,26 +17,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Order.Commands.Reorder;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class ReorderCommandHandler : IRequestHandler<ReorderCommand, OrderDto>
+public class ReorderCommandHandler(IDbContext context, IMediator mediator, ILogger<ReorderCommandHandler> logger) : IRequestHandler<ReorderCommand, OrderDto>
 {
-    private readonly IDbContext _context;
-
-    private readonly IMediator _mediator;
-    private readonly ILogger<ReorderCommandHandler> _logger;
-
-    public ReorderCommandHandler(
-        IDbContext context,
-        IMediator mediator,
-        ILogger<ReorderCommandHandler> logger)
-    {
-        _context = context;
-        _mediator = mediator;
-        _logger = logger;
-    }
 
     public async Task<OrderDto> Handle(ReorderCommand request, CancellationToken cancellationToken)
     {
-        var originalOrder = await _context.Set<OrderEntity>()
+        var originalOrder = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
@@ -59,7 +45,7 @@ public class ReorderCommandHandler : IRequestHandler<ReorderCommand, OrderDto>
                 try
                 {
                     // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-                    await _mediator.Send(new AddItemToCartCommand(request.UserId, orderItem.ProductId, orderItem.Quantity), cancellationToken);
+                    await mediator.Send(new AddItemToCartCommand(request.UserId, orderItem.ProductId, orderItem.Quantity), cancellationToken);
                     addedItems++;
                 }
                 catch (Exception ex)
@@ -67,7 +53,7 @@ public class ReorderCommandHandler : IRequestHandler<ReorderCommand, OrderDto>
                     // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
                     // Ancak reorder işleminde bir ürün eklenemezse diğer ürünler eklenmeye devam etmeli
                     // Bu durumda warning log'lanıp işlem devam ediyor (business requirement)
-                    _logger.LogWarning(ex, "Failed to add product to cart during reorder. ProductId: {ProductId}", orderItem.ProductId);
+                    logger.LogWarning(ex, "Failed to add product to cart during reorder. ProductId: {ProductId}", orderItem.ProductId);
                     skippedItems++;
                 }
             }
@@ -77,11 +63,11 @@ public class ReorderCommandHandler : IRequestHandler<ReorderCommand, OrderDto>
             }
         }
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Reorder completed. OriginalOrderId: {OrderId}, AddedItems: {AddedItems}, SkippedItems: {SkippedItems}",
             request.OrderId, addedItems, skippedItems);
 
         // ✅ MediatR: Yeni sipariş oluşturmak için CreateOrderFromCartCommand kullan
-        return await _mediator.Send(new CreateOrderFromCartCommand(request.UserId, originalOrder.AddressId), cancellationToken);
+        return await mediator.Send(new CreateOrderFromCartCommand(request.UserId, originalOrder.AddressId), cancellationToken);
     }
 }

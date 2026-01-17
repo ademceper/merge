@@ -15,23 +15,15 @@ namespace Merge.Application.Subscription.EventHandlers;
 /// UserSubscription Suspended Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class UserSubscriptionSuspendedEventHandler : INotificationHandler<UserSubscriptionSuspendedEvent>
+public class UserSubscriptionSuspendedEventHandler(ILogger<UserSubscriptionSuspendedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<UserSubscriptionSuspendedEvent>
 {
-    private readonly ILogger<UserSubscriptionSuspendedEventHandler> _logger;
+    
     private readonly INotificationService? _notificationService;
-
-    public UserSubscriptionSuspendedEventHandler(
-        ILogger<UserSubscriptionSuspendedEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(UserSubscriptionSuspendedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "User subscription suspended event received. SubscriptionId: {SubscriptionId}, UserId: {UserId}",
             notification.SubscriptionId, notification.UserId);
 
@@ -58,7 +50,7 @@ public class UserSubscriptionSuspendedEventHandler : INotificationHandler<UserSu
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling UserSubscriptionSuspendedEvent. SubscriptionId: {SubscriptionId}, UserId: {UserId}",
                 notification.SubscriptionId, notification.UserId);
             throw;

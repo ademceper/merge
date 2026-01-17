@@ -4,13 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Queries.GetProductTranslation;
 
-public class GetProductTranslationQueryValidator : AbstractValidator<GetProductTranslationQuery>
+public class GetProductTranslationQueryValidator(IOptions<InternationalSettings> settings) : AbstractValidator<GetProductTranslationQuery>
 {
-    private readonly InternationalSettings config;
+    private readonly InternationalSettings config = settings.Value;
 
-    public GetProductTranslationQueryValidator(IOptions<InternationalSettings> settings)
+    public GetProductTranslationQueryValidator() : this(Options.Create(new InternationalSettings()))
     {
-        config = settings.Value;
 
         RuleFor(x => x.ProductId)
             .NotEmpty().WithMessage("Ürün ID'si zorunludur.");

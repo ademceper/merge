@@ -10,19 +10,13 @@ namespace Merge.Application.Subscription.EventHandlers;
 /// SubscriptionPlan Deleted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class SubscriptionPlanDeletedEventHandler : INotificationHandler<SubscriptionPlanDeletedEvent>
+public class SubscriptionPlanDeletedEventHandler(ILogger<SubscriptionPlanDeletedEventHandler> logger) : INotificationHandler<SubscriptionPlanDeletedEvent>
 {
-    private readonly ILogger<SubscriptionPlanDeletedEventHandler> _logger;
-
-    public SubscriptionPlanDeletedEventHandler(ILogger<SubscriptionPlanDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(SubscriptionPlanDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Subscription plan deleted event received. PlanId: {PlanId}, Name: {Name}",
             notification.PlanId, notification.Name);
 
@@ -39,7 +33,7 @@ public class SubscriptionPlanDeletedEventHandler : INotificationHandler<Subscrip
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling SubscriptionPlanDeletedEvent. PlanId: {PlanId}, Name: {Name}",
                 notification.PlanId, notification.Name);
             throw;

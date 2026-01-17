@@ -5,9 +5,11 @@ using Merge.Application.Configuration;
 namespace Merge.Application.B2B.Queries.GetOrganizationCreditTerms;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetOrganizationCreditTermsQueryValidator : AbstractValidator<GetOrganizationCreditTermsQuery>
+public class GetOrganizationCreditTermsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetOrganizationCreditTermsQuery>
 {
-    public GetOrganizationCreditTermsQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    private readonly PaginationSettings settings = paginationSettings.Value;
+
+    public GetOrganizationCreditTermsQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
         RuleFor(x => x.OrganizationId)
             .NotEmpty().WithMessage("Organizasyon ID boş olamaz");
@@ -17,8 +19,8 @@ public class GetOrganizationCreditTermsQueryValidator : AbstractValidator<GetOrg
 
         RuleFor(x => x.PageSize)
             .GreaterThan(0).WithMessage("Sayfa boyutu 0'dan büyük olmalıdır")
-            .LessThanOrEqualTo(paginationSettings.Value.MaxPageSize)
-            .WithMessage($"Sayfa boyutu en fazla {paginationSettings.Value.MaxPageSize} olabilir");
+            .LessThanOrEqualTo(settings.MaxPageSize)
+            .WithMessage($"Sayfa boyutu en fazla {settings.MaxPageSize} olabilir");
     }
 }
 

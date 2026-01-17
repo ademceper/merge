@@ -27,6 +27,7 @@ public class GetInventoriesByWarehouseIdQueryHandler(
     ICacheService cache,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetInventoriesByWarehouseIdQuery, PagedResult<InventoryDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
     private const string CACHE_KEY_INVENTORIES_BY_WAREHOUSE = "inventories_by_warehouse_";
     private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(10); // Inventory changes frequently
 
@@ -36,7 +37,7 @@ public class GetInventoriesByWarehouseIdQueryHandler(
             request.WarehouseId, request.PerformedBy, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var cacheKey = $"{CACHE_KEY_INVENTORIES_BY_WAREHOUSE}{request.WarehouseId}_{request.PerformedBy}_{page}_{pageSize}";

@@ -18,32 +18,21 @@ namespace Merge.Application.Notification.Queries.GetTemplates;
 /// Get Templates Query Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// BOLUM 3.4: Pagination (ZORUNLU)
 /// </summary>
-public class GetTemplatesQueryHandler : IRequestHandler<GetTemplatesQuery, PagedResult<NotificationTemplateDto>>
+public class GetTemplatesQueryHandler(IDbContext context, IMapper mapper, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetTemplatesQuery, PagedResult<NotificationTemplateDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly PaginationSettings _paginationSettings;
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
-    public GetTemplatesQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     public async Task<PagedResult<NotificationTemplateDto>> Handle(GetTemplatesQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 12.0: Magic Numbers YASAK - Configuration kullan
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize 
-            ? _paginationSettings.MaxPageSize 
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize 
+            ? paginationConfig.MaxPageSize 
             : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        IQueryable<NotificationTemplate> query = _context.Set<NotificationTemplate>()
+        IQueryable<NotificationTemplate> query = context.Set<NotificationTemplate>()
             .AsNoTracking();
 
         if (request.Type.HasValue)
@@ -60,7 +49,7 @@ public class GetTemplatesQueryHandler : IRequestHandler<GetTemplatesQuery, Paged
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var templateDtos = _mapper.Map<List<NotificationTemplateDto>>(templates);
+        var templateDtos = mapper.Map<List<NotificationTemplateDto>>(templates);
 
         return new PagedResult<NotificationTemplateDto>
         {

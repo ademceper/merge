@@ -15,43 +15,30 @@ namespace Merge.Application.Product.Queries.GetQAStats;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetQAStatsQueryHandler : IRequestHandler<GetQAStatsQuery, QAStatsDto>
+public class GetQAStatsQueryHandler(IDbContext context, ILogger<GetQAStatsQueryHandler> logger, ICacheService cache, IOptions<CacheSettings> cacheSettings) : IRequestHandler<GetQAStatsQuery, QAStatsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetQAStatsQueryHandler> _logger;
-    private readonly ICacheService _cache;
-    private readonly CacheSettings _cacheSettings;
-    private const string CACHE_KEY_QA_STATS = "qa_stats_";
+    private readonly CacheSettings cacheConfig = cacheSettings.Value;
 
-    public GetQAStatsQueryHandler(
-        IDbContext context,
-        ILogger<GetQAStatsQueryHandler> logger,
-        ICacheService cache,
-        IOptions<CacheSettings> cacheSettings)
-    {
-        _context = context;
-        _logger = logger;
-        _cache = cache;
-        _cacheSettings = cacheSettings.Value;
-    }
+
+    private const string CACHE_KEY_QA_STATS = "qa_stats_";
 
     public async Task<QAStatsDto> Handle(GetQAStatsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching QA stats. ProductId: {ProductId}", request.ProductId);
+        logger.LogInformation("Fetching QA stats. ProductId: {ProductId}", request.ProductId);
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern
         var cacheKey = $"{CACHE_KEY_QA_STATS}{request.ProductId ?? Guid.Empty}";
-        var cachedStats = await _cache.GetAsync<QAStatsDto>(cacheKey, cancellationToken);
+        var cachedStats = await cache.GetAsync<QAStatsDto>(cacheKey, cancellationToken);
         if (cachedStats != null)
         {
-            _logger.LogInformation("QA stats retrieved from cache. ProductId: {ProductId}", request.ProductId);
+            logger.LogInformation("QA stats retrieved from cache. ProductId: {ProductId}", request.ProductId);
             return cachedStats;
         }
 
-        _logger.LogInformation("Cache miss for QA stats. Fetching from database.");
+        logger.LogInformation("Cache miss for QA stats. Fetching from database.");
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        var query = _context.Set<ProductQuestion>().AsNoTracking();
+        var query = context.Set<ProductQuestion>().AsNoTracking();
 
         if (request.ProductId.HasValue)
         {
@@ -61,7 +48,7 @@ public class GetQAStatsQueryHandler : IRequestHandler<GetQAStatsQuery, QAStatsDt
         var totalQuestions = await query.CountAsync(cancellationToken);
         var approvedQuestions = await query.CountAsync(q => q.IsApproved, cancellationToken);
         var unansweredQuestions = await query.CountAsync(q => q.AnswerCount == 0, cancellationToken);
-        var totalAnswers = await _context.Set<ProductAnswer>()
+        var totalAnswers = await context.Set<ProductAnswer>()
             .AsNoTracking()
             .CountAsync(a => request.ProductId == null || a.Question.ProductId == request.ProductId.Value, cancellationToken);
 
@@ -78,9 +65,9 @@ public class GetQAStatsQueryHandler : IRequestHandler<GetQAStatsQuery, QAStatsDt
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
-        await _cache.SetAsync(cacheKey, stats, TimeSpan.FromMinutes(_cacheSettings.QAStatsCacheExpirationMinutes), cancellationToken);
+        await cache.SetAsync(cacheKey, stats, TimeSpan.FromMinutes(cacheConfig.QAStatsCacheExpirationMinutes), cancellationToken);
 
-        _logger.LogInformation("Retrieved QA stats. ProductId: {ProductId}, TotalQuestions: {TotalQuestions}, TotalAnswers: {TotalAnswers}",
+        logger.LogInformation("Retrieved QA stats. ProductId: {ProductId}, TotalQuestions: {TotalQuestions}, TotalAnswers: {TotalAnswers}",
             request.ProductId, totalQuestions, totalAnswers);
 
         return stats;

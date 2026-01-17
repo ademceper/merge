@@ -9,18 +9,9 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Services.ShippingProviders;
 
-public class YurticiProvider : IShippingProvider
+public class YurticiProvider(IConfiguration configuration, ILogger<YurticiProvider> logger) : IShippingProvider
 {
     public string ProviderName => "Yurtiçi Kargo";
-    
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<YurticiProvider> _logger;
-
-    public YurticiProvider(IConfiguration configuration, ILogger<YurticiProvider> logger)
-    {
-        _configuration = configuration;
-        _logger = logger;
-    }
 
     public async Task<ShippingProviderResponseDto> CreateShipmentAsync(ShippingProviderRequestDto request)
     {
@@ -36,14 +27,14 @@ public class YurticiProvider : IShippingProvider
             throw new ValidationException("Sipariş numarası boş olamaz.");
         }
 
-        _logger.LogInformation("Yurtiçi Kargo shipment creation started for order {OrderNumber}", request.OrderNumber);
+        logger.LogInformation("Yurtiçi Kargo shipment creation started for order {OrderNumber}", request.OrderNumber);
         
-        var apiKey = _configuration["ShippingProviders:Yurtici:ApiKey"];
-        var apiSecret = _configuration["ShippingProviders:Yurtici:ApiSecret"];
+        var apiKey = configuration["ShippingProviders:Yurtici:ApiKey"];
+        var apiSecret = configuration["ShippingProviders:Yurtici:ApiSecret"];
         
         if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(apiSecret))
         {
-            _logger.LogWarning("Yurtiçi Kargo API credentials not configured");
+            logger.LogWarning("Yurtiçi Kargo API credentials not configured");
             return new ShippingProviderResponseDto
             {
                 Success = false,
@@ -57,7 +48,7 @@ public class YurticiProvider : IShippingProvider
         var trackingNumber = $"YURTICI{DateTime.UtcNow:yyyyMMdd}{Guid.NewGuid():N}".Substring(0, 20).ToUpper();
         var estimatedDelivery = DateTime.UtcNow.AddDays(3);
         
-        _logger.LogInformation("Yurtiçi Kargo shipment created successfully. TrackingNumber: {TrackingNumber}", trackingNumber);
+        logger.LogInformation("Yurtiçi Kargo shipment created successfully. TrackingNumber: {TrackingNumber}", trackingNumber);
         
         return new ShippingProviderResponseDto
         {
@@ -82,7 +73,7 @@ public class YurticiProvider : IShippingProvider
             throw new ArgumentNullException(nameof(trackingNumber));
         }
 
-        _logger.LogInformation("Yurtiçi Kargo tracking check. TrackingNumber: {TrackingNumber}", trackingNumber);
+        logger.LogInformation("Yurtiçi Kargo tracking check. TrackingNumber: {TrackingNumber}", trackingNumber);
         
         await Task.Delay(100);
         
@@ -119,7 +110,7 @@ public class YurticiProvider : IShippingProvider
             throw new ArgumentNullException(nameof(trackingNumber));
         }
 
-        _logger.LogInformation("Yurtiçi Kargo label generation. TrackingNumber: {TrackingNumber}", trackingNumber);
+        logger.LogInformation("Yurtiçi Kargo label generation. TrackingNumber: {TrackingNumber}", trackingNumber);
         
         await Task.Delay(100);
         
@@ -139,7 +130,7 @@ public class YurticiProvider : IShippingProvider
             throw new ArgumentNullException(nameof(trackingNumber));
         }
 
-        _logger.LogInformation("Yurtiçi Kargo shipment cancellation. TrackingNumber: {TrackingNumber}", trackingNumber);
+        logger.LogInformation("Yurtiçi Kargo shipment cancellation. TrackingNumber: {TrackingNumber}", trackingNumber);
         
         await Task.Delay(100);
         
@@ -154,7 +145,7 @@ public class YurticiProvider : IShippingProvider
             throw new ArgumentNullException(nameof(request));
         }
 
-        _logger.LogInformation("Yurtiçi Kargo cost calculation");
+        logger.LogInformation("Yurtiçi Kargo cost calculation");
         
         await Task.Delay(50);
         

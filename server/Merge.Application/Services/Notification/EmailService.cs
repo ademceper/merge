@@ -16,23 +16,15 @@ public interface IEmailService
     Task SendPasswordResetAsync(string to, string resetToken, CancellationToken cancellationToken = default);
 }
 
-public class EmailService : IEmailService
+public class EmailService(IConfiguration configuration, ILogger<EmailService> logger) : IEmailService
 {
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<EmailService> _logger;
-
-    public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
-    {
-        _configuration = configuration;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task SendEmailAsync(string to, string subject, string body, bool isHtml = true, CancellationToken cancellationToken = default)
     {
         // Burada gerçek email servisi entegrasyonu yapılacak (SendGrid, SMTP, vb.)
         // Şimdilik sadece loglama yapıyoruz
-        _logger.LogInformation("Email gönderiliyor: To={To}, Subject={Subject}", to, subject);
+        logger.LogInformation("Email gönderiliyor: To={To}, Subject={Subject}", to, subject);
         
         // Gerçek implementasyon için:
         // - SendGrid, MailKit, veya SMTP kullanılabilir
@@ -72,7 +64,7 @@ public class EmailService : IEmailService
     public async Task SendPasswordResetAsync(string to, string resetToken, CancellationToken cancellationToken = default)
     {
         var subject = "Şifre Sıfırlama";
-        var resetUrl = $"{_configuration["App:BaseUrl"]}/reset-password?token={resetToken}";
+        var resetUrl = $"{configuration["App:BaseUrl"]}/reset-password?token={resetToken}";
         var body = $@"
             <h2>Şifre Sıfırlama</h2>
             <p>Şifrenizi sıfırlamak için aşağıdaki linke tıklayın:</p>

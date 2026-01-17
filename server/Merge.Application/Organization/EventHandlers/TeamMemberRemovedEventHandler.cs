@@ -8,19 +8,13 @@ namespace Merge.Application.Organization.EventHandlers;
 /// <summary>
 /// Team Member Removed Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// </summary>
-public class TeamMemberRemovedEventHandler : INotificationHandler<TeamMemberRemovedEvent>
+public class TeamMemberRemovedEventHandler(ILogger<TeamMemberRemovedEventHandler> logger) : INotificationHandler<TeamMemberRemovedEvent>
 {
-    private readonly ILogger<TeamMemberRemovedEventHandler> _logger;
-
-    public TeamMemberRemovedEventHandler(ILogger<TeamMemberRemovedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(TeamMemberRemovedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Team member removed event received. TeamMemberId: {TeamMemberId}, TeamId: {TeamId}, UserId: {UserId}",
             notification.TeamMemberId, notification.TeamId, notification.UserId);
 

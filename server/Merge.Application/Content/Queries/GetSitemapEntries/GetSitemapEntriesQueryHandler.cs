@@ -22,6 +22,7 @@ public class GetSitemapEntriesQueryHandler(
     ICacheService cache,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetSitemapEntriesQuery, PagedResult<SitemapEntryDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
     private const string CACHE_KEY_SITEMAP_ENTRIES = "sitemap_entries_paged_";
     private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(15);
 
@@ -30,7 +31,7 @@ public class GetSitemapEntriesQueryHandler(
         logger.LogInformation("Retrieving sitemap entries. IsActive: {IsActive}, Page: {Page}, PageSize: {PageSize}",
             request.IsActive, request.Page, request.PageSize);
 
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var cacheKey = $"{CACHE_KEY_SITEMAP_ENTRIES}{request.IsActive?.ToString() ?? "all"}_{page}_{pageSize}";

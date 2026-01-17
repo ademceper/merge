@@ -8,11 +8,8 @@ using Role = Merge.Domain.Modules.Identity.Role;
 
 namespace Merge.Infrastructure.Data.Contexts;
 
-public class MarketingDbContext : DbContext, IDbContext
+public class MarketingDbContext(DbContextOptions<MarketingDbContext> options) : DbContext(options), IDbContext
 {
-    public MarketingDbContext(DbContextOptions<MarketingDbContext> options) : base(options)
-    {
-    }
 
     public DbSet<Coupon> Coupons { get; set; }
     public DbSet<CouponUsage> CouponUsages { get; set; }

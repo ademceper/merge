@@ -9,16 +9,10 @@ using Merge.Infrastructure.Data;
 namespace Merge.Infrastructure.Repositories;
 
 // ✅ BOLUM 1.1: Repository Application katmanındaki IRepository interface'ini implement ediyor
-public class Repository<T> : IRepository<T> where T : BaseEntity
+public class Repository<T>(ApplicationDbContext context) : IRepository<T> where T : BaseEntity
 {
-    protected readonly ApplicationDbContext _context;
-    protected readonly DbSet<T> _dbSet;
-
-    public Repository(ApplicationDbContext context)
-    {
-        _context = context;
-        _dbSet = context.Set<T>();
-    }
+    protected readonly ApplicationDbContext _context = context;
+    protected readonly DbSet<T> _dbSet = context.Set<T>();
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ⚠️ NOT: AsNoTracking() YOK - Entity track edilmeli (update işlemleri için)

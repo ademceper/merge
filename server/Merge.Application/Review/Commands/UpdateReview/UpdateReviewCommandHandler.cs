@@ -18,32 +18,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Review.Commands.UpdateReview;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UpdateReviewCommandHandler : IRequestHandler<UpdateReviewCommand, ReviewDto>
+public class UpdateReviewCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateReviewCommandHandler> logger) : IRequestHandler<UpdateReviewCommand, ReviewDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<UpdateReviewCommandHandler> _logger;
-
-    public UpdateReviewCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<UpdateReviewCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<ReviewDto> Handle(UpdateReviewCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Updating review. ReviewId: {ReviewId}, UserId: {UserId}", request.ReviewId, request.UserId);
+        logger.LogInformation("Updating review. ReviewId: {ReviewId}, UserId: {UserId}", request.ReviewId, request.UserId);
 
         // ✅ BOLUM 2.1: FluentValidation - ValidationBehavior otomatik kontrol eder, handler'da tekrar validation gereksiz
 
-        var review = await _context.Set<ReviewEntity>()
+        var review = await context.Set<ReviewEntity>()
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
 
         if (review == null)
@@ -77,26 +61,26 @@ public class UpdateReviewCommandHandler : IRequestHandler<UpdateReviewCommand, R
         await UpdateProductRatingAsync(review.ProductId, cancellationToken);
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        review = await _context.Set<ReviewEntity>()
+        review = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Review updated successfully. ReviewId: {ReviewId}, OldRating: {OldRating}, NewRating: {NewRating}",
             request.ReviewId, oldRating, request.Rating);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<ReviewDto>(review!);
+        return mapper.Map<ReviewDto>(review!);
     }
 
     private async Task UpdateProductRatingAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query + Removed manual !r.IsDeleted (Global Query Filter)
-        var reviewStats = await _context.Set<ReviewEntity>()
+        var reviewStats = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.ProductId == productId && r.IsApproved)
             .GroupBy(r => r.ProductId)
@@ -109,7 +93,7 @@ public class UpdateReviewCommandHandler : IRequestHandler<UpdateReviewCommand, R
 
         if (reviewStats != null)
         {
-            var product = await _context.Set<ProductEntity>()
+            var product = await context.Set<ProductEntity>()
                 .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
             if (product != null)
             {

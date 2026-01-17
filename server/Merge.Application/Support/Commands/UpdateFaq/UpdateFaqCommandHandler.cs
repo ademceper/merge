@@ -15,36 +15,20 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Commands.UpdateFaq;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UpdateFaqCommandHandler : IRequestHandler<UpdateFaqCommand, FaqDto?>
+public class UpdateFaqCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateFaqCommandHandler> logger) : IRequestHandler<UpdateFaqCommand, FaqDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<UpdateFaqCommandHandler> _logger;
-
-    public UpdateFaqCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<UpdateFaqCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<FaqDto?> Handle(UpdateFaqCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Updating FAQ {FaqId}", request.FaqId);
+        logger.LogInformation("Updating FAQ {FaqId}", request.FaqId);
 
-        var faq = await _context.Set<FAQ>()
+        var faq = await context.Set<FAQ>()
             .FirstOrDefaultAsync(f => f.Id == request.FaqId, cancellationToken);
 
         if (faq == null)
         {
-            _logger.LogWarning("FAQ {FaqId} not found for update", request.FaqId);
+            logger.LogWarning("FAQ {FaqId} not found for update", request.FaqId);
             throw new NotFoundException("FAQ", request.FaqId);
         }
 
@@ -55,11 +39,11 @@ public class UpdateFaqCommandHandler : IRequestHandler<UpdateFaqCommand, FaqDto?
         faq.SetPublished(request.IsPublished);
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("FAQ {FaqId} updated successfully", request.FaqId);
+        logger.LogInformation("FAQ {FaqId} updated successfully", request.FaqId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return _mapper.Map<FaqDto>(faq);
+        return mapper.Map<FaqDto>(faq);
     }
 }

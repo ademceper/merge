@@ -6,17 +6,17 @@ namespace Merge.Application.ML.Queries.GetAllFraudDetectionRules;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-public class GetAllFraudDetectionRulesQueryValidator : AbstractValidator<GetAllFraudDetectionRulesQuery>
+public class GetAllFraudDetectionRulesQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetAllFraudDetectionRulesQuery>
 {
-    public GetAllFraudDetectionRulesQueryValidator(IOptions<PaginationSettings> paginationSettings)
-    {
-        var paginationConfig = paginationSettings.Value;
+    private readonly PaginationSettings config = paginationSettings.Value;
 
+    public GetAllFraudDetectionRulesQueryValidator() : this(Options.Create(new PaginationSettings()))
+    {
         RuleFor(x => x.Page)
             .GreaterThan(0).WithMessage("Page must be greater than 0.");
 
         RuleFor(x => x.PageSize)
             .GreaterThan(0).WithMessage("Page size must be greater than 0.")
-            .LessThanOrEqualTo(paginationConfig.MaxPageSize).WithMessage($"Page size cannot exceed {paginationConfig.MaxPageSize}.");
+            .LessThanOrEqualTo(config.MaxPageSize).WithMessage($"Page size cannot exceed {config.MaxPageSize}.");
     }
 }

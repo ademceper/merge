@@ -8,19 +8,13 @@ namespace Merge.Application.Support.EventHandlers;
 /// Support Ticket Deleted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class SupportTicketDeletedEventHandler : INotificationHandler<SupportTicketDeletedEvent>
+public class SupportTicketDeletedEventHandler(ILogger<SupportTicketDeletedEventHandler> logger) : INotificationHandler<SupportTicketDeletedEvent>
 {
-    private readonly ILogger<SupportTicketDeletedEventHandler> _logger;
-
-    public SupportTicketDeletedEventHandler(ILogger<SupportTicketDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(SupportTicketDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Support ticket deleted event received. TicketId: {TicketId}, TicketNumber: {TicketNumber}, UserId: {UserId}",
             notification.TicketId, notification.TicketNumber, notification.UserId);
 

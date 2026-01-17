@@ -19,34 +19,21 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Review.Commands.EvaluateSellerBadges;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class EvaluateSellerBadgesCommandHandler : IRequestHandler<EvaluateSellerBadgesCommand>
+public class EvaluateSellerBadgesCommandHandler(IDbContext context, IMediator mediator, ILogger<EvaluateSellerBadgesCommandHandler> logger) : IRequestHandler<EvaluateSellerBadgesCommand>
 {
-    private readonly IDbContext _context;
-    private readonly IMediator _mediator;
-    private readonly ILogger<EvaluateSellerBadgesCommandHandler> _logger;
-
-    public EvaluateSellerBadgesCommandHandler(
-        IDbContext context,
-        IMediator mediator,
-        ILogger<EvaluateSellerBadgesCommandHandler> logger)
-    {
-        _context = context;
-        _mediator = mediator;
-        _logger = logger;
-    }
 
     public async Task Handle(EvaluateSellerBadgesCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Evaluating seller badges. SellerId: {SellerId}", request.SellerId);
+        logger.LogInformation("Evaluating seller badges. SellerId: {SellerId}", request.SellerId);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
-        var badges = await _context.Set<TrustBadge>()
+        var badges = await context.Set<TrustBadge>()
             .AsNoTracking()
             .Where(b => b.IsActive && b.BadgeType == "Seller")
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var seller = await _context.Set<SellerProfile>()
+        var seller = await context.Set<SellerProfile>()
             .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.UserId == request.SellerId, cancellationToken);
 
@@ -54,20 +41,20 @@ public class EvaluateSellerBadgesCommandHandler : IRequestHandler<EvaluateSeller
 
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted, !r.IsDeleted (Global Query Filter)
         // Get seller metrics
-        var totalOrders = await _context.Set<OrderEntity>()
+        var totalOrders = await context.Set<OrderEntity>()
             .AsNoTracking()
             .CountAsync(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId), cancellationToken);
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        var totalRevenue = await _context.Set<OrderItem>()
+        var totalRevenue = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.Product.SellerId == request.SellerId &&
                   oi.Order.PaymentStatus == PaymentStatus.Completed)
             .SumAsync(oi => oi.TotalPrice, cancellationToken);
 
         var averageRating = seller.AverageRating;
-        var totalReviews = await _context.Set<ReviewEntity>()
+        var totalReviews = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .CountAsync(r => r.IsApproved &&
                   r.Product.SellerId == request.SellerId, cancellationToken);
@@ -98,7 +85,7 @@ public class EvaluateSellerBadgesCommandHandler : IRequestHandler<EvaluateSeller
             if (qualifies)
             {
                 // ✅ PERFORMANCE: Removed manual !stb.IsDeleted (Global Query Filter)
-                var existing = await _context.Set<SellerTrustBadge>()
+                var existing = await context.Set<SellerTrustBadge>()
                     .FirstOrDefaultAsync(stb => stb.SellerId == request.SellerId && stb.TrustBadgeId == badge.Id, cancellationToken);
 
                 if (existing == null)
@@ -109,11 +96,11 @@ public class EvaluateSellerBadgesCommandHandler : IRequestHandler<EvaluateSeller
                         badge.Id,
                         null,
                         "Automatically awarded based on performance criteria");
-                    await _mediator.Send(awardCommand, cancellationToken);
+                    await mediator.Send(awardCommand, cancellationToken);
                 }
             }
         }
 
-        _logger.LogInformation("Seller badges evaluated successfully. SellerId: {SellerId}", request.SellerId);
+        logger.LogInformation("Seller badges evaluated successfully. SellerId: {SellerId}", request.SellerId);
     }
 }

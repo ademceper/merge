@@ -4,16 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Merge.Application.Services.ShippingProviders;
 
-public class ShippingProviderFactory
+public class ShippingProviderFactory(IServiceProvider serviceProvider, IConfiguration configuration)
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly IConfiguration _configuration;
-
-    public ShippingProviderFactory(IServiceProvider serviceProvider, IConfiguration configuration)
-    {
-        _serviceProvider = serviceProvider;
-        _configuration = configuration;
-    }
 
     public IShippingProvider GetProvider(string providerName)
     {
@@ -25,16 +17,16 @@ public class ShippingProviderFactory
 
         return providerName.ToUpper() switch
         {
-            "YURTICI" or "YURTICI KARGO" => _serviceProvider.GetRequiredService<YurticiProvider>(),
-            "ARAS" or "ARAS KARGO" => _serviceProvider.GetRequiredService<ArasProvider>(),
-            "MNG" or "MNG KARGO" => _serviceProvider.GetRequiredService<MNGProvider>(),
+            "YURTICI" or "YURTICI KARGO" => serviceProvider.GetRequiredService<YurticiProvider>(),
+            "ARAS" or "ARAS KARGO" => serviceProvider.GetRequiredService<ArasProvider>(),
+            "MNG" or "MNG KARGO" => serviceProvider.GetRequiredService<MNGProvider>(),
             _ => throw new ArgumentException($"Unknown shipping provider: {providerName}")
         };
     }
 
     public IShippingProvider GetDefaultProvider()
     {
-        var defaultProvider = _configuration["ShippingProviders:Default"] ?? "Yurtiçi";
+        var defaultProvider = configuration["ShippingProviders:Default"] ?? "Yurtiçi";
         return GetProvider(defaultProvider);
     }
 }

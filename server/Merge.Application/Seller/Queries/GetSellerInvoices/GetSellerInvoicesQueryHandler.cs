@@ -17,41 +17,27 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Queries.GetSellerInvoices;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetSellerInvoicesQueryHandler : IRequestHandler<GetSellerInvoicesQuery, PagedResult<SellerInvoiceDto>>
+public class GetSellerInvoicesQueryHandler(IDbContext context, IMapper mapper, ILogger<GetSellerInvoicesQueryHandler> logger, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetSellerInvoicesQuery, PagedResult<SellerInvoiceDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetSellerInvoicesQueryHandler> _logger;
-    private readonly PaginationSettings _paginationSettings;
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
-    public GetSellerInvoicesQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetSellerInvoicesQueryHandler> logger,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     public async Task<PagedResult<SellerInvoiceDto>> Handle(GetSellerInvoicesQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
         // ✅ ARCHITECTURE: Enum kullanımı (string Status yerine) - BEST_PRACTICES_ANALIZI.md BOLUM 1.1.6
-        _logger.LogInformation("Getting seller invoices. SellerId: {SellerId}, Status: {Status}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Getting seller invoices. SellerId: {SellerId}, Status: {Status}, Page: {Page}, PageSize: {PageSize}",
             request.SellerId, request.Status?.ToString() ?? "All", request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic number config'den
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize 
-            ? _paginationSettings.MaxPageSize 
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize 
+            ? paginationConfig.MaxPageSize 
             : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
-        IQueryable<SellerInvoice> query = _context.Set<SellerInvoice>()
+        IQueryable<SellerInvoice> query = context.Set<SellerInvoice>()
             .AsNoTracking()
             .Include(i => i.Seller)
             .Where(i => i.SellerId == request.SellerId);
@@ -71,7 +57,7 @@ public class GetSellerInvoicesQueryHandler : IRequestHandler<GetSellerInvoicesQu
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var invoiceDtos = _mapper.Map<IEnumerable<SellerInvoiceDto>>(invoices).ToList();
+        var invoiceDtos = mapper.Map<IEnumerable<SellerInvoiceDto>>(invoices).ToList();
 
         return new PagedResult<SellerInvoiceDto>
         {

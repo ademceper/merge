@@ -16,37 +16,21 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Commands.UpdateTicket;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UpdateTicketCommandHandler : IRequestHandler<UpdateTicketCommand, bool>
+public class UpdateTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<UpdateTicketCommandHandler> logger, IOptions<SupportSettings> settings) : IRequestHandler<UpdateTicketCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<UpdateTicketCommandHandler> _logger;
-    private readonly SupportSettings _settings;
-
-    public UpdateTicketCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<UpdateTicketCommandHandler> logger,
-        IOptions<SupportSettings> settings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-        _settings = settings.Value;
-    }
 
     public async Task<bool> Handle(UpdateTicketCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Updating ticket {TicketId}. Subject: {Subject}, Status: {Status}, Priority: {Priority}",
+        logger.LogInformation("Updating ticket {TicketId}. Subject: {Subject}, Status: {Status}, Priority: {Priority}",
             request.TicketId, request.Subject, request.Status, request.Priority);
 
-        var ticket = await _context.Set<SupportTicket>()
+        var ticket = await context.Set<SupportTicket>()
             .FirstOrDefaultAsync(t => t.Id == request.TicketId, cancellationToken);
 
         if (ticket == null)
         {
-            _logger.LogWarning("Ticket {TicketId} not found for update", request.TicketId);
+            logger.LogWarning("Ticket {TicketId} not found for update", request.TicketId);
             throw new NotFoundException("Destek bileti", request.TicketId);
         }
 
@@ -81,12 +65,12 @@ public class UpdateTicketCommandHandler : IRequestHandler<UpdateTicketCommand, b
             if (newStatus == TicketStatus.Resolved)
             {
                 ticket.Resolve();
-                _logger.LogInformation("Ticket {TicketNumber} marked as resolved", ticket.TicketNumber);
+                logger.LogInformation("Ticket {TicketNumber} marked as resolved", ticket.TicketNumber);
             }
             else if (newStatus == TicketStatus.Closed)
             {
                 ticket.Close();
-                _logger.LogInformation("Ticket {TicketNumber} marked as closed", ticket.TicketNumber);
+                logger.LogInformation("Ticket {TicketNumber} marked as closed", ticket.TicketNumber);
             }
             else
             {
@@ -100,9 +84,9 @@ public class UpdateTicketCommandHandler : IRequestHandler<UpdateTicketCommand, b
         }
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Ticket {TicketNumber} updated. Status changed from {OldStatus} to {NewStatus}",
+        logger.LogInformation("Ticket {TicketNumber} updated. Status changed from {OldStatus} to {NewStatus}",
             ticket.TicketNumber, oldStatus, ticket.Status);
 
         return true;

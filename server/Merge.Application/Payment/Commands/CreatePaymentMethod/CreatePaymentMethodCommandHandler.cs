@@ -16,51 +16,35 @@ namespace Merge.Application.Payment.Commands.CreatePaymentMethod;
 
 // BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullaniyor (Service layer bypass)
-public class CreatePaymentMethodCommandHandler : IRequestHandler<CreatePaymentMethodCommand, PaymentMethodDto>
+public class CreatePaymentMethodCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreatePaymentMethodCommandHandler> logger) : IRequestHandler<CreatePaymentMethodCommand, PaymentMethodDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreatePaymentMethodCommandHandler> _logger;
-
-    public CreatePaymentMethodCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreatePaymentMethodCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<PaymentMethodDto> Handle(CreatePaymentMethodCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Creating payment method. Name: {Name}, Code: {Code}, IsActive: {IsActive}",
             request.Name, request.Code, request.IsActive);
 
         // CRITICAL: Transaction baslat - atomic operation
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
             // Check if code already exists
-            var existing = await _context.Set<PaymentMethod>()
+            var existing = await context.Set<PaymentMethod>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(pm => pm.Code == request.Code, cancellationToken);
 
             if (existing != null)
             {
-                _logger.LogWarning("Payment method with code {Code} already exists", request.Code);
+                logger.LogWarning("Payment method with code {Code} already exists", request.Code);
                 throw new BusinessException($"Bu kod ile ödeme yöntemi zaten mevcut: '{request.Code}'");
             }
 
             // If this is default, unset other default methods
             if (request.IsDefault)
             {
-                var existingDefault = await _context.Set<PaymentMethod>()
+                var existingDefault = await context.Set<PaymentMethod>()
                     .Where(pm => pm.IsDefault)
                     .ToListAsync(cancellationToken);
 
@@ -88,22 +72,22 @@ public class CreatePaymentMethodCommandHandler : IRequestHandler<CreatePaymentMe
                 request.DisplayOrder,
                 request.IsDefault);
 
-            await _context.Set<PaymentMethod>().AddAsync(paymentMethod, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await context.Set<PaymentMethod>().AddAsync(paymentMethod, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Payment method created successfully. PaymentMethodId: {PaymentMethodId}, Name: {Name}, Code: {Code}",
                 paymentMethod.Id, request.Name, request.Code);
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-            return _mapper.Map<PaymentMethodDto>(paymentMethod);
+            return mapper.Map<PaymentMethodDto>(paymentMethod);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating payment method. Name: {Name}, Code: {Code}", request.Name, request.Code);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Error creating payment method. Name: {Name}, Code: {Code}", request.Name, request.Code);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

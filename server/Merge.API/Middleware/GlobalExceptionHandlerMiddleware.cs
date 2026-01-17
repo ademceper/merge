@@ -13,31 +13,18 @@ namespace Merge.API.Middleware;
 
 // ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior exception handling (ZORUNLU)
 // ✅ BOLUM 4.1.4: RFC 7807 Problem Details (ZORUNLU)
-public class GlobalExceptionHandlerMiddleware
+public class GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<GlobalExceptionHandlerMiddleware> logger, IWebHostEnvironment environment)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<GlobalExceptionHandlerMiddleware> _logger;
-    private readonly IWebHostEnvironment _environment;
-
-    public GlobalExceptionHandlerMiddleware(
-        RequestDelegate next,
-        ILogger<GlobalExceptionHandlerMiddleware> logger,
-        IWebHostEnvironment environment)
-    {
-        _next = next;
-        _logger = logger;
-        _environment = environment;
-    }
 
     public async Task InvokeAsync(HttpContext context)
     {
         try
         {
-            await _next(context);
+            await next(context);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Bir hata oluştu: {Message}", ex.Message);
+            logger.LogError(ex, "Bir hata oluştu: {Message}", ex.Message);
             await HandleExceptionAsync(context, ex);
         }
     }
@@ -166,12 +153,12 @@ public class GlobalExceptionHandlerMiddleware
                 problemDetails.Title = "An unexpected error occurred";
                 problemDetails.Status = (int)HttpStatusCode.InternalServerError;
                 problemDetails.Instance = context.Request.Path;
-                problemDetails.Detail = _environment.IsDevelopment() ? exception.Message : null;
+                problemDetails.Detail = environment.IsDevelopment() ? exception.Message : null;
                 problemDetails.Extensions["traceId"] = traceId;
                 problemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
                 
                 // ✅ SECURITY FIX: Stack trace sadece Development'ta ve sınırlı bilgi ile
-                if (_environment.IsDevelopment())
+                if (environment.IsDevelopment())
                 {
                     problemDetails.Extensions["exception"] = exception.GetType().Name;
                     // Stack trace'i sadece ilk 500 karakter ile sınırla (güvenlik için)
@@ -192,7 +179,7 @@ public class GlobalExceptionHandlerMiddleware
         var options = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = _environment.IsDevelopment()
+            WriteIndented = environment.IsDevelopment()
         };
         
         var result = JsonSerializer.Serialize(problemDetails, options);

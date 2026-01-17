@@ -13,39 +13,29 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.User.Commands.LogActivity;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class LogActivityCommandHandler : IRequestHandler<LogActivityCommand>
+public class LogActivityCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<LogActivityCommandHandler> logger, IOptions<UserSettings> userSettings) : IRequestHandler<LogActivityCommand>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<LogActivityCommandHandler> _logger;
-    private readonly UserSettings _userSettings;
+    private readonly UserSettings config = userSettings.Value;
 
-    public LogActivityCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<LogActivityCommandHandler> logger, IOptions<UserSettings> userSettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-        _userSettings = userSettings.Value;
-    }
 
     public async Task Handle(LogActivityCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
-        _logger.LogDebug("Logging activity: {ActivityType} for user: {UserId}", request.ActivityType, request.UserId);
+        logger.LogDebug("Logging activity: {ActivityType} for user: {UserId}", request.ActivityType, request.UserId);
 
         var deviceInfo = ParseUserAgent(request.UserAgent);
 
         // Parse enum values from strings
         if (!Enum.TryParse<ActivityType>(request.ActivityType, true, out var activityType))
         {
-            _logger.LogWarning("Invalid ActivityType: {ActivityType}", request.ActivityType);
+            logger.LogWarning("Invalid ActivityType: {ActivityType}", request.ActivityType);
             throw new ArgumentException($"Invalid ActivityType: {request.ActivityType}", nameof(request.ActivityType));
         }
 
         if (!Enum.TryParse<EntityType>(request.EntityType, true, out var entityType))
         {
-            _logger.LogWarning("Invalid EntityType: {EntityType}", request.EntityType);
+            logger.LogWarning("Invalid EntityType: {EntityType}", request.EntityType);
             throw new ArgumentException($"Invalid EntityType: {request.EntityType}", nameof(request.EntityType));
         }
 
@@ -72,12 +62,12 @@ public class LogActivityCommandHandler : IRequestHandler<LogActivityCommand>
             wasSuccessful: request.WasSuccessful,
             errorMessage: request.ErrorMessage);
 
-        await _context.Set<UserActivityLog>().AddAsync(activity, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<UserActivityLog>().AddAsync(activity, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event\'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
 
-        _logger.LogDebug("Activity logged successfully with ID: {ActivityId}", activity.Id);
+        logger.LogDebug("Activity logged successfully with ID: {ActivityId}", activity.Id);
     }
 
     private (string DeviceType, string Browser, string OS) ParseUserAgent(string userAgent)

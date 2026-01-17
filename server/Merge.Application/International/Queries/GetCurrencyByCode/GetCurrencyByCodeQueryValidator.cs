@@ -4,14 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Queries.GetCurrencyByCode;
 
-public class GetCurrencyByCodeQueryValidator : AbstractValidator<GetCurrencyByCodeQuery>
+public class GetCurrencyByCodeQueryValidator(IOptions<InternationalSettings> settings) : AbstractValidator<GetCurrencyByCodeQuery>
 {
-    private readonly InternationalSettings config;
+    private readonly InternationalSettings config = settings.Value;
 
-    public GetCurrencyByCodeQueryValidator(IOptions<InternationalSettings> settings)
+    public GetCurrencyByCodeQueryValidator() : this(Options.Create(new InternationalSettings()))
     {
-        config = settings.Value;
-
         RuleFor(x => x.Code)
             .NotEmpty().WithMessage("Para birimi kodu zorunludur.")
             .Length(3, config.MaxCurrencyCodeLength)

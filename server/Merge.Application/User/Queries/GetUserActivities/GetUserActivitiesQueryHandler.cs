@@ -14,42 +14,31 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 namespace Merge.Application.User.Queries.GetUserActivities;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetUserActivitiesQueryHandler : IRequestHandler<GetUserActivitiesQuery, IEnumerable<UserActivityLogDto>>
+public class GetUserActivitiesQueryHandler(IDbContext context, IMapper mapper, ILogger<GetUserActivitiesQueryHandler> logger, IOptions<UserSettings> userSettings) : IRequestHandler<GetUserActivitiesQuery, IEnumerable<UserActivityLogDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetUserActivitiesQueryHandler> _logger;
-    private readonly UserSettings _userSettings;
-
-    public GetUserActivitiesQueryHandler(IDbContext context, IMapper mapper, ILogger<GetUserActivitiesQueryHandler> logger, IOptions<UserSettings> userSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _userSettings = userSettings.Value;
-    }
+    private readonly UserSettings config = userSettings.Value;
 
     public async Task<IEnumerable<UserActivityLogDto>> Handle(GetUserActivitiesQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
-        _logger.LogInformation("Retrieving activities for user: {UserId} for last {Days} days", request.UserId, request.Days);
+        logger.LogInformation("Retrieving activities for user: {UserId} for last {Days} days", request.UserId, request.Days);
         var days = request.Days;
-        if (days > _userSettings.Activity.MaxDays) days = _userSettings.Activity.MaxDays;
-        if (days < 1) days = _userSettings.Activity.DefaultDays;
+        if (days > config.Activity.MaxDays) days = config.Activity.MaxDays;
+        if (days < 1) days = config.Activity.DefaultDays;
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
         var activities =         // ✅ PERFORMANCE: AsNoTracking
-        await _context.Set<UserActivityLog>()
+        await context.Set<UserActivityLog>()
             .AsNoTracking()
             .Include(a => a.User)
             .Where(a => a.UserId == request.UserId && a.CreatedAt >= startDate)
             .OrderByDescending(a => a.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        _logger.LogInformation("Found {Count} activities for user: {UserId}", activities.Count, request.UserId);
+        logger.LogInformation("Found {Count} activities for user: {UserId}", activities.Count, request.UserId);
 
-        return _mapper.Map<IEnumerable<UserActivityLogDto>>(activities);
+        return mapper.Map<IEnumerable<UserActivityLogDto>>(activities);
     }
 }

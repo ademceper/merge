@@ -24,34 +24,20 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Services.Product;
 
-public class BulkProductService : IBulkProductService
+public class BulkProductService(
+    IRepository productRepository,
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<BulkProductService> logger) : IBulkProductService
 {
-    private readonly IRepository _productRepository;
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<BulkProductService> _logger;
-
-    public BulkProductService(
-        IRepository productRepository,
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<BulkProductService> logger)
-    {
-        _productRepository = productRepository;
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<BulkProductImportResultDto> ImportProductsFromCsvAsync(Stream fileStream, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("CSV bulk import başlatıldı");
+        logger.LogInformation("CSV bulk import başlatıldı");
 
         // ✅ PERFORMANCE FIX: O(n²) → O(n) - Mutable lists kullan, sonra immutable record'a dönüştür
         var errors = new List<string>();
@@ -100,7 +86,7 @@ public class BulkProductService : IBulkProductService
                 {
                     successCount++;
                     // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-                    var importedProductDto = _mapper.Map<ProductDto>(product);
+                    var importedProductDto = mapper.Map<ProductDto>(product);
                     importedProducts.Add(importedProductDto);
                 }
                 else
@@ -113,12 +99,12 @@ public class BulkProductService : IBulkProductService
             {
                 failureCount++;
                 errors.Add($"Line {totalProcessed}: {ex.Message}");
-                _logger.LogWarning(ex, "CSV import hatası. Line: {Line}", totalProcessed);
+                    logger.LogWarning(ex, "CSV import hatası. Line: {Line}", totalProcessed);
             }
         }
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "CSV bulk import tamamlandı. TotalProcessed: {TotalProcessed}, SuccessCount: {SuccessCount}, FailureCount: {FailureCount}",
             totalProcessed, successCount, failureCount);
 
@@ -136,7 +122,7 @@ public class BulkProductService : IBulkProductService
     public async Task<BulkProductImportResultDto> ImportProductsFromJsonAsync(Stream fileStream, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("JSON bulk import başlatıldı");
+        logger.LogInformation("JSON bulk import başlatıldı");
 
         // ✅ PERFORMANCE FIX: O(n²) → O(n) - Mutable lists kullan, sonra immutable record'a dönüştür
         var errors = new List<string>();
@@ -173,7 +159,7 @@ public class BulkProductService : IBulkProductService
                     {
                         successCount++;
                         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-                        var importedProductDto = _mapper.Map<ProductDto>(product);
+                        var importedProductDto = mapper.Map<ProductDto>(product);
                         importedProducts.Add(importedProductDto);
                     }
                     else
@@ -186,18 +172,18 @@ public class BulkProductService : IBulkProductService
                 {
                     failureCount++;
                     errors.Add($"Product '{productDto.Name}': {ex.Message}");
-                    _logger.LogWarning(ex, "JSON import hatası. Product: {ProductName}", productDto.Name);
+                    logger.LogWarning(ex, "JSON import hatası. Product: {ProductName}", productDto.Name);
                 }
             }
         }
         catch (Exception ex)
         {
             errors.Add($"JSON parsing error: {ex.Message}");
-            _logger.LogError(ex, "JSON parsing hatası");
+            logger.LogError(ex, "JSON parsing hatası");
         }
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "JSON bulk import tamamlandı. TotalProcessed: {TotalProcessed}, SuccessCount: {SuccessCount}, FailureCount: {FailureCount}",
             totalProcessed, successCount, failureCount);
 
@@ -282,7 +268,7 @@ public class BulkProductService : IBulkProductService
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         // Check if SKU already exists
-        var existingProduct = await _context.Set<ProductEntity>()
+        var existingProduct = await context.Set<ProductEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.SKU == dto.SKU, cancellationToken);
 
@@ -293,7 +279,7 @@ public class BulkProductService : IBulkProductService
 
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         // Find category by name
-        var category = await _context.Set<Category>()
+        var category = await context.Set<Category>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Name == dto.CategoryName, cancellationToken);
 
@@ -334,9 +320,9 @@ public class BulkProductService : IBulkProductService
             product.Deactivate();
         }
 
-        product = await _productRepository.AddAsync(product);
+        product = await productRepository.AddAsync(product);
         // ✅ ARCHITECTURE: UnitOfWork kullan (SaveChangesAsync YASAK - Repository pattern)
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         return product;
     }
 
@@ -344,7 +330,7 @@ public class BulkProductService : IBulkProductService
     private async Task<List<ProductEntity>> GetProductsForExportAsync(BulkProductExportDto exportDto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        IQueryable<ProductEntity> query = _context.Set<ProductEntity>()
+        IQueryable<ProductEntity> query = context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category);
 

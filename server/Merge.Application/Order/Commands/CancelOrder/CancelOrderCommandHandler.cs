@@ -15,25 +15,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Order.Commands.CancelOrder;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, bool>
+public class CancelOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<CancelOrderCommandHandler> logger) : IRequestHandler<CancelOrderCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<CancelOrderCommandHandler> _logger;
-
-    public CancelOrderCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<CancelOrderCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(CancelOrderCommand request, CancellationToken cancellationToken)
     {
-        var order = await _context.Set<OrderEntity>()
+        var order = await context.Set<OrderEntity>()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
@@ -49,7 +36,7 @@ public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, boo
         }
 
         // ✅ CRITICAL: Transaction for atomic stock restoration
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
@@ -63,10 +50,10 @@ public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, boo
 
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Order cancelled successfully. OrderId: {OrderId}, ItemsRestored: {ItemCount}",
                 request.OrderId, order.OrderItems.Count);
 
@@ -74,8 +61,8 @@ public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, boo
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            _logger.LogError(ex, "Order cancellation failed. OrderId: {OrderId}", request.OrderId);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Order cancellation failed. OrderId: {OrderId}", request.OrderId);
             throw;
         }
     }

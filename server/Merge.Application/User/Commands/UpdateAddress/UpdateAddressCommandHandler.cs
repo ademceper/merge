@@ -15,39 +15,27 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.User.Commands.UpdateAddress;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UpdateAddressCommandHandler : IRequestHandler<UpdateAddressCommand, AddressDto>
+public class UpdateAddressCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateAddressCommandHandler> logger) : IRequestHandler<UpdateAddressCommand, AddressDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<UpdateAddressCommandHandler> _logger;
-
-    public UpdateAddressCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateAddressCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<AddressDto> Handle(UpdateAddressCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
-        _logger.LogInformation("Updating address with ID: {AddressId}", request.Id);
+        logger.LogInformation("Updating address with ID: {AddressId}", request.Id);
 
-        var address = await _context.Set<AddressEntity>()
+        var address = await context.Set<AddressEntity>()
             .Where(a => a.Id == request.Id && !a.IsDeleted)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (address == null)
         {
-            _logger.LogWarning("Address not found with ID: {AddressId}", request.Id);
+            logger.LogWarning("Address not found with ID: {AddressId}", request.Id);
             throw new Application.Exceptions.NotFoundException("Address", request.Id);
         }
         if (request.UserId.HasValue && address.UserId != request.UserId.Value && !request.IsAdminOrManager)
         {
-            _logger.LogWarning("Unauthorized update attempt to address {AddressId} by user {UserId}", 
+            logger.LogWarning("Unauthorized update attempt to address {AddressId} by user {UserId}", 
                 request.Id, request.UserId.Value);
             throw new Application.Exceptions.BusinessException("Bu adresi güncelleme yetkiniz bulunmamaktadır.");
         }
@@ -55,7 +43,7 @@ public class UpdateAddressCommandHandler : IRequestHandler<UpdateAddressCommand,
         // Eğer default olarak işaretleniyorsa, diğer adreslerin default'unu kaldır
         if (request.IsDefault && !address.IsDefault)
         {
-            var existingDefaults = await _context.Set<AddressEntity>()
+            var existingDefaults = await context.Set<AddressEntity>()
                 .Where(a => a.UserId == address.UserId && a.Id != request.Id && a.IsDefault && !a.IsDeleted)
                 .ToListAsync(cancellationToken);
 
@@ -66,7 +54,7 @@ public class UpdateAddressCommandHandler : IRequestHandler<UpdateAddressCommand,
 
             if (existingDefaults.Count > 0)
             {
-        _logger.LogInformation("Removed default flag from {Count} existing addresses", existingDefaults.Count);
+        logger.LogInformation("Removed default flag from {Count} existing addresses", existingDefaults.Count);
             }
         }
 
@@ -91,13 +79,13 @@ public class UpdateAddressCommandHandler : IRequestHandler<UpdateAddressCommand,
             address.RemoveDefault();
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event\'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
 
-        _logger.LogInformation("Address updated successfully with ID: {AddressId}", request.Id);
+        logger.LogInformation("Address updated successfully with ID: {AddressId}", request.Id);
 
                 // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<AddressDto>(address);
+        return mapper.Map<AddressDto>(address);
     }
 }

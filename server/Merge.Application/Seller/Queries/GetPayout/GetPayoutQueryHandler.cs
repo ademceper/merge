@@ -14,28 +14,15 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Queries.GetPayout;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetPayoutQueryHandler : IRequestHandler<GetPayoutQuery, CommissionPayoutDto?>
+public class GetPayoutQueryHandler(IDbContext context, IMapper mapper, ILogger<GetPayoutQueryHandler> logger) : IRequestHandler<GetPayoutQuery, CommissionPayoutDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetPayoutQueryHandler> _logger;
-
-    public GetPayoutQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetPayoutQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<CommissionPayoutDto?> Handle(GetPayoutQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting payout. PayoutId: {PayoutId}", request.PayoutId);
+        logger.LogInformation("Getting payout. PayoutId: {PayoutId}", request.PayoutId);
 
-        var payout = await _context.Set<CommissionPayout>()
+        var payout = await context.Set<CommissionPayout>()
             .AsNoTracking()
             .Include(p => p.Seller)
             .Include(p => p.Items)
@@ -44,6 +31,6 @@ public class GetPayoutQueryHandler : IRequestHandler<GetPayoutQuery, CommissionP
             .FirstOrDefaultAsync(p => p.Id == request.PayoutId, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return payout != null ? _mapper.Map<CommissionPayoutDto>(payout) : null;
+        return payout != null ? mapper.Map<CommissionPayoutDto>(payout) : null;
     }
 }

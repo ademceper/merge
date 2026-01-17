@@ -10,19 +10,13 @@ namespace Merge.Application.Subscription.EventHandlers;
 /// SubscriptionPlan Deactivated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class SubscriptionPlanDeactivatedEventHandler : INotificationHandler<SubscriptionPlanDeactivatedEvent>
+public class SubscriptionPlanDeactivatedEventHandler(ILogger<SubscriptionPlanDeactivatedEventHandler> logger) : INotificationHandler<SubscriptionPlanDeactivatedEvent>
 {
-    private readonly ILogger<SubscriptionPlanDeactivatedEventHandler> _logger;
-
-    public SubscriptionPlanDeactivatedEventHandler(ILogger<SubscriptionPlanDeactivatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(SubscriptionPlanDeactivatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Subscription plan deactivated event received. PlanId: {PlanId}, Name: {Name}",
             notification.PlanId, notification.Name);
 
@@ -38,7 +32,7 @@ public class SubscriptionPlanDeactivatedEventHandler : INotificationHandler<Subs
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling SubscriptionPlanDeactivatedEvent. PlanId: {PlanId}",
                 notification.PlanId);
             throw;

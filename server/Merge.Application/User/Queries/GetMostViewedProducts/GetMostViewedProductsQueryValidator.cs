@@ -4,11 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.User.Queries.GetMostViewedProducts;
 
-public class GetMostViewedProductsQueryValidator : AbstractValidator<GetMostViewedProductsQuery>
+public class GetMostViewedProductsQueryValidator(IOptions<UserSettings> userSettings) : AbstractValidator<GetMostViewedProductsQuery>
 {
-    public GetMostViewedProductsQueryValidator(IOptions<UserSettings> userSettings)
+    private readonly UserSettings settings = userSettings.Value;
+
+    public GetMostViewedProductsQueryValidator() : this(Options.Create(new UserSettings()))
     {
-        var settings = userSettings.Value;
 
         RuleFor(x => x.Days)
             .GreaterThan(0)

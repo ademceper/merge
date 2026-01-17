@@ -11,25 +11,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Security.Commands.VerifyOrder;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class VerifyOrderCommandHandler : IRequestHandler<VerifyOrderCommand, bool>
+public class VerifyOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<VerifyOrderCommandHandler> logger) : IRequestHandler<VerifyOrderCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<VerifyOrderCommandHandler> _logger;
-
-    public VerifyOrderCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<VerifyOrderCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(VerifyOrderCommand request, CancellationToken cancellationToken)
     {
-        var verification = await _context.Set<OrderVerification>()
+        var verification = await context.Set<OrderVerification>()
             .FirstOrDefaultAsync(v => v.Id == request.VerificationId, cancellationToken);
 
         if (verification == null) return false;
@@ -37,9 +24,9 @@ public class VerifyOrderCommandHandler : IRequestHandler<VerifyOrderCommand, boo
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         verification.Verify(request.VerifiedByUserId, request.Notes);
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Order verified. VerificationId: {VerificationId}, VerifiedByUserId: {VerifiedByUserId}",
+        logger.LogInformation("Order verified. VerificationId: {VerificationId}, VerifiedByUserId: {VerifiedByUserId}",
             request.VerificationId, request.VerifiedByUserId);
 
         return true;

@@ -12,35 +12,20 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Product.Commands.MarkQuestionHelpful;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class MarkQuestionHelpfulCommandHandler : IRequestHandler<MarkQuestionHelpfulCommand>
+public class MarkQuestionHelpfulCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<MarkQuestionHelpfulCommandHandler> logger, ICacheService cache) : IRequestHandler<MarkQuestionHelpfulCommand>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<MarkQuestionHelpfulCommandHandler> _logger;
-    private readonly ICacheService _cache;
-    private const string CACHE_KEY_QUESTION_BY_ID = "question_";
 
-    public MarkQuestionHelpfulCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<MarkQuestionHelpfulCommandHandler> logger,
-        ICacheService cache)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-        _cache = cache;
-    }
+    private const string CACHE_KEY_QUESTION_BY_ID = "question_";
 
     public async Task Handle(MarkQuestionHelpfulCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Marking question as helpful. UserId: {UserId}, QuestionId: {QuestionId}",
+        logger.LogInformation("Marking question as helpful. UserId: {UserId}, QuestionId: {QuestionId}",
             request.UserId, request.QuestionId);
 
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var existing = await _context.Set<QuestionHelpfulness>()
+            var existing = await context.Set<QuestionHelpfulness>()
                 .FirstOrDefaultAsync(qh => qh.QuestionId == request.QuestionId && qh.UserId == request.UserId, cancellationToken);
 
             if (existing != null)
@@ -53,9 +38,9 @@ public class MarkQuestionHelpfulCommandHandler : IRequestHandler<MarkQuestionHel
                 request.QuestionId,
                 request.UserId);
 
-            await _context.Set<QuestionHelpfulness>().AddAsync(helpfulness, cancellationToken);
+            await context.Set<QuestionHelpfulness>().AddAsync(helpfulness, cancellationToken);
 
-            var question = await _context.Set<ProductQuestion>()
+            var question = await context.Set<ProductQuestion>()
                 .FirstOrDefaultAsync(q => q.Id == request.QuestionId, cancellationToken);
 
             if (question != null)
@@ -64,19 +49,19 @@ public class MarkQuestionHelpfulCommandHandler : IRequestHandler<MarkQuestionHel
                 question.IncrementHelpfulCount();
             }
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             // ✅ BOLUM 10.2: Cache invalidation (helpful count değişti)
-            await _cache.RemoveAsync($"{CACHE_KEY_QUESTION_BY_ID}{request.QuestionId}", cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_QUESTION_BY_ID}{request.QuestionId}", cancellationToken);
 
-            _logger.LogInformation("Question marked as helpful successfully. QuestionId: {QuestionId}", request.QuestionId);
+            logger.LogInformation("Question marked as helpful successfully. QuestionId: {QuestionId}", request.QuestionId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error marking question as helpful. UserId: {UserId}, QuestionId: {QuestionId}",
+            logger.LogError(ex, "Error marking question as helpful. UserId: {UserId}, QuestionId: {QuestionId}",
                 request.UserId, request.QuestionId);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

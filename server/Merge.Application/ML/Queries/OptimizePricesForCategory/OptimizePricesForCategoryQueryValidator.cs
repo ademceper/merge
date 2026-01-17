@@ -7,12 +7,12 @@ namespace Merge.Application.ML.Queries.OptimizePricesForCategory;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-public class OptimizePricesForCategoryQueryValidator : AbstractValidator<OptimizePricesForCategoryQuery>
+public class OptimizePricesForCategoryQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<OptimizePricesForCategoryQuery>
 {
-    public OptimizePricesForCategoryQueryValidator(IOptions<PaginationSettings> paginationSettings)
-    {
-        var paginationConfig = paginationSettings.Value;
+    private readonly PaginationSettings config = paginationSettings.Value;
 
+    public OptimizePricesForCategoryQueryValidator() : this(Options.Create(new PaginationSettings()))
+    {
         RuleFor(x => x.CategoryId)
             .NotEmpty().WithMessage("Category ID is required.");
 
@@ -21,7 +21,7 @@ public class OptimizePricesForCategoryQueryValidator : AbstractValidator<Optimiz
 
         RuleFor(x => x.PageSize)
             .GreaterThan(0).WithMessage("Page size must be greater than 0.")
-            .LessThanOrEqualTo(paginationConfig.MaxPageSize).WithMessage($"Page size cannot exceed {paginationConfig.MaxPageSize}.");
+            .LessThanOrEqualTo(config.MaxPageSize).WithMessage($"Page size cannot exceed {config.MaxPageSize}.");
 
         When(x => x.Request != null, () =>
         {

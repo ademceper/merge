@@ -23,6 +23,7 @@ public class GetBlogPostCommentsQueryHandler(
     ICacheService cache,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetBlogPostCommentsQuery, PagedResult<BlogCommentDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
     private const string CACHE_KEY_POST_COMMENTS = "blog_post_comments_";
     private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(5);
 
@@ -31,7 +32,7 @@ public class GetBlogPostCommentsQueryHandler(
         logger.LogInformation("Retrieving blog post comments. PostId: {PostId}, IsApproved: {IsApproved}, Page: {Page}, PageSize: {PageSize}",
             request.PostId, request.IsApproved, request.Page, request.PageSize);
 
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var cacheKey = $"{CACHE_KEY_POST_COMMENTS}{request.PostId}_{request.IsApproved?.ToString() ?? "all"}_{page}_{pageSize}";

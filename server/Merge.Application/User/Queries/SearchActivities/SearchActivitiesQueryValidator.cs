@@ -4,11 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.User.Queries.SearchActivities;
 
-public class SearchActivitiesQueryValidator : AbstractValidator<SearchActivitiesQuery>
+public class SearchActivitiesQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<SearchActivitiesQuery>
 {
-    public SearchActivitiesQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
+
+    public SearchActivitiesQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
-        var paginationConfig = paginationSettings.Value;
 
         RuleFor(x => x.Filter)
             .NotNull()

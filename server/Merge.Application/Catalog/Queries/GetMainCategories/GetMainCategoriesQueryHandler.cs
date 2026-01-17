@@ -24,6 +24,7 @@ public class GetMainCategoriesQueryHandler(
     ICacheService cache,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetMainCategoriesQuery, PagedResult<CategoryDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
     private const string CACHE_KEY_MAIN_CATEGORIES_PAGED = "categories_main_paged";
     private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromHours(1);
 
@@ -33,7 +34,7 @@ public class GetMainCategoriesQueryHandler(
             request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var cacheKey = $"{CACHE_KEY_MAIN_CATEGORIES_PAGED}_{page}_{pageSize}";

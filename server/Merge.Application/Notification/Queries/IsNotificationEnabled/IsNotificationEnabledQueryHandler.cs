@@ -13,19 +13,13 @@ namespace Merge.Application.Notification.Queries.IsNotificationEnabled;
 /// <summary>
 /// Is Notification Enabled Query Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class IsNotificationEnabledQueryHandler : IRequestHandler<IsNotificationEnabledQuery, bool>
+public class IsNotificationEnabledQueryHandler(IDbContext context) : IRequestHandler<IsNotificationEnabledQuery, bool>
 {
-    private readonly IDbContext _context;
-
-    public IsNotificationEnabledQueryHandler(IDbContext context)
-    {
-        _context = context;
-    }
 
     public async Task<bool> Handle(IsNotificationEnabledQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !np.IsDeleted (Global Query Filter)
-        var preference = await _context.Set<NotificationPreference>()
+        var preference = await context.Set<NotificationPreference>()
             .AsNoTracking()
             .FirstOrDefaultAsync(np => np.UserId == request.UserId && 
                                       np.NotificationType == request.NotificationType && 

@@ -5,20 +5,14 @@ using Merge.Domain.SharedKernel.DomainEvents;
 namespace Merge.Application.User.EventHandlers;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UserActivityLogCreatedEventHandler : INotificationHandler<UserActivityLogCreatedEvent>
+public class UserActivityLogCreatedEventHandler(ILogger<UserActivityLogCreatedEventHandler> logger) : INotificationHandler<UserActivityLogCreatedEvent>
 {
-    private readonly ILogger<UserActivityLogCreatedEventHandler> _logger;
-
-    public UserActivityLogCreatedEventHandler(ILogger<UserActivityLogCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(UserActivityLogCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "User activity log created event received. ActivityLogId: {ActivityLogId}, UserId: {UserId}, ActivityType: {ActivityType}, EntityType: {EntityType}, EntityId: {EntityId}",
             notification.ActivityLogId, notification.UserId, notification.ActivityType, notification.EntityType, notification.EntityId);
 

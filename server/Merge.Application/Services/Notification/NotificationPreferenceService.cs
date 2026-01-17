@@ -14,39 +14,22 @@ using Merge.Domain.Modules.Notifications;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
-
 namespace Merge.Application.Services.Notification;
 
-public class NotificationPreferenceService : INotificationPreferenceService
+public class NotificationPreferenceService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<NotificationPreferenceService> logger) : INotificationPreferenceService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<NotificationPreferenceService> _logger;
-
-    public NotificationPreferenceService(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<NotificationPreferenceService> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<NotificationPreferenceDto> CreatePreferenceAsync(Guid userId, CreateNotificationPreferenceDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Notification preference oluşturuluyor. UserId: {UserId}, NotificationType: {NotificationType}, Channel: {Channel}",
             userId, dto.NotificationType, dto.Channel);
 
         // ✅ PERFORMANCE: Removed manual !np.IsDeleted (Global Query Filter)
         // Check if preference already exists
-        var existing = await _context.Set<NotificationPreference>()
+        var existing = await context.Set<NotificationPreference>()
             .FirstOrDefaultAsync(np => np.UserId == userId && 
                                   np.NotificationType == dto.NotificationType && 
                                   np.Channel == dto.Channel, cancellationToken);
@@ -68,14 +51,14 @@ public class NotificationPreferenceService : INotificationPreferenceService
                 dto.IsEnabled,
                 dto.CustomSettings != null ? JsonSerializer.Serialize(dto.CustomSettings) : null);
 
-            await _context.Set<NotificationPreference>().AddAsync(preference, cancellationToken);
+            await context.Set<NotificationPreference>().AddAsync(preference, cancellationToken);
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !np.IsDeleted (Global Query Filter)
-        var createdPreference = await _context.Set<NotificationPreference>()
+        var createdPreference = await context.Set<NotificationPreference>()
             .AsNoTracking()
             .FirstOrDefaultAsync(np => np.UserId == userId && 
                                       np.NotificationType == dto.NotificationType && 
@@ -87,12 +70,12 @@ public class NotificationPreferenceService : INotificationPreferenceService
         }
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Notification preference oluşturuldu. UserId: {UserId}, NotificationType: {NotificationType}, Channel: {Channel}",
             userId, dto.NotificationType, dto.Channel);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<NotificationPreferenceDto>(createdPreference);
+        return mapper.Map<NotificationPreferenceDto>(createdPreference);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -106,21 +89,21 @@ public class NotificationPreferenceService : INotificationPreferenceService
         }
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !np.IsDeleted (Global Query Filter)
-        var preference = await _context.Set<NotificationPreference>()
+        var preference = await context.Set<NotificationPreference>()
             .AsNoTracking()
             .FirstOrDefaultAsync(np => np.UserId == userId && 
                                   np.NotificationType == notificationTypeEnum && 
                                   np.Channel == channelEnum, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return preference != null ? _mapper.Map<NotificationPreferenceDto>(preference) : null;
+        return preference != null ? mapper.Map<NotificationPreferenceDto>(preference) : null;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<NotificationPreferenceDto>> GetUserPreferencesAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !np.IsDeleted (Global Query Filter)
-        var preferences = await _context.Set<NotificationPreference>()
+        var preferences = await context.Set<NotificationPreference>()
             .AsNoTracking()
             .Where(np => np.UserId == userId)
             .OrderBy(np => np.NotificationType)
@@ -129,14 +112,14 @@ public class NotificationPreferenceService : INotificationPreferenceService
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper kullan
-        return _mapper.Map<IEnumerable<NotificationPreferenceDto>>(preferences);
+        return mapper.Map<IEnumerable<NotificationPreferenceDto>>(preferences);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<NotificationPreferenceSummaryDto> GetUserPreferencesSummaryAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !np.IsDeleted (Global Query Filter)
-        var preferences = await _context.Set<NotificationPreference>()
+        var preferences = await context.Set<NotificationPreference>()
             .AsNoTracking()
             .Where(np => np.UserId == userId)
             .ToListAsync(cancellationToken);
@@ -184,7 +167,7 @@ public class NotificationPreferenceService : INotificationPreferenceService
         }
 
         // ✅ PERFORMANCE: Removed manual !np.IsDeleted (Global Query Filter)
-        var preference = await _context.Set<NotificationPreference>()
+        var preference = await context.Set<NotificationPreference>()
             .FirstOrDefaultAsync(np => np.UserId == userId && 
                                   np.NotificationType == notificationTypeEnum && 
                                   np.Channel == channelEnum, cancellationToken);
@@ -198,10 +181,10 @@ public class NotificationPreferenceService : INotificationPreferenceService
         preference.Update(
             dto.IsEnabled ?? preference.IsEnabled,
             dto.CustomSettings != null ? JsonSerializer.Serialize(dto.CustomSettings) : null);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<NotificationPreferenceDto>(preference);
+        return mapper.Map<NotificationPreferenceDto>(preference);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -215,7 +198,7 @@ public class NotificationPreferenceService : INotificationPreferenceService
         }
 
         // ✅ PERFORMANCE: Removed manual !np.IsDeleted (Global Query Filter)
-        var preference = await _context.Set<NotificationPreference>()
+        var preference = await context.Set<NotificationPreference>()
             .FirstOrDefaultAsync(np => np.UserId == userId && 
                                   np.NotificationType == notificationTypeEnum && 
                                   np.Channel == channelEnum, cancellationToken);
@@ -224,7 +207,7 @@ public class NotificationPreferenceService : INotificationPreferenceService
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         preference.Delete();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -244,7 +227,7 @@ public class NotificationPreferenceService : INotificationPreferenceService
         
         // ✅ PERFORMANCE: Anonymous type için ToDictionaryAsync kullanılamaz, bu yüzden ToListAsync kullanıp memory'de ToDictionary yapıyoruz
         // Not: Bu minimal bir işlem ve business logic için gerekli (key matching için)
-        var existingPreferencesList = await _context.Set<NotificationPreference>()
+        var existingPreferencesList = await context.Set<NotificationPreference>()
             .Where(np => np.UserId == userId && 
                         notificationTypes.Contains(np.NotificationType) && 
                         channels.Contains(np.Channel))
@@ -283,10 +266,10 @@ public class NotificationPreferenceService : INotificationPreferenceService
         // ✅ PERFORMANCE: ToListAsync() sonrası Any() YASAK - List.Count kullan
         if (preferencesToAdd.Count > 0)
         {
-            await _context.Set<NotificationPreference>().AddRangeAsync(preferencesToAdd, cancellationToken);
+            await context.Set<NotificationPreference>().AddRangeAsync(preferencesToAdd, cancellationToken);
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -302,7 +285,7 @@ public class NotificationPreferenceService : INotificationPreferenceService
         }
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !np.IsDeleted (Global Query Filter)
-        var preference = await _context.Set<NotificationPreference>()
+        var preference = await context.Set<NotificationPreference>()
             .AsNoTracking()
             .FirstOrDefaultAsync(np => np.UserId == userId && 
                                   np.NotificationType == notificationTypeEnum && 
@@ -322,7 +305,7 @@ public class NotificationPreferenceService : INotificationPreferenceService
         }
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !np.IsDeleted (Global Query Filter)
-        var preferences = await _context.Set<NotificationPreference>()
+        var preferences = await context.Set<NotificationPreference>()
             .AsNoTracking()
             .Where(np => np.UserId == userId && 
                    np.NotificationType == notificationTypeEnum && 

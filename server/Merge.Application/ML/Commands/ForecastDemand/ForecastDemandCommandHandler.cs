@@ -19,52 +19,37 @@ namespace Merge.Application.ML.Commands.ForecastDemand;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class ForecastDemandCommandHandler : IRequestHandler<ForecastDemandCommand, DemandForecastDto>
+public class ForecastDemandCommandHandler(IDbContext context, ILogger<ForecastDemandCommandHandler> logger, IOptions<MLSettings> mlSettings, DemandForecastingHelper helper) : IRequestHandler<ForecastDemandCommand, DemandForecastDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<ForecastDemandCommandHandler> _logger;
-    private readonly MLSettings _mlSettings;
-    private readonly DemandForecastingHelper _helper;
-
-    public ForecastDemandCommandHandler(
-        IDbContext context,
-        ILogger<ForecastDemandCommandHandler> logger,
-        IOptions<MLSettings> mlSettings,
-        DemandForecastingHelper helper)
-    {
-        _context = context;
-        _logger = logger;
-        _mlSettings = mlSettings.Value;
-        _helper = helper;
-    }
+    private readonly MLSettings mlConfig = mlSettings.Value;
 
     public async Task<DemandForecastDto> Handle(ForecastDemandCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Forecasting demand. ProductId: {ProductId}, ForecastDays: {ForecastDays}",
+        logger.LogInformation("Forecasting demand. ProductId: {ProductId}, ForecastDays: {ForecastDays}",
             request.ProductId, request.ForecastDays);
 
         // ✅ BOLUM 3.4: Unbounded query koruması - forecastDays limiti
         // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
         var forecastDays = request.ForecastDays;
-        if (forecastDays > _mlSettings.DemandForecastMaxDays) forecastDays = _mlSettings.DemandForecastMaxDays;
-        if (forecastDays < _mlSettings.DemandForecastMinDays) forecastDays = _mlSettings.DemandForecastMinDays;
+        if (forecastDays > mlConfig.DemandForecastMaxDays) forecastDays = mlConfig.DemandForecastMaxDays;
+        if (forecastDays < mlConfig.DemandForecastMinDays) forecastDays = mlConfig.DemandForecastMinDays;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var product = await _context.Set<ProductEntity>()
+        var product = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
         if (product == null)
         {
-            _logger.LogWarning("Product not found. ProductId: {ProductId}", request.ProductId);
+            logger.LogWarning("Product not found. ProductId: {ProductId}", request.ProductId);
             throw new NotFoundException("Ürün", request.ProductId);
         }
 
         // ✅ PERFORMANCE: Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        var historicalSales = await _context.Set<OrderItem>()
+        var historicalSales = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.ProductId == request.ProductId)
             .GroupBy(oi => oi.Order.CreatedAt.Date)
@@ -77,9 +62,9 @@ public class ForecastDemandCommandHandler : IRequestHandler<ForecastDemandComman
             .ToListAsync(cancellationToken);
 
         // Basit talep tahmin algoritması
-        var forecast = _helper.CalculateDemandForecast(product, historicalSales.Cast<object>().ToList(), forecastDays);
+        var forecast = helper.CalculateDemandForecast(product, historicalSales.Cast<object>().ToList(), forecastDays);
 
-        _logger.LogInformation("Demand forecast completed. ProductId: {ProductId}, ForecastDays: {ForecastDays}",
+        logger.LogInformation("Demand forecast completed. ProductId: {ProductId}, ForecastDays: {ForecastDays}",
             request.ProductId, forecastDays);
 
         return new DemandForecastDto(

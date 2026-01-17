@@ -19,15 +19,16 @@ public class GetStreamsBySellerQueryHandler(
     ILogger<GetStreamsBySellerQueryHandler> logger,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetStreamsBySellerQuery, PagedResult<LiveStreamDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
+
     public async Task<PagedResult<LiveStreamDto>> Handle(GetStreamsBySellerQuery request, CancellationToken cancellationToken)
     {
         logger.LogInformation("Getting streams by seller. SellerId: {SellerId}, Page: {Page}, PageSize: {PageSize}", 
             request.SellerId, request.Page, request.PageSize);
 
         var page = request.Page < 1 ? 1 : request.Page;
-        var settings = paginationSettings.Value;
-        var pageSize = request.PageSize > settings.MaxPageSize 
-            ? settings.MaxPageSize 
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize 
+            ? paginationConfig.MaxPageSize 
             : request.PageSize;
 
         var query = context.Set<LiveStream>()

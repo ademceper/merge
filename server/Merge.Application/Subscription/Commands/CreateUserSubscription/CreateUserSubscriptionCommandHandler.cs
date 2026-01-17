@@ -16,33 +16,17 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Subscription.Commands.CreateUserSubscription;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreateUserSubscriptionCommandHandler : IRequestHandler<CreateUserSubscriptionCommand, UserSubscriptionDto>
+public class CreateUserSubscriptionCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateUserSubscriptionCommandHandler> logger) : IRequestHandler<CreateUserSubscriptionCommand, UserSubscriptionDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateUserSubscriptionCommandHandler> _logger;
-
-    public CreateUserSubscriptionCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateUserSubscriptionCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<UserSubscriptionDto> Handle(CreateUserSubscriptionCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Creating user subscription. UserId: {UserId}, PlanId: {PlanId}",
+        logger.LogInformation("Creating user subscription. UserId: {UserId}, PlanId: {PlanId}",
             request.UserId, request.SubscriptionPlanId);
 
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
-        var user = await _context.Users
+        var user = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
@@ -52,7 +36,7 @@ public class CreateUserSubscriptionCommandHandler : IRequestHandler<CreateUserSu
         }
 
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
-        var plan = await _context.Set<SubscriptionPlan>()
+        var plan = await context.Set<SubscriptionPlan>()
             .FirstOrDefaultAsync(p => p.Id == request.SubscriptionPlanId && p.IsActive, cancellationToken);
 
         if (plan == null)
@@ -62,7 +46,7 @@ public class CreateUserSubscriptionCommandHandler : IRequestHandler<CreateUserSu
 
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         // Check if user already has an active subscription
-        var existingActive = await _context.Set<UserSubscription>()
+        var existingActive = await context.Set<UserSubscription>()
             .AsNoTracking()
             .FirstOrDefaultAsync(us => us.UserId == request.UserId && 
                                     (us.Status == SubscriptionStatus.Active || us.Status == SubscriptionStatus.Trial), 
@@ -80,10 +64,10 @@ public class CreateUserSubscriptionCommandHandler : IRequestHandler<CreateUserSu
             autoRenew: request.AutoRenew,
             paymentMethodId: request.PaymentMethodId);
 
-        await _context.Set<UserSubscription>().AddAsync(subscription, cancellationToken);
+        await context.Set<UserSubscription>().AddAsync(subscription, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Create initial payment if not trial
         if (subscription.Status != SubscriptionStatus.Trial)
@@ -97,36 +81,36 @@ public class CreateUserSubscriptionCommandHandler : IRequestHandler<CreateUserSu
                 billingPeriodStart: billingPeriodStart,
                 billingPeriodEnd: billingPeriodEnd);
 
-            await _context.Set<SubscriptionPayment>().AddAsync(payment, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await context.Set<SubscriptionPayment>().AddAsync(payment, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         // ✅ PERFORMANCE: Reload with includes for mapping
-        subscription = await _context.Set<UserSubscription>()
+        subscription = await context.Set<UserSubscription>()
             .AsNoTracking()
             .Include(us => us.User)
             .Include(us => us.SubscriptionPlan)
             .FirstOrDefaultAsync(us => us.Id == subscription.Id, cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("User subscription created successfully. SubscriptionId: {SubscriptionId}, UserId: {UserId}",
+        logger.LogInformation("User subscription created successfully. SubscriptionId: {SubscriptionId}, UserId: {UserId}",
             subscription!.Id, request.UserId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var dto = _mapper.Map<UserSubscriptionDto>(subscription);
+        var dto = mapper.Map<UserSubscriptionDto>(subscription);
         dto.DaysRemaining = subscription.EndDate > DateTime.UtcNow
             ? (int)(subscription.EndDate - DateTime.UtcNow).TotalDays
             : 0;
 
         // ✅ PERFORMANCE: Batch load recent payments
-        var recentPayments = await _context.Set<SubscriptionPayment>()
+        var recentPayments = await context.Set<SubscriptionPayment>()
             .AsNoTracking()
             .Where(p => p.UserSubscriptionId == subscription.Id)
             .OrderByDescending(p => p.CreatedAt)
             .Take(5)
             .ToListAsync(cancellationToken);
 
-        dto.RecentPayments = _mapper.Map<List<SubscriptionPaymentDto>>(recentPayments);
+        dto.RecentPayments = mapper.Map<List<SubscriptionPaymentDto>>(recentPayments);
 
         return dto;
     }

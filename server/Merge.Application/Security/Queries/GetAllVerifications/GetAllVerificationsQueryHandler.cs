@@ -17,38 +17,24 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Security.Queries.GetAllVerifications;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetAllVerificationsQueryHandler : IRequestHandler<GetAllVerificationsQuery, PagedResult<OrderVerificationDto>>
+public class GetAllVerificationsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAllVerificationsQueryHandler> logger, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetAllVerificationsQuery, PagedResult<OrderVerificationDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetAllVerificationsQueryHandler> _logger;
-    private readonly PaginationSettings _paginationSettings;
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
-    public GetAllVerificationsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetAllVerificationsQueryHandler> logger,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     public async Task<PagedResult<OrderVerificationDto>> Handle(GetAllVerificationsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Order verification'lar sorgulanıyor. Status: {Status}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Order verification'lar sorgulanıyor. Status: {Status}, Page: {Page}, PageSize: {PageSize}",
             request.Status ?? "All", request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - ✅ BOLUM 12.0: Magic number config'den
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize ? _paginationSettings.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !v.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için Cartesian Explosion önleme
-        IQueryable<OrderVerification> query = _context.Set<OrderVerification>()
+        IQueryable<OrderVerification> query = context.Set<OrderVerification>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(v => v.Order)
@@ -70,9 +56,9 @@ public class GetAllVerificationsQueryHandler : IRequestHandler<GetAllVerificatio
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        var verificationDtos = _mapper.Map<IEnumerable<OrderVerificationDto>>(verifications).ToList();
+        var verificationDtos = mapper.Map<IEnumerable<OrderVerificationDto>>(verifications).ToList();
 
-        _logger.LogInformation("Order verification'lar bulundu. TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}, ReturnedCount: {ReturnedCount}",
+        logger.LogInformation("Order verification'lar bulundu. TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}, ReturnedCount: {ReturnedCount}",
             totalCount, page, pageSize, verificationDtos.Count);
 
         return new PagedResult<OrderVerificationDto>

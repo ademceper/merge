@@ -8,11 +8,8 @@ using Role = Merge.Domain.Modules.Identity.Role;
 
 namespace Merge.Infrastructure.Data.Contexts;
 
-public class ContentDbContext : DbContext, IDbContext
+public class ContentDbContext(DbContextOptions<ContentDbContext> options) : DbContext(options), IDbContext
 {
-    public ContentDbContext(DbContextOptions<ContentDbContext> options) : base(options)
-    {
-    }
 
     public DbSet<Banner> Banners { get; set; }
     public DbSet<Language> Languages { get; set; }

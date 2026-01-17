@@ -14,28 +14,15 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Review.Commands.RejectReview;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class RejectReviewCommandHandler : IRequestHandler<RejectReviewCommand, bool>
+public class RejectReviewCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<RejectReviewCommandHandler> logger) : IRequestHandler<RejectReviewCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<RejectReviewCommandHandler> _logger;
-
-    public RejectReviewCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<RejectReviewCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(RejectReviewCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Rejecting review. ReviewId: {ReviewId}, Reason: {Reason}", 
+        logger.LogInformation("Rejecting review. ReviewId: {ReviewId}, Reason: {Reason}", 
             request.ReviewId, request.Reason);
 
-        var review = await _context.Set<ReviewEntity>()
+        var review = await context.Set<ReviewEntity>()
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
 
         if (review == null)
@@ -52,9 +39,9 @@ public class RejectReviewCommandHandler : IRequestHandler<RejectReviewCommand, b
         await UpdateProductRatingAsync(productId, cancellationToken);
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Review rejected successfully. ReviewId: {ReviewId}, Reason: {Reason}", 
+        logger.LogInformation("Review rejected successfully. ReviewId: {ReviewId}, Reason: {Reason}", 
             request.ReviewId, request.Reason);
         return true;
     }
@@ -62,7 +49,7 @@ public class RejectReviewCommandHandler : IRequestHandler<RejectReviewCommand, b
     private async Task UpdateProductRatingAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query + Removed manual !r.IsDeleted (Global Query Filter)
-        var reviewStats = await _context.Set<ReviewEntity>()
+        var reviewStats = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.ProductId == productId && r.IsApproved)
             .GroupBy(r => r.ProductId)
@@ -75,7 +62,7 @@ public class RejectReviewCommandHandler : IRequestHandler<RejectReviewCommand, b
 
         if (reviewStats != null)
         {
-            var product = await _context.Set<ProductEntity>()
+            var product = await context.Set<ProductEntity>()
                 .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
             if (product != null)
             {

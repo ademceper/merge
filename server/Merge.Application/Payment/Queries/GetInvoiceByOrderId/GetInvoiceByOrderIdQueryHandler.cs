@@ -17,27 +17,14 @@ namespace Merge.Application.Payment.Queries.GetInvoiceByOrderId;
 
 // BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullaniyor (Service layer bypass)
-public class GetInvoiceByOrderIdQueryHandler : IRequestHandler<GetInvoiceByOrderIdQuery, InvoiceDto?>
+public class GetInvoiceByOrderIdQueryHandler(IDbContext context, IMapper mapper, ILogger<GetInvoiceByOrderIdQueryHandler> logger) : IRequestHandler<GetInvoiceByOrderIdQuery, InvoiceDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetInvoiceByOrderIdQueryHandler> _logger;
-
-    public GetInvoiceByOrderIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetInvoiceByOrderIdQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<InvoiceDto?> Handle(GetInvoiceByOrderIdQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Retrieving invoice by order ID. OrderId: {OrderId}", request.OrderId);
+        logger.LogInformation("Retrieving invoice by order ID. OrderId: {OrderId}", request.OrderId);
 
-        var invoice = await _context.Set<Invoice>()
+        var invoice = await context.Set<Invoice>()
             .AsNoTracking()
             .Include(i => i.Order)
                 .ThenInclude(o => o.Address)
@@ -50,11 +37,11 @@ public class GetInvoiceByOrderIdQueryHandler : IRequestHandler<GetInvoiceByOrder
 
         if (invoice == null)
         {
-            _logger.LogWarning("Invoice not found for order ID. OrderId: {OrderId}", request.OrderId);
+            logger.LogWarning("Invoice not found for order ID. OrderId: {OrderId}", request.OrderId);
             return null;
         }
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<InvoiceDto>(invoice);
+        return mapper.Map<InvoiceDto>(invoice);
     }
 }

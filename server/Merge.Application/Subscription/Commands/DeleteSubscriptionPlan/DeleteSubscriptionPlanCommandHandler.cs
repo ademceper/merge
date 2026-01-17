@@ -13,29 +13,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Subscription.Commands.DeleteSubscriptionPlan;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class DeleteSubscriptionPlanCommandHandler : IRequestHandler<DeleteSubscriptionPlanCommand, bool>
+public class DeleteSubscriptionPlanCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<DeleteSubscriptionPlanCommandHandler> logger) : IRequestHandler<DeleteSubscriptionPlanCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<DeleteSubscriptionPlanCommandHandler> _logger;
-
-    public DeleteSubscriptionPlanCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<DeleteSubscriptionPlanCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(DeleteSubscriptionPlanCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Deleting subscription plan. PlanId: {PlanId}", request.Id);
+        logger.LogInformation("Deleting subscription plan. PlanId: {PlanId}", request.Id);
 
         // ✅ NOT: AsNoTracking() YOK - Entity track edilmeli (delete için)
-        var plan = await _context.Set<SubscriptionPlan>()
+        var plan = await context.Set<SubscriptionPlan>()
             .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
 
         if (plan == null)
@@ -47,10 +34,10 @@ public class DeleteSubscriptionPlanCommandHandler : IRequestHandler<DeleteSubscr
         plan.Delete();
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Subscription plan deleted successfully. PlanId: {PlanId}", plan.Id);
+        logger.LogInformation("Subscription plan deleted successfully. PlanId: {PlanId}", plan.Id);
 
         return true;
     }

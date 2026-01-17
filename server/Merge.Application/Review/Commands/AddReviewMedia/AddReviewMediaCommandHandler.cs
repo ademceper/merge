@@ -16,33 +16,17 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Review.Commands.AddReviewMedia;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class AddReviewMediaCommandHandler : IRequestHandler<AddReviewMediaCommand, ReviewMediaDto>
+public class AddReviewMediaCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<AddReviewMediaCommandHandler> logger) : IRequestHandler<AddReviewMediaCommand, ReviewMediaDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<AddReviewMediaCommandHandler> _logger;
-
-    public AddReviewMediaCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<AddReviewMediaCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<ReviewMediaDto> Handle(AddReviewMediaCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Adding media to review. ReviewId: {ReviewId}, MediaType: {MediaType}",
             request.ReviewId, request.MediaType);
 
         // Review'ın var olduğunu kontrol et
-        var review = await _context.Set<ReviewEntity>()
+        var review = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
 
@@ -64,19 +48,19 @@ public class AddReviewMediaCommandHandler : IRequestHandler<AddReviewMediaComman
             request.Duration,
             request.DisplayOrder);
 
-        await _context.Set<ReviewMedia>().AddAsync(media, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<ReviewMedia>().AddAsync(media, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
-        var createdMedia = await _context.Set<ReviewMedia>()
+        var createdMedia = await context.Set<ReviewMedia>()
             .AsNoTracking()
             .FirstOrDefaultAsync(m => m.Id == media.Id, cancellationToken);
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Media added to review successfully. MediaId: {MediaId}, ReviewId: {ReviewId}",
             media.Id, request.ReviewId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<ReviewMediaDto>(createdMedia!);
+        return mapper.Map<ReviewMediaDto>(createdMedia!);
     }
 }

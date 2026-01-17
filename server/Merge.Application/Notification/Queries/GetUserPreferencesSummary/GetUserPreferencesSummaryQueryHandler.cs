@@ -15,19 +15,13 @@ namespace Merge.Application.Notification.Queries.GetUserPreferencesSummary;
 /// <summary>
 /// Get User Preferences Summary Query Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class GetUserPreferencesSummaryQueryHandler : IRequestHandler<GetUserPreferencesSummaryQuery, NotificationPreferenceSummaryDto>
+public class GetUserPreferencesSummaryQueryHandler(IDbContext context) : IRequestHandler<GetUserPreferencesSummaryQuery, NotificationPreferenceSummaryDto>
 {
-    private readonly IDbContext _context;
-
-    public GetUserPreferencesSummaryQueryHandler(IDbContext context)
-    {
-        _context = context;
-    }
 
     public async Task<NotificationPreferenceSummaryDto> Handle(GetUserPreferencesSummaryQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !np.IsDeleted (Global Query Filter)
-        var preferences = await _context.Set<NotificationPreference>()
+        var preferences = await context.Set<NotificationPreference>()
             .AsNoTracking()
             .Where(np => np.UserId == request.UserId)
             .ToListAsync(cancellationToken);

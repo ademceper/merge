@@ -7,14 +7,15 @@ namespace Merge.Application.ML.Queries.ForecastDemandForCategory;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-public class ForecastDemandForCategoryQueryValidator : AbstractValidator<ForecastDemandForCategoryQuery>
+public class ForecastDemandForCategoryQueryValidator(
+    IOptions<MLSettings> mlSettings,
+    IOptions<PaginationSettings> paginationSettings) : AbstractValidator<ForecastDemandForCategoryQuery>
 {
-    public ForecastDemandForCategoryQueryValidator(
-        IOptions<MLSettings> mlSettings,
-        IOptions<PaginationSettings> paginationSettings)
+    private readonly MLSettings mlConfig = mlSettings.Value;
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
+
+    public ForecastDemandForCategoryQueryValidator() : this(Options.Create(new MLSettings()), Options.Create(new PaginationSettings()))
     {
-        var mlConfig = mlSettings.Value;
-        var paginationConfig = paginationSettings.Value;
 
         RuleFor(x => x.CategoryId)
             .NotEmpty().WithMessage("Category ID is required.");

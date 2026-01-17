@@ -4,11 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.User.Queries.GetUserActivities;
 
-public class GetUserActivitiesQueryValidator : AbstractValidator<GetUserActivitiesQuery>
+public class GetUserActivitiesQueryValidator(IOptions<UserSettings> userSettings) : AbstractValidator<GetUserActivitiesQuery>
 {
-    public GetUserActivitiesQueryValidator(IOptions<UserSettings> userSettings)
+    private readonly UserSettings settings = userSettings.Value;
+
+    public GetUserActivitiesQueryValidator() : this(Options.Create(new UserSettings()))
     {
-        var settings = userSettings.Value;
 
         RuleFor(x => x.UserId)
             .NotEmpty()

@@ -20,35 +20,22 @@ using Merge.Domain.Modules.Support;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
-
 namespace Merge.Application.Services.Product;
 
-public class ProductQuestionService : IProductQuestionService
+public class ProductQuestionService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProductQuestionService> logger) : IProductQuestionService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<ProductQuestionService> _logger;
-
-    public ProductQuestionService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ProductQuestionService> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<ProductQuestionDto> AskQuestionAsync(Guid userId, CreateProductQuestionDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Product question soruluyor. UserId: {UserId}, ProductId: {ProductId}",
             userId, dto.ProductId);
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var product = await _context.Set<ProductEntity>()
+        var product = await context.Set<ProductEntity>()
             .FirstOrDefaultAsync(p => p.Id == dto.ProductId, cancellationToken);
 
         if (product == null)
@@ -62,10 +49,10 @@ public class ProductQuestionService : IProductQuestionService
             userId: userId,
             question: dto.Question);
 
-        await _context.Set<ProductQuestion>().AddAsync(question, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<ProductQuestion>().AddAsync(question, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        question = await _context.Set<ProductQuestion>()
+        question = await context.Set<ProductQuestion>()
             .AsNoTracking()
             .Include(q => q.Product)
             .Include(q => q.User)
@@ -74,20 +61,20 @@ public class ProductQuestionService : IProductQuestionService
             .FirstOrDefaultAsync(q => q.Id == question.Id, cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Product question soruldu. QuestionId: {QuestionId}, UserId: {UserId}, ProductId: {ProductId}",
             question!.Id, userId, dto.ProductId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ BOLUM 7.1.5: Records - with expression kullanımı (object initializer YASAK)
-        var questionDto = _mapper.Map<ProductQuestionDto>(question) with { HasUserVoted = false }; // Yeni soru, henüz oy verilmemiş
+        var questionDto = mapper.Map<ProductQuestionDto>(question) with { HasUserVoted = false }; // Yeni soru, henüz oy verilmemiş
         return questionDto;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ProductQuestionDto?> GetQuestionAsync(Guid questionId, Guid? userId = null, CancellationToken cancellationToken = default)
     {
-        var question = await _context.Set<ProductQuestion>()
+        var question = await context.Set<ProductQuestion>()
             .AsNoTracking()
             .Include(q => q.Product)
             .Include(q => q.User)
@@ -99,14 +86,14 @@ public class ProductQuestionService : IProductQuestionService
 
         // ✅ PERFORMANCE: Batch load QuestionHelpfulness to avoid N+1 queries
         var hasUserVoted = userId.HasValue
-            ? await _context.Set<QuestionHelpfulness>()
+            ? await context.Set<QuestionHelpfulness>()
                 .AsNoTracking()
                 .AnyAsync(qh => qh.QuestionId == question.Id && qh.UserId == userId.Value, cancellationToken)
             : false;
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ BOLUM 7.1.5: Records - with expression kullanımı (object initializer YASAK)
-        var questionDto = _mapper.Map<ProductQuestionDto>(question) with { HasUserVoted = hasUserVoted };
+        var questionDto = mapper.Map<ProductQuestionDto>(question) with { HasUserVoted = hasUserVoted };
         return questionDto;
     }
 
@@ -120,7 +107,7 @@ public class ProductQuestionService : IProductQuestionService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
-        var query = _context.Set<ProductQuestion>()
+        var query = context.Set<ProductQuestion>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(q => q.Product)
@@ -143,7 +130,7 @@ public class ProductQuestionService : IProductQuestionService
         // ✅ PERFORMANCE: Batch load QuestionHelpfulness to avoid N+1 queries (subquery ile)
         var questionIdsSubquery = from q in paginatedQuestionsQuery select q.Id;
         var userVotes = userId.HasValue
-            ? await _context.Set<QuestionHelpfulness>()
+            ? await context.Set<QuestionHelpfulness>()
                 .AsNoTracking()
                 .Where(qh => questionIdsSubquery.Contains(qh.QuestionId) && qh.UserId == userId.Value)
                 .ToDictionaryAsync(qh => qh.QuestionId, cancellationToken)
@@ -154,7 +141,7 @@ public class ProductQuestionService : IProductQuestionService
         var dtos = new List<ProductQuestionDto>(questions.Count);
         foreach (var question in questions)
         {
-            var dto = _mapper.Map<ProductQuestionDto>(question) with { HasUserVoted = userId.HasValue && userVotes.ContainsKey(question.Id) };
+            var dto = mapper.Map<ProductQuestionDto>(question) with { HasUserVoted = userId.HasValue && userVotes.ContainsKey(question.Id) };
             dtos.Add(dto);
         }
 
@@ -177,7 +164,7 @@ public class ProductQuestionService : IProductQuestionService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
-        var query = _context.Set<ProductQuestion>()
+        var query = context.Set<ProductQuestion>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(q => q.Product)
@@ -197,7 +184,7 @@ public class ProductQuestionService : IProductQuestionService
 
         // ✅ PERFORMANCE: Batch load QuestionHelpfulness to avoid N+1 queries (subquery ile)
         var questionIdsSubquery = from q in paginatedQuestionsQuery select q.Id;
-        var userVotes = await _context.Set<QuestionHelpfulness>()
+        var userVotes = await context.Set<QuestionHelpfulness>()
             .AsNoTracking()
             .Where(qh => questionIdsSubquery.Contains(qh.QuestionId) && qh.UserId == userId)
             .ToDictionaryAsync(qh => qh.QuestionId, cancellationToken);
@@ -207,7 +194,7 @@ public class ProductQuestionService : IProductQuestionService
         var dtos = new List<ProductQuestionDto>(questions.Count);
         foreach (var question in questions)
         {
-            var dto = _mapper.Map<ProductQuestionDto>(question) with { HasUserVoted = userVotes.ContainsKey(question.Id) };
+            var dto = mapper.Map<ProductQuestionDto>(question) with { HasUserVoted = userVotes.ContainsKey(question.Id) };
             dtos.Add(dto);
         }
 
@@ -224,14 +211,14 @@ public class ProductQuestionService : IProductQuestionService
     public async Task<bool> ApproveQuestionAsync(Guid questionId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !q.IsDeleted (Global Query Filter)
-        var question = await _context.Set<ProductQuestion>()
+        var question = await context.Set<ProductQuestion>()
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         if (question == null) return false;
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         question.Approve();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -240,13 +227,13 @@ public class ProductQuestionService : IProductQuestionService
     public async Task<bool> DeleteQuestionAsync(Guid questionId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !q.IsDeleted (Global Query Filter)
-        var question = await _context.Set<ProductQuestion>()
+        var question = await context.Set<ProductQuestion>()
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         if (question == null) return false;
 
         question.MarkAsDeleted();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -255,7 +242,7 @@ public class ProductQuestionService : IProductQuestionService
     public async Task<ProductAnswerDto> AnswerQuestionAsync(Guid userId, CreateProductAnswerDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !q.IsDeleted (Global Query Filter)
-        var question = await _context.Set<ProductQuestion>()
+        var question = await context.Set<ProductQuestion>()
             .Include(q => q.Product)
             .FirstOrDefaultAsync(q => q.Id == dto.QuestionId, cancellationToken);
 
@@ -270,7 +257,7 @@ public class ProductQuestionService : IProductQuestionService
 
         // ✅ PERFORMANCE: Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // Check if user has purchased this product
-        var hasOrder = await _context.Set<OrderItem>()
+        var hasOrder = await context.Set<OrderItem>()
             .AsNoTracking()
             .AnyAsync(oi => oi.ProductId == question.ProductId &&
                           oi.Order.UserId == userId &&
@@ -285,27 +272,27 @@ public class ProductQuestionService : IProductQuestionService
             isVerifiedPurchase: hasOrder,
             autoApprove: false); // Requires admin approval
 
-        await _context.Set<ProductAnswer>().AddAsync(answer, cancellationToken);
+        await context.Set<ProductAnswer>().AddAsync(answer, cancellationToken);
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         question.IncrementAnswerCount(isSellerAnswer);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        answer = await _context.Set<ProductAnswer>()
+        answer = await context.Set<ProductAnswer>()
             .AsNoTracking()
             .Include(a => a.User)
             .FirstOrDefaultAsync(a => a.Id == answer.Id, cancellationToken);
 
         // ✅ PERFORMANCE: Batch load AnswerHelpfulness to avoid N+1 queries
-        var hasUserVoted = await _context.Set<AnswerHelpfulness>()
+        var hasUserVoted = await context.Set<AnswerHelpfulness>()
             .AsNoTracking()
             .AnyAsync(ah => ah.AnswerId == answer.Id && ah.UserId == userId, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ BOLUM 7.1.5: Records - with expression kullanımı (object initializer YASAK)
-        return _mapper.Map<ProductAnswerDto>(answer!) with { HasUserVoted = hasUserVoted };
+        return mapper.Map<ProductAnswerDto>(answer!) with { HasUserVoted = hasUserVoted };
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -313,7 +300,7 @@ public class ProductQuestionService : IProductQuestionService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
-        var answersQuery = _context.Set<ProductAnswer>()
+        var answersQuery = context.Set<ProductAnswer>()
             .AsNoTracking()
             .Where(a => a.QuestionId == questionId && a.IsApproved)
             .OrderByDescending(a => a.IsSellerAnswer)
@@ -327,7 +314,7 @@ public class ProductQuestionService : IProductQuestionService
         // ✅ PERFORMANCE: Batch load AnswerHelpfulness to avoid N+1 queries (subquery ile)
         var answerIdsSubquery = from a in answersQuery select a.Id;
         var userVotes = userId.HasValue
-            ? await _context.Set<AnswerHelpfulness>()
+            ? await context.Set<AnswerHelpfulness>()
                 .AsNoTracking()
                 .Where(ah => answerIdsSubquery.Contains(ah.AnswerId) && ah.UserId == userId.Value)
                 .ToDictionaryAsync(ah => ah.AnswerId, cancellationToken)
@@ -338,7 +325,7 @@ public class ProductQuestionService : IProductQuestionService
         var dtos = new List<ProductAnswerDto>(answers.Count);
         foreach (var answer in answers)
         {
-            var dto = _mapper.Map<ProductAnswerDto>(answer) with { HasUserVoted = userId.HasValue && userVotes.ContainsKey(answer.Id) };
+            var dto = mapper.Map<ProductAnswerDto>(answer) with { HasUserVoted = userId.HasValue && userVotes.ContainsKey(answer.Id) };
             dtos.Add(dto);
         }
 
@@ -349,14 +336,14 @@ public class ProductQuestionService : IProductQuestionService
     public async Task<bool> ApproveAnswerAsync(Guid answerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-        var answer = await _context.Set<ProductAnswer>()
+        var answer = await context.Set<ProductAnswer>()
             .FirstOrDefaultAsync(a => a.Id == answerId, cancellationToken);
 
         if (answer == null) return false;
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         answer.Approve();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -365,7 +352,7 @@ public class ProductQuestionService : IProductQuestionService
     public async Task<bool> DeleteAnswerAsync(Guid answerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-        var answer = await _context.Set<ProductAnswer>()
+        var answer = await context.Set<ProductAnswer>()
             .Include(a => a.Question)
             .FirstOrDefaultAsync(a => a.Id == answerId, cancellationToken);
 
@@ -379,7 +366,7 @@ public class ProductQuestionService : IProductQuestionService
             // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
             // Check if there are other seller answers
             var hasOtherSellerAnswer = answer.IsSellerAnswer
-                ? await _context.Set<ProductAnswer>()
+                ? await context.Set<ProductAnswer>()
                     .AnyAsync(a => a.QuestionId == answer.QuestionId && a.IsSellerAnswer && a.Id != answerId, cancellationToken)
                 : false;
 
@@ -392,7 +379,7 @@ public class ProductQuestionService : IProductQuestionService
             }
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -401,7 +388,7 @@ public class ProductQuestionService : IProductQuestionService
     public async Task MarkQuestionHelpfulAsync(Guid userId, Guid questionId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !qh.IsDeleted (Global Query Filter)
-        var existing = await _context.Set<QuestionHelpfulness>()
+        var existing = await context.Set<QuestionHelpfulness>()
             .FirstOrDefaultAsync(qh => qh.QuestionId == questionId && qh.UserId == userId, cancellationToken);
 
         if (existing != null) return; // Already marked
@@ -409,10 +396,10 @@ public class ProductQuestionService : IProductQuestionService
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var vote = QuestionHelpfulness.Create(questionId, userId);
 
-        await _context.Set<QuestionHelpfulness>().AddAsync(vote, cancellationToken);
+        await context.Set<QuestionHelpfulness>().AddAsync(vote, cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !q.IsDeleted (Global Query Filter)
-        var question = await _context.Set<ProductQuestion>()
+        var question = await context.Set<ProductQuestion>()
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         if (question != null)
@@ -421,14 +408,14 @@ public class ProductQuestionService : IProductQuestionService
             question.IncrementHelpfulCount();
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task UnmarkQuestionHelpfulAsync(Guid userId, Guid questionId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !qh.IsDeleted (Global Query Filter)
-        var vote = await _context.Set<QuestionHelpfulness>()
+        var vote = await context.Set<QuestionHelpfulness>()
             .FirstOrDefaultAsync(qh => qh.QuestionId == questionId && qh.UserId == userId, cancellationToken);
 
         if (vote == null) return;
@@ -436,7 +423,7 @@ public class ProductQuestionService : IProductQuestionService
         vote.MarkAsDeleted();
 
         // ✅ PERFORMANCE: Removed manual !q.IsDeleted (Global Query Filter)
-        var question = await _context.Set<ProductQuestion>()
+        var question = await context.Set<ProductQuestion>()
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
         if (question != null)
@@ -445,14 +432,14 @@ public class ProductQuestionService : IProductQuestionService
             question.DecrementHelpfulCount();
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task MarkAnswerHelpfulAsync(Guid userId, Guid answerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !ah.IsDeleted (Global Query Filter)
-        var existing = await _context.Set<AnswerHelpfulness>()
+        var existing = await context.Set<AnswerHelpfulness>()
             .FirstOrDefaultAsync(ah => ah.AnswerId == answerId && ah.UserId == userId, cancellationToken);
 
         if (existing != null) return; // Already marked
@@ -460,10 +447,10 @@ public class ProductQuestionService : IProductQuestionService
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var vote = AnswerHelpfulness.Create(answerId, userId);
 
-        await _context.Set<AnswerHelpfulness>().AddAsync(vote, cancellationToken);
+        await context.Set<AnswerHelpfulness>().AddAsync(vote, cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-        var answer = await _context.Set<ProductAnswer>()
+        var answer = await context.Set<ProductAnswer>()
             .FirstOrDefaultAsync(a => a.Id == answerId, cancellationToken);
 
         if (answer != null)
@@ -472,14 +459,14 @@ public class ProductQuestionService : IProductQuestionService
             answer.IncrementHelpfulCount();
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task UnmarkAnswerHelpfulAsync(Guid userId, Guid answerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !ah.IsDeleted (Global Query Filter)
-        var vote = await _context.Set<AnswerHelpfulness>()
+        var vote = await context.Set<AnswerHelpfulness>()
             .FirstOrDefaultAsync(ah => ah.AnswerId == answerId && ah.UserId == userId, cancellationToken);
 
         if (vote == null) return;
@@ -487,7 +474,7 @@ public class ProductQuestionService : IProductQuestionService
         vote.MarkAsDeleted();
 
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-        var answer = await _context.Set<ProductAnswer>()
+        var answer = await context.Set<ProductAnswer>()
             .FirstOrDefaultAsync(a => a.Id == answerId, cancellationToken);
 
         if (answer != null)
@@ -496,7 +483,7 @@ public class ProductQuestionService : IProductQuestionService
             answer.DecrementHelpfulCount();
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -504,7 +491,7 @@ public class ProductQuestionService : IProductQuestionService
     {
         // ✅ PERFORMANCE: Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        var questionsQuery = _context.Set<ProductQuestion>()
+        var questionsQuery = context.Set<ProductQuestion>()
             .AsNoTracking()
             .Where(q => q.IsApproved);
 
@@ -517,7 +504,7 @@ public class ProductQuestionService : IProductQuestionService
         var unansweredQuestions = await questionsQuery.CountAsync(q => q.AnswerCount == 0, cancellationToken);
         var questionsWithSellerAnswer = await questionsQuery.CountAsync(q => q.HasSellerAnswer, cancellationToken);
 
-        var answersQuery = _context.Set<ProductAnswer>()
+        var answersQuery = context.Set<ProductAnswer>()
             .AsNoTracking()
             .Where(a => a.IsApproved);
 
@@ -531,7 +518,7 @@ public class ProductQuestionService : IProductQuestionService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted, !a.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
-        var recentQuestions = await _context.Set<ProductQuestion>()
+        var recentQuestions = await context.Set<ProductQuestion>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(q => q.Product)
@@ -544,7 +531,7 @@ public class ProductQuestionService : IProductQuestionService
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
-        var mostHelpfulQuestions = await _context.Set<ProductQuestion>()
+        var mostHelpfulQuestions = await context.Set<ProductQuestion>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(q => q.Product)
@@ -557,8 +544,8 @@ public class ProductQuestionService : IProductQuestionService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var recentDtos = _mapper.Map<IEnumerable<ProductQuestionDto>>(recentQuestions).ToList();
-        var helpfulDtos = _mapper.Map<IEnumerable<ProductQuestionDto>>(mostHelpfulQuestions).ToList();
+        var recentDtos = mapper.Map<IEnumerable<ProductQuestionDto>>(recentQuestions).ToList();
+        var helpfulDtos = mapper.Map<IEnumerable<ProductQuestionDto>>(mostHelpfulQuestions).ToList();
 
         // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
         return new QAStatsDto(
@@ -577,7 +564,7 @@ public class ProductQuestionService : IProductQuestionService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !q.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
-        var query = _context.Set<ProductQuestion>()
+        var query = context.Set<ProductQuestion>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(q => q.Product)
@@ -597,7 +584,7 @@ public class ProductQuestionService : IProductQuestionService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<ProductQuestionDto>>(questions);
+        return mapper.Map<IEnumerable<ProductQuestionDto>>(questions);
     }
 
 }

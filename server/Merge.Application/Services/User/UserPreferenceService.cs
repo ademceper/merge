@@ -13,66 +13,49 @@ using Merge.Domain.Modules.Notifications;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
-
 namespace Merge.Application.Services.User;
 
-public class UserPreferenceService : IUserPreferenceService
+public class UserPreferenceService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UserPreferenceService> logger) : IUserPreferenceService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<UserPreferenceService> _logger;
-
-    public UserPreferenceService(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<UserPreferenceService> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<UserPreferenceDto> GetUserPreferencesAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Retrieving preferences for user: {UserId}", userId);
+        logger.LogInformation("Retrieving preferences for user: {UserId}", userId);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !up.IsDeleted (Global Query Filter)
-        var preferences = await _context.Set<UserPreference>()
+        var preferences = await context.Set<UserPreference>()
             .AsNoTracking()
             .FirstOrDefaultAsync(up => up.UserId == userId, cancellationToken);
 
         if (preferences == null)
         {
-            _logger.LogInformation("No preferences found for user: {UserId}, creating default preferences", userId);
+            logger.LogInformation("No preferences found for user: {UserId}, creating default preferences", userId);
 
             // Create default preferences
             preferences = UserPreference.Create(userId);
 
-            await _context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation("Default preferences created for user: {UserId}", userId);
+            logger.LogInformation("Default preferences created for user: {UserId}", userId);
         }
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return _mapper.Map<UserPreferenceDto>(preferences);
+        return mapper.Map<UserPreferenceDto>(preferences);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<UserPreferenceDto> UpdateUserPreferencesAsync(Guid userId, UpdateUserPreferenceDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
-        var preferences = await _context.Set<UserPreference>()
+        var preferences = await context.Set<UserPreference>()
             .FirstOrDefaultAsync(up => up.UserId == userId, cancellationToken);
 
         if (preferences == null)
         {
             preferences = UserPreference.Create(userId);
-            await _context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
+            await context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
         }
 
         // Parse enum values from strings
@@ -113,23 +96,23 @@ public class UserPreferenceService : IUserPreferenceService
             showOutOfStockItems: dto.ShowOutOfStockItems
         );
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return _mapper.Map<UserPreferenceDto>(preferences);
+        return mapper.Map<UserPreferenceDto>(preferences);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<UserPreferenceDto> ResetToDefaultsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
-        var preferences = await _context.Set<UserPreference>()
+        var preferences = await context.Set<UserPreference>()
             .FirstOrDefaultAsync(up => up.UserId == userId, cancellationToken);
 
         if (preferences == null)
         {
             preferences = UserPreference.Create(userId);
-            await _context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
+            await context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
         }
         else
         {
@@ -137,10 +120,10 @@ public class UserPreferenceService : IUserPreferenceService
             preferences.ResetToDefaults();
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return _mapper.Map<UserPreferenceDto>(preferences);
+        return mapper.Map<UserPreferenceDto>(preferences);
     }
 
 }

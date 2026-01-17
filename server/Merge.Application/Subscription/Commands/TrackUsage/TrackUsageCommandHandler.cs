@@ -14,34 +14,18 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Subscription.Commands.TrackUsage;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class TrackUsageCommandHandler : IRequestHandler<TrackUsageCommand, SubscriptionUsageDto>
+public class TrackUsageCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<TrackUsageCommandHandler> logger) : IRequestHandler<TrackUsageCommand, SubscriptionUsageDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<TrackUsageCommandHandler> _logger;
-
-    public TrackUsageCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<TrackUsageCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<SubscriptionUsageDto> Handle(TrackUsageCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Tracking subscription usage. SubscriptionId: {SubscriptionId}, Feature: {Feature}, Count: {Count}",
+        logger.LogInformation("Tracking subscription usage. SubscriptionId: {SubscriptionId}, Feature: {Feature}, Count: {Count}",
             request.UserSubscriptionId, request.Feature, request.Count);
 
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         // ✅ NOT: AsNoTracking() YOK - Subscription nesnesine ihtiyaç var (Create method için)
-        var subscription = await _context.Set<UserSubscription>()
+        var subscription = await context.Set<UserSubscription>()
             .FirstOrDefaultAsync(us => us.Id == request.UserSubscriptionId, cancellationToken);
 
         if (subscription == null)
@@ -54,7 +38,7 @@ public class TrackUsageCommandHandler : IRequestHandler<TrackUsageCommand, Subsc
 
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         // ✅ NOT: Include UserSubscription - Domain event'te UserId'ye ihtiyaç var
-        var usage = await _context.Set<SubscriptionUsage>()
+        var usage = await context.Set<SubscriptionUsage>()
             .Include(u => u.UserSubscription)
             .FirstOrDefaultAsync(u => u.UserSubscriptionId == request.UserSubscriptionId &&
                                      u.Feature == request.Feature &&
@@ -69,16 +53,16 @@ public class TrackUsageCommandHandler : IRequestHandler<TrackUsageCommand, Subsc
                 periodStart: periodStart,
                 periodEnd: periodEnd);
             
-            await _context.Set<SubscriptionUsage>().AddAsync(usage, cancellationToken);
+            await context.Set<SubscriptionUsage>().AddAsync(usage, cancellationToken);
         }
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         usage.IncrementUsage(request.Count);
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<SubscriptionUsageDto>(usage);
+        return mapper.Map<SubscriptionUsageDto>(usage);
     }
 }

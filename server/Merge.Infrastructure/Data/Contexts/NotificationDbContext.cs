@@ -8,11 +8,8 @@ using Role = Merge.Domain.Modules.Identity.Role;
 
 namespace Merge.Infrastructure.Data.Contexts;
 
-public class NotificationDbContext : DbContext, IDbContext
+public class NotificationDbContext(DbContextOptions<NotificationDbContext> options) : DbContext(options), IDbContext
 {
-    public NotificationDbContext(DbContextOptions<NotificationDbContext> options) : base(options)
-    {
-    }
 
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<NotificationTemplate> NotificationTemplates { get; set; }

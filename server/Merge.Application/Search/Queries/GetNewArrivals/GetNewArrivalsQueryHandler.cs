@@ -16,42 +16,27 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Search.Queries.GetNewArrivals;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetNewArrivalsQueryHandler : IRequestHandler<GetNewArrivalsQuery, IReadOnlyList<ProductRecommendationDto>>
+public class GetNewArrivalsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetNewArrivalsQueryHandler> logger, IOptions<SearchSettings> searchSettings) : IRequestHandler<GetNewArrivalsQuery, IReadOnlyList<ProductRecommendationDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetNewArrivalsQueryHandler> _logger;
-    private readonly SearchSettings _searchSettings;
-
-    public GetNewArrivalsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetNewArrivalsQueryHandler> logger,
-        IOptions<SearchSettings> searchSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _searchSettings = searchSettings.Value;
-    }
+    private readonly SearchSettings searchConfig = searchSettings.Value;
 
     public async Task<IReadOnlyList<ProductRecommendationDto>> Handle(GetNewArrivalsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "New arrivals isteniyor. Days: {Days}, MaxResults: {MaxResults}",
             request.Days, request.MaxResults);
 
-        var days = request.Days < 1 ? _searchSettings.DefaultNewArrivalsDays : request.Days;
-        if (days > _searchSettings.MaxTrendingDays) days = _searchSettings.MaxTrendingDays;
+        var days = request.Days < 1 ? searchConfig.DefaultNewArrivalsDays : request.Days;
+        if (days > searchConfig.MaxTrendingDays) days = searchConfig.MaxTrendingDays;
 
-        var maxResults = request.MaxResults > _searchSettings.MaxRecommendationResults
-            ? _searchSettings.MaxRecommendationResults
+        var maxResults = request.MaxResults > searchConfig.MaxRecommendationResults
+            ? searchConfig.MaxRecommendationResults
             : request.MaxResults;
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
-        var newArrivals = await _context.Set<ProductEntity>()
+        var newArrivals = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive && p.CreatedAt >= startDate)
             .OrderByDescending(p => p.CreatedAt)
@@ -59,7 +44,7 @@ public class GetNewArrivalsQueryHandler : IRequestHandler<GetNewArrivalsQuery, I
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var recommendations = _mapper.Map<IEnumerable<ProductRecommendationDto>>(newArrivals)
+        var recommendations = mapper.Map<IEnumerable<ProductRecommendationDto>>(newArrivals)
             .Select(rec => new ProductRecommendationDto(
                 rec.ProductId,
                 rec.Name,
@@ -75,7 +60,7 @@ public class GetNewArrivalsQueryHandler : IRequestHandler<GetNewArrivalsQuery, I
             .ToList();
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "New arrivals tamamlandı. Days: {Days}, Count: {Count}",
             days, recommendations.Count);
 

@@ -12,30 +12,22 @@ namespace Merge.Application.Support.EventHandlers;
 /// Ticket Message Added Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class TicketMessageAddedEventHandler : INotificationHandler<TicketMessageAddedEvent>
+public class TicketMessageAddedEventHandler(
+    ILogger<TicketMessageAddedEventHandler> logger,
+    INotificationService? notificationService) : INotificationHandler<TicketMessageAddedEvent>
 {
-    private readonly ILogger<TicketMessageAddedEventHandler> _logger;
-    private readonly INotificationService? _notificationService;
-
-    public TicketMessageAddedEventHandler(
-        ILogger<TicketMessageAddedEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(TicketMessageAddedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Ticket message added event received. MessageId: {MessageId}, TicketId: {TicketId}, TicketNumber: {TicketNumber}, UserId: {UserId}, IsStaffResponse: {IsStaffResponse}",
             notification.MessageId, notification.TicketId, notification.TicketNumber, notification.UserId, notification.IsStaffResponse);
 
         try
         {
             // Eğer staff response ise kullanıcıya, değilse staff'a bildirim gönder
-            if (_notificationService != null)
+            if (notificationService != null)
             {
                 var createDto = new CreateNotificationDto(
                     notification.UserId,
@@ -46,7 +38,7 @@ public class TicketMessageAddedEventHandler : INotificationHandler<TicketMessage
                         : $"Destek talebinize yeni bir mesaj eklendi. Talep No: {notification.TicketNumber}",
                     null,
                     null);
-                await _notificationService.CreateNotificationAsync(createDto, cancellationToken);
+                await notificationService.CreateNotificationAsync(createDto, cancellationToken);
             }
 
             // Analytics tracking
@@ -55,7 +47,7 @@ public class TicketMessageAddedEventHandler : INotificationHandler<TicketMessage
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling TicketMessageAddedEvent. MessageId: {MessageId}, TicketId: {TicketId}, TicketNumber: {TicketNumber}",
                 notification.MessageId, notification.TicketId, notification.TicketNumber);
             throw;

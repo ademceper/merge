@@ -12,35 +12,22 @@ using Merge.Domain.Modules.Ordering;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
-
 namespace Merge.Application.Services.Logistics;
 
-public class ShippingAddressService : IShippingAddressService
+public class ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ShippingAddressService> logger) : IShippingAddressService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<ShippingAddressService> _logger;
-
-    public ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<ShippingAddressService> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<ShippingAddressDto> CreateShippingAddressAsync(Guid userId, CreateShippingAddressDto dto, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Kargo adresi olusturuluyor. UserId: {UserId}", userId);
+        logger.LogInformation("Kargo adresi olusturuluyor. UserId: {UserId}", userId);
 
         try
         {
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !u.IsDeleted (Global Query Filter)
-            var user = await _context.Users
+            var user = await context.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
@@ -54,7 +41,7 @@ public class ShippingAddressService : IShippingAddressService
             {
                 // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
                 // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-                var existingDefault = await _context.Set<ShippingAddress>()
+                var existingDefault = await context.Set<ShippingAddress>()
                     .Where(a => a.UserId == userId && a.IsDefault)
                     .ToListAsync(cancellationToken);
 
@@ -80,17 +67,17 @@ public class ShippingAddressService : IShippingAddressService
                 dto.IsDefault,
                 dto.Instructions);
 
-            await _context.Set<ShippingAddress>().AddAsync(address, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await context.Set<ShippingAddress>().AddAsync(address, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation("Kargo adresi olusturuldu. AddressId: {AddressId}, UserId: {UserId}", address.Id, userId);
+            logger.LogInformation("Kargo adresi olusturuldu. AddressId: {AddressId}, UserId: {UserId}", address.Id, userId);
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-            return _mapper.Map<ShippingAddressDto>(address);
+            return mapper.Map<ShippingAddressDto>(address);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Kargo adresi olusturma hatasi. UserId: {UserId}", userId);
+            logger.LogError(ex, "Kargo adresi olusturma hatasi. UserId: {UserId}", userId);
             throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
         }
     }
@@ -99,19 +86,19 @@ public class ShippingAddressService : IShippingAddressService
     public async Task<ShippingAddressDto?> GetShippingAddressByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        var address = await _context.Set<ShippingAddress>()
+        var address = await context.Set<ShippingAddress>()
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return address != null ? _mapper.Map<ShippingAddressDto>(address) : null;
+        return address != null ? mapper.Map<ShippingAddressDto>(address) : null;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<ShippingAddressDto>> GetUserShippingAddressesAsync(Guid userId, bool? isActive = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        var query = _context.Set<ShippingAddress>()
+        var query = context.Set<ShippingAddress>()
             .AsNoTracking()
             .Where(a => a.UserId == userId);
 
@@ -126,19 +113,19 @@ public class ShippingAddressService : IShippingAddressService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<ShippingAddressDto>>(addresses);
+        return mapper.Map<IEnumerable<ShippingAddressDto>>(addresses);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ShippingAddressDto?> GetDefaultShippingAddressAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        var address = await _context.Set<ShippingAddress>()
+        var address = await context.Set<ShippingAddress>()
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.UserId == userId && a.IsDefault && a.IsActive, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return address != null ? _mapper.Map<ShippingAddressDto>(address) : null;
+        return address != null ? mapper.Map<ShippingAddressDto>(address) : null;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -146,7 +133,7 @@ public class ShippingAddressService : IShippingAddressService
     {
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-        var address = await _context.Set<ShippingAddress>()
+        var address = await context.Set<ShippingAddress>()
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (address == null) return false;
@@ -170,7 +157,7 @@ public class ShippingAddressService : IShippingAddressService
             // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
             // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
             // Unset other default addresses
-            var existingDefault = await _context.Set<ShippingAddress>()
+            var existingDefault = await context.Set<ShippingAddress>()
                 .Where(a => a.UserId == address.UserId && a.IsDefault && a.Id != id)
                 .ToListAsync(cancellationToken);
 
@@ -194,7 +181,7 @@ public class ShippingAddressService : IShippingAddressService
         {
             address.Deactivate();
         }
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -204,14 +191,14 @@ public class ShippingAddressService : IShippingAddressService
     {
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-        var address = await _context.Set<ShippingAddress>()
+        var address = await context.Set<ShippingAddress>()
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (address == null) return false;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
         // Check if address is used in any orders
-        var hasOrders = await _context.Set<OrderEntity>()
+        var hasOrders = await context.Set<OrderEntity>()
             .AsNoTracking()
             .AnyAsync(o => o.AddressId == id, cancellationToken);
 
@@ -226,7 +213,7 @@ public class ShippingAddressService : IShippingAddressService
             // Hard delete if no orders - Domain method kullan
             address.MarkAsDeleted();
         }
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -236,7 +223,7 @@ public class ShippingAddressService : IShippingAddressService
     {
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-        var address = await _context.Set<ShippingAddress>()
+        var address = await context.Set<ShippingAddress>()
             .FirstOrDefaultAsync(a => a.Id == addressId && a.UserId == userId, cancellationToken);
 
         if (address == null) return false;
@@ -244,7 +231,7 @@ public class ShippingAddressService : IShippingAddressService
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
         // Unset other default addresses
-        var existingDefault = await _context.Set<ShippingAddress>()
+        var existingDefault = await context.Set<ShippingAddress>()
             .Where(a => a.UserId == userId && a.IsDefault && a.Id != addressId)
             .ToListAsync(cancellationToken);
 
@@ -255,7 +242,7 @@ public class ShippingAddressService : IShippingAddressService
 
         // Domain method kullan
         address.SetAsDefault();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }

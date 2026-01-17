@@ -16,27 +16,17 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Product.Queries.ExportProductsToJson;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class ExportProductsToJsonQueryHandler : IRequestHandler<ExportProductsToJsonQuery, byte[]>
+public class ExportProductsToJsonQueryHandler(IDbContext context, ILogger<ExportProductsToJsonQueryHandler> logger) : IRequestHandler<ExportProductsToJsonQuery, byte[]>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<ExportProductsToJsonQueryHandler> _logger;
-
-    public ExportProductsToJsonQueryHandler(
-        IDbContext context,
-        ILogger<ExportProductsToJsonQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<byte[]> Handle(ExportProductsToJsonQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Exporting products to JSON. CategoryId: {CategoryId}, ActiveOnly: {ActiveOnly}",
+        logger.LogInformation("Exporting products to JSON. CategoryId: {CategoryId}, ActiveOnly: {ActiveOnly}",
             request.ExportDto.CategoryId, request.ExportDto.ActiveOnly);
 
         var products = await GetProductsForExportAsync(request.ExportDto, cancellationToken);
 
-        _logger.LogInformation("Products retrieved for JSON export. Count: {Count}", products.Count);
+        logger.LogInformation("Products retrieved for JSON export. Count: {Count}", products.Count);
 
         var exportData = products.Select(p => new
         {
@@ -60,14 +50,14 @@ public class ExportProductsToJsonQueryHandler : IRequestHandler<ExportProductsTo
             WriteIndented = true
         });
 
-        _logger.LogInformation("JSON export completed. Total products exported: {Count}", products.Count);
+        logger.LogInformation("JSON export completed. Total products exported: {Count}", products.Count);
 
         return Encoding.UTF8.GetBytes(json);
     }
 
     private async Task<List<ProductEntity>> GetProductsForExportAsync(BulkProductExportDto exportDto, CancellationToken cancellationToken)
     {
-        IQueryable<ProductEntity> query = _context.Set<ProductEntity>()
+        IQueryable<ProductEntity> query = context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category);
 

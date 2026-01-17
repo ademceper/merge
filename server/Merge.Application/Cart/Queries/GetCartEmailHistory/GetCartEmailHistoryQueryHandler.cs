@@ -24,11 +24,11 @@ public class GetCartEmailHistoryQueryHandler(
     ILogger<GetCartEmailHistoryQueryHandler> logger,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetCartEmailHistoryQuery, PagedResult<AbandonedCartEmailDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
     public async Task<PagedResult<AbandonedCartEmailDto>> Handle(GetCartEmailHistoryQuery request, CancellationToken cancellationToken)
     {
-        // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries

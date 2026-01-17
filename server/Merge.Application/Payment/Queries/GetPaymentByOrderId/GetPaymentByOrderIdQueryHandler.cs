@@ -15,39 +15,26 @@ namespace Merge.Application.Payment.Queries.GetPaymentByOrderId;
 
 // BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullaniyor (Service layer bypass)
-public class GetPaymentByOrderIdQueryHandler : IRequestHandler<GetPaymentByOrderIdQuery, PaymentDto?>
+public class GetPaymentByOrderIdQueryHandler(IDbContext context, IMapper mapper, ILogger<GetPaymentByOrderIdQueryHandler> logger) : IRequestHandler<GetPaymentByOrderIdQuery, PaymentDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetPaymentByOrderIdQueryHandler> _logger;
-
-    public GetPaymentByOrderIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetPaymentByOrderIdQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<PaymentDto?> Handle(GetPaymentByOrderIdQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Retrieving payment for order ID: {OrderId}", request.OrderId);
+        logger.LogInformation("Retrieving payment for order ID: {OrderId}", request.OrderId);
 
         // ✅ PERFORMANCE: AsNoTracking for read-only query
-        var payment = await _context.Set<PaymentEntity>()
+        var payment = await context.Set<PaymentEntity>()
             .AsNoTracking()
             .Include(p => p.Order)
             .FirstOrDefaultAsync(p => p.OrderId == request.OrderId, cancellationToken);
 
         if (payment == null)
         {
-            _logger.LogWarning("Payment not found for order ID: {OrderId}", request.OrderId);
+            logger.LogWarning("Payment not found for order ID: {OrderId}", request.OrderId);
             return null;
         }
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<PaymentDto>(payment);
+        return mapper.Map<PaymentDto>(payment);
     }
 }

@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
@@ -17,48 +18,36 @@ namespace Merge.Application.Product.Queries.GetQuestionAnswers;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetQuestionAnswersQueryHandler : IRequestHandler<GetQuestionAnswersQuery, IEnumerable<ProductAnswerDto>>
+public class GetQuestionAnswersQueryHandler(
+    IDbContext context,
+    ILogger<GetQuestionAnswersQueryHandler> logger,
+    ICacheService cache,
+    IOptions<CacheSettings> cacheSettings,
+    IMapper mapper) : IRequestHandler<GetQuestionAnswersQuery, IEnumerable<ProductAnswerDto>>
 {
-    private readonly IDbContext _context;
-    private readonly AutoMapper.IMapper _mapper;
-    private readonly ILogger<GetQuestionAnswersQueryHandler> _logger;
-    private readonly ICacheService _cache;
-    private readonly CacheSettings _cacheSettings;
-    private const string CACHE_KEY_ANSWERS_BY_QUESTION = "answers_by_question_";
+    private readonly CacheSettings cacheConfig = cacheSettings.Value;
 
-    public GetQuestionAnswersQueryHandler(
-        IDbContext context,
-        AutoMapper.IMapper mapper,
-        ILogger<GetQuestionAnswersQueryHandler> logger,
-        ICacheService cache,
-        IOptions<CacheSettings> cacheSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _cache = cache;
-        _cacheSettings = cacheSettings.Value;
-    }
+    private const string CACHE_KEY_ANSWERS_BY_QUESTION = "answers_by_question_";
 
     public async Task<IEnumerable<ProductAnswerDto>> Handle(GetQuestionAnswersQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching answers for question. QuestionId: {QuestionId}, UserId: {UserId}", 
+        logger.LogInformation("Fetching answers for question. QuestionId: {QuestionId}, UserId: {UserId}", 
             request.QuestionId, request.UserId);
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern (UserId-specific cache key for user-specific data)
         var cacheKey = $"{CACHE_KEY_ANSWERS_BY_QUESTION}{request.QuestionId}";
         // Note: UserId-specific data (HasUserVoted) is not cached, only answer data
-        var cachedAnswers = await _cache.GetAsync<IEnumerable<ProductAnswerDto>>(cacheKey, cancellationToken);
+        var cachedAnswers = await cache.GetAsync<IEnumerable<ProductAnswerDto>>(cacheKey, cancellationToken);
         if (cachedAnswers != null && !request.UserId.HasValue)
         {
-            _logger.LogInformation("Answers retrieved from cache. QuestionId: {QuestionId}", request.QuestionId);
+            logger.LogInformation("Answers retrieved from cache. QuestionId: {QuestionId}", request.QuestionId);
             return cachedAnswers;
         }
 
-        _logger.LogInformation("Cache miss for answers. QuestionId: {QuestionId}", request.QuestionId);
+        logger.LogInformation("Cache miss for answers. QuestionId: {QuestionId}", request.QuestionId);
 
         // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
-        var answersQuery = _context.Set<ProductAnswer>()
+        var answersQuery = context.Set<ProductAnswer>()
             .AsNoTracking()
             .Where(a => a.QuestionId == request.QuestionId && a.IsApproved)
             .OrderByDescending(a => a.IsSellerAnswer)
@@ -71,7 +60,7 @@ public class GetQuestionAnswersQueryHandler : IRequestHandler<GetQuestionAnswers
 
         var answerIdsSubquery = from a in answersQuery select a.Id;
         var userVotes = request.UserId.HasValue
-            ? await _context.Set<AnswerHelpfulness>()
+            ? await context.Set<AnswerHelpfulness>()
                 .AsNoTracking()
                 .Where(ah => answerIdsSubquery.Contains(ah.AnswerId) && ah.UserId == request.UserId.Value)
                 .ToDictionaryAsync(ah => ah.AnswerId, cancellationToken)
@@ -81,7 +70,7 @@ public class GetQuestionAnswersQueryHandler : IRequestHandler<GetQuestionAnswers
         var dtos = new List<ProductAnswerDto>(answers.Count);
         foreach (var answer in answers)
         {
-            var dto = _mapper.Map<ProductAnswerDto>(answer);
+            var dto = mapper.Map<ProductAnswerDto>(answer);
             dto = dto with { HasUserVoted = userVotes.ContainsKey(answer.Id) };
             dtos.Add(dto);
         }
@@ -90,10 +79,10 @@ public class GetQuestionAnswersQueryHandler : IRequestHandler<GetQuestionAnswers
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
         if (!request.UserId.HasValue)
         {
-            await _cache.SetAsync(cacheKey, dtos, TimeSpan.FromMinutes(_cacheSettings.AnswerCacheExpirationMinutes), cancellationToken);
+            await cache.SetAsync(cacheKey, dtos, TimeSpan.FromMinutes(cacheConfig.AnswerCacheExpirationMinutes), cancellationToken);
         }
 
-        _logger.LogInformation("Retrieved answers for question. QuestionId: {QuestionId}, Count: {Count}", 
+        logger.LogInformation("Retrieved answers for question. QuestionId: {QuestionId}, Count: {Count}", 
             request.QuestionId, answers.Count);
 
         return dtos;

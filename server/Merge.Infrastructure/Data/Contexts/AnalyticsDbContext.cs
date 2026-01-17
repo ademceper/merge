@@ -9,11 +9,8 @@ using Role = Merge.Domain.Modules.Identity.Role;
 
 namespace Merge.Infrastructure.Data.Contexts;
 
-public class AnalyticsDbContext : DbContext, IDbContext
+public class AnalyticsDbContext(DbContextOptions<AnalyticsDbContext> options) : DbContext(options), IDbContext
 {
-    public AnalyticsDbContext(DbContextOptions<AnalyticsDbContext> options) : base(options)
-    {
-    }
 
     public DbSet<ExchangeRateHistory> ExchangeRateHistories { get; set; }
     public DbSet<Report> Reports { get; set; }

@@ -15,32 +15,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Review.Commands.AwardSellerBadge;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class AwardSellerBadgeCommandHandler : IRequestHandler<AwardSellerBadgeCommand, SellerTrustBadgeDto>
+public class AwardSellerBadgeCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<AwardSellerBadgeCommandHandler> logger) : IRequestHandler<AwardSellerBadgeCommand, SellerTrustBadgeDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<AwardSellerBadgeCommandHandler> _logger;
-
-    public AwardSellerBadgeCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<AwardSellerBadgeCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<SellerTrustBadgeDto> Handle(AwardSellerBadgeCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Awarding seller badge. SellerId: {SellerId}, BadgeId: {BadgeId}",
             request.SellerId, request.BadgeId);
 
-        var existing = await _context.Set<SellerTrustBadge>()
+        var existing = await context.Set<SellerTrustBadge>()
             .FirstOrDefaultAsync(stb => stb.SellerId == request.SellerId && stb.TrustBadgeId == request.BadgeId, cancellationToken);
 
         if (existing != null)
@@ -61,10 +45,10 @@ public class AwardSellerBadgeCommandHandler : IRequestHandler<AwardSellerBadgeCo
                 request.ExpiresAt,
                 request.AwardReason);
 
-            await _context.Set<SellerTrustBadge>().AddAsync(sellerBadge, cancellationToken);
+            await context.Set<SellerTrustBadge>().AddAsync(sellerBadge, cancellationToken);
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         var sellerBadgeDto = await GetSellerBadgeDtoAsync(request.SellerId, request.BadgeId, cancellationToken);
         return sellerBadgeDto;
@@ -72,7 +56,7 @@ public class AwardSellerBadgeCommandHandler : IRequestHandler<AwardSellerBadgeCo
 
     private async Task<SellerTrustBadgeDto> GetSellerBadgeDtoAsync(Guid sellerId, Guid badgeId, CancellationToken cancellationToken)
     {
-        var sellerBadge = await _context.Set<SellerTrustBadge>()
+        var sellerBadge = await context.Set<SellerTrustBadge>()
             .AsNoTracking()
             .Include(stb => stb.TrustBadge)
             .Include(stb => stb.Seller)
@@ -81,6 +65,6 @@ public class AwardSellerBadgeCommandHandler : IRequestHandler<AwardSellerBadgeCo
         if (sellerBadge == null)
             throw new NotFoundException("Satıcı rozeti", badgeId);
 
-        return _mapper.Map<SellerTrustBadgeDto>(sellerBadge);
+        return mapper.Map<SellerTrustBadgeDto>(sellerBadge);
     }
 }

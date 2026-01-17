@@ -20,30 +20,17 @@ using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
-
 namespace Merge.Application.Services.Review;
 
-public class TrustBadgeService : ITrustBadgeService
+public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<TrustBadgeService> logger) : ITrustBadgeService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<TrustBadgeService> _logger;
-
-    public TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<TrustBadgeService> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<TrustBadgeDto> CreateBadgeAsync(CreateTrustBadgeDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Trust badge oluşturuluyor. Name: {Name}, BadgeType: {BadgeType}",
             dto.Name, dto.BadgeType);
 
@@ -56,35 +43,35 @@ public class TrustBadgeService : ITrustBadgeService
             dto.DisplayOrder,
             dto.Color);
 
-        await _context.Set<TrustBadge>().AddAsync(badge, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<TrustBadge>().AddAsync(badge, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Trust badge oluşturuldu. BadgeId: {BadgeId}, Name: {Name}",
             badge.Id, badge.Name);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<TrustBadgeDto>(badge);
+        return mapper.Map<TrustBadgeDto>(badge);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<TrustBadgeDto?> GetBadgeAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
-        var badge = await _context.Set<TrustBadge>()
+        var badge = await context.Set<TrustBadge>()
             .AsNoTracking()
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return badge != null ? _mapper.Map<TrustBadgeDto>(badge) : null;
+        return badge != null ? mapper.Map<TrustBadgeDto>(badge) : null;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<TrustBadgeDto>> GetBadgesAsync(string? badgeType = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
-        var query = _context.Set<TrustBadge>()
+        var query = context.Set<TrustBadge>()
             .AsNoTracking()
             .Where(b => b.IsActive);
 
@@ -99,14 +86,14 @@ public class TrustBadgeService : ITrustBadgeService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<TrustBadgeDto>>(badges);
+        return mapper.Map<IEnumerable<TrustBadgeDto>>(badges);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<TrustBadgeDto> UpdateBadgeAsync(Guid id, UpdateTrustBadgeDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !b.IsDeleted (Global Query Filter)
-        var badge = await _context.Set<TrustBadge>()
+        var badge = await context.Set<TrustBadge>()
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
 
         if (badge == null)
@@ -136,23 +123,23 @@ public class TrustBadgeService : ITrustBadgeService
         if (dto.Color != null)
             badge.UpdateColor(dto.Color);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<TrustBadgeDto>(badge);
+        return mapper.Map<TrustBadgeDto>(badge);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> DeleteBadgeAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !b.IsDeleted (Global Query Filter)
-        var badge = await _context.Set<TrustBadge>()
+        var badge = await context.Set<TrustBadge>()
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
 
         if (badge == null) return false;
 
         badge.MarkAsDeleted();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -161,7 +148,7 @@ public class TrustBadgeService : ITrustBadgeService
     public async Task<SellerTrustBadgeDto> AwardSellerBadgeAsync(Guid sellerId, AwardBadgeDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !stb.IsDeleted (Global Query Filter)
-        var existing = await _context.Set<SellerTrustBadge>()
+        var existing = await context.Set<SellerTrustBadge>()
             .FirstOrDefaultAsync(stb => stb.SellerId == sellerId && stb.TrustBadgeId == dto.BadgeId, cancellationToken);
 
         if (existing != null)
@@ -179,10 +166,10 @@ public class TrustBadgeService : ITrustBadgeService
                 dto.ExpiresAt,
                 dto.AwardReason);
 
-            await _context.Set<SellerTrustBadge>().AddAsync(sellerBadge, cancellationToken);
+            await context.Set<SellerTrustBadge>().AddAsync(sellerBadge, cancellationToken);
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return await GetSellerBadgeDtoAsync(sellerId, dto.BadgeId, cancellationToken);
     }
@@ -191,7 +178,7 @@ public class TrustBadgeService : ITrustBadgeService
     public async Task<IEnumerable<SellerTrustBadgeDto>> GetSellerBadgesAsync(Guid sellerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !stb.IsDeleted (Global Query Filter)
-        var badges = await _context.Set<SellerTrustBadge>()
+        var badges = await context.Set<SellerTrustBadge>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(stb => stb.TrustBadge)
@@ -201,21 +188,21 @@ public class TrustBadgeService : ITrustBadgeService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<SellerTrustBadgeDto>>(badges);
+        return mapper.Map<IEnumerable<SellerTrustBadgeDto>>(badges);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> RevokeSellerBadgeAsync(Guid sellerId, Guid badgeId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !stb.IsDeleted (Global Query Filter)
-        var badge = await _context.Set<SellerTrustBadge>()
+        var badge = await context.Set<SellerTrustBadge>()
             .FirstOrDefaultAsync(stb => stb.SellerId == sellerId && stb.TrustBadgeId == badgeId, cancellationToken);
 
         if (badge == null) return false;
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         badge.Deactivate();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -224,7 +211,7 @@ public class TrustBadgeService : ITrustBadgeService
     public async Task<ProductTrustBadgeDto> AwardProductBadgeAsync(Guid productId, AwardBadgeDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !ptb.IsDeleted (Global Query Filter)
-        var existing = await _context.Set<ProductTrustBadge>()
+        var existing = await context.Set<ProductTrustBadge>()
             .FirstOrDefaultAsync(ptb => ptb.ProductId == productId && ptb.TrustBadgeId == dto.BadgeId, cancellationToken);
 
         if (existing != null)
@@ -244,10 +231,10 @@ public class TrustBadgeService : ITrustBadgeService
                 dto.ExpiresAt,
                 dto.AwardReason);
 
-            await _context.Set<ProductTrustBadge>().AddAsync(productBadge, cancellationToken);
+            await context.Set<ProductTrustBadge>().AddAsync(productBadge, cancellationToken);
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return await GetProductBadgeDtoAsync(productId, dto.BadgeId, cancellationToken);
     }
@@ -256,7 +243,7 @@ public class TrustBadgeService : ITrustBadgeService
     public async Task<IEnumerable<ProductTrustBadgeDto>> GetProductBadgesAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !ptb.IsDeleted (Global Query Filter)
-        var badges = await _context.Set<ProductTrustBadge>()
+        var badges = await context.Set<ProductTrustBadge>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(ptb => ptb.TrustBadge)
@@ -266,21 +253,21 @@ public class TrustBadgeService : ITrustBadgeService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<ProductTrustBadgeDto>>(badges);
+        return mapper.Map<IEnumerable<ProductTrustBadgeDto>>(badges);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> RevokeProductBadgeAsync(Guid productId, Guid badgeId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !ptb.IsDeleted (Global Query Filter)
-        var badge = await _context.Set<ProductTrustBadge>()
+        var badge = await context.Set<ProductTrustBadge>()
             .FirstOrDefaultAsync(ptb => ptb.ProductId == productId && ptb.TrustBadgeId == badgeId, cancellationToken);
 
         if (badge == null) return false;
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         badge.Deactivate();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -295,7 +282,7 @@ public class TrustBadgeService : ITrustBadgeService
         else
         {
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !sp.IsDeleted (Global Query Filter)
-            var sellers = await _context.Set<SellerProfile>()
+            var sellers = await context.Set<SellerProfile>()
                 .AsNoTracking()
                 .Where(sp => sp.Status == SellerStatus.Approved)
                 .Select(sp => sp.UserId)
@@ -312,13 +299,13 @@ public class TrustBadgeService : ITrustBadgeService
     public async Task EvaluateSellerBadgesAsync(Guid sellerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
-        var badges = await _context.Set<TrustBadge>()
+        var badges = await context.Set<TrustBadge>()
             .AsNoTracking()
             .Where(b => b.IsActive && b.BadgeType == "Seller")
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var seller = await _context.Set<SellerProfile>()
+        var seller = await context.Set<SellerProfile>()
             .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
 
@@ -326,20 +313,20 @@ public class TrustBadgeService : ITrustBadgeService
 
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted, !r.IsDeleted (Global Query Filter)
         // Get seller metrics
-        var totalOrders = await _context.Set<OrderEntity>()
+        var totalOrders = await context.Set<OrderEntity>()
             .AsNoTracking()
             .CountAsync(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.OrderItems.Any(oi => oi.Product.SellerId == sellerId), cancellationToken);
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        var totalRevenue = await _context.Set<OrderItem>()
+        var totalRevenue = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.Product.SellerId == sellerId &&
                   oi.Order.PaymentStatus == PaymentStatus.Completed)
             .SumAsync(oi => oi.TotalPrice, cancellationToken);
 
         var averageRating = seller.AverageRating;
-        var totalReviews = await _context.Set<ReviewEntity>()
+        var totalReviews = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .CountAsync(r => r.IsApproved &&
                   r.Product.SellerId == sellerId, cancellationToken);
@@ -370,7 +357,7 @@ public class TrustBadgeService : ITrustBadgeService
             if (qualifies)
             {
                 // ✅ PERFORMANCE: Removed manual !stb.IsDeleted (Global Query Filter)
-                var existing = await _context.Set<SellerTrustBadge>()
+                var existing = await context.Set<SellerTrustBadge>()
                     .FirstOrDefaultAsync(stb => stb.SellerId == sellerId && stb.TrustBadgeId == badge.Id, cancellationToken);
 
                 if (existing == null)
@@ -389,13 +376,13 @@ public class TrustBadgeService : ITrustBadgeService
     public async Task EvaluateProductBadgesAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
-        var badges = await _context.Set<TrustBadge>()
+        var badges = await context.Set<TrustBadge>()
             .AsNoTracking()
             .Where(b => b.IsActive && b.BadgeType == "Product")
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var product = await _context.Set<ProductEntity>()
+        var product = await context.Set<ProductEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
@@ -403,13 +390,13 @@ public class TrustBadgeService : ITrustBadgeService
 
         // ✅ PERFORMANCE: Removed manual !oi.Order.IsDeleted, !r.IsDeleted (Global Query Filter)
         // Get product metrics
-        var totalSales = await _context.Set<OrderItem>()
+        var totalSales = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.ProductId == productId && oi.Order.PaymentStatus == PaymentStatus.Completed)
             .SumAsync(oi => oi.Quantity, cancellationToken);
 
         var averageRating = product.Rating;
-        var totalReviews = await _context.Set<ReviewEntity>()
+        var totalReviews = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .CountAsync(r => r.ProductId == productId && r.IsApproved, cancellationToken);
 
@@ -439,7 +426,7 @@ public class TrustBadgeService : ITrustBadgeService
             if (qualifies)
             {
                 // ✅ PERFORMANCE: Removed manual !ptb.IsDeleted (Global Query Filter)
-                var existing = await _context.Set<ProductTrustBadge>()
+                var existing = await context.Set<ProductTrustBadge>()
                     .FirstOrDefaultAsync(ptb => ptb.ProductId == productId && ptb.TrustBadgeId == badge.Id, cancellationToken);
 
                 if (existing == null)
@@ -458,7 +445,7 @@ public class TrustBadgeService : ITrustBadgeService
     private async Task<SellerTrustBadgeDto> GetSellerBadgeDtoAsync(Guid sellerId, Guid badgeId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !stb.IsDeleted (Global Query Filter)
-        var sellerBadge = await _context.Set<SellerTrustBadge>()
+        var sellerBadge = await context.Set<SellerTrustBadge>()
             .AsNoTracking()
             .Include(stb => stb.TrustBadge)
             .Include(stb => stb.Seller)
@@ -468,14 +455,14 @@ public class TrustBadgeService : ITrustBadgeService
             throw new NotFoundException("Satıcı rozeti", badgeId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<SellerTrustBadgeDto>(sellerBadge);
+        return mapper.Map<SellerTrustBadgeDto>(sellerBadge);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     private async Task<ProductTrustBadgeDto> GetProductBadgeDtoAsync(Guid productId, Guid badgeId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !ptb.IsDeleted (Global Query Filter)
-        var productBadge = await _context.Set<ProductTrustBadge>()
+        var productBadge = await context.Set<ProductTrustBadge>()
             .AsNoTracking()
             .Include(ptb => ptb.TrustBadge)
             .Include(ptb => ptb.Product)
@@ -485,7 +472,7 @@ public class TrustBadgeService : ITrustBadgeService
             throw new NotFoundException("Ürün rozeti", badgeId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<ProductTrustBadgeDto>(productBadge);
+        return mapper.Map<ProductTrustBadgeDto>(productBadge);
     }
 }
 

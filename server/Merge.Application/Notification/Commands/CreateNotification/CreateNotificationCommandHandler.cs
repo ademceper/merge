@@ -16,24 +16,8 @@ namespace Merge.Application.Notification.Commands.CreateNotification;
 /// <summary>
 /// Create Notification Command Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class CreateNotificationCommandHandler : IRequestHandler<CreateNotificationCommand, NotificationDto>
+public class CreateNotificationCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateNotificationCommandHandler> logger) : IRequestHandler<CreateNotificationCommand, NotificationDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateNotificationCommandHandler> _logger;
-
-    public CreateNotificationCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateNotificationCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<NotificationDto> Handle(CreateNotificationCommand request, CancellationToken cancellationToken)
     {
@@ -46,17 +30,17 @@ public class CreateNotificationCommandHandler : IRequestHandler<CreateNotificati
             request.Link,
             request.Data);
 
-        await _context.Set<NotificationEntity>().AddAsync(notification, cancellationToken);
+        await context.Set<NotificationEntity>().AddAsync(notification, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Notification oluşturuldu. NotificationId: {NotificationId}, UserId: {UserId}, Type: {Type}",
             notification.Id, request.UserId, request.Type);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<NotificationDto>(notification);
+        return mapper.Map<NotificationDto>(notification);
     }
 }

@@ -8,14 +8,8 @@ namespace Merge.Infrastructure.Common;
 /// Basit bir implementation - MediatR kullanılmıyorsa bu kullanılır.
 /// Production'da MediatR veya başka bir event bus kullanılabilir.
 /// </summary>
-public class DomainEventDispatcher : IDomainEventDispatcher
+public class DomainEventDispatcher(ILogger<DomainEventDispatcher> logger) : IDomainEventDispatcher
 {
-    private readonly ILogger<DomainEventDispatcher> _logger;
-
-    public DomainEventDispatcher(ILogger<DomainEventDispatcher> logger)
-    {
-        _logger = logger;
-    }
 
     // ✅ BOLUM 1.5: Domain Events publish mekanizması (ZORUNLU)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -24,13 +18,13 @@ public class DomainEventDispatcher : IDomainEventDispatcher
         if (domainEvents == null || !domainEvents.Any())
             return;
 
-        _logger.LogInformation("Publishing {Count} domain events", domainEvents.Count());
+        logger.LogInformation("Publishing {Count} domain events", domainEvents.Count());
 
         foreach (var domainEvent in domainEvents)
         {
             try
             {
-                _logger.LogInformation(
+                logger.LogInformation(
                     "Publishing domain event: {EventType} at {OccurredOn}",
                     domainEvent.GetType().Name, domainEvent.OccurredOn);
 
@@ -44,14 +38,14 @@ public class DomainEventDispatcher : IDomainEventDispatcher
                 // ✅ Gelecekte async işlemler için await hazırlığı
                 await Task.CompletedTask.ConfigureAwait(false);
                 
-                _logger.LogInformation(
+                logger.LogInformation(
                     "Domain event published successfully: {EventType}",
                     domainEvent.GetType().Name);
             }
             catch (Exception ex)
             {
                 // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-                _logger.LogError(ex,
+                logger.LogError(ex,
                     "Error publishing domain event: {EventType}",
                     domainEvent.GetType().Name);
                 throw; // Re-throw - event publish hatası kritik

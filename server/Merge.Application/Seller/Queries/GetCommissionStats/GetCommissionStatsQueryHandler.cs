@@ -13,27 +13,17 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Queries.GetCommissionStats;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetCommissionStatsQueryHandler : IRequestHandler<GetCommissionStatsQuery, CommissionStatsDto>
+public class GetCommissionStatsQueryHandler(IDbContext context, ILogger<GetCommissionStatsQueryHandler> logger) : IRequestHandler<GetCommissionStatsQuery, CommissionStatsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetCommissionStatsQueryHandler> _logger;
-
-    public GetCommissionStatsQueryHandler(
-        IDbContext context,
-        ILogger<GetCommissionStatsQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<CommissionStatsDto> Handle(GetCommissionStatsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting commission stats. SellerId: {SellerId}",
+        logger.LogInformation("Getting commission stats. SellerId: {SellerId}",
             request.SellerId?.ToString() ?? "All");
 
         // ✅ PERFORMANCE: Removed manual !sc.IsDeleted (Global Query Filter)
-        IQueryable<SellerCommission> query = _context.Set<SellerCommission>()
+        IQueryable<SellerCommission> query = context.Set<SellerCommission>()
             .AsNoTracking();
 
         if (request.SellerId.HasValue)

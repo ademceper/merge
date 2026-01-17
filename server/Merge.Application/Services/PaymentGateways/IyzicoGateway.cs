@@ -8,31 +8,22 @@ using Merge.Domain.Modules.Payment;
 
 namespace Merge.Application.Services.PaymentGateways;
 
-public class IyzicoGateway : IPaymentGateway
+public class IyzicoGateway(IConfiguration configuration, ILogger<IyzicoGateway> logger) : IPaymentGateway
 {
     public string GatewayName => "Iyzico";
-    
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<IyzicoGateway> _logger;
-
-    public IyzicoGateway(IConfiguration configuration, ILogger<IyzicoGateway> logger)
-    {
-        _configuration = configuration;
-        _logger = logger;
-    }
 
     public async Task<PaymentGatewayResponseDto> ProcessPaymentAsync(PaymentGatewayRequestDto request)
     {
-        _logger.LogInformation("Iyzico payment processing started for order {OrderNumber}", request.OrderNumber);
+        logger.LogInformation("Iyzico payment processing started for order {OrderNumber}", request.OrderNumber);
         
         // Gerçek implementasyon için Iyzico SDK kullanılacak
         // Şimdilik mock response döndürüyoruz
-        var apiKey = _configuration["PaymentGateways:Iyzico:ApiKey"];
-        var secretKey = _configuration["PaymentGateways:Iyzico:SecretKey"];
+        var apiKey = configuration["PaymentGateways:Iyzico:ApiKey"];
+        var secretKey = configuration["PaymentGateways:Iyzico:SecretKey"];
         
         if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(secretKey))
         {
-            _logger.LogWarning("Iyzico API credentials not configured");
+            logger.LogWarning("Iyzico API credentials not configured");
             return new PaymentGatewayResponseDto
             {
                 Success = false,
@@ -49,7 +40,7 @@ public class IyzicoGateway : IPaymentGateway
         
         var transactionId = $"IYZ_{Guid.NewGuid():N}";
         
-        _logger.LogInformation("Iyzico payment processed successfully. TransactionId: {TransactionId}", transactionId);
+        logger.LogInformation("Iyzico payment processed successfully. TransactionId: {TransactionId}", transactionId);
         
         return new PaymentGatewayResponseDto
         {
@@ -65,14 +56,14 @@ public class IyzicoGateway : IPaymentGateway
 
     public async Task<PaymentGatewayResponseDto> RefundPaymentAsync(string transactionId, decimal amount, string? reason = null)
     {
-        _logger.LogInformation("Iyzico refund processing started. TransactionId: {TransactionId}, Amount: {Amount}", transactionId, amount);
+        logger.LogInformation("Iyzico refund processing started. TransactionId: {TransactionId}, Amount: {Amount}", transactionId, amount);
         
         // Gerçek implementasyon için Iyzico SDK kullanılacak
         await Task.Delay(100); // Simulate API call
         
         var refundTransactionId = $"IYZ_REFUND_{Guid.NewGuid():N}";
         
-        _logger.LogInformation("Iyzico refund processed successfully. RefundTransactionId: {RefundTransactionId}", refundTransactionId);
+        logger.LogInformation("Iyzico refund processed successfully. RefundTransactionId: {RefundTransactionId}", refundTransactionId);
         
         return new PaymentGatewayResponseDto
         {
@@ -90,7 +81,7 @@ public class IyzicoGateway : IPaymentGateway
 
     public async Task<PaymentGatewayStatusDto> GetPaymentStatusAsync(string transactionId)
     {
-        _logger.LogInformation("Iyzico payment status check. TransactionId: {TransactionId}", transactionId);
+        logger.LogInformation("Iyzico payment status check. TransactionId: {TransactionId}", transactionId);
         
         // Gerçek implementasyon için Iyzico SDK kullanılacak
         await Task.Delay(50); // Simulate API call
@@ -112,17 +103,17 @@ public class IyzicoGateway : IPaymentGateway
     public Task<bool> VerifyWebhookAsync(string signature, string payload)
     {
         // ✅ SECURITY FIX: Iyzico webhook signature doğrulama implement edildi
-        var webhookSecret = _configuration["PaymentGateways:Iyzico:WebhookSecret"];
+        var webhookSecret = configuration["PaymentGateways:Iyzico:WebhookSecret"];
 
         if (string.IsNullOrEmpty(webhookSecret))
         {
-            _logger.LogWarning("Iyzico webhook secret not configured - webhook verification skipped");
+            logger.LogWarning("Iyzico webhook secret not configured - webhook verification skipped");
             return Task.FromResult(false);
         }
 
         if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(payload))
         {
-            _logger.LogWarning("Iyzico webhook verification failed - missing signature or payload");
+            logger.LogWarning("Iyzico webhook verification failed - missing signature or payload");
             return Task.FromResult(false);
         }
 
@@ -142,14 +133,14 @@ public class IyzicoGateway : IPaymentGateway
 
             if (!isValid)
             {
-                _logger.LogWarning("Iyzico webhook signature verification failed");
+                logger.LogWarning("Iyzico webhook signature verification failed");
             }
 
             return Task.FromResult(isValid);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Iyzico webhook verification error");
+            logger.LogError(ex, "Iyzico webhook verification error");
             return Task.FromResult(false);
         }
     }

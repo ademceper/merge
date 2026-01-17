@@ -10,11 +10,8 @@ namespace Merge.Infrastructure.Data;
 /// Primary ApplicationDbContext - Identity focused with assembly-wide configuration scanning.
 /// BOLUM 1.1: Modular DbContext (ZORUNLU)
 /// </summary>
-public class ApplicationDbContext : IdentityDbContext<User, Role, Guid>, Merge.Application.Interfaces.IDbContext
+public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<User, Role, Guid>(options), Merge.Application.Interfaces.IDbContext
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
-    {
-    }
 
     // Explicit implementation of IDbContext interface members
     DbSet<User> Merge.Application.Interfaces.IDbContext.Users => base.Users;

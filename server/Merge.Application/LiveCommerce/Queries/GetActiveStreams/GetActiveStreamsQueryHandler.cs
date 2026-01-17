@@ -20,14 +20,15 @@ public class GetActiveStreamsQueryHandler(
     ILogger<GetActiveStreamsQueryHandler> logger,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetActiveStreamsQuery, PagedResult<LiveStreamDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
+
     public async Task<PagedResult<LiveStreamDto>> Handle(GetActiveStreamsQuery request, CancellationToken cancellationToken)
     {
         logger.LogInformation("Getting active streams. Page: {Page}, PageSize: {PageSize}", request.Page, request.PageSize);
 
         var page = request.Page < 1 ? 1 : request.Page;
-        var settings = paginationSettings.Value;
-        var pageSize = request.PageSize > settings.MaxPageSize 
-            ? settings.MaxPageSize 
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize 
+            ? paginationConfig.MaxPageSize 
             : request.PageSize;
 
         var query = context.Set<LiveStream>()

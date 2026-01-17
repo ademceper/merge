@@ -12,61 +12,47 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 
 namespace Merge.Application.Services.User;
 
-public class AddressService : IAddressService
+public class AddressService(
+    IRepository addressRepository,
+    IDbContext context, // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)
+    IMapper mapper,
+    IUnitOfWork unitOfWork,
+    ILogger<AddressService> logger) : IAddressService
 {
-    private readonly IRepository _addressRepository;
-    private readonly IDbContext _context; // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)
-    private readonly IMapper _mapper;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<AddressService> _logger;
-
-    public AddressService(
-        IRepository addressRepository,
-        IDbContext context, // ✅ BOLUM 1.0: IDbContext kullan (Clean Architecture)
-        IMapper mapper,
-        IUnitOfWork unitOfWork,
-        ILogger<AddressService> logger)
-    {
-        _addressRepository = addressRepository;
-        _context = context;
-        _mapper = mapper;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<AddressDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Retrieving address with ID: {AddressId}", id);
+        logger.LogInformation("Retrieving address with ID: {AddressId}", id);
 
-        var address = await _context.Set<AddressEntity>()
+        var address = await context.Set<AddressEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (address == null)
         {
-            _logger.LogWarning("Address not found with ID: {AddressId}", id);
+            logger.LogWarning("Address not found with ID: {AddressId}", id);
             return null;
         }
 
-        return _mapper.Map<AddressDto>(address);
+        return mapper.Map<AddressDto>(address);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<AddressDto>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Retrieving addresses for user ID: {UserId}", userId);
+        logger.LogInformation("Retrieving addresses for user ID: {UserId}", userId);
 
-        var addresses = await _context.Set<AddressEntity>()
+        var addresses = await context.Set<AddressEntity>()
             .AsNoTracking()
             .Where(a => a.UserId == userId)
             .OrderByDescending(a => a.IsDefault)
             .ThenByDescending(a => a.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        _logger.LogInformation("Found {Count} addresses for user ID: {UserId}", addresses.Count, userId);
+        logger.LogInformation("Found {Count} addresses for user ID: {UserId}", addresses.Count, userId);
 
-        return _mapper.Map<IEnumerable<AddressDto>>(addresses);
+        return mapper.Map<IEnumerable<AddressDto>>(addresses);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -87,13 +73,13 @@ public class AddressService : IAddressService
             throw new ValidationException("Şehir boş olamaz.");
         }
 
-        _logger.LogInformation("Creating new address for user ID: {UserId}", dto.UserId);
+        logger.LogInformation("Creating new address for user ID: {UserId}", dto.UserId);
 
         // Eğer default olarak işaretleniyorsa, diğer adreslerin default'unu kaldır
         if (dto.IsDefault)
         {
             // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-            var existingDefaults = await _context.Set<AddressEntity>()
+            var existingDefaults = await context.Set<AddressEntity>()
                 .Where(a => a.UserId == dto.UserId && a.IsDefault)
                 .ToListAsync(cancellationToken);
 
@@ -104,7 +90,7 @@ public class AddressService : IAddressService
 
             if (existingDefaults.Any())
             {
-                _logger.LogInformation("Removed default flag from {Count} existing addresses", existingDefaults.Count);
+                logger.LogInformation("Removed default flag from {Count} existing addresses", existingDefaults.Count);
             }
         }
 
@@ -123,12 +109,12 @@ public class AddressService : IAddressService
             addressLine2: dto.AddressLine2,
             isDefault: dto.IsDefault);
         
-        address = await _addressRepository.AddAsync(address, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        address = await addressRepository.AddAsync(address, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Address created successfully with ID: {AddressId}", address.Id);
+        logger.LogInformation("Address created successfully with ID: {AddressId}", address.Id);
 
-        return _mapper.Map<AddressDto>(address);
+        return mapper.Map<AddressDto>(address);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -149,12 +135,12 @@ public class AddressService : IAddressService
             throw new ValidationException("Şehir boş olamaz.");
         }
 
-        _logger.LogInformation("Updating address with ID: {AddressId}", id);
+        logger.LogInformation("Updating address with ID: {AddressId}", id);
 
-        var address = await _addressRepository.GetByIdAsync(id, cancellationToken);
+        var address = await addressRepository.GetByIdAsync(id, cancellationToken);
         if (address == null)
         {
-            _logger.LogWarning("Address not found for update with ID: {AddressId}", id);
+            logger.LogWarning("Address not found for update with ID: {AddressId}", id);
             throw new NotFoundException("Adres", id);
         }
 
@@ -162,7 +148,7 @@ public class AddressService : IAddressService
         if (dto.IsDefault && !address.IsDefault)
         {
             // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-            var existingDefaults = await _context.Set<AddressEntity>()
+            var existingDefaults = await context.Set<AddressEntity>()
                 .Where(a => a.UserId == address.UserId && a.Id != id && a.IsDefault)
                 .ToListAsync(cancellationToken);
 
@@ -173,7 +159,7 @@ public class AddressService : IAddressService
 
             if (existingDefaults.Any())
             {
-                _logger.LogInformation("Removed default flag from {Count} existing addresses", existingDefaults.Count);
+                logger.LogInformation("Removed default flag from {Count} existing addresses", existingDefaults.Count);
             }
         }
 
@@ -200,30 +186,30 @@ public class AddressService : IAddressService
             address.RemoveDefault(); // ✅ BOLUM 11.0: Rich Domain Model - Domain method kullan
         }
 
-        await _addressRepository.UpdateAsync(address, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await addressRepository.UpdateAsync(address, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Address updated successfully with ID: {AddressId}", id);
+        logger.LogInformation("Address updated successfully with ID: {AddressId}", id);
 
-        return _mapper.Map<AddressDto>(address);
+        return mapper.Map<AddressDto>(address);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Deleting address with ID: {AddressId}", id);
+        logger.LogInformation("Deleting address with ID: {AddressId}", id);
 
-        var address = await _addressRepository.GetByIdAsync(id, cancellationToken);
+        var address = await addressRepository.GetByIdAsync(id, cancellationToken);
         if (address == null)
         {
-            _logger.LogWarning("Address not found for deletion with ID: {AddressId}", id);
+            logger.LogWarning("Address not found for deletion with ID: {AddressId}", id);
             return false;
         }
 
-        await _addressRepository.DeleteAsync(address, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await addressRepository.DeleteAsync(address, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Address deleted successfully with ID: {AddressId}", id);
+        logger.LogInformation("Address deleted successfully with ID: {AddressId}", id);
 
         return true;
     }
@@ -231,20 +217,20 @@ public class AddressService : IAddressService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> SetDefaultAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Setting address {AddressId} as default for user {UserId}", id, userId);
+        logger.LogInformation("Setting address {AddressId} as default for user {UserId}", id, userId);
 
-        var address = await _context.Set<AddressEntity>()
+        var address = await context.Set<AddressEntity>()
             .FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId, cancellationToken);
 
         if (address == null)
         {
-            _logger.LogWarning("Address not found with ID: {AddressId} for user: {UserId}", id, userId);
+            logger.LogWarning("Address not found with ID: {AddressId} for user: {UserId}", id, userId);
             return false;
         }
 
         // Diğer adreslerin default'unu kaldır
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-        var existingDefaults = await _context.Set<AddressEntity>()
+        var existingDefaults = await context.Set<AddressEntity>()
             .Where(a => a.UserId == userId && a.Id != id && a.IsDefault)
             .ToListAsync(cancellationToken);
 
@@ -255,10 +241,10 @@ public class AddressService : IAddressService
 
         address.SetAsDefault(); // ✅ BOLUM 11.0: Rich Domain Model - Domain method kullan
 
-        await _addressRepository.UpdateAsync(address, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await addressRepository.UpdateAsync(address, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Address {AddressId} set as default successfully. Cleared {Count} previous defaults", id, existingDefaults.Count);
+        logger.LogInformation("Address {AddressId} set as default successfully. Cleared {Count} previous defaults", id, existingDefaults.Count);
 
         return true;
     }

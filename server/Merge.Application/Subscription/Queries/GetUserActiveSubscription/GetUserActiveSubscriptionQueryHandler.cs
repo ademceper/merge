@@ -15,26 +15,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Subscription.Queries.GetUserActiveSubscription;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetUserActiveSubscriptionQueryHandler : IRequestHandler<GetUserActiveSubscriptionQuery, UserSubscriptionDto?>
+public class GetUserActiveSubscriptionQueryHandler(IDbContext context, IMapper mapper, ILogger<GetUserActiveSubscriptionQueryHandler> logger) : IRequestHandler<GetUserActiveSubscriptionQuery, UserSubscriptionDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetUserActiveSubscriptionQueryHandler> _logger;
-
-    public GetUserActiveSubscriptionQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetUserActiveSubscriptionQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<UserSubscriptionDto?> Handle(GetUserActiveSubscriptionQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query
-        var subscription = await _context.Set<UserSubscription>()
+        var subscription = await context.Set<UserSubscription>()
             .AsNoTracking()
             .Include(us => us.User)
             .Include(us => us.SubscriptionPlan)
@@ -50,20 +37,20 @@ public class GetUserActiveSubscriptionQueryHandler : IRequestHandler<GetUserActi
         }
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var dto = _mapper.Map<UserSubscriptionDto>(subscription);
+        var dto = mapper.Map<UserSubscriptionDto>(subscription);
         dto.DaysRemaining = subscription.EndDate > DateTime.UtcNow
             ? (int)(subscription.EndDate - DateTime.UtcNow).TotalDays
             : 0;
 
         // ✅ PERFORMANCE: Batch load recent payments
-        var recentPayments = await _context.Set<SubscriptionPayment>()
+        var recentPayments = await context.Set<SubscriptionPayment>()
             .AsNoTracking()
             .Where(p => p.UserSubscriptionId == subscription.Id)
             .OrderByDescending(p => p.CreatedAt)
             .Take(5)
             .ToListAsync(cancellationToken);
 
-        dto.RecentPayments = _mapper.Map<List<SubscriptionPaymentDto>>(recentPayments);
+        dto.RecentPayments = mapper.Map<List<SubscriptionPaymentDto>>(recentPayments);
 
         return dto;
     }

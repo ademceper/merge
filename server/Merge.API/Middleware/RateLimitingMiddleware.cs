@@ -3,10 +3,9 @@ using System.Net;
 
 namespace Merge.API.Middleware;
 
-public class RateLimitingMiddleware
+public class RateLimitingMiddleware(RequestDelegate next, ILogger<RateLimitingMiddleware> logger)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<RateLimitingMiddleware> _logger;
+
     private static readonly ConcurrentDictionary<string, ClientRequestInfo> _clientRequests = new();
 
     // ✅ MEMORY LEAK FIX: Cleanup interval and last cleanup time
@@ -14,12 +13,6 @@ public class RateLimitingMiddleware
     private static readonly TimeSpan StaleEntryThreshold = TimeSpan.FromMinutes(10);
     private static DateTime _lastCleanup = DateTime.UtcNow;
     private static readonly object _cleanupLock = new();
-
-    public RateLimitingMiddleware(RequestDelegate next, ILogger<RateLimitingMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -61,7 +54,7 @@ public class RateLimitingMiddleware
                 context.Response.Headers["Retry-After"] = rateLimitAttribute.TimeWindow.TotalSeconds.ToString();
 
                 // ✅ LOGGING FIX: Structured logging kullan (string interpolation yerine)
-                _logger.LogWarning("Rate limit exceeded for client {ClientId}. Endpoint: {Endpoint}",
+                logger.LogWarning("Rate limit exceeded for client {ClientId}. Endpoint: {Endpoint}",
                     clientId, context.Request.Path);
 
                 await context.Response.WriteAsJsonAsync(new
@@ -75,7 +68,7 @@ public class RateLimitingMiddleware
             }
         }
 
-        await _next(context);
+        await next(context);
     }
 
     // ✅ MEMORY LEAK FIX: Cleanup stale entries periodically
@@ -111,7 +104,7 @@ public class RateLimitingMiddleware
 
             if (staleKeys.Count > 0)
             {
-                _logger.LogDebug("Rate limiter cleanup: Removed {Count} stale entries. Current entries: {Total}",
+                logger.LogDebug("Rate limiter cleanup: Removed {Count} stale entries. Current entries: {Total}",
                     staleKeys.Count, _clientRequests.Count);
             }
         }

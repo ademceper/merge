@@ -20,50 +20,32 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Search.Queries.GetPersonalizedRecommendations;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetPersonalizedRecommendationsQueryHandler : IRequestHandler<GetPersonalizedRecommendationsQuery, IReadOnlyList<ProductRecommendationDto>>
+public class GetPersonalizedRecommendationsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetPersonalizedRecommendationsQueryHandler> logger, IMediator mediator, IOptions<SearchSettings> searchSettings) : IRequestHandler<GetPersonalizedRecommendationsQuery, IReadOnlyList<ProductRecommendationDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetPersonalizedRecommendationsQueryHandler> _logger;
-    private readonly IMediator _mediator;
-    private readonly SearchSettings _searchSettings;
-
-    public GetPersonalizedRecommendationsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetPersonalizedRecommendationsQueryHandler> logger,
-        IMediator mediator,
-        IOptions<SearchSettings> searchSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _mediator = mediator;
-        _searchSettings = searchSettings.Value;
-    }
+    private readonly SearchSettings searchConfig = searchSettings.Value;
 
     public async Task<IReadOnlyList<ProductRecommendationDto>> Handle(GetPersonalizedRecommendationsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Personalized recommendations isteniyor. UserId: {UserId}, MaxResults: {MaxResults}",
             request.UserId, request.MaxResults);
 
-        var maxResults = request.MaxResults > _searchSettings.MaxRecommendationResults
-            ? _searchSettings.MaxRecommendationResults
+        var maxResults = request.MaxResults > searchConfig.MaxRecommendationResults
+            ? searchConfig.MaxRecommendationResults
             : request.MaxResults;
 
         // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         var userOrders = await (
-            from o in _context.Set<OrderEntity>().AsNoTracking()
-            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
-            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            from o in context.Set<OrderEntity>().AsNoTracking()
+            join oi in context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
             where o.UserId == request.UserId
             select p.CategoryId
         ).Distinct().ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Single Include, AsSplitQuery not needed but keeping for consistency
-        var wishlistCategories = await _context.Set<Wishlist>()
+        var wishlistCategories = await context.Set<Wishlist>()
             .AsNoTracking()
             .Include(w => w.Product)
             .Where(w => w.UserId == request.UserId)
@@ -77,24 +59,24 @@ public class GetPersonalizedRecommendationsQueryHandler : IRequestHandler<GetPer
         {
             // If no history, return trending products
             var trendingQuery = new GetTrendingProducts.GetTrendingProductsQuery(
-                Days: _searchSettings.DefaultTrendingDays,
+                Days: searchConfig.DefaultTrendingDays,
                 MaxResults: maxResults);
-            return await _mediator.Send(trendingQuery, cancellationToken);
+            return await mediator.Send(trendingQuery, cancellationToken);
         }
 
         // Get highly rated products from preferred categories
-        var recommendations = await _context.Set<ProductEntity>()
+        var recommendations = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive &&
                        preferredCategories.Contains(p.CategoryId) &&
-                       p.Rating >= _searchSettings.MinRatingForPersonalizedRecommendations)
+                       p.Rating >= searchConfig.MinRatingForPersonalizedRecommendations)
             .OrderByDescending(p => p.Rating)
             .ThenByDescending(p => p.ReviewCount)
             .Take(maxResults)
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var recommendationDtos = _mapper.Map<IEnumerable<ProductRecommendationDto>>(recommendations)
+        var recommendationDtos = mapper.Map<IEnumerable<ProductRecommendationDto>>(recommendations)
             .Select(rec => new ProductRecommendationDto(
                 rec.ProductId,
                 rec.Name,
@@ -110,7 +92,7 @@ public class GetPersonalizedRecommendationsQueryHandler : IRequestHandler<GetPer
             .ToList();
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Personalized recommendations tamamlandı. UserId: {UserId}, Count: {Count}",
             request.UserId, recommendationDtos.Count);
 

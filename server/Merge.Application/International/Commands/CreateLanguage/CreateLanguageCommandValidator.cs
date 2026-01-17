@@ -4,15 +4,11 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.CreateLanguage;
 
-public class CreateLanguageCommandValidator : AbstractValidator<CreateLanguageCommand>
+public class CreateLanguageCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<CreateLanguageCommand>
 {
-    private readonly InternationalSettings config;
-
-    public CreateLanguageCommandValidator(IOptions<InternationalSettings> settings)
-    {
-        config = settings.Value;
+    private readonly InternationalSettings config = settings.Value;
         
-
+    public CreateLanguageCommandValidator() : this(Options.Create(new InternationalSettings())){
         RuleFor(x => x.Code)
             .NotEmpty().WithMessage("Dil kodu zorunludur.")
             .Length(config.MinLanguageCodeLength, config.MaxLanguageCodeLength)

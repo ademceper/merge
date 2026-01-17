@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
@@ -17,55 +18,42 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Product.Queries.GetUserComparisons;
 
-public class GetUserComparisonsQueryHandler : IRequestHandler<GetUserComparisonsQuery, PagedResult<ProductComparisonDto>>
+public class GetUserComparisonsQueryHandler(
+    IDbContext context,
+    ILogger<GetUserComparisonsQueryHandler> logger,
+    ICacheService cache,
+    IOptions<PaginationSettings> paginationSettings,
+    IOptions<CacheSettings> cacheSettings,
+    IMapper mapper) : IRequestHandler<GetUserComparisonsQuery, PagedResult<ProductComparisonDto>>
 {
-    private readonly IDbContext _context;
-    private readonly AutoMapper.IMapper _mapper;
-    private readonly ILogger<GetUserComparisonsQueryHandler> _logger;
-    private readonly ICacheService _cache;
-    private readonly PaginationSettings _paginationSettings;
-    private readonly CacheSettings _cacheSettings;
-    private const string CACHE_KEY_USER_COMPARISONS = "user_comparisons_";
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
+    private readonly CacheSettings cacheConfig = cacheSettings.Value;
 
-    public GetUserComparisonsQueryHandler(
-        IDbContext context,
-        AutoMapper.IMapper mapper,
-        ILogger<GetUserComparisonsQueryHandler> logger,
-        ICacheService cache,
-        IOptions<PaginationSettings> paginationSettings,
-        IOptions<CacheSettings> cacheSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _cache = cache;
-        _paginationSettings = paginationSettings.Value;
-        _cacheSettings = cacheSettings.Value;
-    }
+    private const string CACHE_KEY_USER_COMPARISONS = "user_comparisons_";
 
     public async Task<PagedResult<ProductComparisonDto>> Handle(GetUserComparisonsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching user comparisons. UserId: {UserId}, Page: {Page}, PageSize: {PageSize}, SavedOnly: {SavedOnly}",
+        logger.LogInformation("Fetching user comparisons. UserId: {UserId}, Page: {Page}, PageSize: {PageSize}, SavedOnly: {SavedOnly}",
             request.UserId, request.Page, request.PageSize, request.SavedOnly);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic number YASAK - Config kullan (ZORUNLU)
         var page = request.Page < 1 ? 1 : request.Page;
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize
-            ? _paginationSettings.MaxPageSize
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize
+            ? paginationConfig.MaxPageSize
             : request.PageSize;
 
         var cacheKey = $"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_{request.SavedOnly}_{page}_{pageSize}";
 
         // ✅ BOLUM 10.2: Redis distributed cache
-        var cachedResult = await _cache.GetOrCreateAsync(
+        var cachedResult = await cache.GetOrCreateAsync(
             cacheKey,
             async () =>
             {
-                _logger.LogInformation("Cache miss for user comparisons. Fetching from database.");
+                logger.LogInformation("Cache miss for user comparisons. Fetching from database.");
 
                 // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
-                var query = _context.Set<ProductComparison>()
+                var query = context.Set<ProductComparison>()
                     .AsNoTracking()
                     .AsSplitQuery()
                     .Include(c => c.Items)
@@ -100,7 +88,7 @@ public class GetUserComparisonsQueryHandler : IRequestHandler<GetUserComparisons
                     PageSize = pageSize
                 };
             },
-            TimeSpan.FromMinutes(_cacheSettings.ProductComparisonCacheExpirationMinutes),
+            TimeSpan.FromMinutes(cacheConfig.ProductComparisonCacheExpirationMinutes),
             cancellationToken);
 
         return cachedResult!;
@@ -109,7 +97,7 @@ public class GetUserComparisonsQueryHandler : IRequestHandler<GetUserComparisons
     private async Task<ProductComparisonDto> MapToDto(ProductComparison comparison, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
-        var itemsQuery = _context.Set<ProductComparisonItem>()
+        var itemsQuery = context.Set<ProductComparisonItem>()
             .AsNoTracking()
             .Where(i => i.ComparisonId == comparison.Id)
             .OrderBy(i => i.Position);
@@ -123,7 +111,7 @@ public class GetUserComparisonsQueryHandler : IRequestHandler<GetUserComparisons
         // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var productIdsSubquery = from i in itemsQuery select i.ProductId;
         Dictionary<Guid, (decimal Rating, int Count)> reviewsDict;
-        var reviews = await _context.Set<ReviewEntity>()
+        var reviews = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => productIdsSubquery.Contains(r.ProductId))
             .GroupBy(r => r.ProductId)
@@ -141,7 +129,7 @@ public class GetUserComparisonsQueryHandler : IRequestHandler<GetUserComparisons
         foreach (var item in items)
         {
             var hasReviewStats = reviewsDict.TryGetValue(item.ProductId, out var stats);
-            var compProduct = _mapper.Map<ComparisonProductDto>(item.Product);
+            var compProduct = mapper.Map<ComparisonProductDto>(item.Product);
             compProduct = compProduct with
             {
                 Position = item.Position,
@@ -153,7 +141,7 @@ public class GetUserComparisonsQueryHandler : IRequestHandler<GetUserComparisons
             products.Add(compProduct);
         }
 
-        var comparisonDto = _mapper.Map<ProductComparisonDto>(comparison);
+        var comparisonDto = mapper.Map<ProductComparisonDto>(comparison);
         comparisonDto = comparisonDto with { Products = products.AsReadOnly() };
         return comparisonDto;
     }

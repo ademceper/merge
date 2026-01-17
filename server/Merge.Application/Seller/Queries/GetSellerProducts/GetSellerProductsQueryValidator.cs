@@ -5,11 +5,12 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Seller.Queries.GetSellerProducts;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetSellerProductsQueryValidator : AbstractValidator<GetSellerProductsQuery>
+public class GetSellerProductsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetSellerProductsQuery>
 {
-    public GetSellerProductsQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    private readonly PaginationSettings settings = paginationSettings.Value;
+
+    public GetSellerProductsQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
-        var settings = paginationSettings.Value;
 
         RuleFor(x => x.SellerId)
             .NotEmpty().WithMessage("Seller ID is required.");

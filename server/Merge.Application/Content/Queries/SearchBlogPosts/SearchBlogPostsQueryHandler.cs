@@ -23,12 +23,14 @@ public class SearchBlogPostsQueryHandler(
     ILogger<SearchBlogPostsQueryHandler> logger,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<SearchBlogPostsQuery, PagedResult<BlogPostDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
+
     public async Task<PagedResult<BlogPostDto>> Handle(SearchBlogPostsQuery request, CancellationToken cancellationToken)
     {
         logger.LogInformation("Searching blog posts. Query: {Query}, Page: {Page}, PageSize: {PageSize}",
             request.Query, request.Page, request.PageSize);
 
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)

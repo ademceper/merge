@@ -14,29 +14,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Review.Queries.GetProductBadges;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetProductBadgesQueryHandler : IRequestHandler<GetProductBadgesQuery, IEnumerable<ProductTrustBadgeDto>>
+public class GetProductBadgesQueryHandler(IDbContext context, IMapper mapper, ILogger<GetProductBadgesQueryHandler> logger) : IRequestHandler<GetProductBadgesQuery, IEnumerable<ProductTrustBadgeDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetProductBadgesQueryHandler> _logger;
-
-    public GetProductBadgesQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetProductBadgesQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<IEnumerable<ProductTrustBadgeDto>> Handle(GetProductBadgesQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching product badges. ProductId: {ProductId}", request.ProductId);
+        logger.LogInformation("Fetching product badges. ProductId: {ProductId}", request.ProductId);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !ptb.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        var badges = await _context.Set<ProductTrustBadge>()
+        var badges = await context.Set<ProductTrustBadge>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(ptb => ptb.TrustBadge)
@@ -46,6 +33,6 @@ public class GetProductBadgesQueryHandler : IRequestHandler<GetProductBadgesQuer
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<ProductTrustBadgeDto>>(badges);
+        return mapper.Map<IEnumerable<ProductTrustBadgeDto>>(badges);
     }
 }

@@ -14,22 +14,14 @@ namespace Merge.Application.Order.EventHandlers;
 /// Return Request Completed Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class ReturnRequestCompletedEventHandler : INotificationHandler<ReturnRequestCompletedEvent>
+public class ReturnRequestCompletedEventHandler(ILogger<ReturnRequestCompletedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<ReturnRequestCompletedEvent>
 {
-    private readonly ILogger<ReturnRequestCompletedEventHandler> _logger;
+    
     private readonly INotificationService? _notificationService;
-
-    public ReturnRequestCompletedEventHandler(
-        ILogger<ReturnRequestCompletedEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(ReturnRequestCompletedEvent notification, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Return request completed event received. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, UserId: {UserId}, TrackingNumber: {TrackingNumber}, CompletedAt: {CompletedAt}",
             notification.ReturnRequestId, notification.OrderId, notification.UserId, notification.TrackingNumber ?? "N/A", notification.CompletedAt);
 
@@ -55,7 +47,7 @@ public class ReturnRequestCompletedEventHandler : INotificationHandler<ReturnReq
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling ReturnRequestCompletedEvent. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, UserId: {UserId}",
                 notification.ReturnRequestId, notification.OrderId, notification.UserId);
             throw;

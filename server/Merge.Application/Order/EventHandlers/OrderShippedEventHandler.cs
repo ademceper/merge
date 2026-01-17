@@ -14,22 +14,14 @@ namespace Merge.Application.Order.EventHandlers;
 /// Order Shipped Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class OrderShippedEventHandler : INotificationHandler<OrderShippedEvent>
+public class OrderShippedEventHandler(ILogger<OrderShippedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<OrderShippedEvent>
 {
-    private readonly ILogger<OrderShippedEventHandler> _logger;
+    
     private readonly INotificationService? _notificationService;
-
-    public OrderShippedEventHandler(
-        ILogger<OrderShippedEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(OrderShippedEvent notification, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Order shipped event received. OrderId: {OrderId}, UserId: {UserId}, ShippedDate: {ShippedDate}",
             notification.OrderId, notification.UserId, notification.ShippedDate);
 
@@ -54,7 +46,7 @@ public class OrderShippedEventHandler : INotificationHandler<OrderShippedEvent>
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling OrderShippedEvent. OrderId: {OrderId}, UserId: {UserId}",
                 notification.OrderId, notification.UserId);
             throw;

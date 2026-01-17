@@ -16,29 +16,13 @@ namespace Merge.Application.Notification.Commands.CreateTemplate;
 /// <summary>
 /// Create Template Command Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class CreateTemplateCommandHandler : IRequestHandler<CreateTemplateCommand, NotificationTemplateDto>
+public class CreateTemplateCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateTemplateCommandHandler> logger) : IRequestHandler<CreateTemplateCommand, NotificationTemplateDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateTemplateCommandHandler> _logger;
-
-    public CreateTemplateCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateTemplateCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<NotificationTemplateDto> Handle(CreateTemplateCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Notification template oluşturuluyor. Name: {Name}, Type: {Type}",
             request.Dto.Name, request.Dto.Type);
 
@@ -54,17 +38,17 @@ public class CreateTemplateCommandHandler : IRequestHandler<CreateTemplateComman
             request.Dto.Variables != null ? JsonSerializer.Serialize(request.Dto.Variables) : null,
             request.Dto.DefaultData != null ? JsonSerializer.Serialize(request.Dto.DefaultData) : null);
 
-        await _context.Set<NotificationTemplate>().AddAsync(template, cancellationToken);
+        await context.Set<NotificationTemplate>().AddAsync(template, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Notification template oluşturuldu. TemplateId: {TemplateId}, Name: {Name}",
             template.Id, request.Dto.Name);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<NotificationTemplateDto>(template);
+        return mapper.Map<NotificationTemplateDto>(template);
     }
 }

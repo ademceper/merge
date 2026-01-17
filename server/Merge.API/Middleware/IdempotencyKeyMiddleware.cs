@@ -10,28 +10,15 @@ namespace Merge.API.Middleware;
 /// Idempotency Key Middleware
 /// HIGH-API-002: Idempotency Keys - Prevents duplicate processing of POST/PUT requests
 /// </summary>
-public class IdempotencyKeyMiddleware
+public class IdempotencyKeyMiddleware(RequestDelegate next, ILogger<IdempotencyKeyMiddleware> logger, IDistributedCache cache)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<IdempotencyKeyMiddleware> _logger;
-    private readonly IDistributedCache _cache;
-
-    public IdempotencyKeyMiddleware(
-        RequestDelegate next,
-        ILogger<IdempotencyKeyMiddleware> logger,
-        IDistributedCache cache)
-    {
-        _next = next;
-        _logger = logger;
-        _cache = cache;
-    }
 
     public async Task InvokeAsync(HttpContext context)
     {
         // Only process POST, PUT, PATCH requests
         if (!IsIdempotentMethod(context.Request.Method))
         {
-            await _next(context);
+            await next(context);
             return;
         }
 
@@ -40,14 +27,14 @@ public class IdempotencyKeyMiddleware
         // If no idempotency key provided, continue (optional for now)
         if (string.IsNullOrWhiteSpace(idempotencyKey))
         {
-            await _next(context);
+            await next(context);
             return;
         }
 
         // Validate idempotency key format (should be GUID or UUID)
         if (!Guid.TryParse(idempotencyKey, out _))
         {
-            _logger.LogWarning("Invalid idempotency key format. Key: {Key}", idempotencyKey);
+            logger.LogWarning("Invalid idempotency key format. Key: {Key}", idempotencyKey);
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             await context.Response.WriteAsync(JsonSerializer.Serialize(new
             {
@@ -61,11 +48,11 @@ public class IdempotencyKeyMiddleware
 
         // Check if this request was already processed
         var cacheKey = $"idempotency:{idempotencyKey}";
-        var cachedResponse = await _cache.GetStringAsync(cacheKey);
+        var cachedResponse = await cache.GetStringAsync(cacheKey);
 
             if (!string.IsNullOrEmpty(cachedResponse))
         {
-            _logger.LogInformation("Idempotent request detected. Key: {Key}", idempotencyKey);
+            logger.LogInformation("Idempotent request detected. Key: {Key}", idempotencyKey);
             
             // Return cached response
             var cachedData = JsonSerializer.Deserialize<IdempotencyResponse>(cachedResponse);
@@ -92,7 +79,7 @@ public class IdempotencyKeyMiddleware
 
         try
         {
-            await _next(context);
+            await next(context);
 
             // Capture response
             responseBody.Seek(0, SeekOrigin.Begin);
@@ -117,7 +104,7 @@ public class IdempotencyKeyMiddleware
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) // Cache for 24 hours
                 };
 
-                await _cache.SetStringAsync(
+                await cache.SetStringAsync(
                     cacheKey,
                     JsonSerializer.Serialize(responseData),
                     cacheOptions);

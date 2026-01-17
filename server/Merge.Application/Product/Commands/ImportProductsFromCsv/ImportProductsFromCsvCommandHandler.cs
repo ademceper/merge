@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Merge.Application.DTOs.Product;
 using Merge.Application.Interfaces;
@@ -17,35 +18,22 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Product.Commands.ImportProductsFromCsv;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class ImportProductsFromCsvCommandHandler : IRequestHandler<ImportProductsFromCsvCommand, BulkProductImportResultDto>
+public class ImportProductsFromCsvCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<ImportProductsFromCsvCommandHandler> logger,
+    ICacheService cache,
+    IMapper mapper) : IRequestHandler<ImportProductsFromCsvCommand, BulkProductImportResultDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly AutoMapper.IMapper _mapper;
-    private readonly ILogger<ImportProductsFromCsvCommandHandler> _logger;
-    private readonly ICacheService _cache;
+
     private const string CACHE_KEY_PRODUCT_BY_ID = "product_";
     private const string CACHE_KEY_ALL_PRODUCTS_PAGED = "products_all_paged";
     private const string CACHE_KEY_PRODUCTS_BY_CATEGORY = "products_by_category_";
     private const string CACHE_KEY_PRODUCTS_SEARCH = "products_search_";
 
-    public ImportProductsFromCsvCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        AutoMapper.IMapper mapper,
-        ILogger<ImportProductsFromCsvCommandHandler> logger,
-        ICacheService cache)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _cache = cache;
-    }
-
     public async Task<BulkProductImportResultDto> Handle(ImportProductsFromCsvCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("CSV bulk import başlatıldı");
+        logger.LogInformation("CSV bulk import başlatıldı");
 
         // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
         var errors = new List<string>();
@@ -58,7 +46,7 @@ public class ImportProductsFromCsvCommandHandler : IRequestHandler<ImportProduct
         // Skip header line
         await reader.ReadLineAsync();
 
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             while (!reader.EndOfStream && !cancellationToken.IsCancellationRequested)
@@ -96,7 +84,7 @@ public class ImportProductsFromCsvCommandHandler : IRequestHandler<ImportProduct
                     if (product != null)
                     {
                         successCount++;
-                        var importedProductDto = _mapper.Map<ProductDto>(product);
+                        var importedProductDto = mapper.Map<ProductDto>(product);
                         importedProducts.Add(importedProductDto);
                     }
                     else
@@ -109,19 +97,19 @@ public class ImportProductsFromCsvCommandHandler : IRequestHandler<ImportProduct
                 {
                     failureCount++;
                     errors.Add($"Line {totalProcessed}: {ex.Message}");
-                    _logger.LogWarning(ex, "CSV import hatası. Line: {Line}", totalProcessed);
+                    logger.LogWarning(ex, "CSV import hatası. Line: {Line}", totalProcessed);
                 }
             }
 
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             // ✅ BOLUM 10.2: Cache invalidation - Bulk import sonrası tüm product cache'lerini invalidate et
             // Note: Pattern-based invalidation gerektirir. Şimdilik tüm product cache'lerini invalidate ediyoruz
-            await _cache.RemoveAsync(CACHE_KEY_ALL_PRODUCTS_PAGED, cancellationToken);
-            await _cache.RemoveAsync(CACHE_KEY_PRODUCTS_SEARCH, cancellationToken);
+            await cache.RemoveAsync(CACHE_KEY_ALL_PRODUCTS_PAGED, cancellationToken);
+            await cache.RemoveAsync(CACHE_KEY_PRODUCTS_SEARCH, cancellationToken);
             // Category-based cache'ler pattern-based invalidation gerektirir, şimdilik expiration'a güveniyoruz
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "CSV bulk import tamamlandı. TotalProcessed: {TotalProcessed}, SuccessCount: {SuccessCount}, FailureCount: {FailureCount}",
                 totalProcessed, successCount, failureCount);
 
@@ -136,8 +124,8 @@ public class ImportProductsFromCsvCommandHandler : IRequestHandler<ImportProduct
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during CSV bulk import");
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Error during CSV bulk import");
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }
@@ -145,23 +133,23 @@ public class ImportProductsFromCsvCommandHandler : IRequestHandler<ImportProduct
     private async Task<ProductEntity?> ImportSingleProductAsync(BulkProductImportDto dto, CancellationToken cancellationToken)
     {
         // Check if SKU already exists
-        var existingProduct = await _context.Set<ProductEntity>()
+        var existingProduct = await context.Set<ProductEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.SKU == dto.SKU, cancellationToken);
 
         if (existingProduct != null)
         {
-            _logger.LogWarning("SKU already exists: {SKU}", dto.SKU);
+            logger.LogWarning("SKU already exists: {SKU}", dto.SKU);
             return null;
         }
 
-        var category = await _context.Set<Category>()
+        var category = await context.Set<Category>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Name == dto.CategoryName, cancellationToken);
 
         if (category == null)
         {
-            _logger.LogWarning("Category not found: {CategoryName}", dto.CategoryName);
+            logger.LogWarning("Category not found: {CategoryName}", dto.CategoryName);
             return null;
         }
 
@@ -192,8 +180,8 @@ public class ImportProductsFromCsvCommandHandler : IRequestHandler<ImportProduct
             product.Deactivate();
         }
 
-        await _context.Set<ProductEntity>().AddAsync(product, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<ProductEntity>().AddAsync(product, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return product;
     }

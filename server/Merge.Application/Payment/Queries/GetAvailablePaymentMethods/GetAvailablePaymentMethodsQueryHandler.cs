@@ -14,29 +14,16 @@ namespace Merge.Application.Payment.Queries.GetAvailablePaymentMethods;
 
 // BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullaniyor (Service layer bypass)
-public class GetAvailablePaymentMethodsQueryHandler : IRequestHandler<GetAvailablePaymentMethodsQuery, IEnumerable<PaymentMethodDto>>
+public class GetAvailablePaymentMethodsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAvailablePaymentMethodsQueryHandler> logger) : IRequestHandler<GetAvailablePaymentMethodsQuery, IEnumerable<PaymentMethodDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetAvailablePaymentMethodsQueryHandler> _logger;
-
-    public GetAvailablePaymentMethodsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetAvailablePaymentMethodsQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<IEnumerable<PaymentMethodDto>> Handle(GetAvailablePaymentMethodsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Retrieving available payment methods. OrderAmount: {OrderAmount}", request.OrderAmount);
+        logger.LogInformation("Retrieving available payment methods. OrderAmount: {OrderAmount}", request.OrderAmount);
 
         // ✅ PERFORMANCE: AsNoTracking for read-only query
         // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan (IsAmountValid)
-        var methods = await _context.Set<PaymentMethod>()
+        var methods = await context.Set<PaymentMethod>()
             .AsNoTracking()
             .Where(pm => pm.IsActive &&
                   (!pm.MinimumAmount.HasValue || request.OrderAmount >= pm.MinimumAmount.Value) &&
@@ -47,6 +34,6 @@ public class GetAvailablePaymentMethodsQueryHandler : IRequestHandler<GetAvailab
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select(MapToDto) YASAK - AutoMapper kullan
-        return _mapper.Map<IEnumerable<PaymentMethodDto>>(methods);
+        return mapper.Map<IEnumerable<PaymentMethodDto>>(methods);
     }
 }

@@ -6,14 +6,15 @@ namespace Merge.Application.ML.Queries.GetFraudAlerts;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
 // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-public class GetFraudAlertsQueryValidator : AbstractValidator<GetFraudAlertsQuery>
+public class GetFraudAlertsQueryValidator(
+    IOptions<PaginationSettings> paginationSettings,
+    IOptions<MLSettings> mlSettings) : AbstractValidator<GetFraudAlertsQuery>
 {
-    public GetFraudAlertsQueryValidator(
-        IOptions<PaginationSettings> paginationSettings,
-        IOptions<MLSettings> mlSettings)
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
+    private readonly MLSettings mlConfig = mlSettings.Value;
+
+    public GetFraudAlertsQueryValidator() : this(Options.Create(new PaginationSettings()), Options.Create(new MLSettings()))
     {
-        var paginationConfig = paginationSettings.Value;
-        var mlConfig = mlSettings.Value;
 
         RuleFor(x => x.Page)
             .GreaterThan(0).WithMessage("Page must be greater than 0.");

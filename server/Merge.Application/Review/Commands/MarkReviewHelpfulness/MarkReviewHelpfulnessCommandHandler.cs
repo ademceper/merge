@@ -13,29 +13,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Review.Commands.MarkReviewHelpfulness;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class MarkReviewHelpfulnessCommandHandler : IRequestHandler<MarkReviewHelpfulnessCommand>
+public class MarkReviewHelpfulnessCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<MarkReviewHelpfulnessCommandHandler> logger) : IRequestHandler<MarkReviewHelpfulnessCommand>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<MarkReviewHelpfulnessCommandHandler> _logger;
-
-    public MarkReviewHelpfulnessCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<MarkReviewHelpfulnessCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task Handle(MarkReviewHelpfulnessCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Marking review helpfulness. UserId: {UserId}, ReviewId: {ReviewId}, IsHelpful: {IsHelpful}",
             request.UserId, request.ReviewId, request.IsHelpful);
 
-        var review = await _context.Set<ReviewEntity>()
+        var review = await context.Set<ReviewEntity>()
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
 
         if (review == null)
@@ -43,7 +30,7 @@ public class MarkReviewHelpfulnessCommandHandler : IRequestHandler<MarkReviewHel
             throw new NotFoundException("Değerlendirme", request.ReviewId);
         }
 
-        var existingVote = await _context.Set<ReviewHelpfulness>()
+        var existingVote = await context.Set<ReviewHelpfulness>()
             .FirstOrDefaultAsync(rh => rh.ReviewId == request.ReviewId && rh.UserId == request.UserId, cancellationToken);
 
         if (existingVote != null)
@@ -74,7 +61,7 @@ public class MarkReviewHelpfulnessCommandHandler : IRequestHandler<MarkReviewHel
                 request.UserId,
                 request.IsHelpful);
 
-            await _context.Set<ReviewHelpfulness>().AddAsync(vote, cancellationToken);
+            await context.Set<ReviewHelpfulness>().AddAsync(vote, cancellationToken);
 
             // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             if (request.IsHelpful)
@@ -84,9 +71,9 @@ public class MarkReviewHelpfulnessCommandHandler : IRequestHandler<MarkReviewHel
         }
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Review helpfulness marked successfully. UserId: {UserId}, ReviewId: {ReviewId}, IsHelpful: {IsHelpful}",
             request.UserId, request.ReviewId, request.IsHelpful);
     }

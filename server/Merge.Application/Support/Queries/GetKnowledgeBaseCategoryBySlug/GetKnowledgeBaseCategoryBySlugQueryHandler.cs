@@ -13,27 +13,17 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Queries.GetKnowledgeBaseCategoryBySlug;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetKnowledgeBaseCategoryBySlugQueryHandler : IRequestHandler<GetKnowledgeBaseCategoryBySlugQuery, KnowledgeBaseCategoryDto?>
+public class GetKnowledgeBaseCategoryBySlugQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetKnowledgeBaseCategoryBySlugQuery, KnowledgeBaseCategoryDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetKnowledgeBaseCategoryBySlugQueryHandler(
-        IDbContext context,
-        IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
 
     public async Task<KnowledgeBaseCategoryDto?> Handle(GetKnowledgeBaseCategoryBySlugQuery request, CancellationToken cancellationToken)
     {
-        var category = await _context.Set<KnowledgeBaseCategory>()
+        var category = await context.Set<KnowledgeBaseCategory>()
             .AsNoTracking()
             .Include(c => c.ParentCategory)
             .Include(c => c.SubCategories)
             .FirstOrDefaultAsync(c => c.Slug == request.Slug && c.IsActive, cancellationToken);
 
-        return category != null ? _mapper.Map<KnowledgeBaseCategoryDto>(category) : null;
+        return category != null ? mapper.Map<KnowledgeBaseCategoryDto>(category) : null;
     }
 }

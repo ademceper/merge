@@ -9,18 +9,9 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Services.ShippingProviders;
 
-public class MNGProvider : IShippingProvider
+public class MNGProvider(IConfiguration configuration, ILogger<MNGProvider> logger) : IShippingProvider
 {
     public string ProviderName => "MNG Kargo";
-    
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<MNGProvider> _logger;
-
-    public MNGProvider(IConfiguration configuration, ILogger<MNGProvider> logger)
-    {
-        _configuration = configuration;
-        _logger = logger;
-    }
 
     public async Task<ShippingProviderResponseDto> CreateShipmentAsync(ShippingProviderRequestDto request)
     {
@@ -36,14 +27,14 @@ public class MNGProvider : IShippingProvider
             throw new ValidationException("Sipariş numarası boş olamaz.");
         }
 
-        _logger.LogInformation("MNG Kargo shipment creation started for order {OrderNumber}", request.OrderNumber);
+        logger.LogInformation("MNG Kargo shipment creation started for order {OrderNumber}", request.OrderNumber);
         
-        var apiKey = _configuration["ShippingProviders:MNG:ApiKey"];
-        var apiSecret = _configuration["ShippingProviders:MNG:ApiSecret"];
+        var apiKey = configuration["ShippingProviders:MNG:ApiKey"];
+        var apiSecret = configuration["ShippingProviders:MNG:ApiSecret"];
         
         if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(apiSecret))
         {
-            _logger.LogWarning("MNG Kargo API credentials not configured");
+            logger.LogWarning("MNG Kargo API credentials not configured");
             return new ShippingProviderResponseDto
             {
                 Success = false,
@@ -56,7 +47,7 @@ public class MNGProvider : IShippingProvider
         var trackingNumber = $"MNG{DateTime.UtcNow:yyyyMMdd}{Guid.NewGuid():N}".Substring(0, 20).ToUpper();
         var estimatedDelivery = DateTime.UtcNow.AddDays(2);
         
-        _logger.LogInformation("MNG Kargo shipment created successfully. TrackingNumber: {TrackingNumber}", trackingNumber);
+        logger.LogInformation("MNG Kargo shipment created successfully. TrackingNumber: {TrackingNumber}", trackingNumber);
         
         return new ShippingProviderResponseDto
         {
@@ -81,7 +72,7 @@ public class MNGProvider : IShippingProvider
             throw new ArgumentNullException(nameof(trackingNumber));
         }
 
-        _logger.LogInformation("MNG Kargo tracking check. TrackingNumber: {TrackingNumber}", trackingNumber);
+        logger.LogInformation("MNG Kargo tracking check. TrackingNumber: {TrackingNumber}", trackingNumber);
         
         await Task.Delay(100);
         
@@ -111,7 +102,7 @@ public class MNGProvider : IShippingProvider
             throw new ArgumentNullException(nameof(trackingNumber));
         }
 
-        _logger.LogInformation("MNG Kargo label generation. TrackingNumber: {TrackingNumber}", trackingNumber);
+        logger.LogInformation("MNG Kargo label generation. TrackingNumber: {TrackingNumber}", trackingNumber);
         
         await Task.Delay(100);
         
@@ -131,7 +122,7 @@ public class MNGProvider : IShippingProvider
             throw new ArgumentNullException(nameof(trackingNumber));
         }
 
-        _logger.LogInformation("MNG Kargo shipment cancellation. TrackingNumber: {TrackingNumber}", trackingNumber);
+        logger.LogInformation("MNG Kargo shipment cancellation. TrackingNumber: {TrackingNumber}", trackingNumber);
         
         await Task.Delay(100);
         
@@ -146,7 +137,7 @@ public class MNGProvider : IShippingProvider
             throw new ArgumentNullException(nameof(request));
         }
 
-        _logger.LogInformation("MNG Kargo cost calculation");
+        logger.LogInformation("MNG Kargo cost calculation");
         
         await Task.Delay(50);
         

@@ -19,45 +19,33 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Queries.GetPerformanceMetrics;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetPerformanceMetricsQueryHandler : IRequestHandler<GetPerformanceMetricsQuery, SellerPerformanceDto>
+public class GetPerformanceMetricsQueryHandler(IDbContext context, ILogger<GetPerformanceMetricsQueryHandler> logger, IOptions<SellerSettings> sellerSettings) : IRequestHandler<GetPerformanceMetricsQuery, SellerPerformanceDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetPerformanceMetricsQueryHandler> _logger;
-    private readonly SellerSettings _sellerSettings;
-
-    public GetPerformanceMetricsQueryHandler(
-        IDbContext context,
-        ILogger<GetPerformanceMetricsQueryHandler> logger,
-        IOptions<SellerSettings> sellerSettings)
-    {
-        _context = context;
-        _logger = logger;
-        _sellerSettings = sellerSettings.Value;
-    }
+    private readonly SellerSettings sellerConfig = sellerSettings.Value;
 
     public async Task<SellerPerformanceDto> Handle(GetPerformanceMetricsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting performance metrics. SellerId: {SellerId}, StartDate: {StartDate}, EndDate: {EndDate}",
+        logger.LogInformation("Getting performance metrics. SellerId: {SellerId}, StartDate: {StartDate}, EndDate: {EndDate}",
             request.SellerId, request.StartDate, request.EndDate);
 
         // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
-        var startDate = request.StartDate ?? DateTime.UtcNow.AddDays(-_sellerSettings.DefaultStatsPeriodDays);
+        var startDate = request.StartDate ?? DateTime.UtcNow.AddDays(-sellerConfig.DefaultStatsPeriodDays);
         var endDate = request.EndDate ?? DateTime.UtcNow;
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         var totalSales = await (
-            from o in _context.Set<OrderEntity>().AsNoTracking()
-            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
-            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            from o in context.Set<OrderEntity>().AsNoTracking()
+            join oi in context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
             where o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   p.SellerId == request.SellerId
             select oi.TotalPrice
         ).SumAsync(cancellationToken);
 
-        var totalOrders = await _context.Set<OrderEntity>()
+        var totalOrders = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
@@ -70,9 +58,9 @@ public class GetPerformanceMetricsQueryHandler : IRequestHandler<GetPerformanceM
         // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Sales by date
         var salesByDate = await (
-            from o in _context.Set<OrderEntity>().AsNoTracking()
-            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
-            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            from o in context.Set<OrderEntity>().AsNoTracking()
+            join oi in context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
             where o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   p.SellerId == request.SellerId
@@ -87,7 +75,7 @@ public class GetPerformanceMetricsQueryHandler : IRequestHandler<GetPerformanceM
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // Top products
-        var topProducts = await _context.Set<OrderItem>()
+        var topProducts = await context.Set<OrderItem>()
             .AsNoTracking()
             .Include(oi => oi.Product)
             .Where(oi => oi.Order.PaymentStatus == PaymentStatus.Completed &&
@@ -103,16 +91,16 @@ public class GetPerformanceMetricsQueryHandler : IRequestHandler<GetPerformanceM
             })
             .OrderByDescending(p => p.Revenue)
             // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
-            .Take(_sellerSettings.TopProductsLimit)
+            .Take(sellerConfig.TopProductsLimit)
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var sellerProfile = await _context.Set<SellerProfile>()
+        var sellerProfile = await context.Set<SellerProfile>()
             .AsNoTracking()
             .FirstOrDefaultAsync(sp => sp.UserId == request.SellerId, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de distinct count yap (memory'de işlem YASAK)
-        var uniqueCustomers = await _context.Set<OrderEntity>()
+        var uniqueCustomers = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&

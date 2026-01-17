@@ -20,34 +20,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Security.Commands.CreateOrderVerification;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreateOrderVerificationCommandHandler : IRequestHandler<CreateOrderVerificationCommand, OrderVerificationDto>
+public class CreateOrderVerificationCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateOrderVerificationCommandHandler> logger, IOptions<SecuritySettings> securitySettings) : IRequestHandler<CreateOrderVerificationCommand, OrderVerificationDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateOrderVerificationCommandHandler> _logger;
-    private readonly SecuritySettings _securitySettings;
-
-    public CreateOrderVerificationCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateOrderVerificationCommandHandler> logger,
-        IOptions<SecuritySettings> securitySettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _securitySettings = securitySettings.Value;
-    }
+    private readonly SecuritySettings securityConfig = securitySettings.Value;
 
     public async Task<OrderVerificationDto> Handle(CreateOrderVerificationCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Order verification oluşturuluyor. OrderId: {OrderId}, VerificationType: {VerificationType}",
+        logger.LogInformation("Order verification oluşturuluyor. OrderId: {OrderId}, VerificationType: {VerificationType}",
             request.OrderId, request.VerificationType);
 
-        var order = await _context.Set<OrderEntity>()
+        var order = await context.Set<OrderEntity>()
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
         if (order == null)
@@ -56,7 +38,7 @@ public class CreateOrderVerificationCommandHandler : IRequestHandler<CreateOrder
         }
 
         // Check if verification already exists
-        var existing = await _context.Set<OrderVerification>()
+        var existing = await context.Set<OrderVerification>()
             .FirstOrDefaultAsync(v => v.OrderId == request.OrderId, cancellationToken);
 
         if (existing != null)
@@ -79,27 +61,27 @@ public class CreateOrderVerificationCommandHandler : IRequestHandler<CreateOrder
             riskScore: riskScore,
             verificationMethod: request.VerificationMethod,
             verificationNotes: request.VerificationNotes,
-            requiresManualReview: request.RequiresManualReview || riskScore >= _securitySettings.OrderVerificationManualReviewThreshold);
+            requiresManualReview: request.RequiresManualReview || riskScore >= securityConfig.OrderVerificationManualReviewThreshold);
 
-        await _context.Set<OrderVerification>().AddAsync(verification, cancellationToken);
+        await context.Set<OrderVerification>().AddAsync(verification, cancellationToken);
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        verification = await _context.Set<OrderVerification>()
+        verification = await context.Set<OrderVerification>()
             .AsNoTracking()
             .Include(v => v.Order)
             .Include(v => v.VerifiedBy)
             .FirstOrDefaultAsync(v => v.Id == verification.Id, cancellationToken);
 
-        _logger.LogInformation("Order verification oluşturuldu. VerificationId: {VerificationId}, OrderId: {OrderId}, RiskScore: {RiskScore}",
+        logger.LogInformation("Order verification oluşturuldu. VerificationId: {VerificationId}, OrderId: {OrderId}, RiskScore: {RiskScore}",
             verification!.Id, request.OrderId, riskScore);
 
-        return _mapper.Map<OrderVerificationDto>(verification);
+        return mapper.Map<OrderVerificationDto>(verification);
     }
 
     private async Task<int> CalculateOrderRiskScoreAsync(Guid orderId, CancellationToken cancellationToken)
     {
-        var order = await _context.Set<OrderEntity>()
+        var order = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
             .Include(o => o.User)
@@ -110,29 +92,29 @@ public class CreateOrderVerificationCommandHandler : IRequestHandler<CreateOrder
         int riskScore = 0;
 
         // High value order - ✅ BOLUM 12.0: Magic number config'den
-        if (order.TotalAmount > _securitySettings.HighValueOrderThreshold) 
-            riskScore += _securitySettings.HighValueOrderRiskWeight;
+        if (order.TotalAmount > securityConfig.HighValueOrderThreshold) 
+            riskScore += securityConfig.HighValueOrderRiskWeight;
 
         // New user - ✅ BOLUM 12.0: Magic number config'den
         var daysSinceRegistration = (DateTime.UtcNow - order.User.CreatedAt).Days;
-        if (daysSinceRegistration < _securitySettings.NewUserRiskDays) 
-            riskScore += _securitySettings.NewUserRiskWeight;
+        if (daysSinceRegistration < securityConfig.NewUserRiskDays) 
+            riskScore += securityConfig.NewUserRiskWeight;
 
         // Multiple items - ✅ BOLUM 12.0: Magic number config'den
-        var itemCount = await _context.Set<OrderItem>()
+        var itemCount = await context.Set<OrderItem>()
             .AsNoTracking()
             .CountAsync(oi => oi.OrderId == orderId, cancellationToken);
-        if (itemCount > _securitySettings.MultipleItemsThreshold) 
-            riskScore += _securitySettings.MultipleItemsRiskWeight;
+        if (itemCount > securityConfig.MultipleItemsThreshold) 
+            riskScore += securityConfig.MultipleItemsRiskWeight;
 
         // High quantity - ✅ BOLUM 12.0: Magic number config'den
-        var totalQuantity = await _context.Set<OrderItem>()
+        var totalQuantity = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.OrderId == orderId)
             .SumAsync(oi => oi.Quantity, cancellationToken);
-        if (totalQuantity > _securitySettings.HighQuantityThreshold) 
-            riskScore += _securitySettings.HighQuantityRiskWeight;
+        if (totalQuantity > securityConfig.HighQuantityThreshold) 
+            riskScore += securityConfig.HighQuantityRiskWeight;
 
-        return Math.Min(riskScore, _securitySettings.MaxRiskScore);
+        return Math.Min(riskScore, securityConfig.MaxRiskScore);
     }
 }

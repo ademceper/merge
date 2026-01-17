@@ -12,36 +12,23 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Review.Commands.DeleteTrustBadge;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class DeleteTrustBadgeCommandHandler : IRequestHandler<DeleteTrustBadgeCommand, bool>
+public class DeleteTrustBadgeCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<DeleteTrustBadgeCommandHandler> logger) : IRequestHandler<DeleteTrustBadgeCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<DeleteTrustBadgeCommandHandler> _logger;
-
-    public DeleteTrustBadgeCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<DeleteTrustBadgeCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(DeleteTrustBadgeCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Deleting trust badge. BadgeId: {BadgeId}", request.BadgeId);
+        logger.LogInformation("Deleting trust badge. BadgeId: {BadgeId}", request.BadgeId);
 
-        var badge = await _context.Set<TrustBadge>()
+        var badge = await context.Set<TrustBadge>()
             .FirstOrDefaultAsync(b => b.Id == request.BadgeId, cancellationToken);
 
         if (badge == null) return false;
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         badge.MarkAsDeleted();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Trust badge deleted successfully. BadgeId: {BadgeId}", request.BadgeId);
+        logger.LogInformation("Trust badge deleted successfully. BadgeId: {BadgeId}", request.BadgeId);
         return true;
     }
 }

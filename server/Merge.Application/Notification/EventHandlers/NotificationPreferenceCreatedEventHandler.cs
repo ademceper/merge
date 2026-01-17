@@ -7,19 +7,13 @@ namespace Merge.Application.Notification.EventHandlers;
 /// <summary>
 /// NotificationPreference Created Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
 /// </summary>
-public class NotificationPreferenceCreatedEventHandler : INotificationHandler<NotificationPreferenceCreatedEvent>
+public class NotificationPreferenceCreatedEventHandler(ILogger<NotificationPreferenceCreatedEventHandler> logger) : INotificationHandler<NotificationPreferenceCreatedEvent>
 {
-    private readonly ILogger<NotificationPreferenceCreatedEventHandler> _logger;
-
-    public NotificationPreferenceCreatedEventHandler(ILogger<NotificationPreferenceCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(NotificationPreferenceCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "NotificationPreference created event received. PreferenceId: {PreferenceId}, UserId: {UserId}, NotificationType: {NotificationType}, Channel: {Channel}, IsEnabled: {IsEnabled}",
             notification.PreferenceId, notification.UserId, notification.NotificationType, notification.Channel, notification.IsEnabled);
 

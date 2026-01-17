@@ -8,19 +8,13 @@ namespace Merge.Application.Support.EventHandlers;
 /// Live Chat Session Deleted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class LiveChatSessionDeletedEventHandler : INotificationHandler<LiveChatSessionDeletedEvent>
+public class LiveChatSessionDeletedEventHandler(ILogger<LiveChatSessionDeletedEventHandler> logger) : INotificationHandler<LiveChatSessionDeletedEvent>
 {
-    private readonly ILogger<LiveChatSessionDeletedEventHandler> _logger;
-
-    public LiveChatSessionDeletedEventHandler(ILogger<LiveChatSessionDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(LiveChatSessionDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Live chat session deleted event received. SessionId: {SessionId}, SessionIdentifier: {SessionIdentifier}, UserId: {UserId}, AgentId: {AgentId}",
             notification.SessionId, notification.SessionIdentifier, notification.UserId, notification.AgentId);
 

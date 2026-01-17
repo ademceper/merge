@@ -19,41 +19,27 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Queries.GetSellerOrders;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetSellerOrdersQueryHandler : IRequestHandler<GetSellerOrdersQuery, PagedResult<OrderDto>>
+public class GetSellerOrdersQueryHandler(IDbContext context, IMapper mapper, ILogger<GetSellerOrdersQueryHandler> logger, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetSellerOrdersQuery, PagedResult<OrderDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetSellerOrdersQueryHandler> _logger;
-    private readonly PaginationSettings _paginationSettings;
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
-    public GetSellerOrdersQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetSellerOrdersQueryHandler> logger,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     public async Task<PagedResult<OrderDto>> Handle(GetSellerOrdersQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting seller orders. SellerId: {SellerId}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Getting seller orders. SellerId: {SellerId}, Page: {Page}, PageSize: {PageSize}",
             request.SellerId, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic number config'den
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize 
-            ? _paginationSettings.MaxPageSize 
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize 
+            ? paginationConfig.MaxPageSize 
             : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
-        IQueryable<OrderEntity> query = _context.Set<OrderEntity>()
+        IQueryable<OrderEntity> query = context.Set<OrderEntity>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(o => o.User)
@@ -70,7 +56,7 @@ public class GetSellerOrdersQueryHandler : IRequestHandler<GetSellerOrdersQuery,
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var orderDtos = _mapper.Map<IEnumerable<OrderDto>>(orders).ToList();
+        var orderDtos = mapper.Map<IEnumerable<OrderDto>>(orders).ToList();
 
         return new PagedResult<OrderDto>
         {

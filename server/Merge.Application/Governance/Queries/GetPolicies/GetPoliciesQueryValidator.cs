@@ -5,14 +5,12 @@ using Merge.Domain.Modules.Content;
 
 namespace Merge.Application.Governance.Queries.GetPolicies;
 
-public class GetPoliciesQueryValidator : AbstractValidator<GetPoliciesQuery>
+public class GetPoliciesQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetPoliciesQuery>
 {
-    private readonly PaginationSettings settings;
+    private readonly PaginationSettings settings = paginationSettings.Value;
 
-    public GetPoliciesQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    public GetPoliciesQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
-        settings = paginationSettings.Value;
-
         RuleFor(x => x.Page)
             .GreaterThan(0).WithMessage("Page numarası 0'dan büyük olmalıdır");
 

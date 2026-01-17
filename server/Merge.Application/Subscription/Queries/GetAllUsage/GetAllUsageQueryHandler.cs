@@ -15,21 +15,8 @@ namespace Merge.Application.Subscription.Queries.GetAllUsage;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-public class GetAllUsageQueryHandler : IRequestHandler<GetAllUsageQuery, PagedResult<SubscriptionUsageDto>>
+public class GetAllUsageQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAllUsageQueryHandler> logger) : IRequestHandler<GetAllUsageQuery, PagedResult<SubscriptionUsageDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetAllUsageQueryHandler> _logger;
-
-    public GetAllUsageQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetAllUsageQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<PagedResult<SubscriptionUsageDto>> Handle(GetAllUsageQuery request, CancellationToken cancellationToken)
     {
@@ -40,7 +27,7 @@ public class GetAllUsageQueryHandler : IRequestHandler<GetAllUsageQuery, PagedRe
         var periodStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
 
         // ✅ PERFORMANCE: AsNoTracking for read-only query
-        IQueryable<SubscriptionUsage> query = _context.Set<SubscriptionUsage>()
+        IQueryable<SubscriptionUsage> query = context.Set<SubscriptionUsage>()
             .AsNoTracking()
             .Where(u => u.UserSubscriptionId == request.UserSubscriptionId &&
                        u.PeriodStart == periodStart);
@@ -54,7 +41,7 @@ public class GetAllUsageQueryHandler : IRequestHandler<GetAllUsageQuery, PagedRe
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var usageDtos = _mapper.Map<IEnumerable<SubscriptionUsageDto>>(usages).ToList();
+        var usageDtos = mapper.Map<IEnumerable<SubscriptionUsageDto>>(usages).ToList();
 
         return new PagedResult<SubscriptionUsageDto>
         {

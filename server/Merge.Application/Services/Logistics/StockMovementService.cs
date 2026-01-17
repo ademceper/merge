@@ -18,36 +18,16 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Inventory.StockMovement>;
 
-
 namespace Merge.Application.Services.Logistics;
 
-public class StockMovementService : IStockMovementService
+public class StockMovementService(IRepository stockMovementRepository, IDbContext context, IMapper mapper, IUnitOfWork unitOfWork, ILogger<StockMovementService> logger) : IStockMovementService
 {
-    private readonly IRepository _stockMovementRepository;
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<StockMovementService> _logger;
-
-    public StockMovementService(
-        IRepository stockMovementRepository,
-        IDbContext context,
-        IMapper mapper,
-        IUnitOfWork unitOfWork,
-        ILogger<StockMovementService> logger)
-    {
-        _stockMovementRepository = stockMovementRepository;
-        _context = context;
-        _mapper = mapper;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<StockMovementDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
 
-        var movement = await _context.Set<StockMovement>()
+        var movement = await context.Set<StockMovement>()
             .AsNoTracking()
             .Include(sm => sm.Product)
             .Include(sm => sm.Warehouse)
@@ -57,7 +37,7 @@ public class StockMovementService : IStockMovementService
             .FirstOrDefaultAsync(sm => sm.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return movement == null ? null : _mapper.Map<StockMovementDto>(movement);
+        return movement == null ? null : mapper.Map<StockMovementDto>(movement);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -67,7 +47,7 @@ public class StockMovementService : IStockMovementService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        var movements = await _context.Set<StockMovement>()
+        var movements = await context.Set<StockMovement>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(sm => sm.Product)
@@ -81,7 +61,7 @@ public class StockMovementService : IStockMovementService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<StockMovementDto>>(movements);
+        return mapper.Map<IEnumerable<StockMovementDto>>(movements);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -94,7 +74,7 @@ public class StockMovementService : IStockMovementService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        var query = _context.Set<StockMovement>()
+        var query = context.Set<StockMovement>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(sm => sm.Product)
@@ -113,7 +93,7 @@ public class StockMovementService : IStockMovementService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var items = _mapper.Map<IEnumerable<StockMovementDto>>(movements);
+        var items = mapper.Map<IEnumerable<StockMovementDto>>(movements);
 
         return new PagedResult<StockMovementDto>
         {
@@ -134,7 +114,7 @@ public class StockMovementService : IStockMovementService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        var query = _context.Set<StockMovement>()
+        var query = context.Set<StockMovement>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(sm => sm.Product)
@@ -153,7 +133,7 @@ public class StockMovementService : IStockMovementService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var items = _mapper.Map<IEnumerable<StockMovementDto>>(movements);
+        var items = mapper.Map<IEnumerable<StockMovementDto>>(movements);
 
         return new PagedResult<StockMovementDto>
         {
@@ -175,7 +155,7 @@ public class StockMovementService : IStockMovementService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sm.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        IQueryable<StockMovement> query = _context.Set<StockMovement>()
+        IQueryable<StockMovement> query = context.Set<StockMovement>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(sm => sm.Product)
@@ -216,7 +196,7 @@ public class StockMovementService : IStockMovementService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<StockMovementDto>>(movements);
+        return mapper.Map<IEnumerable<StockMovementDto>>(movements);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -225,17 +205,17 @@ public class StockMovementService : IStockMovementService
     public async Task<StockMovementDto> CreateAsync(CreateStockMovementDto createDto, Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ ARCHITECTURE: Transaction başlat - atomic operation (Inventory update + StockMovement create)
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         
         try
         {
-            _logger.LogInformation("Creating stock movement. ProductId: {ProductId}, WarehouseId: {WarehouseId}, Quantity: {Quantity}",
+            logger.LogInformation("Creating stock movement. ProductId: {ProductId}, WarehouseId: {WarehouseId}, Quantity: {Quantity}",
                 createDto.ProductId, createDto.WarehouseId, createDto.Quantity);
 
             // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
             // ✅ PERFORMANCE: Removed manual !i.IsDeleted (Global Query Filter)
             // Get inventory
-            var inventory = await _context.Set<Inventory>()
+            var inventory = await context.Set<Inventory>()
                 .FirstOrDefaultAsync(i => i.ProductId == createDto.ProductId &&
                                         i.WarehouseId == createDto.WarehouseId, cancellationToken);
 
@@ -272,14 +252,14 @@ public class StockMovementService : IStockMovementService
                 createDto.FromWarehouseId,
                 createDto.ToWarehouseId);
 
-            stockMovement = await _stockMovementRepository.AddAsync(stockMovement, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            stockMovement = await stockMovementRepository.AddAsync(stockMovement, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            _logger.LogInformation("Stock movement created successfully. StockMovementId: {StockMovementId}",
+            logger.LogInformation("Stock movement created successfully. StockMovementId: {StockMovementId}",
                 stockMovement.Id);
 
-            stockMovement = await _context.Set<StockMovement>()
+            stockMovement = await context.Set<StockMovement>()
                 .AsNoTracking()
                 .Include(sm => sm.Product)
                 .Include(sm => sm.Warehouse)
@@ -289,12 +269,12 @@ public class StockMovementService : IStockMovementService
                 .FirstOrDefaultAsync(sm => sm.Id == stockMovement.Id, cancellationToken);
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-            return _mapper.Map<StockMovementDto>(stockMovement!);
+            return mapper.Map<StockMovementDto>(stockMovement!);
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            _logger.LogError(ex, "Error creating stock movement. ProductId: {ProductId}, WarehouseId: {WarehouseId}",
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Error creating stock movement. ProductId: {ProductId}, WarehouseId: {WarehouseId}",
                 createDto.ProductId, createDto.WarehouseId);
             throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
         }

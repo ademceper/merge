@@ -14,36 +14,21 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Product.Commands.UpdateSizeGuide;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UpdateSizeGuideCommandHandler : IRequestHandler<UpdateSizeGuideCommand, bool>
+public class UpdateSizeGuideCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<UpdateSizeGuideCommandHandler> logger, ICacheService cache) : IRequestHandler<UpdateSizeGuideCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<UpdateSizeGuideCommandHandler> _logger;
-    private readonly ICacheService _cache;
+
     private const string CACHE_KEY_SIZE_GUIDE_BY_ID = "size_guide_";
     private const string CACHE_KEY_ALL_SIZE_GUIDES = "size_guides_all";
     private const string CACHE_KEY_SIZE_GUIDES_BY_CATEGORY = "size_guides_by_category_";
 
-    public UpdateSizeGuideCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<UpdateSizeGuideCommandHandler> logger,
-        ICacheService cache)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-        _cache = cache;
-    }
-
     public async Task<bool> Handle(UpdateSizeGuideCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Updating size guide. SizeGuideId: {SizeGuideId}", request.Id);
+        logger.LogInformation("Updating size guide. SizeGuideId: {SizeGuideId}", request.Id);
 
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var sizeGuide = await _context.Set<SizeGuide>()
+            var sizeGuide = await context.Set<SizeGuide>()
                 .Include(sg => sg.Entries)
                 .FirstOrDefaultAsync(sg => sg.Id == request.Id, cancellationToken);
 
@@ -95,30 +80,30 @@ public class UpdateSizeGuideCommandHandler : IRequestHandler<UpdateSizeGuideComm
             }
 
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             // ✅ BOLUM 10.2: Cache invalidation
-            await _cache.RemoveAsync($"{CACHE_KEY_SIZE_GUIDE_BY_ID}{request.Id}", cancellationToken);
-            await _cache.RemoveAsync(CACHE_KEY_ALL_SIZE_GUIDES, cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_SIZE_GUIDE_BY_ID}{request.Id}", cancellationToken);
+            await cache.RemoveAsync(CACHE_KEY_ALL_SIZE_GUIDES, cancellationToken);
             if (oldCategoryId != request.CategoryId)
             {
-                await _cache.RemoveAsync($"{CACHE_KEY_SIZE_GUIDES_BY_CATEGORY}{oldCategoryId}", cancellationToken);
-                await _cache.RemoveAsync($"{CACHE_KEY_SIZE_GUIDES_BY_CATEGORY}{request.CategoryId}", cancellationToken);
+                await cache.RemoveAsync($"{CACHE_KEY_SIZE_GUIDES_BY_CATEGORY}{oldCategoryId}", cancellationToken);
+                await cache.RemoveAsync($"{CACHE_KEY_SIZE_GUIDES_BY_CATEGORY}{request.CategoryId}", cancellationToken);
             }
             else
             {
-                await _cache.RemoveAsync($"{CACHE_KEY_SIZE_GUIDES_BY_CATEGORY}{request.CategoryId}", cancellationToken);
+                await cache.RemoveAsync($"{CACHE_KEY_SIZE_GUIDES_BY_CATEGORY}{request.CategoryId}", cancellationToken);
             }
 
-            _logger.LogInformation("Size guide updated successfully. SizeGuideId: {SizeGuideId}", request.Id);
+            logger.LogInformation("Size guide updated successfully. SizeGuideId: {SizeGuideId}", request.Id);
 
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating size guide. SizeGuideId: {SizeGuideId}", request.Id);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Error updating size guide. SizeGuideId: {SizeGuideId}", request.Id);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

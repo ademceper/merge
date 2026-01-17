@@ -11,19 +11,13 @@ namespace Merge.Application.Subscription.EventHandlers;
 /// UserSubscription Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class UserSubscriptionUpdatedEventHandler : INotificationHandler<UserSubscriptionUpdatedEvent>
+public class UserSubscriptionUpdatedEventHandler(ILogger<UserSubscriptionUpdatedEventHandler> logger) : INotificationHandler<UserSubscriptionUpdatedEvent>
 {
-    private readonly ILogger<UserSubscriptionUpdatedEventHandler> _logger;
-
-    public UserSubscriptionUpdatedEventHandler(ILogger<UserSubscriptionUpdatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(UserSubscriptionUpdatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "User subscription updated event received. SubscriptionId: {SubscriptionId}, UserId: {UserId}, AutoRenewChanged: {AutoRenewChanged}, PaymentMethodChanged: {PaymentMethodChanged}",
             notification.SubscriptionId, notification.UserId, notification.AutoRenewChanged, notification.PaymentMethodChanged);
 
@@ -40,7 +34,7 @@ public class UserSubscriptionUpdatedEventHandler : INotificationHandler<UserSubs
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling UserSubscriptionUpdatedEvent. SubscriptionId: {SubscriptionId}, UserId: {UserId}",
                 notification.SubscriptionId, notification.UserId);
             throw;

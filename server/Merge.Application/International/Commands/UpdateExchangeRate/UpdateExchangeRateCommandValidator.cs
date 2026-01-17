@@ -4,13 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.UpdateExchangeRate;
 
-public class UpdateExchangeRateCommandValidator : AbstractValidator<UpdateExchangeRateCommand>
+public class UpdateExchangeRateCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<UpdateExchangeRateCommand>
 {
-    private readonly InternationalSettings config;
+    private readonly InternationalSettings config = settings.Value;
 
-    public UpdateExchangeRateCommandValidator(IOptions<InternationalSettings> settings)
+    public UpdateExchangeRateCommandValidator() : this(Options.Create(new InternationalSettings()))
     {
-        config = settings.Value;
         
 
         RuleFor(x => x.CurrencyCode)

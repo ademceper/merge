@@ -16,60 +16,40 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Inventory.Warehouse>;
 
-
 namespace Merge.Application.Services.Logistics;
 
-public class WarehouseService : IWarehouseService
+public class WarehouseService(IRepository warehouseRepository, IDbContext context, IMapper mapper, IUnitOfWork unitOfWork, ILogger<WarehouseService> logger) : IWarehouseService
 {
-    private readonly IRepository _warehouseRepository;
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<WarehouseService> _logger;
-
-    public WarehouseService(
-        IRepository warehouseRepository,
-        IDbContext context,
-        IMapper mapper,
-        IUnitOfWork unitOfWork,
-        ILogger<WarehouseService> logger)
-    {
-        _warehouseRepository = warehouseRepository;
-        _context = context;
-        _mapper = mapper;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<WarehouseDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
-        var warehouse = await _context.Set<Warehouse>()
+        var warehouse = await context.Set<Warehouse>()
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return warehouse == null ? null : _mapper.Map<WarehouseDto>(warehouse);
+        return warehouse == null ? null : mapper.Map<WarehouseDto>(warehouse);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<WarehouseDto?> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
-        var warehouse = await _context.Set<Warehouse>()
+        var warehouse = await context.Set<Warehouse>()
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Code == code, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return warehouse == null ? null : _mapper.Map<WarehouseDto>(warehouse);
+        return warehouse == null ? null : mapper.Map<WarehouseDto>(warehouse);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<WarehouseDto>> GetAllAsync(bool includeInactive = false, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
-        var query = _context.Set<Warehouse>().AsNoTracking();
+        var query = context.Set<Warehouse>().AsNoTracking();
 
         if (!includeInactive)
         {
@@ -81,21 +61,21 @@ public class WarehouseService : IWarehouseService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<WarehouseDto>>(warehouses);
+        return mapper.Map<IEnumerable<WarehouseDto>>(warehouses);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<WarehouseDto>> GetActiveWarehousesAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
-        var warehouses = await _context.Set<Warehouse>()
+        var warehouses = await context.Set<Warehouse>()
             .AsNoTracking()
             .Where(w => w.IsActive)
             .OrderBy(w => w.Name)
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<WarehouseDto>>(warehouses);
+        return mapper.Map<IEnumerable<WarehouseDto>>(warehouses);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -103,7 +83,7 @@ public class WarehouseService : IWarehouseService
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<WarehouseDto> CreateAsync(CreateWarehouseDto createDto, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Depo olusturuluyor. Code: {Code}, Name: {Name}", createDto.Code, createDto.Name);
+        logger.LogInformation("Depo olusturuluyor. Code: {Code}, Name: {Name}", createDto.Code, createDto.Name);
 
         try
         {
@@ -124,13 +104,13 @@ public class WarehouseService : IWarehouseService
 
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
             // Check if code already exists
-            var existingWarehouse = await _context.Set<Warehouse>()
+            var existingWarehouse = await context.Set<Warehouse>()
                 .AsNoTracking()
                 .AnyAsync(w => w.Code == createDto.Code, cancellationToken);
 
             if (existingWarehouse)
             {
-                _logger.LogWarning("Bu kod ile depo zaten mevcut. Code: {Code}", createDto.Code);
+                logger.LogWarning("Bu kod ile depo zaten mevcut. Code: {Code}", createDto.Code);
                 throw new BusinessException($"Bu kod ile depo zaten mevcut: '{createDto.Code}'");
             }
 
@@ -148,18 +128,18 @@ public class WarehouseService : IWarehouseService
                 createDto.Capacity,
                 createDto.Description);
 
-            warehouse = await _warehouseRepository.AddAsync(warehouse, cancellationToken);
+            warehouse = await warehouseRepository.AddAsync(warehouse, cancellationToken);
             // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation("Depo olusturuldu. WarehouseId: {WarehouseId}, Code: {Code}", warehouse.Id, warehouse.Code);
+            logger.LogInformation("Depo olusturuldu. WarehouseId: {WarehouseId}, Code: {Code}", warehouse.Id, warehouse.Code);
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-            return _mapper.Map<WarehouseDto>(warehouse);
+            return mapper.Map<WarehouseDto>(warehouse);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Depo olusturma hatasi. Code: {Code}, Name: {Name}", createDto?.Code, createDto?.Name);
+            logger.LogError(ex, "Depo olusturma hatasi. Code: {Code}, Name: {Name}", createDto?.Code, createDto?.Name);
             throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
         }
     }
@@ -172,7 +152,7 @@ public class WarehouseService : IWarehouseService
             throw new ArgumentNullException(nameof(updateDto));
         }
 
-        var warehouse = await _warehouseRepository.GetByIdAsync(id, cancellationToken);
+        var warehouse = await warehouseRepository.GetByIdAsync(id, cancellationToken);
         if (warehouse == null)
         {
             throw new NotFoundException("Depo", id);
@@ -204,18 +184,18 @@ public class WarehouseService : IWarehouseService
             }
         }
 
-        await _warehouseRepository.UpdateAsync(warehouse, cancellationToken);
+        await warehouseRepository.UpdateAsync(warehouse, cancellationToken);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<WarehouseDto>(warehouse);
+        return mapper.Map<WarehouseDto>(warehouse);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var warehouse = await _warehouseRepository.GetByIdAsync(id, cancellationToken);
+        var warehouse = await warehouseRepository.GetByIdAsync(id, cancellationToken);
         if (warehouse == null)
         {
             return false;
@@ -223,7 +203,7 @@ public class WarehouseService : IWarehouseService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
         // Check if warehouse has inventory
-        var hasInventory = await _context.Set<Inventory>()
+        var hasInventory = await context.Set<Inventory>()
             .AsNoTracking()
             .AnyAsync(i => i.WarehouseId == id, cancellationToken);
 
@@ -232,16 +212,16 @@ public class WarehouseService : IWarehouseService
             throw new BusinessException("Envanteri olan bir depo silinemez. Önce envanteri transfer edin veya kaldırın.");
         }
 
-        await _warehouseRepository.DeleteAsync(warehouse, cancellationToken);
+        await warehouseRepository.DeleteAsync(warehouse, cancellationToken);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> ActivateAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var warehouse = await _warehouseRepository.GetByIdAsync(id, cancellationToken);
+        var warehouse = await warehouseRepository.GetByIdAsync(id, cancellationToken);
         if (warehouse == null)
         {
             return false;
@@ -249,16 +229,16 @@ public class WarehouseService : IWarehouseService
 
         // Domain method kullan
         warehouse.Activate();
-        await _warehouseRepository.UpdateAsync(warehouse, cancellationToken);
+        await warehouseRepository.UpdateAsync(warehouse, cancellationToken);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> DeactivateAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var warehouse = await _warehouseRepository.GetByIdAsync(id, cancellationToken);
+        var warehouse = await warehouseRepository.GetByIdAsync(id, cancellationToken);
         if (warehouse == null)
         {
             return false;
@@ -266,9 +246,9 @@ public class WarehouseService : IWarehouseService
 
         // Domain method kullan
         warehouse.Deactivate();
-        await _warehouseRepository.UpdateAsync(warehouse, cancellationToken);
+        await warehouseRepository.UpdateAsync(warehouse, cancellationToken);
         // ✅ ARCHITECTURE: UnitOfWork kullan (Repository pattern)
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 }

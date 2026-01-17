@@ -18,42 +18,26 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Services.User;
 
-public class UserActivityService : IUserActivityService
+public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UserActivityService> logger) : IUserActivityService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<UserActivityService> _logger;
-
-    public UserActivityService(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<UserActivityService> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task LogActivityAsync(CreateActivityLogDto activityDto, string ipAddress, string userAgent, CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug("Logging activity: {ActivityType} for user: {UserId}", activityDto.ActivityType, activityDto.UserId);
+        logger.LogDebug("Logging activity: {ActivityType} for user: {UserId}", activityDto.ActivityType, activityDto.UserId);
 
         var deviceInfo = ParseUserAgent(userAgent);
 
         // Parse enum values from strings
         if (!Enum.TryParse<ActivityType>(activityDto.ActivityType, true, out var activityType))
         {
-            _logger.LogWarning("Invalid ActivityType: {ActivityType}", activityDto.ActivityType);
+            logger.LogWarning("Invalid ActivityType: {ActivityType}", activityDto.ActivityType);
             throw new ArgumentException($"Invalid ActivityType: {activityDto.ActivityType}", nameof(activityDto));
         }
 
         if (!Enum.TryParse<EntityType>(activityDto.EntityType, true, out var entityType))
         {
-            _logger.LogWarning("Invalid EntityType: {EntityType}", activityDto.EntityType);
+            logger.LogWarning("Invalid EntityType: {EntityType}", activityDto.EntityType);
             throw new ArgumentException($"Invalid EntityType: {activityDto.EntityType}", nameof(activityDto));
         }
 
@@ -82,61 +66,61 @@ public class UserActivityService : IUserActivityService
             errorMessage: activityDto.ErrorMessage
         );
 
-        await _context.Set<UserActivityLog>().AddAsync(activity, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<UserActivityLog>().AddAsync(activity, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogDebug("Activity logged successfully with ID: {ActivityId}", activity.Id);
+        logger.LogDebug("Activity logged successfully with ID: {ActivityId}", activity.Id);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<UserActivityLogDto?> GetActivityByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug("Retrieving activity with ID: {ActivityId}", id);
+        logger.LogDebug("Retrieving activity with ID: {ActivityId}", id);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        var activity = await _context.Set<UserActivityLog>()
+        var activity = await context.Set<UserActivityLog>()
             .AsNoTracking()
             .Include(a => a.User)
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (activity == null)
         {
-            _logger.LogWarning("Activity not found with ID: {ActivityId}", id);
+            logger.LogWarning("Activity not found with ID: {ActivityId}", id);
             return null;
         }
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return _mapper.Map<UserActivityLogDto>(activity);
+        return mapper.Map<UserActivityLogDto>(activity);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<UserActivityLogDto>> GetUserActivitiesAsync(Guid userId, int days = 30, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Retrieving activities for user: {UserId} for last {Days} days", userId, days);
+        logger.LogInformation("Retrieving activities for user: {UserId} for last {Days} days", userId, days);
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        var activities = await _context.Set<UserActivityLog>()
+        var activities = await context.Set<UserActivityLog>()
             .AsNoTracking()
             .Include(a => a.User)
             .Where(a => a.UserId == userId && a.CreatedAt >= startDate)
             .OrderByDescending(a => a.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        _logger.LogInformation("Found {Count} activities for user: {UserId}", activities.Count, userId);
+        logger.LogInformation("Found {Count} activities for user: {UserId}", activities.Count, userId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return _mapper.Map<IEnumerable<UserActivityLogDto>>(activities);
+        return mapper.Map<IEnumerable<UserActivityLogDto>>(activities);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<UserActivityLogDto>> GetActivitiesAsync(ActivityFilterDto filter, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Retrieving filtered activities - Page: {PageNumber}, Size: {PageSize}", filter.PageNumber, filter.PageSize);
+        logger.LogInformation("Retrieving filtered activities - Page: {PageNumber}, Size: {PageSize}", filter.PageNumber, filter.PageSize);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        IQueryable<UserActivityLog> query = _context.Set<UserActivityLog>()
+        IQueryable<UserActivityLog> query = context.Set<UserActivityLog>()
             .AsNoTracking()
             .Include(a => a.User)
             .AsQueryable();
@@ -177,22 +161,22 @@ public class UserActivityService : IUserActivityService
             .Take(filter.PageSize)
             .ToListAsync(cancellationToken);
 
-        _logger.LogInformation("Retrieved {Count} filtered activities", activities.Count);
+        logger.LogInformation("Retrieved {Count} filtered activities", activities.Count);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return _mapper.Map<IEnumerable<UserActivityLogDto>>(activities);
+        return mapper.Map<IEnumerable<UserActivityLogDto>>(activities);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ActivityStatsDto> GetActivityStatsAsync(int days = 30, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Generating activity statistics for last {Days} days", days);
+        logger.LogInformation("Generating activity statistics for last {Days} days", days);
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
         // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        IQueryable<UserActivityLog> query = _context.Set<UserActivityLog>()
+        IQueryable<UserActivityLog> query = context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate);
 
@@ -235,7 +219,7 @@ public class UserActivityService : IUserActivityService
             .ToListAsync(cancellationToken);
         
         // ✅ PERFORMANCE: Batch load user emails
-        var userEmails = await _context.Users
+        var userEmails = await context.Users
             .AsNoTracking()
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.Email, cancellationToken);
@@ -274,7 +258,7 @@ public class UserActivityService : IUserActivityService
             .Where(a => a.DurationMs > 0)
             .AverageAsync(a => (decimal?)a.DurationMs, cancellationToken) ?? 0;
 
-        _logger.LogInformation("Activity stats generated - Total: {Total}, Unique Users: {Users}", totalActivities, uniqueUsers);
+        logger.LogInformation("Activity stats generated - Total: {Total}, Unique Users: {Users}", totalActivities, uniqueUsers);
 
         return new ActivityStatsDto
         {
@@ -292,12 +276,12 @@ public class UserActivityService : IUserActivityService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<UserSessionDto>> GetUserSessionsAsync(Guid userId, int days = 7, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Retrieving user sessions for user: {UserId} for last {Days} days", userId, days);
+        logger.LogInformation("Retrieving user sessions for user: {UserId} for last {Days} days", userId, days);
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        var activities = await _context.Set<UserActivityLog>()
+        var activities = await context.Set<UserActivityLog>()
             .AsNoTracking()
             .Include(a => a.User)
             .Where(a => a.UserId == userId && a.CreatedAt >= startDate)
@@ -328,7 +312,7 @@ public class UserActivityService : IUserActivityService
             sessions.Add(CreateSessionDto(currentSession));
         }
 
-        _logger.LogInformation("Found {Count} sessions for user: {UserId}", sessions.Count, userId);
+        logger.LogInformation("Found {Count} sessions for user: {UserId}", sessions.Count, userId);
 
         return sessions;
     }
@@ -336,13 +320,13 @@ public class UserActivityService : IUserActivityService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<List<PopularProductDto>> GetMostViewedProductsAsync(int days = 30, int topN = 10, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Retrieving most viewed products for last {Days} days, top {TopN}", days, topN);
+        logger.LogInformation("Retrieving most viewed products for last {Days} days, top {TopN}", days, topN);
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
         // ✅ PERFORMANCE: productIds'i önce database'de oluştur, sonra productActivities'ı al
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
-        var productIds = await _context.Set<UserActivityLog>()
+        var productIds = await context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
                        a.EntityType == EntityType.Product &&
@@ -361,7 +345,7 @@ public class UserActivityService : IUserActivityService
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de productActivities'ı al (productIds ile filtrele)
-        var productActivitiesData = await _context.Set<UserActivityLog>()
+        var productActivitiesData = await context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
                        a.EntityType == EntityType.Product &&
@@ -380,12 +364,12 @@ public class UserActivityService : IUserActivityService
             .Take(topN)
             .ToListAsync(cancellationToken);
 
-        var products = await _context.Set<ProductEntity>()
+        var products = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.Name, cancellationToken);
 
-        var purchases = await _context.Set<OrderItem>()
+        var purchases = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => productIds.Contains(oi.ProductId) &&
                         oi.Order.CreatedAt >= startDate)
@@ -420,21 +404,20 @@ public class UserActivityService : IUserActivityService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task DeleteOldActivitiesAsync(int daysToKeep = 90, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Deleting old activities older than {Days} days", daysToKeep);
+        logger.LogInformation("Deleting old activities older than {Days} days", daysToKeep);
 
         var cutoffDate = DateTime.UtcNow.AddDays(-daysToKeep);
 
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-        var oldActivities = await _context.Set<UserActivityLog>()
+        var oldActivities = await context.Set<UserActivityLog>()
             .Where(a => a.CreatedAt < cutoffDate)
             .ToListAsync(cancellationToken);
 
-        _context.Set<UserActivityLog>().RemoveRange(oldActivities);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        context.Set<UserActivityLog>().RemoveRange(oldActivities);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogWarning("Deleted {Count} old activity records", oldActivities.Count);
+        logger.LogWarning("Deleted {Count} old activity records", oldActivities.Count);
     }
-
 
     private UserSessionDto CreateSessionDto(List<UserActivityLog> activities)
     {
@@ -456,7 +439,7 @@ public class UserActivityService : IUserActivityService
             DurationMinutes = (int)(last.CreatedAt - first.CreatedAt).TotalMinutes,
             ActivitiesCount = activities.Count,
             // ✅ ARCHITECTURE: AutoMapper kullan
-            Activities = _mapper.Map<List<UserActivityLogDto>>(activities)
+            Activities = mapper.Map<List<UserActivityLogDto>>(activities)
         };
     }
 

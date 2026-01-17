@@ -21,31 +21,18 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Order.Commands.CreateReturnRequest;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreateReturnRequestCommandHandler : IRequestHandler<CreateReturnRequestCommand, ReturnRequestDto>
+public class CreateReturnRequestCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<CreateReturnRequestCommandHandler> logger,
+    IOptions<OrderSettings> orderSettings) : IRequestHandler<CreateReturnRequestCommand, ReturnRequestDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateReturnRequestCommandHandler> _logger;
-    private readonly OrderSettings _orderSettings;
-
-    public CreateReturnRequestCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateReturnRequestCommandHandler> logger,
-        IOptions<OrderSettings> orderSettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _orderSettings = orderSettings.Value;
-    }
+    private readonly OrderSettings _orderSettings = orderSettings.Value;
 
     public async Task<ReturnRequestDto> Handle(CreateReturnRequestCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Return request oluşturuluyor. OrderId: {OrderId}, UserId: {UserId}, Reason: {Reason}",
             request.Dto.OrderId, request.Dto.UserId, request.Dto.Reason);
 
@@ -65,7 +52,7 @@ public class CreateReturnRequestCommandHandler : IRequestHandler<CreateReturnReq
             throw new ValidationException("İade nedeni boş olamaz.");
         }
 
-        var order = await _context.Set<OrderEntity>()
+        var order = await context.Set<OrderEntity>()
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.Id == request.Dto.OrderId && o.UserId == request.Dto.UserId, cancellationToken);
 
@@ -85,7 +72,7 @@ public class CreateReturnRequestCommandHandler : IRequestHandler<CreateReturnReq
             throw new BusinessException($"İade süresi dolmuş. Teslim tarihinden itibaren {_orderSettings.ReturnPeriodDays} gün içinde iade yapılabilir.");
         }
 
-        var refundAmount = await _context.Set<OrderItem>()
+        var refundAmount = await context.Set<OrderItem>()
             .Where(oi => oi.OrderId == request.Dto.OrderId && request.Dto.OrderItemIds.Contains(oi.Id))
             .SumAsync(oi => (decimal?)oi.TotalPrice, cancellationToken) ?? 0;
 
@@ -96,7 +83,7 @@ public class CreateReturnRequestCommandHandler : IRequestHandler<CreateReturnReq
 
         // ✅ PERFORMANCE: Order zaten yukarıda query edildi, tekrar query etme
         // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
-        var user = await _context.Users
+        var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == request.Dto.UserId, cancellationToken);
         if (user == null)
         {
@@ -114,11 +101,11 @@ public class CreateReturnRequestCommandHandler : IRequestHandler<CreateReturnReq
             order,
             user);
 
-        await _context.Set<ReturnRequest>().AddAsync(returnRequest, cancellationToken);
+        await context.Set<ReturnRequest>().AddAsync(returnRequest, cancellationToken);
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var reloadedReturnRequest = await _context.Set<ReturnRequest>()
+        var reloadedReturnRequest = await context.Set<ReturnRequest>()
             .AsNoTracking()
             .Include(r => r.Order)
             .Include(r => r.User)
@@ -126,14 +113,14 @@ public class CreateReturnRequestCommandHandler : IRequestHandler<CreateReturnReq
 
         if (reloadedReturnRequest == null)
         {
-            _logger.LogWarning("Return request {ReturnRequestId} not found after creation", returnRequest.Id);
-            return _mapper.Map<ReturnRequestDto>(returnRequest);
+            logger.LogWarning("Return request {ReturnRequestId} not found after creation", returnRequest.Id);
+            return mapper.Map<ReturnRequestDto>(returnRequest);
         }
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Return request oluşturuldu. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, RefundAmount: {RefundAmount}",
             reloadedReturnRequest.Id, request.Dto.OrderId, refundAmount);
 
-        return _mapper.Map<ReturnRequestDto>(reloadedReturnRequest);
+        return mapper.Map<ReturnRequestDto>(reloadedReturnRequest);
     }
 }

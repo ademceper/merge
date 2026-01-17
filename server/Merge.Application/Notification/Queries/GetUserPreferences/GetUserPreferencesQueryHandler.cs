@@ -20,32 +20,21 @@ namespace Merge.Application.Notification.Queries.GetUserPreferences;
 /// Get User Preferences Query Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// BOLUM 3.4: Pagination (ZORUNLU)
 /// </summary>
-public class GetUserPreferencesQueryHandler : IRequestHandler<GetUserPreferencesQuery, PagedResult<NotificationPreferenceDto>>
+public class GetUserPreferencesQueryHandler(IDbContext context, IMapper mapper, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetUserPreferencesQuery, PagedResult<NotificationPreferenceDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly PaginationSettings _paginationSettings;
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
-    public GetUserPreferencesQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     public async Task<PagedResult<NotificationPreferenceDto>> Handle(GetUserPreferencesQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 12.0: Magic Numbers YASAK - Configuration kullan
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize 
-            ? _paginationSettings.MaxPageSize 
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize 
+            ? paginationConfig.MaxPageSize 
             : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !np.IsDeleted (Global Query Filter)
-        IQueryable<NotificationPreference> query = _context.Set<NotificationPreference>()
+        IQueryable<NotificationPreference> query = context.Set<NotificationPreference>()
             .AsNoTracking()
             .Where(np => np.UserId == request.UserId)
             .OrderBy(np => np.NotificationType)
@@ -59,7 +48,7 @@ public class GetUserPreferencesQueryHandler : IRequestHandler<GetUserPreferences
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var preferenceDtos = _mapper.Map<List<NotificationPreferenceDto>>(preferences);
+        var preferenceDtos = mapper.Map<List<NotificationPreferenceDto>>(preferences);
 
         return new PagedResult<NotificationPreferenceDto>
         {

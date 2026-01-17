@@ -16,43 +16,27 @@ namespace Merge.Application.Product.Queries.GetProductBundleById;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetProductBundleByIdQueryHandler : IRequestHandler<GetProductBundleByIdQuery, ProductBundleDto?>
+public class GetProductBundleByIdQueryHandler(IDbContext context, IMapper mapper, ILogger<GetProductBundleByIdQueryHandler> logger, ICacheService cache, IOptions<CacheSettings> cacheSettings) : IRequestHandler<GetProductBundleByIdQuery, ProductBundleDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetProductBundleByIdQueryHandler> _logger;
-    private readonly ICacheService _cache;
-    private readonly CacheSettings _cacheSettings;
-    private const string CACHE_KEY_BUNDLE_BY_ID = "bundle_";
+    private readonly CacheSettings cacheConfig = cacheSettings.Value;
 
-    public GetProductBundleByIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetProductBundleByIdQueryHandler> logger,
-        ICacheService cache,
-        IOptions<CacheSettings> cacheSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _cache = cache;
-        _cacheSettings = cacheSettings.Value;
-    }
+
+    private const string CACHE_KEY_BUNDLE_BY_ID = "bundle_";
 
     public async Task<ProductBundleDto?> Handle(GetProductBundleByIdQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching product bundle by Id: {BundleId}", request.Id);
+        logger.LogInformation("Fetching product bundle by Id: {BundleId}", request.Id);
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern
         var cacheKey = $"{CACHE_KEY_BUNDLE_BY_ID}{request.Id}";
-        var cachedBundle = await _cache.GetAsync<ProductBundleDto>(cacheKey, cancellationToken);
+        var cachedBundle = await cache.GetAsync<ProductBundleDto>(cacheKey, cancellationToken);
         if (cachedBundle != null)
         {
-            _logger.LogInformation("Product bundle retrieved from cache. BundleId: {BundleId}", request.Id);
+            logger.LogInformation("Product bundle retrieved from cache. BundleId: {BundleId}", request.Id);
             return cachedBundle;
         }
 
-        var bundle = await _context.Set<ProductBundle>()
+        var bundle = await context.Set<ProductBundle>()
             .AsNoTracking()
             .Include(b => b.BundleItems)
                 .ThenInclude(bi => bi.Product)
@@ -60,17 +44,17 @@ public class GetProductBundleByIdQueryHandler : IRequestHandler<GetProductBundle
 
         if (bundle == null)
         {
-            _logger.LogWarning("Product bundle not found. BundleId: {BundleId}", request.Id);
+            logger.LogWarning("Product bundle not found. BundleId: {BundleId}", request.Id);
             return null;
         }
 
-        var bundleDto = _mapper.Map<ProductBundleDto>(bundle);
+        var bundleDto = mapper.Map<ProductBundleDto>(bundle);
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
-        await _cache.SetAsync(cacheKey, bundleDto, TimeSpan.FromMinutes(_cacheSettings.ProductBundleCacheExpirationMinutes), cancellationToken);
+        await cache.SetAsync(cacheKey, bundleDto, TimeSpan.FromMinutes(cacheConfig.ProductBundleCacheExpirationMinutes), cancellationToken);
 
-        _logger.LogInformation("Product bundle retrieved successfully. BundleId: {BundleId}", request.Id);
+        logger.LogInformation("Product bundle retrieved successfully. BundleId: {BundleId}", request.Id);
 
         return bundleDto;
     }

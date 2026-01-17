@@ -22,39 +22,17 @@ using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
-
 namespace Merge.Application.Services.Marketing;
 
-public class ReferralService : IReferralService
+public class ReferralService(IDbContext context, IUnitOfWork unitOfWork, IMediator mediator, IMapper mapper, ILogger<ReferralService> logger, IOptions<ReferralSettings> referralSettings) : IReferralService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMediator _mediator;
-    private readonly IMapper _mapper;
-    private readonly ILogger<ReferralService> _logger;
-    private readonly ReferralSettings _referralSettings;
-
-    public ReferralService(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMediator mediator,
-        IMapper mapper,
-        ILogger<ReferralService> logger,
-        IOptions<ReferralSettings> referralSettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mediator = mediator;
-        _mapper = mapper;
-        _logger = logger;
-        _referralSettings = referralSettings.Value;
-    }
+    private readonly ReferralSettings referralConfig = referralSettings.Value;
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ReferralCodeDto> GetMyReferralCodeAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        var code = await _context.Set<ReferralCode>()
+        var code = await context.Set<ReferralCode>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
 
@@ -64,19 +42,19 @@ public class ReferralService : IReferralService
         }
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<ReferralCodeDto>(code);
+        return mapper.Map<ReferralCodeDto>(code);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<ReferralCodeDto> CreateReferralCodeAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Referans kodu oluşturuluyor. UserId: {UserId}",
             userId);
 
         // ✅ PERFORMANCE: FindAsync yerine FirstOrDefaultAsync (Global Query Filter)
-        var user = await _context.Users
+        var user = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
         // ✅ CONFIGURATION: Hardcoded değer yerine configuration kullan (BEST_PRACTICES_ANALIZI.md - BOLUM 2.1.4)
@@ -86,33 +64,33 @@ public class ReferralService : IReferralService
             referralCode,
             0,
             null,
-            _referralSettings.ReferrerPointsReward,
-            _referralSettings.RefereeDiscountPercentage
+            referralConfig.ReferrerPointsReward,
+            referralConfig.RefereeDiscountPercentage
         );
 
-        await _context.Set<ReferralCode>().AddAsync(code, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<ReferralCode>().AddAsync(code, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        var createdCode = await _context.Set<ReferralCode>()
+        var createdCode = await context.Set<ReferralCode>()
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == code.Id, cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Referans kodu oluşturuldu. ReferralCodeId: {ReferralCodeId}, Code: {Code}, UserId: {UserId}",
             code.Id, referralCode, userId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<ReferralCodeDto>(createdCode!);
+        return mapper.Map<ReferralCodeDto>(createdCode!);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<ReferralDto>> GetMyReferralsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
-        var referrals = await _context.Set<Referral>()
+        var referrals = await context.Set<Referral>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(r => r.ReferredUser)
@@ -121,7 +99,7 @@ public class ReferralService : IReferralService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<ReferralDto>>(referrals);
+        return mapper.Map<IEnumerable<ReferralDto>>(referrals);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -133,7 +111,7 @@ public class ReferralService : IReferralService
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
-        var query = _context.Set<Referral>()
+        var query = context.Set<Referral>()
             .AsNoTracking()
             .Include(r => r.ReferredUser)
             .Where(r => r.ReferrerId == userId);
@@ -148,7 +126,7 @@ public class ReferralService : IReferralService
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         return new PagedResult<ReferralDto>
         {
-            Items = _mapper.Map<List<ReferralDto>>(referrals),
+            Items = mapper.Map<List<ReferralDto>>(referrals),
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize
@@ -159,13 +137,13 @@ public class ReferralService : IReferralService
     public async Task<bool> ApplyReferralCodeAsync(Guid newUserId, string code, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
-        var referralCode = await _context.Set<ReferralCode>()
+        var referralCode = await context.Set<ReferralCode>()
             .FirstOrDefaultAsync(c => c.Code == code && c.IsActive, cancellationToken);
 
         if (referralCode == null || referralCode.UserId == newUserId)
             return false;
 
-        var exists = await _context.Set<Referral>()
+        var exists = await context.Set<Referral>()
             .AnyAsync(r => r.ReferredUserId == newUserId, cancellationToken);
 
         if (exists)
@@ -179,8 +157,8 @@ public class ReferralService : IReferralService
         );
 
         referralCode.IncrementUsage();
-        await _context.Set<Referral>().AddAsync(referral, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<Referral>().AddAsync(referral, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -188,7 +166,7 @@ public class ReferralService : IReferralService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task ProcessReferralRewardAsync(Guid referredUserId, Guid orderId, CancellationToken cancellationToken = default)
     {
-        var referral = await _context.Set<Referral>()
+        var referral = await context.Set<Referral>()
             .Include(r => r.ReferralCodeEntity)
             .FirstOrDefaultAsync(r => r.ReferredUserId == referredUserId && r.Status == ReferralStatus.Pending, cancellationToken);
 
@@ -204,10 +182,10 @@ public class ReferralService : IReferralService
             "Referral",
             $"Referral reward for {referredUserId}",
             null);
-        await _mediator.Send(addPointsCommand, cancellationToken);
+        await mediator.Send(addPointsCommand, cancellationToken);
 
         referral.MarkAsRewarded();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -215,16 +193,16 @@ public class ReferralService : IReferralService
     {
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        var totalReferrals = await _context.Set<Referral>()
+        var totalReferrals = await context.Set<Referral>()
             .CountAsync(r => r.ReferrerId == userId, cancellationToken);
 
-        var completedReferrals = await _context.Set<Referral>()
+        var completedReferrals = await context.Set<Referral>()
             .CountAsync(r => r.ReferrerId == userId && (r.Status == ReferralStatus.Completed || r.Status == ReferralStatus.Rewarded), cancellationToken);
 
-        var pendingReferrals = await _context.Set<Referral>()
+        var pendingReferrals = await context.Set<Referral>()
             .CountAsync(r => r.ReferrerId == userId && r.Status == ReferralStatus.Pending, cancellationToken);
 
-        var totalPointsAwarded = (int)await _context.Set<Referral>()
+        var totalPointsAwarded = (int)await context.Set<Referral>()
             .Where(r => r.ReferrerId == userId)
             .SumAsync(r => (long)r.PointsAwarded, cancellationToken);
 

@@ -9,17 +9,9 @@ using Merge.Infrastructure.Data;
 namespace Merge.Infrastructure.Repositories;
 
 // ✅ BOLUM 1.1: UnitOfWork Application katmanındaki IUnitOfWork interface'ini implement ediyor
-public class UnitOfWork : IUnitOfWork
+public class UnitOfWork(ApplicationDbContext context, IDomainEventDispatcher? domainEventDispatcher) : IUnitOfWork
 {
-    private readonly ApplicationDbContext _context;
-    private readonly IDomainEventDispatcher? _domainEventDispatcher;
     private IDbContextTransaction? _transaction;
-
-    public UnitOfWork(ApplicationDbContext context, IDomainEventDispatcher? domainEventDispatcher = null)
-    {
-        _context = context;
-        _domainEventDispatcher = domainEventDispatcher;
-    }
 
     // ✅ BOLUM 3.0: Outbox pattern (dual-write sorunu çözümü)
     // ✅ BOLUM 1.5: Domain Events publish mekanizması (ZORUNLU)
@@ -27,7 +19,7 @@ public class UnitOfWork : IUnitOfWork
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         // Get all domain events from tracked entities
-        var domainEvents = _context.ChangeTracker
+        var domainEvents = context.ChangeTracker
             .Entries<IAggregateRoot>()
             .SelectMany(x => x.Entity.DomainEvents)
             .ToList();
@@ -35,7 +27,7 @@ public class UnitOfWork : IUnitOfWork
         // Convert domain events to outbox messages (same transaction)
         foreach (var domainEvent in domainEvents)
         {
-            _context.Set<OutboxMessage>().Add(new OutboxMessage
+            context.Set<OutboxMessage>().Add(new OutboxMessage
             {
                 Id = Guid.NewGuid(),
                 Type = domainEvent.GetType().FullName ?? domainEvent.GetType().Name,
@@ -46,18 +38,18 @@ public class UnitOfWork : IUnitOfWork
         }
 
         // Clear domain events
-        foreach (var entry in _context.ChangeTracker.Entries<IAggregateRoot>())
+        foreach (var entry in context.ChangeTracker.Entries<IAggregateRoot>())
         {
             entry.Entity.ClearDomainEvents();
         }
 
-        return await _context.SaveChangesAsync(cancellationToken);
+        return await context.SaveChangesAsync(cancellationToken);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
-        _transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        _transaction = await context.Database.BeginTransactionAsync(cancellationToken);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -85,7 +77,7 @@ public class UnitOfWork : IUnitOfWork
     public void Dispose()
     {
         _transaction?.Dispose();
-        _context.Dispose();
+        context.Dispose();
     }
 }
 

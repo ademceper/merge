@@ -14,29 +14,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Subscription.Commands.UpdateSubscriptionPlan;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UpdateSubscriptionPlanCommandHandler : IRequestHandler<UpdateSubscriptionPlanCommand, bool>
+public class UpdateSubscriptionPlanCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<UpdateSubscriptionPlanCommandHandler> logger) : IRequestHandler<UpdateSubscriptionPlanCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<UpdateSubscriptionPlanCommandHandler> _logger;
-
-    public UpdateSubscriptionPlanCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<UpdateSubscriptionPlanCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(UpdateSubscriptionPlanCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Updating subscription plan. PlanId: {PlanId}", request.Id);
+        logger.LogInformation("Updating subscription plan. PlanId: {PlanId}", request.Id);
 
         // ✅ NOT: AsNoTracking() YOK - Entity track edilmeli (update için)
-        var plan = await _context.Set<SubscriptionPlan>()
+        var plan = await context.Set<SubscriptionPlan>()
             .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
 
         if (plan == null)
@@ -75,10 +62,10 @@ public class UpdateSubscriptionPlanCommandHandler : IRequestHandler<UpdateSubscr
         }
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Subscription plan updated successfully. PlanId: {PlanId}, Name: {Name}",
+        logger.LogInformation("Subscription plan updated successfully. PlanId: {PlanId}, Name: {Name}",
             plan.Id, plan.Name);
 
         return true;

@@ -17,42 +17,21 @@ namespace Merge.Application.Product.Commands.UpdateProductBundle;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class UpdateProductBundleCommandHandler : IRequestHandler<UpdateProductBundleCommand, ProductBundleDto>
+public class UpdateProductBundleCommandHandler(IRepository bundleRepository, IDbContext context, IUnitOfWork unitOfWork, ICacheService cache, IMapper mapper, ILogger<UpdateProductBundleCommandHandler> logger) : IRequestHandler<UpdateProductBundleCommand, ProductBundleDto>
 {
-    private readonly IRepository _bundleRepository;
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ICacheService _cache;
-    private readonly IMapper _mapper;
-    private readonly ILogger<UpdateProductBundleCommandHandler> _logger;
+
     private const string CACHE_KEY_BUNDLE_BY_ID = "bundle_";
     private const string CACHE_KEY_ALL_BUNDLES = "bundles_all";
     private const string CACHE_KEY_ACTIVE_BUNDLES = "bundles_active";
 
-    public UpdateProductBundleCommandHandler(
-        IRepository bundleRepository,
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ICacheService cache,
-        IMapper mapper,
-        ILogger<UpdateProductBundleCommandHandler> logger)
-    {
-        _bundleRepository = bundleRepository;
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _cache = cache;
-        _mapper = mapper;
-        _logger = logger;
-    }
-
     public async Task<ProductBundleDto> Handle(UpdateProductBundleCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Updating product bundle. BundleId: {BundleId}", request.Id);
+        logger.LogInformation("Updating product bundle. BundleId: {BundleId}", request.Id);
 
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var bundle = await _bundleRepository.GetByIdAsync(request.Id, cancellationToken);
+            var bundle = await bundleRepository.GetByIdAsync(request.Id, cancellationToken);
             if (bundle == null)
             {
                 throw new NotFoundException("Paket", request.Id);
@@ -77,12 +56,12 @@ public class UpdateProductBundleCommandHandler : IRequestHandler<UpdateProductBu
                 bundle.Deactivate();
             }
 
-            await _bundleRepository.UpdateAsync(bundle, cancellationToken);
+            await bundleRepository.UpdateAsync(bundle, cancellationToken);
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            var reloadedBundle = await _context.Set<ProductBundle>()
+            var reloadedBundle = await context.Set<ProductBundle>()
                 .AsNoTracking()
                 .Include(b => b.BundleItems)
                     .ThenInclude(bi => bi.Product)
@@ -90,23 +69,23 @@ public class UpdateProductBundleCommandHandler : IRequestHandler<UpdateProductBu
 
             if (reloadedBundle == null)
             {
-                _logger.LogWarning("Product bundle {BundleId} not found after update", request.Id);
+                logger.LogWarning("Product bundle {BundleId} not found after update", request.Id);
                 throw new NotFoundException("Paket", request.Id);
             }
 
             // ✅ BOLUM 10.2: Cache invalidation
-            await _cache.RemoveAsync($"{CACHE_KEY_BUNDLE_BY_ID}{request.Id}", cancellationToken);
-            await _cache.RemoveAsync(CACHE_KEY_ALL_BUNDLES, cancellationToken);
-            await _cache.RemoveAsync(CACHE_KEY_ACTIVE_BUNDLES, cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_BUNDLE_BY_ID}{request.Id}", cancellationToken);
+            await cache.RemoveAsync(CACHE_KEY_ALL_BUNDLES, cancellationToken);
+            await cache.RemoveAsync(CACHE_KEY_ACTIVE_BUNDLES, cancellationToken);
 
-            _logger.LogInformation("Product bundle updated successfully. BundleId: {BundleId}", request.Id);
+            logger.LogInformation("Product bundle updated successfully. BundleId: {BundleId}", request.Id);
 
-            return _mapper.Map<ProductBundleDto>(reloadedBundle);
+            return mapper.Map<ProductBundleDto>(reloadedBundle);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating product bundle. BundleId: {BundleId}", request.Id);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Error updating product bundle. BundleId: {BundleId}", request.Id);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

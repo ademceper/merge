@@ -15,26 +15,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Commands.UpdateStore;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UpdateStoreCommandHandler : IRequestHandler<UpdateStoreCommand, bool>
+public class UpdateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<UpdateStoreCommandHandler> logger) : IRequestHandler<UpdateStoreCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<UpdateStoreCommandHandler> _logger;
-
-    public UpdateStoreCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<UpdateStoreCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(UpdateStoreCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Updating store. StoreId: {StoreId}", request.StoreId);
+        logger.LogInformation("Updating store. StoreId: {StoreId}", request.StoreId);
 
         if (request.Dto == null)
         {
@@ -42,12 +29,12 @@ public class UpdateStoreCommandHandler : IRequestHandler<UpdateStoreCommand, boo
         }
 
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var store = await _context.Set<Store>()
+        var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == request.StoreId, cancellationToken);
 
         if (store == null)
         {
-            _logger.LogWarning("Store not found. StoreId: {StoreId}", request.StoreId);
+            logger.LogWarning("Store not found. StoreId: {StoreId}", request.StoreId);
             return false;
         }
 
@@ -79,7 +66,7 @@ public class UpdateStoreCommandHandler : IRequestHandler<UpdateStoreCommand, boo
         {
             // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
             // Unset other primary stores
-            var existingPrimary = await _context.Set<Store>()
+            var existingPrimary = await context.Set<Store>()
                 .Where(s => s.SellerId == store.SellerId && s.IsPrimary && s.Id != request.StoreId)
                 .ToListAsync(cancellationToken);
 
@@ -98,9 +85,9 @@ public class UpdateStoreCommandHandler : IRequestHandler<UpdateStoreCommand, boo
             store.RemovePrimaryStatus();
         }
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Store updated. StoreId: {StoreId}", request.StoreId);
+        logger.LogInformation("Store updated. StoreId: {StoreId}", request.StoreId);
 
         return true;
     }

@@ -19,31 +19,22 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 namespace Merge.Application.User.Queries.GetActivityStats;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuery, ActivityStatsDto>
+public class GetActivityStatsQueryHandler(IDbContext context, ILogger<GetActivityStatsQueryHandler> logger, IOptions<UserSettings> userSettings) : IRequestHandler<GetActivityStatsQuery, ActivityStatsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetActivityStatsQueryHandler> _logger;
-    private readonly UserSettings _userSettings;
-
-    public GetActivityStatsQueryHandler(IDbContext context, ILogger<GetActivityStatsQueryHandler> logger, IOptions<UserSettings> userSettings)
-    {
-        _context = context;
-        _logger = logger;
-        _userSettings = userSettings.Value;
-    }
+    private readonly UserSettings config = userSettings.Value;
 
     public async Task<ActivityStatsDto> Handle(GetActivityStatsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
-        _logger.LogInformation("Generating activity statistics for last {Days} days", request.Days);
+        logger.LogInformation("Generating activity statistics for last {Days} days", request.Days);
         var days = request.Days;
-        if (days > _userSettings.Activity.MaxDays) days = _userSettings.Activity.MaxDays;
-        if (days < 1) days = _userSettings.Activity.DefaultDays;
+        if (days > config.Activity.MaxDays) days = config.Activity.MaxDays;
+        if (days < 1) days = config.Activity.DefaultDays;
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
-        IQueryable<UserActivityLog> query = _context.Set<UserActivityLog>()
+        IQueryable<UserActivityLog> query = context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate);
 
@@ -78,10 +69,10 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
                 ActivityCount = g.Count()
             })
             .OrderByDescending(u => u.ActivityCount)
-            .Take(_userSettings.Activity.DefaultTopN)
+            .Take(config.Activity.DefaultTopN)
             .Select(u => u.UserId)
             .ToListAsync(cancellationToken);
-        var userEmails = await _context.Users
+        var userEmails = await context.Users
             .AsNoTracking()
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.Email, cancellationToken);
@@ -97,7 +88,7 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
                 LastActivity = g.Max(a => a.CreatedAt)
             })
             .OrderByDescending(u => u.ActivityCount)
-            .Take(_userSettings.Activity.DefaultTopN)
+            .Take(config.Activity.DefaultTopN)
             .ToListAsync(cancellationToken);
 
         foreach (var user in topUsersData)
@@ -107,13 +98,13 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
                 user.UserEmail = email;
             }
         }
-        var mostViewedProducts = await GetMostViewedProductsAsync(days, _userSettings.Activity.DefaultTopN, cancellationToken);
+        var mostViewedProducts = await GetMostViewedProductsAsync(days, config.Activity.DefaultTopN, cancellationToken);
 
         var avgSessionDuration = await query
             .Where(a => a.DurationMs > 0)
             .AverageAsync(a => (decimal?)a.DurationMs, cancellationToken) ?? 0;
 
-        _logger.LogInformation("Activity stats generated - Total: {Total}, Unique Users: {Users}", totalActivities, uniqueUsers);
+        logger.LogInformation("Activity stats generated - Total: {Total}, Unique Users: {Users}", totalActivities, uniqueUsers);
 
         return new ActivityStatsDto
         {
@@ -133,7 +124,7 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
         var startDate = DateTime.UtcNow.AddDays(-days);
 
         var productIds =         // ✅ PERFORMANCE: AsNoTracking
-        await _context.Set<UserActivityLog>()
+        await context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
                        a.EntityType == EntityType.Product &&
@@ -152,7 +143,7 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
             .ToListAsync(cancellationToken);
 
         var productActivitiesData =         // ✅ PERFORMANCE: AsNoTracking
-        await _context.Set<UserActivityLog>()
+        await context.Set<UserActivityLog>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= startDate &&
                        a.EntityType == EntityType.Product &&
@@ -172,13 +163,13 @@ public class GetActivityStatsQueryHandler : IRequestHandler<GetActivityStatsQuer
             .ToListAsync(cancellationToken);
 
         var products =         // ✅ PERFORMANCE: AsNoTracking
-        await _context.Set<ProductEntity>()
+        await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.Name, cancellationToken);
 
         var purchases =         // ✅ PERFORMANCE: AsNoTracking
-        await _context.Set<OrderItem>()
+        await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => productIds.Contains(oi.ProductId) &&
                         oi.Order.CreatedAt >= startDate)

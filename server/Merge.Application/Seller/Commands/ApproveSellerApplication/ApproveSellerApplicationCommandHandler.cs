@@ -22,62 +22,38 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 namespace Merge.Application.Seller.Commands.ApproveSellerApplication;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class ApproveSellerApplicationCommandHandler : IRequestHandler<ApproveSellerApplicationCommand, bool>
+public class ApproveSellerApplicationCommandHandler(IRepository applicationRepository, UserManager<UserEntity> userManager, IDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, IOptions<SellerSettings> sellerSettings, ILogger<ApproveSellerApplicationCommandHandler> logger) : IRequestHandler<ApproveSellerApplicationCommand, bool>
 {
-    private readonly IRepository _applicationRepository;
-    private readonly UserManager<UserEntity> _userManager;
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IEmailService _emailService;
-    private readonly IOptions<SellerSettings> _sellerSettings;
-    private readonly ILogger<ApproveSellerApplicationCommandHandler> _logger;
-
-    public ApproveSellerApplicationCommandHandler(
-        IRepository applicationRepository,
-        UserManager<UserEntity> userManager,
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IEmailService emailService,
-        IOptions<SellerSettings> sellerSettings,
-        ILogger<ApproveSellerApplicationCommandHandler> logger)
-    {
-        _applicationRepository = applicationRepository;
-        _userManager = userManager;
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _emailService = emailService;
-        _sellerSettings = sellerSettings;
-        _logger = logger;
-    }
+    private readonly SellerSettings sellerConfig = sellerSettings.Value;
 
     public async Task<bool> Handle(ApproveSellerApplicationCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Approving seller application {ApplicationId} by reviewer {ReviewerId}",
+        logger.LogInformation("Approving seller application {ApplicationId} by reviewer {ReviewerId}",
             request.ApplicationId, request.ReviewerId);
 
         try
         {
-            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            var application = await _applicationRepository.GetByIdAsync(request.ApplicationId);
+            var application = await applicationRepository.GetByIdAsync(request.ApplicationId);
             if (application == null)
             {
-                _logger.LogWarning("Application approval failed - Application {ApplicationId} not found", request.ApplicationId);
+                logger.LogWarning("Application approval failed - Application {ApplicationId} not found", request.ApplicationId);
                 return false;
             }
 
             // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             application.Approve(request.ReviewerId);
 
-            await _applicationRepository.UpdateAsync(application);
+            await applicationRepository.UpdateAsync(application);
             await CreateSellerProfileAsync(application, cancellationToken);
 
             // Send approval email
-            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
+            var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
             if (user != null)
             {
-                await _emailService.SendEmailAsync(
+                await emailService.SendEmailAsync(
                     user.Email ?? string.Empty,
                     "Seller Application Approved!",
                     $"Congratulations! Your seller application for {application.BusinessName} has been approved. " +
@@ -87,25 +63,25 @@ public class ApproveSellerApplicationCommandHandler : IRequestHandler<ApproveSel
                 );
 
                 // Update user role to Seller
-                var currentRoles = await _userManager.GetRolesAsync(user);
+                var currentRoles = await userManager.GetRolesAsync(user);
                 if (currentRoles.Any())
                 {
-                    await _userManager.RemoveFromRolesAsync(user, currentRoles);
+                    await userManager.RemoveFromRolesAsync(user, currentRoles);
                 }
-                await _userManager.AddToRoleAsync(user, "Seller");
+                await userManager.AddToRoleAsync(user, "Seller");
             }
 
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            _logger.LogInformation("Application {ApplicationId} approved successfully", request.ApplicationId);
+            logger.LogInformation("Application {ApplicationId} approved successfully", request.ApplicationId);
             return true;
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            _logger.LogError(ex, "Error approving application {ApplicationId}", request.ApplicationId);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Error approving application {ApplicationId}", request.ApplicationId);
             throw;
         }
     }
@@ -113,13 +89,13 @@ public class ApproveSellerApplicationCommandHandler : IRequestHandler<ApproveSel
     private async Task CreateSellerProfileAsync(SellerApplication application, CancellationToken cancellationToken)
     {
         // Check if seller profile already exists
-        var existingProfile = await _context.Set<SellerProfile>()
+        var existingProfile = await context.Set<SellerProfile>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == application.UserId, cancellationToken);
 
         if (existingProfile != null)
         {
-            _logger.LogInformation("Seller profile already exists for user {UserId}", application.UserId);
+            logger.LogInformation("Seller profile already exists for user {UserId}", application.UserId);
             return;
         }
 
@@ -128,14 +104,14 @@ public class ApproveSellerApplicationCommandHandler : IRequestHandler<ApproveSel
         var profile = SellerProfile.Create(
             userId: application.UserId,
             storeName: application.BusinessName,
-            commissionRate: _sellerSettings.Value.DefaultCommissionRate);
+            commissionRate: sellerConfig.DefaultCommissionRate);
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         profile.Verify();
         profile.Activate();
 
-        await _context.Set<SellerProfile>().AddAsync(profile, cancellationToken);
-        _logger.LogInformation("Created seller profile for user {UserId} with store name: {StoreName}",
+        await context.Set<SellerProfile>().AddAsync(profile, cancellationToken);
+        logger.LogInformation("Created seller profile for user {UserId} with store name: {StoreName}",
             application.UserId, application.BusinessName);
     }
 }

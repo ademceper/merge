@@ -5,11 +5,13 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Analytics.Queries.GetUsers;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetUsersQueryValidator : AbstractValidator<GetUsersQuery>
+public class GetUsersQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetUsersQuery>
 {
-    public GetUsersQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    private readonly PaginationSettings settings = paginationSettings.Value;
+
+    public GetUsersQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
-        var maxPageSize = paginationSettings.Value.MaxPageSize;
+        var maxPageSize = settings.MaxPageSize;
 
         RuleFor(x => x.Page)
             .GreaterThan(0).WithMessage("Sayfa numarası 0'dan büyük olmalıdır");

@@ -18,28 +18,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.ML.Helpers;
 
 // ✅ BOLUM 1.1: Clean Architecture - Helper class for shared fraud detection logic
-public class FraudDetectionHelper
+public class FraudDetectionHelper(IDbContext context, ILogger<FraudDetectionHelper> logger, IOptions<MLSettings> mlSettings)
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<FraudDetectionHelper> _logger;
-    private readonly MLSettings _mlSettings;
-
-    public FraudDetectionHelper(
-        IDbContext context,
-        ILogger<FraudDetectionHelper> logger,
-        IOptions<MLSettings> mlSettings)
-    {
-        _context = context;
-        _logger = logger;
-        _mlSettings = mlSettings.Value;
-    }
+    private readonly MLSettings config = mlSettings.Value;
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 1.2: Enum kullanımı (string alertType YASAK)
     public async Task<int> CalculateRiskScoreAsync(FraudRuleType ruleType, Guid? entityId, Guid? userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted (Global Query Filter)
-        var activeRules = await _context.Set<FraudDetectionRule>()
+        var activeRules = await context.Set<FraudDetectionRule>()
             .Where(r => r.IsActive && r.RuleType == ruleType)
             .OrderByDescending(r => r.Priority)
             .ToListAsync(cancellationToken);
@@ -55,7 +43,8 @@ public class FraudDetectionHelper
         }
 
         // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-        return Math.Min(totalRiskScore, _mlSettings.FraudDetectionRiskScoreCap);
+        var mlConfig = mlSettings.Value;
+        return Math.Min(totalRiskScore, mlConfig.FraudDetectionRiskScoreCap);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -63,7 +52,7 @@ public class FraudDetectionHelper
     public async Task<List<FraudDetectionRule>> GetMatchedRulesAsync(FraudRuleType ruleType, Guid? entityId, Guid? userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted (Global Query Filter)
-        var activeRules = await _context.Set<FraudDetectionRule>()
+        var activeRules = await context.Set<FraudDetectionRule>()
             .Where(r => r.IsActive && r.RuleType == ruleType)
             .OrderByDescending(r => r.Priority)
             .ToListAsync(cancellationToken);
@@ -105,7 +94,7 @@ public class FraudDetectionHelper
             if (rule.RuleType == FraudRuleType.Order && entityId.HasValue)
             {
                 // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
-                var order = await _context.Set<OrderEntity>()
+                var order = await context.Set<OrderEntity>()
                     .AsNoTracking()
                     .Include(o => o.OrderItems)
                     .FirstOrDefaultAsync(o => o.Id == entityId.Value, cancellationToken);
@@ -129,7 +118,7 @@ public class FraudDetectionHelper
             if (rule.RuleType == FraudRuleType.Payment && entityId.HasValue)
             {
                 // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-                var payment = await _context.Set<PaymentEntity>()
+                var payment = await context.Set<PaymentEntity>()
                     .AsNoTracking()
                     .FirstOrDefaultAsync(p => p.Id == entityId.Value, cancellationToken);
 
@@ -146,7 +135,7 @@ public class FraudDetectionHelper
             if (rule.RuleType == FraudRuleType.Account && userId.HasValue)
             {
                 // ✅ PERFORMANCE: Removed manual !u.IsDeleted (Global Query Filter)
-                var user = await _context.Users
+                var user = await context.Users
                     .AsNoTracking()
                     .Include(u => u.Orders)
                     .FirstOrDefaultAsync(u => u.Id == userId.Value, cancellationToken);
@@ -158,7 +147,7 @@ public class FraudDetectionHelper
                     {
                         var daysSinceCreation = (DateTime.UtcNow - user.CreatedAt).Days;
                         // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-                        if (daysSinceCreation < _mlSettings.FraudDetectionNewAccountDays && 
+                        if (daysSinceCreation < config.FraudDetectionNewAccountDays && 
                             daysSinceCreation < conditions.NewAccountDays.Value && 
                             user.Orders.Count > (conditions.MaxDailyTransactions ?? int.MaxValue))
                         {
@@ -172,7 +161,7 @@ public class FraudDetectionHelper
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Rule evaluation error for rule {RuleId}", rule.Id);
+            logger.LogError(ex, "Rule evaluation error for rule {RuleId}", rule.Id);
             return false;
         }
     }

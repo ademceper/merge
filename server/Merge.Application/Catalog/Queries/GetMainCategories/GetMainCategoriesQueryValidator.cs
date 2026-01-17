@@ -5,12 +5,12 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Catalog.Queries.GetMainCategories;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetMainCategoriesQueryValidator : AbstractValidator<GetMainCategoriesQuery>
+public class GetMainCategoriesQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetMainCategoriesQuery>
 {
-    public GetMainCategoriesQueryValidator(IOptions<PaginationSettings> paginationSettings)
-    {
-        var settings = paginationSettings.Value;
+    private readonly PaginationSettings config = paginationSettings.Value;
 
+    public GetMainCategoriesQueryValidator() : this(Options.Create(new PaginationSettings()))
+    {
         RuleFor(x => x.Page)
             .GreaterThan(0)
             .WithMessage("Sayfa numarası 1'den büyük olmalıdır.");
@@ -18,8 +18,8 @@ public class GetMainCategoriesQueryValidator : AbstractValidator<GetMainCategori
         RuleFor(x => x.PageSize)
             .GreaterThan(0)
             .WithMessage("Sayfa boyutu 1'den büyük olmalıdır.")
-            .LessThanOrEqualTo(settings.MaxPageSize)
-            .WithMessage($"Sayfa boyutu en fazla {settings.MaxPageSize} olabilir.");
+            .LessThanOrEqualTo(config.MaxPageSize)
+            .WithMessage($"Sayfa boyutu en fazla {config.MaxPageSize} olabilir.");
     }
 }
 

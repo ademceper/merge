@@ -32,33 +32,20 @@ namespace Merge.Application.Services.Security;
 /// Yeni kod için Merge.Application.Security.Commands ve Merge.Application.Security.Queries kullanın.
 /// </summary>
 [Obsolete("This service is deprecated. Use MediatR commands and queries instead. See Merge.Application.Security.Commands and Merge.Application.Security.Queries.")]
-public class OrderVerificationService : IOrderVerificationService
+public class OrderVerificationService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<OrderVerificationService> logger, IOptions<ServiceSettings> serviceSettings) : IOrderVerificationService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<OrderVerificationService> _logger;
-    private readonly ServiceSettings _serviceSettings;
-
-    public OrderVerificationService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<OrderVerificationService> logger, IOptions<ServiceSettings> serviceSettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _serviceSettings = serviceSettings.Value;
-    }
+    private readonly ServiceSettings serviceConfig = serviceSettings.Value;
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<OrderVerificationDto> CreateVerificationAsync(CreateOrderVerificationDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Order verification oluşturuluyor. OrderId: {OrderId}, VerificationType: {VerificationType}",
+        logger.LogInformation("Order verification oluşturuluyor. OrderId: {OrderId}, VerificationType: {VerificationType}",
             dto.OrderId, dto.VerificationType);
 
         // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
-        var order = await _context.Set<OrderEntity>()
+        var order = await context.Set<OrderEntity>()
             .FirstOrDefaultAsync(o => o.Id == dto.OrderId, cancellationToken);
 
         if (order == null)
@@ -68,7 +55,7 @@ public class OrderVerificationService : IOrderVerificationService
 
         // ✅ PERFORMANCE: Removed manual !v.IsDeleted (Global Query Filter)
         // Check if verification already exists
-        var existing = await _context.Set<OrderVerification>()
+        var existing = await context.Set<OrderVerification>()
             .FirstOrDefaultAsync(v => v.OrderId == dto.OrderId, cancellationToken);
 
         if (existing != null)
@@ -92,35 +79,35 @@ public class OrderVerificationService : IOrderVerificationService
             verificationNotes: dto.VerificationNotes,
             requiresManualReview: dto.RequiresManualReview || riskScore >= 70);
 
-        await _context.Set<OrderVerification>().AddAsync(verification, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<OrderVerification>().AddAsync(verification, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        verification = await _context.Set<OrderVerification>()
+        verification = await context.Set<OrderVerification>()
             .AsNoTracking()
             .Include(v => v.Order)
             .Include(v => v.VerifiedBy)
             .FirstOrDefaultAsync(v => v.Id == verification.Id, cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Order verification oluşturuldu. VerificationId: {VerificationId}, OrderId: {OrderId}, RiskScore: {RiskScore}",
+        logger.LogInformation("Order verification oluşturuldu. VerificationId: {VerificationId}, OrderId: {OrderId}, RiskScore: {RiskScore}",
             verification!.Id, dto.OrderId, riskScore);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<OrderVerificationDto>(verification);
+        return mapper.Map<OrderVerificationDto>(verification);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<OrderVerificationDto?> GetVerificationByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !v.IsDeleted (Global Query Filter)
-        var verification = await _context.Set<OrderVerification>()
+        var verification = await context.Set<OrderVerification>()
             .AsNoTracking()
             .Include(v => v.Order)
             .Include(v => v.VerifiedBy)
             .FirstOrDefaultAsync(v => v.OrderId == orderId, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return verification != null ? _mapper.Map<OrderVerificationDto>(verification) : null;
+        return verification != null ? mapper.Map<OrderVerificationDto>(verification) : null;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -128,7 +115,7 @@ public class OrderVerificationService : IOrderVerificationService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !v.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Include already loaded, no need for MapToDto LoadAsync calls
-        var verifications = await _context.Set<OrderVerification>()
+        var verifications = await context.Set<OrderVerification>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(v => v.Order)
@@ -139,7 +126,7 @@ public class OrderVerificationService : IOrderVerificationService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<OrderVerificationDto>>(verifications);
+        return mapper.Map<IEnumerable<OrderVerificationDto>>(verifications);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -147,7 +134,7 @@ public class OrderVerificationService : IOrderVerificationService
     public async Task<bool> VerifyOrderAsync(Guid verificationId, Guid verifiedByUserId, string? notes = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !v.IsDeleted (Global Query Filter)
-        var verification = await _context.Set<OrderVerification>()
+        var verification = await context.Set<OrderVerification>()
             .FirstOrDefaultAsync(v => v.Id == verificationId, cancellationToken);
 
         if (verification == null) return false;
@@ -155,10 +142,10 @@ public class OrderVerificationService : IOrderVerificationService
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         verification.Verify(verifiedByUserId, notes);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Order verified. VerificationId: {VerificationId}, VerifiedByUserId: {VerifiedByUserId}",
+        logger.LogInformation("Order verified. VerificationId: {VerificationId}, VerifiedByUserId: {VerifiedByUserId}",
             verificationId, verifiedByUserId);
 
         return true;
@@ -169,7 +156,7 @@ public class OrderVerificationService : IOrderVerificationService
     public async Task<bool> RejectOrderAsync(Guid verificationId, Guid verifiedByUserId, string reason, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !v.IsDeleted (Global Query Filter)
-        var verification = await _context.Set<OrderVerification>()
+        var verification = await context.Set<OrderVerification>()
             .FirstOrDefaultAsync(v => v.Id == verificationId, cancellationToken);
 
         if (verification == null) return false;
@@ -177,10 +164,10 @@ public class OrderVerificationService : IOrderVerificationService
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         verification.Reject(verifiedByUserId, reason);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Order rejected. VerificationId: {VerificationId}, VerifiedByUserId: {VerifiedByUserId}, Reason: {Reason}",
+        logger.LogInformation("Order rejected. VerificationId: {VerificationId}, VerifiedByUserId: {VerifiedByUserId}, Reason: {Reason}",
             verificationId, verifiedByUserId, reason);
 
         return true;
@@ -196,7 +183,7 @@ public class OrderVerificationService : IOrderVerificationService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !v.IsDeleted (Global Query Filter)
         // ✅ FIX: Explicitly type as IQueryable to avoid IIncludableQueryable type mismatch
-        IQueryable<OrderVerification> query = _context.Set<OrderVerification>()
+        IQueryable<OrderVerification> query = context.Set<OrderVerification>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(v => v.Order)
@@ -218,7 +205,7 @@ public class OrderVerificationService : IOrderVerificationService
 
         // ✅ PERFORMANCE: Include already loaded, MapToDto is now sync
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var verificationDtos = _mapper.Map<IEnumerable<OrderVerificationDto>>(verifications).ToList();
+        var verificationDtos = mapper.Map<IEnumerable<OrderVerificationDto>>(verifications).ToList();
 
         return new PagedResult<OrderVerificationDto>
         {
@@ -233,7 +220,7 @@ public class OrderVerificationService : IOrderVerificationService
     private async Task<int> CalculateOrderRiskScoreAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
-        var order = await _context.Set<OrderEntity>()
+        var order = await context.Set<OrderEntity>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(o => o.OrderItems)
@@ -256,14 +243,14 @@ public class OrderVerificationService : IOrderVerificationService
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         // Multiple items
-        var itemCount = await _context.Set<OrderItem>()
+        var itemCount = await context.Set<OrderItem>()
             .AsNoTracking()
             .CountAsync(oi => oi.OrderId == orderId, cancellationToken);
         if (itemCount > RiskScoreConstants.MultipleItemsThreshold) 
             riskScore += RiskScoreConstants.MultipleItemsScore;
 
         // High quantity
-        var totalQuantity = await _context.Set<OrderItem>()
+        var totalQuantity = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.OrderId == orderId)
             .SumAsync(oi => oi.Quantity, cancellationToken);
@@ -282,31 +269,23 @@ public class OrderVerificationService : IOrderVerificationService
 /// Yeni kod için Merge.Application.Security.Commands ve Merge.Application.Security.Queries kullanın.
 /// </summary>
 [Obsolete("This service is deprecated. Use MediatR commands and queries instead. See Merge.Application.Security.Commands and Merge.Application.Security.Queries.")]
-public class PaymentFraudPreventionService : IPaymentFraudPreventionService
+public class PaymentFraudPreventionService(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<PaymentFraudPreventionService> logger) : IPaymentFraudPreventionService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<PaymentFraudPreventionService> _logger;
-
-    public PaymentFraudPreventionService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<PaymentFraudPreventionService> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<PaymentFraudPreventionDto> CheckPaymentAsync(CreatePaymentFraudCheckDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Payment fraud check yapılıyor. PaymentId: {PaymentId}, CheckType: {CheckType}",
+        logger.LogInformation("Payment fraud check yapılıyor. PaymentId: {PaymentId}, CheckType: {CheckType}",
             dto.PaymentId, dto.CheckType);
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var payment = await _context.Set<PaymentEntity>()
+        var payment = await context.Set<PaymentEntity>()
             .FirstOrDefaultAsync(p => p.Id == dto.PaymentId, cancellationToken);
 
         if (payment == null)
@@ -316,18 +295,18 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
 
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
         // Check if check already exists
-        var existing = await _context.Set<PaymentFraudPrevention>()
+        var existing = await context.Set<PaymentFraudPrevention>()
             .FirstOrDefaultAsync(c => c.PaymentId == dto.PaymentId, cancellationToken);
 
         if (existing != null)
         {
             // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-            existing = await _context.Set<PaymentFraudPrevention>()
+            existing = await context.Set<PaymentFraudPrevention>()
                 .AsNoTracking()
                 .Include(c => c.Payment)
                 .FirstOrDefaultAsync(c => c.Id == existing.Id, cancellationToken);
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-            return _mapper.Map<PaymentFraudPreventionDto>(existing!);
+            return mapper.Map<PaymentFraudPreventionDto>(existing!);
         }
 
         // Perform fraud checks
@@ -352,28 +331,28 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
             ipAddress: dto.IpAddress,
             userAgent: dto.UserAgent);
 
-        await _context.Set<PaymentFraudPrevention>().AddAsync(check, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<PaymentFraudPrevention>().AddAsync(check, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        check = await _context.Set<PaymentFraudPrevention>()
+        check = await context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
             .Include(c => c.Payment)
             .FirstOrDefaultAsync(c => c.Id == check.Id, cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Payment fraud check tamamlandı. CheckId: {CheckId}, PaymentId: {PaymentId}, RiskScore: {RiskScore}, IsBlocked: {IsBlocked}",
+        logger.LogInformation("Payment fraud check tamamlandı. CheckId: {CheckId}, PaymentId: {PaymentId}, RiskScore: {RiskScore}, IsBlocked: {IsBlocked}",
             check!.Id, dto.PaymentId, riskScore, isBlocked);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<PaymentFraudPreventionDto>(check);
+        return mapper.Map<PaymentFraudPreventionDto>(check);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PaymentFraudPreventionDto?> GetCheckByPaymentIdAsync(Guid paymentId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        var check = await _context.Set<PaymentFraudPrevention>()
+        var check = await context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
             .Include(c => c.Payment)
             .FirstOrDefaultAsync(c => c.PaymentId == paymentId, cancellationToken);
@@ -381,14 +360,14 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
         if (check == null) return null;
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<PaymentFraudPreventionDto>(check);
+        return mapper.Map<PaymentFraudPreventionDto>(check);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<PaymentFraudPreventionDto>> GetBlockedPaymentsAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        var checks = await _context.Set<PaymentFraudPrevention>()
+        var checks = await context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
             .Include(c => c.Payment)
             .Where(c => c.IsBlocked)
@@ -396,7 +375,7 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<PaymentFraudPreventionDto>>(checks);
+        return mapper.Map<IEnumerable<PaymentFraudPreventionDto>>(checks);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -404,7 +383,7 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
     public async Task<bool> BlockPaymentAsync(Guid checkId, string reason, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
-        var check = await _context.Set<PaymentFraudPrevention>()
+        var check = await context.Set<PaymentFraudPrevention>()
             .FirstOrDefaultAsync(c => c.Id == checkId, cancellationToken);
 
         if (check == null) return false;
@@ -412,10 +391,10 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         check.Block(reason);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Payment blocked. CheckId: {CheckId}, Reason: {Reason}", checkId, reason);
+        logger.LogInformation("Payment blocked. CheckId: {CheckId}, Reason: {Reason}", checkId, reason);
 
         return true;
     }
@@ -425,7 +404,7 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
     public async Task<bool> UnblockPaymentAsync(Guid checkId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !c.IsDeleted (Global Query Filter)
-        var check = await _context.Set<PaymentFraudPrevention>()
+        var check = await context.Set<PaymentFraudPrevention>()
             .FirstOrDefaultAsync(c => c.Id == checkId, cancellationToken);
 
         if (check == null) return false;
@@ -433,10 +412,10 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         check.Unblock();
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Payment unblocked. CheckId: {CheckId}", checkId);
+        logger.LogInformation("Payment unblocked. CheckId: {CheckId}", checkId);
 
         return true;
     }
@@ -451,7 +430,7 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         // ✅ FIX: Explicitly type as IQueryable to avoid IIncludableQueryable type mismatch
-        IQueryable<PaymentFraudPrevention> query = _context.Set<PaymentFraudPrevention>()
+        IQueryable<PaymentFraudPrevention> query = context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
             .Include(c => c.Payment);
 
@@ -477,7 +456,7 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
 
         // ✅ PERFORMANCE: Include already loaded, MapToDto is now sync
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var checkDtos = _mapper.Map<IEnumerable<PaymentFraudPreventionDto>>(checks).ToList();
+        var checkDtos = mapper.Map<IEnumerable<PaymentFraudPreventionDto>>(checks).ToList();
 
         return new PagedResult<PaymentFraudPreventionDto>
         {
@@ -492,7 +471,7 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
     private async Task<int> PerformFraudChecksAsync(CreatePaymentFraudCheckDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var payment = await _context.Set<PaymentEntity>()
+        var payment = await context.Set<PaymentEntity>()
             .AsNoTracking()
             .Include(p => p.Order)
                 .ThenInclude(o => o.User)
@@ -514,7 +493,7 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
         // Multiple payments from same IP in short time
-        var recentPayments = await _context.Set<PaymentFraudPrevention>()
+        var recentPayments = await context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
             .Where(c => c.IpAddress == dto.IpAddress && c.CreatedAt >= DateTime.UtcNow.AddHours(-RiskScoreConstants.RecentPaymentsTimeWindowHours))
             .CountAsync(cancellationToken);
@@ -538,33 +517,25 @@ public class PaymentFraudPreventionService : IPaymentFraudPreventionService
 /// Yeni kod için Merge.Application.Security.Commands ve Merge.Application.Security.Queries kullanın.
 /// </summary>
 [Obsolete("This service is deprecated. Use MediatR commands and queries instead. See Merge.Application.Security.Commands and Merge.Application.Security.Queries.")]
-public class AccountSecurityMonitoringService : IAccountSecurityMonitoringService
+public class AccountSecurityMonitoringService(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<AccountSecurityMonitoringService> logger,
+    IOptions<ServiceSettings> serviceSettings) : IAccountSecurityMonitoringService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<AccountSecurityMonitoringService> _logger;
-    private readonly ServiceSettings _serviceSettings;
-
-    public AccountSecurityMonitoringService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<AccountSecurityMonitoringService> logger, IOptions<ServiceSettings> serviceSettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _serviceSettings = serviceSettings.Value;
-    }
+    private readonly ServiceSettings _serviceSettings = serviceSettings.Value;
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<AccountSecurityEventDto> LogSecurityEventAsync(CreateAccountSecurityEventDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Security event loglanıyor. UserId: {UserId}, EventType: {EventType}, Severity: {Severity}",
+        logger.LogInformation("Security event loglanıyor. UserId: {UserId}, EventType: {EventType}, Severity: {Severity}",
             dto.UserId, dto.EventType, dto.Severity);
 
         // ✅ PERFORMANCE: Removed manual !u.IsDeleted (Global Query Filter)
-        var user = await _context.Users
+        var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == dto.UserId, cancellationToken);
 
         if (user == null)
@@ -593,7 +564,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
             details: dto.Details != null ? JsonSerializer.Serialize(dto.Details) : null,
             requiresAction: dto.RequiresAction);
 
-        await _context.Set<AccountSecurityEvent>().AddAsync(securityEvent, cancellationToken);
+        await context.Set<AccountSecurityEvent>().AddAsync(securityEvent, cancellationToken);
 
         // If suspicious, create alert
         if (dto.IsSuspicious || dto.RequiresAction)
@@ -611,24 +582,24 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
                 userId: dto.UserId,
                 metadata: dto.Details != null ? JsonSerializer.Serialize(dto.Details) : null
             );
-            await _context.Set<SecurityAlert>().AddAsync(alert, cancellationToken);
+            await context.Set<SecurityAlert>().AddAsync(alert, cancellationToken);
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        securityEvent = await _context.Set<AccountSecurityEvent>()
+        securityEvent = await context.Set<AccountSecurityEvent>()
             .AsNoTracking()
             .Include(e => e.User)
             .Include(e => e.ActionTakenBy)
             .FirstOrDefaultAsync(e => e.Id == securityEvent.Id, cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Security event loglandı. EventId: {EventId}, UserId: {UserId}, EventType: {EventType}",
+        logger.LogInformation("Security event loglandı. EventId: {EventId}, UserId: {UserId}, EventType: {EventType}",
             securityEvent!.Id, dto.UserId, dto.EventType);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<AccountSecurityEventDto>(securityEvent);
+        return mapper.Map<AccountSecurityEventDto>(securityEvent);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -640,7 +611,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
-        var query = _context.Set<AccountSecurityEvent>()
+        var query = context.Set<AccountSecurityEvent>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(e => e.User)
@@ -664,7 +635,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var eventDtos = _mapper.Map<IEnumerable<AccountSecurityEventDto>>(events).ToList();
+        var eventDtos = mapper.Map<IEnumerable<AccountSecurityEventDto>>(events).ToList();
 
         return new PagedResult<AccountSecurityEventDto>
         {
@@ -684,7 +655,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
-        var query = _context.Set<AccountSecurityEvent>()
+        var query = context.Set<AccountSecurityEvent>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(e => e.User)
@@ -701,7 +672,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var eventDtos = _mapper.Map<IEnumerable<AccountSecurityEventDto>>(events).ToList();
+        var eventDtos = mapper.Map<IEnumerable<AccountSecurityEventDto>>(events).ToList();
 
         return new PagedResult<AccountSecurityEventDto>
         {
@@ -717,7 +688,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
     public async Task<bool> TakeActionAsync(Guid eventId, Guid actionTakenByUserId, string action, string? notes = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !e.IsDeleted (Global Query Filter)
-        var securityEvent = await _context.Set<AccountSecurityEvent>()
+        var securityEvent = await context.Set<AccountSecurityEvent>()
             .FirstOrDefaultAsync(e => e.Id == eventId, cancellationToken);
 
         if (securityEvent == null) return false;
@@ -725,10 +696,10 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         securityEvent.TakeAction(actionTakenByUserId, action, notes);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Security event action alındı. EventId: {EventId}, Action: {Action}, ActionTakenByUserId: {ActionTakenByUserId}",
+        logger.LogInformation("Security event action alındı. EventId: {EventId}, Action: {Action}, ActionTakenByUserId: {ActionTakenByUserId}",
             eventId, action, actionTakenByUserId);
 
         return true;
@@ -739,7 +710,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
     public async Task<SecurityAlertDto> CreateSecurityAlertAsync(CreateSecurityAlertDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Security alert oluşturuluyor. UserId: {UserId}, AlertType: {AlertType}, Severity: {Severity}",
+        logger.LogInformation("Security alert oluşturuluyor. UserId: {UserId}, AlertType: {AlertType}, Severity: {Severity}",
             dto.UserId, dto.AlertType, dto.Severity);
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
@@ -750,7 +721,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         // Parse AlertType from string to enum
         if (!Enum.TryParse<AlertType>(dto.AlertType, true, out var alertType))
         {
-            _logger.LogWarning("Invalid AlertType: {AlertType}, defaulting to Other", dto.AlertType);
+            logger.LogWarning("Invalid AlertType: {AlertType}, defaulting to Other", dto.AlertType);
             alertType = AlertType.Other;
         }
         
@@ -763,11 +734,11 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
             metadata: dto.Metadata != null ? JsonSerializer.Serialize(dto.Metadata) : null
         );
 
-        await _context.Set<SecurityAlert>().AddAsync(alert, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<SecurityAlert>().AddAsync(alert, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        alert = await _context.Set<SecurityAlert>()
+        alert = await context.Set<SecurityAlert>()
             .AsNoTracking()
             .Include(a => a.User)
             .Include(a => a.AcknowledgedBy)
@@ -775,10 +746,10 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
             .FirstOrDefaultAsync(a => a.Id == alert.Id, cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Security alert oluşturuldu. AlertId: {AlertId}, UserId: {UserId}", alert!.Id, dto.UserId);
+        logger.LogInformation("Security alert oluşturuldu. AlertId: {AlertId}, UserId: {UserId}", alert!.Id, dto.UserId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<SecurityAlertDto>(alert);
+        return mapper.Map<SecurityAlertDto>(alert);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -791,7 +762,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         // ✅ FIX: Explicitly type as IQueryable to avoid IIncludableQueryable type mismatch
-        IQueryable<SecurityAlert> query = _context.Set<SecurityAlert>()
+        IQueryable<SecurityAlert> query = context.Set<SecurityAlert>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(a => a.User)
@@ -827,7 +798,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var alertDtos = _mapper.Map<IEnumerable<SecurityAlertDto>>(alerts).ToList();
+        var alertDtos = mapper.Map<IEnumerable<SecurityAlertDto>>(alerts).ToList();
 
         return new PagedResult<SecurityAlertDto>
         {
@@ -843,17 +814,17 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
     public async Task<bool> AcknowledgeAlertAsync(Guid alertId, Guid acknowledgedByUserId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-        var alert = await _context.Set<SecurityAlert>()
+        var alert = await context.Set<SecurityAlert>()
             .FirstOrDefaultAsync(a => a.Id == alertId, cancellationToken);
 
         if (alert == null) return false;
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         alert.Acknowledge(acknowledgedByUserId);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Security alert acknowledged. AlertId: {AlertId}, AcknowledgedByUserId: {AcknowledgedByUserId}",
+        logger.LogInformation("Security alert acknowledged. AlertId: {AlertId}, AcknowledgedByUserId: {AcknowledgedByUserId}",
             alertId, acknowledgedByUserId);
 
         return true;
@@ -864,7 +835,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
     public async Task<bool> ResolveAlertAsync(Guid alertId, Guid resolvedByUserId, string? resolutionNotes = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !a.IsDeleted (Global Query Filter)
-        var alert = await _context.Set<SecurityAlert>()
+        var alert = await context.Set<SecurityAlert>()
             .FirstOrDefaultAsync(a => a.Id == alertId, cancellationToken);
 
         if (alert == null) return false;
@@ -872,10 +843,10 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         alert.Resolve(resolvedByUserId, resolutionNotes);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Security alert resolved. AlertId: {AlertId}, ResolvedByUserId: {ResolvedByUserId}",
+        logger.LogInformation("Security alert resolved. AlertId: {AlertId}, ResolvedByUserId: {ResolvedByUserId}",
             alertId, resolvedByUserId);
 
         return true;
@@ -889,40 +860,40 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted and !a.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        var totalEvents = await _context.Set<AccountSecurityEvent>()
+        var totalEvents = await context.Set<AccountSecurityEvent>()
             .AsNoTracking()
             .Where(e => e.CreatedAt >= start && e.CreatedAt <= end)
             .CountAsync(cancellationToken);
 
-        var suspiciousEvents = await _context.Set<AccountSecurityEvent>()
+        var suspiciousEvents = await context.Set<AccountSecurityEvent>()
             .AsNoTracking()
             .Where(e => e.CreatedAt >= start && e.CreatedAt <= end && e.IsSuspicious)
             .CountAsync(cancellationToken);
 
-        var criticalEvents = await _context.Set<AccountSecurityEvent>()
+        var criticalEvents = await context.Set<AccountSecurityEvent>()
             .AsNoTracking()
             .Where(e => e.CreatedAt >= start && e.CreatedAt <= end && e.Severity == SecurityEventSeverity.Critical)
             .CountAsync(cancellationToken);
 
-        var pendingAlerts = await _context.Set<SecurityAlert>()
+        var pendingAlerts = await context.Set<SecurityAlert>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == AlertStatus.New)
             .CountAsync(cancellationToken);
 
-        var resolvedAlerts = await _context.Set<SecurityAlert>()
+        var resolvedAlerts = await context.Set<SecurityAlert>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= start && a.CreatedAt <= end && a.Status == AlertStatus.Resolved)
             .CountAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        var eventsByType = await _context.Set<AccountSecurityEvent>()
+        var eventsByType = await context.Set<AccountSecurityEvent>()
             .AsNoTracking()
             .Where(e => e.CreatedAt >= start && e.CreatedAt <= end)
             .GroupBy(e => e.EventType)
             .Select(g => new { EventType = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.EventType.ToString(), x => x.Count, cancellationToken);
 
-        var alertsBySeverity = await _context.Set<SecurityAlert>()
+        var alertsBySeverity = await context.Set<SecurityAlert>()
             .AsNoTracking()
             .Where(a => a.CreatedAt >= start && a.CreatedAt <= end)
             .GroupBy(a => a.Severity)
@@ -930,7 +901,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
             .ToDictionaryAsync(x => x.Severity.ToString(), x => x.Count, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de filtreleme/sıralama yap (memory'de işlem YASAK)
-        var recentCriticalAlerts = await _context.Set<SecurityAlert>()
+        var recentCriticalAlerts = await context.Set<SecurityAlert>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(a => a.User)
@@ -943,7 +914,7 @@ public class AccountSecurityMonitoringService : IAccountSecurityMonitoringServic
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var recentCriticalAlertsDtos = _mapper.Map<IEnumerable<SecurityAlertDto>>(recentCriticalAlerts).ToList();
+        var recentCriticalAlertsDtos = mapper.Map<IEnumerable<SecurityAlertDto>>(recentCriticalAlerts).ToList();
 
         return new SecurityMonitoringSummaryDto
         {

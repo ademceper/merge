@@ -21,30 +21,10 @@ using Merge.Domain.Modules.Ordering;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
-
 namespace Merge.Application.Services.Order;
 
-public class OrderSplitService : IOrderSplitService
+public class OrderSplitService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<OrderSplitService> logger) : IOrderSplitService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-
-    private readonly IMapper _mapper;
-    private readonly ILogger<OrderSplitService> _logger;
-
-    public OrderSplitService(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-
-        IMapper mapper,
-        ILogger<OrderSplitService> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<OrderSplitDto> SplitOrderAsync(Guid orderId, CreateOrderSplitDto dto, CancellationToken cancellationToken = default)
@@ -53,11 +33,11 @@ public class OrderSplitService : IOrderSplitService
         ArgumentNullException.ThrowIfNull(dto);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Sipariş bölme işlemi başlatılıyor. OrderId: {OrderId}, ItemsCount: {ItemsCount}",
             orderId, dto.Items?.Count ?? 0);
 
-        var originalOrder = await _context.Set<OrderEntity>()
+        var originalOrder = await context.Set<OrderEntity>()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .Include(o => o.Address)
@@ -98,14 +78,14 @@ public class OrderSplitService : IOrderSplitService
         }
 
         // ✅ ARCHITECTURE: Transaction kullan - kritik multi-entity işlem
-        await _unitOfWork.BeginTransactionAsync();
+        await unitOfWork.BeginTransactionAsync();
 
         try
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
             // Address entity'sini çek
             var addressId = dto.NewAddressId ?? originalOrder.AddressId;
-            var address = await _context.Set<AddressEntity>()
+            var address = await context.Set<AddressEntity>()
                 .FirstOrDefaultAsync(a => a.Id == addressId, cancellationToken);
             
             if (address == null)
@@ -131,7 +111,7 @@ public class OrderSplitService : IOrderSplitService
                 var originalItem = originalOrder.OrderItems.First(oi => oi.Id == item.OrderItemId);
                 
                 // Product'ı çek (AddItem için gerekli)
-                var product = await _context.Set<ProductEntity>()
+                var product = await context.Set<ProductEntity>()
                     .FirstOrDefaultAsync(p => p.Id == originalItem.ProductId, cancellationToken);
                 
                 if (product == null)
@@ -163,15 +143,15 @@ public class OrderSplitService : IOrderSplitService
             // Bu durumda service layer'da manuel hesaplama yapılıyor (Order entity'sine public RecalculateTotals eklenebilir)
             // Şimdilik manuel hesaplama yapılıyor
             
-            await _context.Set<OrderEntity>().AddAsync(splitOrder, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await context.Set<OrderEntity>().AddAsync(splitOrder, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             // Address yükle (eğer NewAddressId varsa)
             AddressEntity? newAddress = null;
             if (dto.NewAddressId.HasValue)
             {
-                newAddress = await _context.Set<AddressEntity>()
+                newAddress = await context.Set<AddressEntity>()
                     .FirstOrDefaultAsync(a => a.Id == dto.NewAddressId.Value, cancellationToken);
             }
 
@@ -184,7 +164,7 @@ public class OrderSplitService : IOrderSplitService
                 splitOrder,
                 newAddress);
 
-            await _context.Set<OrderSplit>().AddAsync(orderSplit, cancellationToken);
+            await context.Set<OrderSplit>().AddAsync(orderSplit, cancellationToken);
 
             // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             // Create OrderSplitItem records
@@ -205,18 +185,18 @@ public class OrderSplitService : IOrderSplitService
                     splitItem));
             }
 
-            await _context.Set<OrderSplitItem>().AddRangeAsync(splitItemRecords, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await context.Set<OrderSplitItem>().AddRangeAsync(splitItemRecords, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             // ✅ ARCHITECTURE: Transaction commit
-            await _unitOfWork.CommitTransactionAsync();
+            await unitOfWork.CommitTransactionAsync();
 
             // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Sipariş başarıyla bölündü. OriginalOrderId: {OriginalOrderId}, SplitOrderId: {SplitOrderId}",
                 orderId, splitOrder.Id);
 
-            orderSplit = await _context.Set<OrderSplit>()
+            orderSplit = await context.Set<OrderSplit>()
                 .AsNoTracking()
                 .Include(s => s.OriginalOrder)
                 .Include(s => s.SplitOrder)
@@ -229,13 +209,13 @@ public class OrderSplitService : IOrderSplitService
                 .FirstOrDefaultAsync(s => s.Id == orderSplit.Id, cancellationToken);
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-            return _mapper.Map<OrderSplitDto>(orderSplit);
+            return mapper.Map<OrderSplitDto>(orderSplit);
         }
         catch (Exception ex)
         {
             // ✅ ARCHITECTURE: Transaction rollback on error
-            await _unitOfWork.RollbackTransactionAsync();
-            _logger.LogError(ex, "Sipariş bölme işlemi başarısız. OrderId: {OrderId}", orderId);
+            await unitOfWork.RollbackTransactionAsync();
+            logger.LogError(ex, "Sipariş bölme işlemi başarısız. OrderId: {OrderId}", orderId);
             throw;
         }
     }
@@ -243,7 +223,7 @@ public class OrderSplitService : IOrderSplitService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<OrderSplitDto?> GetSplitAsync(Guid splitId, CancellationToken cancellationToken = default)
     {
-        var split = await _context.Set<OrderSplit>()
+        var split = await context.Set<OrderSplit>()
             .AsNoTracking()
             .Include(s => s.OriginalOrder)
             .Include(s => s.SplitOrder)
@@ -256,7 +236,7 @@ public class OrderSplitService : IOrderSplitService
             .FirstOrDefaultAsync(s => s.Id == splitId, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return split != null ? _mapper.Map<OrderSplitDto>(split) : null;
+        return split != null ? mapper.Map<OrderSplitDto>(split) : null;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -264,7 +244,7 @@ public class OrderSplitService : IOrderSplitService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
-        var splits = await _context.Set<OrderSplit>()
+        var splits = await context.Set<OrderSplit>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(s => s.OriginalOrder)
@@ -280,7 +260,7 @@ public class OrderSplitService : IOrderSplitService
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası foreach içinde MapToDto YASAK - AutoMapper kullan
-        return _mapper.Map<IEnumerable<OrderSplitDto>>(splits);
+        return mapper.Map<IEnumerable<OrderSplitDto>>(splits);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -288,7 +268,7 @@ public class OrderSplitService : IOrderSplitService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
-        var splits = await _context.Set<OrderSplit>()
+        var splits = await context.Set<OrderSplit>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(s => s.OriginalOrder)
@@ -304,14 +284,14 @@ public class OrderSplitService : IOrderSplitService
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası foreach içinde MapToDto YASAK - AutoMapper kullan
-        return _mapper.Map<IEnumerable<OrderSplitDto>>(splits);
+        return mapper.Map<IEnumerable<OrderSplitDto>>(splits);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> CancelSplitAsync(Guid splitId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var split = await _context.Set<OrderSplit>()
+        var split = await context.Set<OrderSplit>()
         .AsSplitQuery()
             .Include(s => s.SplitOrder)
             .Include(s => s.OriginalOrder)
@@ -326,7 +306,7 @@ public class OrderSplitService : IOrderSplitService
 
         // ✅ PERFORMANCE: Removed manual !si.IsDeleted (Global Query Filter)
         // Merge items back to original order
-        var splitItems = await _context.Set<OrderSplitItem>()
+        var splitItems = await context.Set<OrderSplitItem>()
         .AsSplitQuery()
             .Include(si => si.OriginalOrderItem)
                 .ThenInclude(oi => oi.Product)
@@ -352,7 +332,7 @@ public class OrderSplitService : IOrderSplitService
         // Delete split order
         split.MarkAsDeleted();
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
@@ -360,14 +340,14 @@ public class OrderSplitService : IOrderSplitService
     public async Task<bool> CompleteSplitAsync(Guid splitId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var split = await _context.Set<OrderSplit>()
+        var split = await context.Set<OrderSplit>()
             .FirstOrDefaultAsync(s => s.Id == splitId, cancellationToken);
 
         if (split == null) return false;
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         split.Complete();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 

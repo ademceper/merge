@@ -13,34 +13,21 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Queries.GetInvoice;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetInvoiceQueryHandler : IRequestHandler<GetInvoiceQuery, SellerInvoiceDto?>
+public class GetInvoiceQueryHandler(IDbContext context, IMapper mapper, ILogger<GetInvoiceQueryHandler> logger) : IRequestHandler<GetInvoiceQuery, SellerInvoiceDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetInvoiceQueryHandler> _logger;
-
-    public GetInvoiceQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetInvoiceQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<SellerInvoiceDto?> Handle(GetInvoiceQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting invoice. InvoiceId: {InvoiceId}", request.InvoiceId);
+        logger.LogInformation("Getting invoice. InvoiceId: {InvoiceId}", request.InvoiceId);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
-        var invoice = await _context.Set<SellerInvoice>()
+        var invoice = await context.Set<SellerInvoice>()
             .AsNoTracking()
             .Include(i => i.Seller)
             .FirstOrDefaultAsync(i => i.Id == request.InvoiceId, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return invoice != null ? _mapper.Map<SellerInvoiceDto>(invoice) : null;
+        return invoice != null ? mapper.Map<SellerInvoiceDto>(invoice) : null;
     }
 }

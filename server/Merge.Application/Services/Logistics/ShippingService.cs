@@ -23,43 +23,22 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 using IShippingRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Ordering.Shipping>;
 using IOrderRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Ordering.Order>;
 
-
 namespace Merge.Application.Services.Logistics;
 
-public class ShippingService : IShippingService
+public class ShippingService(
+    IShippingRepository shippingRepository,
+    IOrderRepository orderRepository,
+    IDbContext context,
+    IMapper mapper,
+    IUnitOfWork unitOfWork,
+    ILogger<ShippingService> logger,
+    IMediator mediator,
+    IEmailService? emailService) : IShippingService
 {
-    private readonly IShippingRepository _shippingRepository;
-    private readonly IOrderRepository _orderRepository;
-    private readonly IEmailService? _emailService;
-    private readonly IMediator _mediator;
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<ShippingService> _logger;
-
-    public ShippingService(
-        IShippingRepository shippingRepository,
-        IOrderRepository orderRepository,
-        IDbContext context,
-        IMapper mapper,
-        IUnitOfWork unitOfWork,
-        ILogger<ShippingService> logger,
-        IMediator mediator,
-        IEmailService? emailService = null)
-    {
-        _shippingRepository = shippingRepository;
-        _orderRepository = orderRepository;
-        _emailService = emailService;
-        _mediator = mediator;
-        _context = context;
-        _mapper = mapper;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<ShippingDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var shipping = await _context.Set<Shipping>()
+        var shipping = await context.Set<Shipping>()
             .AsNoTracking()
             .Include(s => s.Order)
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
@@ -67,12 +46,12 @@ public class ShippingService : IShippingService
         if (shipping == null) return null;
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<ShippingDto>(shipping);
+        return mapper.Map<ShippingDto>(shipping);
     }
 
     public async Task<ShippingDto?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
-        var shipping = await _context.Set<Shipping>()
+        var shipping = await context.Set<Shipping>()
             .AsNoTracking()
             .Include(s => s.Order)
             .FirstOrDefaultAsync(s => s.OrderId == orderId, cancellationToken);
@@ -80,7 +59,7 @@ public class ShippingService : IShippingService
         if (shipping == null) return null;
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<ShippingDto>(shipping);
+        return mapper.Map<ShippingDto>(shipping);
     }
 
     public async Task<ShippingDto> CreateShippingAsync(CreateShippingDto dto, CancellationToken cancellationToken = default)
@@ -95,13 +74,13 @@ public class ShippingService : IShippingService
             throw new ValidationException("Kargo firması boş olamaz.");
         }
 
-        var order = await _orderRepository.GetByIdAsync(dto.OrderId);
+        var order = await orderRepository.GetByIdAsync(dto.OrderId);
         if (order == null)
         {
             throw new NotFoundException("Sipariş", dto.OrderId);
         }
 
-        var existingShipping = await _context.Set<Shipping>()
+        var existingShipping = await context.Set<Shipping>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.OrderId == dto.OrderId);
 
@@ -121,21 +100,21 @@ public class ShippingService : IShippingService
             null // EstimatedDeliveryDate
         );
 
-        shipping = await _shippingRepository.AddAsync(shipping);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        shipping = await shippingRepository.AddAsync(shipping);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Shipping created for order {OrderId} with provider {Provider}",
+        logger.LogInformation("Shipping created for order {OrderId} with provider {Provider}",
             dto.OrderId, dto.ShippingProvider);
 
         // ✅ PERFORMANCE: Reload with order information in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-        var createdShipping = await _context.Set<Shipping>()
+        var createdShipping = await context.Set<Shipping>()
             .AsNoTracking()
             .Include(s => s.Order)
             .FirstOrDefaultAsync(s => s.Id == shipping.Id);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<ShippingDto>(createdShipping!);
+        return mapper.Map<ShippingDto>(createdShipping!);
     }
 
     public async Task<ShippingDto> UpdateTrackingAsync(Guid shippingId, string trackingNumber, CancellationToken cancellationToken = default)
@@ -145,10 +124,10 @@ public class ShippingService : IShippingService
             throw new ValidationException("Takip numarası boş olamaz.");
         }
 
-        await _unitOfWork.BeginTransactionAsync();
+        await unitOfWork.BeginTransactionAsync();
         try
         {
-            var shipping = await _shippingRepository.GetByIdAsync(shippingId);
+            var shipping = await shippingRepository.GetByIdAsync(shippingId);
             if (shipping == null)
             {
                 throw new NotFoundException("Kargo kaydı", shippingId);
@@ -158,25 +137,25 @@ public class ShippingService : IShippingService
             shipping.Ship(trackingNumber);
             shipping.UpdateEstimatedDeliveryDate(DateTime.UtcNow.AddDays(3));
 
-            await _shippingRepository.UpdateAsync(shipping);
+            await shippingRepository.UpdateAsync(shipping);
 
             // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             // Order status'unu güncelle
-            var order = await _orderRepository.GetByIdAsync(shipping.OrderId);
+            var order = await orderRepository.GetByIdAsync(shipping.OrderId);
             if (order != null)
             {
                 order.Ship();
-                await _orderRepository.UpdateAsync(order);
+                await orderRepository.UpdateAsync(order);
 
-                await _unitOfWork.SaveChangesAsync();
-                await _unitOfWork.CommitTransactionAsync();
+                await unitOfWork.SaveChangesAsync();
+                await unitOfWork.CommitTransactionAsync();
 
-                _logger.LogInformation("Shipping tracking updated for order {OrderId}. Tracking: {TrackingNumber}",
+                logger.LogInformation("Shipping tracking updated for order {OrderId}. Tracking: {TrackingNumber}",
                     shipping.OrderId, trackingNumber);
 
                 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU) - INotificationService yerine MediatR kullan
                 // ✅ BOLUM 1.2: Enum kullanımı (string Type YASAK)
-                await _mediator.Send(new CreateNotificationCommand(
+                await mediator.Send(new CreateNotificationCommand(
                     order.UserId,
                     NotificationType.Shipping,
                     "Siparişiniz Kargoya Verildi",
@@ -184,37 +163,37 @@ public class ShippingService : IShippingService
                     $"/orders/{order.Id}"), cancellationToken);
 
                 // Email gönder (after commit)
-                if (_emailService != null)
+                if (emailService != null)
                 {
-                    var user = await _context.Users
+                    var user = await context.Users
                         .AsNoTracking()
                         .FirstOrDefaultAsync(u => u.Id == order.UserId);
                     if (user != null && !string.IsNullOrEmpty(user.Email))
                     {
-                        await _emailService.SendOrderShippedAsync(user.Email, order.OrderNumber, trackingNumber);
+                        await emailService.SendOrderShippedAsync(user.Email, order.OrderNumber, trackingNumber);
                     }
                 }
             }
             else
             {
-                await _unitOfWork.SaveChangesAsync();
-                await _unitOfWork.CommitTransactionAsync();
+                await unitOfWork.SaveChangesAsync();
+                await unitOfWork.CommitTransactionAsync();
             }
 
             // ✅ PERFORMANCE: Reload with order information in one query (N+1 fix)
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-            var updatedShipping = await _context.Set<Shipping>()
+            var updatedShipping = await context.Set<Shipping>()
                 .AsNoTracking()
                 .Include(s => s.Order)
                 .FirstOrDefaultAsync(s => s.Id == shippingId);
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-            return _mapper.Map<ShippingDto>(updatedShipping!);
+            return mapper.Map<ShippingDto>(updatedShipping!);
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
-            _logger.LogError(ex, "Error updating tracking for shipping {ShippingId}", shippingId);
+            await unitOfWork.RollbackTransactionAsync();
+            logger.LogError(ex, "Error updating tracking for shipping {ShippingId}", shippingId);
             throw;
         }
     }
@@ -222,10 +201,10 @@ public class ShippingService : IShippingService
     // ✅ BOLUM 1.2: Enum kullanımı (string Status YASAK)
     public async Task<ShippingDto> UpdateStatusAsync(Guid shippingId, ShippingStatus status, CancellationToken cancellationToken = default)
     {
-        await _unitOfWork.BeginTransactionAsync();
+        await unitOfWork.BeginTransactionAsync();
         try
         {
-            var shipping = await _shippingRepository.GetByIdAsync(shippingId);
+            var shipping = await shippingRepository.GetByIdAsync(shippingId);
             if (shipping == null)
             {
                 throw new NotFoundException("Kargo kaydı", shippingId);
@@ -238,34 +217,34 @@ public class ShippingService : IShippingService
             {
                 // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
                 // Order status'unu güncelle
-                var order = await _orderRepository.GetByIdAsync(shipping.OrderId);
+                var order = await orderRepository.GetByIdAsync(shipping.OrderId);
                 if (order != null)
                 {
                     order.Deliver();
-                    await _orderRepository.UpdateAsync(order);
+                    await orderRepository.UpdateAsync(order);
                 }
 
-                _logger.LogInformation("Shipping delivered for order {OrderId}", shipping.OrderId);
+                logger.LogInformation("Shipping delivered for order {OrderId}", shipping.OrderId);
             }
 
-            await _shippingRepository.UpdateAsync(shipping);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync();
+            await shippingRepository.UpdateAsync(shipping);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync();
 
             // ✅ PERFORMANCE: Reload with order information in one query (N+1 fix)
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-            var updatedShipping = await _context.Set<Shipping>()
+            var updatedShipping = await context.Set<Shipping>()
                 .AsNoTracking()
                 .Include(s => s.Order)
                 .FirstOrDefaultAsync(s => s.Id == shippingId);
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-            return _mapper.Map<ShippingDto>(updatedShipping!);
+            return mapper.Map<ShippingDto>(updatedShipping!);
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
-            _logger.LogError(ex, "Error updating status for shipping {ShippingId}", shippingId);
+            await unitOfWork.RollbackTransactionAsync();
+            logger.LogError(ex, "Error updating status for shipping {ShippingId}", shippingId);
             throw;
         }
     }
@@ -278,7 +257,7 @@ public class ShippingService : IShippingService
         }
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !o.IsDeleted (Global Query Filter)
-        var order = await _context.Set<OrderEntity>()
+        var order = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);

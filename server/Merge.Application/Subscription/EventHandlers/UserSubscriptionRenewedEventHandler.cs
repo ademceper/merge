@@ -15,23 +15,15 @@ namespace Merge.Application.Subscription.EventHandlers;
 /// UserSubscription Renewed Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class UserSubscriptionRenewedEventHandler : INotificationHandler<UserSubscriptionRenewedEvent>
+public class UserSubscriptionRenewedEventHandler(ILogger<UserSubscriptionRenewedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<UserSubscriptionRenewedEvent>
 {
-    private readonly ILogger<UserSubscriptionRenewedEventHandler> _logger;
+    
     private readonly INotificationService? _notificationService;
-
-    public UserSubscriptionRenewedEventHandler(
-        ILogger<UserSubscriptionRenewedEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(UserSubscriptionRenewedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "User subscription renewed event received. SubscriptionId: {SubscriptionId}, UserId: {UserId}, NewEndDate: {NewEndDate}, RenewalCount: {RenewalCount}",
             notification.SubscriptionId, notification.UserId, notification.NewEndDate, notification.RenewalCount);
 
@@ -58,7 +50,7 @@ public class UserSubscriptionRenewedEventHandler : INotificationHandler<UserSubs
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling UserSubscriptionRenewedEvent. SubscriptionId: {SubscriptionId}, UserId: {UserId}",
                 notification.SubscriptionId, notification.UserId);
             throw;

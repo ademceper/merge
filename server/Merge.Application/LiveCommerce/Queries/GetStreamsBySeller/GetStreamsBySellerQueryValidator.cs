@@ -4,12 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.LiveCommerce.Queries.GetStreamsBySeller;
 
-public class GetStreamsBySellerQueryValidator : AbstractValidator<GetStreamsBySellerQuery>
+public class GetStreamsBySellerQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetStreamsBySellerQuery>
 {
-    public GetStreamsBySellerQueryValidator(IOptions<PaginationSettings> paginationSettings)
-    {
-        var settings = paginationSettings.Value;
+    private readonly PaginationSettings config = paginationSettings.Value;
 
+    public GetStreamsBySellerQueryValidator() : this(Options.Create(new PaginationSettings()))
+    {
         RuleFor(x => x.SellerId)
             .NotEmpty().WithMessage("Satıcı ID'si zorunludur.");
 
@@ -18,7 +18,7 @@ public class GetStreamsBySellerQueryValidator : AbstractValidator<GetStreamsBySe
 
         RuleFor(x => x.PageSize)
             .GreaterThan(0).WithMessage("Sayfa boyutu 0'dan büyük olmalıdır.")
-            .LessThanOrEqualTo(settings.MaxPageSize)
-            .WithMessage($"Sayfa boyutu en fazla {settings.MaxPageSize} olabilir.");
+            .LessThanOrEqualTo(config.MaxPageSize)
+            .WithMessage($"Sayfa boyutu en fazla {config.MaxPageSize} olabilir.");
     }
 }

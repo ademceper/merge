@@ -23,11 +23,12 @@ public class GetActivePreOrderCampaignsQueryHandler(
     IMapper mapper,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetActivePreOrderCampaignsQuery, PagedResult<PreOrderCampaignDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
     public async Task<PagedResult<PreOrderCampaignDto>> Handle(GetActivePreOrderCampaignsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries

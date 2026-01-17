@@ -12,29 +12,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Subscription.Commands.RenewSubscription;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class RenewSubscriptionCommandHandler : IRequestHandler<RenewSubscriptionCommand, bool>
+public class RenewSubscriptionCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<RenewSubscriptionCommandHandler> logger) : IRequestHandler<RenewSubscriptionCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<RenewSubscriptionCommandHandler> _logger;
-
-    public RenewSubscriptionCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<RenewSubscriptionCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(RenewSubscriptionCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Renewing subscription. SubscriptionId: {SubscriptionId}", request.SubscriptionId);
+        logger.LogInformation("Renewing subscription. SubscriptionId: {SubscriptionId}", request.SubscriptionId);
 
         // ✅ NOT: AsNoTracking() YOK - Entity track edilmeli (update için)
-        var subscription = await _context.Set<UserSubscription>()
+        var subscription = await context.Set<UserSubscription>()
             .Include(us => us.SubscriptionPlan)
             .FirstOrDefaultAsync(us => us.Id == request.SubscriptionId, cancellationToken);
 
@@ -62,13 +49,13 @@ public class RenewSubscriptionCommandHandler : IRequestHandler<RenewSubscription
             billingPeriodStart: billingPeriodStart,
             billingPeriodEnd: billingPeriodEnd);
 
-        await _context.Set<SubscriptionPayment>().AddAsync(payment, cancellationToken);
+        await context.Set<SubscriptionPayment>().AddAsync(payment, cancellationToken);
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Subscription renewed successfully. SubscriptionId: {SubscriptionId}, RenewalCount: {RenewalCount}",
+        logger.LogInformation("Subscription renewed successfully. SubscriptionId: {SubscriptionId}, RenewalCount: {RenewalCount}",
             subscription.Id, subscription.RenewalCount);
 
         return true;

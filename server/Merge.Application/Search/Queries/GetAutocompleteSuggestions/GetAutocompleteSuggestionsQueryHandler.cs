@@ -17,37 +17,22 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Search.Queries.GetAutocompleteSuggestions;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetAutocompleteSuggestionsQueryHandler : IRequestHandler<GetAutocompleteSuggestionsQuery, AutocompleteResultDto>
+public class GetAutocompleteSuggestionsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAutocompleteSuggestionsQueryHandler> logger, IOptions<SearchSettings> searchSettings) : IRequestHandler<GetAutocompleteSuggestionsQuery, AutocompleteResultDto>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetAutocompleteSuggestionsQueryHandler> _logger;
-    private readonly SearchSettings _searchSettings;
-
-    public GetAutocompleteSuggestionsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetAutocompleteSuggestionsQueryHandler> logger,
-        IOptions<SearchSettings> searchSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _searchSettings = searchSettings.Value;
-    }
+    private readonly SearchSettings searchConfig = searchSettings.Value;
 
     public async Task<AutocompleteResultDto> Handle(GetAutocompleteSuggestionsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Autocomplete suggestions isteniyor. Query: {Query}, MaxResults: {MaxResults}",
             request.Query, request.MaxResults);
 
-        if (string.IsNullOrWhiteSpace(request.Query) || request.Query.Length < _searchSettings.MinAutocompleteQueryLength)
+        if (string.IsNullOrWhiteSpace(request.Query) || request.Query.Length < searchConfig.MinAutocompleteQueryLength)
         {
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Autocomplete query çok kısa veya boş. Query: {Query}, MinLength: {MinLength}",
-                request.Query, _searchSettings.MinAutocompleteQueryLength);
+                request.Query, searchConfig.MinAutocompleteQueryLength);
             return new AutocompleteResultDto(
                 Products: Array.Empty<ProductSuggestionDto>(),
                 Categories: Array.Empty<string>(),
@@ -57,12 +42,12 @@ public class GetAutocompleteSuggestionsQueryHandler : IRequestHandler<GetAutocom
         }
 
         var normalizedQuery = request.Query.ToLower().Trim();
-        var maxResults = request.MaxResults > _searchSettings.MaxAutocompleteResults
-            ? _searchSettings.MaxAutocompleteResults
+        var maxResults = request.MaxResults > searchConfig.MaxAutocompleteResults
+            ? searchConfig.MaxAutocompleteResults
             : request.MaxResults;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var productSuggestions = await _context.Set<ProductEntity>()
+        var productSuggestions = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.IsActive &&
@@ -74,10 +59,10 @@ public class GetAutocompleteSuggestionsQueryHandler : IRequestHandler<GetAutocom
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var productSuggestionDtos = _mapper.Map<IEnumerable<ProductSuggestionDto>>(productSuggestions).ToList();
+        var productSuggestionDtos = mapper.Map<IEnumerable<ProductSuggestionDto>>(productSuggestions).ToList();
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        var categorySuggestions = await _context.Set<Category>()
+        var categorySuggestions = await context.Set<Category>()
             .AsNoTracking()
             .Where(c => EF.Functions.ILike(c.Name, $"%{normalizedQuery}%"))
             .OrderBy(c => c.Name)
@@ -86,7 +71,7 @@ public class GetAutocompleteSuggestionsQueryHandler : IRequestHandler<GetAutocom
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var brandSuggestions = await _context.Set<ProductEntity>()
+        var brandSuggestions = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive &&
                        !string.IsNullOrEmpty(p.Brand) &&
@@ -97,7 +82,7 @@ public class GetAutocompleteSuggestionsQueryHandler : IRequestHandler<GetAutocom
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !ps.IsDeleted (Global Query Filter)
-        var popularSearches = await _context.Set<PopularSearch>()
+        var popularSearches = await context.Set<PopularSearch>()
             .AsNoTracking()
             .Where(ps => EF.Functions.ILike(ps.SearchTerm, $"%{normalizedQuery}%"))
             .OrderByDescending(ps => ps.SearchCount)
@@ -106,7 +91,7 @@ public class GetAutocompleteSuggestionsQueryHandler : IRequestHandler<GetAutocom
             .ToListAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Autocomplete suggestions tamamlandı. Query: {Query}, ProductCount: {ProductCount}, CategoryCount: {CategoryCount}, BrandCount: {BrandCount}, PopularSearchCount: {PopularSearchCount}",
             request.Query, productSuggestionDtos.Count, categorySuggestions.Count, brandSuggestions.Count, popularSearches.Count);
 

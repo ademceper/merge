@@ -15,33 +15,22 @@ using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
-
 namespace Merge.Application.Services.Search;
 
-public class ProductSearchService : IProductSearchService
+public class ProductSearchService(IDbContext context, IMapper mapper, ILogger<ProductSearchService> logger) : IProductSearchService
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<ProductSearchService> _logger;
-
-    public ProductSearchService(IDbContext context, IMapper mapper, ILogger<ProductSearchService> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<SearchResultDto> SearchAsync(SearchRequestDto request, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Product search yapılıyor. SearchTerm: {SearchTerm}, CategoryId: {CategoryId}, Page: {Page}, PageSize: {PageSize}",
             request.SearchTerm, request.CategoryId, request.Page, request.PageSize);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var query = _context.Set<ProductEntity>()
+        var query = context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.IsActive)
@@ -112,14 +101,14 @@ public class ProductSearchService : IProductSearchService
             .ToListAsync(cancellationToken);
         
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var productDtos = _mapper.Map<IEnumerable<ProductDto>>(products).ToList();
+        var productDtos = mapper.Map<IEnumerable<ProductDto>>(products).ToList();
 
         // ✅ PERFORMANCE: ToListAsync() sonrası memory'de işlem YASAK - ama bu business logic (ranking algoritması) için gerekli
         var rankedProducts = ApplySearchRanking(productDtos, request.SearchTerm ?? string.Empty, request.SortBy);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var brands = await _context.Set<ProductEntity>()
+        var brands = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive && !string.IsNullOrEmpty(p.Brand))
             .Select(p => p.Brand)
@@ -129,18 +118,18 @@ public class ProductSearchService : IProductSearchService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
-        var minPrice = await _context.Set<ProductEntity>()
+        var minPrice = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive)
             .MinAsync(p => (decimal?)p.Price, cancellationToken) ?? 0;
 
-        var maxPrice = await _context.Set<ProductEntity>()
+        var maxPrice = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive)
             .MaxAsync(p => (decimal?)p.Price, cancellationToken) ?? 0;
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Product search tamamlandı. TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}",
             totalCount, page, pageSize);
 

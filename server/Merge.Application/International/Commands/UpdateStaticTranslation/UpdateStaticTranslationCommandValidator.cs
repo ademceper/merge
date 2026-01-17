@@ -4,13 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.UpdateStaticTranslation;
 
-public class UpdateStaticTranslationCommandValidator : AbstractValidator<UpdateStaticTranslationCommand>
+public class UpdateStaticTranslationCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<UpdateStaticTranslationCommand>
 {
-    private readonly InternationalSettings config;
+    private readonly InternationalSettings config = settings.Value;
 
-    public UpdateStaticTranslationCommandValidator(IOptions<InternationalSettings> settings)
+    public UpdateStaticTranslationCommandValidator() : this(Options.Create(new InternationalSettings()))
     {
-        config = settings.Value;
 
         RuleFor(x => x.Id)
             .NotEmpty().WithMessage("Çeviri ID'si zorunludur.");

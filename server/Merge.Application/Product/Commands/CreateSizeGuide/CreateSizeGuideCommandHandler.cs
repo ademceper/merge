@@ -11,40 +11,27 @@ using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Catalog;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
-
+using AutoMapper;
 namespace Merge.Application.Product.Commands.CreateSizeGuide;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreateSizeGuideCommandHandler : IRequestHandler<CreateSizeGuideCommand, SizeGuideDto>
+public class CreateSizeGuideCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<CreateSizeGuideCommandHandler> logger,
+    ICacheService cache,
+    IMapper mapper) : IRequestHandler<CreateSizeGuideCommand, SizeGuideDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly AutoMapper.IMapper _mapper;
-    private readonly ILogger<CreateSizeGuideCommandHandler> _logger;
-    private readonly ICacheService _cache;
+
     private const string CACHE_KEY_ALL_SIZE_GUIDES = "size_guides_all";
     private const string CACHE_KEY_SIZE_GUIDES_BY_CATEGORY = "size_guides_by_category_";
 
-    public CreateSizeGuideCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        AutoMapper.IMapper mapper,
-        ILogger<CreateSizeGuideCommandHandler> logger,
-        ICacheService cache)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _cache = cache;
-    }
-
     public async Task<SizeGuideDto> Handle(CreateSizeGuideCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Creating size guide. Name: {Name}, CategoryId: {CategoryId}",
+        logger.LogInformation("Creating size guide. Name: {Name}, CategoryId: {CategoryId}",
             request.Name, request.CategoryId);
 
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
@@ -56,8 +43,8 @@ public class CreateSizeGuideCommandHandler : IRequestHandler<CreateSizeGuideComm
                 request.Brand,
                 request.MeasurementUnit);
 
-            await _context.Set<SizeGuide>().AddAsync(sizeGuide, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await context.Set<SizeGuide>().AddAsync(sizeGuide, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             foreach (var entryDto in request.Entries)
@@ -83,27 +70,27 @@ public class CreateSizeGuideCommandHandler : IRequestHandler<CreateSizeGuideComm
             }
 
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            sizeGuide = await _context.Set<SizeGuide>()
+            sizeGuide = await context.Set<SizeGuide>()
                 .AsNoTracking()
                 .Include(sg => sg.Category)
                 .Include(sg => sg.Entries)
                 .FirstOrDefaultAsync(sg => sg.Id == sizeGuide.Id, cancellationToken);
 
-            _logger.LogInformation("Size guide created successfully. SizeGuideId: {SizeGuideId}", sizeGuide!.Id);
+            logger.LogInformation("Size guide created successfully. SizeGuideId: {SizeGuideId}", sizeGuide!.Id);
 
             // ✅ BOLUM 10.2: Cache invalidation
-            await _cache.RemoveAsync(CACHE_KEY_ALL_SIZE_GUIDES, cancellationToken);
-            await _cache.RemoveAsync($"{CACHE_KEY_SIZE_GUIDES_BY_CATEGORY}{request.CategoryId}", cancellationToken);
+            await cache.RemoveAsync(CACHE_KEY_ALL_SIZE_GUIDES, cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_SIZE_GUIDES_BY_CATEGORY}{request.CategoryId}", cancellationToken);
 
-            return _mapper.Map<SizeGuideDto>(sizeGuide);
+            return mapper.Map<SizeGuideDto>(sizeGuide);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating size guide. Name: {Name}", request.Name);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Error creating size guide. Name: {Name}", request.Name);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

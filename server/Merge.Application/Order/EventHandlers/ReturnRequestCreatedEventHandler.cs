@@ -14,22 +14,14 @@ namespace Merge.Application.Order.EventHandlers;
 /// Return Request Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class ReturnRequestCreatedEventHandler : INotificationHandler<ReturnRequestCreatedEvent>
+public class ReturnRequestCreatedEventHandler(ILogger<ReturnRequestCreatedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<ReturnRequestCreatedEvent>
 {
-    private readonly ILogger<ReturnRequestCreatedEventHandler> _logger;
+    
     private readonly INotificationService? _notificationService;
-
-    public ReturnRequestCreatedEventHandler(
-        ILogger<ReturnRequestCreatedEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(ReturnRequestCreatedEvent notification, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Return request created event received. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, UserId: {UserId}, RefundAmount: {RefundAmount}",
             notification.ReturnRequestId, notification.OrderId, notification.UserId, notification.RefundAmount);
 
@@ -54,7 +46,7 @@ public class ReturnRequestCreatedEventHandler : INotificationHandler<ReturnReque
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling ReturnRequestCreatedEvent. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, UserId: {UserId}",
                 notification.ReturnRequestId, notification.OrderId, notification.UserId);
             throw;

@@ -4,11 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.User.Queries.GetActivityStats;
 
-public class GetActivityStatsQueryValidator : AbstractValidator<GetActivityStatsQuery>
+public class GetActivityStatsQueryValidator(IOptions<UserSettings> userSettings) : AbstractValidator<GetActivityStatsQuery>
 {
-    public GetActivityStatsQueryValidator(IOptions<UserSettings> userSettings)
+    private readonly UserSettings settings = userSettings.Value;
+
+    public GetActivityStatsQueryValidator() : this(Options.Create(new UserSettings()))
     {
-        var settings = userSettings.Value;
 
         RuleFor(x => x.Days)
             .GreaterThan(0)

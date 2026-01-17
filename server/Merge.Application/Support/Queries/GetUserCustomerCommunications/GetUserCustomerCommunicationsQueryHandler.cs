@@ -16,34 +16,22 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Queries.GetUserCustomerCommunications;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetUserCustomerCommunicationsQueryHandler : IRequestHandler<GetUserCustomerCommunicationsQuery, PagedResult<CustomerCommunicationDto>>
+public class GetUserCustomerCommunicationsQueryHandler(IDbContext context, IMapper mapper, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetUserCustomerCommunicationsQuery, PagedResult<CustomerCommunicationDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly SupportSettings _settings;
-
-    public GetUserCustomerCommunicationsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        IOptions<SupportSettings> settings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _settings = settings.Value;
-    }
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
     public async Task<PagedResult<CustomerCommunicationDto>> Handle(GetUserCustomerCommunicationsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
-        var pageSize = request.PageSize > 0 && request.PageSize <= _settings.MaxPageSize 
+        var pageSize = request.PageSize > 0 && request.PageSize <= paginationConfig.MaxPageSize 
             ? request.PageSize 
-            : _settings.DefaultPageSize;
+            : paginationConfig.DefaultPageSize;
         var page = request.Page > 0 ? request.Page : 1;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
-        IQueryable<CustomerCommunication> query = _context.Set<CustomerCommunication>()
+        IQueryable<CustomerCommunication> query = context.Set<CustomerCommunication>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(c => c.User)
@@ -71,7 +59,7 @@ public class GetUserCustomerCommunicationsQueryHandler : IRequestHandler<GetUser
         // ✅ ARCHITECTURE: AutoMapper kullan
         return new PagedResult<CustomerCommunicationDto>
         {
-            Items = _mapper.Map<List<CustomerCommunicationDto>>(communications),
+            Items = mapper.Map<List<CustomerCommunicationDto>>(communications),
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize

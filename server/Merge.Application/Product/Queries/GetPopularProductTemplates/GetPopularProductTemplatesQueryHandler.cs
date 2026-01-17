@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
@@ -15,56 +16,43 @@ namespace Merge.Application.Product.Queries.GetPopularProductTemplates;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetPopularProductTemplatesQueryHandler : IRequestHandler<GetPopularProductTemplatesQuery, IEnumerable<ProductTemplateDto>>
+public class GetPopularProductTemplatesQueryHandler(
+    IDbContext context,
+    ILogger<GetPopularProductTemplatesQueryHandler> logger,
+    ICacheService cache,
+    IOptions<PaginationSettings> paginationSettings,
+    IOptions<CacheSettings> cacheSettings,
+    IMapper mapper) : IRequestHandler<GetPopularProductTemplatesQuery, IEnumerable<ProductTemplateDto>>
 {
-    private readonly IDbContext _context;
-    private readonly AutoMapper.IMapper _mapper;
-    private readonly ILogger<GetPopularProductTemplatesQueryHandler> _logger;
-    private readonly ICacheService _cache;
-    private readonly PaginationSettings _paginationSettings;
-    private readonly CacheSettings _cacheSettings;
-    private const string CACHE_KEY_POPULAR_TEMPLATES = "product_templates_popular_";
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
+    private readonly CacheSettings cacheConfig = cacheSettings.Value;
 
-    public GetPopularProductTemplatesQueryHandler(
-        IDbContext context,
-        AutoMapper.IMapper mapper,
-        ILogger<GetPopularProductTemplatesQueryHandler> logger,
-        ICacheService cache,
-        IOptions<PaginationSettings> paginationSettings,
-        IOptions<CacheSettings> cacheSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _cache = cache;
-        _paginationSettings = paginationSettings.Value;
-        _cacheSettings = cacheSettings.Value;
-    }
+    private const string CACHE_KEY_POPULAR_TEMPLATES = "product_templates_popular_";
 
     public async Task<IEnumerable<ProductTemplateDto>> Handle(GetPopularProductTemplatesQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic number YASAK - Config kullan (ZORUNLU)
-        var limit = request.Limit > _paginationSettings.MaxPageSize
-            ? _paginationSettings.MaxPageSize
+        var limit = request.Limit > paginationConfig.MaxPageSize
+            ? paginationConfig.MaxPageSize
             : request.Limit;
-        if (limit < 1) limit = _paginationSettings.DefaultPageSize;
+        if (limit < 1) limit = paginationConfig.DefaultPageSize;
 
-        _logger.LogInformation("Fetching popular product templates. Limit: {Limit}", limit);
+        logger.LogInformation("Fetching popular product templates. Limit: {Limit}", limit);
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern
         var cacheKey = $"{CACHE_KEY_POPULAR_TEMPLATES}{limit}";
-        var cachedTemplates = await _cache.GetAsync<IEnumerable<ProductTemplateDto>>(cacheKey, cancellationToken);
+        var cachedTemplates = await cache.GetAsync<IEnumerable<ProductTemplateDto>>(cacheKey, cancellationToken);
         if (cachedTemplates != null)
         {
-            _logger.LogInformation("Popular product templates retrieved from cache. Limit: {Limit}", limit);
+            logger.LogInformation("Popular product templates retrieved from cache. Limit: {Limit}", limit);
             return cachedTemplates;
         }
 
-        _logger.LogInformation("Cache miss for popular product templates. Fetching from database.");
+        logger.LogInformation("Cache miss for popular product templates. Fetching from database.");
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        var templates = await _context.Set<ProductTemplate>()
+        var templates = await context.Set<ProductTemplate>()
             .AsNoTracking()
             .Include(t => t.Category)
             .Where(t => t.IsActive)
@@ -73,13 +61,13 @@ public class GetPopularProductTemplatesQueryHandler : IRequestHandler<GetPopular
             .Take(limit)
             .ToListAsync(cancellationToken);
 
-        var templateDtos = _mapper.Map<IEnumerable<ProductTemplateDto>>(templates).ToList();
+        var templateDtos = mapper.Map<IEnumerable<ProductTemplateDto>>(templates).ToList();
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
-        await _cache.SetAsync(cacheKey, templateDtos, TimeSpan.FromMinutes(_cacheSettings.PopularTemplatesCacheExpirationMinutes), cancellationToken);
+        await cache.SetAsync(cacheKey, templateDtos, TimeSpan.FromMinutes(cacheConfig.PopularTemplatesCacheExpirationMinutes), cancellationToken);
 
-        _logger.LogInformation("Retrieved popular product templates. Count: {Count}, Limit: {Limit}", templates.Count, limit);
+        logger.LogInformation("Retrieved popular product templates. Count: {Count}, Limit: {Limit}", templates.Count, limit);
 
         return templateDtos;
     }

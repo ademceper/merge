@@ -18,39 +18,27 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Queries.GetCategoryPerformance;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetCategoryPerformanceQueryHandler : IRequestHandler<GetCategoryPerformanceQuery, List<CategoryPerformanceDto>>
+public class GetCategoryPerformanceQueryHandler(IDbContext context, ILogger<GetCategoryPerformanceQueryHandler> logger, IOptions<SellerSettings> sellerSettings) : IRequestHandler<GetCategoryPerformanceQuery, List<CategoryPerformanceDto>>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetCategoryPerformanceQueryHandler> _logger;
-    private readonly SellerSettings _sellerSettings;
-
-    public GetCategoryPerformanceQueryHandler(
-        IDbContext context,
-        ILogger<GetCategoryPerformanceQueryHandler> logger,
-        IOptions<SellerSettings> sellerSettings)
-    {
-        _context = context;
-        _logger = logger;
-        _sellerSettings = sellerSettings.Value;
-    }
+    private readonly SellerSettings sellerConfig = sellerSettings.Value;
 
     public async Task<List<CategoryPerformanceDto>> Handle(GetCategoryPerformanceQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting category performance. SellerId: {SellerId}, StartDate: {StartDate}, EndDate: {EndDate}",
+        logger.LogInformation("Getting category performance. SellerId: {SellerId}, StartDate: {StartDate}, EndDate: {EndDate}",
             request.SellerId, request.StartDate, request.EndDate);
 
         // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
-        var startDate = request.StartDate ?? DateTime.UtcNow.AddDays(-_sellerSettings.DefaultStatsPeriodDays);
+        var startDate = request.StartDate ?? DateTime.UtcNow.AddDays(-sellerConfig.DefaultStatsPeriodDays);
         var endDate = request.EndDate ?? DateTime.UtcNow;
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         var categoryPerformance = await (
-            from o in _context.Set<OrderEntity>().AsNoTracking()
-            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
-            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
-            join c in _context.Set<Category>().AsNoTracking() on p.CategoryId equals c.Id
+            from o in context.Set<OrderEntity>().AsNoTracking()
+            join oi in context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            join c in context.Set<Category>().AsNoTracking() on p.CategoryId equals c.Id
             where o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   p.SellerId == request.SellerId

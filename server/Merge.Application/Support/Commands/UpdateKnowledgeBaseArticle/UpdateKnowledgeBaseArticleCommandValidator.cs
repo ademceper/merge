@@ -5,36 +5,36 @@ using Microsoft.Extensions.Options;
 namespace Merge.Application.Support.Commands.UpdateKnowledgeBaseArticle;
 
 // ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
-public class UpdateKnowledgeBaseArticleCommandValidator : AbstractValidator<UpdateKnowledgeBaseArticleCommand>
+public class UpdateKnowledgeBaseArticleCommandValidator(IOptions<SupportSettings> settings) : AbstractValidator<UpdateKnowledgeBaseArticleCommand>
 {
-    public UpdateKnowledgeBaseArticleCommandValidator(IOptions<SupportSettings> settings)
-    {
-        var supportSettings = settings.Value;
+    private readonly SupportSettings config = settings.Value;
 
+    public UpdateKnowledgeBaseArticleCommandValidator() : this(Options.Create(new SupportSettings()))
+    {
         RuleFor(x => x.ArticleId)
             .NotEmpty().WithMessage("Makale ID boş olamaz");
 
         When(x => !string.IsNullOrEmpty(x.Title), () =>
         {
             RuleFor(x => x.Title)
-                .MinimumLength(supportSettings.MinArticleTitleLength).WithMessage($"Başlık en az {supportSettings.MinArticleTitleLength} karakter olmalıdır")
-                .MaximumLength(supportSettings.MaxArticleTitleLength)
-                .WithMessage($"Başlık en fazla {supportSettings.MaxArticleTitleLength} karakter olmalıdır");
+                .MinimumLength(config.MinArticleTitleLength).WithMessage($"Başlık en az {config.MinArticleTitleLength} karakter olmalıdır")
+                .MaximumLength(config.MaxArticleTitleLength)
+                .WithMessage($"Başlık en fazla {config.MaxArticleTitleLength} karakter olmalıdır");
         });
 
         When(x => !string.IsNullOrEmpty(x.Content), () =>
         {
             RuleFor(x => x.Content)
-                .MinimumLength(supportSettings.MinArticleContentLength).WithMessage($"İçerik en az {supportSettings.MinArticleContentLength} karakter olmalıdır")
-                .MaximumLength(supportSettings.MaxArticleContentLength)
-                .WithMessage($"İçerik en fazla {supportSettings.MaxArticleContentLength} karakter olmalıdır");
+                .MinimumLength(config.MinArticleContentLength).WithMessage($"İçerik en az {config.MinArticleContentLength} karakter olmalıdır")
+                .MaximumLength(config.MaxArticleContentLength)
+                .WithMessage($"İçerik en fazla {config.MaxArticleContentLength} karakter olmalıdır");
         });
 
         When(x => !string.IsNullOrEmpty(x.Excerpt), () =>
         {
             RuleFor(x => x.Excerpt)
-                .MaximumLength(supportSettings.MaxArticleExcerptLength)
-                .WithMessage($"Özet en fazla {supportSettings.MaxArticleExcerptLength} karakter olmalıdır");
+                .MaximumLength(config.MaxArticleExcerptLength)
+                .WithMessage($"Özet en fazla {config.MaxArticleExcerptLength} karakter olmalıdır");
         });
 
         When(x => !string.IsNullOrEmpty(x.Status), () =>
@@ -47,7 +47,7 @@ public class UpdateKnowledgeBaseArticleCommandValidator : AbstractValidator<Upda
         When(x => x.DisplayOrder.HasValue, () =>
         {
             RuleFor(x => x.DisplayOrder)
-                .GreaterThanOrEqualTo(supportSettings.MinDisplayOrder).WithMessage($"Görüntüleme sırası {supportSettings.MinDisplayOrder} veya daha büyük olmalıdır");
+                .GreaterThanOrEqualTo(config.MinDisplayOrder).WithMessage($"Görüntüleme sırası {config.MinDisplayOrder} veya daha büyük olmalıdır");
         });
     }
 }

@@ -9,18 +9,9 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Services.ShippingProviders;
 
-public class ArasProvider : IShippingProvider
+public class ArasProvider(IConfiguration configuration, ILogger<ArasProvider> logger) : IShippingProvider
 {
     public string ProviderName => "Aras Kargo";
-    
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<ArasProvider> _logger;
-
-    public ArasProvider(IConfiguration configuration, ILogger<ArasProvider> logger)
-    {
-        _configuration = configuration;
-        _logger = logger;
-    }
 
     public async Task<ShippingProviderResponseDto> CreateShipmentAsync(ShippingProviderRequestDto request)
     {
@@ -36,14 +27,14 @@ public class ArasProvider : IShippingProvider
             throw new ValidationException("Sipariş numarası boş olamaz.");
         }
 
-        _logger.LogInformation("Aras Kargo shipment creation started for order {OrderNumber}", request.OrderNumber);
+        logger.LogInformation("Aras Kargo shipment creation started for order {OrderNumber}", request.OrderNumber);
         
-        var apiKey = _configuration["ShippingProviders:Aras:ApiKey"];
-        var apiSecret = _configuration["ShippingProviders:Aras:ApiSecret"];
+        var apiKey = configuration["ShippingProviders:Aras:ApiKey"];
+        var apiSecret = configuration["ShippingProviders:Aras:ApiSecret"];
         
         if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(apiSecret))
         {
-            _logger.LogWarning("Aras Kargo API credentials not configured");
+            logger.LogWarning("Aras Kargo API credentials not configured");
             return new ShippingProviderResponseDto
             {
                 Success = false,
@@ -56,7 +47,7 @@ public class ArasProvider : IShippingProvider
         var trackingNumber = $"ARAS{DateTime.UtcNow:yyyyMMdd}{Guid.NewGuid():N}".Substring(0, 20).ToUpper();
         var estimatedDelivery = DateTime.UtcNow.AddDays(2);
         
-        _logger.LogInformation("Aras Kargo shipment created successfully. TrackingNumber: {TrackingNumber}", trackingNumber);
+        logger.LogInformation("Aras Kargo shipment created successfully. TrackingNumber: {TrackingNumber}", trackingNumber);
         
         return new ShippingProviderResponseDto
         {
@@ -81,7 +72,7 @@ public class ArasProvider : IShippingProvider
             throw new ArgumentNullException(nameof(trackingNumber));
         }
 
-        _logger.LogInformation("Aras Kargo tracking check. TrackingNumber: {TrackingNumber}", trackingNumber);
+        logger.LogInformation("Aras Kargo tracking check. TrackingNumber: {TrackingNumber}", trackingNumber);
         
         await Task.Delay(100);
         
@@ -111,7 +102,7 @@ public class ArasProvider : IShippingProvider
             throw new ArgumentNullException(nameof(trackingNumber));
         }
 
-        _logger.LogInformation("Aras Kargo label generation. TrackingNumber: {TrackingNumber}", trackingNumber);
+        logger.LogInformation("Aras Kargo label generation. TrackingNumber: {TrackingNumber}", trackingNumber);
         
         await Task.Delay(100);
         
@@ -131,7 +122,7 @@ public class ArasProvider : IShippingProvider
             throw new ArgumentNullException(nameof(trackingNumber));
         }
 
-        _logger.LogInformation("Aras Kargo shipment cancellation. TrackingNumber: {TrackingNumber}", trackingNumber);
+        logger.LogInformation("Aras Kargo shipment cancellation. TrackingNumber: {TrackingNumber}", trackingNumber);
         
         await Task.Delay(100);
         
@@ -146,7 +137,7 @@ public class ArasProvider : IShippingProvider
             throw new ArgumentNullException(nameof(request));
         }
 
-        _logger.LogInformation("Aras Kargo cost calculation");
+        logger.LogInformation("Aras Kargo cost calculation");
         
         await Task.Delay(50);
         

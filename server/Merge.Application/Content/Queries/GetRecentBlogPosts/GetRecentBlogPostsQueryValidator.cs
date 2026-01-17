@@ -5,17 +5,17 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Content.Queries.GetRecentBlogPosts;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetRecentBlogPostsQueryValidator : AbstractValidator<GetRecentBlogPostsQuery>
+public class GetRecentBlogPostsQueryValidator(IOptions<ContentSettings> contentSettings) : AbstractValidator<GetRecentBlogPostsQuery>
 {
-    public GetRecentBlogPostsQueryValidator(IOptions<ContentSettings> contentSettings)
-    {
-        var settings = contentSettings.Value;
+    private readonly ContentSettings config = contentSettings.Value;
 
+    public GetRecentBlogPostsQueryValidator() : this(Options.Create(new ContentSettings()))
+    {
         RuleFor(x => x.Count)
             .GreaterThan(0)
             .WithMessage("Sayı 1'den büyük olmalıdır.")
-            .LessThanOrEqualTo(settings.MaxRecentPostsCount)
-            .WithMessage($"Sayı en fazla {settings.MaxRecentPostsCount} olabilir.");
+            .LessThanOrEqualTo(config.MaxRecentPostsCount)
+            .WithMessage($"Sayı en fazla {config.MaxRecentPostsCount} olabilir.");
     }
 }
 

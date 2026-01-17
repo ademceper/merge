@@ -17,38 +17,23 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Search.Queries.GetBasedOnViewHistory;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetBasedOnViewHistoryQueryHandler : IRequestHandler<GetBasedOnViewHistoryQuery, IReadOnlyList<ProductRecommendationDto>>
+public class GetBasedOnViewHistoryQueryHandler(IDbContext context, IMapper mapper, ILogger<GetBasedOnViewHistoryQueryHandler> logger, IOptions<SearchSettings> searchSettings) : IRequestHandler<GetBasedOnViewHistoryQuery, IReadOnlyList<ProductRecommendationDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetBasedOnViewHistoryQueryHandler> _logger;
-    private readonly SearchSettings _searchSettings;
-
-    public GetBasedOnViewHistoryQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetBasedOnViewHistoryQueryHandler> logger,
-        IOptions<SearchSettings> searchSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _searchSettings = searchSettings.Value;
-    }
+    private readonly SearchSettings searchConfig = searchSettings.Value;
 
     public async Task<IReadOnlyList<ProductRecommendationDto>> Handle(GetBasedOnViewHistoryQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Based on view history recommendations isteniyor. UserId: {UserId}, MaxResults: {MaxResults}",
             request.UserId, request.MaxResults);
 
-        var maxResults = request.MaxResults > _searchSettings.MaxRecommendationResults
-            ? _searchSettings.MaxRecommendationResults
+        var maxResults = request.MaxResults > searchConfig.MaxRecommendationResults
+            ? searchConfig.MaxRecommendationResults
             : request.MaxResults;
 
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
-        var recentlyViewed = await _context.Set<RecentlyViewedProduct>()
+        var recentlyViewed = await context.Set<RecentlyViewedProduct>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(rv => rv.Product)
@@ -68,18 +53,18 @@ public class GetBasedOnViewHistoryQueryHandler : IRequestHandler<GetBasedOnViewH
         var viewedProductIds = recentlyViewed.Select(rv => rv.ProductId).ToList();
         
         // Category'ler için subquery kullan (büyük olabilir)
-        var recentlyViewedQuery = _context.Set<RecentlyViewedProduct>()
+        var recentlyViewedQuery = context.Set<RecentlyViewedProduct>()
             .AsNoTracking()
             .Where(rv => rv.UserId == request.UserId)
             .OrderByDescending(rv => rv.ViewedAt)
             .Take(5);
         
         var viewedCategoriesSubquery = from rv in recentlyViewedQuery
-                                      join p in _context.Set<ProductEntity>().AsNoTracking() on rv.ProductId equals p.Id
+                                      join p in context.Set<ProductEntity>().AsNoTracking() on rv.ProductId equals p.Id
                                       select p.CategoryId;
 
         // Get products from same categories, excluding already viewed
-        var recommendations = await _context.Set<ProductEntity>()
+        var recommendations = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive &&
                        viewedCategoriesSubquery.Distinct().Contains(p.CategoryId) &&
@@ -90,7 +75,7 @@ public class GetBasedOnViewHistoryQueryHandler : IRequestHandler<GetBasedOnViewH
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var recommendationDtos = _mapper.Map<IEnumerable<ProductRecommendationDto>>(recommendations)
+        var recommendationDtos = mapper.Map<IEnumerable<ProductRecommendationDto>>(recommendations)
             .Select(rec => new ProductRecommendationDto(
                 rec.ProductId,
                 rec.Name,
@@ -106,7 +91,7 @@ public class GetBasedOnViewHistoryQueryHandler : IRequestHandler<GetBasedOnViewH
             .ToList();
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Based on view history recommendations tamamlandı. UserId: {UserId}, Count: {Count}",
             request.UserId, recommendationDtos.Count);
 

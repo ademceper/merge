@@ -5,12 +5,12 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Search.Queries.SearchProducts;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class SearchProductsQueryValidator : AbstractValidator<SearchProductsQuery>
+public class SearchProductsQueryValidator(IOptions<SearchSettings> searchSettings) : AbstractValidator<SearchProductsQuery>
 {
-    public SearchProductsQueryValidator(IOptions<SearchSettings> searchSettings)
-    {
-        var settings = searchSettings.Value;
+    private readonly SearchSettings config = searchSettings.Value;
 
+    public SearchProductsQueryValidator() : this(Options.Create(new SearchSettings()))
+    {
         RuleFor(x => x.SearchTerm)
             .MaximumLength(200)
             .WithMessage("Arama terimi en fazla 200 karakter olabilir.")
@@ -48,7 +48,7 @@ public class SearchProductsQueryValidator : AbstractValidator<SearchProductsQuer
         RuleFor(x => x.PageSize)
             .GreaterThan(0)
             .WithMessage("Sayfa boyutu 1'den büyük olmalıdır.")
-            .LessThanOrEqualTo(settings.MaxPageSize)
-            .WithMessage($"Sayfa boyutu en fazla {settings.MaxPageSize} olabilir.");
+            .LessThanOrEqualTo(config.MaxPageSize)
+            .WithMessage($"Sayfa boyutu en fazla {config.MaxPageSize} olabilir.");
     }
 }

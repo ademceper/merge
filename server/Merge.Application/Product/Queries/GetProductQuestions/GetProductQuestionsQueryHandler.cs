@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
@@ -18,56 +19,43 @@ namespace Merge.Application.Product.Queries.GetProductQuestions;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-public class GetProductQuestionsQueryHandler : IRequestHandler<GetProductQuestionsQuery, PagedResult<ProductQuestionDto>>
+public class GetProductQuestionsQueryHandler(
+    IDbContext context,
+    ILogger<GetProductQuestionsQueryHandler> logger,
+    ICacheService cache,
+    IOptions<PaginationSettings> paginationSettings,
+    IOptions<CacheSettings> cacheSettings,
+    IMapper mapper) : IRequestHandler<GetProductQuestionsQuery, PagedResult<ProductQuestionDto>>
 {
-    private readonly IDbContext _context;
-    private readonly AutoMapper.IMapper _mapper;
-    private readonly ILogger<GetProductQuestionsQueryHandler> _logger;
-    private readonly ICacheService _cache;
-    private readonly PaginationSettings _paginationSettings;
-    private readonly CacheSettings _cacheSettings;
-    private const string CACHE_KEY_PRODUCT_QUESTIONS = "product_questions_";
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
+    private readonly CacheSettings cacheConfig = cacheSettings.Value;
 
-    public GetProductQuestionsQueryHandler(
-        IDbContext context,
-        AutoMapper.IMapper mapper,
-        ILogger<GetProductQuestionsQueryHandler> logger,
-        ICacheService cache,
-        IOptions<PaginationSettings> paginationSettings,
-        IOptions<CacheSettings> cacheSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _cache = cache;
-        _paginationSettings = paginationSettings.Value;
-        _cacheSettings = cacheSettings.Value;
-    }
+    private const string CACHE_KEY_PRODUCT_QUESTIONS = "product_questions_";
 
     public async Task<PagedResult<ProductQuestionDto>> Handle(GetProductQuestionsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching product questions. ProductId: {ProductId}, UserId: {UserId}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Fetching product questions. ProductId: {ProductId}, UserId: {UserId}, Page: {Page}, PageSize: {PageSize}",
             request.ProductId, request.UserId, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic number YASAK - Config kullan (ZORUNLU)
         var page = request.Page < 1 ? 1 : request.Page;
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize
-            ? _paginationSettings.MaxPageSize
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize
+            ? paginationConfig.MaxPageSize
             : request.PageSize;
 
         // Cache key includes UserId for user-specific data (HasUserVoted)
         var cacheKey = $"{CACHE_KEY_PRODUCT_QUESTIONS}{request.ProductId}_{request.UserId ?? Guid.Empty}_{page}_{pageSize}";
 
         // ✅ BOLUM 10.2: Redis distributed cache
-        var cachedResult = await _cache.GetOrCreateAsync(
+        var cachedResult = await cache.GetOrCreateAsync(
             cacheKey,
             async () =>
             {
-                _logger.LogInformation("Cache miss for product questions. Fetching from database.");
+                logger.LogInformation("Cache miss for product questions. Fetching from database.");
 
                 // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
-                var query = _context.Set<ProductQuestion>()
+                var query = context.Set<ProductQuestion>()
                     .AsNoTracking()
                     .AsSplitQuery()
                     .Include(q => q.Product)
@@ -90,7 +78,7 @@ public class GetProductQuestionsQueryHandler : IRequestHandler<GetProductQuestio
                 // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
                 var questionIdsSubquery = from q in paginatedQuestionsQuery select q.Id;
                 var userVotes = request.UserId.HasValue
-                    ? await _context.Set<QuestionHelpfulness>()
+                    ? await context.Set<QuestionHelpfulness>()
                         .AsNoTracking()
                         .Where(qh => questionIdsSubquery.Contains(qh.QuestionId) && qh.UserId == request.UserId.Value)
                         .ToDictionaryAsync(qh => qh.QuestionId, cancellationToken)
@@ -100,7 +88,7 @@ public class GetProductQuestionsQueryHandler : IRequestHandler<GetProductQuestio
                 var dtos = new List<ProductQuestionDto>(questions.Count);
                 foreach (var question in questions)
                 {
-                    var dto = _mapper.Map<ProductQuestionDto>(question);
+                    var dto = mapper.Map<ProductQuestionDto>(question);
                     dto = dto with { HasUserVoted = userVotes.ContainsKey(question.Id) };
                     dtos.Add(dto);
                 }
@@ -113,7 +101,7 @@ public class GetProductQuestionsQueryHandler : IRequestHandler<GetProductQuestio
                     PageSize = pageSize
                 };
             },
-            TimeSpan.FromMinutes(_cacheSettings.ProductQuestionsCacheExpirationMinutes),
+            TimeSpan.FromMinutes(cacheConfig.ProductQuestionsCacheExpirationMinutes),
             cancellationToken);
 
         return cachedResult!;

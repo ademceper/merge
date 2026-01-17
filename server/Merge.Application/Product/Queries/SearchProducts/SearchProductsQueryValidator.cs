@@ -6,12 +6,12 @@ using Merge.Domain.Modules.Catalog;
 namespace Merge.Application.Product.Queries.SearchProducts;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class SearchProductsQueryValidator : AbstractValidator<SearchProductsQuery>
+public class SearchProductsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<SearchProductsQuery>
 {
-    public SearchProductsQueryValidator(IOptions<PaginationSettings> paginationSettings)
-    {
-        var settings = paginationSettings.Value;
+    private readonly PaginationSettings config = paginationSettings.Value;
 
+    public SearchProductsQueryValidator() : this(Options.Create(new PaginationSettings()))
+    {
         RuleFor(x => x.SearchTerm)
             .NotEmpty()
             .WithMessage("Arama terimi boş olamaz.")
@@ -27,7 +27,7 @@ public class SearchProductsQueryValidator : AbstractValidator<SearchProductsQuer
         RuleFor(x => x.PageSize)
             .GreaterThan(0)
             .WithMessage("Sayfa boyutu 1'den büyük olmalıdır.")
-            .LessThanOrEqualTo(settings.MaxPageSize)
-            .WithMessage($"Sayfa boyutu en fazla {settings.MaxPageSize} olabilir.");
+            .LessThanOrEqualTo(config.MaxPageSize)
+            .WithMessage($"Sayfa boyutu en fazla {config.MaxPageSize} olabilir.");
     }
 }

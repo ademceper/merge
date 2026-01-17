@@ -19,25 +19,12 @@ namespace Merge.Application.Payment.Queries.GetInvoicesByUserId;
 // BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullaniyor (Service layer bypass)
 // BOLUM 3.4: Pagination (ZORUNLU)
-public class GetInvoicesByUserIdQueryHandler : IRequestHandler<GetInvoicesByUserIdQuery, PagedResult<InvoiceDto>>
+public class GetInvoicesByUserIdQueryHandler(IDbContext context, IMapper mapper, ILogger<GetInvoicesByUserIdQueryHandler> logger) : IRequestHandler<GetInvoicesByUserIdQuery, PagedResult<InvoiceDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetInvoicesByUserIdQueryHandler> _logger;
-
-    public GetInvoicesByUserIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetInvoicesByUserIdQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<PagedResult<InvoiceDto>> Handle(GetInvoicesByUserIdQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Retrieving invoices by user ID. UserId: {UserId}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Retrieving invoices by user ID. UserId: {UserId}, Page: {Page}, PageSize: {PageSize}",
             request.UserId, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
@@ -46,7 +33,7 @@ public class GetInvoicesByUserIdQueryHandler : IRequestHandler<GetInvoicesByUser
 
         // ✅ PERFORMANCE: AsNoTracking for read-only query
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        var query = _context.Set<Invoice>()
+        var query = context.Set<Invoice>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(i => i.Order)
@@ -68,7 +55,7 @@ public class GetInvoicesByUserIdQueryHandler : IRequestHandler<GetInvoicesByUser
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - AutoMapper kullan
-        var dtos = _mapper.Map<IEnumerable<InvoiceDto>>(invoices);
+        var dtos = mapper.Map<IEnumerable<InvoiceDto>>(invoices);
 
         return new PagedResult<InvoiceDto>
         {

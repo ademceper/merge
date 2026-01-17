@@ -18,29 +18,13 @@ namespace Merge.Application.ML.Commands.CreateFraudDetectionRule;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class CreateFraudDetectionRuleCommandHandler : IRequestHandler<CreateFraudDetectionRuleCommand, FraudDetectionRuleDto>
+public class CreateFraudDetectionRuleCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateFraudDetectionRuleCommandHandler> logger) : IRequestHandler<CreateFraudDetectionRuleCommand, FraudDetectionRuleDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateFraudDetectionRuleCommandHandler> _logger;
-
-    public CreateFraudDetectionRuleCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateFraudDetectionRuleCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<FraudDetectionRuleDto> Handle(CreateFraudDetectionRuleCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Creating fraud detection rule. Name: {Name}, RuleType: {RuleType}, RiskScore: {RiskScore}",
+        logger.LogInformation("Creating fraud detection rule. Name: {Name}, RuleType: {RuleType}, RiskScore: {RiskScore}",
             request.Name, request.RuleType, request.RiskScore);
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
@@ -62,29 +46,29 @@ public class CreateFraudDetectionRuleCommandHandler : IRequestHandler<CreateFrau
             rule.Deactivate();
         }
 
-        await _context.Set<FraudDetectionRule>().AddAsync(rule, cancellationToken);
+        await context.Set<FraudDetectionRule>().AddAsync(rule, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
         // Background worker OutboxMessage'ları işleyip MediatR notification olarak dispatch eder
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
-        var createdRule = await _context.Set<FraudDetectionRule>()
+        var createdRule = await context.Set<FraudDetectionRule>()
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == rule.Id, cancellationToken);
 
         if (createdRule == null)
         {
-            _logger.LogWarning("Fraud detection rule not found after creation. RuleId: {RuleId}", rule.Id);
+            logger.LogWarning("Fraud detection rule not found after creation. RuleId: {RuleId}", rule.Id);
             throw new NotFoundException("Fraud detection rule", rule.Id);
         }
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Fraud detection rule created. RuleId: {RuleId}, Name: {Name}",
+        logger.LogInformation("Fraud detection rule created. RuleId: {RuleId}, Name: {Name}",
             rule.Id, request.Name);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<FraudDetectionRuleDto>(createdRule);
+        return mapper.Map<FraudDetectionRuleDto>(createdRule);
     }
 }

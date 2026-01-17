@@ -15,28 +15,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Security.Commands.CreateSecurityAlert;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreateSecurityAlertCommandHandler : IRequestHandler<CreateSecurityAlertCommand, SecurityAlertDto>
+public class CreateSecurityAlertCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateSecurityAlertCommandHandler> logger) : IRequestHandler<CreateSecurityAlertCommand, SecurityAlertDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateSecurityAlertCommandHandler> _logger;
-
-    public CreateSecurityAlertCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateSecurityAlertCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<SecurityAlertDto> Handle(CreateSecurityAlertCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Security alert oluşturuluyor. UserId: {UserId}, AlertType: {AlertType}, Severity: {Severity}",
+        logger.LogInformation("Security alert oluşturuluyor. UserId: {UserId}, AlertType: {AlertType}, Severity: {Severity}",
             request.UserId, request.AlertType, request.Severity);
 
         var severity = Enum.TryParse<AlertSeverity>(request.Severity, true, out var parsedSeverity)
@@ -46,7 +30,7 @@ public class CreateSecurityAlertCommandHandler : IRequestHandler<CreateSecurityA
         // Parse AlertType from string to enum
         if (!Enum.TryParse<AlertType>(request.AlertType, true, out var alertType))
         {
-            _logger.LogWarning("Invalid AlertType: {AlertType}, defaulting to Other", request.AlertType);
+            logger.LogWarning("Invalid AlertType: {AlertType}, defaulting to Other", request.AlertType);
             alertType = AlertType.Other;
         }
 
@@ -60,19 +44,19 @@ public class CreateSecurityAlertCommandHandler : IRequestHandler<CreateSecurityA
             userId: request.UserId,
             metadata: request.Metadata != null ? JsonSerializer.Serialize(request.Metadata) : null);
 
-        await _context.Set<SecurityAlert>().AddAsync(alert, cancellationToken);
+        await context.Set<SecurityAlert>().AddAsync(alert, cancellationToken);
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        alert = await _context.Set<SecurityAlert>()
+        alert = await context.Set<SecurityAlert>()
             .AsNoTracking()
             .Include(a => a.User)
             .Include(a => a.AcknowledgedBy)
             .Include(a => a.ResolvedBy)
             .FirstOrDefaultAsync(a => a.Id == alert.Id, cancellationToken);
 
-        _logger.LogInformation("Security alert oluşturuldu. AlertId: {AlertId}, UserId: {UserId}", alert!.Id, request.UserId);
+        logger.LogInformation("Security alert oluşturuldu. AlertId: {AlertId}, UserId: {UserId}", alert!.Id, request.UserId);
 
-        return _mapper.Map<SecurityAlertDto>(alert);
+        return mapper.Map<SecurityAlertDto>(alert);
     }
 }

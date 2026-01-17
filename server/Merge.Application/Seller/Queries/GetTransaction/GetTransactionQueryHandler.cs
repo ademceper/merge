@@ -13,34 +13,21 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Queries.GetTransaction;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetTransactionQueryHandler : IRequestHandler<GetTransactionQuery, SellerTransactionDto?>
+public class GetTransactionQueryHandler(IDbContext context, IMapper mapper, ILogger<GetTransactionQueryHandler> logger) : IRequestHandler<GetTransactionQuery, SellerTransactionDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetTransactionQueryHandler> _logger;
-
-    public GetTransactionQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetTransactionQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<SellerTransactionDto?> Handle(GetTransactionQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting transaction. TransactionId: {TransactionId}", request.TransactionId);
+        logger.LogInformation("Getting transaction. TransactionId: {TransactionId}", request.TransactionId);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        var transaction = await _context.Set<SellerTransaction>()
+        var transaction = await context.Set<SellerTransaction>()
             .AsNoTracking()
             .Include(t => t.Seller)
             .FirstOrDefaultAsync(t => t.Id == request.TransactionId, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return transaction != null ? _mapper.Map<SellerTransactionDto>(transaction) : null;
+        return transaction != null ? mapper.Map<SellerTransactionDto>(transaction) : null;
     }
 }

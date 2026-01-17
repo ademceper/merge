@@ -14,38 +14,25 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Review.Queries.GetTrustBadgeById;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetTrustBadgeByIdQueryHandler : IRequestHandler<GetTrustBadgeByIdQuery, TrustBadgeDto?>
+public class GetTrustBadgeByIdQueryHandler(IDbContext context, IMapper mapper, ILogger<GetTrustBadgeByIdQueryHandler> logger) : IRequestHandler<GetTrustBadgeByIdQuery, TrustBadgeDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetTrustBadgeByIdQueryHandler> _logger;
-
-    public GetTrustBadgeByIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetTrustBadgeByIdQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<TrustBadgeDto?> Handle(GetTrustBadgeByIdQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching trust badge by Id: {BadgeId}", request.BadgeId);
+        logger.LogInformation("Fetching trust badge by Id: {BadgeId}", request.BadgeId);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
-        var badge = await _context.Set<TrustBadge>()
+        var badge = await context.Set<TrustBadge>()
             .AsNoTracking()
             .FirstOrDefaultAsync(b => b.Id == request.BadgeId, cancellationToken);
 
         if (badge == null)
         {
-            _logger.LogWarning("Trust badge not found with Id: {BadgeId}", request.BadgeId);
+            logger.LogWarning("Trust badge not found with Id: {BadgeId}", request.BadgeId);
             return null;
         }
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<TrustBadgeDto>(badge);
+        return mapper.Map<TrustBadgeDto>(badge);
     }
 }

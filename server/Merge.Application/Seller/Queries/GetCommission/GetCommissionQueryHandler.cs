@@ -14,28 +14,15 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Queries.GetCommission;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetCommissionQueryHandler : IRequestHandler<GetCommissionQuery, SellerCommissionDto?>
+public class GetCommissionQueryHandler(IDbContext context, IMapper mapper, ILogger<GetCommissionQueryHandler> logger) : IRequestHandler<GetCommissionQuery, SellerCommissionDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetCommissionQueryHandler> _logger;
-
-    public GetCommissionQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetCommissionQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<SellerCommissionDto?> Handle(GetCommissionQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting commission. CommissionId: {CommissionId}", request.CommissionId);
+        logger.LogInformation("Getting commission. CommissionId: {CommissionId}", request.CommissionId);
 
-        var commission = await _context.Set<SellerCommission>()
+        var commission = await context.Set<SellerCommission>()
             .AsNoTracking()
             .Include(sc => sc.Seller)
             .Include(sc => sc.Order)
@@ -43,6 +30,6 @@ public class GetCommissionQueryHandler : IRequestHandler<GetCommissionQuery, Sel
             .FirstOrDefaultAsync(sc => sc.Id == request.CommissionId, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return commission != null ? _mapper.Map<SellerCommissionDto>(commission) : null;
+        return commission != null ? mapper.Map<SellerCommissionDto>(commission) : null;
     }
 }

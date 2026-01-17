@@ -14,41 +14,29 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Search.Queries.GetTrendingSearches;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetTrendingSearchesQueryHandler : IRequestHandler<GetTrendingSearchesQuery, IReadOnlyList<SearchSuggestionDto>>
+public class GetTrendingSearchesQueryHandler(IDbContext context, ILogger<GetTrendingSearchesQueryHandler> logger, IOptions<SearchSettings> searchSettings) : IRequestHandler<GetTrendingSearchesQuery, IReadOnlyList<SearchSuggestionDto>>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetTrendingSearchesQueryHandler> _logger;
-    private readonly SearchSettings _searchSettings;
-
-    public GetTrendingSearchesQueryHandler(
-        IDbContext context,
-        ILogger<GetTrendingSearchesQueryHandler> logger,
-        IOptions<SearchSettings> searchSettings)
-    {
-        _context = context;
-        _logger = logger;
-        _searchSettings = searchSettings.Value;
-    }
+    private readonly SearchSettings searchConfig = searchSettings.Value;
 
     public async Task<IReadOnlyList<SearchSuggestionDto>> Handle(GetTrendingSearchesQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Trending searches isteniyor. Days: {Days}, MaxResults: {MaxResults}",
             request.Days, request.MaxResults);
 
-        var days = request.Days < 1 ? _searchSettings.DefaultTrendingDays : request.Days;
-        if (days > _searchSettings.MaxTrendingDays) days = _searchSettings.MaxTrendingDays;
+        var days = request.Days < 1 ? searchConfig.DefaultTrendingDays : request.Days;
+        if (days > searchConfig.MaxTrendingDays) days = searchConfig.MaxTrendingDays;
 
-        var maxResults = request.MaxResults > _searchSettings.MaxAutocompleteResults
-            ? _searchSettings.MaxAutocompleteResults
+        var maxResults = request.MaxResults > searchConfig.MaxAutocompleteResults
+            ? searchConfig.MaxAutocompleteResults
             : request.MaxResults;
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sh.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        var trendingSearches = await _context.Set<SearchHistory>()
+        var trendingSearches = await context.Set<SearchHistory>()
             .AsNoTracking()
             .Where(sh => sh.CreatedAt >= startDate)
             .GroupBy(sh => sh.SearchTerm.ToLower())
@@ -64,7 +52,7 @@ public class GetTrendingSearchesQueryHandler : IRequestHandler<GetTrendingSearch
             .ToListAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Trending searches tamamlandı. Days: {Days}, Count: {Count}",
             days, trendingSearches.Count);
 

@@ -12,19 +12,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Queries.GetTicketsByCategory;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetTicketsByCategoryQueryHandler : IRequestHandler<GetTicketsByCategoryQuery, List<CategoryTicketCountDto>>
+public class GetTicketsByCategoryQueryHandler(IDbContext context) : IRequestHandler<GetTicketsByCategoryQuery, List<CategoryTicketCountDto>>
 {
-    private readonly IDbContext _context;
-
-    public GetTicketsByCategoryQueryHandler(IDbContext context)
-    {
-        _context = context;
-    }
 
     public async Task<List<CategoryTicketCountDto>> Handle(GetTicketsByCategoryQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        IQueryable<SupportTicket> query = _context.Set<SupportTicket>()
+        IQueryable<SupportTicket> query = context.Set<SupportTicket>()
             .AsNoTracking();
 
         if (request.AgentId.HasValue)

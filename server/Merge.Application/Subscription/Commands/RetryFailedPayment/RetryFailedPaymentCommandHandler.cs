@@ -13,29 +13,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Subscription.Commands.RetryFailedPayment;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class RetryFailedPaymentCommandHandler : IRequestHandler<RetryFailedPaymentCommand, bool>
+public class RetryFailedPaymentCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<RetryFailedPaymentCommandHandler> logger) : IRequestHandler<RetryFailedPaymentCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<RetryFailedPaymentCommandHandler> _logger;
-
-    public RetryFailedPaymentCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<RetryFailedPaymentCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(RetryFailedPaymentCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Retrying failed payment. PaymentId: {PaymentId}", request.PaymentId);
+        logger.LogInformation("Retrying failed payment. PaymentId: {PaymentId}", request.PaymentId);
 
         // ✅ NOT: AsNoTracking() YOK - Entity track edilmeli (update için)
-        var payment = await _context.Set<SubscriptionPayment>()
+        var payment = await context.Set<SubscriptionPayment>()
             .FirstOrDefaultAsync(p => p.Id == request.PaymentId && p.PaymentStatus == PaymentStatus.Failed, cancellationToken);
 
         if (payment == null)
@@ -47,10 +34,10 @@ public class RetryFailedPaymentCommandHandler : IRequestHandler<RetryFailedPayme
         payment.Retry();
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Failed payment retry initiated. PaymentId: {PaymentId}, RetryCount: {RetryCount}",
+        logger.LogInformation("Failed payment retry initiated. PaymentId: {PaymentId}, RetryCount: {RetryCount}",
             payment.Id, payment.RetryCount);
 
         return true;

@@ -18,35 +18,22 @@ using Merge.Domain.Modules.Ordering;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
-
 namespace Merge.Application.Services.Logistics;
 
-public class PickPackService : IPickPackService
+public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<PickPackService> logger) : IPickPackService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<PickPackService> _logger;
-
-    public PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<PickPackService> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     // ✅ BOLUM 9.1: ILogger kullanimi (ZORUNLU)
     // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
     public async Task<PickPackDto> CreatePickPackAsync(CreatePickPackDto dto, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Pick-pack olusturuluyor. OrderId: {OrderId}, WarehouseId: {WarehouseId}", dto.OrderId, dto.WarehouseId);
+        logger.LogInformation("Pick-pack olusturuluyor. OrderId: {OrderId}, WarehouseId: {WarehouseId}", dto.OrderId, dto.WarehouseId);
 
         try
         {
 
-            var order = await _context.Set<OrderEntity>()
+            var order = await context.Set<OrderEntity>()
                 .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.Product)
                 .FirstOrDefaultAsync(o => o.Id == dto.OrderId, cancellationToken);
@@ -57,7 +44,7 @@ public class PickPackService : IPickPackService
             }
 
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !w.IsDeleted (Global Query Filter)
-            var warehouse = await _context.Set<Warehouse>()
+            var warehouse = await context.Set<Warehouse>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(w => w.Id == dto.WarehouseId && w.IsActive, cancellationToken);
 
@@ -68,13 +55,13 @@ public class PickPackService : IPickPackService
 
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !pp.IsDeleted (Global Query Filter)
             // Check if pick pack already exists for this order
-            var existing = await _context.Set<PickPack>()
+            var existing = await context.Set<PickPack>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(pp => pp.OrderId == dto.OrderId, cancellationToken);
 
             if (existing != null)
             {
-                _logger.LogWarning("Bu siparis icin zaten bir pick pack kaydi var. OrderId: {OrderId}", dto.OrderId);
+                logger.LogWarning("Bu siparis icin zaten bir pick pack kaydi var. OrderId: {OrderId}", dto.OrderId);
                 throw new BusinessException("Bu sipariş için zaten bir pick pack kaydı var.");
             }
 
@@ -87,8 +74,8 @@ public class PickPackService : IPickPackService
                 packNumber,
                 dto.Notes);
 
-            await _context.Set<PickPack>().AddAsync(pickPack, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await context.Set<PickPack>().AddAsync(pickPack, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Create pick pack items from order items
             // ✅ BOLUM 6.4: List Capacity Pre-allocation (ZORUNLU)
@@ -104,10 +91,10 @@ public class PickPackService : IPickPackService
                 items.Add(pickPackItem);
             }
 
-            await _context.Set<PickPackItem>().AddRangeAsync(items, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await context.Set<PickPackItem>().AddRangeAsync(items, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var createdPickPack = await _context.Set<PickPack>()
+            var createdPickPack = await context.Set<PickPack>()
                 .AsNoTracking()
                 .Include(pp => pp.Order)
                 .Include(pp => pp.Warehouse)
@@ -118,14 +105,14 @@ public class PickPackService : IPickPackService
                         .ThenInclude(oi => oi.Product)
                 .FirstOrDefaultAsync(pp => pp.Id == pickPack.Id, cancellationToken);
 
-            _logger.LogInformation("Pick-pack olusturuldu. PickPackId: {PickPackId}, PackNumber: {PackNumber}", pickPack.Id, packNumber);
+            logger.LogInformation("Pick-pack olusturuldu. PickPackId: {PickPackId}, PackNumber: {PackNumber}", pickPack.Id, packNumber);
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-            return _mapper.Map<PickPackDto>(createdPickPack!);
+            return mapper.Map<PickPackDto>(createdPickPack!);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Pick-pack olusturma hatasi. OrderId: {OrderId}, WarehouseId: {WarehouseId}", dto.OrderId, dto.WarehouseId);
+            logger.LogError(ex, "Pick-pack olusturma hatasi. OrderId: {OrderId}, WarehouseId: {WarehouseId}", dto.OrderId, dto.WarehouseId);
             throw; // ✅ BOLUM 2.1: Exception yutulmamali (ZORUNLU)
         }
     }
@@ -134,7 +121,7 @@ public class PickPackService : IPickPackService
     public async Task<PickPackDto?> GetPickPackByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
 
-        var pickPack = await _context.Set<PickPack>()
+        var pickPack = await context.Set<PickPack>()
             .AsNoTracking()
             .Include(pp => pp.Order)
             .Include(pp => pp.Warehouse)
@@ -146,14 +133,14 @@ public class PickPackService : IPickPackService
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return pickPack != null ? _mapper.Map<PickPackDto>(pickPack) : null;
+        return pickPack != null ? mapper.Map<PickPackDto>(pickPack) : null;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PickPackDto?> GetPickPackByPackNumberAsync(string packNumber, CancellationToken cancellationToken = default)
     {
 
-        var pickPack = await _context.Set<PickPack>()
+        var pickPack = await context.Set<PickPack>()
             .AsNoTracking()
             .Include(pp => pp.Order)
             .Include(pp => pp.Warehouse)
@@ -165,7 +152,7 @@ public class PickPackService : IPickPackService
             .FirstOrDefaultAsync(pp => pp.PackNumber == packNumber, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return pickPack != null ? _mapper.Map<PickPackDto>(pickPack) : null;
+        return pickPack != null ? mapper.Map<PickPackDto>(pickPack) : null;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -175,7 +162,7 @@ public class PickPackService : IPickPackService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pp.IsDeleted (Global Query Filter)
         // ✅ BOLUM 6.3: Unbounded Query Koruması - Güvenlik için limit ekle
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
-        var pickPacks = await _context.Set<PickPack>()
+        var pickPacks = await context.Set<PickPack>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(pp => pp.Order)
@@ -191,7 +178,7 @@ public class PickPackService : IPickPackService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<PickPackDto>>(pickPacks);
+        return mapper.Map<IEnumerable<PickPackDto>>(pickPacks);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -204,7 +191,7 @@ public class PickPackService : IPickPackService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pp.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
-        IQueryable<PickPack> query = _context.Set<PickPack>()
+        IQueryable<PickPack> query = context.Set<PickPack>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(pp => pp.Order)
@@ -238,7 +225,7 @@ public class PickPackService : IPickPackService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var items = _mapper.Map<IEnumerable<PickPackDto>>(pickPacks);
+        var items = mapper.Map<IEnumerable<PickPackDto>>(pickPacks);
 
         return new PagedResult<PickPackDto>
         {
@@ -254,7 +241,7 @@ public class PickPackService : IPickPackService
     {
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !pp.IsDeleted (Global Query Filter)
-        var pickPack = await _context.Set<PickPack>()
+        var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
         if (pickPack == null) return false;
@@ -271,7 +258,7 @@ public class PickPackService : IPickPackService
             dto.Weight,
             dto.Dimensions,
             dto.PackageCount);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -281,14 +268,14 @@ public class PickPackService : IPickPackService
     {
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !pp.IsDeleted (Global Query Filter)
-        var pickPack = await _context.Set<PickPack>()
+        var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
         if (pickPack == null) return false;
 
         // Domain method kullan
         pickPack.StartPicking(userId);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -298,18 +285,18 @@ public class PickPackService : IPickPackService
     {
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !pp.IsDeleted (Global Query Filter)
-        var pickPack = await _context.Set<PickPack>()
+        var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
         if (pickPack == null || pickPack.Status != PickPackStatus.Picking) return false;
 
         // ✅ PERFORMANCE: Database'de kontrol et (memory'de işlem YASAK)
         // Check if all items are picked
-        var totalItems = await _context.Set<PickPackItem>()
+        var totalItems = await context.Set<PickPackItem>()
             .AsNoTracking()
             .CountAsync(i => i.PickPackId == id, cancellationToken);
 
-        var pickedItems = await _context.Set<PickPackItem>()
+        var pickedItems = await context.Set<PickPackItem>()
             .AsNoTracking()
             .CountAsync(i => i.PickPackId == id && i.IsPicked, cancellationToken);
 
@@ -320,7 +307,7 @@ public class PickPackService : IPickPackService
 
         // Domain method kullan
         pickPack.CompletePicking();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -330,14 +317,14 @@ public class PickPackService : IPickPackService
     {
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !pp.IsDeleted (Global Query Filter)
-        var pickPack = await _context.Set<PickPack>()
+        var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
         if (pickPack == null) return false;
 
         // Domain method kullan
         pickPack.StartPacking(userId);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -347,18 +334,18 @@ public class PickPackService : IPickPackService
     {
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !pp.IsDeleted (Global Query Filter)
-        var pickPack = await _context.Set<PickPack>()
+        var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
         if (pickPack == null || pickPack.Status != PickPackStatus.Packing) return false;
 
         // ✅ PERFORMANCE: Database'de kontrol et (memory'de işlem YASAK)
         // Check if all items are packed
-        var totalItems = await _context.Set<PickPackItem>()
+        var totalItems = await context.Set<PickPackItem>()
             .AsNoTracking()
             .CountAsync(i => i.PickPackId == id, cancellationToken);
 
-        var packedItems = await _context.Set<PickPackItem>()
+        var packedItems = await context.Set<PickPackItem>()
             .AsNoTracking()
             .CountAsync(i => i.PickPackId == id && i.IsPacked, cancellationToken);
 
@@ -370,7 +357,7 @@ public class PickPackService : IPickPackService
         // Domain method kullan - CompletePacking weight, dimensions, packageCount parametreleri alıyor
         // Burada default değerler kullanıyoruz, gerçek uygulamada bu değerler dto'dan gelmeli
         pickPack.CompletePacking(weight: 0, dimensions: null, packageCount: 1);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -380,14 +367,14 @@ public class PickPackService : IPickPackService
     {
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !pp.IsDeleted (Global Query Filter)
-        var pickPack = await _context.Set<PickPack>()
+        var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
         if (pickPack == null) return false;
 
         // Domain method kullan
         pickPack.Ship();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -397,7 +384,7 @@ public class PickPackService : IPickPackService
     {
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !i.IsDeleted (Global Query Filter)
-        var item = await _context.Set<PickPackItem>()
+        var item = await context.Set<PickPackItem>()
             .FirstOrDefaultAsync(i => i.Id == itemId, cancellationToken);
 
         if (item == null) return false;
@@ -419,7 +406,7 @@ public class PickPackService : IPickPackService
             // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             item.UpdateLocation(dto.Location);
         }
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -429,7 +416,7 @@ public class PickPackService : IPickPackService
     public async Task<Dictionary<string, int>> GetPickPackStatsAsync(Guid? warehouseId = null, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pp.IsDeleted (Global Query Filter)
-        var query = _context.Set<PickPack>()
+        var query = context.Set<PickPack>()
             .AsNoTracking();
 
         if (warehouseId.HasValue)
@@ -474,7 +461,7 @@ public class PickPackService : IPickPackService
     {
         var date = DateTime.UtcNow.ToString("yyyyMMdd");
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !pp.IsDeleted (Global Query Filter)
-        var existingCount = await _context.Set<PickPack>()
+        var existingCount = await context.Set<PickPack>()
             .AsNoTracking()
             .CountAsync(pp => pp.PackNumber.StartsWith($"PK-{date}"), cancellationToken);
 

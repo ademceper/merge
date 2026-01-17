@@ -14,22 +14,14 @@ namespace Merge.Application.Order.EventHandlers;
 /// Order Cancelled Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class OrderCancelledEventHandler : INotificationHandler<OrderCancelledEvent>
+public class OrderCancelledEventHandler(ILogger<OrderCancelledEventHandler> logger, INotificationService? notificationService) : INotificationHandler<OrderCancelledEvent>
 {
-    private readonly ILogger<OrderCancelledEventHandler> _logger;
+    
     private readonly INotificationService? _notificationService;
-
-    public OrderCancelledEventHandler(
-        ILogger<OrderCancelledEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(OrderCancelledEvent notification, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Order cancelled event received. OrderId: {OrderId}, UserId: {UserId}, Reason: {Reason}",
             notification.OrderId, notification.UserId, notification.Reason ?? "N/A");
 
@@ -54,7 +46,7 @@ public class OrderCancelledEventHandler : INotificationHandler<OrderCancelledEve
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling OrderCancelledEvent. OrderId: {OrderId}, UserId: {UserId}",
                 notification.OrderId, notification.UserId);
             throw;

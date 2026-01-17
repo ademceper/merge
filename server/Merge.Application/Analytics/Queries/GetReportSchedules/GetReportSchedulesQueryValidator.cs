@@ -5,11 +5,13 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Analytics.Queries.GetReportSchedules;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetReportSchedulesQueryValidator : AbstractValidator<GetReportSchedulesQuery>
+public class GetReportSchedulesQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetReportSchedulesQuery>
 {
-    public GetReportSchedulesQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    private readonly PaginationSettings settings = paginationSettings.Value;
+
+    public GetReportSchedulesQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
-        var maxPageSize = paginationSettings.Value.MaxPageSize;
+        var maxPageSize = settings.MaxPageSize;
 
         RuleFor(x => x.UserId)
             .NotEmpty().WithMessage("Kullanıcı ID zorunludur");

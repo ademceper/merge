@@ -14,55 +14,42 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Review.Commands.EvaluateAndAwardBadges;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class EvaluateAndAwardBadgesCommandHandler : IRequestHandler<EvaluateAndAwardBadgesCommand>
+public class EvaluateAndAwardBadgesCommandHandler(IDbContext context, IMediator mediator, ILogger<EvaluateAndAwardBadgesCommandHandler> logger) : IRequestHandler<EvaluateAndAwardBadgesCommand>
 {
-    private readonly IDbContext _context;
-    private readonly IMediator _mediator;
-    private readonly ILogger<EvaluateAndAwardBadgesCommandHandler> _logger;
-
-    public EvaluateAndAwardBadgesCommandHandler(
-        IDbContext context,
-        IMediator mediator,
-        ILogger<EvaluateAndAwardBadgesCommandHandler> logger)
-    {
-        _context = context;
-        _mediator = mediator;
-        _logger = logger;
-    }
 
     public async Task Handle(EvaluateAndAwardBadgesCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Evaluating and awarding badges. SellerId: {SellerId}",
             request.SellerId);
 
         if (request.SellerId.HasValue)
         {
             var evaluateSellerCommand = new EvaluateSellerBadgesCommand(request.SellerId.Value);
-            await _mediator.Send(evaluateSellerCommand, cancellationToken);
+            await mediator.Send(evaluateSellerCommand, cancellationToken);
         }
         else
         {
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !sp.IsDeleted (Global Query Filter)
-            var sellers = await _context.Set<SellerProfile>()
+            var sellers = await context.Set<SellerProfile>()
                 .AsNoTracking()
                 .Where(sp => sp.Status == SellerStatus.Approved)
                 .Select(sp => sp.UserId)
                 .ToListAsync(cancellationToken);
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Evaluating badges for {Count} sellers",
                 sellers.Count);
 
             foreach (var seller in sellers)
             {
                 var evaluateSellerCommand = new EvaluateSellerBadgesCommand(seller);
-                await _mediator.Send(evaluateSellerCommand, cancellationToken);
+                await mediator.Send(evaluateSellerCommand, cancellationToken);
             }
         }
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Badge evaluation completed. SellerId: {SellerId}",
             request.SellerId);
     }

@@ -20,32 +20,21 @@ namespace Merge.Application.Order.EventHandlers;
 /// Order Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class OrderCreatedEventHandler : INotificationHandler<OrderCreatedEvent>
+public class OrderCreatedEventHandler(ILogger<OrderCreatedEventHandler> logger, IDbContext context, INotificationService? notificationService) : INotificationHandler<OrderCreatedEvent>
 {
-    private readonly ILogger<OrderCreatedEventHandler> _logger;
+    
     private readonly INotificationService? _notificationService;
-    private readonly IDbContext _context;
-
-    public OrderCreatedEventHandler(
-        ILogger<OrderCreatedEventHandler> logger,
-        IDbContext context,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _context = context;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(OrderCreatedEvent notification, CancellationToken cancellationToken)
     {
         // Order entity'sinden gerçek TotalAmount'u al
-        var order = await _context.Set<OrderEntity>()
+        var order = await context.Set<OrderEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == notification.OrderId, cancellationToken);
 
         var totalAmount = order?.TotalAmount ?? notification.TotalAmount;
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Order created event received. OrderId: {OrderId}, UserId: {UserId}, TotalAmount: {TotalAmount}",
             notification.OrderId, notification.UserId, totalAmount);
 
@@ -70,7 +59,7 @@ public class OrderCreatedEventHandler : INotificationHandler<OrderCreatedEvent>
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling OrderCreatedEvent. OrderId: {OrderId}, UserId: {UserId}",
                 notification.OrderId, notification.UserId);
             throw;

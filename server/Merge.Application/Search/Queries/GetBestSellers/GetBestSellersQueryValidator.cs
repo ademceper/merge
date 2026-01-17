@@ -5,16 +5,16 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Search.Queries.GetBestSellers;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetBestSellersQueryValidator : AbstractValidator<GetBestSellersQuery>
+public class GetBestSellersQueryValidator(IOptions<SearchSettings> searchSettings) : AbstractValidator<GetBestSellersQuery>
 {
-    public GetBestSellersQueryValidator(IOptions<SearchSettings> searchSettings)
-    {
-        var settings = searchSettings.Value;
+    private readonly SearchSettings config = searchSettings.Value;
 
+    public GetBestSellersQueryValidator() : this(Options.Create(new SearchSettings()))
+    {
         RuleFor(x => x.MaxResults)
             .GreaterThan(0)
             .WithMessage("Maksimum sonuç sayısı 1'den büyük olmalıdır.")
-            .LessThanOrEqualTo(settings.MaxRecommendationResults)
-            .WithMessage($"Maksimum sonuç sayısı en fazla {settings.MaxRecommendationResults} olabilir.");
+            .LessThanOrEqualTo(config.MaxRecommendationResults)
+            .WithMessage($"Maksimum sonuç sayısı en fazla {config.MaxRecommendationResults} olabilir.");
     }
 }

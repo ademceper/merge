@@ -4,13 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.UpdateLanguage;
 
-public class UpdateLanguageCommandValidator : AbstractValidator<UpdateLanguageCommand>
+public class UpdateLanguageCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<UpdateLanguageCommand>
 {
-    private readonly InternationalSettings config;
+    private readonly InternationalSettings config = settings.Value;
 
-    public UpdateLanguageCommandValidator(IOptions<InternationalSettings> settings)
+    public UpdateLanguageCommandValidator() : this(Options.Create(new InternationalSettings()))
     {
-        config = settings.Value;
         
 
         RuleFor(x => x.Id)

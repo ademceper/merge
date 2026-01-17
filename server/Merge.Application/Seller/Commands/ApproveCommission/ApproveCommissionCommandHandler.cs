@@ -12,34 +12,21 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Commands.ApproveCommission;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class ApproveCommissionCommandHandler : IRequestHandler<ApproveCommissionCommand, bool>
+public class ApproveCommissionCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<ApproveCommissionCommandHandler> logger) : IRequestHandler<ApproveCommissionCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<ApproveCommissionCommandHandler> _logger;
-
-    public ApproveCommissionCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<ApproveCommissionCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(ApproveCommissionCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Approving commission. CommissionId: {CommissionId}", request.CommissionId);
+        logger.LogInformation("Approving commission. CommissionId: {CommissionId}", request.CommissionId);
 
         // ✅ PERFORMANCE: Removed manual !sc.IsDeleted (Global Query Filter)
-        var commission = await _context.Set<SellerCommission>()
+        var commission = await context.Set<SellerCommission>()
             .FirstOrDefaultAsync(sc => sc.Id == request.CommissionId, cancellationToken);
 
         if (commission == null)
         {
-            _logger.LogWarning("Commission not found. CommissionId: {CommissionId}", request.CommissionId);
+            logger.LogWarning("Commission not found. CommissionId: {CommissionId}", request.CommissionId);
             return false;
         }
 
@@ -48,9 +35,9 @@ public class ApproveCommissionCommandHandler : IRequestHandler<ApproveCommission
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Commission approved. CommissionId: {CommissionId}", request.CommissionId);
+        logger.LogInformation("Commission approved. CommissionId: {CommissionId}", request.CommissionId);
 
         return true;
     }

@@ -7,10 +7,9 @@ using System.Collections.Concurrent;
 namespace Merge.Application.Services;
 
 // ✅ BOLUM 10.2: Redis distributed cache implementation
-public class CacheService : ICacheService
+public class CacheService(IDistributedCache distributedCache, ILogger<CacheService> logger) : ICacheService
 {
-    private readonly IDistributedCache _distributedCache;
-    private readonly ILogger<CacheService> _logger;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -20,20 +19,12 @@ public class CacheService : ICacheService
     // Note: For multi-instance deployments, use Redis-based distributed locks instead
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _keyLocks = new();
 
-    public CacheService(
-        IDistributedCache distributedCache,
-        ILogger<CacheService> logger)
-    {
-        _distributedCache = distributedCache;
-        _logger = logger;
-    }
-
     // ✅ PERFORMANCE FIX: ConfigureAwait(false) eklendi - thread pool starvation önleme
     public async Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default) where T : class
     {
         try
         {
-            var cachedValue = await _distributedCache.GetStringAsync(key, cancellationToken).ConfigureAwait(false);
+            var cachedValue = await distributedCache.GetStringAsync(key, cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrEmpty(cachedValue))
             {
                 return null;
@@ -43,7 +34,7 @@ public class CacheService : ICacheService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Cache read failed for key {Key}", key);
+            logger.LogWarning(ex, "Cache read failed for key {Key}", key);
             return null;
         }
     }
@@ -64,11 +55,11 @@ public class CacheService : ICacheService
                 options.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1); // Default 1 hour
             }
 
-            await _distributedCache.SetStringAsync(key, json, options, cancellationToken).ConfigureAwait(false);
+            await distributedCache.SetStringAsync(key, json, options, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Cache write failed for key {Key}", key);
+            logger.LogWarning(ex, "Cache write failed for key {Key}", key);
         }
     }
 
@@ -76,11 +67,11 @@ public class CacheService : ICacheService
     {
         try
         {
-            await _distributedCache.RemoveAsync(key, cancellationToken).ConfigureAwait(false);
+            await distributedCache.RemoveAsync(key, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Cache remove failed for key {Key}", key);
+            logger.LogWarning(ex, "Cache remove failed for key {Key}", key);
         }
     }
 

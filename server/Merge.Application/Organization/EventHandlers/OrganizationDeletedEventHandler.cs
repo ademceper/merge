@@ -8,19 +8,13 @@ namespace Merge.Application.Organization.EventHandlers;
 /// <summary>
 /// Organization Deleted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// </summary>
-public class OrganizationDeletedEventHandler : INotificationHandler<OrganizationDeletedEvent>
+public class OrganizationDeletedEventHandler(ILogger<OrganizationDeletedEventHandler> logger) : INotificationHandler<OrganizationDeletedEvent>
 {
-    private readonly ILogger<OrganizationDeletedEventHandler> _logger;
-
-    public OrganizationDeletedEventHandler(ILogger<OrganizationDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(OrganizationDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Organization deleted event received. OrganizationId: {OrganizationId}, Name: {Name}",
             notification.OrganizationId, notification.Name);
 

@@ -5,11 +5,13 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Analytics.Queries.GetTopProducts;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetTopProductsQueryValidator : AbstractValidator<GetTopProductsQuery>
+public class GetTopProductsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetTopProductsQuery>
 {
-    public GetTopProductsQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    private readonly PaginationSettings settings = paginationSettings.Value;
+
+    public GetTopProductsQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
-        var maxPageSize = paginationSettings.Value.MaxPageSize;
+        var maxPageSize = settings.MaxPageSize;
 
         RuleFor(x => x.StartDate)
             .NotEmpty().WithMessage("Başlangıç tarihi zorunludur")

@@ -15,58 +15,37 @@ namespace Merge.Application.Product.Commands.RemoveProductFromBundle;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class RemoveProductFromBundleCommandHandler : IRequestHandler<RemoveProductFromBundleCommand, bool>
+public class RemoveProductFromBundleCommandHandler(IBundleRepository bundleRepository, IBundleItemRepository bundleItemRepository, IDbContext context, IUnitOfWork unitOfWork, ICacheService cache, ILogger<RemoveProductFromBundleCommandHandler> logger) : IRequestHandler<RemoveProductFromBundleCommand, bool>
 {
-    private readonly IBundleRepository _bundleRepository;
-    private readonly IBundleItemRepository _bundleItemRepository;
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ICacheService _cache;
-    private readonly ILogger<RemoveProductFromBundleCommandHandler> _logger;
+
     private const string CACHE_KEY_BUNDLE_BY_ID = "bundle_";
     private const string CACHE_KEY_ALL_BUNDLES = "bundles_all";
     private const string CACHE_KEY_ACTIVE_BUNDLES = "bundles_active";
 
-    public RemoveProductFromBundleCommandHandler(
-        IBundleRepository bundleRepository,
-        IBundleItemRepository bundleItemRepository,
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ICacheService cache,
-        ILogger<RemoveProductFromBundleCommandHandler> logger)
-    {
-        _bundleRepository = bundleRepository;
-        _bundleItemRepository = bundleItemRepository;
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _cache = cache;
-        _logger = logger;
-    }
-
     public async Task<bool> Handle(RemoveProductFromBundleCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Removing product from bundle. BundleId: {BundleId}, ProductId: {ProductId}",
+        logger.LogInformation("Removing product from bundle. BundleId: {BundleId}, ProductId: {ProductId}",
             request.BundleId, request.ProductId);
 
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             // ✅ PERFORMANCE: Removed !bi.IsDeleted (Global Query Filter)
-            var bundleItem = await _context.Set<BundleItem>()
+            var bundleItem = await context.Set<BundleItem>()
                 .FirstOrDefaultAsync(bi => bi.BundleId == request.BundleId &&
                                      bi.ProductId == request.ProductId, cancellationToken);
 
             if (bundleItem == null)
             {
-                _logger.LogWarning("Bundle item not found. BundleId: {BundleId}, ProductId: {ProductId}",
+                logger.LogWarning("Bundle item not found. BundleId: {BundleId}, ProductId: {ProductId}",
                     request.BundleId, request.ProductId);
                 return false;
             }
 
-            var bundle = await _bundleRepository.GetByIdAsync(request.BundleId, cancellationToken);
+            var bundle = await bundleRepository.GetByIdAsync(request.BundleId, cancellationToken);
             if (bundle == null)
             {
-                _logger.LogWarning("Bundle not found. BundleId: {BundleId}", request.BundleId);
+                logger.LogWarning("Bundle not found. BundleId: {BundleId}", request.BundleId);
                 return false;
             }
 
@@ -74,7 +53,7 @@ public class RemoveProductFromBundleCommandHandler : IRequestHandler<RemoveProdu
             bundle.RemoveItem(request.ProductId);
 
             // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-            var newTotal = await _context.Set<BundleItem>()
+            var newTotal = await context.Set<BundleItem>()
                 .AsNoTracking()
                 .Include(bi => bi.Product)
                 .Where(bi => bi.BundleId == request.BundleId)
@@ -83,27 +62,27 @@ public class RemoveProductFromBundleCommandHandler : IRequestHandler<RemoveProdu
             // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             bundle.UpdateTotalPrices(newTotal);
 
-            await _bundleRepository.UpdateAsync(bundle, cancellationToken);
+            await bundleRepository.UpdateAsync(bundle, cancellationToken);
 
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             // ✅ BOLUM 10.2: Cache invalidation
-            await _cache.RemoveAsync($"{CACHE_KEY_BUNDLE_BY_ID}{request.BundleId}", cancellationToken);
-            await _cache.RemoveAsync(CACHE_KEY_ALL_BUNDLES, cancellationToken);
-            await _cache.RemoveAsync(CACHE_KEY_ACTIVE_BUNDLES, cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_BUNDLE_BY_ID}{request.BundleId}", cancellationToken);
+            await cache.RemoveAsync(CACHE_KEY_ALL_BUNDLES, cancellationToken);
+            await cache.RemoveAsync(CACHE_KEY_ACTIVE_BUNDLES, cancellationToken);
 
-            _logger.LogInformation("Product removed from bundle successfully. BundleId: {BundleId}, ProductId: {ProductId}",
+            logger.LogInformation("Product removed from bundle successfully. BundleId: {BundleId}, ProductId: {ProductId}",
                 request.BundleId, request.ProductId);
 
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error removing product from bundle. BundleId: {BundleId}, ProductId: {ProductId}",
+            logger.LogError(ex, "Error removing product from bundle. BundleId: {BundleId}, ProductId: {ProductId}",
                 request.BundleId, request.ProductId);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

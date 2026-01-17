@@ -21,47 +21,28 @@ namespace Merge.Application.ML.Commands.EvaluateOrder;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class EvaluateOrderCommandHandler : IRequestHandler<EvaluateOrderCommand, FraudAlertDto>
+public class EvaluateOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<EvaluateOrderCommandHandler> logger, FraudDetectionHelper helper) : IRequestHandler<EvaluateOrderCommand, FraudAlertDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<EvaluateOrderCommandHandler> _logger;
-    private readonly FraudDetectionHelper _helper;
-
-    public EvaluateOrderCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<EvaluateOrderCommandHandler> logger,
-        FraudDetectionHelper helper)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _helper = helper;
-    }
 
     public async Task<FraudAlertDto> Handle(EvaluateOrderCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Evaluating order for fraud. OrderId: {OrderId}", request.OrderId);
+        logger.LogInformation("Evaluating order for fraud. OrderId: {OrderId}", request.OrderId);
 
-        var order = await _context.Set<OrderEntity>()
+        var order = await context.Set<OrderEntity>()
             .Include(o => o.User)
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
         if (order == null)
         {
-            _logger.LogWarning("Order not found. OrderId: {OrderId}", request.OrderId);
+            logger.LogWarning("Order not found. OrderId: {OrderId}", request.OrderId);
             throw new NotFoundException("Sipariş", request.OrderId);
         }
 
         // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
-        var riskScore = await _helper.CalculateRiskScoreAsync(FraudRuleType.Order, request.OrderId, order.UserId, cancellationToken);
-        var matchedRules = await _helper.GetMatchedRulesAsync(FraudRuleType.Order, request.OrderId, order.UserId, cancellationToken);
+        var riskScore = await helper.CalculateRiskScoreAsync(FraudRuleType.Order, request.OrderId, order.UserId, cancellationToken);
+        var matchedRules = await helper.GetMatchedRulesAsync(FraudRuleType.Order, request.OrderId, order.UserId, cancellationToken);
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var matchedRulesJson = matchedRules.Any() ? JsonSerializer.Serialize(matchedRules.Select(r => r.Id)) : null;
@@ -73,12 +54,12 @@ public class EvaluateOrderCommandHandler : IRequestHandler<EvaluateOrderCommand,
             orderId: request.OrderId,
             matchedRules: matchedRulesJson);
 
-        await _context.Set<FraudAlert>().AddAsync(alert, cancellationToken);
+        await context.Set<FraudAlert>().AddAsync(alert, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var createdAlert = await _context.Set<FraudAlert>()
+        var createdAlert = await context.Set<FraudAlert>()
             .AsNoTracking()
             .Include(a => a.User)
             .Include(a => a.Order)
@@ -86,10 +67,10 @@ public class EvaluateOrderCommandHandler : IRequestHandler<EvaluateOrderCommand,
             .Include(a => a.ReviewedBy)
             .FirstOrDefaultAsync(a => a.Id == alert.Id, cancellationToken);
 
-        _logger.LogInformation("Order evaluated. OrderId: {OrderId}, AlertId: {AlertId}, RiskScore: {RiskScore}",
+        logger.LogInformation("Order evaluated. OrderId: {OrderId}, AlertId: {AlertId}, RiskScore: {RiskScore}",
             request.OrderId, alert.Id, alert.RiskScore);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<FraudAlertDto>(createdAlert!);
+        return mapper.Map<FraudAlertDto>(createdAlert!);
     }
 }

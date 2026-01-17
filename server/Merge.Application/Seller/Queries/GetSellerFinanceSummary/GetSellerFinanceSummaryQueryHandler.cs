@@ -19,54 +19,39 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Queries.GetSellerFinanceSummary;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetSellerFinanceSummaryQueryHandler : IRequestHandler<GetSellerFinanceSummaryQuery, SellerFinanceSummaryDto>
+public class GetSellerFinanceSummaryQueryHandler(IDbContext context, IMediator mediator, ILogger<GetSellerFinanceSummaryQueryHandler> logger, IOptions<SellerSettings> sellerSettings) : IRequestHandler<GetSellerFinanceSummaryQuery, SellerFinanceSummaryDto>
 {
-    private readonly IDbContext _context;
-    private readonly IMediator _mediator;
-    private readonly ILogger<GetSellerFinanceSummaryQueryHandler> _logger;
-    private readonly SellerSettings _sellerSettings;
-
-    public GetSellerFinanceSummaryQueryHandler(
-        IDbContext context,
-        IMediator mediator,
-        ILogger<GetSellerFinanceSummaryQueryHandler> logger,
-        IOptions<SellerSettings> sellerSettings)
-    {
-        _context = context;
-        _mediator = mediator;
-        _logger = logger;
-        _sellerSettings = sellerSettings.Value;
-    }
+    private readonly SellerSettings sellerConfig = sellerSettings.Value;
 
     public async Task<SellerFinanceSummaryDto> Handle(GetSellerFinanceSummaryQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting seller finance summary. SellerId: {SellerId}, StartDate: {StartDate}, EndDate: {EndDate}",
+        logger.LogInformation("Getting seller finance summary. SellerId: {SellerId}, StartDate: {StartDate}, EndDate: {EndDate}",
             request.SellerId, request.StartDate, request.EndDate);
 
         // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
-        var startDate = request.StartDate ?? DateTime.UtcNow.AddDays(-_sellerSettings.DefaultStatsPeriodDays);
+        var startDate = request.StartDate ?? DateTime.UtcNow.AddDays(-sellerConfig.DefaultStatsPeriodDays);
         var endDate = request.EndDate ?? DateTime.UtcNow;
 
         // Get balance using existing query
         var balanceQuery = new Queries.GetSellerBalance.GetSellerBalanceQuery(request.SellerId);
-        var balance = await _mediator.Send(balanceQuery, cancellationToken);
+        var balance = await mediator.Send(balanceQuery, cancellationToken);
 
         // Get recent transactions using existing query
         // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
         var transactionsQuery = new Queries.GetSellerTransactions.GetSellerTransactionsQuery(
-            request.SellerId, null, startDate, endDate, 1, _sellerSettings.RecentItemsLimit);
-        var transactions = await _mediator.Send(transactionsQuery, cancellationToken);
+            request.SellerId, null, startDate, endDate, 1, sellerConfig.RecentItemsLimit);
+        var transactions = await mediator.Send(transactionsQuery, cancellationToken);
 
         // Get recent invoices using existing query
         // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
         var invoicesQuery = new Queries.GetSellerInvoices.GetSellerInvoicesQuery(
-            request.SellerId, null, 1, _sellerSettings.RecentItemsLimit);
-        var invoices = await _mediator.Send(invoicesQuery, cancellationToken);
+            request.SellerId, null, 1, sellerConfig.RecentItemsLimit);
+        var invoices = await mediator.Send(invoicesQuery, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Earnings by month
-        var earningsByMonth = await _context.Set<SellerCommission>()
+        var earningsByMonth = await context.Set<SellerCommission>()
             .AsNoTracking()
             .Where(sc => sc.SellerId == request.SellerId &&
                   sc.CreatedAt >= startDate &&
@@ -77,7 +62,7 @@ public class GetSellerFinanceSummaryQueryHandler : IRequestHandler<GetSellerFina
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Payouts by month
-        var payoutsByMonth = await _context.Set<CommissionPayout>()
+        var payoutsByMonth = await context.Set<CommissionPayout>()
             .AsNoTracking()
             .Where(p => p.SellerId == request.SellerId &&
                   p.CreatedAt >= startDate &&

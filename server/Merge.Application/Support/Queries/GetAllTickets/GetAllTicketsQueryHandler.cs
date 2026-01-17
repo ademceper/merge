@@ -19,34 +19,22 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Queries.GetAllTickets;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetAllTicketsQueryHandler : IRequestHandler<GetAllTicketsQuery, PagedResult<SupportTicketDto>>
+public class GetAllTicketsQueryHandler(IDbContext context, IMapper mapper, IOptions<SupportSettings> settings) : IRequestHandler<GetAllTicketsQuery, PagedResult<SupportTicketDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly SupportSettings _settings;
-
-    public GetAllTicketsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        IOptions<SupportSettings> settings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _settings = settings.Value;
-    }
+    private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<PagedResult<SupportTicketDto>> Handle(GetAllTicketsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
-        var pageSize = request.PageSize > 0 && request.PageSize <= _settings.MaxPageSize 
+        var pageSize = request.PageSize > 0 && request.PageSize <= supportConfig.MaxPageSize 
             ? request.PageSize 
-            : _settings.DefaultPageSize;
+            : supportConfig.DefaultPageSize;
         var page = request.Page > 0 ? request.Page : 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
-        IQueryable<SupportTicket> query = _context.Set<SupportTicket>()
+        IQueryable<SupportTicket> query = context.Set<SupportTicket>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(t => t.User)
@@ -91,7 +79,7 @@ public class GetAllTicketsQueryHandler : IRequestHandler<GetAllTicketsQuery, Pag
 
         // ✅ PERFORMANCE: Batch load messages and attachments for all tickets (subquery ile)
         var ticketIdsSubquery = from t in paginatedTicketsQuery select t.Id;
-        var messagesDict = await _context.Set<TicketMessage>()
+        var messagesDict = await context.Set<TicketMessage>()
             .AsNoTracking()
             .Include(m => m.User)
             .Where(m => ticketIdsSubquery.Contains(m.TicketId))
@@ -103,7 +91,7 @@ public class GetAllTicketsQueryHandler : IRequestHandler<GetAllTicketsQuery, Pag
             })
             .ToDictionaryAsync(x => x.TicketId, x => x.Messages, cancellationToken);
 
-        var attachmentsDict = await _context.Set<TicketAttachment>()
+        var attachmentsDict = await context.Set<TicketAttachment>()
             .AsNoTracking()
             .Where(a => ticketIdsSubquery.Contains(a.TicketId))
             .GroupBy(a => a.TicketId)
@@ -117,13 +105,13 @@ public class GetAllTicketsQueryHandler : IRequestHandler<GetAllTicketsQuery, Pag
         var dtos = new List<SupportTicketDto>(tickets.Count);
         foreach (var ticket in tickets)
         {
-            var dto = _mapper.Map<SupportTicketDto>(ticket);
+            var dto = mapper.Map<SupportTicketDto>(ticket);
             
             // ✅ BOLUM 7.1.5: Records - IReadOnlyList kullanımı (immutability)
             IReadOnlyList<TicketMessageDto> messages;
             if (messagesDict.TryGetValue(ticket.Id, out var messageList))
             {
-                messages = _mapper.Map<List<TicketMessageDto>>(messageList).AsReadOnly();
+                messages = mapper.Map<List<TicketMessageDto>>(messageList).AsReadOnly();
             }
             else
             {
@@ -133,7 +121,7 @@ public class GetAllTicketsQueryHandler : IRequestHandler<GetAllTicketsQuery, Pag
             IReadOnlyList<TicketAttachmentDto> attachments;
             if (attachmentsDict.TryGetValue(ticket.Id, out var attachmentList))
             {
-                attachments = _mapper.Map<List<TicketAttachmentDto>>(attachmentList).AsReadOnly();
+                attachments = mapper.Map<List<TicketAttachmentDto>>(attachmentList).AsReadOnly();
             }
             else
             {

@@ -27,6 +27,7 @@ public class GetLowStockAlertsQueryHandler(
     ICacheService cache,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetLowStockAlertsQuery, PagedResult<LowStockAlertDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
     private const string CACHE_KEY_LOW_STOCK_ALERTS = "low_stock_alerts_";
     private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(5); // Short TTL for alerts
 
@@ -36,7 +37,7 @@ public class GetLowStockAlertsQueryHandler(
             request.PerformedBy, request.WarehouseId, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var cacheKey = $"{CACHE_KEY_LOW_STOCK_ALERTS}{request.PerformedBy}_{request.WarehouseId ?? Guid.Empty}_{page}_{pageSize}";

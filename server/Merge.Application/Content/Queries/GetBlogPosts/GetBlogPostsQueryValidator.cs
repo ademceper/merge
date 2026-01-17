@@ -5,14 +5,12 @@ using Merge.Domain.Enums;
 
 namespace Merge.Application.Content.Queries.GetBlogPosts;
 
-public class GetBlogPostsQueryValidator : AbstractValidator<GetBlogPostsQuery>
+public class GetBlogPostsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetBlogPostsQuery>
 {
-    private readonly PaginationSettings settings;
+    private readonly PaginationSettings settings = paginationSettings.Value;
 
-    public GetBlogPostsQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    public GetBlogPostsQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
-        settings = paginationSettings.Value;
-
         RuleFor(x => x.Page)
             .GreaterThan(0)
             .WithMessage("Sayfa numarası 1'den büyük olmalıdır.");

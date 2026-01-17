@@ -5,13 +5,13 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Catalog.Queries.GetLowStockAlerts;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetLowStockAlertsQueryValidator : AbstractValidator<GetLowStockAlertsQuery>
+public class GetLowStockAlertsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetLowStockAlertsQuery>
 {
-    public GetLowStockAlertsQueryValidator(IOptions<PaginationSettings> paginationSettings)
-    {
-        var settings = paginationSettings.Value;
+    private readonly PaginationSettings config = paginationSettings.Value;
 
-        // Note: PerformedBy is optional - Admin can see all alerts, Seller can only see their own
+    public GetLowStockAlertsQueryValidator() : this(Options.Create(new PaginationSettings()))
+    {
+// Note: PerformedBy is optional - Admin can see all alerts, Seller can only see their own
         // Validation is done at handler level for IDOR protection
 
         RuleFor(x => x.Page)
@@ -21,8 +21,8 @@ public class GetLowStockAlertsQueryValidator : AbstractValidator<GetLowStockAler
         RuleFor(x => x.PageSize)
             .GreaterThan(0)
             .WithMessage("Sayfa boyutu 1'den büyük olmalıdır.")
-            .LessThanOrEqualTo(settings.MaxPageSize)
-            .WithMessage($"Sayfa boyutu en fazla {settings.MaxPageSize} olabilir.");
+            .LessThanOrEqualTo(config.MaxPageSize)
+            .WithMessage($"Sayfa boyutu en fazla {config.MaxPageSize} olabilir.");
     }
 }
 

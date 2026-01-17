@@ -4,13 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.CreateCurrency;
 
-public class CreateCurrencyCommandValidator : AbstractValidator<CreateCurrencyCommand>
+public class CreateCurrencyCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<CreateCurrencyCommand>
 {
-    private readonly InternationalSettings config;
+    private readonly InternationalSettings config = settings.Value;
 
-    public CreateCurrencyCommandValidator(IOptions<InternationalSettings> settings)
+    public CreateCurrencyCommandValidator() : this(Options.Create(new InternationalSettings()))
     {
-        config = settings.Value;
         RuleFor(x => x.Code)
             .NotEmpty().WithMessage("Para birimi kodu zorunludur.")
             .Length(3, config.MaxCurrencyCodeLength).WithMessage($"Para birimi kodu en az 3, en fazla {config.MaxCurrencyCodeLength} karakter olmalıdır.");

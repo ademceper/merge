@@ -19,29 +19,13 @@ namespace Merge.Application.Notification.Commands.CreateNotificationFromTemplate
 /// <summary>
 /// Create Notification From Template Command Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class CreateNotificationFromTemplateCommandHandler : IRequestHandler<CreateNotificationFromTemplateCommand, NotificationDto>
+public class CreateNotificationFromTemplateCommandHandler(IDbContext context, IMapper mapper, IMediator mediator, ILogger<CreateNotificationFromTemplateCommandHandler> logger) : IRequestHandler<CreateNotificationFromTemplateCommand, NotificationDto>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly IMediator _mediator;
-    private readonly ILogger<CreateNotificationFromTemplateCommandHandler> _logger;
-
-    public CreateNotificationFromTemplateCommandHandler(
-        IDbContext context,
-        IMapper mapper,
-        IMediator mediator,
-        ILogger<CreateNotificationFromTemplateCommandHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _mediator = mediator;
-        _logger = logger;
-    }
 
     public async Task<NotificationDto> Handle(CreateNotificationFromTemplateCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        var template = await _context.Set<NotificationTemplate>()
+        var template = await context.Set<NotificationTemplate>()
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Type == request.TemplateType && t.IsActive, cancellationToken);
 
@@ -101,7 +85,7 @@ public class CreateNotificationFromTemplateCommandHandler : IRequestHandler<Crea
             message,
             link);
 
-        return await _mediator.Send(createCommand, cancellationToken);
+        return await mediator.Send(createCommand, cancellationToken);
     }
 
     private string ReplaceVariables(string template, Dictionary<string, object> variables)

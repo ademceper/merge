@@ -21,19 +21,15 @@ public class PatchProductCommandHandler(
     IMediator mediator,
     ILogger<PatchProductCommandHandler> logger) : IRequestHandler<PatchProductCommand, ProductDto>
 {
-    private readonly IProductRepository _productRepository = productRepository;
-    private readonly IUnitOfWork _unitOfWork = unitOfWork;
-    private readonly IMediator _mediator = mediator;
-    private readonly ILogger<PatchProductCommandHandler> _logger = logger;
 
     public async Task<ProductDto> Handle(PatchProductCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Patching product. ProductId: {ProductId}", request.Id);
+        logger.LogInformation("Patching product. ProductId: {ProductId}", request.Id);
 
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var product = await _productRepository.GetByIdAsync(request.Id, cancellationToken);
+            var product = await productRepository.GetByIdAsync(request.Id, cancellationToken);
             if (product == null)
             {
                 throw new NotFoundException("Ürün", request.Id);
@@ -42,7 +38,7 @@ public class PatchProductCommandHandler(
             // ✅ IDOR Protection - Seller sadece kendi ürünlerini güncelleyebilmeli
             if (request.PerformedBy.HasValue && product.SellerId.HasValue && product.SellerId.Value != request.PerformedBy.Value)
             {
-                _logger.LogWarning("Unauthorized attempt to patch product {ProductId} by user {UserId}. Product belongs to {SellerId}",
+                logger.LogWarning("Unauthorized attempt to patch product {ProductId} by user {UserId}. Product belongs to {SellerId}",
                     request.Id, request.PerformedBy.Value, product.SellerId.Value);
                 throw new BusinessException("Bu ürünü güncelleme yetkiniz bulunmamaktadır.");
             }
@@ -103,7 +99,7 @@ public class PatchProductCommandHandler(
                 // Note: Product entity doesn't have UpdateCategory method
                 // For now, we'll skip category updates in PATCH or use UpdateProductCommand
                 // This is a limitation that should be addressed by adding UpdateCategory method to Product entity
-                _logger.LogWarning("CategoryId update via PATCH is not supported. ProductId: {ProductId}", request.Id);
+                logger.LogWarning("CategoryId update via PATCH is not supported. ProductId: {ProductId}", request.Id);
             }
 
             if (request.PatchDto.IsActive.HasValue)
@@ -118,10 +114,10 @@ public class PatchProductCommandHandler(
                 }
             }
 
-            await _productRepository.UpdateAsync(product, cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await productRepository.UpdateAsync(product, cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            _logger.LogInformation("Product patched successfully. ProductId: {ProductId}", request.Id);
+            logger.LogInformation("Product patched successfully. ProductId: {ProductId}", request.Id);
 
             // Return updated product
             var getQuery = new GetProductByIdQuery(request.Id);
@@ -129,7 +125,7 @@ public class PatchProductCommandHandler(
         }
         catch
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

@@ -9,19 +9,13 @@ namespace Merge.Application.Notification.EventHandlers;
 /// <summary>
 /// Notification Deleted Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
 /// </summary>
-public class NotificationDeletedEventHandler : INotificationHandler<NotificationDeletedEvent>
+public class NotificationDeletedEventHandler(ILogger<NotificationDeletedEventHandler> logger) : INotificationHandler<NotificationDeletedEvent>
 {
-    private readonly ILogger<NotificationDeletedEventHandler> _logger;
-
-    public NotificationDeletedEventHandler(ILogger<NotificationDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(NotificationDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Notification deleted event received. NotificationId: {NotificationId}, UserId: {UserId}",
             notification.NotificationId, notification.UserId);
 

@@ -14,36 +14,24 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.User.Commands.UpdateUserPreference;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UpdateUserPreferenceCommandHandler : IRequestHandler<UpdateUserPreferenceCommand, UserPreferenceDto>
+public class UpdateUserPreferenceCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateUserPreferenceCommandHandler> logger) : IRequestHandler<UpdateUserPreferenceCommand, UserPreferenceDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<UpdateUserPreferenceCommandHandler> _logger;
-
-    public UpdateUserPreferenceCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateUserPreferenceCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<UserPreferenceDto> Handle(UpdateUserPreferenceCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
-        _logger.LogInformation("Updating preferences for user: {UserId}", request.UserId);
+        logger.LogInformation("Updating preferences for user: {UserId}", request.UserId);
 
-        var preferences = await _context.Set<UserPreference>()
+        var preferences = await context.Set<UserPreference>()
             .Where(up => up.UserId == request.UserId && !up.IsDeleted)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (preferences == null)
         {
-            _logger.LogInformation("No preferences found for user: {UserId}, creating default preferences", request.UserId);
+            logger.LogInformation("No preferences found for user: {UserId}, creating default preferences", request.UserId);
             preferences = UserPreference.Create(request.UserId);
-            await _context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
+            await context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
         }
 
                 Theme? theme = null;
@@ -81,13 +69,13 @@ public class UpdateUserPreferenceCommandHandler : IRequestHandler<UpdateUserPref
             saveCartOnLogout: request.SaveCartOnLogout,
             showOutOfStockItems: request.ShowOutOfStockItems);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event\'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
 
-        _logger.LogInformation("Preferences updated successfully for user: {UserId}", request.UserId);
+        logger.LogInformation("Preferences updated successfully for user: {UserId}", request.UserId);
 
                 // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<UserPreferenceDto>(preferences);
+        return mapper.Map<UserPreferenceDto>(preferences);
     }
 }

@@ -12,19 +12,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Queries.GetCustomerCommunicationStats;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetCustomerCommunicationStatsQueryHandler : IRequestHandler<GetCustomerCommunicationStatsQuery, Dictionary<string, int>>
+public class GetCustomerCommunicationStatsQueryHandler(IDbContext context) : IRequestHandler<GetCustomerCommunicationStatsQuery, Dictionary<string, int>>
 {
-    private readonly IDbContext _context;
-
-    public GetCustomerCommunicationStatsQueryHandler(IDbContext context)
-    {
-        _context = context;
-    }
 
     public async Task<Dictionary<string, int>> Handle(GetCustomerCommunicationStatsQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
-        IQueryable<CustomerCommunication> query = _context.Set<CustomerCommunication>()
+        IQueryable<CustomerCommunication> query = context.Set<CustomerCommunication>()
             .AsNoTracking();
 
         if (request.StartDate.HasValue)

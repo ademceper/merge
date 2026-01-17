@@ -14,22 +14,14 @@ public interface ISmsService
     Task SendOtpAsync(string phoneNumber, string otp);
 }
 
-public class SmsService : ISmsService
+public class SmsService(IConfiguration configuration, ILogger<SmsService> logger) : ISmsService
 {
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<SmsService> _logger;
-
-    public SmsService(IConfiguration configuration, ILogger<SmsService> logger)
-    {
-        _configuration = configuration;
-        _logger = logger;
-    }
 
     public async Task SendSmsAsync(string phoneNumber, string message)
     {
         // Burada gerçek SMS servisi entegrasyonu yapılacak (Twilio, Netgsm, vb.)
         // Şimdilik sadece loglama yapıyoruz
-        _logger.LogInformation("SMS gönderiliyor: To={PhoneNumber}, Message={Message}", phoneNumber, message);
+        logger.LogInformation("SMS gönderiliyor: To={PhoneNumber}, Message={Message}", phoneNumber, message);
         
         // Gerçek implementasyon için:
         // - Twilio, Netgsm, veya diğer SMS provider'ları kullanılabilir

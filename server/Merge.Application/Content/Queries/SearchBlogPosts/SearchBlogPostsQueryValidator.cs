@@ -5,12 +5,12 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Content.Queries.SearchBlogPosts;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class SearchBlogPostsQueryValidator : AbstractValidator<SearchBlogPostsQuery>
+public class SearchBlogPostsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<SearchBlogPostsQuery>
 {
-    public SearchBlogPostsQueryValidator(IOptions<PaginationSettings> paginationSettings)
-    {
-        var settings = paginationSettings.Value;
+    private readonly PaginationSettings config = paginationSettings.Value;
 
+    public SearchBlogPostsQueryValidator() : this(Options.Create(new PaginationSettings()))
+    {
         RuleFor(x => x.Query)
             .NotEmpty()
             .WithMessage("Arama sorgusu zorunludur.")
@@ -26,8 +26,8 @@ public class SearchBlogPostsQueryValidator : AbstractValidator<SearchBlogPostsQu
         RuleFor(x => x.PageSize)
             .GreaterThan(0)
             .WithMessage("Sayfa boyutu 1'den büyük olmalıdır.")
-            .LessThanOrEqualTo(settings.MaxPageSize)
-            .WithMessage($"Sayfa boyutu en fazla {settings.MaxPageSize} olabilir.");
+            .LessThanOrEqualTo(config.MaxPageSize)
+            .WithMessage($"Sayfa boyutu en fazla {config.MaxPageSize} olabilir.");
     }
 }
 

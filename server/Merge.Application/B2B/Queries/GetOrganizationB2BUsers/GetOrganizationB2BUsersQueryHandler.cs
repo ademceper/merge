@@ -24,6 +24,7 @@ public class GetOrganizationB2BUsersQueryHandler(
     ILogger<GetOrganizationB2BUsersQueryHandler> logger,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetOrganizationB2BUsersQuery, PagedResult<B2BUserDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
     public async Task<PagedResult<B2BUserDto>> Handle(GetOrganizationB2BUsersQuery request, CancellationToken cancellationToken)
     {
@@ -31,7 +32,7 @@ public class GetOrganizationB2BUsersQueryHandler(
             request.OrganizationId, request.Status, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var query = context.Set<B2BUser>()

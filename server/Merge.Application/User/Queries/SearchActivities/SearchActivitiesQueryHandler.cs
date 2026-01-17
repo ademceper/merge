@@ -15,35 +15,25 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 namespace Merge.Application.User.Queries.SearchActivities;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class SearchActivitiesQueryHandler : IRequestHandler<SearchActivitiesQuery, IEnumerable<UserActivityLogDto>>
+public class SearchActivitiesQueryHandler(IDbContext context, IMapper mapper, ILogger<SearchActivitiesQueryHandler> logger, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<SearchActivitiesQuery, IEnumerable<UserActivityLogDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<SearchActivitiesQueryHandler> _logger;
-    private readonly PaginationSettings _paginationSettings;
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
-    public SearchActivitiesQueryHandler(IDbContext context, IMapper mapper, ILogger<SearchActivitiesQueryHandler> logger, IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     public async Task<IEnumerable<UserActivityLogDto>> Handle(SearchActivitiesQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
-        _logger.LogInformation("Retrieving filtered activities - Page: {PageNumber}, Size: {PageSize}", 
+        logger.LogInformation("Retrieving filtered activities - Page: {PageNumber}, Size: {PageSize}", 
             request.Filter.PageNumber, request.Filter.PageSize);
         var pageSize = request.Filter.PageSize;
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
-        if (pageSize < 1) pageSize = _paginationSettings.DefaultPageSize;
+        if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
+        if (pageSize < 1) pageSize = paginationConfig.DefaultPageSize;
 
         var pageNumber = request.Filter.PageNumber;
         if (pageNumber < 1) pageNumber = 1;
 
-        IQueryable<UserActivityLog> query = _context.Set<UserActivityLog>()
+        IQueryable<UserActivityLog> query = context.Set<UserActivityLog>()
             .AsNoTracking()
             .Include(a => a.User)
             .AsQueryable();
@@ -84,8 +74,8 @@ public class SearchActivitiesQueryHandler : IRequestHandler<SearchActivitiesQuer
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        _logger.LogInformation("Retrieved {Count} filtered activities", activities.Count);
+        logger.LogInformation("Retrieved {Count} filtered activities", activities.Count);
 
-        return _mapper.Map<IEnumerable<UserActivityLogDto>>(activities);
+        return mapper.Map<IEnumerable<UserActivityLogDto>>(activities);
     }
 }

@@ -5,9 +5,11 @@ using Merge.Application.Configuration;
 namespace Merge.Application.B2B.Queries.GetB2BUserPurchaseOrders;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetB2BUserPurchaseOrdersQueryValidator : AbstractValidator<GetB2BUserPurchaseOrdersQuery>
+public class GetB2BUserPurchaseOrdersQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetB2BUserPurchaseOrdersQuery>
 {
-    public GetB2BUserPurchaseOrdersQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    private readonly PaginationSettings settings = paginationSettings.Value;
+
+    public GetB2BUserPurchaseOrdersQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
         RuleFor(x => x.B2BUserId)
             .NotEmpty().WithMessage("B2B kullanıcı ID boş olamaz");
@@ -17,8 +19,8 @@ public class GetB2BUserPurchaseOrdersQueryValidator : AbstractValidator<GetB2BUs
 
         RuleFor(x => x.PageSize)
             .GreaterThan(0).WithMessage("Sayfa boyutu 0'dan büyük olmalıdır")
-            .LessThanOrEqualTo(paginationSettings.Value.MaxPageSize)
-            .WithMessage($"Sayfa boyutu en fazla {paginationSettings.Value.MaxPageSize} olabilir");
+            .LessThanOrEqualTo(settings.MaxPageSize)
+            .WithMessage($"Sayfa boyutu en fazla {settings.MaxPageSize} olabilir");
     }
 }
 

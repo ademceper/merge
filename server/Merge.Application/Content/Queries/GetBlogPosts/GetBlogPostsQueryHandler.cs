@@ -24,6 +24,7 @@ public class GetBlogPostsQueryHandler(
     ICacheService cache,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetBlogPostsQuery, PagedResult<BlogPostDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
     private const string CACHE_KEY_BLOG_POSTS = "blog_posts_paged_";
     private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(5);
 
@@ -32,7 +33,7 @@ public class GetBlogPostsQueryHandler(
         logger.LogInformation("Retrieving blog posts. CategoryId: {CategoryId}, Status: {Status}, Page: {Page}, PageSize: {PageSize}",
             request.CategoryId, request.Status, request.Page, request.PageSize);
 
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var cacheKey = $"{CACHE_KEY_BLOG_POSTS}{request.CategoryId?.ToString() ?? "all"}_{request.Status ?? "all"}_{page}_{pageSize}";

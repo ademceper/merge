@@ -10,23 +10,13 @@ using Merge.Domain.Modules.Catalog;
 namespace Merge.Application.Search.Queries.GetCompleteRecommendations;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetCompleteRecommendationsQueryHandler : IRequestHandler<GetCompleteRecommendationsQuery, PersonalizedRecommendationsDto>
+public class GetCompleteRecommendationsQueryHandler(IMediator mediator, ILogger<GetCompleteRecommendationsQueryHandler> logger) : IRequestHandler<GetCompleteRecommendationsQuery, PersonalizedRecommendationsDto>
 {
-    private readonly IMediator _mediator;
-    private readonly ILogger<GetCompleteRecommendationsQueryHandler> _logger;
-
-    public GetCompleteRecommendationsQueryHandler(
-        IMediator mediator,
-        ILogger<GetCompleteRecommendationsQueryHandler> logger)
-    {
-        _mediator = mediator;
-        _logger = logger;
-    }
 
     public async Task<PersonalizedRecommendationsDto> Handle(GetCompleteRecommendationsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Complete recommendations isteniyor. UserId: {UserId}",
             request.UserId);
 
@@ -36,13 +26,13 @@ public class GetCompleteRecommendationsQueryHandler : IRequestHandler<GetComplet
         var trendingQuery = new GetTrendingProductsQuery(7, 10);
         var bestSellersQuery = new GetBestSellersQuery(10);
 
-        var forYou = await _mediator.Send(forYouQuery, cancellationToken);
-        var basedOnHistory = await _mediator.Send(basedOnHistoryQuery, cancellationToken);
-        var trending = await _mediator.Send(trendingQuery, cancellationToken);
-        var bestSellers = await _mediator.Send(bestSellersQuery, cancellationToken);
+        var forYou = await mediator.Send(forYouQuery, cancellationToken);
+        var basedOnHistory = await mediator.Send(basedOnHistoryQuery, cancellationToken);
+        var trending = await mediator.Send(trendingQuery, cancellationToken);
+        var bestSellers = await mediator.Send(bestSellersQuery, cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Complete recommendations tamamlandı. UserId: {UserId}, ForYouCount: {ForYouCount}, BasedOnHistoryCount: {BasedOnHistoryCount}, TrendingCount: {TrendingCount}, BestSellersCount: {BestSellersCount}",
             request.UserId, forYou.Count, basedOnHistory.Count, trending.Count, bestSellers.Count);
 

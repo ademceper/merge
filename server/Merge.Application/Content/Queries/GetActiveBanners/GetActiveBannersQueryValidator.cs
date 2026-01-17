@@ -4,13 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Content.Queries.GetActiveBanners;
 
-public class GetActiveBannersQueryValidator : AbstractValidator<GetActiveBannersQuery>
+public class GetActiveBannersQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetActiveBannersQuery>
 {
-    private readonly PaginationSettings settings;
+    private readonly PaginationSettings settings = paginationSettings.Value;
 
-    public GetActiveBannersQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    public GetActiveBannersQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
-        settings = paginationSettings.Value;
         RuleFor(x => x.Position)
             .MaximumLength(50)
             .When(x => !string.IsNullOrEmpty(x.Position))

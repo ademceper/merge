@@ -14,22 +14,14 @@ namespace Merge.Application.Order.EventHandlers;
 /// Return Request Approved Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class ReturnRequestApprovedEventHandler : INotificationHandler<ReturnRequestApprovedEvent>
+public class ReturnRequestApprovedEventHandler(ILogger<ReturnRequestApprovedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<ReturnRequestApprovedEvent>
 {
-    private readonly ILogger<ReturnRequestApprovedEventHandler> _logger;
+    
     private readonly INotificationService? _notificationService;
-
-    public ReturnRequestApprovedEventHandler(
-        ILogger<ReturnRequestApprovedEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(ReturnRequestApprovedEvent notification, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Return request approved event received. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, UserId: {UserId}, ApprovedAt: {ApprovedAt}",
             notification.ReturnRequestId, notification.OrderId, notification.UserId, notification.ApprovedAt);
 
@@ -54,7 +46,7 @@ public class ReturnRequestApprovedEventHandler : INotificationHandler<ReturnRequ
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling ReturnRequestApprovedEvent. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, UserId: {UserId}",
                 notification.ReturnRequestId, notification.OrderId, notification.UserId);
             throw;

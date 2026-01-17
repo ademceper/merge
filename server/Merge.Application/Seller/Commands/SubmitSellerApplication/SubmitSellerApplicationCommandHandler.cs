@@ -23,56 +23,31 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 namespace Merge.Application.Seller.Commands.SubmitSellerApplication;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class SubmitSellerApplicationCommandHandler : IRequestHandler<SubmitSellerApplicationCommand, SellerApplicationDto>
+public class SubmitSellerApplicationCommandHandler(IRepository applicationRepository, UserManager<UserEntity> userManager, IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, IEmailService emailService, ILogger<SubmitSellerApplicationCommandHandler> logger) : IRequestHandler<SubmitSellerApplicationCommand, SellerApplicationDto>
 {
-    private readonly IRepository _applicationRepository;
-    private readonly UserManager<UserEntity> _userManager;
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly IEmailService _emailService;
-    private readonly ILogger<SubmitSellerApplicationCommandHandler> _logger;
-
-    public SubmitSellerApplicationCommandHandler(
-        IRepository applicationRepository,
-        UserManager<UserEntity> userManager,
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        IEmailService emailService,
-        ILogger<SubmitSellerApplicationCommandHandler> logger)
-    {
-        _applicationRepository = applicationRepository;
-        _userManager = userManager;
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _emailService = emailService;
-        _logger = logger;
-    }
 
     public async Task<SellerApplicationDto> Handle(SubmitSellerApplicationCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Processing seller application submission for user {UserId}, Business: {BusinessName}",
+        logger.LogInformation("Processing seller application submission for user {UserId}, Business: {BusinessName}",
             request.UserId, request.ApplicationDto.BusinessName);
 
         // Check if user exists
-        var user = await _userManager.FindByIdAsync(request.UserId.ToString());
+        var user = await userManager.FindByIdAsync(request.UserId.ToString());
         if (user == null)
         {
-            _logger.LogWarning("Seller application failed - User {UserId} not found", request.UserId);
+            logger.LogWarning("Seller application failed - User {UserId} not found", request.UserId);
             throw new NotFoundException("Kullanıcı", request.UserId);
         }
 
         // Check if user already has an application
-        var existingApplication = await _context.Set<SellerApplication>()
+        var existingApplication = await context.Set<SellerApplication>()
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.UserId == request.UserId, cancellationToken);
 
         if (existingApplication != null && existingApplication.Status != SellerApplicationStatus.Rejected)
         {
-            _logger.LogWarning("Seller application failed - User {UserId} already has a pending/approved application", request.UserId);
+            logger.LogWarning("Seller application failed - User {UserId} already has a pending/approved application", request.UserId);
             throw new BusinessException("Zaten bekleyen veya onaylanmış bir başvurunuz var.");
         }
 
@@ -104,17 +79,17 @@ public class SubmitSellerApplicationCommandHandler : IRequestHandler<SubmitSelle
         // Submit the application
         application.Submit();
 
-        application = await _applicationRepository.AddAsync(application);
+        application = await applicationRepository.AddAsync(application);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Seller application created successfully for user {UserId}, ApplicationId: {ApplicationId}",
+        logger.LogInformation("Seller application created successfully for user {UserId}, ApplicationId: {ApplicationId}",
             request.UserId, application.Id);
 
         // Send confirmation email
-        await _emailService.SendEmailAsync(
+        await emailService.SendEmailAsync(
             user.Email ?? string.Empty,
             "Seller Application Received",
             $"Dear {user.FirstName},\n\nWe have received your seller application for {request.ApplicationDto.BusinessName}. " +
@@ -123,12 +98,12 @@ public class SubmitSellerApplicationCommandHandler : IRequestHandler<SubmitSelle
             cancellationToken
         );
 
-        application = await _context.Set<SellerApplication>()
+        application = await context.Set<SellerApplication>()
             .AsNoTracking()
             .Include(a => a.User)
             .Include(a => a.Reviewer)
             .FirstOrDefaultAsync(a => a.Id == application.Id, cancellationToken);
         
-        return _mapper.Map<SellerApplicationDto>(application!);
+        return mapper.Map<SellerApplicationDto>(application!);
     }
 }

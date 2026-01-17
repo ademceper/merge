@@ -15,32 +15,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Review.Commands.AwardProductBadge;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class AwardProductBadgeCommandHandler : IRequestHandler<AwardProductBadgeCommand, ProductTrustBadgeDto>
+public class AwardProductBadgeCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<AwardProductBadgeCommandHandler> logger) : IRequestHandler<AwardProductBadgeCommand, ProductTrustBadgeDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<AwardProductBadgeCommandHandler> _logger;
-
-    public AwardProductBadgeCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<AwardProductBadgeCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<ProductTrustBadgeDto> Handle(AwardProductBadgeCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Awarding product badge. ProductId: {ProductId}, BadgeId: {BadgeId}",
             request.ProductId, request.BadgeId);
 
-        var existing = await _context.Set<ProductTrustBadge>()
+        var existing = await context.Set<ProductTrustBadge>()
             .FirstOrDefaultAsync(ptb => ptb.ProductId == request.ProductId && ptb.TrustBadgeId == request.BadgeId, cancellationToken);
 
         if (existing != null)
@@ -61,10 +45,10 @@ public class AwardProductBadgeCommandHandler : IRequestHandler<AwardProductBadge
                 request.ExpiresAt,
                 request.AwardReason);
 
-            await _context.Set<ProductTrustBadge>().AddAsync(productBadge, cancellationToken);
+            await context.Set<ProductTrustBadge>().AddAsync(productBadge, cancellationToken);
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         var productBadgeDto = await GetProductBadgeDtoAsync(request.ProductId, request.BadgeId, cancellationToken);
         return productBadgeDto;
@@ -72,7 +56,7 @@ public class AwardProductBadgeCommandHandler : IRequestHandler<AwardProductBadge
 
     private async Task<ProductTrustBadgeDto> GetProductBadgeDtoAsync(Guid productId, Guid badgeId, CancellationToken cancellationToken)
     {
-        var productBadge = await _context.Set<ProductTrustBadge>()
+        var productBadge = await context.Set<ProductTrustBadge>()
             .AsNoTracking()
             .Include(ptb => ptb.TrustBadge)
             .Include(ptb => ptb.Product)
@@ -81,6 +65,6 @@ public class AwardProductBadgeCommandHandler : IRequestHandler<AwardProductBadge
         if (productBadge == null)
             throw new NotFoundException("Ürün rozeti", badgeId);
 
-        return _mapper.Map<ProductTrustBadgeDto>(productBadge);
+        return mapper.Map<ProductTrustBadgeDto>(productBadge);
     }
 }

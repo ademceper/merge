@@ -2,23 +2,9 @@ using System.Net;
 
 namespace Merge.API.Middleware;
 
-public class IpWhitelistMiddleware
+public class IpWhitelistMiddleware(RequestDelegate next, ILogger<IpWhitelistMiddleware> logger, IConfiguration configuration)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<IpWhitelistMiddleware> _logger;
-    private readonly HashSet<string> _allowedIPs;
-
-    public IpWhitelistMiddleware(
-        RequestDelegate next,
-        ILogger<IpWhitelistMiddleware> logger,
-        IConfiguration configuration)
-    {
-        _next = next;
-        _logger = logger;
-
-        var allowedIPs = configuration.GetSection("Security:AllowedIPs").Get<string[]>() ?? Array.Empty<string>();
-        _allowedIPs = new HashSet<string>(allowedIPs);
-    }
+    private readonly List<string> allowedIPs = configuration.GetSection("IpWhitelist:AllowedIPs").Get<List<string>>() ?? new List<string>();
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -32,7 +18,7 @@ public class IpWhitelistMiddleware
             if (remoteIp == null || !IsIpAllowed(remoteIp))
             {
                 // ✅ LOGGING FIX: Structured logging kullan (string interpolation yerine)
-                _logger.LogWarning("Forbidden request from IP {RemoteIp}. Endpoint: {Endpoint}",
+                logger.LogWarning("Forbidden request from IP {RemoteIp}. Endpoint: {Endpoint}",
                     remoteIp, context.Request.Path);
                 context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
 
@@ -46,19 +32,19 @@ public class IpWhitelistMiddleware
             }
         }
 
-        await _next(context);
+        await next(context);
     }
 
     private bool IsIpAllowed(IPAddress ipAddress)
     {
-        if (_allowedIPs.Count == 0)
+        if (allowedIPs.Count == 0)
         {
             return true;
         }
 
         var ipString = ipAddress.ToString();
 
-        if (_allowedIPs.Contains(ipString))
+        if (allowedIPs.Contains(ipString))
         {
             return true;
         }
@@ -67,7 +53,7 @@ public class IpWhitelistMiddleware
         {
             return true;
         }
-        foreach (var allowedIp in _allowedIPs)
+        foreach (var allowedIp in allowedIPs)
         {
             if (allowedIp.Contains("/"))
             {

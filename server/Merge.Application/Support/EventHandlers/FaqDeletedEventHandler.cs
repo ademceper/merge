@@ -10,19 +10,13 @@ namespace Merge.Application.Support.EventHandlers;
 /// FAQ Deleted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class FaqDeletedEventHandler : INotificationHandler<FaqDeletedEvent>
+public class FaqDeletedEventHandler(ILogger<FaqDeletedEventHandler> logger) : INotificationHandler<FaqDeletedEvent>
 {
-    private readonly ILogger<FaqDeletedEventHandler> _logger;
-
-    public FaqDeletedEventHandler(ILogger<FaqDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(FaqDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "FAQ deleted event received. FaqId: {FaqId}, Question: {Question}, Category: {Category}",
             notification.FaqId, notification.Question, notification.Category);
 

@@ -1,4 +1,5 @@
 using MediatR;
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Merge.Application.DTOs.Product;
@@ -16,42 +17,29 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Product.Commands.AddProductToComparison;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class AddProductToComparisonCommandHandler : IRequestHandler<AddProductToComparisonCommand, ProductComparisonDto>
+public class AddProductToComparisonCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<AddProductToComparisonCommandHandler> logger,
+    ICacheService cache,
+    IMapper mapper) : IRequestHandler<AddProductToComparisonCommand, ProductComparisonDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly AutoMapper.IMapper _mapper;
-    private readonly ILogger<AddProductToComparisonCommandHandler> _logger;
-    private readonly ICacheService _cache;
+
     private const string CACHE_KEY_USER_COMPARISON = "user_comparison_";
     private const string CACHE_KEY_USER_COMPARISONS = "user_comparisons_";
     private const string CACHE_KEY_COMPARISON_BY_ID = "comparison_by_id_";
     private const string CACHE_KEY_COMPARISON_MATRIX = "comparison_matrix_";
 
-    public AddProductToComparisonCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        AutoMapper.IMapper mapper,
-        ILogger<AddProductToComparisonCommandHandler> logger,
-        ICacheService cache)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _cache = cache;
-    }
-
     public async Task<ProductComparisonDto> Handle(AddProductToComparisonCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Adding product to comparison. UserId: {UserId}, ProductId: {ProductId}",
+        logger.LogInformation("Adding product to comparison. UserId: {UserId}, ProductId: {ProductId}",
             request.UserId, request.ProductId);
 
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             // Get or create user's current comparison
-            var comparison = await _context.Set<ProductComparison>()
+            var comparison = await context.Set<ProductComparison>()
                 .Include(c => c.Items)
                 .Where(c => c.UserId == request.UserId && !c.IsSaved)
                 .OrderByDescending(c => c.CreatedAt)
@@ -64,12 +52,12 @@ public class AddProductToComparisonCommandHandler : IRequestHandler<AddProductTo
                     request.UserId,
                     "Current Comparison",
                     false);
-                await _context.Set<ProductComparison>().AddAsync(comparison, cancellationToken);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await context.Set<ProductComparison>().AddAsync(comparison, cancellationToken);
+                await unitOfWork.SaveChangesAsync(cancellationToken);
             }
 
             // Verify product exists and is active
-            var product = await _context.Set<ProductEntity>()
+            var product = await context.Set<ProductEntity>()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
             if (product == null || !product.IsActive)
@@ -82,32 +70,32 @@ public class AddProductToComparisonCommandHandler : IRequestHandler<AddProductTo
             comparison.AddProduct(request.ProductId, comparison.Items.Count);
 
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             // ✅ BOLUM 10.2: Cache invalidation
-            await _cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISON}{request.UserId}", cancellationToken);
-            await _cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_", cancellationToken);
-            await _cache.RemoveAsync($"{CACHE_KEY_COMPARISON_BY_ID}{comparison.Id}", cancellationToken);
-            await _cache.RemoveAsync($"{CACHE_KEY_COMPARISON_MATRIX}{comparison.Id}", cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISON}{request.UserId}", cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_", cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_COMPARISON_BY_ID}{comparison.Id}", cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_COMPARISON_MATRIX}{comparison.Id}", cancellationToken);
 
-            comparison = await _context.Set<ProductComparison>()
+            comparison = await context.Set<ProductComparison>()
                 .AsNoTracking()
                 .Include(c => c.Items)
                     .ThenInclude(i => i.Product)
                         .ThenInclude(p => p.Category)
                 .FirstOrDefaultAsync(c => c.Id == comparison.Id, cancellationToken);
 
-            _logger.LogInformation("Product added to comparison successfully. ComparisonId: {ComparisonId}, ProductId: {ProductId}",
+            logger.LogInformation("Product added to comparison successfully. ComparisonId: {ComparisonId}, ProductId: {ProductId}",
                 comparison!.Id, request.ProductId);
 
             return await MapToDto(comparison, cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error adding product to comparison. UserId: {UserId}, ProductId: {ProductId}",
+            logger.LogError(ex, "Error adding product to comparison. UserId: {UserId}, ProductId: {ProductId}",
                 request.UserId, request.ProductId);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }
@@ -115,7 +103,7 @@ public class AddProductToComparisonCommandHandler : IRequestHandler<AddProductTo
     private async Task<ProductComparisonDto> MapToDto(ProductComparison comparison, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
-        var itemsQuery = _context.Set<ProductComparisonItem>()
+        var itemsQuery = context.Set<ProductComparisonItem>()
             .AsNoTracking()
             .Where(i => i.ComparisonId == comparison.Id)
             .OrderBy(i => i.Position);
@@ -129,7 +117,7 @@ public class AddProductToComparisonCommandHandler : IRequestHandler<AddProductTo
         // ✅ PERFORMANCE: Batch load reviews to avoid N+1 queries (subquery ile)
         var productIdsSubquery = from i in itemsQuery select i.ProductId;
         Dictionary<Guid, (decimal Rating, int Count)> reviewsDict;
-        var reviews = await _context.Set<ReviewEntity>()
+        var reviews = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => productIdsSubquery.Contains(r.ProductId))
             .GroupBy(r => r.ProductId)
@@ -147,7 +135,7 @@ public class AddProductToComparisonCommandHandler : IRequestHandler<AddProductTo
         foreach (var item in items)
         {
             var hasReviewStats = reviewsDict.TryGetValue(item.ProductId, out var stats);
-            var compProduct = _mapper.Map<ComparisonProductDto>(item.Product);
+            var compProduct = mapper.Map<ComparisonProductDto>(item.Product);
             compProduct = compProduct with
             {
                 Position = item.Position,
@@ -159,7 +147,7 @@ public class AddProductToComparisonCommandHandler : IRequestHandler<AddProductTo
             products.Add(compProduct);
         }
 
-        var comparisonDto = _mapper.Map<ProductComparisonDto>(comparison);
+        var comparisonDto = mapper.Map<ProductComparisonDto>(comparison);
         comparisonDto = comparisonDto with { Products = products.AsReadOnly() };
         return comparisonDto;
     }

@@ -7,19 +7,13 @@ namespace Merge.Application.Notification.EventHandlers;
 /// <summary>
 /// PushNotification Bounced Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
 /// </summary>
-public class PushNotificationBouncedEventHandler : INotificationHandler<PushNotificationBouncedEvent>
+public class PushNotificationBouncedEventHandler(ILogger<PushNotificationBouncedEventHandler> logger) : INotificationHandler<PushNotificationBouncedEvent>
 {
-    private readonly ILogger<PushNotificationBouncedEventHandler> _logger;
-
-    public PushNotificationBouncedEventHandler(ILogger<PushNotificationBouncedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(PushNotificationBouncedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogWarning(
+        logger.LogWarning(
             "PushNotification bounced event received. PushNotificationId: {PushNotificationId}, UserId: {UserId}",
             notification.PushNotificationId, notification.UserId);
 

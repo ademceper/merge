@@ -19,30 +19,18 @@ namespace Merge.Application.Review.Commands.PatchReview;
 /// Handler for PatchReviewCommand
 /// HIGH-API-001: PATCH Support - Partial updates implementation
 /// </summary>
-public class PatchReviewCommandHandler : IRequestHandler<PatchReviewCommand, ReviewDto>
+public class PatchReviewCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<PatchReviewCommandHandler> logger) : IRequestHandler<PatchReviewCommand, ReviewDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<PatchReviewCommandHandler> _logger;
-
-    public PatchReviewCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<PatchReviewCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<ReviewDto> Handle(PatchReviewCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Patching review. ReviewId: {ReviewId}, UserId: {UserId}", request.ReviewId, request.UserId);
+        logger.LogInformation("Patching review. ReviewId: {ReviewId}, UserId: {UserId}", request.ReviewId, request.UserId);
 
-        var review = await _context.Set<ReviewEntity>()
+        var review = await context.Set<ReviewEntity>()
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
 
         if (review == null)
@@ -62,7 +50,7 @@ public class PatchReviewCommandHandler : IRequestHandler<PatchReviewCommand, Rev
             var oldRating = review.Rating;
             var newRating = new Rating(request.PatchDto.Rating.Value);
             review.UpdateRating(newRating);
-            _logger.LogInformation("Review rating updated. ReviewId: {ReviewId}, OldRating: {OldRating}, NewRating: {NewRating}",
+            logger.LogInformation("Review rating updated. ReviewId: {ReviewId}, OldRating: {OldRating}, NewRating: {NewRating}",
                 request.ReviewId, oldRating, request.PatchDto.Rating.Value);
         }
 
@@ -85,24 +73,24 @@ public class PatchReviewCommandHandler : IRequestHandler<PatchReviewCommand, Rev
         // Ürün rating'ini güncelle
         await UpdateProductRatingAsync(review.ProductId, cancellationToken);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Single query instead of multiple LoadAsync calls
-        review = await _context.Set<ReviewEntity>()
+        review = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
 
-        _logger.LogInformation("Review patched successfully. ReviewId: {ReviewId}", request.ReviewId);
+        logger.LogInformation("Review patched successfully. ReviewId: {ReviewId}", request.ReviewId);
 
-        return _mapper.Map<ReviewDto>(review!);
+        return mapper.Map<ReviewDto>(review!);
     }
 
     private async Task UpdateProductRatingAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query
-        var reviews = await _context.Set<ReviewEntity>()
+        var reviews = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => r.ProductId == productId && r.IsApproved)
             .ToListAsync(cancellationToken);
@@ -113,13 +101,13 @@ public class PatchReviewCommandHandler : IRequestHandler<PatchReviewCommand, Rev
         }
 
         var averageRating = (decimal)reviews.Average(r => r.Rating);
-        var product = await _context.Set<ProductEntity>()
+        var product = await context.Set<ProductEntity>()
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
         if (product != null)
         {
             product.UpdateRating(averageRating, reviews.Count);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
     }
 }

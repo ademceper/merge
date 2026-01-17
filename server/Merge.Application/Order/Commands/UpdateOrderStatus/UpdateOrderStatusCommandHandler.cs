@@ -10,28 +10,18 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Order.Commands.UpdateOrderStatus;
 
-public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatusCommand, bool>
+public class UpdateOrderStatusCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<UpdateOrderStatusCommandHandler> logger) : IRequestHandler<UpdateOrderStatusCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<UpdateOrderStatusCommandHandler> _logger;
-
-    public UpdateOrderStatusCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<UpdateOrderStatusCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(UpdateOrderStatusCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Updating order status. OrderId: {OrderId}, NewStatus: {NewStatus}",
+        logger.LogInformation("Updating order status. OrderId: {OrderId}, NewStatus: {NewStatus}",
             request.OrderId, request.Status);
 
-        var order = await _context.Set<OrderEntity>()
+        var order = await context.Set<OrderEntity>()
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
         if (order == null)
@@ -46,16 +36,16 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
             order.TransitionTo(request.Status);
 
             // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation("Order status updated successfully. OrderId: {OrderId}, Status: {NewStatus}",
+            logger.LogInformation("Order status updated successfully. OrderId: {OrderId}, Status: {NewStatus}",
                 request.OrderId, request.Status);
 
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Order status update failed. OrderId: {OrderId}, NewStatus: {NewStatus}",
+            logger.LogError(ex, "Order status update failed. OrderId: {OrderId}, NewStatus: {NewStatus}",
                 request.OrderId, request.Status);
             throw;
         }

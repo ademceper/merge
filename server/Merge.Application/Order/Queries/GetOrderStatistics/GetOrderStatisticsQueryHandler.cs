@@ -12,21 +12,15 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Order.Queries.GetOrderStatistics;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetOrderStatisticsQueryHandler : IRequestHandler<GetOrderStatisticsQuery, OrderStatisticsDto>
+public class GetOrderStatisticsQueryHandler(IDbContext context) : IRequestHandler<GetOrderStatisticsQuery, OrderStatisticsDto>
 {
-    private readonly IDbContext _context;
-
-    public GetOrderStatisticsQueryHandler(IDbContext context)
-    {
-        _context = context;
-    }
 
     public async Task<OrderStatisticsDto> Handle(GetOrderStatisticsQuery request, CancellationToken cancellationToken)
     {
         var startDate = request.StartDate ?? DateTime.UtcNow.AddMonths(-12);
         var endDate = request.EndDate ?? DateTime.UtcNow;
 
-        var query = _context.Set<OrderEntity>()
+        var query = context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.UserId == request.UserId &&
                   o.CreatedAt >= startDate &&

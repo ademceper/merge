@@ -5,20 +5,14 @@ using Merge.Domain.SharedKernel.DomainEvents;
 namespace Merge.Application.User.EventHandlers;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UserPreferenceUpdatedEventHandler : INotificationHandler<UserPreferenceUpdatedEvent>
+public class UserPreferenceUpdatedEventHandler(ILogger<UserPreferenceUpdatedEventHandler> logger) : INotificationHandler<UserPreferenceUpdatedEvent>
 {
-    private readonly ILogger<UserPreferenceUpdatedEventHandler> _logger;
-
-    public UserPreferenceUpdatedEventHandler(ILogger<UserPreferenceUpdatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(UserPreferenceUpdatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "User preference updated event received. UserPreferenceId: {UserPreferenceId}, UserId: {UserId}",
             notification.UserPreferenceId, notification.UserId);
 

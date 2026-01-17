@@ -14,31 +14,18 @@ namespace Merge.Application.Notification.Commands.DeleteNotification;
 /// <summary>
 /// Delete Notification Command Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class DeleteNotificationCommandHandler : IRequestHandler<DeleteNotificationCommand, bool>
+public class DeleteNotificationCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<DeleteNotificationCommandHandler> logger) : IRequestHandler<DeleteNotificationCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<DeleteNotificationCommandHandler> _logger;
-
-    public DeleteNotificationCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<DeleteNotificationCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(DeleteNotificationCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Removed manual !n.IsDeleted (Global Query Filter)
-        var notification = await _context.Set<NotificationEntity>()
+        var notification = await context.Set<NotificationEntity>()
             .FirstOrDefaultAsync(n => n.Id == request.NotificationId && n.UserId == request.UserId, cancellationToken);
 
         if (notification == null)
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "Notification bulunamadı. NotificationId: {NotificationId}, UserId: {UserId}",
                 request.NotificationId, request.UserId);
             return false;
@@ -48,10 +35,10 @@ public class DeleteNotificationCommandHandler : IRequestHandler<DeleteNotificati
         notification.Delete();
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Notification silindi. NotificationId: {NotificationId}, UserId: {UserId}",
             request.NotificationId, request.UserId);
 

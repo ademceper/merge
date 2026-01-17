@@ -4,13 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.CreateCategoryTranslation;
 
-public class CreateCategoryTranslationCommandValidator : AbstractValidator<CreateCategoryTranslationCommand>
+public class CreateCategoryTranslationCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<CreateCategoryTranslationCommand>
 {
-    private readonly InternationalSettings config;
+    private readonly InternationalSettings config = settings.Value;
 
-    public CreateCategoryTranslationCommandValidator(IOptions<InternationalSettings> settings)
+    public CreateCategoryTranslationCommandValidator() : this(Options.Create(new InternationalSettings()))
     {
-        config = settings.Value;
         
 
         RuleFor(x => x.CategoryId)

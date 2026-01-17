@@ -14,23 +14,15 @@ namespace Merge.Application.Support.EventHandlers;
 /// Support Ticket Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class SupportTicketCreatedEventHandler : INotificationHandler<SupportTicketCreatedEvent>
+public class SupportTicketCreatedEventHandler(ILogger<SupportTicketCreatedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<SupportTicketCreatedEvent>
 {
-    private readonly ILogger<SupportTicketCreatedEventHandler> _logger;
+    
     private readonly INotificationService? _notificationService;
-
-    public SupportTicketCreatedEventHandler(
-        ILogger<SupportTicketCreatedEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(SupportTicketCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Support ticket created event received. TicketId: {TicketId}, TicketNumber: {TicketNumber}, UserId: {UserId}, Category: {Category}, Priority: {Priority}",
             notification.TicketId, notification.TicketNumber, notification.UserId, notification.Category, notification.Priority);
 
@@ -55,7 +47,7 @@ public class SupportTicketCreatedEventHandler : INotificationHandler<SupportTick
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling SupportTicketCreatedEvent. TicketId: {TicketId}, TicketNumber: {TicketNumber}, UserId: {UserId}",
                 notification.TicketId, notification.TicketNumber, notification.UserId);
             throw;

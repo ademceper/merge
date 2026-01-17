@@ -22,6 +22,7 @@ public class GetPoliciesQueryHandler(
     ICacheService cache,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetPoliciesQuery, PagedResult<PolicyDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
     private const string CACHE_KEY_POLICIES = "policies_paged_";
     private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(5);
 
@@ -31,8 +32,8 @@ public class GetPoliciesQueryHandler(
             request.PolicyType, request.Language, request.ActiveOnly, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize 
-            ? paginationSettings.Value.MaxPageSize 
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize 
+            ? paginationConfig.MaxPageSize 
             : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 

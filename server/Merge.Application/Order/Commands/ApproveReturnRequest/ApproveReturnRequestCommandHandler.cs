@@ -13,25 +13,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Order.Commands.ApproveReturnRequest;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class ApproveReturnRequestCommandHandler : IRequestHandler<ApproveReturnRequestCommand, bool>
+public class ApproveReturnRequestCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<ApproveReturnRequestCommandHandler> logger) : IRequestHandler<ApproveReturnRequestCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<ApproveReturnRequestCommandHandler> _logger;
-
-    public ApproveReturnRequestCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<ApproveReturnRequestCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(ApproveReturnRequestCommand request, CancellationToken cancellationToken)
     {
-        var returnRequest = await _context.Set<ReturnRequest>()
+        var returnRequest = await context.Set<ReturnRequest>()
             .FirstOrDefaultAsync(r => r.Id == request.ReturnRequestId, cancellationToken);
 
         if (returnRequest == null)
@@ -43,9 +30,9 @@ public class ApproveReturnRequestCommandHandler : IRequestHandler<ApproveReturnR
         returnRequest.Approve();
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Return request approved. ReturnRequestId: {ReturnRequestId}", request.ReturnRequestId);
+        logger.LogInformation("Return request approved. ReturnRequestId: {ReturnRequestId}", request.ReturnRequestId);
 
         return true;
     }

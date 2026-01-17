@@ -13,22 +13,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Order.Queries.GetOrderSplit;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetOrderSplitQueryHandler : IRequestHandler<GetOrderSplitQuery, OrderSplitDto?>
+public class GetOrderSplitQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetOrderSplitQuery, OrderSplitDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetOrderSplitQueryHandler(
-        IDbContext context,
-        IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
 
     public async Task<OrderSplitDto?> Handle(GetOrderSplitQuery request, CancellationToken cancellationToken)
     {
-        var split = await _context.Set<OrderSplit>()
+        var split = await context.Set<OrderSplit>()
             .AsNoTracking()
             .Include(s => s.OriginalOrder)
             .Include(s => s.SplitOrder)
@@ -40,6 +30,6 @@ public class GetOrderSplitQueryHandler : IRequestHandler<GetOrderSplitQuery, Ord
                 .ThenInclude(si => si.SplitOrderItem)
             .FirstOrDefaultAsync(s => s.Id == request.SplitId, cancellationToken);
 
-        return split != null ? _mapper.Map<OrderSplitDto>(split) : null;
+        return split != null ? mapper.Map<OrderSplitDto>(split) : null;
     }
 }

@@ -16,7 +16,6 @@ using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
-
 namespace Merge.Application.Services.Search;
 
 // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -27,24 +26,14 @@ public interface IPersonalizationService
     Task<PersonalizationProfileDto> GetUserProfileAsync(Guid userId, CancellationToken cancellationToken = default);
 }
 
-public class PersonalizationService : IPersonalizationService
+public class PersonalizationService(IDbContext context, IMapper mapper, ILogger<PersonalizationService> logger) : IPersonalizationService
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<PersonalizationService> _logger;
-
-    public PersonalizationService(IDbContext context, IMapper mapper, ILogger<PersonalizationService> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<ProductDto>> GetPersonalizedProductsAsync(Guid userId, int count = 10, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !u.IsDeleted (Global Query Filter)
-        var user = await _context.Users
+        var user = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
@@ -55,7 +44,7 @@ public class PersonalizationService : IPersonalizationService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !rv.IsDeleted, !w.IsDeleted, !oi.Order.IsDeleted (Global Query Filter)
         // Kullanıcının geçmiş aktivitelerini analiz et
-        var viewedProducts = await _context.Set<RecentlyViewedProduct>()
+        var viewedProducts = await context.Set<RecentlyViewedProduct>()
             .AsNoTracking()
             .Where(rv => rv.UserId == userId)
             .OrderByDescending(rv => rv.ViewedAt)
@@ -63,13 +52,13 @@ public class PersonalizationService : IPersonalizationService
             .Select(rv => rv.ProductId)
             .ToListAsync(cancellationToken);
 
-        var wishlistProducts = await _context.Set<Wishlist>()
+        var wishlistProducts = await context.Set<Wishlist>()
             .AsNoTracking()
             .Where(w => w.UserId == userId)
             .Select(w => w.ProductId)
             .ToListAsync(cancellationToken);
 
-        var orderProducts = await _context.Set<OrderItem>()
+        var orderProducts = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.Order.UserId == userId)
             .Select(oi => oi.ProductId)
@@ -79,7 +68,7 @@ public class PersonalizationService : IPersonalizationService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Kategorileri analiz et
-        var favoriteCategories = await _context.Set<OrderItem>()
+        var favoriteCategories = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.Order.UserId == userId)
             .Include(oi => oi.Product)
@@ -92,7 +81,7 @@ public class PersonalizationService : IPersonalizationService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Markaları analiz et
-        var favoriteBrands = await _context.Set<OrderItem>()
+        var favoriteBrands = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.Order.UserId == userId)
             .Include(oi => oi.Product)
@@ -105,7 +94,7 @@ public class PersonalizationService : IPersonalizationService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // Kişiselleştirilmiş ürünleri getir
-        var query = _context.Set<ProductEntity>()
+        var query = context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.IsActive && p.StockQuantity > 0)
@@ -139,7 +128,7 @@ public class PersonalizationService : IPersonalizationService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<ProductDto>>(products);
+        return mapper.Map<IEnumerable<ProductDto>>(products);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -162,8 +151,8 @@ public class PersonalizationService : IPersonalizationService
         // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Bu ürünle birlikte satın alınan ürünleri bul
         var frequentlyBoughtTogether = await (
-            from oi1 in _context.Set<OrderItem>().AsNoTracking()
-            join oi2 in _context.Set<OrderItem>().AsNoTracking()
+            from oi1 in context.Set<OrderItem>().AsNoTracking()
+            join oi2 in context.Set<OrderItem>().AsNoTracking()
                 on oi1.OrderId equals oi2.OrderId
             where oi1.ProductId == productId && oi2.ProductId != productId
             group oi2 by oi2.ProductId into g
@@ -175,13 +164,13 @@ public class PersonalizationService : IPersonalizationService
         {
             // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
             // Eğer birlikte satın alınan ürün yoksa, aynı kategoriden öner
-            var product = await _context.Set<ProductEntity>()
+            var product = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
             if (product != null)
             {
-                frequentlyBoughtTogether = await _context.Set<ProductEntity>()
+                frequentlyBoughtTogether = await context.Set<ProductEntity>()
                     .AsNoTracking()
                     .Where(p => p.CategoryId == product.CategoryId && p.Id != productId && p.IsActive)
                     .OrderByDescending(p => p.Rating)
@@ -193,21 +182,21 @@ public class PersonalizationService : IPersonalizationService
         }
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var products = await _context.Set<ProductEntity>()
+        var products = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => frequentlyBoughtTogether.Contains(p.Id) && p.IsActive)
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<ProductDto>>(products);
+        return mapper.Map<IEnumerable<ProductDto>>(products);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PersonalizationProfileDto> GetUserProfileAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !u.IsDeleted (Global Query Filter)
-        var user = await _context.Users
+        var user = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
@@ -217,22 +206,22 @@ public class PersonalizationService : IPersonalizationService
         }
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !rv.IsDeleted, !w.IsDeleted, !o.IsDeleted (Global Query Filter)
-        var viewedCount = await _context.Set<RecentlyViewedProduct>()
+        var viewedCount = await context.Set<RecentlyViewedProduct>()
             .AsNoTracking()
             .CountAsync(rv => rv.UserId == userId, cancellationToken);
 
-        var wishlistCount = await _context.Set<Wishlist>()
+        var wishlistCount = await context.Set<Wishlist>()
             .AsNoTracking()
             .CountAsync(w => w.UserId == userId, cancellationToken);
 
-        var orderCount = await _context.Set<OrderEntity>()
+        var orderCount = await context.Set<OrderEntity>()
             .AsNoTracking()
             .CountAsync(o => o.UserId == userId, cancellationToken);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
-        var favoriteCategories = await _context.Set<OrderItem>()
+        var favoriteCategories = await context.Set<OrderItem>()
             .AsNoTracking()
             .AsSplitQuery()
             .Where(oi => oi.Order.UserId == userId)
@@ -249,7 +238,7 @@ public class PersonalizationService : IPersonalizationService
             })
             .ToListAsync(cancellationToken);
 
-        var favoriteBrands = await _context.Set<OrderItem>()
+        var favoriteBrands = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.Order.UserId == userId)
             .Include(oi => oi.Product)

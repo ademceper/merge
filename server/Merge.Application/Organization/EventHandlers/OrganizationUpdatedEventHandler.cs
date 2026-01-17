@@ -8,19 +8,13 @@ namespace Merge.Application.Organization.EventHandlers;
 /// <summary>
 /// Organization Updated Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// </summary>
-public class OrganizationUpdatedEventHandler : INotificationHandler<OrganizationUpdatedEvent>
+public class OrganizationUpdatedEventHandler(ILogger<OrganizationUpdatedEventHandler> logger) : INotificationHandler<OrganizationUpdatedEvent>
 {
-    private readonly ILogger<OrganizationUpdatedEventHandler> _logger;
-
-    public OrganizationUpdatedEventHandler(ILogger<OrganizationUpdatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(OrganizationUpdatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Organization updated event received. OrganizationId: {OrganizationId}, Name: {Name}, ChangedFields: {ChangedFields}",
             notification.OrganizationId, 
             notification.Name,

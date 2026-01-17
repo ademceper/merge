@@ -19,40 +19,27 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Queries.GetSellerStores;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetSellerStoresQueryHandler : IRequestHandler<GetSellerStoresQuery, PagedResult<StoreDto>>
+public class GetSellerStoresQueryHandler(IDbContext context, IMapper mapper, ILogger<GetSellerStoresQueryHandler> logger, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetSellerStoresQuery, PagedResult<StoreDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetSellerStoresQueryHandler> _logger;
-    private readonly PaginationSettings _paginationSettings;
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
-    public GetSellerStoresQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetSellerStoresQueryHandler> logger,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
+
 
     public async Task<PagedResult<StoreDto>> Handle(GetSellerStoresQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting seller stores. SellerId: {SellerId}, Status: {Status}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Getting seller stores. SellerId: {SellerId}, Status: {Status}, Page: {Page}, PageSize: {PageSize}",
             request.SellerId, request.Status?.ToString() ?? "All", request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic number config'den
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize 
-            ? _paginationSettings.MaxPageSize 
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize 
+            ? paginationConfig.MaxPageSize 
             : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-        IQueryable<Store> query = _context.Set<Store>()
+        IQueryable<Store> query = context.Set<Store>()
             .AsNoTracking()
             .Include(s => s.Seller)
             .Where(s => s.SellerId == request.SellerId);
@@ -74,7 +61,7 @@ public class GetSellerStoresQueryHandler : IRequestHandler<GetSellerStoresQuery,
             .Select(s => s.Id)
             .ToListAsync(cancellationToken);
         
-        var stores = await _context.Set<Store>()
+        var stores = await context.Set<Store>()
             .AsNoTracking()
             .Include(s => s.Seller)
             .Where(s => storeIds.Contains(s.Id))
@@ -83,7 +70,7 @@ public class GetSellerStoresQueryHandler : IRequestHandler<GetSellerStoresQuery,
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load ProductCount (N+1 fix)
-        var productCounts = await _context.Set<ProductEntity>()
+        var productCounts = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.StoreId.HasValue && storeIds.Contains(p.StoreId.Value))
             .GroupBy(p => p.StoreId)
@@ -91,7 +78,7 @@ public class GetSellerStoresQueryHandler : IRequestHandler<GetSellerStoresQuery,
             .ToDictionaryAsync(x => x.StoreId, x => x.Count, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var dtos = _mapper.Map<IEnumerable<StoreDto>>(stores).ToList();
+        var dtos = mapper.Map<IEnumerable<StoreDto>>(stores).ToList();
         
         // ✅ FIX: Record immutable - with expression kullan
         var dtosWithProductCount = dtos.Select(dto =>

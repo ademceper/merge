@@ -14,22 +14,14 @@ namespace Merge.Application.Order.EventHandlers;
 /// Return Request Rejected Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class ReturnRequestRejectedEventHandler : INotificationHandler<ReturnRequestRejectedEvent>
+public class ReturnRequestRejectedEventHandler(ILogger<ReturnRequestRejectedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<ReturnRequestRejectedEvent>
 {
-    private readonly ILogger<ReturnRequestRejectedEventHandler> _logger;
+    
     private readonly INotificationService? _notificationService;
-
-    public ReturnRequestRejectedEventHandler(
-        ILogger<ReturnRequestRejectedEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(ReturnRequestRejectedEvent notification, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Return request rejected event received. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, UserId: {UserId}, RejectionReason: {RejectionReason}",
             notification.ReturnRequestId, notification.OrderId, notification.UserId, notification.RejectionReason ?? "N/A");
 
@@ -54,7 +46,7 @@ public class ReturnRequestRejectedEventHandler : INotificationHandler<ReturnRequ
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling ReturnRequestRejectedEvent. ReturnRequestId: {ReturnRequestId}, OrderId: {OrderId}, UserId: {UserId}",
                 notification.ReturnRequestId, notification.OrderId, notification.UserId);
             throw;

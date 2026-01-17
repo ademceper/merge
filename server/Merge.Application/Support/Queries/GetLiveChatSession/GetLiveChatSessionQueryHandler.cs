@@ -15,54 +15,42 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Queries.GetLiveChatSession;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetLiveChatSessionQueryHandler : IRequestHandler<GetLiveChatSessionQuery, LiveChatSessionDto?>
+public class GetLiveChatSessionQueryHandler(IDbContext context, IMapper mapper, IOptions<SupportSettings> settings) : IRequestHandler<GetLiveChatSessionQuery, LiveChatSessionDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly SupportSettings _settings;
-
-    public GetLiveChatSessionQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        IOptions<SupportSettings> settings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _settings = settings.Value;
-    }
+    private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<LiveChatSessionDto?> Handle(GetLiveChatSessionQuery request, CancellationToken cancellationToken)
     {
-        var session = await _context.Set<LiveChatSession>()
+        var session = await context.Set<LiveChatSession>()
             .AsNoTracking()
             .Include(s => s.User)
             .Include(s => s.Agent)
-            .Include(s => s.Messages.OrderByDescending(m => m.CreatedAt).Take(_settings.MaxRecentChatMessages))
+            .Include(s => s.Messages.OrderByDescending(m => m.CreatedAt).Take(supportConfig.MaxRecentChatMessages))
             .FirstOrDefaultAsync(s => s.Id == request.SessionId, cancellationToken);
 
         if (session == null) return null;
 
-        var dto = _mapper.Map<LiveChatSessionDto>(session);
+        var dto = mapper.Map<LiveChatSessionDto>(session);
 
         // ✅ PERFORMANCE: Batch load recent messages if not already loaded
         if (session.Messages == null || session.Messages.Count == 0)
         {
-            var recentMessages = await _context.Set<LiveChatMessage>()
+            var recentMessages = await context.Set<LiveChatMessage>()
                 .AsNoTracking()
                 .Include(m => m.Sender)
                 .Where(m => m.SessionId == session.Id)
                 .OrderByDescending(m => m.CreatedAt)
-                .Take(_settings.MaxRecentChatMessages)
+                .Take(supportConfig.MaxRecentChatMessages)
                 .ToListAsync(cancellationToken);
-            dto.RecentMessages = _mapper.Map<List<LiveChatMessageDto>>(recentMessages);
+            dto.RecentMessages = mapper.Map<List<LiveChatMessageDto>>(recentMessages);
         }
         else
         {
             var recentMessages = session.Messages
                 .OrderByDescending(m => m.CreatedAt)
-                .Take(_settings.MaxRecentChatMessages)
+                .Take(supportConfig.MaxRecentChatMessages)
                 .ToList();
-            dto.RecentMessages = _mapper.Map<List<LiveChatMessageDto>>(recentMessages);
+            dto.RecentMessages = mapper.Map<List<LiveChatMessageDto>>(recentMessages);
         }
 
         return dto;

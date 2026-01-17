@@ -23,6 +23,7 @@ public class GetUsersQueryHandler(
     IOptions<PaginationSettings> paginationSettings,
     IMapper mapper) : IRequestHandler<GetUsersQuery, PagedResult<UserDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
     public async Task<PagedResult<UserDto>> Handle(GetUsersQuery request, CancellationToken cancellationToken)
     {
@@ -31,8 +32,8 @@ public class GetUsersQueryHandler(
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var pageSize = request.PageSize <= 0 ? settings.Value.DefaultPageSize : request.PageSize;
-        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
+        var pageSize = request.PageSize <= 0 ? paginationConfig.DefaultPageSize : request.PageSize;
+        if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries

@@ -17,55 +17,37 @@ namespace Merge.Application.Product.Queries.GetAllProducts;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, PagedResult<ProductDto>>
+public class GetAllProductsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAllProductsQueryHandler> logger, ICacheService cache, IOptions<PaginationSettings> paginationSettings, IOptions<CacheSettings> cacheSettings) : IRequestHandler<GetAllProductsQuery, PagedResult<ProductDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetAllProductsQueryHandler> _logger;
-    private readonly ICacheService _cache;
-    private readonly PaginationSettings _paginationSettings;
-    private readonly CacheSettings _cacheSettings;
-    private const string CACHE_KEY_ALL_PRODUCTS_PAGED = "products_all_paged";
+    private readonly CacheSettings cacheConfig = cacheSettings.Value;
 
-    public GetAllProductsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetAllProductsQueryHandler> logger,
-        ICacheService cache,
-        IOptions<PaginationSettings> paginationSettings,
-        IOptions<CacheSettings> cacheSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _cache = cache;
-        _paginationSettings = paginationSettings.Value;
-        _cacheSettings = cacheSettings.Value;
-    }
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
+
+    private const string CACHE_KEY_ALL_PRODUCTS_PAGED = "products_all_paged";
 
     public async Task<PagedResult<ProductDto>> Handle(GetAllProductsQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching all products. Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Fetching all products. Page: {Page}, PageSize: {PageSize}",
             request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         var page = request.Page < 1 ? 1 : request.Page;
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize
-            ? _paginationSettings.MaxPageSize
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize
+            ? paginationConfig.MaxPageSize
             : request.PageSize;
 
         var cacheKey = $"{CACHE_KEY_ALL_PRODUCTS_PAGED}_{page}_{pageSize}";
 
         // ✅ BOLUM 10.2: Redis distributed cache for frequently accessed data
-        var cachedResult = await _cache.GetOrCreateAsync(
+        var cachedResult = await cache.GetOrCreateAsync(
             cacheKey,
             async () =>
             {
-                _logger.LogInformation("Cache miss for all products (paged). Fetching from database.");
+                logger.LogInformation("Cache miss for all products (paged). Fetching from database.");
 
                 // ✅ PERFORMANCE: AsNoTracking for read-only queries
                 // ✅ PERFORMANCE: Removed manual !p.IsDeleted check (Global Query Filter handles it)
-                var query = _context.Set<ProductEntity>()
+                var query = context.Set<ProductEntity>()
                     .AsNoTracking()
                     .Include(p => p.Category)
                     .Where(p => p.IsActive);
@@ -78,7 +60,7 @@ public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, P
                     .Take(pageSize)
                     .ToListAsync(cancellationToken);
 
-                var dtos = _mapper.Map<IEnumerable<ProductDto>>(products);
+                var dtos = mapper.Map<IEnumerable<ProductDto>>(products);
 
                 return new PagedResult<ProductDto>
                 {
@@ -88,7 +70,7 @@ public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, P
                     PageSize = pageSize
                 };
             },
-            TimeSpan.FromMinutes(_cacheSettings.ProductCacheExpirationMinutes),
+            TimeSpan.FromMinutes(cacheConfig.ProductCacheExpirationMinutes),
             cancellationToken);
 
         return cachedResult!;

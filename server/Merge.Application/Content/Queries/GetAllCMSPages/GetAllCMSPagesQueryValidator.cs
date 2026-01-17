@@ -4,14 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Content.Queries.GetAllCMSPages;
 
-public class GetAllCMSPagesQueryValidator : AbstractValidator<GetAllCMSPagesQuery>
+public class GetAllCMSPagesQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetAllCMSPagesQuery>
 {
-    private readonly PaginationSettings settings;
+    private readonly PaginationSettings settings = paginationSettings.Value;
 
-    public GetAllCMSPagesQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    public GetAllCMSPagesQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
-        settings = paginationSettings.Value;
-
         RuleFor(x => x.Status)
             .Must(status => string.IsNullOrEmpty(status) || status == "Draft" || status == "Published" || status == "Archived")
             .WithMessage("Durum geçerli bir değer olmalıdır (Draft, Published, Archived).");

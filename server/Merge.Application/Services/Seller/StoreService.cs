@@ -30,30 +30,10 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 namespace Merge.Application.Services.Seller;
 
-public class StoreService : IStoreService
+public class StoreService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<StoreService> logger, IOptions<ServiceSettings> serviceSettings, IOptions<PaginationSettings> paginationSettings) : IStoreService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<StoreService> _logger;
-    private readonly ServiceSettings _serviceSettings;
-    private readonly PaginationSettings _paginationSettings;
-
-    public StoreService(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<StoreService> logger,
-        IOptions<ServiceSettings> serviceSettings,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _serviceSettings = serviceSettings.Value;
-        _paginationSettings = paginationSettings.Value;
-    }
+    private readonly ServiceSettings serviceConfig = serviceSettings.Value;
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<StoreDto> CreateStoreAsync(Guid sellerId, CreateStoreDto dto, CancellationToken cancellationToken = default)
@@ -67,7 +47,7 @@ public class StoreService : IStoreService
         }
 
         // ✅ PERFORMANCE: Removed manual !u.IsDeleted (Global Query Filter)
-        var seller = await _context.Users
+        var seller = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == sellerId, cancellationToken);
 
@@ -79,7 +59,7 @@ public class StoreService : IStoreService
         // Generate slug
         var slug = GenerateSlug(dto.StoreName);
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var existingStore = await _context.Set<Store>()
+        var existingStore = await context.Set<Store>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Slug == slug, cancellationToken);
 
@@ -92,7 +72,7 @@ public class StoreService : IStoreService
         if (dto.IsPrimary)
         {
             // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-            var existingPrimary = await _context.Set<Store>()
+            var existingPrimary = await context.Set<Store>()
                 .Where(s => s.SellerId == sellerId && s.IsPrimary)
                 .ToListAsync(cancellationToken);
 
@@ -128,26 +108,26 @@ public class StoreService : IStoreService
             store.SetAsPrimary();
         }
 
-        await _context.Set<Store>().AddAsync(store, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<Store>().AddAsync(store, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        var reloadedStore = await _context.Set<Store>()
+        var reloadedStore = await context.Set<Store>()
             .AsNoTracking()
             .Include(s => s.Seller)
             .FirstOrDefaultAsync(s => s.Id == store.Id, cancellationToken);
 
         if (reloadedStore == null)
         {
-            _logger.LogWarning("Store {StoreId} not found after creation", store.Id);
-            return _mapper.Map<StoreDto>(store);
+            logger.LogWarning("Store {StoreId} not found after creation", store.Id);
+            return mapper.Map<StoreDto>(store);
         }
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var storeDto = _mapper.Map<StoreDto>(reloadedStore);
+        var storeDto = mapper.Map<StoreDto>(reloadedStore);
         
         // ✅ PERFORMANCE: ProductCount için database'de count (N+1 fix)
-        storeDto.ProductCount = await _context.Set<ProductEntity>()
+        storeDto.ProductCount = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == reloadedStore.Id, cancellationToken);
         
@@ -158,7 +138,7 @@ public class StoreService : IStoreService
     public async Task<StoreDto?> GetStoreByIdAsync(Guid storeId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-        var store = await _context.Set<Store>()
+        var store = await context.Set<Store>()
             .AsNoTracking()
             .Include(s => s.Seller)
             .FirstOrDefaultAsync(s => s.Id == storeId, cancellationToken);
@@ -166,10 +146,10 @@ public class StoreService : IStoreService
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         if (store == null) return null;
         
-        var dto = _mapper.Map<StoreDto>(store);
+        var dto = mapper.Map<StoreDto>(store);
         
         // ✅ PERFORMANCE: ProductCount için database'de count (N+1 fix)
-        dto.ProductCount = await _context.Set<ProductEntity>()
+        dto.ProductCount = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == store.Id, cancellationToken);
         
@@ -180,7 +160,7 @@ public class StoreService : IStoreService
     public async Task<StoreDto?> GetStoreBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-        var store = await _context.Set<Store>()
+        var store = await context.Set<Store>()
             .AsNoTracking()
             .Include(s => s.Seller)
             .FirstOrDefaultAsync(s => s.Slug == slug && s.Status == EntityStatus.Active, cancellationToken);
@@ -188,10 +168,10 @@ public class StoreService : IStoreService
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         if (store == null) return null;
         
-        var dto = _mapper.Map<StoreDto>(store);
+        var dto = mapper.Map<StoreDto>(store);
         
         // ✅ PERFORMANCE: ProductCount için database'de count (N+1 fix)
-        dto.ProductCount = await _context.Set<ProductEntity>()
+        dto.ProductCount = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == store.Id, cancellationToken);
         
@@ -205,11 +185,11 @@ public class StoreService : IStoreService
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic number config'den - PaginationSettings kullanımı
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-        IQueryable<Store> query = _context.Set<Store>()
+        IQueryable<Store> query = context.Set<Store>()
             .AsNoTracking()
             .Include(s => s.Seller)
             .Where(s => s.SellerId == sellerId);
@@ -231,7 +211,7 @@ public class StoreService : IStoreService
             .Select(s => s.Id)
             .ToListAsync(cancellationToken);
         
-        var stores = await _context.Set<Store>()
+        var stores = await context.Set<Store>()
             .AsNoTracking()
             .Include(s => s.Seller)
             .Where(s => storeIds.Contains(s.Id))
@@ -240,7 +220,7 @@ public class StoreService : IStoreService
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load ProductCount (N+1 fix)
-        var productCounts = await _context.Set<ProductEntity>()
+        var productCounts = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.StoreId.HasValue && storeIds.Contains(p.StoreId.Value))
             .GroupBy(p => p.StoreId)
@@ -248,7 +228,7 @@ public class StoreService : IStoreService
             .ToDictionaryAsync(x => x.StoreId, x => x.Count, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var dtos = _mapper.Map<IEnumerable<StoreDto>>(stores).ToList();
+        var dtos = mapper.Map<IEnumerable<StoreDto>>(stores).ToList();
         
         // ✅ FIX: ProductCount set et
         foreach (var dto in dtos)
@@ -272,7 +252,7 @@ public class StoreService : IStoreService
     public async Task<StoreDto?> GetPrimaryStoreAsync(Guid sellerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-        var store = await _context.Set<Store>()
+        var store = await context.Set<Store>()
             .AsNoTracking()
             .Include(s => s.Seller)
             .FirstOrDefaultAsync(s => s.SellerId == sellerId && s.IsPrimary, cancellationToken);
@@ -280,10 +260,10 @@ public class StoreService : IStoreService
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         if (store == null) return null;
         
-        var dto = _mapper.Map<StoreDto>(store);
+        var dto = mapper.Map<StoreDto>(store);
         
         // ✅ PERFORMANCE: ProductCount için database'de count (N+1 fix)
-        dto.ProductCount = await _context.Set<ProductEntity>()
+        dto.ProductCount = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == store.Id, cancellationToken);
         
@@ -297,7 +277,7 @@ public class StoreService : IStoreService
         ArgumentNullException.ThrowIfNull(dto);
 
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var store = await _context.Set<Store>()
+        var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == storeId, cancellationToken);
 
         if (store == null) return false;
@@ -337,7 +317,7 @@ public class StoreService : IStoreService
         {
             // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
             // Unset other primary stores
-            var existingPrimary = await _context.Set<Store>()
+            var existingPrimary = await context.Set<Store>()
                 .Where(s => s.SellerId == store.SellerId && s.IsPrimary && s.Id != storeId)
                 .ToListAsync(cancellationToken);
 
@@ -355,7 +335,7 @@ public class StoreService : IStoreService
             // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
             store.RemovePrimaryStatus();
         }
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -364,14 +344,14 @@ public class StoreService : IStoreService
     public async Task<bool> DeleteStoreAsync(Guid storeId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var store = await _context.Set<Store>()
+        var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == storeId, cancellationToken);
 
         if (store == null) return false;
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         // Check if store has products
-        var hasProducts = await _context.Set<ProductEntity>()
+        var hasProducts = await context.Set<ProductEntity>()
             .AsNoTracking()
             .AnyAsync(p => p.StoreId == storeId, cancellationToken);
 
@@ -382,7 +362,7 @@ public class StoreService : IStoreService
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         store.Delete();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -391,14 +371,14 @@ public class StoreService : IStoreService
     public async Task<bool> SetPrimaryStoreAsync(Guid sellerId, Guid storeId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var store = await _context.Set<Store>()
+        var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == storeId && s.SellerId == sellerId, cancellationToken);
 
         if (store == null) return false;
 
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         // Unset other primary stores
-        var existingPrimary = await _context.Set<Store>()
+        var existingPrimary = await context.Set<Store>()
             .Where(s => s.SellerId == sellerId && s.IsPrimary && s.Id != storeId)
             .ToListAsync(cancellationToken);
 
@@ -410,7 +390,7 @@ public class StoreService : IStoreService
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         store.SetAsPrimary();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -419,14 +399,14 @@ public class StoreService : IStoreService
     public async Task<bool> VerifyStoreAsync(Guid storeId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var store = await _context.Set<Store>()
+        var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == storeId, cancellationToken);
 
         if (store == null) return false;
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         store.Verify();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -435,14 +415,14 @@ public class StoreService : IStoreService
     public async Task<bool> SuspendStoreAsync(Guid storeId, string reason, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var store = await _context.Set<Store>()
+        var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == storeId, cancellationToken);
 
         if (store == null) return false;
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         store.Suspend();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -451,7 +431,7 @@ public class StoreService : IStoreService
     public async Task<StoreStatsDto> GetStoreStatsAsync(Guid storeId, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var store = await _context.Set<Store>()
+        var store = await context.Set<Store>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == storeId, cancellationToken);
 
@@ -460,21 +440,21 @@ public class StoreService : IStoreService
             throw new NotFoundException("Mağaza", storeId);
         }
 
-        startDate ??= DateTime.UtcNow.AddDays(-_serviceSettings.DefaultDateRangeDays); // ✅ BOLUM 12.0: Magic number config'den
+        startDate ??= DateTime.UtcNow.AddDays(-serviceConfig.DefaultDateRangeDays); // ✅ BOLUM 12.0: Magic number config'den
         endDate ??= DateTime.UtcNow;
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var totalProducts = await _context.Set<ProductEntity>()
+        var totalProducts = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == storeId, cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var activeProducts = await _context.Set<ProductEntity>()
+        var activeProducts = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == storeId && p.IsActive, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        var totalOrders = await _context.Set<OrderEntity>()
+        var totalOrders = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.OrderItems.Any(oi => oi.Product != null && oi.Product.StoreId == storeId))
@@ -482,9 +462,9 @@ public class StoreService : IStoreService
 
         // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         var totalRevenue = await (
-            from o in _context.Set<OrderEntity>().AsNoTracking()
-            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
-            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            from o in context.Set<OrderEntity>().AsNoTracking()
+            join oi in context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
             where o.PaymentStatus == PaymentStatus.Completed &&
                   p.StoreId.HasValue && p.StoreId.Value == storeId
             select oi.TotalPrice
@@ -492,9 +472,9 @@ public class StoreService : IStoreService
 
         // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         var monthlyRevenue = await (
-            from o in _context.Set<OrderEntity>().AsNoTracking()
-            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
-            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            from o in context.Set<OrderEntity>().AsNoTracking()
+            join oi in context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
             where o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= startDate && o.CreatedAt <= endDate &&
                   p.StoreId.HasValue && p.StoreId.Value == storeId
@@ -502,7 +482,7 @@ public class StoreService : IStoreService
         ).SumAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de distinct count yap (memory'de işlem YASAK)
-        var totalCustomers = await _context.Set<OrderEntity>()
+        var totalCustomers = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Where(o => o.PaymentStatus == PaymentStatus.Completed &&
                   o.OrderItems.Any(oi => oi.Product != null && oi.Product.StoreId == storeId))
@@ -511,7 +491,7 @@ public class StoreService : IStoreService
             .CountAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Database'de average yap (memory'de işlem YASAK)
-        var averageRating = await _context.Set<ReviewEntity>()
+        var averageRating = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Include(r => r.Product)
             .Where(r => r.IsApproved &&

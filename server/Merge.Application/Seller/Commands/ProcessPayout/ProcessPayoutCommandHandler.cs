@@ -12,35 +12,22 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Commands.ProcessPayout;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class ProcessPayoutCommandHandler : IRequestHandler<ProcessPayoutCommand, bool>
+public class ProcessPayoutCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<ProcessPayoutCommandHandler> logger) : IRequestHandler<ProcessPayoutCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<ProcessPayoutCommandHandler> _logger;
-
-    public ProcessPayoutCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<ProcessPayoutCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(ProcessPayoutCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Processing payout. PayoutId: {PayoutId}, TransactionReference: {TransactionReference}",
+        logger.LogInformation("Processing payout. PayoutId: {PayoutId}, TransactionReference: {TransactionReference}",
             request.PayoutId, request.TransactionReference);
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var payout = await _context.Set<CommissionPayout>()
+        var payout = await context.Set<CommissionPayout>()
             .FirstOrDefaultAsync(p => p.Id == request.PayoutId, cancellationToken);
 
         if (payout == null)
         {
-            _logger.LogWarning("Payout not found. PayoutId: {PayoutId}", request.PayoutId);
+            logger.LogWarning("Payout not found. PayoutId: {PayoutId}", request.PayoutId);
             return false;
         }
 
@@ -49,9 +36,9 @@ public class ProcessPayoutCommandHandler : IRequestHandler<ProcessPayoutCommand,
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Payout processed. PayoutId: {PayoutId}", request.PayoutId);
+        logger.LogInformation("Payout processed. PayoutId: {PayoutId}", request.PayoutId);
 
         return true;
     }

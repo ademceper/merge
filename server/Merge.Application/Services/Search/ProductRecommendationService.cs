@@ -17,27 +17,16 @@ using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
-
 namespace Merge.Application.Services.Search;
 
-public class ProductRecommendationService : IProductRecommendationService
+public class ProductRecommendationService(IDbContext context, IMapper mapper, ILogger<ProductRecommendationService> logger) : IProductRecommendationService
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<ProductRecommendationService> _logger;
-
-    public ProductRecommendationService(IDbContext context, IMapper mapper, ILogger<ProductRecommendationService> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<ProductRecommendationDto>> GetSimilarProductsAsync(Guid productId, int maxResults = 10, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var product = await _context.Set<ProductEntity>()
+        var product = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
@@ -52,7 +41,7 @@ public class ProductRecommendationService : IProductRecommendationService
         var priceMax = product.Price * 1.3m;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var similarProducts = await _context.Set<ProductEntity>()
+        var similarProducts = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive &&
                        p.Id != productId &&
@@ -66,7 +55,7 @@ public class ProductRecommendationService : IProductRecommendationService
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
-        var recommendations = _mapper.Map<IEnumerable<ProductRecommendationDto>>(similarProducts)
+        var recommendations = mapper.Map<IEnumerable<ProductRecommendationDto>>(similarProducts)
             .Select(rec => new ProductRecommendationDto(
                 rec.ProductId,
                 rec.Name,
@@ -91,8 +80,8 @@ public class ProductRecommendationService : IProductRecommendationService
         // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Find products that are frequently purchased together
         var frequentlyBought = await (
-            from oi1 in _context.Set<OrderItem>().AsNoTracking()
-            join oi2 in _context.Set<OrderItem>().AsNoTracking()
+            from oi1 in context.Set<OrderItem>().AsNoTracking()
+            join oi2 in context.Set<OrderItem>().AsNoTracking()
                 on oi1.OrderId equals oi2.OrderId
             where oi1.ProductId == productId && oi2.ProductId != productId
             group oi2 by oi2.ProductId into g
@@ -106,7 +95,7 @@ public class ProductRecommendationService : IProductRecommendationService
 
         // ✅ PERFORMANCE: Batch load products to avoid N+1 queries
         var productIds = frequentlyBought.Select(fb => fb.ProductId).ToList();
-        var products = await _context.Set<ProductEntity>()
+        var products = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, cancellationToken);
@@ -118,7 +107,7 @@ public class ProductRecommendationService : IProductRecommendationService
         {
             if (products.TryGetValue(fb.ProductId, out var product))
             {
-                var rec = _mapper.Map<ProductRecommendationDto>(product);
+                var rec = mapper.Map<ProductRecommendationDto>(product);
                 recommendations.Add(new ProductRecommendationDto(
                     rec.ProductId,
                     rec.Name,
@@ -143,16 +132,16 @@ public class ProductRecommendationService : IProductRecommendationService
         // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         // Get user's purchase history categories
         var userOrderCategoriesSubquery = (
-            from o in _context.Set<OrderEntity>().AsNoTracking()
-            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
-            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            from o in context.Set<OrderEntity>().AsNoTracking()
+            join oi in context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
             where o.UserId == userId
             select p.CategoryId
         ).Distinct();
 
         // Get user's wishlist categories
-        var wishlistCategoriesSubquery = from w in _context.Set<Wishlist>().AsNoTracking()
-                                        join p in _context.Set<ProductEntity>().AsNoTracking() on w.ProductId equals p.Id
+        var wishlistCategoriesSubquery = from w in context.Set<Wishlist>().AsNoTracking()
+                                        join p in context.Set<ProductEntity>().AsNoTracking() on w.ProductId equals p.Id
                                         where w.UserId == userId
                                         select p.CategoryId;
 
@@ -169,7 +158,7 @@ public class ProductRecommendationService : IProductRecommendationService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // Get highly rated products from preferred categories
-        var recommendations = await _context.Set<ProductEntity>()
+        var recommendations = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive &&
                        preferredCategoriesSubquery.Contains(p.CategoryId) &&
@@ -181,7 +170,7 @@ public class ProductRecommendationService : IProductRecommendationService
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
-        var recommendationDtos = _mapper.Map<IEnumerable<ProductRecommendationDto>>(recommendations)
+        var recommendationDtos = mapper.Map<IEnumerable<ProductRecommendationDto>>(recommendations)
             .Select(rec => new ProductRecommendationDto(
                 rec.ProductId,
                 rec.Name,
@@ -204,7 +193,7 @@ public class ProductRecommendationService : IProductRecommendationService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !rv.IsDeleted (Global Query Filter)
         // Get recently viewed products
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (ThenInclude)
-        var recentlyViewed = await _context.Set<RecentlyViewedProduct>()
+        var recentlyViewed = await context.Set<RecentlyViewedProduct>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(rv => rv.Product)
@@ -224,19 +213,19 @@ public class ProductRecommendationService : IProductRecommendationService
         var viewedProductIds = recentlyViewed.Select(rv => rv.ProductId).ToList();
         
         // Category'ler için subquery kullan (büyük olabilir)
-        var viewedProductIdsSubquery = from rv in _context.Set<RecentlyViewedProduct>().AsNoTracking()
+        var viewedProductIdsSubquery = from rv in context.Set<RecentlyViewedProduct>().AsNoTracking()
                                       where rv.UserId == userId
                                       orderby rv.ViewedAt descending
                                       select rv.ProductId;
-        var viewedCategoriesSubquery = from rv in _context.Set<RecentlyViewedProduct>().AsNoTracking()
-                                      join p in _context.Set<ProductEntity>().AsNoTracking() on rv.ProductId equals p.Id
+        var viewedCategoriesSubquery = from rv in context.Set<RecentlyViewedProduct>().AsNoTracking()
+                                      join p in context.Set<ProductEntity>().AsNoTracking() on rv.ProductId equals p.Id
                                       where rv.UserId == userId
                                       orderby rv.ViewedAt descending
                                       select p.CategoryId;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // Get products from same categories, excluding already viewed
-        var recommendations = await _context.Set<ProductEntity>()
+        var recommendations = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive &&
                        viewedCategoriesSubquery.Distinct().Contains(p.CategoryId) &&
@@ -248,7 +237,7 @@ public class ProductRecommendationService : IProductRecommendationService
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
-        var recommendationDtos = _mapper.Map<IEnumerable<ProductRecommendationDto>>(recommendations)
+        var recommendationDtos = mapper.Map<IEnumerable<ProductRecommendationDto>>(recommendations)
             .Select(rec => new ProductRecommendationDto(
                 rec.ProductId,
                 rec.Name,
@@ -272,7 +261,7 @@ public class ProductRecommendationService : IProductRecommendationService
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        var trendingProducts = await _context.Set<OrderItem>()
+        var trendingProducts = await context.Set<OrderItem>()
             .AsNoTracking()
             .Include(oi => oi.Product)
             .Where(oi => oi.CreatedAt >= startDate)
@@ -288,7 +277,7 @@ public class ProductRecommendationService : IProductRecommendationService
 
         // ✅ PERFORMANCE: Batch load products to avoid N+1 queries
         var productIds = trendingProducts.Select(tp => tp.ProductId).ToList();
-        var products = await _context.Set<ProductEntity>()
+        var products = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, cancellationToken);
@@ -300,7 +289,7 @@ public class ProductRecommendationService : IProductRecommendationService
         {
             if (products.TryGetValue(tp.ProductId, out var product))
             {
-                var rec = _mapper.Map<ProductRecommendationDto>(product);
+                var rec = mapper.Map<ProductRecommendationDto>(product);
                 recommendations.Add(new ProductRecommendationDto(
                     rec.ProductId,
                     rec.Name,
@@ -323,7 +312,7 @@ public class ProductRecommendationService : IProductRecommendationService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !oi.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        var bestSellers = await _context.Set<OrderItem>()
+        var bestSellers = await context.Set<OrderItem>()
             .AsNoTracking()
             .Include(oi => oi.Product)
             .GroupBy(oi => oi.ProductId)
@@ -338,7 +327,7 @@ public class ProductRecommendationService : IProductRecommendationService
 
         // ✅ PERFORMANCE: Batch load products to avoid N+1 queries
         var productIds = bestSellers.Select(bs => bs.ProductId).ToList();
-        var products = await _context.Set<ProductEntity>()
+        var products = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, cancellationToken);
@@ -350,7 +339,7 @@ public class ProductRecommendationService : IProductRecommendationService
         {
             if (products.TryGetValue(bs.ProductId, out var product))
             {
-                var rec = _mapper.Map<ProductRecommendationDto>(product);
+                var rec = mapper.Map<ProductRecommendationDto>(product);
                 recommendations.Add(new ProductRecommendationDto(
                     rec.ProductId,
                     rec.Name,
@@ -374,7 +363,7 @@ public class ProductRecommendationService : IProductRecommendationService
         var startDate = DateTime.UtcNow.AddDays(-days);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var newArrivals = await _context.Set<ProductEntity>()
+        var newArrivals = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.IsActive && p.CreatedAt >= startDate)
             .OrderByDescending(p => p.CreatedAt)
@@ -383,7 +372,7 @@ public class ProductRecommendationService : IProductRecommendationService
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
         // ✅ BOLUM 7.1.5: Records - Record constructor kullanımı (object initializer YASAK)
-        var recommendations = _mapper.Map<IEnumerable<ProductRecommendationDto>>(newArrivals)
+        var recommendations = mapper.Map<IEnumerable<ProductRecommendationDto>>(newArrivals)
             .Select(rec => new ProductRecommendationDto(
                 rec.ProductId,
                 rec.Name,

@@ -5,11 +5,13 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Analytics.Queries.GetWorstPerformers;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetWorstPerformersQueryValidator : AbstractValidator<GetWorstPerformersQuery>
+public class GetWorstPerformersQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetWorstPerformersQuery>
 {
-    public GetWorstPerformersQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    private readonly PaginationSettings settings = paginationSettings.Value;
+
+    public GetWorstPerformersQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
-        var maxPageSize = paginationSettings.Value.MaxPageSize;
+        var maxPageSize = settings.MaxPageSize;
 
         RuleFor(x => x.Limit)
             .GreaterThan(0).WithMessage("Limit 0'dan büyük olmalıdır")

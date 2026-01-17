@@ -5,23 +5,23 @@ using Microsoft.Extensions.Options;
 namespace Merge.Application.Support.Commands.SendLiveChatMessage;
 
 // ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
-public class SendLiveChatMessageCommandValidator : AbstractValidator<SendLiveChatMessageCommand>
+public class SendLiveChatMessageCommandValidator(IOptions<SupportSettings> settings) : AbstractValidator<SendLiveChatMessageCommand>
 {
-    public SendLiveChatMessageCommandValidator(IOptions<SupportSettings> settings)
-    {
-        var supportSettings = settings.Value;
+    private readonly SupportSettings config = settings.Value;
 
+    public SendLiveChatMessageCommandValidator() : this(Options.Create(new SupportSettings()))
+    {
         RuleFor(x => x.SessionId)
             .NotEmpty().WithMessage("Session ID boş olamaz");
 
         RuleFor(x => x.Content)
             .NotEmpty().WithMessage("Mesaj içeriği boş olamaz")
-            .MinimumLength(supportSettings.MinMessageContentLength).WithMessage($"Mesaj içeriği en az {supportSettings.MinMessageContentLength} karakter olmalıdır")
-            .MaximumLength(supportSettings.MaxLiveChatMessageLength)
-            .WithMessage($"Mesaj içeriği en fazla {supportSettings.MaxLiveChatMessageLength} karakter olmalıdır");
+            .MinimumLength(config.MinMessageContentLength).WithMessage($"Mesaj içeriği en az {config.MinMessageContentLength} karakter olmalıdır")
+            .MaximumLength(config.MaxLiveChatMessageLength)
+            .WithMessage($"Mesaj içeriği en fazla {config.MaxLiveChatMessageLength} karakter olmalıdır");
 
         RuleFor(x => x.MessageType)
-            .MaximumLength(supportSettings.MaxMessageTypeLength).WithMessage($"Mesaj tipi en fazla {supportSettings.MaxMessageTypeLength} karakter olmalıdır");
+            .MaximumLength(config.MaxMessageTypeLength).WithMessage($"Mesaj tipi en fazla {config.MaxMessageTypeLength} karakter olmalıdır");
 
         When(x => !string.IsNullOrEmpty(x.FileUrl), () =>
         {
@@ -33,8 +33,8 @@ public class SendLiveChatMessageCommandValidator : AbstractValidator<SendLiveCha
         When(x => !string.IsNullOrEmpty(x.FileName), () =>
         {
             RuleFor(x => x.FileName)
-                .MaximumLength(supportSettings.MaxAttachmentFileNameLength)
-                .WithMessage($"Dosya adı en fazla {supportSettings.MaxAttachmentFileNameLength} karakter olmalıdır");
+                .MaximumLength(config.MaxAttachmentFileNameLength)
+                .WithMessage($"Dosya adı en fazla {config.MaxAttachmentFileNameLength} karakter olmalıdır");
         });
     }
 }

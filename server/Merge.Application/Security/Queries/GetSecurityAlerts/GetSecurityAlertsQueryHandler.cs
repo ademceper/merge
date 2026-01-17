@@ -17,38 +17,24 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Security.Queries.GetSecurityAlerts;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetSecurityAlertsQueryHandler : IRequestHandler<GetSecurityAlertsQuery, PagedResult<SecurityAlertDto>>
+public class GetSecurityAlertsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetSecurityAlertsQueryHandler> logger, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetSecurityAlertsQuery, PagedResult<SecurityAlertDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetSecurityAlertsQueryHandler> _logger;
-    private readonly PaginationSettings _paginationSettings;
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
-    public GetSecurityAlertsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetSecurityAlertsQueryHandler> logger,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     public async Task<PagedResult<SecurityAlertDto>> Handle(GetSecurityAlertsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Security alerts sorgulanıyor. UserId: {UserId}, Severity: {Severity}, Status: {Status}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Security alerts sorgulanıyor. UserId: {UserId}, Severity: {Severity}, Status: {Status}, Page: {Page}, PageSize: {PageSize}",
             request.UserId?.ToString() ?? "All", request.Severity ?? "All", request.Status ?? "All", request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - ✅ BOLUM 12.0: Magic number config'den
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize ? _paginationSettings.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için Cartesian Explosion önleme
-        IQueryable<SecurityAlert> query = _context.Set<SecurityAlert>()
+        IQueryable<SecurityAlert> query = context.Set<SecurityAlert>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(a => a.User)
@@ -85,9 +71,9 @@ public class GetSecurityAlertsQueryHandler : IRequestHandler<GetSecurityAlertsQu
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        var alertDtos = _mapper.Map<IEnumerable<SecurityAlertDto>>(alerts).ToList();
+        var alertDtos = mapper.Map<IEnumerable<SecurityAlertDto>>(alerts).ToList();
 
-        _logger.LogInformation("Security alerts bulundu. TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}, ReturnedCount: {ReturnedCount}",
+        logger.LogInformation("Security alerts bulundu. TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}, ReturnedCount: {ReturnedCount}",
             totalCount, page, pageSize, alertDtos.Count);
 
         return new PagedResult<SecurityAlertDto>

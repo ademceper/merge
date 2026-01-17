@@ -16,26 +16,14 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Queries.GetUserCommunicationHistory;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetUserCommunicationHistoryQueryHandler : IRequestHandler<GetUserCommunicationHistoryQuery, CommunicationHistoryDto>
+public class GetUserCommunicationHistoryQueryHandler(IDbContext context, IMapper mapper, IOptions<SupportSettings> settings) : IRequestHandler<GetUserCommunicationHistoryQuery, CommunicationHistoryDto>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly SupportSettings _settings;
-
-    public GetUserCommunicationHistoryQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        IOptions<SupportSettings> settings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _settings = settings.Value;
-    }
+    private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<CommunicationHistoryDto> Handle(GetUserCommunicationHistoryQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
-        var user = await _context.Users
+        var user = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
@@ -45,7 +33,7 @@ public class GetUserCommunicationHistoryQueryHandler : IRequestHandler<GetUserCo
         }
 
         // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
-        IQueryable<CustomerCommunication> query = _context.Set<CustomerCommunication>()
+        IQueryable<CustomerCommunication> query = context.Set<CustomerCommunication>()
             .AsNoTracking()
             .Where(c => c.UserId == request.UserId);
 
@@ -71,7 +59,7 @@ public class GetUserCommunicationHistoryQueryHandler : IRequestHandler<GetUserCo
             .Include(c => c.SentBy)
             .OrderByDescending(c => c.CreatedAt)
             // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
-            .Take(_settings.DashboardRecentTicketsCount)
+            .Take(supportConfig.DashboardRecentTicketsCount)
             .ToListAsync(cancellationToken);
 
         var history = new CommunicationHistoryDto(
@@ -80,7 +68,7 @@ public class GetUserCommunicationHistoryQueryHandler : IRequestHandler<GetUserCo
             totalCommunications,
             communicationsByType,
             communicationsByChannel,
-            _mapper.Map<List<CustomerCommunicationDto>>(recent),
+            mapper.Map<List<CustomerCommunicationDto>>(recent),
             lastCommunicationDate
         );
 

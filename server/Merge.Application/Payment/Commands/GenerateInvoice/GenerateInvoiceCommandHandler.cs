@@ -23,38 +23,20 @@ namespace Merge.Application.Payment.Commands.GenerateInvoice;
 
 // BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullaniyor (Service layer bypass)
-public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceCommand, InvoiceDto>
+public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<GenerateInvoiceCommandHandler> logger, IOptions<PaymentSettings> paymentSettings) : IRequestHandler<GenerateInvoiceCommand, InvoiceDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GenerateInvoiceCommandHandler> _logger;
-    private readonly PaymentSettings _paymentSettings;
-
-    public GenerateInvoiceCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<GenerateInvoiceCommandHandler> logger,
-        IOptions<PaymentSettings> paymentSettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _paymentSettings = paymentSettings.Value;
-    }
+    private readonly PaymentSettings paymentConfig = paymentSettings.Value;
 
     public async Task<InvoiceDto> Handle(GenerateInvoiceCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Generating invoice. OrderId: {OrderId}", request.OrderId);
+        logger.LogInformation("Generating invoice. OrderId: {OrderId}", request.OrderId);
 
         // CRITICAL: Transaction baslat - atomic operation
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            var order = await _context.Set<OrderEntity>()
+            var order = await context.Set<OrderEntity>()
                 .Include(o => o.Address)
                 .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.Product)
@@ -62,28 +44,28 @@ public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceComm
 
             if (order == null)
             {
-                _logger.LogWarning("Order not found. OrderId: {OrderId}", request.OrderId);
+                logger.LogWarning("Order not found. OrderId: {OrderId}", request.OrderId);
                 throw new NotFoundException("Sipariş", request.OrderId);
             }
 
             if (order.PaymentStatus != PaymentStatus.Completed)
             {
-                _logger.LogWarning("Order payment status is not completed. OrderId: {OrderId}, Status: {Status}",
+                logger.LogWarning("Order payment status is not completed. OrderId: {OrderId}, Status: {Status}",
                     request.OrderId, order.PaymentStatus);
                 throw new BusinessException("Sadece ödenmiş siparişler için fatura oluşturulabilir.");
             }
 
             // Check if invoice already exists
-            var existingInvoice = await _context.Set<Invoice>()
+            var existingInvoice = await context.Set<Invoice>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(i => i.OrderId == request.OrderId, cancellationToken);
 
             if (existingInvoice != null)
             {
-                _logger.LogInformation("Invoice already exists. InvoiceId: {InvoiceId}, OrderId: {OrderId}",
+                logger.LogInformation("Invoice already exists. InvoiceId: {InvoiceId}, OrderId: {OrderId}",
                     existingInvoice.Id, request.OrderId);
 
-                var reloadedInvoice = await _context.Set<Invoice>()
+                var reloadedInvoice = await context.Set<Invoice>()
                     .AsNoTracking()
                     .Include(i => i.Order)
                         .ThenInclude(o => o.Address)
@@ -94,11 +76,11 @@ public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceComm
                         .ThenInclude(o => o.User)
                     .FirstOrDefaultAsync(i => i.Id == existingInvoice.Id, cancellationToken);
 
-                return _mapper.Map<InvoiceDto>(reloadedInvoice!);
+                return mapper.Map<InvoiceDto>(reloadedInvoice!);
             }
 
             var invoiceNumber = GenerateInvoiceNumber();
-            var dueDate = DateTime.UtcNow.AddDays(_paymentSettings.InvoiceDueDays);
+            var dueDate = DateTime.UtcNow.AddDays(paymentConfig.InvoiceDueDays);
 
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
             // ✅ BOLUM 1.3: Value Objects - Money value object kullanımı
@@ -118,11 +100,11 @@ public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceComm
                 discountMoney,
                 totalAmountMoney);
 
-            await _context.Set<Invoice>().AddAsync(invoice, cancellationToken);
+            await context.Set<Invoice>().AddAsync(invoice, cancellationToken);
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            invoice = await _context.Set<Invoice>()
+            invoice = await context.Set<Invoice>()
                 .AsNoTracking()
                 .Include(i => i.Order)
                     .ThenInclude(o => o.Address)
@@ -133,18 +115,18 @@ public class GenerateInvoiceCommandHandler : IRequestHandler<GenerateInvoiceComm
                     .ThenInclude(o => o.User)
                 .FirstOrDefaultAsync(i => i.Id == invoice.Id, cancellationToken);
 
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            _logger.LogInformation("Invoice generated successfully. InvoiceId: {InvoiceId}, InvoiceNumber: {InvoiceNumber}, OrderId: {OrderId}",
+            logger.LogInformation("Invoice generated successfully. InvoiceId: {InvoiceId}, InvoiceNumber: {InvoiceNumber}, OrderId: {OrderId}",
                 invoice!.Id, invoiceNumber, request.OrderId);
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-            return _mapper.Map<InvoiceDto>(invoice);
+            return mapper.Map<InvoiceDto>(invoice);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error generating invoice. OrderId: {OrderId}", request.OrderId);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Error generating invoice. OrderId: {OrderId}", request.OrderId);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }

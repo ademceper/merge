@@ -9,19 +9,13 @@ namespace Merge.Application.Review.EventHandlers;
 /// Review Helpfulness Marked Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class ReviewHelpfulnessMarkedEventHandler : INotificationHandler<ReviewHelpfulnessMarkedEvent>
+public class ReviewHelpfulnessMarkedEventHandler(ILogger<ReviewHelpfulnessMarkedEventHandler> logger) : INotificationHandler<ReviewHelpfulnessMarkedEvent>
 {
-    private readonly ILogger<ReviewHelpfulnessMarkedEventHandler> _logger;
-
-    public ReviewHelpfulnessMarkedEventHandler(ILogger<ReviewHelpfulnessMarkedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(ReviewHelpfulnessMarkedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Review helpfulness marked event received. ReviewId: {ReviewId}, UserId: {UserId}, IsHelpful: {IsHelpful}",
             notification.ReviewId, notification.UserId, notification.IsHelpful);
 
@@ -38,7 +32,7 @@ public class ReviewHelpfulnessMarkedEventHandler : INotificationHandler<ReviewHe
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling ReviewHelpfulnessMarkedEvent. ReviewId: {ReviewId}, UserId: {UserId}",
                 notification.ReviewId, notification.UserId);
             throw;

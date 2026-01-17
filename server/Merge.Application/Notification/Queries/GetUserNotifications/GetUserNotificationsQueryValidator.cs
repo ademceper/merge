@@ -9,9 +9,11 @@ namespace Merge.Application.Notification.Queries.GetUserNotifications;
 /// <summary>
 /// Get User Notifications Query Validator - BOLUM 2.1: FluentValidation (ZORUNLU)
 /// </summary>
-public class GetUserNotificationsQueryValidator : AbstractValidator<GetUserNotificationsQuery>
+public class GetUserNotificationsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetUserNotificationsQuery>
 {
-    public GetUserNotificationsQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    private readonly PaginationSettings settings = paginationSettings.Value;
+
+    public GetUserNotificationsQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
         RuleFor(x => x.UserId)
             .NotEmpty()
@@ -24,7 +26,7 @@ public class GetUserNotificationsQueryValidator : AbstractValidator<GetUserNotif
         RuleFor(x => x.PageSize)
             .GreaterThan(0)
             .WithMessage("Sayfa boyutu 0'dan büyük olmalıdır.")
-            .LessThanOrEqualTo(paginationSettings.Value.MaxPageSize)
-            .WithMessage($"Sayfa boyutu en fazla {paginationSettings.Value.MaxPageSize} olabilir.");
+            .LessThanOrEqualTo(settings.MaxPageSize)
+            .WithMessage($"Sayfa boyutu en fazla {settings.MaxPageSize} olabilir.");
     }
 }

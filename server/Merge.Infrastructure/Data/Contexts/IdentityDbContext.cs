@@ -7,11 +7,8 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Infrastructure.Data.Contexts;
 
-public class IdentityDbContext : IdentityDbContext<User, Role, Guid>, IDbContext
+public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : IdentityDbContext<User, Role, Guid>(options), IDbContext
 {
-    public IdentityDbContext(DbContextOptions<IdentityDbContext> options) : base(options)
-    {
-    }
 
     public DbSet<Address> Addresses { get; set; }
     public DbSet<TwoFactorAuth> TwoFactorAuths { get; set; }

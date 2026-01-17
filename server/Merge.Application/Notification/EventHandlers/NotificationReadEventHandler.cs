@@ -9,19 +9,13 @@ namespace Merge.Application.Notification.EventHandlers;
 /// <summary>
 /// Notification Read Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
 /// </summary>
-public class NotificationReadEventHandler : INotificationHandler<NotificationReadEvent>
+public class NotificationReadEventHandler(ILogger<NotificationReadEventHandler> logger) : INotificationHandler<NotificationReadEvent>
 {
-    private readonly ILogger<NotificationReadEventHandler> _logger;
-
-    public NotificationReadEventHandler(ILogger<NotificationReadEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(NotificationReadEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Notification read event received. NotificationId: {NotificationId}, UserId: {UserId}, ReadAt: {ReadAt}",
             notification.NotificationId, notification.UserId, notification.ReadAt);
 

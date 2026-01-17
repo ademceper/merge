@@ -28,43 +28,21 @@ namespace Merge.Application.Order.Commands.CreateOrderFromCart;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFromCartCommand, OrderDto>
+public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMediator mediator, IMapper mapper, ILogger<CreateOrderFromCartCommandHandler> logger, IOptions<OrderSettings> orderSettings) : IRequestHandler<CreateOrderFromCartCommand, OrderDto>
 {
-    private readonly IDbContext _context;
-
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMediator _mediator;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateOrderFromCartCommandHandler> _logger;
-    private readonly OrderSettings _orderSettings;
-
-    public CreateOrderFromCartCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMediator mediator,
-        IMapper mapper,
-        ILogger<CreateOrderFromCartCommandHandler> logger,
-        IOptions<OrderSettings> orderSettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mediator = mediator;
-        _mapper = mapper;
-        _logger = logger;
-        _orderSettings = orderSettings.Value;
-    }
+    private readonly OrderSettings orderConfig = orderSettings.Value;
 
     public async Task<OrderDto> Handle(CreateOrderFromCartCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Creating order from cart. UserId: {UserId}, AddressId: {AddressId}",
+        logger.LogInformation("Creating order from cart. UserId: {UserId}, AddressId: {AddressId}",
             request.UserId, request.AddressId);
 
         // ✅ CRITICAL: Transaction başlat - atomic operation
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            var cart = await _context.Set<CartEntity>()
+            var cart = await context.Set<CartEntity>()
                 .AsNoTracking()
                 .Include(c => c.CartItems)
                     .ThenInclude(ci => ci.Product)
@@ -76,7 +54,7 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
             }
 
             // ✅ PERFORMANCE: AsNoTracking for read-only query (check için)
-            var address = await _context.Set<AddressEntity>()
+            var address = await context.Set<AddressEntity>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(a => a.Id == request.AddressId && a.UserId == request.UserId, cancellationToken);
 
@@ -118,10 +96,10 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
                 order.AddDomainEvent(new OrderCreatedEvent(order.Id, order.UserId, order.TotalAmount));
             }
 
-            await _context.Set<OrderEntity>().AddAsync(order, cancellationToken);
+            await context.Set<OrderEntity>().AddAsync(order, cancellationToken);
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
             // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Kupon kullanımını kaydet
             if (!string.IsNullOrEmpty(request.CouponCode) && order.CouponDiscount.HasValue && order.CouponDiscount.Value > 0)
@@ -131,12 +109,12 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
 
             // Sepeti temizle
             // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-            await _mediator.Send(new ClearCartCommand(request.UserId), cancellationToken);
+            await mediator.Send(new ClearCartCommand(request.UserId), cancellationToken);
 
             // ✅ CRITICAL: Commit all changes atomically
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            order = await _context.Set<OrderEntity>()
+            order = await context.Set<OrderEntity>()
                 .AsNoTracking()
                 .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.Product)
@@ -147,20 +125,20 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
             // ✅ ERROR HANDLING FIX: Null check instead of null-forgiving operator
             if (order == null)
             {
-                _logger.LogError("Order not found after creation. OrderId: {OrderId}", order?.Id);
+                logger.LogError("Order not found after creation. OrderId: {OrderId}", order?.Id);
                 throw new InvalidOperationException("Order could not be retrieved after creation");
             }
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Order created successfully. OrderId: {OrderId}, OrderNumber: {OrderNumber}, UserId: {UserId}, TotalAmount: {TotalAmount}",
                 order.Id, order.OrderNumber, request.UserId, order.TotalAmount);
 
-            return _mapper.Map<OrderDto>(order);
+            return mapper.Map<OrderDto>(order);
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            _logger.LogError(ex,
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex,
                 "Order creation failed. UserId: {UserId}, AddressId: {AddressId}, CouponCode: {CouponCode}",
                 request.UserId, request.AddressId, request.CouponCode ?? "None");
             throw;
@@ -181,17 +159,17 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
                 userId,
                 productIds);
             
-            var couponDiscount = await _mediator.Send(validateCommand, cancellationToken);
+            var couponDiscount = await mediator.Send(validateCommand, cancellationToken);
 
             if (couponDiscount > 0)
             {
                 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
                 var getCouponQuery = new GetCouponByCodeQuery(couponCode);
-                var couponDto = await _mediator.Send(getCouponQuery, cancellationToken);
+                var couponDto = await mediator.Send(getCouponQuery, cancellationToken);
                 
                 if (couponDto != null)
                 {
-                    var coupon = await _context.Set<Coupon>()
+                    var coupon = await context.Set<Coupon>()
                         .AsNoTracking()
                         .FirstOrDefaultAsync(c => c.Id == couponDto.Id, cancellationToken);
 
@@ -213,7 +191,7 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
     {
         // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
         var getCouponQuery = new GetCouponByCodeQuery(couponCode);
-        var couponDto = await _mediator.Send(getCouponQuery, cancellationToken);
+        var couponDto = await mediator.Send(getCouponQuery, cancellationToken);
         
         if (couponDto != null && order.CouponDiscount.HasValue)
         {
@@ -223,9 +201,9 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
                 userId,
                 order.Id,
                 new Money(order.CouponDiscount.Value));
-            await _context.Set<CouponUsage>().AddAsync(couponUsage, cancellationToken);
+            await context.Set<CouponUsage>().AddAsync(couponUsage, cancellationToken);
 
-            var couponEntity = await _context.Set<Coupon>()
+            var couponEntity = await context.Set<Coupon>()
                 .FirstOrDefaultAsync(c => c.Id == couponDto.Id, cancellationToken);
 
             if (couponEntity != null)
@@ -233,19 +211,19 @@ public class CreateOrderFromCartCommandHandler : IRequestHandler<CreateOrderFrom
                 couponEntity.IncrementUsage();
             }
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
     }
 
     private decimal CalculateShippingCost(decimal subTotal)
     {
-        return subTotal >= _orderSettings.FreeShippingThreshold
+        return subTotal >= orderConfig.FreeShippingThreshold
             ? 0
-            : _orderSettings.DefaultShippingCost;
+            : orderConfig.DefaultShippingCost;
     }
 
     private decimal CalculateTax(decimal subTotal)
     {
-        return subTotal * _orderSettings.TaxRate;
+        return subTotal * orderConfig.TaxRate;
     }
 }

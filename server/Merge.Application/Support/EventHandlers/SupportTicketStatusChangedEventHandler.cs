@@ -8,19 +8,13 @@ namespace Merge.Application.Support.EventHandlers;
 /// Support Ticket Status Changed Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class SupportTicketStatusChangedEventHandler : INotificationHandler<SupportTicketStatusChangedEvent>
+public class SupportTicketStatusChangedEventHandler(ILogger<SupportTicketStatusChangedEventHandler> logger) : INotificationHandler<SupportTicketStatusChangedEvent>
 {
-    private readonly ILogger<SupportTicketStatusChangedEventHandler> _logger;
-
-    public SupportTicketStatusChangedEventHandler(ILogger<SupportTicketStatusChangedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(SupportTicketStatusChangedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Support ticket status changed event received. TicketId: {TicketId}, TicketNumber: {TicketNumber}, OldStatus: {OldStatus}, NewStatus: {NewStatus}",
             notification.TicketId, notification.TicketNumber, notification.OldStatus, notification.NewStatus);
 

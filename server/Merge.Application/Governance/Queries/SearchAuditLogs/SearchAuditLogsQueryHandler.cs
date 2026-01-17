@@ -23,14 +23,15 @@ public class SearchAuditLogsQueryHandler(
     ILogger<SearchAuditLogsQueryHandler> logger,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<SearchAuditLogsQuery, PagedResult<AuditLogDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
     public async Task<PagedResult<AuditLogDto>> Handle(SearchAuditLogsQuery request, CancellationToken cancellationToken)
     {
         logger.LogInformation("Searching audit logs. PageNumber: {PageNumber}, PageSize: {PageSize}",
             request.PageNumber, request.PageSize);
 
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize 
-            ? paginationSettings.Value.MaxPageSize 
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize 
+            ? paginationConfig.MaxPageSize 
             : request.PageSize;
         var pageNumber = request.PageNumber < 1 ? 1 : request.PageNumber;
 

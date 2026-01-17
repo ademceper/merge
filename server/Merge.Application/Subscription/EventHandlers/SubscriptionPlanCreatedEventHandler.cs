@@ -10,19 +10,13 @@ namespace Merge.Application.Subscription.EventHandlers;
 /// SubscriptionPlan Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class SubscriptionPlanCreatedEventHandler : INotificationHandler<SubscriptionPlanCreatedEvent>
+public class SubscriptionPlanCreatedEventHandler(ILogger<SubscriptionPlanCreatedEventHandler> logger) : INotificationHandler<SubscriptionPlanCreatedEvent>
 {
-    private readonly ILogger<SubscriptionPlanCreatedEventHandler> _logger;
-
-    public SubscriptionPlanCreatedEventHandler(ILogger<SubscriptionPlanCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(SubscriptionPlanCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Subscription plan created event received. PlanId: {PlanId}, Name: {Name}, PlanType: {PlanType}, Price: {Price}, Currency: {Currency}",
             notification.PlanId, notification.Name, notification.PlanType, notification.Price, notification.Currency);
 
@@ -39,7 +33,7 @@ public class SubscriptionPlanCreatedEventHandler : INotificationHandler<Subscrip
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling SubscriptionPlanCreatedEvent. PlanId: {PlanId}, Name: {Name}",
                 notification.PlanId, notification.Name);
             throw;

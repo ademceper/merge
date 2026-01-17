@@ -10,34 +10,22 @@ using Merge.Application.DTOs.Search;
 using Merge.Domain.Modules.Catalog;
 using Merge.Domain.Modules.Identity;
 
-
 namespace Merge.Application.Services.Search;
 
-public class ElasticsearchService : IElasticsearchService
+public class ElasticsearchService(IConfiguration configuration, ILogger<ElasticsearchService> logger, IMediator mediator) : IElasticsearchService
 {
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<ElasticsearchService> _logger;
-    private readonly IMediator _mediator; // Fallback to SQL search via MediatR
 
-    public ElasticsearchService(
-        IConfiguration configuration,
-        ILogger<ElasticsearchService> logger,
-        IMediator mediator)
-    {
-        _configuration = configuration;
-        _logger = logger;
-        _mediator = mediator;
-    }
+     // Fallback to SQL search via MediatR
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> IndexProductAsync(ProductDto product, CancellationToken cancellationToken = default)
     {
-        var elasticsearchUrl = _configuration["Elasticsearch:Url"];
-        var indexName = _configuration["Elasticsearch:IndexName"] ?? "products";
+        var elasticsearchUrl = configuration["Elasticsearch:Url"];
+        var indexName = configuration["Elasticsearch:IndexName"] ?? "products";
 
         if (string.IsNullOrEmpty(elasticsearchUrl))
         {
-            _logger.LogWarning("Elasticsearch not configured, skipping indexing");
+            logger.LogWarning("Elasticsearch not configured, skipping indexing");
             return false;
         }
 
@@ -45,7 +33,7 @@ public class ElasticsearchService : IElasticsearchService
         // var client = new ElasticClient(new Uri(elasticsearchUrl));
         // await client.IndexAsync(product, idx => idx.Index(indexName).Id(product.Id), cancellationToken);
         
-        _logger.LogInformation("Product indexed to Elasticsearch: {ProductId}", product.Id);
+        logger.LogInformation("Product indexed to Elasticsearch: {ProductId}", product.Id);
         await Task.CompletedTask;
         return true;
     }
@@ -53,17 +41,17 @@ public class ElasticsearchService : IElasticsearchService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> IndexProductsAsync(IEnumerable<ProductDto> products, CancellationToken cancellationToken = default)
     {
-        var elasticsearchUrl = _configuration["Elasticsearch:Url"];
+        var elasticsearchUrl = configuration["Elasticsearch:Url"];
 
         if (string.IsNullOrEmpty(elasticsearchUrl))
         {
-            _logger.LogWarning("Elasticsearch not configured, skipping bulk indexing");
+            logger.LogWarning("Elasticsearch not configured, skipping bulk indexing");
             return false;
         }
 
         // Mock implementation - Gerçek implementasyonda bulk indexing yapılacak
         var productList = products.ToList();
-        _logger.LogInformation("Bulk indexing {Count} products to Elasticsearch", productList.Count);
+        logger.LogInformation("Bulk indexing {Count} products to Elasticsearch", productList.Count);
         
         foreach (var product in productList)
         {
@@ -77,8 +65,8 @@ public class ElasticsearchService : IElasticsearchService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> DeleteProductAsync(Guid productId, CancellationToken cancellationToken = default)
     {
-        var elasticsearchUrl = _configuration["Elasticsearch:Url"];
-        var indexName = _configuration["Elasticsearch:IndexName"] ?? "products";
+        var elasticsearchUrl = configuration["Elasticsearch:Url"];
+        var indexName = configuration["Elasticsearch:IndexName"] ?? "products";
 
         if (string.IsNullOrEmpty(elasticsearchUrl))
         {
@@ -89,7 +77,7 @@ public class ElasticsearchService : IElasticsearchService
         // var client = new ElasticClient(new Uri(elasticsearchUrl));
         // await client.DeleteAsync<ProductDto>(productId, idx => idx.Index(indexName), cancellationToken);
         
-        _logger.LogInformation("Product deleted from Elasticsearch: {ProductId}", productId);
+        logger.LogInformation("Product deleted from Elasticsearch: {ProductId}", productId);
         await Task.CompletedTask;
         return true;
     }
@@ -97,12 +85,12 @@ public class ElasticsearchService : IElasticsearchService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SearchResultDto> SearchAsync(SearchRequestDto request, CancellationToken cancellationToken = default)
     {
-        var elasticsearchUrl = _configuration["Elasticsearch:Url"];
+        var elasticsearchUrl = configuration["Elasticsearch:Url"];
 
         if (string.IsNullOrEmpty(elasticsearchUrl) || !await IsAvailableAsync(cancellationToken))
         {
             // Fallback to SQL-based search via MediatR
-            _logger.LogInformation("Elasticsearch not available, using SQL search");
+            logger.LogInformation("Elasticsearch not available, using SQL search");
             var query = new SearchProductsQuery(
                 request.SearchTerm,
                 request.CategoryId,
@@ -115,7 +103,7 @@ public class ElasticsearchService : IElasticsearchService
                 request.Page ?? 1,
                 request.PageSize ?? 20
             );
-            return await _mediator.Send(query, cancellationToken);
+            return await mediator.Send(query, cancellationToken);
         }
 
         // Mock implementation - Gerçek implementasyonda Elasticsearch query yapılacak
@@ -131,7 +119,7 @@ public class ElasticsearchService : IElasticsearchService
         //     .From((request.Page ?? 1 - 1) * (request.PageSize ?? 20))
         //     .Size(request.PageSize ?? 20), cancellationToken);
         
-        _logger.LogInformation("Elasticsearch search executed: {SearchTerm}", request.SearchTerm);
+        logger.LogInformation("Elasticsearch search executed: {SearchTerm}", request.SearchTerm);
         
         // Fallback to SQL search for now via MediatR
         var fallbackQuery = new SearchProductsQuery(
@@ -146,22 +134,22 @@ public class ElasticsearchService : IElasticsearchService
             request.Page ?? 1,
             request.PageSize ?? 20
         );
-        return await _mediator.Send(fallbackQuery, cancellationToken);
+        return await mediator.Send(fallbackQuery, cancellationToken);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> ReindexAllProductsAsync(CancellationToken cancellationToken = default)
     {
-        var elasticsearchUrl = _configuration["Elasticsearch:Url"];
+        var elasticsearchUrl = configuration["Elasticsearch:Url"];
 
         if (string.IsNullOrEmpty(elasticsearchUrl))
         {
-            _logger.LogWarning("Elasticsearch not configured, cannot reindex");
+            logger.LogWarning("Elasticsearch not configured, cannot reindex");
             return false;
         }
 
         // Mock implementation - Gerçek implementasyonda tüm ürünler indexlenecek
-        _logger.LogInformation("Reindexing all products to Elasticsearch");
+        logger.LogInformation("Reindexing all products to Elasticsearch");
         await Task.Delay(1000, cancellationToken); // Simulate reindexing
         return true;
     }
@@ -169,7 +157,7 @@ public class ElasticsearchService : IElasticsearchService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)
     {
-        var elasticsearchUrl = _configuration["Elasticsearch:Url"];
+        var elasticsearchUrl = configuration["Elasticsearch:Url"];
 
         if (string.IsNullOrEmpty(elasticsearchUrl))
         {

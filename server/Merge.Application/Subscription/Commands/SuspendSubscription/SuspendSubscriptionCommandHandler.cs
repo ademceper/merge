@@ -12,29 +12,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Subscription.Commands.SuspendSubscription;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class SuspendSubscriptionCommandHandler : IRequestHandler<SuspendSubscriptionCommand, bool>
+public class SuspendSubscriptionCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<SuspendSubscriptionCommandHandler> logger) : IRequestHandler<SuspendSubscriptionCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<SuspendSubscriptionCommandHandler> _logger;
-
-    public SuspendSubscriptionCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<SuspendSubscriptionCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(SuspendSubscriptionCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Suspending subscription. SubscriptionId: {SubscriptionId}", request.SubscriptionId);
+        logger.LogInformation("Suspending subscription. SubscriptionId: {SubscriptionId}", request.SubscriptionId);
 
         // ✅ NOT: AsNoTracking() YOK - Entity track edilmeli (update için)
-        var subscription = await _context.Set<UserSubscription>()
+        var subscription = await context.Set<UserSubscription>()
             .FirstOrDefaultAsync(us => us.Id == request.SubscriptionId, cancellationToken);
 
         if (subscription == null)
@@ -46,10 +33,10 @@ public class SuspendSubscriptionCommandHandler : IRequestHandler<SuspendSubscrip
         subscription.Suspend();
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Subscription suspended successfully. SubscriptionId: {SubscriptionId}", subscription.Id);
+        logger.LogInformation("Subscription suspended successfully. SubscriptionId: {SubscriptionId}", subscription.Id);
 
         return true;
     }

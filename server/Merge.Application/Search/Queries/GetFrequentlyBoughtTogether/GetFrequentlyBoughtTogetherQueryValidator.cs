@@ -5,12 +5,12 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Search.Queries.GetFrequentlyBoughtTogether;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetFrequentlyBoughtTogetherQueryValidator : AbstractValidator<GetFrequentlyBoughtTogetherQuery>
+public class GetFrequentlyBoughtTogetherQueryValidator(IOptions<SearchSettings> searchSettings) : AbstractValidator<GetFrequentlyBoughtTogetherQuery>
 {
-    public GetFrequentlyBoughtTogetherQueryValidator(IOptions<SearchSettings> searchSettings)
-    {
-        var settings = searchSettings.Value;
+    private readonly SearchSettings config = searchSettings.Value;
 
+    public GetFrequentlyBoughtTogetherQueryValidator() : this(Options.Create(new SearchSettings()))
+    {
         RuleFor(x => x.ProductId)
             .NotEmpty()
             .WithMessage("Ürün ID'si boş olamaz.");
@@ -18,7 +18,7 @@ public class GetFrequentlyBoughtTogetherQueryValidator : AbstractValidator<GetFr
         RuleFor(x => x.MaxResults)
             .GreaterThan(0)
             .WithMessage("Maksimum sonuç sayısı 1'den büyük olmalıdır.")
-            .LessThanOrEqualTo(settings.MaxRecommendationResults)
-            .WithMessage($"Maksimum sonuç sayısı en fazla {settings.MaxRecommendationResults} olabilir.");
+            .LessThanOrEqualTo(config.MaxRecommendationResults)
+            .WithMessage($"Maksimum sonuç sayısı en fazla {config.MaxRecommendationResults} olabilir.");
     }
 }

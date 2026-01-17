@@ -18,39 +18,21 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Commands.CreateKnowledgeBaseArticle;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreateKnowledgeBaseArticleCommandHandler : IRequestHandler<CreateKnowledgeBaseArticleCommand, KnowledgeBaseArticleDto>
+public class CreateKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateKnowledgeBaseArticleCommandHandler> logger, IOptions<SupportSettings> settings) : IRequestHandler<CreateKnowledgeBaseArticleCommand, KnowledgeBaseArticleDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateKnowledgeBaseArticleCommandHandler> _logger;
-    private readonly SupportSettings _settings;
-
-    public CreateKnowledgeBaseArticleCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateKnowledgeBaseArticleCommandHandler> logger,
-        IOptions<SupportSettings> settings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _settings = settings.Value;
-    }
+    private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<KnowledgeBaseArticleDto> Handle(CreateKnowledgeBaseArticleCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Creating knowledge base article. Title: {Title}, AuthorId: {AuthorId}, Status: {Status}",
+        logger.LogInformation("Creating knowledge base article. Title: {Title}, AuthorId: {AuthorId}, Status: {Status}",
             request.Title, request.AuthorId, request.Status);
 
         var slug = GenerateSlug(request.Title);
 
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         // Ensure unique slug
-        var existingSlug = await _context.Set<KnowledgeBaseArticle>()
+        var existingSlug = await context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
             .AnyAsync(a => a.Slug == slug, cancellationToken);
         
@@ -72,23 +54,23 @@ public class CreateKnowledgeBaseArticleCommandHandler : IRequestHandler<CreateKn
             request.DisplayOrder,
             request.Tags != null ? string.Join(",", request.Tags) : null);
 
-        await _context.Set<KnowledgeBaseArticle>().AddAsync(article, cancellationToken);
+        await context.Set<KnowledgeBaseArticle>().AddAsync(article, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Knowledge base article {ArticleId} created successfully. Title: {Title}, Slug: {Slug}",
+        logger.LogInformation("Knowledge base article {ArticleId} created successfully. Title: {Title}, Slug: {Slug}",
             article.Id, request.Title, slug);
 
         // ✅ PERFORMANCE: Reload with includes for mapping
-        article = await _context.Set<KnowledgeBaseArticle>()
+        article = await context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
             .Include(a => a.Category)
             .Include(a => a.Author)
             .FirstOrDefaultAsync(a => a.Id == article.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return _mapper.Map<KnowledgeBaseArticleDto>(article!);
+        return mapper.Map<KnowledgeBaseArticleDto>(article!);
     }
 
     private string GenerateSlug(string title)
@@ -118,9 +100,9 @@ public class CreateKnowledgeBaseArticleCommandHandler : IRequestHandler<CreateKn
         slug = slug.Trim('-');
 
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
-        if (slug.Length > _settings.MaxArticleSlugLength)
+        if (slug.Length > supportConfig.MaxArticleSlugLength)
         {
-            slug = slug.Substring(0, _settings.MaxArticleSlugLength);
+            slug = slug.Substring(0, supportConfig.MaxArticleSlugLength);
         }
 
         return slug;

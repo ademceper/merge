@@ -19,34 +19,21 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Review.Commands.EvaluateProductBadges;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class EvaluateProductBadgesCommandHandler : IRequestHandler<EvaluateProductBadgesCommand>
+public class EvaluateProductBadgesCommandHandler(IDbContext context, IMediator mediator, ILogger<EvaluateProductBadgesCommandHandler> logger) : IRequestHandler<EvaluateProductBadgesCommand>
 {
-    private readonly IDbContext _context;
-    private readonly IMediator _mediator;
-    private readonly ILogger<EvaluateProductBadgesCommandHandler> _logger;
-
-    public EvaluateProductBadgesCommandHandler(
-        IDbContext context,
-        IMediator mediator,
-        ILogger<EvaluateProductBadgesCommandHandler> logger)
-    {
-        _context = context;
-        _mediator = mediator;
-        _logger = logger;
-    }
 
     public async Task Handle(EvaluateProductBadgesCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Evaluating product badges. ProductId: {ProductId}", request.ProductId);
+        logger.LogInformation("Evaluating product badges. ProductId: {ProductId}", request.ProductId);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
-        var badges = await _context.Set<TrustBadge>()
+        var badges = await context.Set<TrustBadge>()
             .AsNoTracking()
             .Where(b => b.IsActive && b.BadgeType == "Product")
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var product = await _context.Set<ProductEntity>()
+        var product = await context.Set<ProductEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
@@ -54,13 +41,13 @@ public class EvaluateProductBadgesCommandHandler : IRequestHandler<EvaluateProdu
 
         // ✅ PERFORMANCE: Removed manual !oi.Order.IsDeleted, !r.IsDeleted (Global Query Filter)
         // Get product metrics
-        var totalSales = await _context.Set<OrderItem>()
+        var totalSales = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.ProductId == request.ProductId && oi.Order.PaymentStatus == PaymentStatus.Completed)
             .SumAsync(oi => oi.Quantity, cancellationToken);
 
         var averageRating = product.Rating;
-        var totalReviews = await _context.Set<ReviewEntity>()
+        var totalReviews = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .CountAsync(r => r.ProductId == request.ProductId && r.IsApproved, cancellationToken);
 
@@ -90,7 +77,7 @@ public class EvaluateProductBadgesCommandHandler : IRequestHandler<EvaluateProdu
             if (qualifies)
             {
                 // ✅ PERFORMANCE: Removed manual !ptb.IsDeleted (Global Query Filter)
-                var existing = await _context.Set<ProductTrustBadge>()
+                var existing = await context.Set<ProductTrustBadge>()
                     .FirstOrDefaultAsync(ptb => ptb.ProductId == request.ProductId && ptb.TrustBadgeId == badge.Id, cancellationToken);
 
                 if (existing == null)
@@ -101,11 +88,11 @@ public class EvaluateProductBadgesCommandHandler : IRequestHandler<EvaluateProdu
                         badge.Id,
                         null,
                         "Automatically awarded based on product performance");
-                    await _mediator.Send(awardCommand, cancellationToken);
+                    await mediator.Send(awardCommand, cancellationToken);
                 }
             }
         }
 
-        _logger.LogInformation("Product badges evaluated successfully. ProductId: {ProductId}", request.ProductId);
+        logger.LogInformation("Product badges evaluated successfully. ProductId: {ProductId}", request.ProductId);
     }
 }

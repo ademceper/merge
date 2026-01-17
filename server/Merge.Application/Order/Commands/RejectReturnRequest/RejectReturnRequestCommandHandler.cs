@@ -13,25 +13,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Order.Commands.RejectReturnRequest;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class RejectReturnRequestCommandHandler : IRequestHandler<RejectReturnRequestCommand, bool>
+public class RejectReturnRequestCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<RejectReturnRequestCommandHandler> logger) : IRequestHandler<RejectReturnRequestCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<RejectReturnRequestCommandHandler> _logger;
-
-    public RejectReturnRequestCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<RejectReturnRequestCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(RejectReturnRequestCommand request, CancellationToken cancellationToken)
     {
-        var returnRequest = await _context.Set<ReturnRequest>()
+        var returnRequest = await context.Set<ReturnRequest>()
             .FirstOrDefaultAsync(r => r.Id == request.ReturnRequestId, cancellationToken);
 
         if (returnRequest == null)
@@ -43,9 +30,9 @@ public class RejectReturnRequestCommandHandler : IRequestHandler<RejectReturnReq
         returnRequest.Reject(request.Reason);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Return request rejected. ReturnRequestId: {ReturnRequestId}, Reason: {Reason}", 
+        logger.LogInformation("Return request rejected. ReturnRequestId: {ReturnRequestId}, Reason: {Reason}", 
             request.ReturnRequestId, request.Reason);
 
         return true;

@@ -18,36 +18,18 @@ namespace Merge.Application.Product.Commands.CreateProductComparison;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class CreateProductComparisonCommandHandler : IRequestHandler<CreateProductComparisonCommand, ProductComparisonDto>
+public class CreateProductComparisonCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateProductComparisonCommandHandler> logger, ICacheService cache) : IRequestHandler<CreateProductComparisonCommand, ProductComparisonDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateProductComparisonCommandHandler> _logger;
-    private readonly ICacheService _cache;
+
     private const string CACHE_KEY_USER_COMPARISON = "user_comparison_";
     private const string CACHE_KEY_USER_COMPARISONS = "user_comparisons_";
 
-    public CreateProductComparisonCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateProductComparisonCommandHandler> logger,
-        ICacheService cache)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _cache = cache;
-    }
-
     public async Task<ProductComparisonDto> Handle(CreateProductComparisonCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Creating product comparison. UserId: {UserId}, ProductCount: {ProductCount}",
+        logger.LogInformation("Creating product comparison. UserId: {UserId}, ProductCount: {ProductCount}",
             request.UserId, request.ProductIds.Count);
 
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
@@ -56,12 +38,12 @@ public class CreateProductComparisonCommandHandler : IRequestHandler<CreateProdu
                 request.Name,
                 !string.IsNullOrEmpty(request.Name));
 
-            await _context.Set<ProductComparison>().AddAsync(comparison, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await context.Set<ProductComparison>().AddAsync(comparison, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             // ✅ PERFORMANCE: Batch load products to avoid N+1 queries
             var productIds = request.ProductIds.Distinct().ToList();
-            var products = await _context.Set<ProductEntity>()
+            var products = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .Where(p => productIds.Contains(p.Id))
                 .ToDictionaryAsync(p => p.Id, cancellationToken);
@@ -77,23 +59,23 @@ public class CreateProductComparisonCommandHandler : IRequestHandler<CreateProdu
             }
 
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             // ✅ BOLUM 10.2: Cache invalidation
-            await _cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISON}{request.UserId}", cancellationToken);
-            await _cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_", cancellationToken);
-            await _cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_true_", cancellationToken);
-            await _cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_false_", cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISON}{request.UserId}", cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_", cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_true_", cancellationToken);
+            await cache.RemoveAsync($"{CACHE_KEY_USER_COMPARISONS}{request.UserId}_false_", cancellationToken);
 
-            comparison = await _context.Set<ProductComparison>()
+            comparison = await context.Set<ProductComparison>()
                 .AsNoTracking()
                 .Include(c => c.Items)
                     .ThenInclude(i => i.Product)
                         .ThenInclude(p => p.Category)
                 .FirstOrDefaultAsync(c => c.Id == comparison.Id, cancellationToken);
 
-            _logger.LogInformation("Product comparison created successfully. ComparisonId: {ComparisonId}, UserId: {UserId}",
+            logger.LogInformation("Product comparison created successfully. ComparisonId: {ComparisonId}, UserId: {UserId}",
                 comparison!.Id, request.UserId);
 
             // Map to DTO (ProductComparisonService'deki MapToDto mantığını kullan)
@@ -101,8 +83,8 @@ public class CreateProductComparisonCommandHandler : IRequestHandler<CreateProdu
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating product comparison. UserId: {UserId}", request.UserId);
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Error creating product comparison. UserId: {UserId}", request.UserId);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
     }
@@ -110,7 +92,7 @@ public class CreateProductComparisonCommandHandler : IRequestHandler<CreateProdu
     private async Task<ProductComparisonDto> MapToDto(ProductComparison comparison, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
-        var itemsQuery = _context.Set<ProductComparisonItem>()
+        var itemsQuery = context.Set<ProductComparisonItem>()
             .AsNoTracking()
             .Where(i => i.ComparisonId == comparison.Id)
             .OrderBy(i => i.Position);
@@ -124,7 +106,7 @@ public class CreateProductComparisonCommandHandler : IRequestHandler<CreateProdu
         // ✅ PERFORMANCE: Batch load reviews to avoid N+1 queries (subquery ile)
         var productIdsSubquery = from i in itemsQuery select i.ProductId;
         Dictionary<Guid, (decimal Rating, int Count)> reviewsDict;
-        var reviews = await _context.Set<ReviewEntity>()
+        var reviews = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => productIdsSubquery.Contains(r.ProductId))
             .GroupBy(r => r.ProductId)
@@ -146,7 +128,7 @@ public class CreateProductComparisonCommandHandler : IRequestHandler<CreateProdu
             var hasReviewStats = reviewsDict.TryGetValue(item.ProductId, out var stats);
 
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-            var compProduct = _mapper.Map<ComparisonProductDto>(item.Product);
+            var compProduct = mapper.Map<ComparisonProductDto>(item.Product);
             compProduct = compProduct with
             {
                 Position = item.Position,
@@ -159,7 +141,7 @@ public class CreateProductComparisonCommandHandler : IRequestHandler<CreateProdu
         }
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var comparisonDto = _mapper.Map<ProductComparisonDto>(comparison);
+        var comparisonDto = mapper.Map<ProductComparisonDto>(comparison);
         comparisonDto = comparisonDto with { Products = products.AsReadOnly() };
         return comparisonDto;
     }

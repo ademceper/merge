@@ -14,23 +14,10 @@ using Merge.Domain.Modules.Ordering;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
-
 namespace Merge.Application.Services.Logistics;
 
-public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
+public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<DeliveryTimeEstimationService> logger) : IDeliveryTimeEstimationService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<DeliveryTimeEstimationService> _logger;
-
-    public DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<DeliveryTimeEstimationService> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<DeliveryTimeEstimationDto> CreateEstimationAsync(CreateDeliveryTimeEstimationDto dto, CancellationToken cancellationToken = default)
@@ -50,12 +37,12 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
             conditionsJson,
             dto.IsActive);
 
-        await _context.Set<DeliveryTimeEstimation>().AddAsync(estimation, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<DeliveryTimeEstimation>().AddAsync(estimation, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with includes in one query (N+1 fix)
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
-        var createdEstimation = await _context.Set<DeliveryTimeEstimation>()
+        var createdEstimation = await context.Set<DeliveryTimeEstimation>()
             .AsNoTracking()
             .Include(e => e.Product)
             .Include(e => e.Category)
@@ -63,14 +50,14 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
             .FirstOrDefaultAsync(e => e.Id == estimation.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<DeliveryTimeEstimationDto>(createdEstimation!);
+        return mapper.Map<DeliveryTimeEstimationDto>(createdEstimation!);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<DeliveryTimeEstimationDto?> GetEstimationByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
-        var estimation = await _context.Set<DeliveryTimeEstimation>()
+        var estimation = await context.Set<DeliveryTimeEstimation>()
             .AsNoTracking()
             .Include(e => e.Product)
             .Include(e => e.Category)
@@ -78,14 +65,14 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return estimation != null ? _mapper.Map<DeliveryTimeEstimationDto>(estimation) : null;
+        return estimation != null ? mapper.Map<DeliveryTimeEstimationDto>(estimation) : null;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<DeliveryTimeEstimationDto>> GetAllEstimationsAsync(Guid? productId = null, Guid? categoryId = null, Guid? warehouseId = null, bool? isActive = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
-        IQueryable<DeliveryTimeEstimation> query = _context.Set<DeliveryTimeEstimation>()
+        IQueryable<DeliveryTimeEstimation> query = context.Set<DeliveryTimeEstimation>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(e => e.Product)
@@ -117,7 +104,7 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<DeliveryTimeEstimationDto>>(estimations);
+        return mapper.Map<IEnumerable<DeliveryTimeEstimationDto>>(estimations);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -125,7 +112,7 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
     {
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !e.IsDeleted (Global Query Filter)
-        var estimation = await _context.Set<DeliveryTimeEstimation>()
+        var estimation = await context.Set<DeliveryTimeEstimation>()
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
         if (estimation == null) return false;
@@ -152,7 +139,7 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
         {
             estimation.Deactivate();
         }
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -162,13 +149,13 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
     {
         // ✅ PERFORMANCE: Update operasyonu, AsNoTracking gerekli değil
         // ✅ PERFORMANCE: Removed manual !e.IsDeleted (Global Query Filter)
-        var estimation = await _context.Set<DeliveryTimeEstimation>()
+        var estimation = await context.Set<DeliveryTimeEstimation>()
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
         if (estimation == null) return false;
 
         estimation.MarkAsDeleted();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -184,7 +171,7 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         if (dto.ProductId.HasValue)
         {
-            estimation = await _context.Set<DeliveryTimeEstimation>()
+            estimation = await context.Set<DeliveryTimeEstimation>()
                 .AsNoTracking()
                 .Where(e => e.IsActive &&
                       e.ProductId == dto.ProductId.Value &&
@@ -203,7 +190,7 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         if (estimation == null && dto.CategoryId.HasValue)
         {
-            estimation = await _context.Set<DeliveryTimeEstimation>()
+            estimation = await context.Set<DeliveryTimeEstimation>()
                 .AsNoTracking()
                 .Where(e => e.IsActive &&
                       e.CategoryId == dto.CategoryId.Value &&
@@ -222,7 +209,7 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         if (estimation == null && dto.WarehouseId.HasValue)
         {
-            estimation = await _context.Set<DeliveryTimeEstimation>()
+            estimation = await context.Set<DeliveryTimeEstimation>()
                 .AsNoTracking()
                 .Where(e => e.IsActive &&
                       e.WarehouseId == dto.WarehouseId.Value &&
@@ -240,7 +227,7 @@ public class DeliveryTimeEstimationService : IDeliveryTimeEstimationService
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !e.IsDeleted (Global Query Filter)
         if (estimation == null)
         {
-            estimation = await _context.Set<DeliveryTimeEstimation>()
+            estimation = await context.Set<DeliveryTimeEstimation>()
                 .AsNoTracking()
                 .Where(e => e.IsActive &&
                       e.ProductId == null &&

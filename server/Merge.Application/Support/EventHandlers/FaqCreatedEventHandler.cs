@@ -10,19 +10,13 @@ namespace Merge.Application.Support.EventHandlers;
 /// FAQ Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class FaqCreatedEventHandler : INotificationHandler<FaqCreatedEvent>
+public class FaqCreatedEventHandler(ILogger<FaqCreatedEventHandler> logger) : INotificationHandler<FaqCreatedEvent>
 {
-    private readonly ILogger<FaqCreatedEventHandler> _logger;
-
-    public FaqCreatedEventHandler(ILogger<FaqCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(FaqCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "FAQ created event received. FaqId: {FaqId}, Question: {Question}, Category: {Category}",
             notification.FaqId, notification.Question, notification.Category);
 

@@ -5,18 +5,9 @@ using Merge.Application.Interfaces.SmsProviders;
 
 namespace Merge.Application.Services.SmsProviders;
 
-public class TwilioProvider : ISmsProvider
+public class TwilioProvider(IConfiguration configuration, ILogger<TwilioProvider> logger) : ISmsProvider
 {
     public string ProviderName => "Twilio";
-    
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<TwilioProvider> _logger;
-
-    public TwilioProvider(IConfiguration configuration, ILogger<TwilioProvider> logger)
-    {
-        _configuration = configuration;
-        _logger = logger;
-    }
 
     public async Task<SmsSendResult> SendSmsAsync(SmsMessage message)
     {
@@ -34,15 +25,15 @@ public class TwilioProvider : ISmsProvider
             throw new ValidationException("SMS mesajı boş olamaz.");
         }
 
-        _logger.LogInformation("Twilio SMS sending started. To: {To}", message.To);
+        logger.LogInformation("Twilio SMS sending started. To: {To}", message.To);
         
-        var accountSid = _configuration["SmsProviders:Twilio:AccountSid"];
-        var authToken = _configuration["SmsProviders:Twilio:AuthToken"];
-        var fromNumber = _configuration["SmsProviders:Twilio:FromNumber"];
+        var accountSid = configuration["SmsProviders:Twilio:AccountSid"];
+        var authToken = configuration["SmsProviders:Twilio:AuthToken"];
+        var fromNumber = configuration["SmsProviders:Twilio:FromNumber"];
         
         if (string.IsNullOrEmpty(accountSid) || string.IsNullOrEmpty(authToken) || string.IsNullOrEmpty(fromNumber))
         {
-            _logger.LogWarning("Twilio API credentials not configured");
+            logger.LogWarning("Twilio API credentials not configured");
             return new SmsSendResult
             {
                 Success = false,
@@ -58,7 +49,7 @@ public class TwilioProvider : ISmsProvider
         
         var messageId = $"TW_{Guid.NewGuid():N}";
         
-        _logger.LogInformation("Twilio SMS sent successfully. MessageId: {MessageId}", messageId);
+        logger.LogInformation("Twilio SMS sent successfully. MessageId: {MessageId}", messageId);
         
         return new SmsSendResult
         {
@@ -74,8 +65,8 @@ public class TwilioProvider : ISmsProvider
 
     public Task<bool> VerifyConfigurationAsync()
     {
-        var accountSid = _configuration["SmsProviders:Twilio:AccountSid"];
-        var authToken = _configuration["SmsProviders:Twilio:AuthToken"];
+        var accountSid = configuration["SmsProviders:Twilio:AccountSid"];
+        var authToken = configuration["SmsProviders:Twilio:AuthToken"];
         return Task.FromResult(!string.IsNullOrEmpty(accountSid) && !string.IsNullOrEmpty(authToken));
     }
 }

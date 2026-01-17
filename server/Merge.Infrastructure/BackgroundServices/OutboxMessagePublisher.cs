@@ -13,25 +13,16 @@ namespace Merge.Infrastructure.BackgroundServices;
 /// Background service that processes outbox messages for reliable event publishing.
 /// Implements the Outbox Pattern to ensure at-least-once delivery of domain events.
 /// </summary>
-public class OutboxMessagePublisher : BackgroundService
+public class OutboxMessagePublisher(IServiceScopeFactory scopeFactory, ILogger<OutboxMessagePublisher> logger) : BackgroundService
 {
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<OutboxMessagePublisher> _logger;
+
     private readonly TimeSpan _pollingInterval = TimeSpan.FromSeconds(5);
     private readonly int _batchSize = 20;
     private readonly int _maxRetryCount = 3;
 
-    public OutboxMessagePublisher(
-        IServiceScopeFactory scopeFactory,
-        ILogger<OutboxMessagePublisher> logger)
-    {
-        _scopeFactory = scopeFactory;
-        _logger = logger;
-    }
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("OutboxMessagePublisher started");
+        logger.LogInformation("OutboxMessagePublisher started");
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -41,18 +32,18 @@ public class OutboxMessagePublisher : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing outbox messages");
+                logger.LogError(ex, "Error processing outbox messages");
             }
 
             await Task.Delay(_pollingInterval, stoppingToken);
         }
 
-        _logger.LogInformation("OutboxMessagePublisher stopped");
+        logger.LogInformation("OutboxMessagePublisher stopped");
     }
 
     private async Task ProcessOutboxMessagesAsync(CancellationToken cancellationToken)
     {
-        using var scope = _scopeFactory.CreateScope();
+        using var scope = scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
@@ -67,7 +58,7 @@ public class OutboxMessagePublisher : BackgroundService
             return;
         }
 
-        _logger.LogInformation("Processing {Count} outbox messages", messages.Count);
+        logger.LogInformation("Processing {Count} outbox messages", messages.Count);
 
         foreach (var message in messages)
         {
@@ -81,7 +72,7 @@ public class OutboxMessagePublisher : BackgroundService
                     message.ProcessedOnUtc = DateTime.UtcNow;
                     message.Error = null;
 
-                    _logger.LogDebug("Successfully processed outbox message {MessageId} of type {Type}",
+                    logger.LogDebug("Successfully processed outbox message {MessageId} of type {Type}",
                         message.Id, message.Type);
                 }
                 else
@@ -89,7 +80,7 @@ public class OutboxMessagePublisher : BackgroundService
                     message.Error = "Failed to deserialize domain event";
                     message.RetryCount++;
 
-                    _logger.LogWarning("Failed to deserialize outbox message {MessageId} of type {Type}",
+                    logger.LogWarning("Failed to deserialize outbox message {MessageId} of type {Type}",
                         message.Id, message.Type);
                 }
             }
@@ -98,7 +89,7 @@ public class OutboxMessagePublisher : BackgroundService
                 message.Error = ex.Message;
                 message.RetryCount++;
 
-                _logger.LogError(ex, "Error processing outbox message {MessageId} of type {Type}",
+                logger.LogError(ex, "Error processing outbox message {MessageId} of type {Type}",
                     message.Id, message.Type);
             }
         }
@@ -113,7 +104,7 @@ public class OutboxMessagePublisher : BackgroundService
             var type = Type.GetType(message.Type);
             if (type == null)
             {
-                _logger.LogWarning("Could not find type {Type} for outbox message {MessageId}",
+                logger.LogWarning("Could not find type {Type} for outbox message {MessageId}",
                     message.Type, message.Id);
                 return null;
             }
@@ -125,7 +116,7 @@ public class OutboxMessagePublisher : BackgroundService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deserializing outbox message {MessageId}", message.Id);
+            logger.LogError(ex, "Error deserializing outbox message {MessageId}", message.Id);
             return null;
         }
     }

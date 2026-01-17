@@ -27,33 +27,15 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 namespace Merge.Application.Services.Seller;
 
-public class SellerFinanceService : ISellerFinanceService
+public class SellerFinanceService(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<SellerFinanceService> logger, IOptions<PaginationSettings> paginationSettings) : ISellerFinanceService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<SellerFinanceService> _logger;
-    private readonly PaginationSettings _paginationSettings;
-
-    public SellerFinanceService(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<SellerFinanceService> logger,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SellerBalanceDto> GetSellerBalanceAsync(Guid sellerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var seller = await _context.Set<SellerProfile>()
+        var seller = await context.Set<SellerProfile>()
             .AsNoTracking()
             .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
@@ -65,7 +47,7 @@ public class SellerFinanceService : ISellerFinanceService
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         // Calculate in-transit balance (payouts being processed)
-        var inTransitBalance = await _context.Set<CommissionPayout>()
+        var inTransitBalance = await context.Set<CommissionPayout>()
             .AsNoTracking()
             .Where(p => p.SellerId == sellerId && 
                    (p.Status == PayoutStatus.Pending || p.Status == PayoutStatus.Processing))
@@ -73,7 +55,7 @@ public class SellerFinanceService : ISellerFinanceService
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         // Calculate total payouts
-        var totalPayouts = await _context.Set<CommissionPayout>()
+        var totalPayouts = await context.Set<CommissionPayout>()
             .AsNoTracking()
             .Where(p => p.SellerId == sellerId && 
                    p.Status == PayoutStatus.Completed)
@@ -96,7 +78,7 @@ public class SellerFinanceService : ISellerFinanceService
     public async Task<decimal> GetAvailableBalanceAsync(Guid sellerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var seller = await _context.Set<SellerProfile>()
+        var seller = await context.Set<SellerProfile>()
             .AsNoTracking()
             .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
 
@@ -107,7 +89,7 @@ public class SellerFinanceService : ISellerFinanceService
     public async Task<decimal> GetPendingBalanceAsync(Guid sellerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var seller = await _context.Set<SellerProfile>()
+        var seller = await context.Set<SellerProfile>()
             .AsNoTracking()
             .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
 
@@ -118,7 +100,7 @@ public class SellerFinanceService : ISellerFinanceService
     public async Task<SellerTransactionDto> CreateTransactionAsync(Guid sellerId, SellerTransactionType transactionType, decimal amount, string description, Guid? relatedEntityId = null, string? relatedEntityType = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var seller = await _context.Set<SellerProfile>()
+        var seller = await context.Set<SellerProfile>()
             .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
 
         if (seller == null)
@@ -154,26 +136,26 @@ public class SellerFinanceService : ISellerFinanceService
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         transaction.Complete();
 
-        await _context.Set<SellerTransaction>().AddAsync(transaction, cancellationToken);
+        await context.Set<SellerTransaction>().AddAsync(transaction, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        transaction = await _context.Set<SellerTransaction>()
+        transaction = await context.Set<SellerTransaction>()
             .AsNoTracking()
             .Include(t => t.Seller)
             .FirstOrDefaultAsync(t => t.Id == transaction.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<SellerTransactionDto>(transaction!);
+        return mapper.Map<SellerTransactionDto>(transaction!);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SellerTransactionDto?> GetTransactionAsync(Guid transactionId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        var transaction = await _context.Set<SellerTransaction>()
+        var transaction = await context.Set<SellerTransaction>()
             .AsNoTracking()
             .Include(t => t.Seller)
             .FirstOrDefaultAsync(t => t.Id == transactionId, cancellationToken);
@@ -181,7 +163,7 @@ public class SellerFinanceService : ISellerFinanceService
         if (transaction == null) return null;
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<SellerTransactionDto>(transaction);
+        return mapper.Map<SellerTransactionDto>(transaction);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -191,11 +173,11 @@ public class SellerFinanceService : ISellerFinanceService
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic number config'den - PaginationSettings kullanımı
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        IQueryable<SellerTransaction> query = _context.Set<SellerTransaction>()
+        IQueryable<SellerTransaction> query = context.Set<SellerTransaction>()
             .AsNoTracking()
             .Include(t => t.Seller)
             .Where(t => t.SellerId == sellerId);
@@ -225,7 +207,7 @@ public class SellerFinanceService : ISellerFinanceService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var transactionDtos = _mapper.Map<IEnumerable<SellerTransactionDto>>(transactions).ToList();
+        var transactionDtos = mapper.Map<IEnumerable<SellerTransactionDto>>(transactions).ToList();
 
         return new PagedResult<SellerTransactionDto>
         {
@@ -240,7 +222,7 @@ public class SellerFinanceService : ISellerFinanceService
     public async Task<SellerInvoiceDto> GenerateInvoiceAsync(CreateSellerInvoiceDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var seller = await _context.Set<SellerProfile>()
+        var seller = await context.Set<SellerProfile>()
             .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.UserId == dto.SellerId, cancellationToken);
 
@@ -251,7 +233,7 @@ public class SellerFinanceService : ISellerFinanceService
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         // Get commissions for the period
-        var commissionStats = await _context.Set<SellerCommission>()
+        var commissionStats = await context.Set<SellerCommission>()
             .AsNoTracking()
             .Where(sc => sc.SellerId == dto.SellerId &&
                   sc.CreatedAt >= dto.PeriodStart &&
@@ -271,7 +253,7 @@ public class SellerFinanceService : ISellerFinanceService
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
         // Get payouts for the period
-        var totalPayouts = await _context.Set<CommissionPayout>()
+        var totalPayouts = await context.Set<CommissionPayout>()
             .AsNoTracking()
             .Where(p => p.SellerId == dto.SellerId &&
                   p.CreatedAt >= dto.PeriodStart &&
@@ -283,9 +265,9 @@ public class SellerFinanceService : ISellerFinanceService
         // ✅ PERFORMANCE: Explicit Join yaklaşımı - tek sorgu (N+1 fix)
         // Get orders for the period (for total earnings calculation)
         var totalEarnings = await (
-            from o in _context.Set<OrderEntity>().AsNoTracking()
-            join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
-            join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+            from o in context.Set<OrderEntity>().AsNoTracking()
+            join oi in context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+            join p in context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
             where o.PaymentStatus == PaymentStatus.Completed &&
                   o.CreatedAt >= dto.PeriodStart &&
                   o.CreatedAt <= dto.PeriodEnd &&
@@ -294,7 +276,7 @@ public class SellerFinanceService : ISellerFinanceService
         ).SumAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load commissions for invoice items (N+1 fix)
-        var commissions = await _context.Set<SellerCommission>()
+        var commissions = await context.Set<SellerCommission>()
             .AsNoTracking()
             .Include(c => c.Order)
             .Where(sc => sc.SellerId == dto.SellerId &&
@@ -333,24 +315,24 @@ public class SellerFinanceService : ISellerFinanceService
         // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
         invoice.UpdateInvoiceData(JsonSerializer.Serialize(invoiceItems));
 
-        await _context.Set<SellerInvoice>().AddAsync(invoice, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<SellerInvoice>().AddAsync(invoice, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        invoice = await _context.Set<SellerInvoice>()
+        invoice = await context.Set<SellerInvoice>()
             .AsNoTracking()
             .Include(i => i.Seller)
             .FirstOrDefaultAsync(i => i.Id == invoice.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<SellerInvoiceDto>(invoice!);
+        return mapper.Map<SellerInvoiceDto>(invoice!);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SellerInvoiceDto?> GetInvoiceAsync(Guid invoiceId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
-        var invoice = await _context.Set<SellerInvoice>()
+        var invoice = await context.Set<SellerInvoice>()
             .AsNoTracking()
             .Include(i => i.Seller)
             .FirstOrDefaultAsync(i => i.Id == invoiceId, cancellationToken);
@@ -358,7 +340,7 @@ public class SellerFinanceService : ISellerFinanceService
         if (invoice == null) return null;
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<SellerInvoiceDto>(invoice);
+        return mapper.Map<SellerInvoiceDto>(invoice);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -368,11 +350,11 @@ public class SellerFinanceService : ISellerFinanceService
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic number config'den - PaginationSettings kullanımı
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !i.IsDeleted (Global Query Filter)
-        IQueryable<SellerInvoice> query = _context.Set<SellerInvoice>()
+        IQueryable<SellerInvoice> query = context.Set<SellerInvoice>()
             .AsNoTracking()
             .Include(i => i.Seller)
             .Where(i => i.SellerId == sellerId);
@@ -392,7 +374,7 @@ public class SellerFinanceService : ISellerFinanceService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var invoiceDtos = _mapper.Map<IEnumerable<SellerInvoiceDto>>(invoices).ToList();
+        var invoiceDtos = mapper.Map<IEnumerable<SellerInvoiceDto>>(invoices).ToList();
 
         return new PagedResult<SellerInvoiceDto>
         {
@@ -407,7 +389,7 @@ public class SellerFinanceService : ISellerFinanceService
     public async Task<bool> MarkInvoiceAsPaidAsync(Guid invoiceId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !i.IsDeleted (Global Query Filter)
-        var invoice = await _context.Set<SellerInvoice>()
+        var invoice = await context.Set<SellerInvoice>()
             .FirstOrDefaultAsync(i => i.Id == invoiceId, cancellationToken);
 
         if (invoice == null) return false;
@@ -416,7 +398,7 @@ public class SellerFinanceService : ISellerFinanceService
         invoice.MarkAsPaid();
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -437,7 +419,7 @@ public class SellerFinanceService : ISellerFinanceService
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Earnings by month
-        var earningsByMonth = await _context.Set<SellerCommission>()
+        var earningsByMonth = await context.Set<SellerCommission>()
             .AsNoTracking()
             .Where(sc => sc.SellerId == sellerId &&
                   sc.CreatedAt >= startDate &&
@@ -448,7 +430,7 @@ public class SellerFinanceService : ISellerFinanceService
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
         // Payouts by month
-        var payoutsByMonth = await _context.Set<CommissionPayout>()
+        var payoutsByMonth = await context.Set<CommissionPayout>()
             .AsNoTracking()
             .Where(p => p.SellerId == sellerId &&
                   p.CreatedAt >= startDate &&
@@ -474,7 +456,7 @@ public class SellerFinanceService : ISellerFinanceService
     {
         var yearMonth = periodStart.ToString("yyyyMM");
         // ✅ PERFORMANCE: Removed manual !i.IsDeleted (Global Query Filter)
-        var existingCount = await _context.Set<SellerInvoice>()
+        var existingCount = await context.Set<SellerInvoice>()
             .AsNoTracking()
             .CountAsync(i => i.InvoiceNumber.StartsWith($"INV-{yearMonth}"), cancellationToken);
 

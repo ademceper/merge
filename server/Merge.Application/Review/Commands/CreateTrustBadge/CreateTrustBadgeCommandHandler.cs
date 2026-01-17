@@ -16,28 +16,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Review.Commands.CreateTrustBadge;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreateTrustBadgeCommandHandler : IRequestHandler<CreateTrustBadgeCommand, TrustBadgeDto>
+public class CreateTrustBadgeCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateTrustBadgeCommandHandler> logger) : IRequestHandler<CreateTrustBadgeCommand, TrustBadgeDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateTrustBadgeCommandHandler> _logger;
-
-    public CreateTrustBadgeCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateTrustBadgeCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<TrustBadgeDto> Handle(CreateTrustBadgeCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Creating trust badge. Name: {Name}, BadgeType: {BadgeType}",
             request.Name, request.BadgeType);
 
@@ -57,14 +41,14 @@ public class CreateTrustBadgeCommandHandler : IRequestHandler<CreateTrustBadgeCo
             badge.Deactivate();
         }
 
-        await _context.Set<TrustBadge>().AddAsync(badge, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<TrustBadge>().AddAsync(badge, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Trust badge created successfully. BadgeId: {BadgeId}, Name: {Name}",
             badge.Id, badge.Name);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<TrustBadgeDto>(badge);
+        return mapper.Map<TrustBadgeDto>(badge);
     }
 }

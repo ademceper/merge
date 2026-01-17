@@ -26,11 +26,12 @@ public class GetB2BUserPurchaseOrdersQueryHandler(
     ILogger<GetB2BUserPurchaseOrdersQueryHandler> logger,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetB2BUserPurchaseOrdersQuery, PagedResult<PurchaseOrderDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
     public async Task<PagedResult<PurchaseOrderDto>> Handle(GetB2BUserPurchaseOrdersQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries

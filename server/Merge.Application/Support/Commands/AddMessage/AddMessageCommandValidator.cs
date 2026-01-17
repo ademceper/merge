@@ -5,12 +5,12 @@ using Microsoft.Extensions.Options;
 namespace Merge.Application.Support.Commands.AddMessage;
 
 // ✅ BOLUM 2.1: Pipeline Behaviors - ValidationBehavior (ZORUNLU)
-public class AddMessageCommandValidator : AbstractValidator<AddMessageCommand>
+public class AddMessageCommandValidator(IOptions<SupportSettings> settings) : AbstractValidator<AddMessageCommand>
 {
-    public AddMessageCommandValidator(IOptions<SupportSettings> settings)
-    {
-        var supportSettings = settings.Value;
+    private readonly SupportSettings config = settings.Value;
 
+    public AddMessageCommandValidator() : this(Options.Create(new SupportSettings()))
+    {
         RuleFor(x => x.UserId)
             .NotEmpty().WithMessage("Kullanıcı ID boş olamaz");
 
@@ -19,8 +19,8 @@ public class AddMessageCommandValidator : AbstractValidator<AddMessageCommand>
 
         RuleFor(x => x.Message)
             .NotEmpty().WithMessage("Mesaj boş olamaz")
-            .MinimumLength(supportSettings.MinMessageContentLength).WithMessage($"Mesaj en az {supportSettings.MinMessageContentLength} karakter olmalıdır")
-            .MaximumLength(supportSettings.MaxTicketMessageLength)
-            .WithMessage($"Mesaj en fazla {supportSettings.MaxTicketMessageLength} karakter olmalıdır");
+            .MinimumLength(config.MinMessageContentLength).WithMessage($"Mesaj en az {config.MinMessageContentLength} karakter olmalıdır")
+            .MaximumLength(config.MaxTicketMessageLength)
+            .WithMessage($"Mesaj en fazla {config.MaxTicketMessageLength} karakter olmalıdır");
     }
 }

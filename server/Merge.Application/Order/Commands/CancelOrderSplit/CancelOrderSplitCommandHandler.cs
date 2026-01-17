@@ -14,25 +14,12 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Order.Commands.CancelOrderSplit;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CancelOrderSplitCommandHandler : IRequestHandler<CancelOrderSplitCommand, bool>
+public class CancelOrderSplitCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<CancelOrderSplitCommandHandler> logger) : IRequestHandler<CancelOrderSplitCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<CancelOrderSplitCommandHandler> _logger;
-
-    public CancelOrderSplitCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<CancelOrderSplitCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(CancelOrderSplitCommand request, CancellationToken cancellationToken)
     {
-        var split = await _context.Set<OrderSplit>()
+        var split = await context.Set<OrderSplit>()
             .Include(s => s.SplitOrder)
             .Include(s => s.OriginalOrder)
             .FirstOrDefaultAsync(s => s.Id == request.SplitId, cancellationToken);
@@ -45,7 +32,7 @@ public class CancelOrderSplitCommandHandler : IRequestHandler<CancelOrderSplitCo
         }
 
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with ThenInclude)
-        var splitItems = await _context.Set<OrderSplitItem>()
+        var splitItems = await context.Set<OrderSplitItem>()
             .AsSplitQuery()
             .Include(si => si.OriginalOrderItem)
                 .ThenInclude(oi => oi.Product)
@@ -73,9 +60,9 @@ public class CancelOrderSplitCommandHandler : IRequestHandler<CancelOrderSplitCo
         split.Cancel();
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         
-        _logger.LogInformation("Order split cancelled. SplitId: {SplitId}", request.SplitId);
+        logger.LogInformation("Order split cancelled. SplitId: {SplitId}", request.SplitId);
         
         return true;
     }

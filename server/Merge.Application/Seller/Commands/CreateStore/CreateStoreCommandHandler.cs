@@ -19,29 +19,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Commands.CreateStore;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreateStoreCommandHandler : IRequestHandler<CreateStoreCommand, StoreDto>
+public class CreateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateStoreCommandHandler> logger) : IRequestHandler<CreateStoreCommand, StoreDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateStoreCommandHandler> _logger;
-
-    public CreateStoreCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateStoreCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<StoreDto> Handle(CreateStoreCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Creating store for seller {SellerId}, StoreName: {StoreName}",
+        logger.LogInformation("Creating store for seller {SellerId}, StoreName: {StoreName}",
             request.SellerId, request.Dto.StoreName);
 
         if (request.Dto == null)
@@ -55,13 +39,13 @@ public class CreateStoreCommandHandler : IRequestHandler<CreateStoreCommand, Sto
         }
 
         // ✅ PERFORMANCE: Removed manual !u.IsDeleted (Global Query Filter)
-        var seller = await _context.Users
+        var seller = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.SellerId, cancellationToken);
 
         if (seller == null)
         {
-            _logger.LogWarning("Seller not found. SellerId: {SellerId}", request.SellerId);
+            logger.LogWarning("Seller not found. SellerId: {SellerId}", request.SellerId);
             throw new NotFoundException("Satıcı", request.SellerId);
         }
 
@@ -69,7 +53,7 @@ public class CreateStoreCommandHandler : IRequestHandler<CreateStoreCommand, Sto
         if (request.Dto.IsPrimary)
         {
             // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-            var existingPrimary = await _context.Set<Store>()
+            var existingPrimary = await context.Set<Store>()
                 .Where(s => s.SellerId == request.SellerId && s.IsPrimary)
                 .ToListAsync(cancellationToken);
 
@@ -100,34 +84,34 @@ public class CreateStoreCommandHandler : IRequestHandler<CreateStoreCommand, Sto
             store.SetAsPrimary();
         }
 
-        await _context.Set<Store>().AddAsync(store, cancellationToken);
+        await context.Set<Store>().AddAsync(store, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        var reloadedStore = await _context.Set<Store>()
+        var reloadedStore = await context.Set<Store>()
             .AsNoTracking()
             .Include(s => s.Seller)
             .FirstOrDefaultAsync(s => s.Id == store.Id, cancellationToken);
 
         if (reloadedStore == null)
         {
-            _logger.LogWarning("Store {StoreId} not found after creation", store.Id);
-            return _mapper.Map<StoreDto>(store);
+            logger.LogWarning("Store {StoreId} not found after creation", store.Id);
+            return mapper.Map<StoreDto>(store);
         }
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var storeDto = _mapper.Map<StoreDto>(reloadedStore);
+        var storeDto = mapper.Map<StoreDto>(reloadedStore);
         
         // ✅ PERFORMANCE: ProductCount için database'de count (N+1 fix)
         // ✅ FIX: Record immutable - with expression kullan
-        var productCount = await _context.Set<ProductEntity>()
+        var productCount = await context.Set<ProductEntity>()
             .AsNoTracking()
             .CountAsync(p => p.StoreId.HasValue && p.StoreId.Value == reloadedStore.Id, cancellationToken);
         
-        _logger.LogInformation("Store created. StoreId: {StoreId}, StoreName: {StoreName}",
+        logger.LogInformation("Store created. StoreId: {StoreId}, StoreName: {StoreName}",
             reloadedStore.Id, reloadedStore.StoreName);
         
         return storeDto with { ProductCount = productCount };

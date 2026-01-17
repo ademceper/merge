@@ -16,39 +16,21 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Commands.CreateKnowledgeBaseCategory;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreateKnowledgeBaseCategoryCommandHandler : IRequestHandler<CreateKnowledgeBaseCategoryCommand, KnowledgeBaseCategoryDto>
+public class CreateKnowledgeBaseCategoryCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateKnowledgeBaseCategoryCommandHandler> logger, IOptions<SupportSettings> settings) : IRequestHandler<CreateKnowledgeBaseCategoryCommand, KnowledgeBaseCategoryDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateKnowledgeBaseCategoryCommandHandler> _logger;
-    private readonly SupportSettings _settings;
-
-    public CreateKnowledgeBaseCategoryCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateKnowledgeBaseCategoryCommandHandler> logger,
-        IOptions<SupportSettings> settings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _settings = settings.Value;
-    }
+    private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<KnowledgeBaseCategoryDto> Handle(CreateKnowledgeBaseCategoryCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Creating knowledge base category. Name: {Name}, ParentCategoryId: {ParentCategoryId}",
+        logger.LogInformation("Creating knowledge base category. Name: {Name}, ParentCategoryId: {ParentCategoryId}",
             request.Name, request.ParentCategoryId);
 
         var slug = GenerateSlug(request.Name);
 
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
         // Ensure unique slug
-        var existingSlug = await _context.Set<KnowledgeBaseCategory>()
+        var existingSlug = await context.Set<KnowledgeBaseCategory>()
             .AsNoTracking()
             .AnyAsync(c => c.Slug == slug, cancellationToken);
         
@@ -67,22 +49,22 @@ public class CreateKnowledgeBaseCategoryCommandHandler : IRequestHandler<CreateK
             request.IsActive,
             request.IconUrl);
 
-        await _context.Set<KnowledgeBaseCategory>().AddAsync(category, cancellationToken);
+        await context.Set<KnowledgeBaseCategory>().AddAsync(category, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Knowledge base category {CategoryId} created successfully. Name: {Name}, Slug: {Slug}",
+        logger.LogInformation("Knowledge base category {CategoryId} created successfully. Name: {Name}, Slug: {Slug}",
             category.Id, request.Name, slug);
 
         // ✅ PERFORMANCE: Reload with includes for mapping
-        category = await _context.Set<KnowledgeBaseCategory>()
+        category = await context.Set<KnowledgeBaseCategory>()
             .AsNoTracking()
             .Include(c => c.ParentCategory)
             .FirstOrDefaultAsync(c => c.Id == category.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return _mapper.Map<KnowledgeBaseCategoryDto>(category!);
+        return mapper.Map<KnowledgeBaseCategoryDto>(category!);
     }
 
     private string GenerateSlug(string name)
@@ -107,9 +89,9 @@ public class CreateKnowledgeBaseCategoryCommandHandler : IRequestHandler<CreateK
         slug = slug.Trim('-');
 
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
-        if (slug.Length > _settings.MaxCategorySlugLength)
+        if (slug.Length > supportConfig.MaxCategorySlugLength)
         {
-            slug = slug.Substring(0, _settings.MaxCategorySlugLength);
+            slug = slug.Substring(0, supportConfig.MaxCategorySlugLength);
         }
 
         return slug;

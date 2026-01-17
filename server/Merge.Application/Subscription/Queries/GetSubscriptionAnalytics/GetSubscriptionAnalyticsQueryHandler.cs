@@ -14,18 +14,8 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Subscription.Queries.GetSubscriptionAnalytics;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetSubscriptionAnalyticsQueryHandler : IRequestHandler<GetSubscriptionAnalyticsQuery, SubscriptionAnalyticsDto>
+public class GetSubscriptionAnalyticsQueryHandler(IDbContext context, ILogger<GetSubscriptionAnalyticsQueryHandler> logger) : IRequestHandler<GetSubscriptionAnalyticsQuery, SubscriptionAnalyticsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetSubscriptionAnalyticsQueryHandler> _logger;
-
-    public GetSubscriptionAnalyticsQueryHandler(
-        IDbContext context,
-        ILogger<GetSubscriptionAnalyticsQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<SubscriptionAnalyticsDto> Handle(GetSubscriptionAnalyticsQuery request, CancellationToken cancellationToken)
     {
@@ -33,7 +23,7 @@ public class GetSubscriptionAnalyticsQueryHandler : IRequestHandler<GetSubscript
         var end = request.EndDate ?? DateTime.UtcNow;
 
         // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
-        var query = _context.Set<UserSubscription>()
+        var query = context.Set<UserSubscription>()
             .AsNoTracking()
             .Include(us => us.SubscriptionPlan)
             .Where(us => us.CreatedAt >= start && us.CreatedAt <= end);
@@ -101,22 +91,22 @@ public class GetSubscriptionAnalyticsQueryHandler : IRequestHandler<GetSubscript
             var monthEnd = monthStart.AddMonths(1).AddDays(-1);
 
             // ✅ PERFORMANCE: Database'de count/sum yap
-            var monthSubscriptionsCount = await _context.Set<UserSubscription>()
+            var monthSubscriptionsCount = await context.Set<UserSubscription>()
                 .AsNoTracking()
                 .CountAsync(us => us.CreatedAt >= monthStart && us.CreatedAt <= monthEnd, cancellationToken);
 
-            var monthCancellations = await _context.Set<UserSubscription>()
+            var monthCancellations = await context.Set<UserSubscription>()
                 .AsNoTracking()
                 .CountAsync(us => us.Status == SubscriptionStatus.Cancelled && 
                                  us.CancelledAt.HasValue &&
                                  us.CancelledAt >= monthStart && 
                                  us.CancelledAt <= monthEnd, cancellationToken);
 
-            var activeAtMonthEnd = await _context.Set<UserSubscription>()
+            var activeAtMonthEnd = await context.Set<UserSubscription>()
                 .AsNoTracking()
                 .CountAsync(us => us.Status == SubscriptionStatus.Active && us.EndDate > monthEnd, cancellationToken);
 
-            var monthRevenue = await _context.Set<SubscriptionPayment>()
+            var monthRevenue = await context.Set<SubscriptionPayment>()
                 .AsNoTracking()
                 .Where(p => p.PaymentStatus == PaymentStatus.Completed &&
                            p.PaidAt.HasValue &&

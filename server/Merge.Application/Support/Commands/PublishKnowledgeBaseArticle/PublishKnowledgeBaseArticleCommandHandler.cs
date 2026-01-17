@@ -12,34 +12,21 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Commands.PublishKnowledgeBaseArticle;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class PublishKnowledgeBaseArticleCommandHandler : IRequestHandler<PublishKnowledgeBaseArticleCommand, bool>
+public class PublishKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<PublishKnowledgeBaseArticleCommandHandler> logger) : IRequestHandler<PublishKnowledgeBaseArticleCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<PublishKnowledgeBaseArticleCommandHandler> _logger;
-
-    public PublishKnowledgeBaseArticleCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<PublishKnowledgeBaseArticleCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(PublishKnowledgeBaseArticleCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Publishing knowledge base article {ArticleId}", request.ArticleId);
+        logger.LogInformation("Publishing knowledge base article {ArticleId}", request.ArticleId);
 
         // ✅ PERFORMANCE: Global Query Filter otomatik uygulanır, manuel !IsDeleted kontrolü YASAK
-        var article = await _context.Set<KnowledgeBaseArticle>()
+        var article = await context.Set<KnowledgeBaseArticle>()
             .FirstOrDefaultAsync(a => a.Id == request.ArticleId, cancellationToken);
 
         if (article == null)
         {
-            _logger.LogWarning("Knowledge base article {ArticleId} not found for publishing", request.ArticleId);
+            logger.LogWarning("Knowledge base article {ArticleId} not found for publishing", request.ArticleId);
             throw new NotFoundException("Bilgi bankası makalesi", request.ArticleId);
         }
 
@@ -47,9 +34,9 @@ public class PublishKnowledgeBaseArticleCommandHandler : IRequestHandler<Publish
         article.Publish();
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Knowledge base article {ArticleId} published successfully", request.ArticleId);
+        logger.LogInformation("Knowledge base article {ArticleId} published successfully", request.ArticleId);
 
         return true;
     }

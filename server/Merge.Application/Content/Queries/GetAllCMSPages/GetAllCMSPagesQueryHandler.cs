@@ -23,6 +23,7 @@ public class GetAllCMSPagesQueryHandler(
     ICacheService cache,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetAllCMSPagesQuery, PagedResult<CMSPageDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
     private const string CACHE_KEY_ALL_PAGES_PAGED = "cms_pages_all_paged";
     private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(15);
 
@@ -31,7 +32,7 @@ public class GetAllCMSPagesQueryHandler(
         logger.LogInformation("Retrieving all CMS pages. Status: {Status}, ShowInMenu: {ShowInMenu}, Page: {Page}, PageSize: {PageSize}",
             request.Status, request.ShowInMenu, request.Page, request.PageSize);
 
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var cacheKey = $"{CACHE_KEY_ALL_PAGES_PAGED}_{request.Status ?? "all"}_{request.ShowInMenu?.ToString() ?? "all"}_{page}_{pageSize}";

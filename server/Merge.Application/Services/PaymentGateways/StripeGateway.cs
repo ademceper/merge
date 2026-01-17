@@ -8,29 +8,20 @@ using Merge.Domain.Modules.Payment;
 
 namespace Merge.Application.Services.PaymentGateways;
 
-public class StripeGateway : IPaymentGateway
+public class StripeGateway(IConfiguration configuration, ILogger<StripeGateway> logger) : IPaymentGateway
 {
     public string GatewayName => "Stripe";
-    
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<StripeGateway> _logger;
-
-    public StripeGateway(IConfiguration configuration, ILogger<StripeGateway> logger)
-    {
-        _configuration = configuration;
-        _logger = logger;
-    }
 
     public async Task<PaymentGatewayResponseDto> ProcessPaymentAsync(PaymentGatewayRequestDto request)
     {
-        _logger.LogInformation("Stripe payment processing started for order {OrderNumber}", request.OrderNumber);
+        logger.LogInformation("Stripe payment processing started for order {OrderNumber}", request.OrderNumber);
         
-        var apiKey = _configuration["PaymentGateways:Stripe:ApiKey"];
-        var secretKey = _configuration["PaymentGateways:Stripe:SecretKey"];
+        var apiKey = configuration["PaymentGateways:Stripe:ApiKey"];
+        var secretKey = configuration["PaymentGateways:Stripe:SecretKey"];
         
         if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(secretKey))
         {
-            _logger.LogWarning("Stripe API credentials not configured");
+            logger.LogWarning("Stripe API credentials not configured");
             return new PaymentGatewayResponseDto
             {
                 Success = false,
@@ -48,7 +39,7 @@ public class StripeGateway : IPaymentGateway
         
         var transactionId = $"STRIPE_{Guid.NewGuid():N}";
         
-        _logger.LogInformation("Stripe payment processed successfully. TransactionId: {TransactionId}", transactionId);
+        logger.LogInformation("Stripe payment processed successfully. TransactionId: {TransactionId}", transactionId);
         
         return new PaymentGatewayResponseDto
         {
@@ -64,13 +55,13 @@ public class StripeGateway : IPaymentGateway
 
     public async Task<PaymentGatewayResponseDto> RefundPaymentAsync(string transactionId, decimal amount, string? reason = null)
     {
-        _logger.LogInformation("Stripe refund processing started. TransactionId: {TransactionId}, Amount: {Amount}", transactionId, amount);
+        logger.LogInformation("Stripe refund processing started. TransactionId: {TransactionId}, Amount: {Amount}", transactionId, amount);
         
         await Task.Delay(100);
         
         var refundTransactionId = $"STRIPE_REFUND_{Guid.NewGuid():N}";
         
-        _logger.LogInformation("Stripe refund processed successfully. RefundTransactionId: {RefundTransactionId}", refundTransactionId);
+        logger.LogInformation("Stripe refund processed successfully. RefundTransactionId: {RefundTransactionId}", refundTransactionId);
         
         return new PaymentGatewayResponseDto
         {
@@ -88,7 +79,7 @@ public class StripeGateway : IPaymentGateway
 
     public async Task<PaymentGatewayStatusDto> GetPaymentStatusAsync(string transactionId)
     {
-        _logger.LogInformation("Stripe payment status check. TransactionId: {TransactionId}", transactionId);
+        logger.LogInformation("Stripe payment status check. TransactionId: {TransactionId}", transactionId);
         
         await Task.Delay(50);
         
@@ -110,17 +101,17 @@ public class StripeGateway : IPaymentGateway
     {
         // ✅ SECURITY FIX: Webhook signature doğrulama implement edildi
         // Gerçek implementasyonda Stripe webhook secret kullanılmalı
-        var webhookSecret = _configuration["PaymentGateways:Stripe:WebhookSecret"];
+        var webhookSecret = configuration["PaymentGateways:Stripe:WebhookSecret"];
 
         if (string.IsNullOrEmpty(webhookSecret))
         {
-            _logger.LogWarning("Stripe webhook secret not configured - webhook verification skipped");
+            logger.LogWarning("Stripe webhook secret not configured - webhook verification skipped");
             return Task.FromResult(false);
         }
 
         if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(payload))
         {
-            _logger.LogWarning("Stripe webhook verification failed - missing signature or payload");
+            logger.LogWarning("Stripe webhook verification failed - missing signature or payload");
             return Task.FromResult(false);
         }
 
@@ -134,7 +125,7 @@ public class StripeGateway : IPaymentGateway
             var signatureParts = signature.Split(',');
             if (signatureParts.Length < 2)
             {
-                _logger.LogWarning("Stripe webhook verification failed - invalid signature format");
+                logger.LogWarning("Stripe webhook verification failed - invalid signature format");
                 return Task.FromResult(false);
             }
 
@@ -143,7 +134,7 @@ public class StripeGateway : IPaymentGateway
 
             if (string.IsNullOrEmpty(timestampPart) || string.IsNullOrEmpty(signaturePart))
             {
-                _logger.LogWarning("Stripe webhook verification failed - missing timestamp or signature");
+                logger.LogWarning("Stripe webhook verification failed - missing timestamp or signature");
                 return Task.FromResult(false);
             }
 
@@ -162,14 +153,14 @@ public class StripeGateway : IPaymentGateway
 
             if (!isValid)
             {
-                _logger.LogWarning("Stripe webhook signature verification failed");
+                logger.LogWarning("Stripe webhook signature verification failed");
             }
 
             return Task.FromResult(isValid);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Stripe webhook verification error");
+            logger.LogError(ex, "Stripe webhook verification error");
             return Task.FromResult(false);
         }
     }

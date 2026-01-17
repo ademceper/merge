@@ -23,6 +23,7 @@ public class GetAllLandingPagesQueryHandler(
     ICacheService cache,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetAllLandingPagesQuery, PagedResult<LandingPageDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
     private const string CACHE_KEY_LANDING_PAGES = "landing_pages_paged_";
     private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(5);
 
@@ -31,7 +32,7 @@ public class GetAllLandingPagesQueryHandler(
         logger.LogInformation("Retrieving landing pages. Status: {Status}, IsActive: {IsActive}, Page: {Page}, PageSize: {PageSize}",
             request.Status, request.IsActive, request.Page, request.PageSize);
 
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var cacheKey = $"{CACHE_KEY_LANDING_PAGES}{request.Status ?? "all"}_{request.IsActive?.ToString() ?? "all"}_{page}_{pageSize}";

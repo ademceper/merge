@@ -15,43 +15,31 @@ namespace Merge.Application.ML.Queries.GetPriceOptimizationStats;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetPriceOptimizationStatsQueryHandler : IRequestHandler<GetPriceOptimizationStatsQuery, PriceOptimizationStatsDto>
+public class GetPriceOptimizationStatsQueryHandler(IDbContext context, ILogger<GetPriceOptimizationStatsQueryHandler> logger, IOptions<MLSettings> mlSettings) : IRequestHandler<GetPriceOptimizationStatsQuery, PriceOptimizationStatsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetPriceOptimizationStatsQueryHandler> _logger;
-    private readonly MLSettings _mlSettings;
-
-    public GetPriceOptimizationStatsQueryHandler(
-        IDbContext context,
-        ILogger<GetPriceOptimizationStatsQueryHandler> logger,
-        IOptions<MLSettings> mlSettings)
-    {
-        _context = context;
-        _logger = logger;
-        _mlSettings = mlSettings.Value;
-    }
+    private readonly MLSettings mlConfig = mlSettings.Value;
 
     public async Task<PriceOptimizationStatsDto> Handle(GetPriceOptimizationStatsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting price optimization stats. StartDate: {StartDate}, EndDate: {EndDate}",
+        logger.LogInformation("Getting price optimization stats. StartDate: {StartDate}, EndDate: {EndDate}",
             request.StartDate, request.EndDate);
 
         // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-        var start = request.StartDate ?? DateTime.UtcNow.AddDays(-_mlSettings.DefaultAnalysisPeriodDays);
+        var start = request.StartDate ?? DateTime.UtcNow.AddDays(-mlConfig.DefaultAnalysisPeriodDays);
         var end = request.EndDate ?? DateTime.UtcNow;
 
         // Bu basit implementasyonda, gerçek optimizasyon istatistikleri tutulmuyor
         // Gerçek implementasyonda bir PriceOptimizationHistory tablosu olmalı
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var totalProducts = await _context.Set<ProductEntity>()
+        var totalProducts = await context.Set<ProductEntity>()
             .CountAsync(p => p.IsActive, cancellationToken);
 
-        var productsWithDiscount = await _context.Set<ProductEntity>()
+        var productsWithDiscount = await context.Set<ProductEntity>()
             .CountAsync(p => p.IsActive && p.DiscountPrice.HasValue, cancellationToken);
 
-        _logger.LogInformation("Price optimization stats retrieved successfully.");
+        logger.LogInformation("Price optimization stats retrieved successfully.");
 
         return new PriceOptimizationStatsDto(
             productsWithDiscount,

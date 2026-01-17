@@ -18,40 +18,25 @@ namespace Merge.Application.ML.Queries.GetAllFraudDetectionRules;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetAllFraudDetectionRulesQueryHandler : IRequestHandler<GetAllFraudDetectionRulesQuery, PagedResult<FraudDetectionRuleDto>>
+public class GetAllFraudDetectionRulesQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAllFraudDetectionRulesQueryHandler> logger, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetAllFraudDetectionRulesQuery, PagedResult<FraudDetectionRuleDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetAllFraudDetectionRulesQueryHandler> _logger;
-    private readonly PaginationSettings _paginationSettings;
-
-    public GetAllFraudDetectionRulesQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetAllFraudDetectionRulesQueryHandler> logger,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
     public async Task<PagedResult<FraudDetectionRuleDto>> Handle(GetAllFraudDetectionRulesQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting all fraud detection rules. RuleType: {RuleType}, IsActive: {IsActive}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Getting all fraud detection rules. RuleType: {RuleType}, IsActive: {IsActive}, Page: {Page}, PageSize: {PageSize}",
             request.RuleType, request.IsActive, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination (ZORUNLU)
         // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
         var page = request.Page;
         var pageSize = request.PageSize;
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
-        IQueryable<FraudDetectionRule> query = _context.Set<FraudDetectionRule>()
+        IQueryable<FraudDetectionRule> query = context.Set<FraudDetectionRule>()
             .AsNoTracking();
 
         // ✅ BOLUM 1.2: Enum kullanımı (string RuleType YASAK)
@@ -75,9 +60,9 @@ public class GetAllFraudDetectionRulesQueryHandler : IRequestHandler<GetAllFraud
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var ruleDtos = _mapper.Map<List<FraudDetectionRuleDto>>(rules);
+        var ruleDtos = mapper.Map<List<FraudDetectionRuleDto>>(rules);
 
-        _logger.LogInformation("Fraud detection rules retrieved. TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Fraud detection rules retrieved. TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}",
             totalCount, page, pageSize);
 
         return new PagedResult<FraudDetectionRuleDto>

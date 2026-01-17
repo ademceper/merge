@@ -5,11 +5,13 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Analytics.Queries.GetTopReviewedProducts;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetTopReviewedProductsQueryValidator : AbstractValidator<GetTopReviewedProductsQuery>
+public class GetTopReviewedProductsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetTopReviewedProductsQuery>
 {
-    public GetTopReviewedProductsQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    private readonly PaginationSettings settings = paginationSettings.Value;
+
+    public GetTopReviewedProductsQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
-        var maxPageSize = paginationSettings.Value.MaxPageSize;
+        var maxPageSize = settings.MaxPageSize;
 
         RuleFor(x => x.Limit)
             .GreaterThan(0).WithMessage("Limit 0'dan büyük olmalıdır")

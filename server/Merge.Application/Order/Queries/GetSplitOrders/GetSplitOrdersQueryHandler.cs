@@ -13,23 +13,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Order.Queries.GetSplitOrders;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetSplitOrdersQueryHandler : IRequestHandler<GetSplitOrdersQuery, IEnumerable<OrderSplitDto>>
+public class GetSplitOrdersQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetSplitOrdersQuery, IEnumerable<OrderSplitDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetSplitOrdersQueryHandler(
-        IDbContext context,
-        IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
 
     public async Task<IEnumerable<OrderSplitDto>> Handle(GetSplitOrdersQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        var splits = await _context.Set<OrderSplit>()
+        var splits = await context.Set<OrderSplit>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(s => s.OriginalOrder)
@@ -43,6 +33,6 @@ public class GetSplitOrdersQueryHandler : IRequestHandler<GetSplitOrdersQuery, I
             .Where(s => s.SplitOrderId == request.SplitOrderId)
             .ToListAsync(cancellationToken);
 
-        return _mapper.Map<IEnumerable<OrderSplitDto>>(splits);
+        return mapper.Map<IEnumerable<OrderSplitDto>>(splits);
     }
 }

@@ -16,44 +16,22 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Modules.Notifications.Notification>;
 
-
 namespace Merge.Application.Services.Notification;
 
-public class NotificationService : INotificationService
+public class NotificationService(IRepository notificationRepository, IDbContext context, IMapper mapper, IUnitOfWork unitOfWork, ILogger<NotificationService> logger, IOptions<PaginationSettings> paginationSettings) : INotificationService
 {
-    private readonly IRepository _notificationRepository;
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<NotificationService> _logger;
-    private readonly PaginationSettings _paginationSettings;
-
-    public NotificationService(
-        IRepository notificationRepository,
-        IDbContext context,
-        IMapper mapper,
-        IUnitOfWork unitOfWork,
-        ILogger<NotificationService> logger,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _notificationRepository = notificationRepository;
-        _context = context;
-        _mapper = mapper;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
     // ✅ PERFORMANCE: Pagination ekle (BEST_PRACTICES_ANALIZI.md - BOLUM 3.1.4)
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<PagedResult<NotificationDto>> GetUserNotificationsAsync(Guid userId, bool unreadOnly = false, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 12.0: Magic Numbers YASAK - Configuration kullan
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !n.IsDeleted (Global Query Filter)
-        IQueryable<NotificationEntity> query = _context.Set<NotificationEntity>()
+        IQueryable<NotificationEntity> query = context.Set<NotificationEntity>()
             .AsNoTracking()
             .Where(n => n.UserId == userId);
 
@@ -71,7 +49,7 @@ public class NotificationService : INotificationService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var notificationDtos = _mapper.Map<IEnumerable<NotificationDto>>(notifications);
+        var notificationDtos = mapper.Map<IEnumerable<NotificationDto>>(notifications);
 
         return new PagedResult<NotificationDto>
         {
@@ -85,7 +63,7 @@ public class NotificationService : INotificationService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<NotificationDto?> GetByIdAsync(Guid notificationId, CancellationToken cancellationToken = default)
     {
-        var notification = await _context.Set<NotificationEntity>()
+        var notification = await context.Set<NotificationEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(n => n.Id == notificationId, cancellationToken);
 
@@ -94,14 +72,14 @@ public class NotificationService : INotificationService
             return null;
         }
 
-        return _mapper.Map<NotificationDto>(notification);
+        return mapper.Map<NotificationDto>(notification);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<NotificationDto> CreateNotificationAsync(CreateNotificationDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Notification oluşturuluyor. UserId: {UserId}, Type: {Type}, Title: {Title}",
             dto.UserId, dto.Type, dto.Title);
 
@@ -115,25 +93,25 @@ public class NotificationService : INotificationService
             dto.Link,
             dto.Data);
 
-        await _notificationRepository.AddAsync(notification);
+        await notificationRepository.AddAsync(notification);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Notification oluşturuldu. NotificationId: {NotificationId}, UserId: {UserId}, Type: {Type}",
             notification.Id, dto.UserId, dto.Type);
         
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<NotificationDto>(notification);
+        return mapper.Map<NotificationDto>(notification);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> MarkAsReadAsync(Guid notificationId, Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !n.IsDeleted (Global Query Filter)
-        var notification = await _context.Set<NotificationEntity>()
+        var notification = await context.Set<NotificationEntity>()
             .FirstOrDefaultAsync(n => n.Id == notificationId && n.UserId == userId, cancellationToken);
 
         if (notification == null)
@@ -145,7 +123,7 @@ public class NotificationService : INotificationService
         notification.MarkAsRead();
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
@@ -153,7 +131,7 @@ public class NotificationService : INotificationService
     public async Task<bool> MarkAllAsReadAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !n.IsDeleted (Global Query Filter)
-        var notifications = await _context.Set<NotificationEntity>()
+        var notifications = await context.Set<NotificationEntity>()
             .Where(n => n.UserId == userId && !n.IsRead)
             .ToListAsync(cancellationToken);
 
@@ -167,7 +145,7 @@ public class NotificationService : INotificationService
         if (notifications.Count > 0)
         {
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         return true;
@@ -177,7 +155,7 @@ public class NotificationService : INotificationService
     public async Task<bool> DeleteNotificationAsync(Guid notificationId, Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !n.IsDeleted (Global Query Filter)
-        var notification = await _context.Set<NotificationEntity>()
+        var notification = await context.Set<NotificationEntity>()
             .FirstOrDefaultAsync(n => n.Id == notificationId && n.UserId == userId, cancellationToken);
 
         if (notification == null)
@@ -189,7 +167,7 @@ public class NotificationService : INotificationService
         notification.Delete();
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }
 
@@ -197,7 +175,7 @@ public class NotificationService : INotificationService
     public async Task<int> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !n.IsDeleted (Global Query Filter)
-        return await _context.Set<NotificationEntity>()
+        return await context.Set<NotificationEntity>()
             .CountAsync(n => n.UserId == userId && !n.IsRead, cancellationToken);
     }
 }

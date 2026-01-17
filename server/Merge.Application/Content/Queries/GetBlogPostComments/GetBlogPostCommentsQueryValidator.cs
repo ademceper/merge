@@ -4,14 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Content.Queries.GetBlogPostComments;
 
-public class GetBlogPostCommentsQueryValidator : AbstractValidator<GetBlogPostCommentsQuery>
+public class GetBlogPostCommentsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetBlogPostCommentsQuery>
 {
-    private readonly PaginationSettings settings;
+    private readonly PaginationSettings settings = paginationSettings.Value;
 
-    public GetBlogPostCommentsQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    public GetBlogPostCommentsQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
-        settings = paginationSettings.Value;
-
         RuleFor(x => x.PostId)
             .NotEmpty()
             .WithMessage("Blog post ID'si zorunludur.");

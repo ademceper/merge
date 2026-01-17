@@ -21,24 +21,8 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Order.Commands.SplitOrder;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class SplitOrderCommandHandler : IRequestHandler<SplitOrderCommand, OrderSplitDto>
+public class SplitOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<SplitOrderCommandHandler> logger) : IRequestHandler<SplitOrderCommand, OrderSplitDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<SplitOrderCommandHandler> _logger;
-
-    public SplitOrderCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<SplitOrderCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<OrderSplitDto> Handle(SplitOrderCommand request, CancellationToken cancellationToken)
     {
@@ -47,11 +31,11 @@ public class SplitOrderCommandHandler : IRequestHandler<SplitOrderCommand, Order
             throw new ArgumentNullException(nameof(request.Dto));
         }
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Sipariş bölme işlemi başlatılıyor. OrderId: {OrderId}, ItemsCount: {ItemsCount}",
             request.OrderId, request.Dto.Items?.Count ?? 0);
 
-        var originalOrder = await _context.Set<OrderEntity>()
+        var originalOrder = await context.Set<OrderEntity>()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
             .Include(o => o.Address)
@@ -93,12 +77,12 @@ public class SplitOrderCommandHandler : IRequestHandler<SplitOrderCommand, Order
             throw new ValidationException("En az bir kalem bölünmelidir.");
         }
 
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
             var addressId = request.Dto.NewAddressId ?? originalOrder.AddressId;
-            var address = await _context.Set<AddressEntity>()
+            var address = await context.Set<AddressEntity>()
                 .FirstOrDefaultAsync(a => a.Id == addressId, cancellationToken);
             
             if (address == null)
@@ -115,7 +99,7 @@ public class SplitOrderCommandHandler : IRequestHandler<SplitOrderCommand, Order
             foreach (var item in request.Dto.Items)
             {
                 var originalItem = originalOrder.OrderItems.First(oi => oi.Id == item.OrderItemId);
-                var product = await _context.Set<ProductEntity>()
+                var product = await context.Set<ProductEntity>()
                     .FirstOrDefaultAsync(p => p.Id == originalItem.ProductId, cancellationToken);
                 
                 if (product == null)
@@ -163,13 +147,13 @@ public class SplitOrderCommandHandler : IRequestHandler<SplitOrderCommand, Order
             // ✅ BOLUM 1.1: Rich Domain Model - Domain method kullan
             originalOrder.RecalculateTotals();
             
-            await _context.Set<OrderEntity>().AddAsync(splitOrder, cancellationToken);
+            await context.Set<OrderEntity>().AddAsync(splitOrder, cancellationToken);
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             // ✅ BOLUM 1.1: Rich Domain Model - Factory method kullan
             var newAddress = request.Dto.NewAddressId.HasValue
-                ? await _context.Set<AddressEntity>()
+                ? await context.Set<AddressEntity>()
                     .FirstOrDefaultAsync(a => a.Id == request.Dto.NewAddressId.Value, cancellationToken)
                 : null;
 
@@ -182,7 +166,7 @@ public class SplitOrderCommandHandler : IRequestHandler<SplitOrderCommand, Order
                 splitOrder,
                 newAddress);
 
-            await _context.Set<OrderSplit>().AddAsync(orderSplit, cancellationToken);
+            await context.Set<OrderSplit>().AddAsync(orderSplit, cancellationToken);
 
             var splitItemRecords = new List<OrderSplitItem>();
             // ✅ PERFORMANCE: splitOrderItems'ı index'e göre eşleştir (sıralı olduğu için)
@@ -219,16 +203,16 @@ public class SplitOrderCommandHandler : IRequestHandler<SplitOrderCommand, Order
                 splitItemIndex++;
             }
 
-            await _context.Set<OrderSplitItem>().AddRangeAsync(splitItemRecords, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await context.Set<OrderSplitItem>().AddRangeAsync(splitItemRecords, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Sipariş başarıyla bölündü. OriginalOrderId: {OriginalOrderId}, SplitOrderId: {SplitOrderId}",
                 request.OrderId, splitOrder.Id);
 
-            orderSplit = await _context.Set<OrderSplit>()
+            orderSplit = await context.Set<OrderSplit>()
                 .AsNoTracking()
                 .Include(s => s.OriginalOrder)
                 .Include(s => s.SplitOrder)
@@ -240,12 +224,12 @@ public class SplitOrderCommandHandler : IRequestHandler<SplitOrderCommand, Order
                     .ThenInclude(si => si.SplitOrderItem)
                 .FirstOrDefaultAsync(s => s.Id == orderSplit.Id, cancellationToken);
 
-            return _mapper.Map<OrderSplitDto>(orderSplit!);
+            return mapper.Map<OrderSplitDto>(orderSplit!);
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            _logger.LogError(ex, "Sipariş bölme işlemi başarısız. OrderId: {OrderId}", request.OrderId);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Sipariş bölme işlemi başarısız. OrderId: {OrderId}", request.OrderId);
             throw;
         }
     }

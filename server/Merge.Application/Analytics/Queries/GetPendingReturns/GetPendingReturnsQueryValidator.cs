@@ -5,11 +5,13 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Analytics.Queries.GetPendingReturns;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetPendingReturnsQueryValidator : AbstractValidator<GetPendingReturnsQuery>
+public class GetPendingReturnsQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetPendingReturnsQuery>
 {
-    public GetPendingReturnsQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    private readonly PaginationSettings settings = paginationSettings.Value;
+
+    public GetPendingReturnsQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
-        var maxPageSize = paginationSettings.Value.MaxPageSize;
+        var maxPageSize = settings.MaxPageSize;
 
         RuleFor(x => x.Page)
             .GreaterThan(0).WithMessage("Sayfa numarası 0'dan büyük olmalıdır");

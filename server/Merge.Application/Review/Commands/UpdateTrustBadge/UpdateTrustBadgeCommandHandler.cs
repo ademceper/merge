@@ -16,30 +16,14 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Review.Commands.UpdateTrustBadge;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UpdateTrustBadgeCommandHandler : IRequestHandler<UpdateTrustBadgeCommand, TrustBadgeDto>
+public class UpdateTrustBadgeCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateTrustBadgeCommandHandler> logger) : IRequestHandler<UpdateTrustBadgeCommand, TrustBadgeDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<UpdateTrustBadgeCommandHandler> _logger;
-
-    public UpdateTrustBadgeCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<UpdateTrustBadgeCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<TrustBadgeDto> Handle(UpdateTrustBadgeCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Updating trust badge. BadgeId: {BadgeId}", request.BadgeId);
+        logger.LogInformation("Updating trust badge. BadgeId: {BadgeId}", request.BadgeId);
 
-        var badge = await _context.Set<TrustBadge>()
+        var badge = await context.Set<TrustBadge>()
             .FirstOrDefaultAsync(b => b.Id == request.BadgeId, cancellationToken);
 
         if (badge == null)
@@ -73,11 +57,11 @@ public class UpdateTrustBadgeCommandHandler : IRequestHandler<UpdateTrustBadgeCo
         if (request.Color != null)
             badge.UpdateColor(request.Color);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Trust badge updated successfully. BadgeId: {BadgeId}", request.BadgeId);
+        logger.LogInformation("Trust badge updated successfully. BadgeId: {BadgeId}", request.BadgeId);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<TrustBadgeDto>(badge);
+        return mapper.Map<TrustBadgeDto>(badge);
     }
 }

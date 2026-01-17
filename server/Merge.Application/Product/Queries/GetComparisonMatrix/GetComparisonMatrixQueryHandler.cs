@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
@@ -17,43 +18,31 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Product.Queries.GetComparisonMatrix;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetComparisonMatrixQueryHandler : IRequestHandler<GetComparisonMatrixQuery, ComparisonMatrixDto>
+public class GetComparisonMatrixQueryHandler(
+    IDbContext context,
+    ILogger<GetComparisonMatrixQueryHandler> logger,
+    ICacheService cache,
+    IOptions<CacheSettings> cacheSettings,
+    IMapper mapper) : IRequestHandler<GetComparisonMatrixQuery, ComparisonMatrixDto>
 {
-    private readonly IDbContext _context;
-    private readonly AutoMapper.IMapper _mapper;
-    private readonly ILogger<GetComparisonMatrixQueryHandler> _logger;
-    private readonly ICacheService _cache;
-    private readonly CacheSettings _cacheSettings;
-    private const string CACHE_KEY_COMPARISON_MATRIX = "comparison_matrix_";
+    private readonly CacheSettings cacheConfig = cacheSettings.Value;
 
-    public GetComparisonMatrixQueryHandler(
-        IDbContext context,
-        AutoMapper.IMapper mapper,
-        ILogger<GetComparisonMatrixQueryHandler> logger,
-        ICacheService cache,
-        IOptions<CacheSettings> cacheSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _cache = cache;
-        _cacheSettings = cacheSettings.Value;
-    }
+    private const string CACHE_KEY_COMPARISON_MATRIX = "comparison_matrix_";
 
     public async Task<ComparisonMatrixDto> Handle(GetComparisonMatrixQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching comparison matrix. ComparisonId: {ComparisonId}", request.ComparisonId);
+        logger.LogInformation("Fetching comparison matrix. ComparisonId: {ComparisonId}", request.ComparisonId);
 
         var cacheKey = $"{CACHE_KEY_COMPARISON_MATRIX}{request.ComparisonId}";
 
         // ✅ BOLUM 10.2: Redis distributed cache
-        var cachedResult = await _cache.GetOrCreateAsync(
+        var cachedResult = await cache.GetOrCreateAsync(
             cacheKey,
             async () =>
             {
-                _logger.LogInformation("Cache miss for comparison matrix. Fetching from database.");
+                logger.LogInformation("Cache miss for comparison matrix. Fetching from database.");
 
-                var comparison = await _context.Set<ProductComparison>()
+                var comparison = await context.Set<ProductComparison>()
                     .AsNoTracking()
                     .Include(c => c.Items)
                         .ThenInclude(i => i.Product)
@@ -70,7 +59,7 @@ public class GetComparisonMatrixQueryHandler : IRequestHandler<GetComparisonMatr
                     .Select(i => i.ProductId)
                     .ToList();
 
-                var reviewsDict = await _context.Set<ReviewEntity>()
+                var reviewsDict = await context.Set<ReviewEntity>()
                     .AsNoTracking()
                     .Where(r => productIds.Contains(r.ProductId))
                     .GroupBy(r => r.ProductId)
@@ -104,7 +93,7 @@ public class GetComparisonMatrixQueryHandler : IRequestHandler<GetComparisonMatr
                 foreach (var product in products)
                 {
                     var reviewStats = reviewsDict.TryGetValue(product.Id, out var stats) ? stats : null;
-                    var compProduct = _mapper.Map<ComparisonProductDto>(product);
+                    var compProduct = mapper.Map<ComparisonProductDto>(product);
                     // ✅ BOLUM 7.1.5: Records - with expression kullanımı (immutable record'lar için)
                     compProduct = compProduct with
                     {
@@ -152,7 +141,7 @@ public class GetComparisonMatrixQueryHandler : IRequestHandler<GetComparisonMatr
 
                 return matrix;
             },
-            TimeSpan.FromMinutes(_cacheSettings.ComparisonMatrixCacheExpirationMinutes),
+            TimeSpan.FromMinutes(cacheConfig.ComparisonMatrixCacheExpirationMinutes),
             cancellationToken);
 
         return cachedResult!;

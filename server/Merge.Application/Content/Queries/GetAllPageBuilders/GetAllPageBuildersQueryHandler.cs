@@ -23,6 +23,7 @@ public class GetAllPageBuildersQueryHandler(
     ICacheService cache,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetAllPageBuildersQuery, PagedResult<PageBuilderDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
     private const string CACHE_KEY_PAGE_BUILDERS = "page_builders_paged_";
     private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(5);
 
@@ -31,7 +32,7 @@ public class GetAllPageBuildersQueryHandler(
         logger.LogInformation("Retrieving page builders. Status: {Status}, Page: {Page}, PageSize: {PageSize}",
             request.Status, request.Page, request.PageSize);
 
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var cacheKey = $"{CACHE_KEY_PAGE_BUILDERS}{request.Status ?? "all"}_{page}_{pageSize}";

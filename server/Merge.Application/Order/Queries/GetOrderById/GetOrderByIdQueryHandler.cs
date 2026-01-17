@@ -9,20 +9,13 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 
 namespace Merge.Application.Order.Queries.GetOrderById;
 
-public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, OrderDto?>
+public class GetOrderByIdQueryHandler(
+    IDbContext context,
+    IMapper mapper) : IRequestHandler<GetOrderByIdQuery, OrderDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetOrderByIdQueryHandler(IDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
-
     public async Task<OrderDto?> Handle(GetOrderByIdQuery request, CancellationToken cancellationToken)
     {
-        var order = await _context.Set<OrderEntity>()
+        var order = await context.Set<OrderEntity>()
             .AsNoTracking()
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
@@ -30,6 +23,6 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
             .Include(o => o.User)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
-        return order == null ? null : _mapper.Map<OrderDto>(order);
+        return order == null ? null : mapper.Map<OrderDto>(order);
     }
 }

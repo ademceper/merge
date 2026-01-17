@@ -15,27 +15,17 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Product.Queries.ExportProductsToCsv;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class ExportProductsToCsvQueryHandler : IRequestHandler<ExportProductsToCsvQuery, byte[]>
+public class ExportProductsToCsvQueryHandler(IDbContext context, ILogger<ExportProductsToCsvQueryHandler> logger) : IRequestHandler<ExportProductsToCsvQuery, byte[]>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<ExportProductsToCsvQueryHandler> _logger;
-
-    public ExportProductsToCsvQueryHandler(
-        IDbContext context,
-        ILogger<ExportProductsToCsvQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<byte[]> Handle(ExportProductsToCsvQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Exporting products to CSV. CategoryId: {CategoryId}, ActiveOnly: {ActiveOnly}",
+        logger.LogInformation("Exporting products to CSV. CategoryId: {CategoryId}, ActiveOnly: {ActiveOnly}",
             request.ExportDto.CategoryId, request.ExportDto.ActiveOnly);
 
         var products = await GetProductsForExportAsync(request.ExportDto, cancellationToken);
 
-        _logger.LogInformation("Products retrieved for CSV export. Count: {Count}", products.Count);
+        logger.LogInformation("Products retrieved for CSV export. Count: {Count}", products.Count);
 
         var csv = new StringBuilder();
         csv.AppendLine("Name,Description,SKU,Price,DiscountPrice,StockQuantity,Brand,Category,ImageUrl,IsActive");
@@ -45,7 +35,7 @@ public class ExportProductsToCsvQueryHandler : IRequestHandler<ExportProductsToC
         {
             if (cancellationToken.IsCancellationRequested)
             {
-                _logger.LogWarning("CSV export cancelled. Exported {Count} products so far", i);
+                logger.LogWarning("CSV export cancelled. Exported {Count} products so far", i);
                 break;
             }
 
@@ -62,14 +52,14 @@ public class ExportProductsToCsvQueryHandler : IRequestHandler<ExportProductsToC
                           $"{product.IsActive}");
         }
 
-        _logger.LogInformation("CSV export completed. Total products exported: {Count}", products.Count);
+        logger.LogInformation("CSV export completed. Total products exported: {Count}", products.Count);
 
         return Encoding.UTF8.GetBytes(csv.ToString());
     }
 
     private async Task<List<ProductEntity>> GetProductsForExportAsync(BulkProductExportDto exportDto, CancellationToken cancellationToken)
     {
-        IQueryable<ProductEntity> query = _context.Set<ProductEntity>()
+        IQueryable<ProductEntity> query = context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category);
 

@@ -9,11 +9,8 @@ using Merge.Domain.SharedKernel;
 
 namespace Merge.Infrastructure.Data.Contexts;
 
-public class CatalogDbContext : DbContext, IDbContext
+public class CatalogDbContext(DbContextOptions<CatalogDbContext> options) : DbContext(options), IDbContext
 {
-    public CatalogDbContext(DbContextOptions<CatalogDbContext> options) : base(options)
-    {
-    }
 
     public DbSet<Category> Categories { get; set; }
     public DbSet<Product> Products { get; set; }

@@ -15,39 +15,29 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Queries.GetSellerBalance;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetSellerBalanceQueryHandler : IRequestHandler<GetSellerBalanceQuery, SellerBalanceDto>
+public class GetSellerBalanceQueryHandler(IDbContext context, ILogger<GetSellerBalanceQueryHandler> logger) : IRequestHandler<GetSellerBalanceQuery, SellerBalanceDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetSellerBalanceQueryHandler> _logger;
-
-    public GetSellerBalanceQueryHandler(
-        IDbContext context,
-        ILogger<GetSellerBalanceQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<SellerBalanceDto> Handle(GetSellerBalanceQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting seller balance. SellerId: {SellerId}", request.SellerId);
+        logger.LogInformation("Getting seller balance. SellerId: {SellerId}", request.SellerId);
 
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var seller = await _context.Set<SellerProfile>()
+        var seller = await context.Set<SellerProfile>()
             .AsNoTracking()
             .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.UserId == request.SellerId, cancellationToken);
 
         if (seller == null)
         {
-            _logger.LogWarning("Seller not found. SellerId: {SellerId}", request.SellerId);
+            logger.LogWarning("Seller not found. SellerId: {SellerId}", request.SellerId);
             throw new NotFoundException("Satıcı", request.SellerId);
         }
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         // Calculate in-transit balance (payouts being processed)
-        var inTransitBalance = await _context.Set<CommissionPayout>()
+        var inTransitBalance = await context.Set<CommissionPayout>()
             .AsNoTracking()
             .Where(p => p.SellerId == request.SellerId && 
                    (p.Status == PayoutStatus.Pending || p.Status == PayoutStatus.Processing))
@@ -55,7 +45,7 @@ public class GetSellerBalanceQueryHandler : IRequestHandler<GetSellerBalanceQuer
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         // Calculate total payouts
-        var totalPayouts = await _context.Set<CommissionPayout>()
+        var totalPayouts = await context.Set<CommissionPayout>()
             .AsNoTracking()
             .Where(p => p.SellerId == request.SellerId && 
                    p.Status == PayoutStatus.Completed)

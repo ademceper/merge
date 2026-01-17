@@ -16,30 +16,18 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Order.Queries.GetReturnRequestsByUserId;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetReturnRequestsByUserIdQueryHandler : IRequestHandler<GetReturnRequestsByUserIdQuery, PagedResult<ReturnRequestDto>>
+public class GetReturnRequestsByUserIdQueryHandler(IDbContext context, IMapper mapper, IOptions<OrderSettings> orderSettings) : IRequestHandler<GetReturnRequestsByUserIdQuery, PagedResult<ReturnRequestDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly OrderSettings _orderSettings;
-
-    public GetReturnRequestsByUserIdQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        IOptions<OrderSettings> orderSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _orderSettings = orderSettings.Value;
-    }
+    private readonly OrderSettings orderConfig = orderSettings.Value;
 
     public async Task<PagedResult<ReturnRequestDto>> Handle(GetReturnRequestsByUserIdQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - Configuration'dan al
-        var pageSize = request.PageSize > _orderSettings.MaxPageSize ? _orderSettings.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > orderConfig.MaxPageSize ? orderConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        var query = _context.Set<ReturnRequest>()
+        var query = context.Set<ReturnRequest>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(r => r.Order)
@@ -57,7 +45,7 @@ public class GetReturnRequestsByUserIdQueryHandler : IRequestHandler<GetReturnRe
         // ✅ PERFORMANCE: Direct Map to List (no intermediate IEnumerable)
         return new PagedResult<ReturnRequestDto>
         {
-            Items = _mapper.Map<List<ReturnRequestDto>>(returnRequests),
+            Items = mapper.Map<List<ReturnRequestDto>>(returnRequests),
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize

@@ -15,24 +15,14 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Queries.GetTicketByNumber;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetTicketByNumberQueryHandler : IRequestHandler<GetTicketByNumberQuery, SupportTicketDto?>
+public class GetTicketByNumberQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetTicketByNumberQuery, SupportTicketDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetTicketByNumberQueryHandler(
-        IDbContext context,
-        IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
 
     public async Task<SupportTicketDto?> Handle(GetTicketByNumberQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
-        IQueryable<SupportTicket> query = _context.Set<SupportTicket>()
+        IQueryable<SupportTicket> query = context.Set<SupportTicket>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(t => t.User)
@@ -53,11 +43,11 @@ public class GetTicketByNumberQueryHandler : IRequestHandler<GetTicketByNumberQu
 
         if (ticket == null) return null;
 
-        var dto = _mapper.Map<SupportTicketDto>(ticket);
+        var dto = mapper.Map<SupportTicketDto>(ticket);
         
         // ✅ BOLUM 7.1.5: Records - IReadOnlyList kullanımı (immutability)
-        var messages = _mapper.Map<List<TicketMessageDto>>(ticket.Messages).AsReadOnly();
-        var attachments = _mapper.Map<List<TicketAttachmentDto>>(ticket.Attachments).AsReadOnly();
+        var messages = mapper.Map<List<TicketMessageDto>>(ticket.Messages).AsReadOnly();
+        var attachments = mapper.Map<List<TicketAttachmentDto>>(ticket.Attachments).AsReadOnly();
         
         // ✅ BOLUM 7.1.5: Records - Record'lar immutable, with expression kullan
         return dto with { Messages = messages, Attachments = attachments };

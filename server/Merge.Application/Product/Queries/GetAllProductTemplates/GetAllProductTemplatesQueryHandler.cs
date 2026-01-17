@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
@@ -15,34 +16,22 @@ namespace Merge.Application.Product.Queries.GetAllProductTemplates;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetAllProductTemplatesQueryHandler : IRequestHandler<GetAllProductTemplatesQuery, IEnumerable<ProductTemplateDto>>
+public class GetAllProductTemplatesQueryHandler(
+    IDbContext context,
+    ILogger<GetAllProductTemplatesQueryHandler> logger,
+    ICacheService cache,
+    IOptions<CacheSettings> cacheSettings,
+    IMapper mapper) : IRequestHandler<GetAllProductTemplatesQuery, IEnumerable<ProductTemplateDto>>
 {
-    private readonly IDbContext _context;
-    private readonly AutoMapper.IMapper _mapper;
-    private readonly ILogger<GetAllProductTemplatesQueryHandler> _logger;
-    private readonly ICacheService _cache;
-    private readonly CacheSettings _cacheSettings;
+    private readonly CacheSettings cacheConfig = cacheSettings.Value;
+
     private const string CACHE_KEY_ALL_TEMPLATES = "product_templates_all";
     private const string CACHE_KEY_TEMPLATES_BY_CATEGORY = "product_templates_by_category_";
     private const string CACHE_KEY_TEMPLATES_ACTIVE = "product_templates_active";
 
-    public GetAllProductTemplatesQueryHandler(
-        IDbContext context,
-        AutoMapper.IMapper mapper,
-        ILogger<GetAllProductTemplatesQueryHandler> logger,
-        ICacheService cache,
-        IOptions<CacheSettings> cacheSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _cache = cache;
-        _cacheSettings = cacheSettings.Value;
-    }
-
     public async Task<IEnumerable<ProductTemplateDto>> Handle(GetAllProductTemplatesQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching all product templates. CategoryId: {CategoryId}, IsActive: {IsActive}",
+        logger.LogInformation("Fetching all product templates. CategoryId: {CategoryId}, IsActive: {IsActive}",
             request.CategoryId, request.IsActive);
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern
@@ -60,18 +49,18 @@ public class GetAllProductTemplatesQueryHandler : IRequestHandler<GetAllProductT
             cacheKey = CACHE_KEY_ALL_TEMPLATES;
         }
 
-        var cachedTemplates = await _cache.GetAsync<IEnumerable<ProductTemplateDto>>(cacheKey, cancellationToken);
+        var cachedTemplates = await cache.GetAsync<IEnumerable<ProductTemplateDto>>(cacheKey, cancellationToken);
         if (cachedTemplates != null)
         {
-            _logger.LogInformation("Product templates retrieved from cache. CategoryId: {CategoryId}, IsActive: {IsActive}",
+            logger.LogInformation("Product templates retrieved from cache. CategoryId: {CategoryId}, IsActive: {IsActive}",
                 request.CategoryId, request.IsActive);
             return cachedTemplates;
         }
 
-        _logger.LogInformation("Cache miss for product templates. Fetching from database.");
+        logger.LogInformation("Cache miss for product templates. Fetching from database.");
 
         // ✅ PERFORMANCE: AsNoTracking for read-only queries
-        IQueryable<ProductTemplate> query = _context.Set<ProductTemplate>()
+        IQueryable<ProductTemplate> query = context.Set<ProductTemplate>()
             .AsNoTracking()
             .Include(t => t.Category);
 
@@ -90,13 +79,13 @@ public class GetAllProductTemplatesQueryHandler : IRequestHandler<GetAllProductT
             .ThenBy(t => t.Name)
             .ToListAsync(cancellationToken);
 
-        var templateDtos = _mapper.Map<IEnumerable<ProductTemplateDto>>(templates).ToList();
+        var templateDtos = mapper.Map<IEnumerable<ProductTemplateDto>>(templates).ToList();
 
         // ✅ BOLUM 10.1: Cache-Aside Pattern - Cache'e yaz
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma (Clean Architecture)
-        await _cache.SetAsync(cacheKey, templateDtos, TimeSpan.FromMinutes(_cacheSettings.ProductTemplateCacheExpirationMinutes), cancellationToken);
+        await cache.SetAsync(cacheKey, templateDtos, TimeSpan.FromMinutes(cacheConfig.ProductTemplateCacheExpirationMinutes), cancellationToken);
 
-        _logger.LogInformation("Retrieved all product templates. Count: {Count}, CategoryId: {CategoryId}, IsActive: {IsActive}",
+        logger.LogInformation("Retrieved all product templates. Count: {Count}, CategoryId: {CategoryId}, IsActive: {IsActive}",
             templates.Count, request.CategoryId, request.IsActive);
 
         return templateDtos;

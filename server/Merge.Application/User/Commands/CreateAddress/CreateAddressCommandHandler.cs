@@ -16,35 +16,23 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.User.Commands.CreateAddress;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreateAddressCommandHandler : IRequestHandler<CreateAddressCommand, AddressDto>
+public class CreateAddressCommandHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<CreateAddressCommandHandler> logger) : IRequestHandler<CreateAddressCommand, AddressDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateAddressCommandHandler> _logger;
-
-    public CreateAddressCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateAddressCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<AddressDto> Handle(CreateAddressCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
-        _logger.LogInformation("Creating new address for user ID: {UserId}", request.UserId);
+        logger.LogInformation("Creating new address for user ID: {UserId}", request.UserId);
 
         // Eger default olarak isaretleniyorsa, diger adreslerin default'unu kaldir
         if (request.IsDefault)
         {
-            var existingDefaults = await _context.Set<AddressEntity>()
+            var existingDefaults = await context.Set<AddressEntity>()
                 .Where(a => a.UserId == request.UserId && a.IsDefault && !a.IsDeleted)
                 .ToListAsync(cancellationToken);
 
@@ -55,7 +43,7 @@ public class CreateAddressCommandHandler : IRequestHandler<CreateAddressCommand,
 
             if (existingDefaults.Count > 0)
             {
-                _logger.LogInformation("Removed default flag from {Count} existing addresses", existingDefaults.Count);
+                logger.LogInformation("Removed default flag from {Count} existing addresses", existingDefaults.Count);
             }
         }
 
@@ -74,15 +62,15 @@ public class CreateAddressCommandHandler : IRequestHandler<CreateAddressCommand,
             addressLine2: request.AddressLine2,
             isDefault: request.IsDefault);
 
-        await _context.Set<AddressEntity>().AddAsync(address, cancellationToken);
+        await context.Set<AddressEntity>().AddAsync(address, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Address created successfully with ID: {AddressId}", address.Id);
+        logger.LogInformation("Address created successfully with ID: {AddressId}", address.Id);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<AddressDto>(address);
+        return mapper.Map<AddressDto>(address);
     }
 }

@@ -5,12 +5,12 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Search.Queries.GetBasedOnViewHistory;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetBasedOnViewHistoryQueryValidator : AbstractValidator<GetBasedOnViewHistoryQuery>
+public class GetBasedOnViewHistoryQueryValidator(IOptions<SearchSettings> searchSettings) : AbstractValidator<GetBasedOnViewHistoryQuery>
 {
-    public GetBasedOnViewHistoryQueryValidator(IOptions<SearchSettings> searchSettings)
-    {
-        var settings = searchSettings.Value;
+    private readonly SearchSettings config = searchSettings.Value;
 
+    public GetBasedOnViewHistoryQueryValidator() : this(Options.Create(new SearchSettings()))
+    {
         RuleFor(x => x.UserId)
             .NotEmpty()
             .WithMessage("Kullanıcı ID'si boş olamaz.");
@@ -18,7 +18,7 @@ public class GetBasedOnViewHistoryQueryValidator : AbstractValidator<GetBasedOnV
         RuleFor(x => x.MaxResults)
             .GreaterThan(0)
             .WithMessage("Maksimum sonuç sayısı 1'den büyük olmalıdır.")
-            .LessThanOrEqualTo(settings.MaxRecommendationResults)
-            .WithMessage($"Maksimum sonuç sayısı en fazla {settings.MaxRecommendationResults} olabilir.");
+            .LessThanOrEqualTo(config.MaxRecommendationResults)
+            .WithMessage($"Maksimum sonuç sayısı en fazla {config.MaxRecommendationResults} olabilir.");
     }
 }

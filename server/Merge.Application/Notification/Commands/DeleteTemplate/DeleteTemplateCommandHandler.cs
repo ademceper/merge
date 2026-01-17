@@ -13,26 +13,13 @@ namespace Merge.Application.Notification.Commands.DeleteTemplate;
 /// <summary>
 /// Delete Template Command Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class DeleteTemplateCommandHandler : IRequestHandler<DeleteTemplateCommand, bool>
+public class DeleteTemplateCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<DeleteTemplateCommandHandler> logger) : IRequestHandler<DeleteTemplateCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<DeleteTemplateCommandHandler> _logger;
-
-    public DeleteTemplateCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<DeleteTemplateCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(DeleteTemplateCommand request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
-        var template = await _context.Set<NotificationTemplate>()
+        var template = await context.Set<NotificationTemplate>()
             .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
 
         if (template == null)
@@ -44,10 +31,10 @@ public class DeleteTemplateCommandHandler : IRequestHandler<DeleteTemplateComman
         template.Delete();
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Notification template silindi. TemplateId: {TemplateId}",
             request.Id);
 

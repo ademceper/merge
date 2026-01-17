@@ -15,35 +15,22 @@ namespace Merge.Application.ML.Commands.UpdateFraudDetectionRule;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class UpdateFraudDetectionRuleCommandHandler : IRequestHandler<UpdateFraudDetectionRuleCommand, bool>
+public class UpdateFraudDetectionRuleCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<UpdateFraudDetectionRuleCommandHandler> logger) : IRequestHandler<UpdateFraudDetectionRuleCommand, bool>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<UpdateFraudDetectionRuleCommandHandler> _logger;
-
-    public UpdateFraudDetectionRuleCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<UpdateFraudDetectionRuleCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task<bool> Handle(UpdateFraudDetectionRuleCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Updating fraud detection rule. RuleId: {RuleId}, Name: {Name}",
+        logger.LogInformation("Updating fraud detection rule. RuleId: {RuleId}, Name: {Name}",
             request.Id, request.Name);
 
         // ✅ PERFORMANCE: Removed manual !r.IsDeleted (Global Query Filter)
-        var rule = await _context.Set<FraudDetectionRule>()
+        var rule = await context.Set<FraudDetectionRule>()
             .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken);
 
         if (rule == null)
         {
-            _logger.LogWarning("Fraud detection rule not found. RuleId: {RuleId}", request.Id);
+            logger.LogWarning("Fraud detection rule not found. RuleId: {RuleId}", request.Id);
             return false;
         }
 
@@ -77,9 +64,9 @@ public class UpdateFraudDetectionRuleCommandHandler : IRequestHandler<UpdateFrau
         }
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Fraud detection rule updated. RuleId: {RuleId}", request.Id);
+        logger.LogInformation("Fraud detection rule updated. RuleId: {RuleId}", request.Id);
         return true;
     }
 }

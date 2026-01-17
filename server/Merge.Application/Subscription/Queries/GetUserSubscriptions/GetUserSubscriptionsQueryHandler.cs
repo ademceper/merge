@@ -17,21 +17,8 @@ namespace Merge.Application.Subscription.Queries.GetUserSubscriptions;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 3.4: Pagination (ZORUNLU)
-public class GetUserSubscriptionsQueryHandler : IRequestHandler<GetUserSubscriptionsQuery, PagedResult<UserSubscriptionDto>>
+public class GetUserSubscriptionsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetUserSubscriptionsQueryHandler> logger) : IRequestHandler<GetUserSubscriptionsQuery, PagedResult<UserSubscriptionDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetUserSubscriptionsQueryHandler> _logger;
-
-    public GetUserSubscriptionsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetUserSubscriptionsQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<PagedResult<UserSubscriptionDto>> Handle(GetUserSubscriptionsQuery request, CancellationToken cancellationToken)
     {
@@ -41,7 +28,7 @@ public class GetUserSubscriptionsQueryHandler : IRequestHandler<GetUserSubscript
 
         // ✅ PERFORMANCE: AsNoTracking for read-only query
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        IQueryable<UserSubscription> query = _context.Set<UserSubscription>()
+        IQueryable<UserSubscription> query = context.Set<UserSubscription>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(us => us.User)
@@ -64,7 +51,7 @@ public class GetUserSubscriptionsQueryHandler : IRequestHandler<GetUserSubscript
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        var subscriptions = await _context.Set<UserSubscription>()
+        var subscriptions = await context.Set<UserSubscription>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(us => us.User)
@@ -74,7 +61,7 @@ public class GetUserSubscriptionsQueryHandler : IRequestHandler<GetUserSubscript
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Batch load recent payments for all subscriptions
-        var recentPaymentsDict = await _context.Set<SubscriptionPayment>()
+        var recentPaymentsDict = await context.Set<SubscriptionPayment>()
             .AsNoTracking()
             .Where(p => subscriptionIds.Contains(p.UserSubscriptionId))
             .OrderByDescending(p => p.CreatedAt)
@@ -89,14 +76,14 @@ public class GetUserSubscriptionsQueryHandler : IRequestHandler<GetUserSubscript
         var result = new List<UserSubscriptionDto>();
         foreach (var subscription in subscriptions)
         {
-            var dto = _mapper.Map<UserSubscriptionDto>(subscription);
+            var dto = mapper.Map<UserSubscriptionDto>(subscription);
             dto.DaysRemaining = subscription.EndDate > DateTime.UtcNow
                 ? (int)(subscription.EndDate - DateTime.UtcNow).TotalDays
                 : 0;
             
             if (recentPaymentsDict.TryGetValue(subscription.Id, out var payments))
             {
-                dto.RecentPayments = _mapper.Map<List<SubscriptionPaymentDto>>(payments);
+                dto.RecentPayments = mapper.Map<List<SubscriptionPaymentDto>>(payments);
             }
             else
             {

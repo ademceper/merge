@@ -18,39 +18,21 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Commands.UpdateKnowledgeBaseArticle;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UpdateKnowledgeBaseArticleCommandHandler : IRequestHandler<UpdateKnowledgeBaseArticleCommand, KnowledgeBaseArticleDto?>
+public class UpdateKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateKnowledgeBaseArticleCommandHandler> logger, IOptions<SupportSettings> settings) : IRequestHandler<UpdateKnowledgeBaseArticleCommand, KnowledgeBaseArticleDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<UpdateKnowledgeBaseArticleCommandHandler> _logger;
-    private readonly SupportSettings _settings;
-
-    public UpdateKnowledgeBaseArticleCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<UpdateKnowledgeBaseArticleCommandHandler> logger,
-        IOptions<SupportSettings> settings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _settings = settings.Value;
-    }
+    private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<KnowledgeBaseArticleDto?> Handle(UpdateKnowledgeBaseArticleCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Updating knowledge base article {ArticleId}", request.ArticleId);
+        logger.LogInformation("Updating knowledge base article {ArticleId}", request.ArticleId);
 
-        var article = await _context.Set<KnowledgeBaseArticle>()
+        var article = await context.Set<KnowledgeBaseArticle>()
             .FirstOrDefaultAsync(a => a.Id == request.ArticleId, cancellationToken);
 
         if (article == null)
         {
-            _logger.LogWarning("Knowledge base article {ArticleId} not found for update", request.ArticleId);
+            logger.LogWarning("Knowledge base article {ArticleId} not found for update", request.ArticleId);
             throw new NotFoundException("Bilgi bankası makalesi", request.ArticleId);
         }
 
@@ -102,18 +84,18 @@ public class UpdateKnowledgeBaseArticleCommandHandler : IRequestHandler<UpdateKn
         }
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Knowledge base article {ArticleId} updated successfully", request.ArticleId);
+        logger.LogInformation("Knowledge base article {ArticleId} updated successfully", request.ArticleId);
 
-        article = await _context.Set<KnowledgeBaseArticle>()
+        article = await context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
             .Include(a => a.Category)
             .Include(a => a.Author)
             .FirstOrDefaultAsync(a => a.Id == article.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return _mapper.Map<KnowledgeBaseArticleDto>(article!);
+        return mapper.Map<KnowledgeBaseArticleDto>(article!);
     }
 
     private string GenerateSlug(string title)
@@ -137,9 +119,9 @@ public class UpdateKnowledgeBaseArticleCommandHandler : IRequestHandler<UpdateKn
         slug = System.Text.RegularExpressions.Regex.Replace(slug, @"-+", "-");
         slug = slug.Trim('-');
 
-        if (slug.Length > _settings.MaxArticleSlugLength)
+        if (slug.Length > supportConfig.MaxArticleSlugLength)
         {
-            slug = slug.Substring(0, _settings.MaxArticleSlugLength);
+            slug = slug.Substring(0, supportConfig.MaxArticleSlugLength);
         }
 
         return slug;

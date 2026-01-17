@@ -26,51 +26,24 @@ using IRepository = Merge.Application.Interfaces.IRepository<Merge.Domain.Module
 namespace Merge.Application.Seller.Commands.ReviewSellerApplication;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class ReviewSellerApplicationCommandHandler : IRequestHandler<ReviewSellerApplicationCommand, SellerApplicationDto>
+public class ReviewSellerApplicationCommandHandler(IRepository applicationRepository, UserManager<UserEntity> userManager, IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, IEmailService emailService, IOptions<SellerSettings> sellerSettings, ILogger<ReviewSellerApplicationCommandHandler> logger) : IRequestHandler<ReviewSellerApplicationCommand, SellerApplicationDto>
 {
-    private readonly IRepository _applicationRepository;
-    private readonly UserManager<UserEntity> _userManager;
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly IEmailService _emailService;
-    private readonly IOptions<SellerSettings> _sellerSettings;
-    private readonly ILogger<ReviewSellerApplicationCommandHandler> _logger;
-
-    public ReviewSellerApplicationCommandHandler(
-        IRepository applicationRepository,
-        UserManager<UserEntity> userManager,
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        IEmailService emailService,
-        IOptions<SellerSettings> sellerSettings,
-        ILogger<ReviewSellerApplicationCommandHandler> logger)
-    {
-        _applicationRepository = applicationRepository;
-        _userManager = userManager;
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _emailService = emailService;
-        _sellerSettings = sellerSettings;
-        _logger = logger;
-    }
+    private readonly SellerSettings sellerConfig = sellerSettings.Value;
 
     public async Task<SellerApplicationDto> Handle(ReviewSellerApplicationCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Reviewing seller application {ApplicationId} by reviewer {ReviewerId}, Status: {Status}",
+        logger.LogInformation("Reviewing seller application {ApplicationId} by reviewer {ReviewerId}, Status: {Status}",
             request.ApplicationId, request.ReviewerId, request.Status);
 
         try
         {
-            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            var application = await _applicationRepository.GetByIdAsync(request.ApplicationId);
+            var application = await applicationRepository.GetByIdAsync(request.ApplicationId);
             if (application == null)
             {
-                _logger.LogWarning("Application review failed - Application {ApplicationId} not found", request.ApplicationId);
+                logger.LogWarning("Application review failed - Application {ApplicationId} not found", request.ApplicationId);
                 throw new NotFoundException("Başvuru", request.ApplicationId);
             }
 
@@ -79,7 +52,7 @@ public class ReviewSellerApplicationCommandHandler : IRequestHandler<ReviewSelle
             {
                 application.Approve(request.ReviewerId);
                 await CreateSellerProfileAsync(application, cancellationToken);
-                _logger.LogInformation("Seller profile created for approved application {ApplicationId}", request.ApplicationId);
+                logger.LogInformation("Seller profile created for approved application {ApplicationId}", request.ApplicationId);
             }
             else if (request.Status == SellerApplicationStatus.Rejected)
             {
@@ -90,16 +63,16 @@ public class ReviewSellerApplicationCommandHandler : IRequestHandler<ReviewSelle
                 application.Review(request.ReviewerId, request.AdditionalNotes);
             }
 
-            await _applicationRepository.UpdateAsync(application);
+            await applicationRepository.UpdateAsync(application);
             // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            _logger.LogInformation("Application {ApplicationId} reviewed successfully with status: {Status}",
+            logger.LogInformation("Application {ApplicationId} reviewed successfully with status: {Status}",
                 request.ApplicationId, request.Status);
 
             // Send notification email
-            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
+            var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
             if (user != null)
             {
                 var subject = request.Status == SellerApplicationStatus.Approved
@@ -111,21 +84,21 @@ public class ReviewSellerApplicationCommandHandler : IRequestHandler<ReviewSelle
                     : $"Your seller application status has been updated to: {request.Status}.\n\n" +
                       (string.IsNullOrEmpty(request.RejectionReason) ? "" : $"Reason: {request.RejectionReason}");
 
-                await _emailService.SendEmailAsync(user.Email ?? string.Empty, subject, message, true, cancellationToken);
+                await emailService.SendEmailAsync(user.Email ?? string.Empty, subject, message, true, cancellationToken);
             }
 
-            application = await _context.Set<SellerApplication>()
+            application = await context.Set<SellerApplication>()
                 .AsNoTracking()
                 .Include(a => a.User)
                 .Include(a => a.Reviewer)
                 .FirstOrDefaultAsync(a => a.Id == application.Id, cancellationToken);
             
-            return _mapper.Map<SellerApplicationDto>(application!);
+            return mapper.Map<SellerApplicationDto>(application!);
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            _logger.LogError(ex, "Error reviewing application {ApplicationId}", request.ApplicationId);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            logger.LogError(ex, "Error reviewing application {ApplicationId}", request.ApplicationId);
             throw;
         }
     }
@@ -133,13 +106,13 @@ public class ReviewSellerApplicationCommandHandler : IRequestHandler<ReviewSelle
     private async Task CreateSellerProfileAsync(SellerApplication application, CancellationToken cancellationToken)
     {
         // Check if seller profile already exists
-        var existingProfile = await _context.Set<SellerProfile>()
+        var existingProfile = await context.Set<SellerProfile>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == application.UserId, cancellationToken);
 
         if (existingProfile != null)
         {
-            _logger.LogInformation("Seller profile already exists for user {UserId}", application.UserId);
+            logger.LogInformation("Seller profile already exists for user {UserId}", application.UserId);
             return;
         }
 
@@ -148,14 +121,14 @@ public class ReviewSellerApplicationCommandHandler : IRequestHandler<ReviewSelle
         var profile = SellerProfile.Create(
             userId: application.UserId,
             storeName: application.BusinessName,
-            commissionRate: _sellerSettings.Value.DefaultCommissionRate);
+            commissionRate: sellerConfig.DefaultCommissionRate);
 
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         profile.Verify();
         profile.Activate();
 
-        await _context.Set<SellerProfile>().AddAsync(profile, cancellationToken);
-        _logger.LogInformation("Created seller profile for user {UserId} with store name: {StoreName}",
+        await context.Set<SellerProfile>().AddAsync(profile, cancellationToken);
+        logger.LogInformation("Created seller profile for user {UserId} with store name: {StoreName}",
             application.UserId, application.BusinessName);
     }
 }

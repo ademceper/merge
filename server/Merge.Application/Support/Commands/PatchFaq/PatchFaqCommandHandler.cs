@@ -15,35 +15,19 @@ namespace Merge.Application.Support.Commands.PatchFaq;
 /// Handler for PatchFaqCommand
 /// HIGH-API-001: PATCH Support - Partial updates implementation
 /// </summary>
-public class PatchFaqCommandHandler : IRequestHandler<PatchFaqCommand, FaqDto?>
+public class PatchFaqCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<PatchFaqCommandHandler> logger) : IRequestHandler<PatchFaqCommand, FaqDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<PatchFaqCommandHandler> _logger;
-
-    public PatchFaqCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<PatchFaqCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<FaqDto?> Handle(PatchFaqCommand request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Patching FAQ {FaqId}", request.FaqId);
+        logger.LogInformation("Patching FAQ {FaqId}", request.FaqId);
 
-        var faq = await _context.Set<FAQ>()
+        var faq = await context.Set<FAQ>()
             .FirstOrDefaultAsync(f => f.Id == request.FaqId, cancellationToken);
 
         if (faq == null)
         {
-            _logger.LogWarning("FAQ {FaqId} not found for patch", request.FaqId);
+            logger.LogWarning("FAQ {FaqId} not found for patch", request.FaqId);
             throw new NotFoundException("FAQ", request.FaqId);
         }
 
@@ -70,10 +54,10 @@ public class PatchFaqCommandHandler : IRequestHandler<PatchFaqCommand, FaqDto?>
             faq.SetPublished(request.PatchDto.IsPublished.Value);
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("FAQ {FaqId} patched successfully", request.FaqId);
+        logger.LogInformation("FAQ {FaqId} patched successfully", request.FaqId);
 
-        return _mapper.Map<FaqDto>(faq);
+        return mapper.Map<FaqDto>(faq);
     }
 }

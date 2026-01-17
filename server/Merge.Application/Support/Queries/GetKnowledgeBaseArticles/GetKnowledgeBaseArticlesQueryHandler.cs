@@ -17,34 +17,22 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Queries.GetKnowledgeBaseArticles;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetKnowledgeBaseArticlesQueryHandler : IRequestHandler<GetKnowledgeBaseArticlesQuery, PagedResult<KnowledgeBaseArticleDto>>
+public class GetKnowledgeBaseArticlesQueryHandler(IDbContext context, IMapper mapper, IOptions<SupportSettings> settings) : IRequestHandler<GetKnowledgeBaseArticlesQuery, PagedResult<KnowledgeBaseArticleDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly SupportSettings _settings;
-
-    public GetKnowledgeBaseArticlesQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        IOptions<SupportSettings> settings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _settings = settings.Value;
-    }
+    private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<PagedResult<KnowledgeBaseArticleDto>> Handle(GetKnowledgeBaseArticlesQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
-        var pageSize = request.PageSize > 0 && request.PageSize <= _settings.MaxPageSize 
+        var pageSize = request.PageSize > 0 && request.PageSize <= supportConfig.MaxPageSize 
             ? request.PageSize 
-            : _settings.DefaultPageSize;
+            : supportConfig.DefaultPageSize;
         var page = request.Page > 0 ? request.Page : 1;
 
         // ✅ PERFORMANCE: AsNoTracking for read-only query, Global Query Filter otomatik uygulanır
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
-        IQueryable<KnowledgeBaseArticle> query = _context.Set<KnowledgeBaseArticle>()
+        IQueryable<KnowledgeBaseArticle> query = context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(a => a.Category)
@@ -82,7 +70,7 @@ public class GetKnowledgeBaseArticlesQueryHandler : IRequestHandler<GetKnowledge
         // ✅ ARCHITECTURE: AutoMapper kullan
         return new PagedResult<KnowledgeBaseArticleDto>
         {
-            Items = _mapper.Map<List<KnowledgeBaseArticleDto>>(articles),
+            Items = mapper.Map<List<KnowledgeBaseArticleDto>>(articles),
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize

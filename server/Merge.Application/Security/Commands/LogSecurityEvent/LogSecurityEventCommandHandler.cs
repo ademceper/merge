@@ -18,33 +18,17 @@ namespace Merge.Application.Security.Commands.LogSecurityEvent;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class LogSecurityEventCommandHandler : IRequestHandler<LogSecurityEventCommand, AccountSecurityEventDto>
+public class LogSecurityEventCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<LogSecurityEventCommandHandler> logger) : IRequestHandler<LogSecurityEventCommand, AccountSecurityEventDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<LogSecurityEventCommandHandler> _logger;
-
-    public LogSecurityEventCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<LogSecurityEventCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<AccountSecurityEventDto> Handle(LogSecurityEventCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Security event loglanıyor. UserId: {UserId}, EventType: {EventType}, Severity: {Severity}",
+        logger.LogInformation("Security event loglanıyor. UserId: {UserId}, EventType: {EventType}, Severity: {Severity}",
             request.UserId, request.EventType, request.Severity);
 
         // ✅ PERFORMANCE: Removed manual !u.IsDeleted (Global Query Filter)
-        var user = await _context.Users
+        var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
         if (user == null)
@@ -74,7 +58,7 @@ public class LogSecurityEventCommandHandler : IRequestHandler<LogSecurityEventCo
             details: request.Details != null ? JsonSerializer.Serialize(request.Details) : null,
             requiresAction: request.RequiresAction);
 
-        await _context.Set<AccountSecurityEvent>().AddAsync(securityEvent, cancellationToken);
+        await context.Set<AccountSecurityEvent>().AddAsync(securityEvent, cancellationToken);
 
         // If suspicious, create alert
         if (request.IsSuspicious || request.RequiresAction)
@@ -92,24 +76,24 @@ public class LogSecurityEventCommandHandler : IRequestHandler<LogSecurityEventCo
                 severity: alertSeverity,
                 userId: request.UserId,
                 metadata: request.Details != null ? JsonSerializer.Serialize(request.Details) : null);
-            await _context.Set<SecurityAlert>().AddAsync(alert, cancellationToken);
+            await context.Set<SecurityAlert>().AddAsync(alert, cancellationToken);
         }
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        securityEvent = await _context.Set<AccountSecurityEvent>()
+        securityEvent = await context.Set<AccountSecurityEvent>()
             .AsNoTracking()
             .Include(e => e.User)
             .Include(e => e.ActionTakenBy)
             .FirstOrDefaultAsync(e => e.Id == securityEvent.Id, cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Security event loglandı. EventId: {EventId}, UserId: {UserId}, EventType: {EventType}",
+        logger.LogInformation("Security event loglandı. EventId: {EventId}, UserId: {UserId}, EventType: {EventType}",
             securityEvent!.Id, request.UserId, request.EventType);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<AccountSecurityEventDto>(securityEvent);
+        return mapper.Map<AccountSecurityEventDto>(securityEvent);
     }
 }

@@ -16,39 +16,21 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Commands.UpdateKnowledgeBaseCategory;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class UpdateKnowledgeBaseCategoryCommandHandler : IRequestHandler<UpdateKnowledgeBaseCategoryCommand, KnowledgeBaseCategoryDto?>
+public class UpdateKnowledgeBaseCategoryCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<UpdateKnowledgeBaseCategoryCommandHandler> logger, IOptions<SupportSettings> settings) : IRequestHandler<UpdateKnowledgeBaseCategoryCommand, KnowledgeBaseCategoryDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<UpdateKnowledgeBaseCategoryCommandHandler> _logger;
-    private readonly SupportSettings _settings;
-
-    public UpdateKnowledgeBaseCategoryCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<UpdateKnowledgeBaseCategoryCommandHandler> logger,
-        IOptions<SupportSettings> settings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _settings = settings.Value;
-    }
+    private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<KnowledgeBaseCategoryDto?> Handle(UpdateKnowledgeBaseCategoryCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Updating knowledge base category {CategoryId}", request.CategoryId);
+        logger.LogInformation("Updating knowledge base category {CategoryId}", request.CategoryId);
 
-        var category = await _context.Set<KnowledgeBaseCategory>()
+        var category = await context.Set<KnowledgeBaseCategory>()
             .FirstOrDefaultAsync(c => c.Id == request.CategoryId, cancellationToken);
 
         if (category == null)
         {
-            _logger.LogWarning("Knowledge base category {CategoryId} not found for update", request.CategoryId);
+            logger.LogWarning("Knowledge base category {CategoryId} not found for update", request.CategoryId);
             throw new NotFoundException("Bilgi bankası kategorisi", request.CategoryId);
         }
 
@@ -80,18 +62,18 @@ public class UpdateKnowledgeBaseCategoryCommandHandler : IRequestHandler<UpdateK
         }
 
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Knowledge base category {CategoryId} updated successfully", request.CategoryId);
+        logger.LogInformation("Knowledge base category {CategoryId} updated successfully", request.CategoryId);
 
         // ✅ PERFORMANCE: Reload with includes for mapping
-        category = await _context.Set<KnowledgeBaseCategory>()
+        category = await context.Set<KnowledgeBaseCategory>()
             .AsNoTracking()
             .Include(c => c.ParentCategory)
             .FirstOrDefaultAsync(c => c.Id == category.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan
-        return _mapper.Map<KnowledgeBaseCategoryDto>(category!);
+        return mapper.Map<KnowledgeBaseCategoryDto>(category!);
     }
 
     private string GenerateSlug(string name)
@@ -116,9 +98,9 @@ public class UpdateKnowledgeBaseCategoryCommandHandler : IRequestHandler<UpdateK
         slug = slug.Trim('-');
 
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
-        if (slug.Length > _settings.MaxCategorySlugLength)
+        if (slug.Length > supportConfig.MaxCategorySlugLength)
         {
-            slug = slug.Substring(0, _settings.MaxCategorySlugLength);
+            slug = slug.Substring(0, supportConfig.MaxCategorySlugLength);
         }
 
         return slug;

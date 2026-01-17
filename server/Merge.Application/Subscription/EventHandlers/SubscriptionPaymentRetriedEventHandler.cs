@@ -10,19 +10,13 @@ namespace Merge.Application.Subscription.EventHandlers;
 /// SubscriptionPayment Retried Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class SubscriptionPaymentRetriedEventHandler : INotificationHandler<SubscriptionPaymentRetriedEvent>
+public class SubscriptionPaymentRetriedEventHandler(ILogger<SubscriptionPaymentRetriedEventHandler> logger) : INotificationHandler<SubscriptionPaymentRetriedEvent>
 {
-    private readonly ILogger<SubscriptionPaymentRetriedEventHandler> _logger;
-
-    public SubscriptionPaymentRetriedEventHandler(ILogger<SubscriptionPaymentRetriedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(SubscriptionPaymentRetriedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Subscription payment retried event received. PaymentId: {PaymentId}, UserSubscriptionId: {UserSubscriptionId}, RetryCount: {RetryCount}",
             notification.PaymentId, notification.UserSubscriptionId, notification.RetryCount);
 
@@ -38,7 +32,7 @@ public class SubscriptionPaymentRetriedEventHandler : INotificationHandler<Subsc
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling SubscriptionPaymentRetriedEvent. PaymentId: {PaymentId}, UserSubscriptionId: {UserSubscriptionId}",
                 notification.PaymentId, notification.UserSubscriptionId);
             throw;

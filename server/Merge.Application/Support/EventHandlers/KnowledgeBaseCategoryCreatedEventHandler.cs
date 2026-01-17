@@ -10,19 +10,13 @@ namespace Merge.Application.Support.EventHandlers;
 /// Knowledge Base Category Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class KnowledgeBaseCategoryCreatedEventHandler : INotificationHandler<KnowledgeBaseCategoryCreatedEvent>
+public class KnowledgeBaseCategoryCreatedEventHandler(ILogger<KnowledgeBaseCategoryCreatedEventHandler> logger) : INotificationHandler<KnowledgeBaseCategoryCreatedEvent>
 {
-    private readonly ILogger<KnowledgeBaseCategoryCreatedEventHandler> _logger;
-
-    public KnowledgeBaseCategoryCreatedEventHandler(ILogger<KnowledgeBaseCategoryCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(KnowledgeBaseCategoryCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Knowledge base category created event received. CategoryId: {CategoryId}, Name: {Name}, Slug: {Slug}, ParentCategoryId: {ParentCategoryId}",
             notification.CategoryId, notification.Name, notification.Slug, notification.ParentCategoryId);
 

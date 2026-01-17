@@ -17,37 +17,23 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Security.Queries.GetAllChecks;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetAllChecksQueryHandler : IRequestHandler<GetAllChecksQuery, PagedResult<PaymentFraudPreventionDto>>
+public class GetAllChecksQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAllChecksQueryHandler> logger, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetAllChecksQuery, PagedResult<PaymentFraudPreventionDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetAllChecksQueryHandler> _logger;
-    private readonly PaginationSettings _paginationSettings;
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
-    public GetAllChecksQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetAllChecksQueryHandler> logger,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
 
     public async Task<PagedResult<PaymentFraudPreventionDto>> Handle(GetAllChecksQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Payment fraud check'ler sorgulanıyor. Status: {Status}, IsBlocked: {IsBlocked}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Payment fraud check'ler sorgulanıyor. Status: {Status}, IsBlocked: {IsBlocked}, Page: {Page}, PageSize: {PageSize}",
             request.Status ?? "All", request.IsBlocked?.ToString() ?? "All", request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU) - ✅ BOLUM 12.0: Magic number config'den
-        var pageSize = request.PageSize > _paginationSettings.MaxPageSize ? _paginationSettings.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !c.IsDeleted (Global Query Filter)
-        IQueryable<PaymentFraudPrevention> query = _context.Set<PaymentFraudPrevention>()
+        IQueryable<PaymentFraudPrevention> query = context.Set<PaymentFraudPrevention>()
             .AsNoTracking()
             .Include(c => c.Payment);
 
@@ -73,9 +59,9 @@ public class GetAllChecksQueryHandler : IRequestHandler<GetAllChecksQuery, Paged
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        var checkDtos = _mapper.Map<IEnumerable<PaymentFraudPreventionDto>>(checks).ToList();
+        var checkDtos = mapper.Map<IEnumerable<PaymentFraudPreventionDto>>(checks).ToList();
 
-        _logger.LogInformation("Payment fraud check'ler bulundu. TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}, ReturnedCount: {ReturnedCount}",
+        logger.LogInformation("Payment fraud check'ler bulundu. TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}, ReturnedCount: {ReturnedCount}",
             totalCount, page, pageSize, checkDtos.Count);
 
         return new PagedResult<PaymentFraudPreventionDto>

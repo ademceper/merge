@@ -17,40 +17,25 @@ namespace Merge.Application.ML.Queries.OptimizePricesForCategory;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class OptimizePricesForCategoryQueryHandler : IRequestHandler<OptimizePricesForCategoryQuery, PagedResult<PriceOptimizationDto>>
+public class OptimizePricesForCategoryQueryHandler(IDbContext context, ILogger<OptimizePricesForCategoryQueryHandler> logger, IOptions<PaginationSettings> paginationSettings, PriceOptimizationHelper helper) : IRequestHandler<OptimizePricesForCategoryQuery, PagedResult<PriceOptimizationDto>>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<OptimizePricesForCategoryQueryHandler> _logger;
-    private readonly PaginationSettings _paginationSettings;
-    private readonly PriceOptimizationHelper _helper;
-
-    public OptimizePricesForCategoryQueryHandler(
-        IDbContext context,
-        ILogger<OptimizePricesForCategoryQueryHandler> logger,
-        IOptions<PaginationSettings> paginationSettings,
-        PriceOptimizationHelper helper)
-    {
-        _context = context;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-        _helper = helper;
-    }
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
     public async Task<PagedResult<PriceOptimizationDto>> Handle(OptimizePricesForCategoryQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Optimizing prices for category. CategoryId: {CategoryId}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Optimizing prices for category. CategoryId: {CategoryId}, Page: {Page}, PageSize: {PageSize}",
             request.CategoryId, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination (ZORUNLU)
         // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
         var page = request.Page;
         var pageSize = request.PageSize;
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var products = await _context.Set<ProductEntity>()
+        var products = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.CategoryId == request.CategoryId && p.IsActive)
@@ -58,7 +43,7 @@ public class OptimizePricesForCategoryQueryHandler : IRequestHandler<OptimizePri
 
         // ✅ PERFORMANCE: Batch load similar products (N+1 fix)
         // ✅ PERFORMANCE: Direkt request.CategoryId kullan (gereksiz sorgu YOK)
-        var allSimilarProducts = await _context.Set<ProductEntity>()
+        var allSimilarProducts = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.CategoryId == request.CategoryId && p.IsActive)
             .ToListAsync(cancellationToken);
@@ -81,7 +66,7 @@ public class OptimizePricesForCategoryQueryHandler : IRequestHandler<OptimizePri
                 ? similar.Where(p => p.Id != product.Id).ToList() 
                 : [];
             
-            var recommendation = await _helper.CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
+            var recommendation = await helper.CalculateOptimalPriceAsync(product, similarProducts, cancellationToken);
             results.Add(new PriceOptimizationDto(
                 product.Id,
                 product.Name,
@@ -109,7 +94,7 @@ public class OptimizePricesForCategoryQueryHandler : IRequestHandler<OptimizePri
             .Take(pageSize)
             .ToList();
 
-        _logger.LogInformation("Prices optimized for category. CategoryId: {CategoryId}, TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Prices optimized for category. CategoryId: {CategoryId}, TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}",
             request.CategoryId, totalCount, page, pageSize);
 
         return new PagedResult<PriceOptimizationDto>

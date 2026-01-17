@@ -14,28 +14,15 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Review.Queries.GetTrustBadges;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetTrustBadgesQueryHandler : IRequestHandler<GetTrustBadgesQuery, IEnumerable<TrustBadgeDto>>
+public class GetTrustBadgesQueryHandler(IDbContext context, IMapper mapper, ILogger<GetTrustBadgesQueryHandler> logger) : IRequestHandler<GetTrustBadgesQuery, IEnumerable<TrustBadgeDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetTrustBadgesQueryHandler> _logger;
-
-    public GetTrustBadgesQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetTrustBadgesQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<IEnumerable<TrustBadgeDto>> Handle(GetTrustBadgesQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching trust badges. BadgeType: {BadgeType}", request.BadgeType);
+        logger.LogInformation("Fetching trust badges. BadgeType: {BadgeType}", request.BadgeType);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !b.IsDeleted (Global Query Filter)
-        var query = _context.Set<TrustBadge>()
+        var query = context.Set<TrustBadge>()
             .AsNoTracking()
             .Where(b => b.IsActive);
 
@@ -50,6 +37,6 @@ public class GetTrustBadgesQueryHandler : IRequestHandler<GetTrustBadgesQuery, I
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<TrustBadgeDto>>(badges);
+        return mapper.Map<IEnumerable<TrustBadgeDto>>(badges);
     }
 }

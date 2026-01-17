@@ -14,23 +14,15 @@ namespace Merge.Application.Subscription.EventHandlers;
 /// SubscriptionUsage Limit Reached Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class SubscriptionUsageLimitReachedEventHandler : INotificationHandler<SubscriptionUsageLimitReachedEvent>
+public class SubscriptionUsageLimitReachedEventHandler(ILogger<SubscriptionUsageLimitReachedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<SubscriptionUsageLimitReachedEvent>
 {
-    private readonly ILogger<SubscriptionUsageLimitReachedEventHandler> _logger;
+    
     private readonly INotificationService? _notificationService;
-
-    public SubscriptionUsageLimitReachedEventHandler(
-        ILogger<SubscriptionUsageLimitReachedEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(SubscriptionUsageLimitReachedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogWarning(
+        logger.LogWarning(
             "Subscription usage limit reached event received. UsageId: {UsageId}, UserSubscriptionId: {UserSubscriptionId}, UserId: {UserId}, Feature: {Feature}, UsageCount: {UsageCount}, Limit: {Limit}",
             notification.UsageId, notification.UserSubscriptionId, notification.UserId, notification.Feature, notification.UsageCount, notification.Limit);
 
@@ -57,7 +49,7 @@ public class SubscriptionUsageLimitReachedEventHandler : INotificationHandler<Su
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling SubscriptionUsageLimitReachedEvent. UsageId: {UsageId}, UserSubscriptionId: {UserSubscriptionId}",
                 notification.UsageId, notification.UserSubscriptionId);
             throw;

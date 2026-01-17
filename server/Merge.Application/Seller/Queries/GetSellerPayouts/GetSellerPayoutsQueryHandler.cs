@@ -14,30 +14,17 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Queries.GetSellerPayouts;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetSellerPayoutsQueryHandler : IRequestHandler<GetSellerPayoutsQuery, IEnumerable<CommissionPayoutDto>>
+public class GetSellerPayoutsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetSellerPayoutsQueryHandler> logger) : IRequestHandler<GetSellerPayoutsQuery, IEnumerable<CommissionPayoutDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetSellerPayoutsQueryHandler> _logger;
-
-    public GetSellerPayoutsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetSellerPayoutsQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<IEnumerable<CommissionPayoutDto>> Handle(GetSellerPayoutsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting seller payouts. SellerId: {SellerId}", request.SellerId);
+        logger.LogInformation("Getting seller payouts. SellerId: {SellerId}", request.SellerId);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes with nested ThenInclude)
-        var payouts = await _context.Set<CommissionPayout>()
+        var payouts = await context.Set<CommissionPayout>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(p => p.Seller)
@@ -49,6 +36,6 @@ public class GetSellerPayoutsQueryHandler : IRequestHandler<GetSellerPayoutsQuer
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<CommissionPayoutDto>>(payouts);
+        return mapper.Map<IEnumerable<CommissionPayoutDto>>(payouts);
     }
 }

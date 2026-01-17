@@ -9,19 +9,13 @@ namespace Merge.Application.Organization.EventHandlers;
 /// <summary>
 /// Team Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// </summary>
-public class TeamCreatedEventHandler : INotificationHandler<TeamCreatedEvent>
+public class TeamCreatedEventHandler(ILogger<TeamCreatedEventHandler> logger) : INotificationHandler<TeamCreatedEvent>
 {
-    private readonly ILogger<TeamCreatedEventHandler> _logger;
-
-    public TeamCreatedEventHandler(ILogger<TeamCreatedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(TeamCreatedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Team created event received. TeamId: {TeamId}, OrganizationId: {OrganizationId}, Name: {Name}",
             notification.TeamId, notification.OrganizationId, notification.Name);
 

@@ -5,28 +5,19 @@ using Merge.Domain.ValueObjects;
 
 namespace Merge.Application.Services.EmailProviders;
 
-public class SendGridProvider : IEmailProvider
+public class SendGridProvider(IConfiguration configuration, ILogger<SendGridProvider> logger) : IEmailProvider
 {
     public string ProviderName => "SendGrid";
-    
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<SendGridProvider> _logger;
-
-    public SendGridProvider(IConfiguration configuration, ILogger<SendGridProvider> logger)
-    {
-        _configuration = configuration;
-        _logger = logger;
-    }
 
     public async Task<EmailSendResult> SendEmailAsync(EmailMessage message)
     {
-        _logger.LogInformation("SendGrid email sending started. To: {To}, Subject: {Subject}", message.To, message.Subject);
+        logger.LogInformation("SendGrid email sending started. To: {To}, Subject: {Subject}", message.To, message.Subject);
         
-        var apiKey = _configuration["EmailProviders:SendGrid:ApiKey"];
+        var apiKey = configuration["EmailProviders:SendGrid:ApiKey"];
         
         if (string.IsNullOrEmpty(apiKey))
         {
-            _logger.LogWarning("SendGrid API key not configured");
+            logger.LogWarning("SendGrid API key not configured");
             return new EmailSendResult
             {
                 Success = false,
@@ -43,7 +34,7 @@ public class SendGridProvider : IEmailProvider
         
         var messageId = $"SG_{Guid.NewGuid():N}";
         
-        _logger.LogInformation("SendGrid email sent successfully. MessageId: {MessageId}", messageId);
+        logger.LogInformation("SendGrid email sent successfully. MessageId: {MessageId}", messageId);
         
         return new EmailSendResult
         {
@@ -59,7 +50,7 @@ public class SendGridProvider : IEmailProvider
 
     public Task<bool> VerifyConfigurationAsync()
     {
-        var apiKey = _configuration["EmailProviders:SendGrid:ApiKey"];
+        var apiKey = configuration["EmailProviders:SendGrid:ApiKey"];
         return Task.FromResult(!string.IsNullOrEmpty(apiKey));
     }
 }

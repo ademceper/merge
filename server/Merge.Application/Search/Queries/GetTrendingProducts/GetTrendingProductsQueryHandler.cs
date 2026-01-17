@@ -18,43 +18,28 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Search.Queries.GetTrendingProducts;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetTrendingProductsQueryHandler : IRequestHandler<GetTrendingProductsQuery, IReadOnlyList<ProductRecommendationDto>>
+public class GetTrendingProductsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetTrendingProductsQueryHandler> logger, IOptions<SearchSettings> searchSettings) : IRequestHandler<GetTrendingProductsQuery, IReadOnlyList<ProductRecommendationDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetTrendingProductsQueryHandler> _logger;
-    private readonly SearchSettings _searchSettings;
-
-    public GetTrendingProductsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetTrendingProductsQueryHandler> logger,
-        IOptions<SearchSettings> searchSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _searchSettings = searchSettings.Value;
-    }
+    private readonly SearchSettings searchConfig = searchSettings.Value;
 
     public async Task<IReadOnlyList<ProductRecommendationDto>> Handle(GetTrendingProductsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Trending products isteniyor. Days: {Days}, MaxResults: {MaxResults}",
             request.Days, request.MaxResults);
 
-        var days = request.Days < 1 ? _searchSettings.DefaultTrendingDays : request.Days;
-        if (days > _searchSettings.MaxTrendingDays) days = _searchSettings.MaxTrendingDays;
+        var days = request.Days < 1 ? searchConfig.DefaultTrendingDays : request.Days;
+        if (days > searchConfig.MaxTrendingDays) days = searchConfig.MaxTrendingDays;
 
-        var maxResults = request.MaxResults > _searchSettings.MaxRecommendationResults
-            ? _searchSettings.MaxRecommendationResults
+        var maxResults = request.MaxResults > searchConfig.MaxRecommendationResults
+            ? searchConfig.MaxRecommendationResults
             : request.MaxResults;
 
         var startDate = DateTime.UtcNow.AddDays(-days);
 
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        var trendingProducts = await _context.Set<OrderItem>()
+        var trendingProducts = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.CreatedAt >= startDate)
             .GroupBy(oi => oi.ProductId)
@@ -74,7 +59,7 @@ public class GetTrendingProductsQueryHandler : IRequestHandler<GetTrendingProduc
 
         // ✅ PERFORMANCE: Batch load products to avoid N+1 queries
         var productIds = trendingProducts.Select(tp => tp.ProductId).ToList();
-        var products = await _context.Set<ProductEntity>()
+        var products = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => productIds.Contains(p.Id) && p.IsActive)
             .ToDictionaryAsync(p => p.Id, cancellationToken);
@@ -85,7 +70,7 @@ public class GetTrendingProductsQueryHandler : IRequestHandler<GetTrendingProduc
         {
             if (products.TryGetValue(tp.ProductId, out var product))
             {
-                var rec = _mapper.Map<ProductRecommendationDto>(product);
+                var rec = mapper.Map<ProductRecommendationDto>(product);
                 recommendations.Add(new ProductRecommendationDto(
                     rec.ProductId,
                     rec.Name,
@@ -102,7 +87,7 @@ public class GetTrendingProductsQueryHandler : IRequestHandler<GetTrendingProduc
         }
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Trending products tamamlandı. Days: {Days}, Count: {Count}",
             days, recommendations.Count);
 

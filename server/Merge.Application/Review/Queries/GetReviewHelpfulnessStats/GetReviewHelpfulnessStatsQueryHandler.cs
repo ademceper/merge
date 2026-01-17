@@ -14,34 +14,24 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Review.Queries.GetReviewHelpfulnessStats;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetReviewHelpfulnessStatsQueryHandler : IRequestHandler<GetReviewHelpfulnessStatsQuery, ReviewHelpfulnessStatsDto>
+public class GetReviewHelpfulnessStatsQueryHandler(IDbContext context, ILogger<GetReviewHelpfulnessStatsQueryHandler> logger) : IRequestHandler<GetReviewHelpfulnessStatsQuery, ReviewHelpfulnessStatsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetReviewHelpfulnessStatsQueryHandler> _logger;
-
-    public GetReviewHelpfulnessStatsQueryHandler(
-        IDbContext context,
-        ILogger<GetReviewHelpfulnessStatsQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<ReviewHelpfulnessStatsDto> Handle(GetReviewHelpfulnessStatsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Fetching review helpfulness stats. ReviewId: {ReviewId}, UserId: {UserId}",
             request.ReviewId, request.UserId);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)
-        var review = await _context.Set<ReviewEntity>()
+        var review = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
 
         if (review == null)
         {
-            _logger.LogWarning("Review not found with Id: {ReviewId}", request.ReviewId);
+            logger.LogWarning("Review not found with Id: {ReviewId}", request.ReviewId);
             throw new NotFoundException("Değerlendirme", request.ReviewId);
         }
 
@@ -49,7 +39,7 @@ public class GetReviewHelpfulnessStatsQueryHandler : IRequestHandler<GetReviewHe
         if (request.UserId.HasValue)
         {
             // ✅ PERFORMANCE: AsNoTracking for read-only query
-            var vote = await _context.Set<ReviewHelpfulness>()
+            var vote = await context.Set<ReviewHelpfulness>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(rh => rh.ReviewId == request.ReviewId && rh.UserId == request.UserId.Value, cancellationToken);
 
@@ -62,7 +52,7 @@ public class GetReviewHelpfulnessStatsQueryHandler : IRequestHandler<GetReviewHe
         var totalVotes = review.HelpfulCount + review.UnhelpfulCount;
         var helpfulPercentage = totalVotes > 0 ? (decimal)review.HelpfulCount / totalVotes * 100 : 0;
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Review helpfulness stats retrieved. ReviewId: {ReviewId}, HelpfulCount: {HelpfulCount}, UnhelpfulCount: {UnhelpfulCount}, TotalVotes: {TotalVotes}",
             request.ReviewId, review.HelpfulCount, review.UnhelpfulCount, totalVotes);
 

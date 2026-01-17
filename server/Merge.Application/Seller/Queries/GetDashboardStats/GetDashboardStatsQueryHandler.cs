@@ -21,35 +21,23 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Queries.GetDashboardStats;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQuery, SellerDashboardStatsDto>
+public class GetDashboardStatsQueryHandler(IDbContext context, ILogger<GetDashboardStatsQueryHandler> logger, IOptions<SellerSettings> sellerSettings) : IRequestHandler<GetDashboardStatsQuery, SellerDashboardStatsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetDashboardStatsQueryHandler> _logger;
-    private readonly SellerSettings _sellerSettings;
-
-    public GetDashboardStatsQueryHandler(
-        IDbContext context,
-        ILogger<GetDashboardStatsQueryHandler> logger,
-        IOptions<SellerSettings> sellerSettings)
-    {
-        _context = context;
-        _logger = logger;
-        _sellerSettings = sellerSettings.Value;
-    }
+    private readonly SellerSettings sellerConfig = sellerSettings.Value;
 
     public async Task<SellerDashboardStatsDto> Handle(GetDashboardStatsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting dashboard stats. SellerId: {SellerId}", request.SellerId);
+        logger.LogInformation("Getting dashboard stats. SellerId: {SellerId}", request.SellerId);
 
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var sellerProfile = await _context.Set<SellerProfile>()
+        var sellerProfile = await context.Set<SellerProfile>()
             .AsNoTracking()
             .FirstOrDefaultAsync(sp => sp.UserId == request.SellerId, cancellationToken);
 
         if (sellerProfile == null)
         {
-            _logger.LogWarning("Seller profile not found. SellerId: {SellerId}", request.SellerId);
+            logger.LogWarning("Seller profile not found. SellerId: {SellerId}", request.SellerId);
             throw new NotFoundException("Satıcı profili", request.SellerId);
         }
 
@@ -58,50 +46,50 @@ public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQu
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
         var stats = new SellerDashboardStatsDto
         {
-            TotalProducts = await _context.Set<ProductEntity>()
+            TotalProducts = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .CountAsync(p => p.SellerId == request.SellerId, cancellationToken),
-            ActiveProducts = await _context.Set<ProductEntity>()
+            ActiveProducts = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .CountAsync(p => p.SellerId == request.SellerId && p.IsActive, cancellationToken),
-            TotalOrders = await _context.Set<OrderEntity>()
+            TotalOrders = await context.Set<OrderEntity>()
                 .AsNoTracking()
                 .CountAsync(o => o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId), cancellationToken),
-            PendingOrders = await _context.Set<OrderEntity>()
+            PendingOrders = await context.Set<OrderEntity>()
                 .AsNoTracking()
                 .CountAsync(o => o.Status == OrderStatus.Pending &&
                            o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId), cancellationToken),
             TotalRevenue = await (
-                from o in _context.Set<OrderEntity>().AsNoTracking()
-                join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
-                join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+                from o in context.Set<OrderEntity>().AsNoTracking()
+                join oi in context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+                join p in context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
                 where o.PaymentStatus == PaymentStatus.Completed && p.SellerId == request.SellerId
                 select oi.TotalPrice
             ).SumAsync(cancellationToken),
             PendingBalance = sellerProfile.PendingBalance,
             AvailableBalance = sellerProfile.AvailableBalance,
             AverageRating = sellerProfile.AverageRating,
-            TotalReviews = await _context.Set<ReviewEntity>()
+            TotalReviews = await context.Set<ReviewEntity>()
                 .AsNoTracking()
                 .CountAsync(r => r.IsApproved &&
                            r.Product.SellerId == request.SellerId, cancellationToken),
-            TodayOrders = await _context.Set<OrderEntity>()
+            TodayOrders = await context.Set<OrderEntity>()
                 .AsNoTracking()
                 .CountAsync(o => o.CreatedAt.Date == today &&
                            o.OrderItems.Any(oi => oi.Product.SellerId == request.SellerId), cancellationToken),
             TodayRevenue = await (
-                from o in _context.Set<OrderEntity>().AsNoTracking()
-                join oi in _context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
-                join p in _context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
+                from o in context.Set<OrderEntity>().AsNoTracking()
+                join oi in context.Set<OrderItem>().AsNoTracking() on o.Id equals oi.OrderId
+                join p in context.Set<ProductEntity>().AsNoTracking() on oi.ProductId equals p.Id
                 where o.PaymentStatus == PaymentStatus.Completed && 
                       o.CreatedAt.Date == today && 
                       p.SellerId == request.SellerId
                 select oi.TotalPrice
             ).SumAsync(cancellationToken),
-            LowStockProducts = await _context.Set<ProductEntity>()
+            LowStockProducts = await context.Set<ProductEntity>()
                 .AsNoTracking()
                 .CountAsync(p => p.SellerId == request.SellerId &&
-                           p.StockQuantity <= _sellerSettings.LowStockThreshold && p.IsActive, cancellationToken)
+                           p.StockQuantity <= sellerConfig.LowStockThreshold && p.IsActive, cancellationToken)
         };
 
         return stats;

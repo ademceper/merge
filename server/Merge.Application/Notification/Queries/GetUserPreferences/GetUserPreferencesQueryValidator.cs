@@ -9,9 +9,11 @@ namespace Merge.Application.Notification.Queries.GetUserPreferences;
 /// <summary>
 /// Get User Preferences Query Validator - BOLUM 2.1: FluentValidation (ZORUNLU)
 /// </summary>
-public class GetUserPreferencesQueryValidator : AbstractValidator<GetUserPreferencesQuery>
+public class GetUserPreferencesQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetUserPreferencesQuery>
 {
-    public GetUserPreferencesQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    private readonly PaginationSettings settings = paginationSettings.Value;
+
+    public GetUserPreferencesQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
         RuleFor(x => x.UserId)
             .NotEmpty()
@@ -24,7 +26,7 @@ public class GetUserPreferencesQueryValidator : AbstractValidator<GetUserPrefere
         RuleFor(x => x.PageSize)
             .GreaterThan(0)
             .WithMessage("Sayfa boyutu 0'dan büyük olmalıdır.")
-            .LessThanOrEqualTo(paginationSettings.Value.MaxPageSize)
-            .WithMessage($"Sayfa boyutu en fazla {paginationSettings.Value.MaxPageSize} olabilir.");
+            .LessThanOrEqualTo(settings.MaxPageSize)
+            .WithMessage($"Sayfa boyutu en fazla {settings.MaxPageSize} olabilir.");
     }
 }

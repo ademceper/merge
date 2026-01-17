@@ -21,14 +21,9 @@ public class DemandForecastCalculation
 }
 
 // ✅ BOLUM 1.1: Clean Architecture - Helper class for shared demand forecasting logic
-public class DemandForecastingHelper
+public class DemandForecastingHelper(IOptions<MLSettings> mlSettings)
 {
-    private readonly MLSettings _mlSettings;
-
-    public DemandForecastingHelper(IOptions<MLSettings> mlSettings)
-    {
-        _mlSettings = mlSettings.Value;
-    }
+    private readonly MLSettings _mlSettings = mlSettings.Value;
 
     public DemandForecastCalculation CalculateDemandForecast(ProductEntity product, List<object> historicalSales, int forecastDays)
     {

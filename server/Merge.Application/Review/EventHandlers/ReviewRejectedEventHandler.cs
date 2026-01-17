@@ -10,19 +10,13 @@ namespace Merge.Application.Review.EventHandlers;
 /// Review Rejected Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class ReviewRejectedEventHandler : INotificationHandler<ReviewRejectedEvent>
+public class ReviewRejectedEventHandler(ILogger<ReviewRejectedEventHandler> logger) : INotificationHandler<ReviewRejectedEvent>
 {
-    private readonly ILogger<ReviewRejectedEventHandler> _logger;
-
-    public ReviewRejectedEventHandler(ILogger<ReviewRejectedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(ReviewRejectedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Review rejected event received. ReviewId: {ReviewId}, UserId: {UserId}, ProductId: {ProductId}, RejectedByUserId: {RejectedByUserId}, Reason: {Reason}",
             notification.ReviewId, notification.UserId, notification.ProductId, notification.RejectedByUserId, notification.Reason);
 
@@ -40,7 +34,7 @@ public class ReviewRejectedEventHandler : INotificationHandler<ReviewRejectedEve
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling ReviewRejectedEvent. ReviewId: {ReviewId}, UserId: {UserId}",
                 notification.ReviewId, notification.UserId);
             throw;

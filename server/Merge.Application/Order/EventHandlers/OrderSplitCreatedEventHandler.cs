@@ -12,22 +12,14 @@ namespace Merge.Application.Order.EventHandlers;
 /// Order Split Created Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class OrderSplitCreatedEventHandler : INotificationHandler<OrderSplitCreatedEvent>
+public class OrderSplitCreatedEventHandler(ILogger<OrderSplitCreatedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<OrderSplitCreatedEvent>
 {
-    private readonly ILogger<OrderSplitCreatedEventHandler> _logger;
+    
     private readonly INotificationService? _notificationService;
-
-    public OrderSplitCreatedEventHandler(
-        ILogger<OrderSplitCreatedEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(OrderSplitCreatedEvent notification, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Order split created event received. OrderSplitId: {OrderSplitId}, OriginalOrderId: {OriginalOrderId}, SplitOrderId: {SplitOrderId}, SplitReason: {SplitReason}",
             notification.OrderSplitId, notification.OriginalOrderId, notification.SplitOrderId, notification.SplitReason);
 
@@ -54,7 +46,7 @@ public class OrderSplitCreatedEventHandler : INotificationHandler<OrderSplitCrea
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling OrderSplitCreatedEvent. OrderSplitId: {OrderSplitId}, OriginalOrderId: {OriginalOrderId}, SplitOrderId: {SplitOrderId}",
                 notification.OrderSplitId, notification.OriginalOrderId, notification.SplitOrderId);
             throw;

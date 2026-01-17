@@ -5,12 +5,12 @@ using Merge.Domain.Modules.Ordering;
 
 namespace Merge.Application.Cart.Queries.GetPreOrderCampaignsByProduct;
 
-public class GetPreOrderCampaignsByProductQueryValidator : AbstractValidator<GetPreOrderCampaignsByProductQuery>
+public class GetPreOrderCampaignsByProductQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetPreOrderCampaignsByProductQuery>
 {
-    public GetPreOrderCampaignsByProductQueryValidator(IOptions<PaginationSettings> paginationSettings)
-    {
-        var settings = paginationSettings.Value;
+    private readonly PaginationSettings config = paginationSettings.Value;
 
+    public GetPreOrderCampaignsByProductQueryValidator() : this(Options.Create(new PaginationSettings()))
+    {
         RuleFor(x => x.ProductId)
             .NotEmpty().WithMessage("Ürün ID zorunludur.");
 
@@ -19,7 +19,7 @@ public class GetPreOrderCampaignsByProductQueryValidator : AbstractValidator<Get
 
         RuleFor(x => x.PageSize)
             .GreaterThan(0).WithMessage("Sayfa boyutu 0'dan büyük olmalıdır.")
-            .LessThanOrEqualTo(settings.MaxPageSize).WithMessage($"Sayfa boyutu en fazla {settings.MaxPageSize} olabilir.");
+            .LessThanOrEqualTo(config.MaxPageSize).WithMessage($"Sayfa boyutu en fazla {config.MaxPageSize} olabilir.");
     }
 }
 

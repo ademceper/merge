@@ -4,13 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.International.Commands.SetUserCurrencyPreference;
 
-public class SetUserCurrencyPreferenceCommandValidator : AbstractValidator<SetUserCurrencyPreferenceCommand>
+public class SetUserCurrencyPreferenceCommandValidator(IOptions<InternationalSettings> settings) : AbstractValidator<SetUserCurrencyPreferenceCommand>
 {
-    private readonly InternationalSettings config;
+    private readonly InternationalSettings config = settings.Value;
 
-    public SetUserCurrencyPreferenceCommandValidator(IOptions<InternationalSettings> settings)
+    public SetUserCurrencyPreferenceCommandValidator() : this(Options.Create(new InternationalSettings()))
     {
-        config = settings.Value;
         
 
         RuleFor(x => x.UserId)

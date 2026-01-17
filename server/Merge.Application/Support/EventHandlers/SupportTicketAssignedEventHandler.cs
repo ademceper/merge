@@ -12,23 +12,15 @@ namespace Merge.Application.Support.EventHandlers;
 /// Support Ticket Assigned Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class SupportTicketAssignedEventHandler : INotificationHandler<SupportTicketAssignedEvent>
+public class SupportTicketAssignedEventHandler(ILogger<SupportTicketAssignedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<SupportTicketAssignedEvent>
 {
-    private readonly ILogger<SupportTicketAssignedEventHandler> _logger;
+    
     private readonly INotificationService? _notificationService;
-
-    public SupportTicketAssignedEventHandler(
-        ILogger<SupportTicketAssignedEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(SupportTicketAssignedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Support ticket assigned event received. TicketId: {TicketId}, TicketNumber: {TicketNumber}, AssignedToId: {AssignedToId}",
             notification.TicketId, notification.TicketNumber, notification.AssignedToId);
 
@@ -53,7 +45,7 @@ public class SupportTicketAssignedEventHandler : INotificationHandler<SupportTic
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling SupportTicketAssignedEvent. TicketId: {TicketId}, TicketNumber: {TicketNumber}, AssignedToId: {AssignedToId}",
                 notification.TicketId, notification.TicketNumber, notification.AssignedToId);
             throw;

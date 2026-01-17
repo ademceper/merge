@@ -11,11 +11,8 @@ using Role = Merge.Domain.Modules.Identity.Role;
 
 namespace Merge.Infrastructure.Data.Contexts;
 
-public class PaymentDbContext : DbContext, IDbContext
+public class PaymentDbContext(DbContextOptions<PaymentDbContext> options) : DbContext(options), IDbContext
 {
-    public PaymentDbContext(DbContextOptions<PaymentDbContext> options) : base(options)
-    {
-    }
 
     public DbSet<Payment> Payments { get; set; }
     public DbSet<PaymentMethod> PaymentMethods { get; set; }

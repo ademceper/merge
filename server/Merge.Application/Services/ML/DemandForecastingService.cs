@@ -17,30 +17,17 @@ using Merge.Domain.ValueObjects;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
 using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
-
 namespace Merge.Application.Services.ML;
 
-public class DemandForecastingService : IDemandForecastingService
+public class DemandForecastingService(IDbContext context, ILogger<DemandForecastingService> logger, IOptions<MLSettings> mlSettings) : IDemandForecastingService
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<DemandForecastingService> _logger;
-    private readonly MLSettings _mlSettings;
-
-    public DemandForecastingService(
-        IDbContext context,
-        ILogger<DemandForecastingService> logger,
-        IOptions<MLSettings> mlSettings)
-    {
-        _context = context;
-        _logger = logger;
-        _mlSettings = mlSettings.Value;
-    }
+    private readonly MLSettings mlConfig = mlSettings.Value;
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<DemandForecastDto> ForecastDemandAsync(Guid productId, int forecastDays = 30, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var product = await _context.Set<ProductEntity>()
+        var product = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
@@ -52,7 +39,7 @@ public class DemandForecastingService : IDemandForecastingService
 
         // ✅ PERFORMANCE: Removed manual !oi.Order.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: Database'de grouping yap (memory'de işlem YASAK)
-        var historicalSales = await _context.Set<OrderItem>()
+        var historicalSales = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.ProductId == productId)
             .GroupBy(oi => oi.Order.CreatedAt.Date)
@@ -85,7 +72,7 @@ public class DemandForecastingService : IDemandForecastingService
     public async Task<IEnumerable<DemandForecastDto>> ForecastDemandForCategoryAsync(Guid categoryId, int forecastDays = 30, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
-        var products = await _context.Set<ProductEntity>()
+        var products = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Include(p => p.Category)
             .Where(p => p.CategoryId == categoryId && p.IsActive)
@@ -93,13 +80,13 @@ public class DemandForecastingService : IDemandForecastingService
 
         // ✅ PERFORMANCE: Batch load historical sales (N+1 fix)
         // ✅ PERFORMANCE: ToListAsync() sonrası Select() YASAK - Database'de Select yap
-        var productIds = await _context.Set<ProductEntity>()
+        var productIds = await context.Set<ProductEntity>()
             .AsNoTracking()
             .Where(p => p.CategoryId == categoryId && p.IsActive)
             .Select(p => p.Id)
             .ToListAsync(cancellationToken);
 
-        var allHistoricalSales = await _context.Set<OrderItem>()
+        var allHistoricalSales = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => productIds.Contains(oi.ProductId))
             .GroupBy(oi => new { oi.ProductId, Date = oi.Order.CreatedAt.Date })
@@ -155,11 +142,11 @@ public class DemandForecastingService : IDemandForecastingService
         var end = endDate ?? DateTime.UtcNow;
 
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var totalProducts = await _context.Set<ProductEntity>()
+        var totalProducts = await context.Set<ProductEntity>()
             .CountAsync(p => p.IsActive, cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !oi.Order.IsDeleted (Global Query Filter)
-        var productsWithSales = await _context.Set<OrderItem>()
+        var productsWithSales = await context.Set<OrderItem>()
             .AsNoTracking()
             .Where(oi => oi.Order.CreatedAt >= start && oi.Order.CreatedAt <= end)
             .Select(oi => oi.ProductId)
@@ -211,8 +198,8 @@ public class DemandForecastingService : IDemandForecastingService
         // Trend analizi (basit)
         // ✅ PERFORMANCE: TakeLast, Skip, Take - List üzerinde işlem (business logic için gerekli)
         // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-        var recentSales = historicalSales.TakeLast(_mlSettings.RecentDaysForTrend).ToList();
-        var olderSales = historicalSales.Skip(Math.Max(0, historicalSales.Count - _mlSettings.OlderDaysForTrend)).Take(_mlSettings.RecentDaysForTrend).ToList();
+        var recentSales = historicalSales.TakeLast(mlConfig.RecentDaysForTrend).ToList();
+        var olderSales = historicalSales.Skip(Math.Max(0, historicalSales.Count - mlConfig.OlderDaysForTrend)).Take(mlConfig.RecentDaysForTrend).ToList();
 
         var recentAvg = recentSales.Any() ? recentSales.Average(s => (decimal)((dynamic)s).Quantity) : 0;
         var olderAvg = olderSales.Any() ? olderSales.Average(s => (decimal)((dynamic)s).Quantity) : 0;
@@ -293,8 +280,8 @@ public class DemandForecastingService : IDemandForecastingService
 
         // Daha fazla veri varsa confidence artar
         // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-        if (totalDays > _mlSettings.HighConfidenceMinDays) confidence += 20;
-        if (totalDays > _mlSettings.VeryHighConfidenceMinDays) confidence += 10;
+        if (totalDays > mlConfig.HighConfidenceMinDays) confidence += 20;
+        if (totalDays > mlConfig.VeryHighConfidenceMinDays) confidence += 10;
 
         // Satış sıklığı
         var salesFrequency = totalDays > 0 ? (decimal)daysWithSales / totalDays : 0;
@@ -305,7 +292,7 @@ public class DemandForecastingService : IDemandForecastingService
         if (Math.Abs(trend) < 0.1m) confidence += 10; // Stabil trend
 
         // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
-        return Math.Min(confidence, _mlSettings.MaxRiskScore);
+        return Math.Min(confidence, mlConfig.MaxRiskScore);
     }
 }
 

@@ -9,11 +9,8 @@ using Role = Merge.Domain.Modules.Identity.Role;
 
 namespace Merge.Infrastructure.Data.Contexts;
 
-public class InventoryDbContext : DbContext, IDbContext
+public class InventoryDbContext(DbContextOptions<InventoryDbContext> options) : DbContext(options), IDbContext
 {
-    public InventoryDbContext(DbContextOptions<InventoryDbContext> options) : base(options)
-    {
-    }
 
     public DbSet<Warehouse> Warehouses { get; set; }
     public DbSet<Inventory> Inventories { get; set; }

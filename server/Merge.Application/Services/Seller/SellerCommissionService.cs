@@ -30,38 +30,15 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 namespace Merge.Application.Services.Seller;
 
-public class SellerCommissionService : ISellerCommissionService
+public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, IMapper mapper, ILogger<SellerCommissionService> logger, IOptions<SellerSettings> sellerSettings, IOptions<PaginationSettings> paginationSettings) : ISellerCommissionService
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IEmailService _emailService;
-    private readonly IMapper _mapper;
-    private readonly ILogger<SellerCommissionService> _logger;
-    private readonly IOptions<SellerSettings> _sellerSettings;
-    private readonly PaginationSettings _paginationSettings;
-
-    public SellerCommissionService(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IEmailService emailService,
-        IMapper mapper,
-        ILogger<SellerCommissionService> logger,
-        IOptions<SellerSettings> sellerSettings,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _emailService = emailService;
-        _mapper = mapper;
-        _logger = logger;
-        _sellerSettings = sellerSettings;
-        _paginationSettings = paginationSettings.Value;
-    }
+    private readonly SellerSettings sellerConfig = sellerSettings.Value;
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SellerCommissionDto> CalculateAndRecordCommissionAsync(Guid orderId, Guid orderItemId, CancellationToken cancellationToken = default)
     {
-        var orderItem = await _context.Set<OrderItem>()
+        var orderItem = await context.Set<OrderItem>()
             .Include(oi => oi.Order)
             .Include(oi => oi.Product)
             .FirstOrDefaultAsync(oi => oi.Id == orderItemId && oi.OrderId == orderId, cancellationToken);
@@ -78,7 +55,7 @@ public class SellerCommissionService : ISellerCommissionService
 
         var sellerId = orderItem.Product.SellerId.Value;
 
-        var existing = await _context.Set<SellerCommission>()
+        var existing = await context.Set<SellerCommission>()
             .AsNoTracking()
             .Include(sc => sc.Seller)
             .Include(sc => sc.Order)
@@ -88,12 +65,12 @@ public class SellerCommissionService : ISellerCommissionService
         if (existing != null)
         {
             // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-            return _mapper.Map<SellerCommissionDto>(existing);
+            return mapper.Map<SellerCommissionDto>(existing);
         }
 
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
         // Get seller settings
-        var settings = await _context.Set<SellerCommissionSettings>()
+        var settings = await context.Set<SellerCommissionSettings>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.SellerId == sellerId, cancellationToken);
 
@@ -108,7 +85,7 @@ public class SellerCommissionService : ISellerCommissionService
         {
             // ✅ PERFORMANCE: Removed manual !o.IsDeleted (Global Query Filter)
             // Calculate total sales for tier determination
-            var totalSales = await _context.Set<OrderEntity>()
+            var totalSales = await context.Set<OrderEntity>()
                 .Where(o => o.OrderItems.Any(i => i.Product.SellerId == sellerId) && o.PaymentStatus == PaymentStatus.Completed)
                 .SumAsync(o => o.TotalAmount, cancellationToken);
 
@@ -121,8 +98,8 @@ public class SellerCommissionService : ISellerCommissionService
             else
             {
                 // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
-                commissionRate = _sellerSettings.Value.DefaultCommissionRateWhenNoTier;
-                platformFeeRate = _sellerSettings.Value.DefaultPlatformFeeRate;
+                commissionRate = sellerConfig.DefaultCommissionRateWhenNoTier;
+                platformFeeRate = sellerConfig.DefaultPlatformFeeRate;
             }
         }
 
@@ -140,10 +117,10 @@ public class SellerCommissionService : ISellerCommissionService
             commissionRate: commissionRate,
             platformFee: platformFee);
 
-        await _context.Set<SellerCommission>().AddAsync(commission, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<SellerCommission>().AddAsync(commission, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        commission = await _context.Set<SellerCommission>()
+        commission = await context.Set<SellerCommission>()
             .AsNoTracking()
             .Include(sc => sc.Seller)
             .Include(sc => sc.Order)
@@ -151,13 +128,13 @@ public class SellerCommissionService : ISellerCommissionService
             .FirstOrDefaultAsync(sc => sc.Id == commission.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<SellerCommissionDto>(commission!);
+        return mapper.Map<SellerCommissionDto>(commission!);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SellerCommissionDto?> GetCommissionAsync(Guid commissionId, CancellationToken cancellationToken = default)
     {
-        var commission = await _context.Set<SellerCommission>()
+        var commission = await context.Set<SellerCommission>()
             .AsNoTracking()
             .Include(sc => sc.Seller)
             .Include(sc => sc.Order)
@@ -165,7 +142,7 @@ public class SellerCommissionService : ISellerCommissionService
             .FirstOrDefaultAsync(sc => sc.Id == commissionId, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return commission != null ? _mapper.Map<SellerCommissionDto>(commission) : null;
+        return commission != null ? mapper.Map<SellerCommissionDto>(commission) : null;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -174,7 +151,7 @@ public class SellerCommissionService : ISellerCommissionService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sc.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        IQueryable<SellerCommission> query = _context.Set<SellerCommission>()
+        IQueryable<SellerCommission> query = context.Set<SellerCommission>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(sc => sc.Seller)
@@ -193,7 +170,7 @@ public class SellerCommissionService : ISellerCommissionService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<SellerCommissionDto>>(commissions);
+        return mapper.Map<IEnumerable<SellerCommissionDto>>(commissions);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -203,12 +180,12 @@ public class SellerCommissionService : ISellerCommissionService
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic number config'den - PaginationSettings kullanımı
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !sc.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        IQueryable<SellerCommission> query = _context.Set<SellerCommission>()
+        IQueryable<SellerCommission> query = context.Set<SellerCommission>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(sc => sc.Seller)
@@ -230,7 +207,7 @@ public class SellerCommissionService : ISellerCommissionService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var commissionDtos = _mapper.Map<IEnumerable<SellerCommissionDto>>(commissions).ToList();
+        var commissionDtos = mapper.Map<IEnumerable<SellerCommissionDto>>(commissions).ToList();
 
         return new PagedResult<SellerCommissionDto>
         {
@@ -245,7 +222,7 @@ public class SellerCommissionService : ISellerCommissionService
     public async Task<bool> ApproveCommissionAsync(Guid commissionId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sc.IsDeleted (Global Query Filter)
-        var commission = await _context.Set<SellerCommission>()
+        var commission = await context.Set<SellerCommission>()
             .FirstOrDefaultAsync(sc => sc.Id == commissionId, cancellationToken);
 
         if (commission == null) return false;
@@ -253,7 +230,7 @@ public class SellerCommissionService : ISellerCommissionService
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         commission.Approve();
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -262,7 +239,7 @@ public class SellerCommissionService : ISellerCommissionService
     public async Task<bool> CancelCommissionAsync(Guid commissionId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sc.IsDeleted (Global Query Filter)
-        var commission = await _context.Set<SellerCommission>()
+        var commission = await context.Set<SellerCommission>()
             .FirstOrDefaultAsync(sc => sc.Id == commissionId, cancellationToken);
 
         if (commission == null) return false;
@@ -270,7 +247,7 @@ public class SellerCommissionService : ISellerCommissionService
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         commission.Cancel();
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -287,46 +264,46 @@ public class SellerCommissionService : ISellerCommissionService
             platformFeeRate: dto.PlatformFeeRate,
             priority: dto.Priority);
 
-        await _context.Set<CommissionTier>().AddAsync(tier, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<CommissionTier>().AddAsync(tier, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<CommissionTierDto>(tier);
+        return mapper.Map<CommissionTierDto>(tier);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<IEnumerable<CommissionTierDto>> GetAllTiersAsync(CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        var tiers = await _context.Set<CommissionTier>()
+        var tiers = await context.Set<CommissionTier>()
             .AsNoTracking()
             .Where(t => t.IsActive)
             .OrderBy(t => t.Priority)
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<CommissionTierDto>>(tiers);
+        return mapper.Map<IEnumerable<CommissionTierDto>>(tiers);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<CommissionTierDto?> GetTierForSalesAsync(decimal totalSales, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        var tier = await _context.Set<CommissionTier>()
+        var tier = await context.Set<CommissionTier>()
             .AsNoTracking()
             .Where(t => t.IsActive && t.MinSales <= totalSales && t.MaxSales >= totalSales)
             .OrderBy(t => t.Priority)
             .FirstOrDefaultAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return tier != null ? _mapper.Map<CommissionTierDto>(tier) : null;
+        return tier != null ? mapper.Map<CommissionTierDto>(tier) : null;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> UpdateTierAsync(Guid tierId, CreateCommissionTierDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
-        var tier = await _context.Set<CommissionTier>()
+        var tier = await context.Set<CommissionTier>()
             .FirstOrDefaultAsync(t => t.Id == tierId, cancellationToken);
 
         if (tier == null) return false;
@@ -340,7 +317,7 @@ public class SellerCommissionService : ISellerCommissionService
             platformFeeRate: dto.PlatformFeeRate,
             priority: dto.Priority);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -349,7 +326,7 @@ public class SellerCommissionService : ISellerCommissionService
     public async Task<bool> DeleteTierAsync(Guid tierId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !t.IsDeleted (Global Query Filter)
-        var tier = await _context.Set<CommissionTier>()
+        var tier = await context.Set<CommissionTier>()
             .FirstOrDefaultAsync(t => t.Id == tierId, cancellationToken);
 
         if (tier == null) return false;
@@ -357,7 +334,7 @@ public class SellerCommissionService : ISellerCommissionService
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         tier.Delete();
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -366,19 +343,19 @@ public class SellerCommissionService : ISellerCommissionService
     public async Task<SellerCommissionSettingsDto?> GetSellerSettingsAsync(Guid sellerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !s.IsDeleted (Global Query Filter)
-        var settings = await _context.Set<SellerCommissionSettings>()
+        var settings = await context.Set<SellerCommissionSettings>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.SellerId == sellerId, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return settings != null ? _mapper.Map<SellerCommissionSettingsDto>(settings) : null;
+        return settings != null ? mapper.Map<SellerCommissionSettingsDto>(settings) : null;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<SellerCommissionSettingsDto> UpdateSellerSettingsAsync(Guid sellerId, UpdateCommissionSettingsDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var settings = await _context.Set<SellerCommissionSettings>()
+        var settings = await context.Set<SellerCommissionSettings>()
             .FirstOrDefaultAsync(s => s.SellerId == sellerId, cancellationToken);
 
         if (settings == null)
@@ -387,8 +364,8 @@ public class SellerCommissionService : ISellerCommissionService
             // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
             settings = SellerCommissionSettings.Create(
                 sellerId: sellerId,
-                minimumPayoutAmount: dto.MinimumPayoutAmount ?? _sellerSettings.Value.DefaultMinimumPayoutAmount);
-            await _context.Set<SellerCommissionSettings>().AddAsync(settings, cancellationToken);
+                minimumPayoutAmount: dto.MinimumPayoutAmount ?? sellerConfig.DefaultMinimumPayoutAmount);
+            await context.Set<SellerCommissionSettings>().AddAsync(settings, cancellationToken);
         }
 
         if (dto.CustomCommissionRate.HasValue || dto.UseCustomRate.HasValue)
@@ -413,17 +390,17 @@ public class SellerCommissionService : ISellerCommissionService
                 paymentDetails: dto.PaymentDetails);
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<SellerCommissionSettingsDto>(settings);
+        return mapper.Map<SellerCommissionSettingsDto>(settings);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<CommissionPayoutDto> RequestPayoutAsync(Guid sellerId, RequestPayoutDto dto, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sc.IsDeleted (Global Query Filter)
-        var commissions = await _context.Set<SellerCommission>()
+        var commissions = await context.Set<SellerCommission>()
             .AsNoTracking()
             .Where(sc => dto.CommissionIds.Contains(sc.Id) && sc.SellerId == sellerId)
             .Where(sc => sc.Status == CommissionStatus.Approved)
@@ -435,12 +412,12 @@ public class SellerCommissionService : ISellerCommissionService
         }
 
         // ✅ PERFORMANCE: Removed manual !s.IsDeleted (Global Query Filter)
-        var settings = await _context.Set<SellerCommissionSettings>()
+        var settings = await context.Set<SellerCommissionSettings>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.SellerId == sellerId, cancellationToken);
 
         // ✅ PERFORMANCE: Database'de sum yap (memory'de işlem YASAK)
-        var totalAmount = await _context.Set<SellerCommission>()
+        var totalAmount = await context.Set<SellerCommission>()
             .AsNoTracking()
             .Where(sc => dto.CommissionIds.Contains(sc.Id) && sc.SellerId == sellerId && sc.Status == CommissionStatus.Approved)
             .SumAsync(c => c.NetAmount, cancellationToken);
@@ -451,7 +428,7 @@ public class SellerCommissionService : ISellerCommissionService
         }
 
         // ✅ BOLUM 12.0: Magic number config'den - SellerSettings kullanımı
-        var transactionFee = totalAmount * (_sellerSettings.Value.PayoutTransactionFeeRate / 100);
+        var transactionFee = totalAmount * (sellerConfig.PayoutTransactionFeeRate / 100);
         var netAmount = totalAmount - transactionFee;
 
         var payoutNumber = await GeneratePayoutNumberAsync(cancellationToken);
@@ -463,11 +440,11 @@ public class SellerCommissionService : ISellerCommissionService
             payoutNumber: payoutNumber,
             totalAmount: totalAmount,
             transactionFee: transactionFee,
-            paymentMethod: settings?.PaymentMethod ?? _sellerSettings.Value.DefaultPaymentMethod,
+            paymentMethod: settings?.PaymentMethod ?? sellerConfig.DefaultPaymentMethod,
             paymentDetails: settings?.PaymentDetails);
 
-        await _context.Set<CommissionPayout>().AddAsync(payout, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await context.Set<CommissionPayout>().AddAsync(payout, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         foreach (var commission in commissions)
         {
@@ -478,9 +455,9 @@ public class SellerCommissionService : ISellerCommissionService
             commission.MarkAsPaid(payoutNumber);
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        payout = await _context.Set<CommissionPayout>()
+        payout = await context.Set<CommissionPayout>()
             .AsNoTracking()
             .Include(p => p.Seller)
             .Include(p => p.Items)
@@ -489,13 +466,13 @@ public class SellerCommissionService : ISellerCommissionService
             .FirstOrDefaultAsync(p => p.Id == payout.Id, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<CommissionPayoutDto>(payout!);
+        return mapper.Map<CommissionPayoutDto>(payout!);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<CommissionPayoutDto?> GetPayoutAsync(Guid payoutId, CancellationToken cancellationToken = default)
     {
-        var payout = await _context.Set<CommissionPayout>()
+        var payout = await context.Set<CommissionPayout>()
             .AsNoTracking()
             .Include(p => p.Seller)
             .Include(p => p.Items)
@@ -504,7 +481,7 @@ public class SellerCommissionService : ISellerCommissionService
             .FirstOrDefaultAsync(p => p.Id == payoutId, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return payout != null ? _mapper.Map<CommissionPayoutDto>(payout) : null;
+        return payout != null ? mapper.Map<CommissionPayoutDto>(payout) : null;
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -512,7 +489,7 @@ public class SellerCommissionService : ISellerCommissionService
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
-        var payouts = await _context.Set<CommissionPayout>()
+        var payouts = await context.Set<CommissionPayout>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(p => p.Seller)
@@ -524,7 +501,7 @@ public class SellerCommissionService : ISellerCommissionService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<IEnumerable<CommissionPayoutDto>>(payouts);
+        return mapper.Map<IEnumerable<CommissionPayoutDto>>(payouts);
     }
 
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
@@ -534,12 +511,12 @@ public class SellerCommissionService : ISellerCommissionService
     {
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
         // ✅ BOLUM 12.0: Magic number config'den - PaginationSettings kullanımı
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !p.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (nested ThenInclude)
-        IQueryable<CommissionPayout> query = _context.Set<CommissionPayout>()
+        IQueryable<CommissionPayout> query = context.Set<CommissionPayout>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(p => p.Seller)
@@ -562,7 +539,7 @@ public class SellerCommissionService : ISellerCommissionService
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var payoutDtos = _mapper.Map<IEnumerable<CommissionPayoutDto>>(payouts).ToList();
+        var payoutDtos = mapper.Map<IEnumerable<CommissionPayoutDto>>(payouts).ToList();
 
         return new PagedResult<CommissionPayoutDto>
         {
@@ -577,7 +554,7 @@ public class SellerCommissionService : ISellerCommissionService
     public async Task<bool> ProcessPayoutAsync(Guid payoutId, string transactionReference, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var payout = await _context.Set<CommissionPayout>()
+        var payout = await context.Set<CommissionPayout>()
             .FirstOrDefaultAsync(p => p.Id == payoutId, cancellationToken);
 
         if (payout == null) return false;
@@ -585,7 +562,7 @@ public class SellerCommissionService : ISellerCommissionService
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         payout.Process(transactionReference);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -594,7 +571,7 @@ public class SellerCommissionService : ISellerCommissionService
     public async Task<bool> CompletePayoutAsync(Guid payoutId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !p.IsDeleted (Global Query Filter)
-        var payout = await _context.Set<CommissionPayout>()
+        var payout = await context.Set<CommissionPayout>()
             .Include(p => p.Seller)
             .FirstOrDefaultAsync(p => p.Id == payoutId, cancellationToken);
 
@@ -603,10 +580,10 @@ public class SellerCommissionService : ISellerCommissionService
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         payout.Complete();
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Send confirmation email
-        await _emailService.SendEmailAsync(
+        await emailService.SendEmailAsync(
             payout.Seller?.Email ?? string.Empty,
             $"Payout Completed - {payout.PayoutNumber}",
             $"Your payout of {payout.NetAmount:C} has been completed. Transaction Reference: {payout.TransactionReference}",
@@ -620,7 +597,7 @@ public class SellerCommissionService : ISellerCommissionService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     public async Task<bool> FailPayoutAsync(Guid payoutId, string reason, CancellationToken cancellationToken = default)
     {
-        var payout = await _context.Set<CommissionPayout>()
+        var payout = await context.Set<CommissionPayout>()
             .Include(p => p.Items)
                 .ThenInclude(i => i.Commission)
             .FirstOrDefaultAsync(p => p.Id == payoutId, cancellationToken);
@@ -640,7 +617,7 @@ public class SellerCommissionService : ISellerCommissionService
             }
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
@@ -649,7 +626,7 @@ public class SellerCommissionService : ISellerCommissionService
     public async Task<CommissionStatsDto> GetCommissionStatsAsync(Guid? sellerId = null, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sc.IsDeleted (Global Query Filter)
-        IQueryable<SellerCommission> query = _context.Set<SellerCommission>()
+        IQueryable<SellerCommission> query = context.Set<SellerCommission>()
             .AsNoTracking();
 
         if (sellerId.HasValue)
@@ -693,7 +670,7 @@ public class SellerCommissionService : ISellerCommissionService
     public async Task<decimal> GetAvailablePayoutAmountAsync(Guid sellerId, CancellationToken cancellationToken = default)
     {
         // ✅ PERFORMANCE: Removed manual !sc.IsDeleted (Global Query Filter)
-        return await _context.Set<SellerCommission>()
+        return await context.Set<SellerCommission>()
             .AsNoTracking()
             .Where(sc => sc.SellerId == sellerId && sc.Status == CommissionStatus.Approved)
             .SumAsync(sc => sc.NetAmount, cancellationToken);
@@ -702,7 +679,7 @@ public class SellerCommissionService : ISellerCommissionService
     // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
     private async Task<string> GeneratePayoutNumberAsync(CancellationToken cancellationToken = default)
     {
-        var lastPayout = await _context.Set<CommissionPayout>()
+        var lastPayout = await context.Set<CommissionPayout>()
             .AsNoTracking()
             .OrderByDescending(p => p.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);

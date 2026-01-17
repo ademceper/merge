@@ -15,38 +15,22 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Commands.CreateTransaction;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class CreateTransactionCommandHandler : IRequestHandler<CreateTransactionCommand, SellerTransactionDto>
+public class CreateTransactionCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<CreateTransactionCommandHandler> logger) : IRequestHandler<CreateTransactionCommand, SellerTransactionDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<CreateTransactionCommandHandler> _logger;
-
-    public CreateTransactionCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<CreateTransactionCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<SellerTransactionDto> Handle(CreateTransactionCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Creating transaction. SellerId: {SellerId}, Type: {TransactionType}, Amount: {Amount}",
+        logger.LogInformation("Creating transaction. SellerId: {SellerId}, Type: {TransactionType}, Amount: {Amount}",
             request.SellerId, request.TransactionType, request.Amount);
 
         // ✅ PERFORMANCE: Removed manual !sp.IsDeleted (Global Query Filter)
-        var seller = await _context.Set<SellerProfile>()
+        var seller = await context.Set<SellerProfile>()
             .FirstOrDefaultAsync(sp => sp.UserId == request.SellerId, cancellationToken);
 
         if (seller == null)
         {
-            _logger.LogWarning("Seller not found. SellerId: {SellerId}", request.SellerId);
+            logger.LogWarning("Seller not found. SellerId: {SellerId}", request.SellerId);
             throw new NotFoundException("Satıcı", request.SellerId);
         }
 
@@ -72,24 +56,24 @@ public class CreateTransactionCommandHandler : IRequestHandler<CreateTransaction
             seller.DeductFromAvailableBalance(Math.Abs(request.Amount));
         }
 
-        await _context.Set<SellerTransaction>().AddAsync(transaction, cancellationToken);
+        await context.Set<SellerTransaction>().AddAsync(transaction, cancellationToken);
         
         // ✅ BOLUM 1.1: Rich Domain Model - Domain Method kullanımı
         transaction.Complete();
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage tablosuna yazılır
         // ✅ BOLUM 3.0: Outbox Pattern - Domain event'ler aynı transaction içinde OutboxMessage'lar olarak kaydedilir
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Reload with Include instead of LoadAsync (N+1 fix)
-        transaction = await _context.Set<SellerTransaction>()
+        transaction = await context.Set<SellerTransaction>()
             .AsNoTracking()
             .Include(t => t.Seller)
             .FirstOrDefaultAsync(t => t.Id == transaction.Id, cancellationToken);
 
-        _logger.LogInformation("Transaction created. TransactionId: {TransactionId}", transaction!.Id);
+        logger.LogInformation("Transaction created. TransactionId: {TransactionId}", transaction!.Id);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<SellerTransactionDto>(transaction);
+        return mapper.Map<SellerTransactionDto>(transaction);
     }
 }

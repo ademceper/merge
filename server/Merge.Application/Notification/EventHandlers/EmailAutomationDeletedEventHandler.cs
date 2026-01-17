@@ -7,19 +7,13 @@ namespace Merge.Application.Notification.EventHandlers;
 /// <summary>
 /// EmailAutomation Deleted Event Handler - BOLUM 2.1.5: Domain Events Handler (ZORUNLU)
 /// </summary>
-public class EmailAutomationDeletedEventHandler : INotificationHandler<EmailAutomationDeletedEvent>
+public class EmailAutomationDeletedEventHandler(ILogger<EmailAutomationDeletedEventHandler> logger) : INotificationHandler<EmailAutomationDeletedEvent>
 {
-    private readonly ILogger<EmailAutomationDeletedEventHandler> _logger;
-
-    public EmailAutomationDeletedEventHandler(ILogger<EmailAutomationDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(EmailAutomationDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "EmailAutomation deleted event received. AutomationId: {AutomationId}, Name: {Name}",
             notification.AutomationId, notification.Name);
 

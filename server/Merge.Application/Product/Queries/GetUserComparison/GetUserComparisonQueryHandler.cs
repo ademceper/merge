@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Product;
@@ -16,46 +17,32 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Product.Queries.GetUserComparison;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetUserComparisonQueryHandler : IRequestHandler<GetUserComparisonQuery, ProductComparisonDto>
+public class GetUserComparisonQueryHandler(
+    IDbContext context,
+    IUnitOfWork unitOfWork,
+    ILogger<GetUserComparisonQueryHandler> logger,
+    ICacheService cache,
+    IOptions<CacheSettings> cacheSettings,
+    IMapper mapper) : IRequestHandler<GetUserComparisonQuery, ProductComparisonDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly AutoMapper.IMapper _mapper;
-    private readonly ILogger<GetUserComparisonQueryHandler> _logger;
-    private readonly ICacheService _cache;
-    private readonly CacheSettings _cacheSettings;
-    private const string CACHE_KEY_USER_COMPARISON = "user_comparison_";
+    private readonly CacheSettings cacheConfig = cacheSettings.Value;
 
-    public GetUserComparisonQueryHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        AutoMapper.IMapper mapper,
-        ILogger<GetUserComparisonQueryHandler> logger,
-        ICacheService cache,
-        IOptions<CacheSettings> cacheSettings)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _cache = cache;
-        _cacheSettings = cacheSettings.Value;
-    }
+    private const string CACHE_KEY_USER_COMPARISON = "user_comparison_";
 
     public async Task<ProductComparisonDto> Handle(GetUserComparisonQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Fetching user comparison. UserId: {UserId}", request.UserId);
+        logger.LogInformation("Fetching user comparison. UserId: {UserId}", request.UserId);
 
         var cacheKey = $"{CACHE_KEY_USER_COMPARISON}{request.UserId}";
 
         // ✅ BOLUM 10.2: Redis distributed cache
-        var cachedResult = await _cache.GetOrCreateAsync(
+        var cachedResult = await cache.GetOrCreateAsync(
             cacheKey,
             async () =>
             {
-                _logger.LogInformation("Cache miss for user comparison. Fetching from database.");
+                logger.LogInformation("Cache miss for user comparison. Fetching from database.");
 
-                var comparison = await _context.Set<ProductComparison>()
+                var comparison = await context.Set<ProductComparison>()
                     .AsNoTracking()
                     .Include(c => c.Items)
                         .ThenInclude(i => i.Product)
@@ -72,13 +59,13 @@ public class GetUserComparisonQueryHandler : IRequestHandler<GetUserComparisonQu
                         "Current Comparison",
                         false);
 
-                    await _context.Set<ProductComparison>().AddAsync(comparison, cancellationToken);
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    await context.Set<ProductComparison>().AddAsync(comparison, cancellationToken);
+                    await unitOfWork.SaveChangesAsync(cancellationToken);
                 }
 
                 return await MapToDto(comparison, cancellationToken);
             },
-            TimeSpan.FromMinutes(_cacheSettings.UserComparisonCacheExpirationMinutes),
+            TimeSpan.FromMinutes(cacheConfig.UserComparisonCacheExpirationMinutes),
             cancellationToken);
 
         return cachedResult!;
@@ -87,7 +74,7 @@ public class GetUserComparisonQueryHandler : IRequestHandler<GetUserComparisonQu
     private async Task<ProductComparisonDto> MapToDto(ProductComparison comparison, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
-        var itemsQuery = _context.Set<ProductComparisonItem>()
+        var itemsQuery = context.Set<ProductComparisonItem>()
             .AsNoTracking()
             .Where(i => i.ComparisonId == comparison.Id)
             .OrderBy(i => i.Position);
@@ -101,7 +88,7 @@ public class GetUserComparisonQueryHandler : IRequestHandler<GetUserComparisonQu
         // ✅ PERFORMANCE: Subquery yaklaşımı - memory'de hiçbir şey tutma (ISSUE #3.1 fix)
         var productIdsSubquery = from i in itemsQuery select i.ProductId;
         Dictionary<Guid, (decimal Rating, int Count)> reviewsDict;
-        var reviews = await _context.Set<ReviewEntity>()
+        var reviews = await context.Set<ReviewEntity>()
             .AsNoTracking()
             .Where(r => productIdsSubquery.Contains(r.ProductId))
             .GroupBy(r => r.ProductId)
@@ -119,7 +106,7 @@ public class GetUserComparisonQueryHandler : IRequestHandler<GetUserComparisonQu
         foreach (var item in items)
         {
             var hasReviewStats = reviewsDict.TryGetValue(item.ProductId, out var stats);
-            var compProduct = _mapper.Map<ComparisonProductDto>(item.Product);
+            var compProduct = mapper.Map<ComparisonProductDto>(item.Product);
             compProduct = compProduct with
             {
                 Position = item.Position,
@@ -131,7 +118,7 @@ public class GetUserComparisonQueryHandler : IRequestHandler<GetUserComparisonQu
             products.Add(compProduct);
         }
 
-        var comparisonDto = _mapper.Map<ProductComparisonDto>(comparison);
+        var comparisonDto = mapper.Map<ProductComparisonDto>(comparison);
         comparisonDto = comparisonDto with { Products = products.AsReadOnly() };
         return comparisonDto;
     }

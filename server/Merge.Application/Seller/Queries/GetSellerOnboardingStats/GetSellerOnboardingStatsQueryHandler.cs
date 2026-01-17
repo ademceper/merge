@@ -13,26 +13,16 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Seller.Queries.GetSellerOnboardingStats;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetSellerOnboardingStatsQueryHandler : IRequestHandler<GetSellerOnboardingStatsQuery, SellerOnboardingStatsDto>
+public class GetSellerOnboardingStatsQueryHandler(IDbContext context, ILogger<GetSellerOnboardingStatsQueryHandler> logger) : IRequestHandler<GetSellerOnboardingStatsQuery, SellerOnboardingStatsDto>
 {
-    private readonly IDbContext _context;
-    private readonly ILogger<GetSellerOnboardingStatsQueryHandler> _logger;
-
-    public GetSellerOnboardingStatsQueryHandler(
-        IDbContext context,
-        ILogger<GetSellerOnboardingStatsQueryHandler> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     public async Task<SellerOnboardingStatsDto> Handle(GetSellerOnboardingStatsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting seller onboarding stats");
+        logger.LogInformation("Getting seller onboarding stats");
 
         // ✅ PERFORMANCE: Database'de aggregation yap (memory'de işlem YASAK)
-        var stats = await _context.Set<SellerApplication>()
+        var stats = await context.Set<SellerApplication>()
             .AsNoTracking()
             .GroupBy(a => 1)
             .Select(g => new
@@ -45,7 +35,7 @@ public class GetSellerOnboardingStatsQueryHandler : IRequestHandler<GetSellerOnb
             .FirstOrDefaultAsync(cancellationToken);
 
         var thisMonth = DateTime.UtcNow.AddMonths(-1);
-        var approvedThisMonth = await _context.Set<SellerApplication>()
+        var approvedThisMonth = await context.Set<SellerApplication>()
             .AsNoTracking()
             .CountAsync(a => a.Status == SellerApplicationStatus.Approved &&
                            a.ApprovedAt >= thisMonth, cancellationToken);

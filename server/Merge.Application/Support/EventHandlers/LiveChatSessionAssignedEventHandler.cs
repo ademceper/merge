@@ -12,23 +12,15 @@ namespace Merge.Application.Support.EventHandlers;
 /// Live Chat Session Assigned Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class LiveChatSessionAssignedEventHandler : INotificationHandler<LiveChatSessionAssignedEvent>
+public class LiveChatSessionAssignedEventHandler(ILogger<LiveChatSessionAssignedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<LiveChatSessionAssignedEvent>
 {
-    private readonly ILogger<LiveChatSessionAssignedEventHandler> _logger;
+    
     private readonly INotificationService? _notificationService;
-
-    public LiveChatSessionAssignedEventHandler(
-        ILogger<LiveChatSessionAssignedEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(LiveChatSessionAssignedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Live chat session assigned event received. SessionId: {SessionId}, SessionIdentifier: {SessionIdentifier}, AgentId: {AgentId}",
             notification.SessionId, notification.SessionIdentifier, notification.AgentId);
 
@@ -53,7 +45,7 @@ public class LiveChatSessionAssignedEventHandler : INotificationHandler<LiveChat
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling LiveChatSessionAssignedEvent. SessionId: {SessionId}, SessionIdentifier: {SessionIdentifier}, AgentId: {AgentId}",
                 notification.SessionId, notification.SessionIdentifier, notification.AgentId);
             throw;

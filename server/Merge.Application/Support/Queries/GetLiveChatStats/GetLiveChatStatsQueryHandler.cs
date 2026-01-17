@@ -14,29 +14,20 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Queries.GetLiveChatStats;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetLiveChatStatsQueryHandler : IRequestHandler<GetLiveChatStatsQuery, LiveChatStatsDto>
+public class GetLiveChatStatsQueryHandler(IDbContext context, IOptions<SupportSettings> settings) : IRequestHandler<GetLiveChatStatsQuery, LiveChatStatsDto>
 {
-    private readonly IDbContext _context;
-    private readonly SupportSettings _settings;
-
-    public GetLiveChatStatsQueryHandler(
-        IDbContext context,
-        IOptions<SupportSettings> settings)
-    {
-        _context = context;
-        _settings = settings.Value;
-    }
+    private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<LiveChatStatsDto> Handle(GetLiveChatStatsQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
-        var start = request.StartDate ?? DateTime.UtcNow.AddDays(-_settings.DefaultStatsPeriodDays);
+        var start = request.StartDate ?? DateTime.UtcNow.AddDays(-supportConfig.DefaultStatsPeriodDays);
         var end = request.EndDate ?? DateTime.UtcNow;
 
         // ✅ PERFORMANCE: AsSplitQuery - Multiple Include'lar için query splitting (Cartesian Explosion önleme)
         // Not: Şu anda sadece 1 Include var ama gelecekte ek Include'lar eklenebilir
-        IQueryable<LiveChatSession> query = _context.Set<LiveChatSession>()
+        IQueryable<LiveChatSession> query = context.Set<LiveChatSession>()
             .AsNoTracking()
             .Include(s => s.Agent)
             .Where(s => s.CreatedAt >= start && s.CreatedAt <= end);

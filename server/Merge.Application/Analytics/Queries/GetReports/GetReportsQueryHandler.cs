@@ -25,6 +25,7 @@ public class GetReportsQueryHandler(
     IOptions<PaginationSettings> paginationSettings,
     IMapper mapper) : IRequestHandler<GetReportsQuery, PagedResult<ReportDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
     public async Task<PagedResult<ReportDto>> Handle(GetReportsQuery request, CancellationToken cancellationToken)
     {
@@ -33,8 +34,8 @@ public class GetReportsQueryHandler(
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (config'den)
         // ✅ BOLUM 2.3: Hardcoded Values YASAK - Configuration kullanılıyor
-        var pageSize = request.PageSize <= 0 ? settings.Value.DefaultPageSize : request.PageSize;
-        if (pageSize > paginationSettings.Value.MaxPageSize) pageSize = paginationSettings.Value.MaxPageSize;
+        var pageSize = request.PageSize <= 0 ? paginationConfig.DefaultPageSize : request.PageSize;
+        if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !r.IsDeleted (Global Query Filter)

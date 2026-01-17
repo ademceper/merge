@@ -20,46 +20,27 @@ namespace Merge.Application.ML.Commands.EvaluateUser;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class EvaluateUserCommandHandler : IRequestHandler<EvaluateUserCommand, FraudAlertDto>
+public class EvaluateUserCommandHandler(IDbContext context, IUnitOfWork unitOfWork, IMapper mapper, ILogger<EvaluateUserCommandHandler> logger, FraudDetectionHelper helper) : IRequestHandler<EvaluateUserCommand, FraudAlertDto>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-    private readonly ILogger<EvaluateUserCommandHandler> _logger;
-    private readonly FraudDetectionHelper _helper;
-
-    public EvaluateUserCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        IMapper mapper,
-        ILogger<EvaluateUserCommandHandler> logger,
-        FraudDetectionHelper helper)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-        _logger = logger;
-        _helper = helper;
-    }
 
     public async Task<FraudAlertDto> Handle(EvaluateUserCommand request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Evaluating user for fraud. UserId: {UserId}", request.UserId);
+        logger.LogInformation("Evaluating user for fraud. UserId: {UserId}", request.UserId);
 
         // ✅ PERFORMANCE: Removed manual !u.IsDeleted (Global Query Filter)
-        var user = await _context.Users
+        var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
         if (user == null)
         {
-            _logger.LogWarning("User not found. UserId: {UserId}", request.UserId);
+            logger.LogWarning("User not found. UserId: {UserId}", request.UserId);
             throw new NotFoundException("Kullanıcı", request.UserId);
         }
 
         // ✅ BOLUM 1.2: Enum kullanımı (string YASAK)
-        var riskScore = await _helper.CalculateRiskScoreAsync(FraudRuleType.Account, null, request.UserId, cancellationToken);
-        var matchedRules = await _helper.GetMatchedRulesAsync(FraudRuleType.Account, null, request.UserId, cancellationToken);
+        var riskScore = await helper.CalculateRiskScoreAsync(FraudRuleType.Account, null, request.UserId, cancellationToken);
+        var matchedRules = await helper.GetMatchedRulesAsync(FraudRuleType.Account, null, request.UserId, cancellationToken);
 
         // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
         var matchedRulesJson = matchedRules.Any() ? JsonSerializer.Serialize(matchedRules.Select(r => r.Id)) : null;
@@ -70,12 +51,12 @@ public class EvaluateUserCommandHandler : IRequestHandler<EvaluateUserCommand, F
             reason: $"User evaluation: Risk score {riskScore}",
             matchedRules: matchedRulesJson);
 
-        await _context.Set<FraudAlert>().AddAsync(alert, cancellationToken);
+        await context.Set<FraudAlert>().AddAsync(alert, cancellationToken);
         
         // ✅ ARCHITECTURE: Domain event'ler UnitOfWork.SaveChangesAsync içinde otomatik olarak OutboxMessage'lar oluşturulur
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var createdAlert = await _context.Set<FraudAlert>()
+        var createdAlert = await context.Set<FraudAlert>()
             .AsNoTracking()
             .Include(a => a.User)
             .Include(a => a.Order)
@@ -83,10 +64,10 @@ public class EvaluateUserCommandHandler : IRequestHandler<EvaluateUserCommand, F
             .Include(a => a.ReviewedBy)
             .FirstOrDefaultAsync(a => a.Id == alert.Id, cancellationToken);
 
-        _logger.LogInformation("User evaluated. UserId: {UserId}, AlertId: {AlertId}, RiskScore: {RiskScore}",
+        logger.LogInformation("User evaluated. UserId: {UserId}, AlertId: {AlertId}, RiskScore: {RiskScore}",
             request.UserId, alert.Id, alert.RiskScore);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<FraudAlertDto>(createdAlert!);
+        return mapper.Map<FraudAlertDto>(createdAlert!);
     }
 }

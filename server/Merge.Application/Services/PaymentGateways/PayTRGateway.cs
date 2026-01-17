@@ -8,30 +8,21 @@ using Merge.Domain.Modules.Payment;
 
 namespace Merge.Application.Services.PaymentGateways;
 
-public class PayTRGateway : IPaymentGateway
+public class PayTRGateway(IConfiguration configuration, ILogger<PayTRGateway> logger) : IPaymentGateway
 {
     public string GatewayName => "PayTR";
-    
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<PayTRGateway> _logger;
-
-    public PayTRGateway(IConfiguration configuration, ILogger<PayTRGateway> logger)
-    {
-        _configuration = configuration;
-        _logger = logger;
-    }
 
     public async Task<PaymentGatewayResponseDto> ProcessPaymentAsync(PaymentGatewayRequestDto request)
     {
-        _logger.LogInformation("PayTR payment processing started for order {OrderNumber}", request.OrderNumber);
+        logger.LogInformation("PayTR payment processing started for order {OrderNumber}", request.OrderNumber);
         
-        var merchantId = _configuration["PaymentGateways:PayTR:MerchantId"];
-        var merchantKey = _configuration["PaymentGateways:PayTR:MerchantKey"];
-        var merchantSalt = _configuration["PaymentGateways:PayTR:MerchantSalt"];
+        var merchantId = configuration["PaymentGateways:PayTR:MerchantId"];
+        var merchantKey = configuration["PaymentGateways:PayTR:MerchantKey"];
+        var merchantSalt = configuration["PaymentGateways:PayTR:MerchantSalt"];
         
         if (string.IsNullOrEmpty(merchantId) || string.IsNullOrEmpty(merchantKey) || string.IsNullOrEmpty(merchantSalt))
         {
-            _logger.LogWarning("PayTR API credentials not configured");
+            logger.LogWarning("PayTR API credentials not configured");
             return new PaymentGatewayResponseDto
             {
                 Success = false,
@@ -45,7 +36,7 @@ public class PayTRGateway : IPaymentGateway
         
         var transactionId = $"PAYTR_{Guid.NewGuid():N}";
         
-        _logger.LogInformation("PayTR payment processed successfully. TransactionId: {TransactionId}", transactionId);
+        logger.LogInformation("PayTR payment processed successfully. TransactionId: {TransactionId}", transactionId);
         
         return new PaymentGatewayResponseDto
         {
@@ -62,13 +53,13 @@ public class PayTRGateway : IPaymentGateway
 
     public async Task<PaymentGatewayResponseDto> RefundPaymentAsync(string transactionId, decimal amount, string? reason = null)
     {
-        _logger.LogInformation("PayTR refund processing started. TransactionId: {TransactionId}, Amount: {Amount}", transactionId, amount);
+        logger.LogInformation("PayTR refund processing started. TransactionId: {TransactionId}, Amount: {Amount}", transactionId, amount);
         
         await Task.Delay(100);
         
         var refundTransactionId = $"PAYTR_REFUND_{Guid.NewGuid():N}";
         
-        _logger.LogInformation("PayTR refund processed successfully. RefundTransactionId: {RefundTransactionId}", refundTransactionId);
+        logger.LogInformation("PayTR refund processed successfully. RefundTransactionId: {RefundTransactionId}", refundTransactionId);
         
         return new PaymentGatewayResponseDto
         {
@@ -86,7 +77,7 @@ public class PayTRGateway : IPaymentGateway
 
     public async Task<PaymentGatewayStatusDto> GetPaymentStatusAsync(string transactionId)
     {
-        _logger.LogInformation("PayTR payment status check. TransactionId: {TransactionId}", transactionId);
+        logger.LogInformation("PayTR payment status check. TransactionId: {TransactionId}", transactionId);
         
         await Task.Delay(50);
         
@@ -107,17 +98,17 @@ public class PayTRGateway : IPaymentGateway
     public Task<bool> VerifyWebhookAsync(string signature, string payload)
     {
         // ✅ SECURITY FIX: PayTR webhook signature doğrulama implement edildi
-        var merchantSalt = _configuration["PaymentGateways:PayTR:MerchantSalt"];
+        var merchantSalt = configuration["PaymentGateways:PayTR:MerchantSalt"];
 
         if (string.IsNullOrEmpty(merchantSalt))
         {
-            _logger.LogWarning("PayTR merchant salt not configured - webhook verification skipped");
+            logger.LogWarning("PayTR merchant salt not configured - webhook verification skipped");
             return Task.FromResult(false);
         }
 
         if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(payload))
         {
-            _logger.LogWarning("PayTR webhook verification failed - missing signature or payload");
+            logger.LogWarning("PayTR webhook verification failed - missing signature or payload");
             return Task.FromResult(false);
         }
 
@@ -137,14 +128,14 @@ public class PayTRGateway : IPaymentGateway
 
             if (!isValid)
             {
-                _logger.LogWarning("PayTR webhook signature verification failed");
+                logger.LogWarning("PayTR webhook signature verification failed");
             }
 
             return Task.FromResult(isValid);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "PayTR webhook verification error");
+            logger.LogError(ex, "PayTR webhook verification error");
             return Task.FromResult(false);
         }
     }

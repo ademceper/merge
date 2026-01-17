@@ -8,9 +8,11 @@ namespace Merge.Application.Notification.Queries.GetTemplates;
 /// <summary>
 /// Get Templates Query Validator - BOLUM 2.1: FluentValidation (ZORUNLU)
 /// </summary>
-public class GetTemplatesQueryValidator : AbstractValidator<GetTemplatesQuery>
+public class GetTemplatesQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetTemplatesQuery>
 {
-    public GetTemplatesQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    private readonly PaginationSettings settings = paginationSettings.Value;
+
+    public GetTemplatesQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
         RuleFor(x => x.Page)
             .GreaterThan(0)
@@ -19,8 +21,8 @@ public class GetTemplatesQueryValidator : AbstractValidator<GetTemplatesQuery>
         RuleFor(x => x.PageSize)
             .GreaterThan(0)
             .WithMessage("Sayfa boyutu 0'dan büyük olmalıdır.")
-            .LessThanOrEqualTo(paginationSettings.Value.MaxPageSize)
-            .WithMessage($"Sayfa boyutu en fazla {paginationSettings.Value.MaxPageSize} olabilir.");
+            .LessThanOrEqualTo(settings.MaxPageSize)
+            .WithMessage($"Sayfa boyutu en fazla {settings.MaxPageSize} olabilir.");
 
         RuleFor(x => x.Type)
             .IsInEnum()

@@ -11,19 +11,13 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Queries.GetTicketsByPriority;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetTicketsByPriorityQueryHandler : IRequestHandler<GetTicketsByPriorityQuery, List<PriorityTicketCountDto>>
+public class GetTicketsByPriorityQueryHandler(IDbContext context) : IRequestHandler<GetTicketsByPriorityQuery, List<PriorityTicketCountDto>>
 {
-    private readonly IDbContext _context;
-
-    public GetTicketsByPriorityQueryHandler(IDbContext context)
-    {
-        _context = context;
-    }
 
     public async Task<List<PriorityTicketCountDto>> Handle(GetTicketsByPriorityQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        IQueryable<SupportTicket> query = _context.Set<SupportTicket>()
+        IQueryable<SupportTicket> query = context.Set<SupportTicket>()
             .AsNoTracking();
 
         if (request.AgentId.HasValue)

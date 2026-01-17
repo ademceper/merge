@@ -10,14 +10,8 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Queries.GetKnowledgeBaseTotalViews;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetKnowledgeBaseTotalViewsQueryHandler : IRequestHandler<GetKnowledgeBaseTotalViewsQuery, int>
+public class GetKnowledgeBaseTotalViewsQueryHandler(IDbContext context) : IRequestHandler<GetKnowledgeBaseTotalViewsQuery, int>
 {
-    private readonly IDbContext _context;
-
-    public GetKnowledgeBaseTotalViewsQueryHandler(IDbContext context)
-    {
-        _context = context;
-    }
 
     public async Task<int> Handle(GetKnowledgeBaseTotalViewsQuery request, CancellationToken cancellationToken)
     {
@@ -26,7 +20,7 @@ public class GetKnowledgeBaseTotalViewsQueryHandler : IRequestHandler<GetKnowled
         // ✅ BOLUM 2.2: CancellationToken destegi (ZORUNLU)
         if (request.ArticleId.HasValue)
         {
-            var article = await _context.Set<KnowledgeBaseArticle>()
+            var article = await context.Set<KnowledgeBaseArticle>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(a => a.Id == request.ArticleId.Value, cancellationToken);
 
@@ -34,7 +28,7 @@ public class GetKnowledgeBaseTotalViewsQueryHandler : IRequestHandler<GetKnowled
         }
 
         // Total views for all articles
-        var totalViews = await _context.Set<KnowledgeBaseArticle>()
+        var totalViews = await context.Set<KnowledgeBaseArticle>()
             .AsNoTracking()
             .SumAsync(a => a.ViewCount, cancellationToken);
 

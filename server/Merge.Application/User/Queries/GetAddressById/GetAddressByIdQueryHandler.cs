@@ -12,44 +12,37 @@ using IDbContext = Merge.Application.Interfaces.IDbContext;
 namespace Merge.Application.User.Queries.GetAddressById;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetAddressByIdQueryHandler : IRequestHandler<GetAddressByIdQuery, AddressDto?>
+public class GetAddressByIdQueryHandler(
+    IDbContext context,
+    IMapper mapper,
+    ILogger<GetAddressByIdQueryHandler> logger) : IRequestHandler<GetAddressByIdQuery, AddressDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetAddressByIdQueryHandler> _logger;
-
-    public GetAddressByIdQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAddressByIdQueryHandler> logger)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-    }
 
     public async Task<AddressDto?> Handle(GetAddressByIdQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
 
-        _logger.LogInformation("Retrieving address with ID: {AddressId}", request.Id);
+        logger.LogInformation("Retrieving address with ID: {AddressId}", request.Id);
 
         var address =         // ✅ PERFORMANCE: AsNoTracking
-        await _context.Set<Address>()
+        await context.Set<Address>()
             .AsNoTracking()
             .Where(a => a.Id == request.Id && !a.IsDeleted)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (address == null)
         {
-            _logger.LogWarning("Address not found with ID: {AddressId}", request.Id);
+            logger.LogWarning("Address not found with ID: {AddressId}", request.Id);
             return null;
         }
         if (request.UserId.HasValue && address.UserId != request.UserId.Value && !request.IsAdminOrManager)
         {
-            _logger.LogWarning("Unauthorized access attempt to address {AddressId} by user {UserId}", 
+            logger.LogWarning("Unauthorized access attempt to address {AddressId} by user {UserId}", 
                 request.Id, request.UserId.Value);
             throw new Application.Exceptions.BusinessException("Bu adrese erişim yetkiniz bulunmamaktadır.");
         }
 
                 // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return _mapper.Map<AddressDto>(address);
+        return mapper.Map<AddressDto>(address);
     }
 }

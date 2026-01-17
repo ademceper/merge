@@ -5,22 +5,22 @@ using Merge.Application.Configuration;
 namespace Merge.Application.Search.Queries.GetTrendingSearches;
 
 // ✅ BOLUM 2.1: FluentValidation (ZORUNLU)
-public class GetTrendingSearchesQueryValidator : AbstractValidator<GetTrendingSearchesQuery>
+public class GetTrendingSearchesQueryValidator(IOptions<SearchSettings> searchSettings) : AbstractValidator<GetTrendingSearchesQuery>
 {
-    public GetTrendingSearchesQueryValidator(IOptions<SearchSettings> searchSettings)
-    {
-        var settings = searchSettings.Value;
+    private readonly SearchSettings config = searchSettings.Value;
 
+    public GetTrendingSearchesQueryValidator() : this(Options.Create(new SearchSettings()))
+    {
         RuleFor(x => x.Days)
             .GreaterThan(0)
             .WithMessage("Gün sayısı 1'den büyük olmalıdır.")
-            .LessThanOrEqualTo(settings.MaxTrendingDays)
-            .WithMessage($"Gün sayısı en fazla {settings.MaxTrendingDays} olabilir.");
+            .LessThanOrEqualTo(config.MaxTrendingDays)
+            .WithMessage($"Gün sayısı en fazla {config.MaxTrendingDays} olabilir.");
 
         RuleFor(x => x.MaxResults)
             .GreaterThan(0)
             .WithMessage("Maksimum sonuç sayısı 1'den büyük olmalıdır.")
-            .LessThanOrEqualTo(settings.MaxAutocompleteResults)
-            .WithMessage($"Maksimum sonuç sayısı en fazla {settings.MaxAutocompleteResults} olabilir.");
+            .LessThanOrEqualTo(config.MaxAutocompleteResults)
+            .WithMessage($"Maksimum sonuç sayısı en fazla {config.MaxAutocompleteResults} olabilir.");
     }
 }

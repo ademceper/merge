@@ -4,14 +4,12 @@ using Merge.Application.Configuration;
 
 namespace Merge.Application.Content.Queries.GetAllBanners;
 
-public class GetAllBannersQueryValidator : AbstractValidator<GetAllBannersQuery>
+public class GetAllBannersQueryValidator(IOptions<PaginationSettings> paginationSettings) : AbstractValidator<GetAllBannersQuery>
 {
-    private readonly PaginationSettings settings;
+    private readonly PaginationSettings settings = paginationSettings.Value;
 
-    public GetAllBannersQueryValidator(IOptions<PaginationSettings> paginationSettings)
+    public GetAllBannersQueryValidator() : this(Options.Create(new PaginationSettings()))
     {
-        settings = paginationSettings.Value;
-
         RuleFor(x => x.Page)
             .GreaterThan(0)
             .WithMessage("Sayfa numarası 1'den büyük olmalıdır.");

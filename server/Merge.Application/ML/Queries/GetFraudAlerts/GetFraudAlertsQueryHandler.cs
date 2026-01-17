@@ -20,41 +20,26 @@ namespace Merge.Application.ML.Queries.GetFraudAlerts;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 // ✅ BOLUM 1.1: Clean Architecture - Handler direkt IDbContext kullanıyor (Service layer bypass)
-public class GetFraudAlertsQueryHandler : IRequestHandler<GetFraudAlertsQuery, PagedResult<FraudAlertDto>>
+public class GetFraudAlertsQueryHandler(IDbContext context, IMapper mapper, ILogger<GetFraudAlertsQueryHandler> logger, IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetFraudAlertsQuery, PagedResult<FraudAlertDto>>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetFraudAlertsQueryHandler> _logger;
-    private readonly PaginationSettings _paginationSettings;
-
-    public GetFraudAlertsQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetFraudAlertsQueryHandler> logger,
-        IOptions<PaginationSettings> paginationSettings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _paginationSettings = paginationSettings.Value;
-    }
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
 
     public async Task<PagedResult<FraudAlertDto>> Handle(GetFraudAlertsQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Getting fraud alerts. Status: {Status}, AlertType: {AlertType}, MinRiskScore: {MinRiskScore}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Getting fraud alerts. Status: {Status}, AlertType: {AlertType}, MinRiskScore: {MinRiskScore}, Page: {Page}, PageSize: {PageSize}",
             request.Status, request.AlertType, request.MinRiskScore, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination (ZORUNLU)
         // ✅ BOLUM 12.0: Configuration - Magic number'lar configuration'dan alınıyor
         var page = request.Page;
         var pageSize = request.PageSize;
-        if (pageSize > _paginationSettings.MaxPageSize) pageSize = _paginationSettings.MaxPageSize;
+        if (pageSize > paginationConfig.MaxPageSize) pageSize = paginationConfig.MaxPageSize;
         if (page < 1) page = 1;
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !a.IsDeleted (Global Query Filter)
         // ✅ PERFORMANCE: AsSplitQuery to prevent Cartesian Explosion (multiple Includes)
-        IQueryable<FraudAlert> query = _context.Set<FraudAlert>()
+        IQueryable<FraudAlert> query = context.Set<FraudAlert>()
             .AsNoTracking()
             .AsSplitQuery()
             .Include(a => a.User)
@@ -95,9 +80,9 @@ public class GetFraudAlertsQueryHandler : IRequestHandler<GetFraudAlertsQuery, P
             .ToListAsync(cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        var alertDtos = _mapper.Map<List<FraudAlertDto>>(alerts);
+        var alertDtos = mapper.Map<List<FraudAlertDto>>(alerts);
 
-        _logger.LogInformation("Fraud alerts retrieved. TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}",
+        logger.LogInformation("Fraud alerts retrieved. TotalCount: {TotalCount}, Page: {Page}, PageSize: {PageSize}",
             totalCount, page, pageSize);
 
         return new PagedResult<FraudAlertDto>

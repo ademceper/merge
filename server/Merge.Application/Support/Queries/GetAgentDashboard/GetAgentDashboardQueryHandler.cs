@@ -20,49 +20,34 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Support.Queries.GetAgentDashboard;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQuery, SupportAgentDashboardDto>
+public class GetAgentDashboardQueryHandler(IDbContext context, IMapper mapper, ILogger<GetAgentDashboardQueryHandler> logger, IOptions<SupportSettings> settings) : IRequestHandler<GetAgentDashboardQuery, SupportAgentDashboardDto>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ILogger<GetAgentDashboardQueryHandler> _logger;
-    private readonly SupportSettings _settings;
-
-    public GetAgentDashboardQueryHandler(
-        IDbContext context,
-        IMapper mapper,
-        ILogger<GetAgentDashboardQueryHandler> logger,
-        IOptions<SupportSettings> settings)
-    {
-        _context = context;
-        _mapper = mapper;
-        _logger = logger;
-        _settings = settings.Value;
-    }
+    private readonly SupportSettings supportConfig = settings.Value;
 
     public async Task<SupportAgentDashboardDto> Handle(GetAgentDashboardQuery request, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
-        var startDate = request.StartDate ?? DateTime.UtcNow.AddDays(-_settings.DefaultStatsPeriodDays);
+        var startDate = request.StartDate ?? DateTime.UtcNow.AddDays(-supportConfig.DefaultStatsPeriodDays);
         var endDate = request.EndDate ?? DateTime.UtcNow;
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation("Generating agent dashboard for agent {AgentId} from {StartDate} to {EndDate}",
+        logger.LogInformation("Generating agent dashboard for agent {AgentId} from {StartDate} to {EndDate}",
             request.AgentId, startDate, endDate);
 
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !u.IsDeleted (Global Query Filter)
-        var agent = await _context.Users
+        var agent = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.AgentId, cancellationToken);
 
         if (agent == null)
         {
-            _logger.LogWarning("Agent {AgentId} not found", request.AgentId);
+            logger.LogWarning("Agent {AgentId} not found", request.AgentId);
             throw new NotFoundException("Ajan", request.AgentId);
         }
 
         // ✅ PERFORMANCE: Database'de aggregations yap, memory'de işlem YASAK
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !t.IsDeleted (Global Query Filter)
-        IQueryable<SupportTicket> allTicketsQuery = _context.Set<SupportTicket>()
+        IQueryable<SupportTicket> allTicketsQuery = context.Set<SupportTicket>()
             .AsNoTracking()
             .Where(t => t.AssignedToId == request.AgentId);
 
@@ -73,7 +58,7 @@ public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQu
         var closedTickets = await allTicketsQuery.CountAsync(t => t.Status == TicketStatus.Closed, cancellationToken);
 
         // Unassigned tickets (for admin view)
-        var unassignedTickets = await _context.Set<SupportTicket>()
+        var unassignedTickets = await context.Set<SupportTicket>()
             .AsNoTracking()
             .CountAsync(t => t.AssignedToId == null && t.Status != TicketStatus.Closed, cancellationToken);
 
@@ -92,8 +77,8 @@ public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQu
 
         var today = DateTime.UtcNow.Date;
         // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
-        var weekAgo = today.AddDays(-_settings.WeeklyReportDays);
-        var monthAgo = today.AddDays(-_settings.DefaultStatsPeriodDays);
+        var weekAgo = today.AddDays(-supportConfig.WeeklyReportDays);
+        var monthAgo = today.AddDays(-supportConfig.DefaultStatsPeriodDays);
 
         var ticketsResolvedToday = await allTicketsQuery.CountAsync(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value.Date == today, cancellationToken);
         var ticketsResolvedThisWeek = await allTicketsQuery.CountAsync(t => t.ResolvedAt.HasValue && t.ResolvedAt.Value >= weekAgo, cancellationToken);
@@ -108,7 +93,7 @@ public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQu
         var overdueTickets = await allTicketsQuery.CountAsync(t =>
             (t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress) &&
             // ✅ BOLUM 12.0: Magic Number'ları Configuration'a Taşıma
-            t.CreatedAt < DateTime.UtcNow.AddDays(-_settings.TicketOverdueDays), cancellationToken);
+            t.CreatedAt < DateTime.UtcNow.AddDays(-supportConfig.TicketOverdueDays), cancellationToken);
         var highPriorityTickets = await allTicketsQuery.CountAsync(t => t.Priority == TicketPriority.High, cancellationToken);
         var urgentTickets = await allTicketsQuery.CountAsync(t => t.Priority == TicketPriority.Urgent, cancellationToken);
 
@@ -129,7 +114,7 @@ public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQu
             .Include(t => t.Product)
             .Include(t => t.AssignedTo)
             .OrderByDescending(t => t.CreatedAt)
-            .Take(_settings.DashboardRecentTicketsCount)
+            .Take(supportConfig.DashboardRecentTicketsCount)
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: Urgent tickets - database'de query
@@ -142,26 +127,26 @@ public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQu
             .Include(t => t.AssignedTo)
             .Where(t => t.Priority == TicketPriority.Urgent && (t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress))
             .OrderBy(t => t.CreatedAt)
-            .Take(_settings.DashboardUrgentTicketsCount)
+            .Take(supportConfig.DashboardUrgentTicketsCount)
             .ToListAsync(cancellationToken);
 
         // ✅ PERFORMANCE: allTicketIds'i database'de oluştur, memory'de işlem YASAK
         var recentTicketIds = await allTicketsQuery
             .OrderByDescending(t => t.CreatedAt)
-            .Take(_settings.DashboardRecentTicketsCount)
+            .Take(supportConfig.DashboardRecentTicketsCount)
             .Select(t => t.Id)
             .ToListAsync(cancellationToken);
         
         var urgentTicketIds = await allTicketsQuery
             .Where(t => t.Priority == TicketPriority.Urgent && (t.Status == TicketStatus.Open || t.Status == TicketStatus.InProgress))
             .OrderBy(t => t.CreatedAt)
-            .Take(_settings.DashboardUrgentTicketsCount)
+            .Take(supportConfig.DashboardUrgentTicketsCount)
             .Select(t => t.Id)
             .ToListAsync(cancellationToken);
         
         // ✅ Memory'de minimal işlem: Concat ve Distinct küçük listeler için kabul edilebilir
         var allTicketIds = recentTicketIds.Concat(urgentTicketIds).Distinct().ToList();
-        var messagesDict = await _context.Set<TicketMessage>()
+        var messagesDict = await context.Set<TicketMessage>()
             .AsNoTracking()
             .Include(m => m.User)
             .Where(m => allTicketIds.Contains(m.TicketId))
@@ -173,7 +158,7 @@ public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQu
             })
             .ToDictionaryAsync(x => x.TicketId, x => x.Messages, cancellationToken);
 
-        var attachmentsDict = await _context.Set<TicketAttachment>()
+        var attachmentsDict = await context.Set<TicketAttachment>()
             .AsNoTracking()
             .Where(a => allTicketIds.Contains(a.TicketId))
             .GroupBy(a => a.TicketId)
@@ -187,13 +172,13 @@ public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQu
         var recentTicketsDto = new List<SupportTicketDto>();
         foreach (var ticket in recentTickets)
         {
-            var dto = _mapper.Map<SupportTicketDto>(ticket);
+            var dto = mapper.Map<SupportTicketDto>(ticket);
             
             // ✅ BOLUM 7.1.5: Records - IReadOnlyList kullanımı (immutability)
             IReadOnlyList<TicketMessageDto> messages;
             if (messagesDict.TryGetValue(ticket.Id, out var messageList))
             {
-                messages = _mapper.Map<List<TicketMessageDto>>(messageList).AsReadOnly();
+                messages = mapper.Map<List<TicketMessageDto>>(messageList).AsReadOnly();
             }
             else
             {
@@ -203,7 +188,7 @@ public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQu
             IReadOnlyList<TicketAttachmentDto> attachments;
             if (attachmentsDict.TryGetValue(ticket.Id, out var attachmentList))
             {
-                attachments = _mapper.Map<List<TicketAttachmentDto>>(attachmentList).AsReadOnly();
+                attachments = mapper.Map<List<TicketAttachmentDto>>(attachmentList).AsReadOnly();
             }
             else
             {
@@ -217,13 +202,13 @@ public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQu
         var urgentTicketsDto = new List<SupportTicketDto>();
         foreach (var ticket in urgentTicketsList)
         {
-            var dto = _mapper.Map<SupportTicketDto>(ticket);
+            var dto = mapper.Map<SupportTicketDto>(ticket);
             
             // ✅ BOLUM 7.1.5: Records - IReadOnlyList kullanımı (immutability)
             IReadOnlyList<TicketMessageDto> messages;
             if (messagesDict.TryGetValue(ticket.Id, out var messageList))
             {
-                messages = _mapper.Map<List<TicketMessageDto>>(messageList).AsReadOnly();
+                messages = mapper.Map<List<TicketMessageDto>>(messageList).AsReadOnly();
             }
             else
             {
@@ -233,7 +218,7 @@ public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQu
             IReadOnlyList<TicketAttachmentDto> attachments;
             if (attachmentsDict.TryGetValue(ticket.Id, out var attachmentList))
             {
-                attachments = _mapper.Map<List<TicketAttachmentDto>>(attachmentList).AsReadOnly();
+                attachments = mapper.Map<List<TicketAttachmentDto>>(attachmentList).AsReadOnly();
             }
             else
             {
@@ -244,7 +229,7 @@ public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQu
             urgentTicketsDto.Add(dto with { Messages = messages, Attachments = attachments });
         }
 
-        _logger.LogInformation("Agent dashboard generated for {AgentName}. Total tickets: {Total}, Active: {Active}, Resolution rate: {Rate}%",
+        logger.LogInformation("Agent dashboard generated for {AgentName}. Total tickets: {Total}, Active: {Active}, Resolution rate: {Rate}%",
             $"{agent.FirstName} {agent.LastName}", totalTickets, activeTickets, Math.Round(resolutionRate, 2));
 
         // ✅ BOLUM 7.1.5: Records - Record'lar için constructor kullan (object initializer çalışmaz)
@@ -278,7 +263,7 @@ public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQu
 
     private async Task<List<CategoryTicketCountDto>> GetTicketsByCategoryAsync(Guid? agentId, DateTime? startDate, DateTime? endDate, CancellationToken cancellationToken)
     {
-        IQueryable<SupportTicket> query = _context.Set<SupportTicket>()
+        IQueryable<SupportTicket> query = context.Set<SupportTicket>()
             .AsNoTracking();
 
         if (agentId.HasValue)
@@ -313,7 +298,7 @@ public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQu
 
     private async Task<List<PriorityTicketCountDto>> GetTicketsByPriorityAsync(Guid? agentId, DateTime? startDate, DateTime? endDate, CancellationToken cancellationToken)
     {
-        IQueryable<SupportTicket> query = _context.Set<SupportTicket>()
+        IQueryable<SupportTicket> query = context.Set<SupportTicket>()
             .AsNoTracking();
 
         if (agentId.HasValue)
@@ -348,7 +333,7 @@ public class GetAgentDashboardQueryHandler : IRequestHandler<GetAgentDashboardQu
 
     private async Task<List<TicketTrendDto>> GetTicketTrendsAsync(Guid? agentId, DateTime? startDate, DateTime? endDate, CancellationToken cancellationToken)
     {
-        IQueryable<SupportTicket> query = _context.Set<SupportTicket>()
+        IQueryable<SupportTicket> query = context.Set<SupportTicket>()
             .AsNoTracking();
 
         if (agentId.HasValue)

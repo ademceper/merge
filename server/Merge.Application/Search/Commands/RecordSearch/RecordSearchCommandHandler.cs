@@ -11,21 +11,8 @@ using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 namespace Merge.Application.Search.Commands.RecordSearch;
 
 // ✅ BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
-public class RecordSearchCommandHandler : IRequestHandler<RecordSearchCommand>
+public class RecordSearchCommandHandler(IDbContext context, IUnitOfWork unitOfWork, ILogger<RecordSearchCommandHandler> logger) : IRequestHandler<RecordSearchCommand>
 {
-    private readonly IDbContext _context;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<RecordSearchCommandHandler> _logger;
-
-    public RecordSearchCommandHandler(
-        IDbContext context,
-        IUnitOfWork unitOfWork,
-        ILogger<RecordSearchCommandHandler> logger)
-    {
-        _context = context;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
-    }
 
     public async Task Handle(RecordSearchCommand request, CancellationToken cancellationToken)
     {
@@ -35,7 +22,7 @@ public class RecordSearchCommandHandler : IRequestHandler<RecordSearchCommand>
         }
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Search kaydediliyor. SearchTerm: {SearchTerm}, UserId: {UserId}, ResultCount: {ResultCount}",
             request.SearchTerm, request.UserId, request.ResultCount);
 
@@ -49,17 +36,17 @@ public class RecordSearchCommandHandler : IRequestHandler<RecordSearchCommand>
             request.UserAgent,
             request.IpAddress);
 
-        await _context.Set<SearchHistory>().AddAsync(searchHistory, cancellationToken);
+        await context.Set<SearchHistory>().AddAsync(searchHistory, cancellationToken);
 
         // ✅ PERFORMANCE: Removed manual !ps.IsDeleted (Global Query Filter)
-        var popularSearch = await _context.Set<PopularSearch>()
+        var popularSearch = await context.Set<PopularSearch>()
             .FirstOrDefaultAsync(ps => ps.SearchTerm.ToLower() == normalizedTerm.ToLower(), cancellationToken);
 
         if (popularSearch == null)
         {
             // ✅ BOLUM 1.1: Rich Domain Model - Factory Method kullanımı
             popularSearch = PopularSearch.Create(normalizedTerm);
-            await _context.Set<PopularSearch>().AddAsync(popularSearch, cancellationToken);
+            await context.Set<PopularSearch>().AddAsync(popularSearch, cancellationToken);
         }
         else
         {
@@ -67,10 +54,10 @@ public class RecordSearchCommandHandler : IRequestHandler<RecordSearchCommand>
             popularSearch.IncrementSearchCount();
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Search kaydedildi. SearchTerm: {SearchTerm}, UserId: {UserId}",
             request.SearchTerm, request.UserId);
     }

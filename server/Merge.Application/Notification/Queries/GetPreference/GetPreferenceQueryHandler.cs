@@ -15,27 +15,19 @@ namespace Merge.Application.Notification.Queries.GetPreference;
 /// <summary>
 /// Get Preference Query Handler - BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class GetPreferenceQueryHandler : IRequestHandler<GetPreferenceQuery, NotificationPreferenceDto?>
+public class GetPreferenceQueryHandler(IDbContext context, IMapper mapper) : IRequestHandler<GetPreferenceQuery, NotificationPreferenceDto?>
 {
-    private readonly IDbContext _context;
-    private readonly IMapper _mapper;
-
-    public GetPreferenceQueryHandler(IDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
 
     public async Task<NotificationPreferenceDto?> Handle(GetPreferenceQuery request, CancellationToken cancellationToken)
     {
         // ✅ PERFORMANCE: AsNoTracking + Removed manual !np.IsDeleted (Global Query Filter)
-        var preference = await _context.Set<NotificationPreference>()
+        var preference = await context.Set<NotificationPreference>()
             .AsNoTracking()
             .FirstOrDefaultAsync(np => np.UserId == request.UserId && 
                                       np.NotificationType == request.NotificationType && 
                                       np.Channel == request.Channel, cancellationToken);
 
         // ✅ ARCHITECTURE: AutoMapper kullan (manuel mapping YASAK)
-        return preference != null ? _mapper.Map<NotificationPreferenceDto>(preference) : null;
+        return preference != null ? mapper.Map<NotificationPreferenceDto>(preference) : null;
     }
 }

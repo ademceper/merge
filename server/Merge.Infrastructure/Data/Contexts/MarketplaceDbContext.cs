@@ -8,11 +8,8 @@ using Role = Merge.Domain.Modules.Identity.Role;
 
 namespace Merge.Infrastructure.Data.Contexts;
 
-public class MarketplaceDbContext : DbContext, IDbContext
+public class MarketplaceDbContext(DbContextOptions<MarketplaceDbContext> options) : DbContext(options), IDbContext
 {
-    public MarketplaceDbContext(DbContextOptions<MarketplaceDbContext> options) : base(options)
-    {
-    }
 
     public DbSet<SellerProfile> SellerProfiles { get; set; }
     public DbSet<SellerApplication> SellerApplications { get; set; }

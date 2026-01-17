@@ -12,23 +12,15 @@ namespace Merge.Application.Subscription.EventHandlers;
 /// SubscriptionPayment Failed Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class SubscriptionPaymentFailedEventHandler : INotificationHandler<SubscriptionPaymentFailedEvent>
+public class SubscriptionPaymentFailedEventHandler(ILogger<SubscriptionPaymentFailedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<SubscriptionPaymentFailedEvent>
 {
-    private readonly ILogger<SubscriptionPaymentFailedEventHandler> _logger;
+    
     private readonly INotificationService? _notificationService;
-
-    public SubscriptionPaymentFailedEventHandler(
-        ILogger<SubscriptionPaymentFailedEventHandler> logger,
-        INotificationService? notificationService = null)
-    {
-        _logger = logger;
-        _notificationService = notificationService;
-    }
 
     public async Task Handle(SubscriptionPaymentFailedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogWarning(
+        logger.LogWarning(
             "Subscription payment failed event received. PaymentId: {PaymentId}, SubscriptionId: {SubscriptionId}, Amount: {Amount}, Reason: {Reason}",
             notification.PaymentId, notification.UserSubscriptionId, notification.Amount, notification.Reason);
 
@@ -45,7 +37,7 @@ public class SubscriptionPaymentFailedEventHandler : INotificationHandler<Subscr
         catch (Exception ex)
         {
             // ✅ BOLUM 2.1: Exception ASLA yutulmamali - logla ve throw et
-            _logger.LogError(ex,
+            logger.LogError(ex,
                 "Error handling SubscriptionPaymentFailedEvent. PaymentId: {PaymentId}, SubscriptionId: {SubscriptionId}",
                 notification.PaymentId, notification.UserSubscriptionId);
             throw;

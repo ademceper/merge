@@ -10,19 +10,13 @@ namespace Merge.Application.Support.EventHandlers;
 /// Knowledge Base Category Deleted Event Handler - BOLUM 1.5: Domain Events (ZORUNLU)
 /// BOLUM 2.0: MediatR + CQRS pattern (ZORUNLU)
 /// </summary>
-public class KnowledgeBaseCategoryDeletedEventHandler : INotificationHandler<KnowledgeBaseCategoryDeletedEvent>
+public class KnowledgeBaseCategoryDeletedEventHandler(ILogger<KnowledgeBaseCategoryDeletedEventHandler> logger) : INotificationHandler<KnowledgeBaseCategoryDeletedEvent>
 {
-    private readonly ILogger<KnowledgeBaseCategoryDeletedEventHandler> _logger;
-
-    public KnowledgeBaseCategoryDeletedEventHandler(ILogger<KnowledgeBaseCategoryDeletedEventHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async Task Handle(KnowledgeBaseCategoryDeletedEvent notification, CancellationToken cancellationToken)
     {
         // ✅ BOLUM 9.2: Structured Logging (ZORUNLU)
-        _logger.LogInformation(
+        logger.LogInformation(
             "Knowledge base category deleted event received. CategoryId: {CategoryId}, Name: {Name}, Slug: {Slug}, ParentCategoryId: {ParentCategoryId}",
             notification.CategoryId, notification.Name, notification.Slug, notification.ParentCategoryId);
 

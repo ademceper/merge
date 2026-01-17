@@ -24,6 +24,7 @@ public class GetActiveBannersQueryHandler(
     ICacheService cache,
     IOptions<PaginationSettings> paginationSettings) : IRequestHandler<GetActiveBannersQuery, PagedResult<BannerDto>>
 {
+    private readonly PaginationSettings paginationConfig = paginationSettings.Value;
     private const string CACHE_KEY_ACTIVE_BANNERS_PAGED = "banners_active_paged";
     private static readonly TimeSpan CACHE_EXPIRATION = TimeSpan.FromMinutes(5); // Active banners change more frequently
 
@@ -33,7 +34,7 @@ public class GetActiveBannersQueryHandler(
             request.Position, request.Page, request.PageSize);
 
         // ✅ BOLUM 3.4: Pagination limit kontrolü (ZORUNLU)
-        var pageSize = request.PageSize > paginationSettings.Value.MaxPageSize ? paginationSettings.Value.MaxPageSize : request.PageSize;
+        var pageSize = request.PageSize > paginationConfig.MaxPageSize ? paginationConfig.MaxPageSize : request.PageSize;
         var page = request.Page < 1 ? 1 : request.Page;
 
         var cacheKey = $"{CACHE_KEY_ACTIVE_BANNERS_PAGED}_{request.Position ?? "all"}_{page}_{pageSize}";
