@@ -293,11 +293,82 @@ security_rules:
 ## TO REACH 10/10 (Optional Enhancements):
 # These are not critical issues but would make the architecture perfect:
 #
-# 1. Error Boundaries (RECOMMENDED):
-#    - Add ErrorBoundary component to packages/ui/src/components/error-boundary.tsx
-#    - Wrap critical sections with error boundaries
-#    - Provide fallback UI for error states
-#    - Example: <ErrorBoundary fallback={<ErrorFallback />}>...</ErrorBoundary>
+# 1. Error Boundaries (RECOMMENDED - Framework Native Best Practice):
+#    ✅ BEST PRACTICE: Use framework-native error.tsx files (Next.js App Router & Expo Router)
+#    ✅ Both Next.js and Expo Router use file-system routing with automatic ErrorBoundary
+#    ✅ No manual ErrorBoundary component needed - error.tsx files automatically create ErrorBoundary
+#    ✅ No need for react-error-boundary library - framework handles it natively
+#
+#    CRITICAL IMPLEMENTATION RULES:
+#    a) 'use client' Directive (REQUIRED):
+#       - ALL error.tsx files MUST be Client Components
+#       - Add 'use client' at top of file (both Next.js and Expo Router)
+#       - Even server-side errors are rendered on client
+#
+#    b) Hierarchy Rule:
+#       - error.tsx protects page.tsx and its children in the same folder
+#       - error.tsx does NOT protect layout.tsx in the same folder
+#       - Layout errors are caught by parent folder's error.tsx
+#
+#    c) Global Errors (Next.js Only):
+#       - Root app/layout.tsx errors require global-error.tsx at root
+#       - global-error.tsx must recreate <html> and <body> tags
+#       - Prevents "White Screen of Death" for complete app crashes
+#       - Expo Router: Root _layout.tsx errors handled by default, but error.tsx recommended
+#
+#    GRANULAR STRUCTURE (Recommended for large apps):
+#    Next.js:
+#    app/
+#    ├── global-error.tsx        # Catches root layout errors
+#    ├── error.tsx               # Catches root page errors
+#    ├── (shop)/
+#    │   ├── product/[id]/
+#    │   │   ├── page.tsx
+#    │   │   └── error.tsx      # Product detail errors only
+#    │   └── cart/
+#    │       ├── page.tsx
+#    │       └── error.tsx       # Cart errors only
+#
+#    Expo Router:
+#    app/
+#    ├── error.tsx               # Root errors
+#    ├── (tabs)/
+#    │   ├── home/
+#    │   │   ├── index.tsx
+#    │   │   └── error.tsx      # Home errors only
+#    │   └── profile/
+#    │       ├── index.tsx
+#    │       └── error.tsx       # Profile errors only
+#
+#    WHY GRANULAR: If one page crashes, only that section shows error
+#    - Header/Footer/Sidebar remain functional (better UX)
+#
+#    IMPLEMENTATION EXAMPLE:
+#    ```tsx
+#    'use client'  // REQUIRED for both Next.js and Expo Router
+#
+#    import { useEffect } from 'react'
+#
+#    export default function Error({
+#      error,
+#      reset,
+#    }: {
+#      error: Error & { digest?: string }
+#      reset: () => void
+#    }) {
+#      useEffect(() => {
+#        // Log to Sentry, LogRocket, etc.
+#        console.error(error)
+#      }, [error])
+#
+#      return (
+#        <div>
+#          <h2>Something went wrong!</h2>
+#          <button onClick={() => reset()}>Try again</button>
+#        </div>
+#      )
+#    }
+#    ```
 #
 # 2. React.memo Optimizations (PERFORMANCE - DIMENSION 1):
 #    - Add React.memo to heavy components (>50 elements, complex JSX)
