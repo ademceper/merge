@@ -1,0 +1,308 @@
+---
+description: CQRS pattern rules with MediatR - Commands, Queries, Handlers, Validators
+globs:
+  - "Merge.Application/**/*.cs"
+  - "**/Commands/**/*.cs"
+  - "**/Queries/**/*.cs"
+alwaysApply: false
+---
+
+# CQRS PATTERN RULES - MediatR
+
+## COMMAND vs QUERY
+
+| Aspect | Command | Query |
+|--------|---------|-------|
+| **Amaç** | State değiştirir | Sadece okur |
+| **Return** | DTO veya bool | Data DTO |
+| **Side Effects** | Evet | Hayır |
+| **Caching** | Cache INVALIDATE | Cache KULLANIR |
+| **Validation** | FluentValidation ZORUNLU | Opsiyonel |
+| **DB Operation** | SaveChangesAsync | AsNoTracking |
+
+## DIRECTORY STRUCTURE
+
+```
+Merge.Application/
+├── [Module]/
+│   ├── Commands/
+│   │   └── CreateProduct/
+│   │       ├── CreateProductCommand.cs
+│   │       ├── CreateProductCommandHandler.cs
+│   │       └── CreateProductCommandValidator.cs
+│   ├── Queries/
+│   │   └── GetProductById/
+│   │       ├── GetProductByIdQuery.cs
+│   │       └── GetProductByIdQueryHandler.cs
+│   └── DTOs/
+│       └── ProductDto.cs
+```
+
+## COMMAND IMPLEMENTATION
+
+### Command Definition
+```csharp
+public record CreateProductCommand(
+    string Name,
+    string Description,
+    decimal Price,
+    string Currency,
+    Guid CategoryId
+) : IRequest<ProductDto>;
+```
+
+### Command Handler
+```csharp
+public class CreateProductCommandHandler(
+    IRepository<Product> repository,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ICacheService cache,
+    ILogger<CreateProductCommandHandler> logger
+) : IRequestHandler<CreateProductCommand, ProductDto>
+{
+    public async Task<ProductDto> Handle(CreateProductCommand request, CancellationToken ct)
+    {
+        // 1. Create via factory method
+        var product = Product.Create(
+            request.Name,
+            Money.Create(request.Price, request.Currency),
+            request.CategoryId);
+
+        // 2. Persist (NO SaveChanges in repository!)
+        await repository.AddAsync(product, ct);
+
+        // 3. Commit + publish domain events
+        await unitOfWork.SaveChangesAsync(ct);
+
+        // 4. Invalidate cache
+        await cache.RemoveByPrefixAsync("products_", ct);
+
+        // 5. Log (no PII)
+        logger.LogInformation("Product created: {ProductId}", product.Id);
+
+        // 6. Return DTO (NEVER entity!)
+        return mapper.Map<ProductDto>(product);
+    }
+}
+```
+
+### Command Validator
+```csharp
+public class CreateProductCommandValidator : AbstractValidator<CreateProductCommand>
+{
+    public CreateProductCommandValidator()
+    {
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Name is required")
+            .MaximumLength(200);
+
+        RuleFor(x => x.Price)
+            .GreaterThan(0).WithMessage("Price must be positive");
+
+        RuleFor(x => x.Currency)
+            .NotEmpty()
+            .Length(3).WithMessage("Currency must be ISO 4217");
+
+        RuleFor(x => x.CategoryId)
+            .NotEmpty().WithMessage("Category is required");
+    }
+}
+```
+
+## QUERY IMPLEMENTATION
+
+### Query Definition
+```csharp
+public record GetProductByIdQuery(Guid Id) : IRequest<ProductDto?>;
+```
+
+### Query Handler
+```csharp
+public class GetProductByIdQueryHandler(
+    IReadRepository<Product> repository,
+    IMapper mapper,
+    ICacheService cache,
+    ILogger<GetProductByIdQueryHandler> logger
+) : IRequestHandler<GetProductByIdQuery, ProductDto?>
+{
+    public async Task<ProductDto?> Handle(GetProductByIdQuery request, CancellationToken ct)
+    {
+        var cacheKey = $"product:{request.Id}";
+
+        // 1. Try cache
+        var cached = await cache.GetAsync<ProductDto>(cacheKey, ct);
+        if (cached is not null)
+        {
+            logger.LogDebug("Cache hit: {ProductId}", request.Id);
+            return cached;
+        }
+
+        // 2. Query with AsNoTracking
+        var product = await repository.GetByIdAsync(request.Id, ct);
+        if (product is null) return null;
+
+        // 3. Map to DTO
+        var dto = mapper.Map<ProductDto>(product);
+
+        // 4. Cache
+        await cache.SetAsync(cacheKey, dto, TimeSpan.FromMinutes(15), ct);
+
+        return dto;
+    }
+}
+```
+
+## PAGINATED QUERY
+
+```csharp
+public record GetAllProductsQuery(
+    int Page = 1,
+    int PageSize = 20,
+    string? SortBy = null,
+    bool? IsActive = null
+) : IRequest<PagedResult<ProductListDto>>;
+
+public class GetAllProductsQueryHandler(
+    IReadRepository<Product> repository,
+    IMapper mapper
+) : IRequestHandler<GetAllProductsQuery, PagedResult<ProductListDto>>
+{
+    public async Task<PagedResult<ProductListDto>> Handle(
+        GetAllProductsQuery request,
+        CancellationToken ct)
+    {
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+
+        var spec = new ProductsFilterSpec(page, pageSize, request.IsActive);
+
+        var products = await repository.ListAsync(spec, ct);
+        var totalCount = await repository.CountAsync(spec.WithoutPaging(), ct);
+
+        return new PagedResult<ProductListDto>(
+            mapper.Map<List<ProductListDto>>(products),
+            page, pageSize, totalCount);
+    }
+}
+```
+
+## UPDATE COMMAND (PUT)
+
+```csharp
+public record UpdateProductCommand(
+    Guid Id,
+    string Name,
+    decimal Price,
+    bool IsActive
+) : IRequest<ProductDto>;
+
+public class UpdateProductCommandHandler(
+    IRepository<Product> repository,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ICacheService cache
+) : IRequestHandler<UpdateProductCommand, ProductDto>
+{
+    public async Task<ProductDto> Handle(UpdateProductCommand request, CancellationToken ct)
+    {
+        var product = await repository.GetByIdAsync(request.Id, ct)
+            ?? throw new NotFoundException("Product", request.Id);
+
+        // Update via domain methods
+        product.UpdateName(request.Name);
+        product.SetPrice(Money.Create(request.Price, product.Price.Currency));
+
+        if (request.IsActive && !product.IsActive)
+            product.Activate();
+        else if (!request.IsActive && product.IsActive)
+            product.Deactivate();
+
+        await unitOfWork.SaveChangesAsync(ct);
+        await cache.RemoveAsync($"product:{request.Id}", ct);
+
+        return mapper.Map<ProductDto>(product);
+    }
+}
+```
+
+## PATCH COMMAND (Partial Update)
+
+```csharp
+public record PatchProductCommand(
+    Guid Id,
+    string? Name = null,
+    decimal? Price = null,
+    bool? IsActive = null
+) : IRequest<ProductDto>;
+
+public class PatchProductCommandHandler(...) : IRequestHandler<PatchProductCommand, ProductDto>
+{
+    public async Task<ProductDto> Handle(PatchProductCommand request, CancellationToken ct)
+    {
+        var product = await repository.GetByIdAsync(request.Id, ct)
+            ?? throw new NotFoundException("Product", request.Id);
+
+        // Only update non-null properties
+        if (request.Name is not null)
+            product.UpdateName(request.Name);
+
+        if (request.Price.HasValue)
+            product.SetPrice(Money.Create(request.Price.Value, product.Price.Currency));
+
+        if (request.IsActive.HasValue && request.IsActive.Value != product.IsActive)
+        {
+            if (request.IsActive.Value) product.Activate();
+            else product.Deactivate();
+        }
+
+        await unitOfWork.SaveChangesAsync(ct);
+        return mapper.Map<ProductDto>(product);
+    }
+}
+```
+
+## DELETE COMMAND (Soft Delete)
+
+```csharp
+public record DeleteProductCommand(Guid Id) : IRequest<bool>;
+
+public class DeleteProductCommandHandler(
+    IRepository<Product> repository,
+    IUnitOfWork unitOfWork,
+    ICacheService cache
+) : IRequestHandler<DeleteProductCommand, bool>
+{
+    public async Task<bool> Handle(DeleteProductCommand request, CancellationToken ct)
+    {
+        var product = await repository.GetByIdAsync(request.Id, ct)
+            ?? throw new NotFoundException("Product", request.Id);
+
+        product.Delete();  // Soft delete via domain method
+
+        await unitOfWork.SaveChangesAsync(ct);
+        await cache.RemoveAsync($"product:{request.Id}", ct);
+
+        return true;
+    }
+}
+```
+
+## CHECKLIST
+
+### Command Checklist
+- [ ] Record type kullanılmış
+- [ ] IRequest<T> implement edilmiş
+- [ ] Handler primary constructor kullanıyor
+- [ ] FluentValidation validator var
+- [ ] Factory method ile entity oluşturuluyor
+- [ ] UnitOfWork.SaveChangesAsync çağrılıyor
+- [ ] Cache invalidate ediliyor
+- [ ] DTO return ediliyor (entity değil!)
+
+### Query Checklist
+- [ ] Record type kullanılmış
+- [ ] IRequest<T?> implement edilmiş
+- [ ] AsNoTracking kullanılıyor
+- [ ] Cache kullanılıyor
+- [ ] Pagination implement edilmiş (list queries)

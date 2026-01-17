@@ -1,0 +1,51 @@
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@localhost:5432/merge"
+      ],
+      "description": "PostgreSQL database queries, schema inspection, and data analysis for Merge E-Commerce",
+      "capabilities": [
+        "query",
+        "schema",
+        "tables",
+        "indexes"
+      ]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "description": "GitHub integration for issues, PRs, code review, and repository management"
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/adem/Desktop/merge/server"
+      ],
+      "description": "Enhanced file system access for project files with advanced operations"
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "description": "Persistent memory for conversation context and learned patterns"
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "description": "Step-by-step reasoning for complex architectural decisions and debugging"
+    },
+    "fetch": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch"],
+      "description": "HTTP requests for API testing, documentation fetching, and external service integration"
+    }
+  }
+}

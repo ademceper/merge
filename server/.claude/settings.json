@@ -1,0 +1,92 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet:*)",
+      "Bash(git:*)",
+      "Bash(docker:*)",
+      "Bash(docker-compose:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(curl:*)",
+      "Bash(xargs:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(wc:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(echo:*)",
+      "Bash(psql:*)",
+      "Bash(redis-cli:*)",
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(rm -rf ~)",
+      "Bash(rm -rf .)",
+      "Bash(*DROP DATABASE*)",
+      "Bash(*drop database*)",
+      "Bash(*TRUNCATE*)",
+      "Bash(*truncate*)",
+      "Bash(*--force*origin main*)",
+      "Bash(*--force*origin master*)",
+      "Bash(*push*--force*main*)",
+      "Bash(*push*--force*master*)",
+      "Bash(*> /dev/sda*)",
+      "Bash(*mkfs*)",
+      "Bash(*dd if=*)"
+    ]
+  },
+  "env": {
+    "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+    "ASPNETCORE_ENVIRONMENT": "Development",
+    "DOTNET_NOLOGO": "1"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'if [[ \"$CLAUDE_FILE_PATH\" == *.cs ]]; then dotnet format --include \"$CLAUDE_FILE_PATH\" --verbosity quiet 2>/dev/null || true; fi'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/security-check.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] Session ended\" >> .claude/session.log'"
+          }
+        ]
+      }
+    ]
+  },
+  "model": {
+    "contextWindow": "long"
+  }
+}

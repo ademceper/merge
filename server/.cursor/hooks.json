@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "sh -lc 'if [[ \"$CURSOR_FILEPATH\" == *.cs ]]; then dotnet format --include \"$CURSOR_FILEPATH\" --verbosity quiet 2>/dev/null || true; fi'",
+        "description": "Auto-format C# files after edit"
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "sh -lc 'echo \"$CURSOR_COMMAND\" | grep -qiE \"(rm -rf /|drop database|truncate|delete from.*where 1|--force.*origin|push.*--force)\" && echo \"{\\\"decision\\\": \\\"deny\\\", \\\"user_message\\\": \\\"Dangerous command blocked\\\"}\" || echo \"{\\\"decision\\\": \\\"allow\\\"}\"'",
+        "description": "Block dangerous shell commands"
+      }
+    ],
+    "stop": [
+      {
+        "command": "sh -lc 'echo \"$(date +%Y-%m-%d\\ %H:%M:%S) - Agent session completed\" >> .cursor/agent.log'",
+        "description": "Log agent session completion"
+      }
+    ],
+    "sessionStart": [
+      {
+        "command": "sh -lc 'echo \"{\\\"additional_context\\\": \\\"Project: Merge E-Commerce Backend | .NET 9.0 | PostgreSQL | Clean Architecture + DDD + CQRS\\\"}\"'",
+        "description": "Inject project context at session start"
+      }
+    ]
+  }
+}

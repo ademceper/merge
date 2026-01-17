@@ -1,0 +1,3348 @@
+---
+paths:
+  - "Merge.Tests/**/*.cs"
+  - "**/*Tests.cs"
+  - "**/*Test.cs"
+  - "**/*.Tests/**/*.cs"
+  - "**/Fixtures/**/*.cs"
+  - "**/Mocks/**/*.cs"
+---
+
+# TEST KURALLARI (ULTRA KAPSAMLI)
+
+> Bu dosya, Merge E-Commerce Backend projesinde test yazımı için
+> kapsamlı kurallar ve en iyi uygulamaları içerir.
+
+---
+
+## İÇİNDEKİLER
+
+1. [Test Framework ve Araçlar](#1-test-framework-ve-araçlar)
+2. [Test Dosya Yapısı](#2-test-dosya-yapısı)
+3. [Unit Test Patterns](#3-unit-test-patterns)
+4. [Domain Entity Tests](#4-domain-entity-tests)
+5. [Value Object Tests](#5-value-object-tests)
+6. [Command Handler Tests](#6-command-handler-tests)
+7. [Query Handler Tests](#7-query-handler-tests)
+8. [Validator Tests](#8-validator-tests)
+9. [Integration Tests](#9-integration-tests)
+10. [API Controller Tests](#10-api-controller-tests)
+11. [Repository Tests](#11-repository-tests)
+12. [Mocking Best Practices](#12-mocking-best-practices)
+13. [Test Data Builders](#13-test-data-builders)
+14. [Test Fixtures](#14-test-fixtures)
+15. [Performance Tests](#15-performance-tests)
+16. [Coverage Hedefleri](#16-coverage-hedefleri)
+17. [CI/CD Integration](#17-cicd-integration)
+18. [Anti-Patterns](#18-anti-patterns)
+
+---
+
+## 1. TEST FRAMEWORK VE ARAÇLAR
+
+### 1.1 Kullanılan Araçlar
+
+| Araç | Versiyon | Amaç |
+|------|----------|------|
+| xUnit | 2.6+ | Test framework |
+| FluentAssertions | 6.12+ | Assertion library |
+| Moq | 4.20+ | Mocking framework |
+| NSubstitute | 5.1+ | Alternative mocking |
+| Testcontainers | 3.7+ | Integration test DB |
+| Microsoft.AspNetCore.Mvc.Testing | 8.0+ | API integration tests |
+| Bogus | 35.3+ | Fake data generation |
+| AutoFixture | 4.18+ | Test data creation |
+| Respawn | 6.2+ | Database cleanup |
+| WireMock.Net | 1.5+ | HTTP mocking |
+| NBomber | 4.0+ | Load testing |
+| Coverlet | 6.0+ | Code coverage |
+
+### 1.2 Test Projesi Yapılandırması
+
+```xml
+<!-- Merge.Tests.csproj -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Test frameworks -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
+    <PackageReference Include="xunit" Version="2.6.6" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.6" />
+
+    <!-- Assertions -->
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+
+    <!-- Mocking -->
+    <PackageReference Include="Moq" Version="4.20.70" />
+    <PackageReference Include="NSubstitute" Version="5.1.0" />
+
+    <!-- Test data -->
+    <PackageReference Include="Bogus" Version="35.3.0" />
+    <PackageReference Include="AutoFixture" Version="4.18.1" />
+    <PackageReference Include="AutoFixture.Xunit2" Version="4.18.1" />
+
+    <!-- Integration testing -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="3.7.0" />
+    <PackageReference Include="Respawn" Version="6.2.1" />
+    <PackageReference Include="WireMock.Net" Version="1.5.46" />
+
+    <!-- Coverage -->
+    <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="coverlet.msbuild" Version="6.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Merge.API\Merge.API.csproj" />
+    <ProjectReference Include="..\Merge.Application\Merge.Application.csproj" />
+    <ProjectReference Include="..\Merge.Domain\Merge.Domain.csproj" />
+    <ProjectReference Include="..\Merge.Infrastructure\Merge.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
+```
+
+### 1.3 Global Usings
+
+```csharp
+// GlobalUsings.cs
+global using Xunit;
+global using FluentAssertions;
+global using Moq;
+global using NSubstitute;
+global using Bogus;
+global using AutoFixture;
+global using AutoFixture.Xunit2;
+global using Microsoft.EntityFrameworkCore;
+global using Microsoft.AspNetCore.Mvc.Testing;
+global using System.Net;
+global using System.Net.Http.Json;
+```
+
+---
+
+## 2. TEST DOSYA YAPISI
+
+### 2.1 Klasör Organizasyonu
+
+```
+Merge.Tests/
+├── Unit/
+│   ├── Domain/
+│   │   ├── Entities/
+│   │   │   ├── ProductTests.cs
+│   │   │   ├── OrderTests.cs
+│   │   │   └── UserTests.cs
+│   │   ├── ValueObjects/
+│   │   │   ├── MoneyTests.cs
+│   │   │   ├── EmailTests.cs
+│   │   │   └── AddressTests.cs
+│   │   ├── Events/
+│   │   │   └── ProductCreatedEventTests.cs
+│   │   └── Specifications/
+│   │       └── ProductSpecificationTests.cs
+│   ├── Application/
+│   │   ├── Commands/
+│   │   │   ├── Products/
+│   │   │   │   ├── CreateProductCommandHandlerTests.cs
+│   │   │   │   ├── UpdateProductCommandHandlerTests.cs
+│   │   │   │   └── DeleteProductCommandHandlerTests.cs
+│   │   │   └── Orders/
+│   │   │       └── CreateOrderCommandHandlerTests.cs
+│   │   ├── Queries/
+│   │   │   └── Products/
+│   │   │       ├── GetProductByIdQueryHandlerTests.cs
+│   │   │       └── GetProductsQueryHandlerTests.cs
+│   │   ├── Validators/
+│   │   │   └── CreateProductCommandValidatorTests.cs
+│   │   └── Services/
+│   │       └── ProductServiceTests.cs
+│   └── Infrastructure/
+│       ├── Repositories/
+│       │   └── ProductRepositoryTests.cs
+│       └── Services/
+│           └── EmailServiceTests.cs
+├── Integration/
+│   ├── Api/
+│   │   ├── Controllers/
+│   │   │   ├── ProductsControllerTests.cs
+│   │   │   ├── OrdersControllerTests.cs
+│   │   │   └── AuthControllerTests.cs
+│   │   └── Middleware/
+│   │       └── ExceptionHandlerTests.cs
+│   ├── Repositories/
+│   │   ├── ProductRepositoryIntegrationTests.cs
+│   │   └── OrderRepositoryIntegrationTests.cs
+│   ├── Services/
+│   │   └── PaymentGatewayIntegrationTests.cs
+│   └── Database/
+│       └── MigrationTests.cs
+├── Fixtures/
+│   ├── TestDbContextFactory.cs
+│   ├── IntegrationTestBase.cs
+│   ├── PostgresTestContainer.cs
+│   └── TestAuthHandler.cs
+├── Builders/
+│   ├── ProductBuilder.cs
+│   ├── OrderBuilder.cs
+│   └── UserBuilder.cs
+├── Fakers/
+│   ├── ProductFaker.cs
+│   ├── OrderFaker.cs
+│   └── UserFaker.cs
+├── Mocks/
+│   ├── MockRepository.cs
+│   ├── MockMediator.cs
+│   └── MockCurrentUserService.cs
+└── Performance/
+    └── ProductLoadTests.cs
+```
+
+### 2.2 Test Sınıfı Yapısı
+
+```csharp
+/// <summary>
+/// CreateProductCommandHandler için unit test'ler.
+/// </summary>
+public class CreateProductCommandHandlerTests : IDisposable
+{
+    // System Under Test (SUT)
+    private readonly CreateProductCommandHandler _sut;
+
+    // Mocks
+    private readonly Mock<IRepository<Product>> _repositoryMock;
+    private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+    private readonly Mock<IMapper> _mapperMock;
+    private readonly Mock<ILogger<CreateProductCommandHandler>> _loggerMock;
+    private readonly Mock<ICurrentUserService> _currentUserMock;
+
+    // Test data
+    private readonly Faker _faker;
+
+    public CreateProductCommandHandlerTests()
+    {
+        // Initialize mocks
+        _repositoryMock = new Mock<IRepository<Product>>();
+        _unitOfWorkMock = new Mock<IUnitOfWork>();
+        _mapperMock = new Mock<IMapper>();
+        _loggerMock = new Mock<ILogger<CreateProductCommandHandler>>();
+        _currentUserMock = new Mock<ICurrentUserService>();
+
+        // Initialize faker
+        _faker = new Faker("tr");
+
+        // Initialize SUT
+        _sut = new CreateProductCommandHandler(
+            _repositoryMock.Object,
+            _unitOfWorkMock.Object,
+            _mapperMock.Object,
+            _loggerMock.Object,
+            _currentUserMock.Object);
+    }
+
+    [Fact]
+    public async Task Handle_ValidCommand_ShouldCreateProduct()
+    {
+        // Arrange
+
+        // Act
+
+        // Assert
+    }
+
+    public void Dispose()
+    {
+        // Cleanup if needed
+        GC.SuppressFinalize(this);
+    }
+}
+```
+
+---
+
+## 3. UNIT TEST PATTERNS
+
+### 3.1 AAA Pattern (Arrange-Act-Assert)
+
+```csharp
+[Fact]
+public async Task Handle_ValidCommand_ShouldCreateProductAndReturnDto()
+{
+    // ========================================
+    // ARRANGE - Test verilerini hazırla
+    // ========================================
+    var command = new CreateProductCommand(
+        Name: "Test Product",
+        Description: "Test Description",
+        SKU: "TEST-001",
+        Price: 99.99m,
+        Currency: "TRY",
+        StockQuantity: 100,
+        CategoryId: Guid.NewGuid());
+
+    var expectedDto = new ProductDto
+    {
+        Id = Guid.NewGuid(),
+        Name = command.Name,
+        Price = command.Price,
+        IsActive = true
+    };
+
+    // Setup mocks
+    _mapperMock
+        .Setup(m => m.Map<ProductDto>(It.IsAny<Product>()))
+        .Returns(expectedDto);
+
+    _unitOfWorkMock
+        .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+        .ReturnsAsync(1);
+
+    // ========================================
+    // ACT - Test edilecek method'u çağır
+    // ========================================
+    var result = await _sut.Handle(command, CancellationToken.None);
+
+    // ========================================
+    // ASSERT - Sonuçları doğrula
+    // ========================================
+    result.Should().NotBeNull();
+    result.Name.Should().Be(command.Name);
+    result.Price.Should().Be(command.Price);
+    result.IsActive.Should().BeTrue();
+
+    // Verify interactions
+    _repositoryMock.Verify(
+        r => r.AddAsync(It.Is<Product>(p =>
+            p.Name == command.Name &&
+            p.SKU.Value == command.SKU),
+            It.IsAny<CancellationToken>()),
+        Times.Once);
+
+    _unitOfWorkMock.Verify(
+        u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
+        Times.Once);
+}
+```
+
+### 3.2 Test İsimlendirme Kuralları
+
+```csharp
+/*
+ * NAMING CONVENTION:
+ * [MethodName]_[Scenario]_[ExpectedResult]
+ *
+ * Örnekler:
+ * - Create_ValidParameters_ShouldCreateProduct
+ * - Create_NullName_ShouldThrowArgumentException
+ * - Create_NegativePrice_ShouldThrowDomainException
+ * - Handle_ProductNotFound_ShouldThrowNotFoundException
+ * - Handle_DuplicateSKU_ShouldThrowConflictException
+ * - GetById_ExistingId_ShouldReturnProduct
+ * - GetById_NonExistentId_ShouldReturnNull
+ * - Update_ConcurrencyConflict_ShouldThrowConcurrencyException
+ */
+
+// İyi örnekler
+[Fact] public async Task Handle_ValidCommand_ShouldCreateProduct() { }
+[Fact] public async Task Handle_InvalidSKU_ShouldThrowValidationException() { }
+[Fact] public async Task Handle_ProductNotFound_ShouldThrowNotFoundException() { }
+[Fact] public void Create_NegativePrice_ShouldThrowDomainException() { }
+[Fact] public void ReduceStock_InsufficientStock_ShouldThrowInsufficientStockException() { }
+
+// Kötü örnekler (KULLANMA!)
+[Fact] public void Test1() { }
+[Fact] public void ProductTest() { }
+[Fact] public void ShouldWork() { }
+[Fact] public void TestCreateProduct() { }
+```
+
+### 3.3 Theory ile Parametrized Tests
+
+```csharp
+/// <summary>
+/// Parametreli test örnekleri.
+/// </summary>
+public class MoneyTests
+{
+    // InlineData - basit değerler için
+    [Theory]
+    [InlineData(100, "TRY", 100, "TRY", true)]
+    [InlineData(100, "TRY", 100, "USD", false)]
+    [InlineData(100, "TRY", 200, "TRY", false)]
+    [InlineData(0, "TRY", 0, "TRY", true)]
+    public void Equals_ShouldReturnExpectedResult(
+        decimal amount1, string currency1,
+        decimal amount2, string currency2,
+        bool expected)
+    {
+        // Arrange
+        var money1 = Money.Create(amount1, currency1);
+        var money2 = Money.Create(amount2, currency2);
+
+        // Act
+        var result = money1.Equals(money2);
+
+        // Assert
+        result.Should().Be(expected);
+    }
+
+    // MemberData - complex data için
+    [Theory]
+    [MemberData(nameof(InvalidMoneyData))]
+    public void Create_InvalidParameters_ShouldThrow(decimal amount, string currency, Type exceptionType)
+    {
+        // Act
+        var act = () => Money.Create(amount, currency);
+
+        // Assert
+        act.Should().Throw<Exception>().Which.Should().BeOfType(exceptionType);
+    }
+
+    public static IEnumerable<object[]> InvalidMoneyData =>
+    [
+        [-1m, "TRY", typeof(ArgumentException)],
+        [100m, "", typeof(ArgumentException)],
+        [100m, null!, typeof(ArgumentNullException)],
+        [100m, "INVALID", typeof(ArgumentException)],
+        [decimal.MaxValue, "TRY", typeof(ArgumentOutOfRangeException)]
+    ];
+
+    // ClassData - reusable test data
+    [Theory]
+    [ClassData(typeof(ValidCurrenciesTestData))]
+    public void Create_ValidCurrency_ShouldSucceed(string currency)
+    {
+        // Act
+        var money = Money.Create(100m, currency);
+
+        // Assert
+        money.Currency.Should().Be(currency);
+    }
+}
+
+public class ValidCurrenciesTestData : TheoryData<string>
+{
+    public ValidCurrenciesTestData()
+    {
+        Add("TRY");
+        Add("USD");
+        Add("EUR");
+        Add("GBP");
+    }
+}
+```
+
+---
+
+## 4. DOMAIN ENTITY TESTS
+
+### 4.1 Entity Creation Tests
+
+```csharp
+/// <summary>
+/// Product entity test'leri.
+/// Factory method ve domain logic test edilir.
+/// </summary>
+public class ProductTests
+{
+    private readonly Faker _faker = new("tr");
+
+    #region Create Tests
+
+    [Fact]
+    public void Create_ValidParameters_ShouldCreateProduct()
+    {
+        // Arrange
+        var name = _faker.Commerce.ProductName();
+        var description = _faker.Commerce.ProductDescription();
+        var sku = SKU.Create("TEST-001");
+        var price = Money.Create(99.99m, "TRY");
+        var stockQuantity = 100;
+        var categoryId = Guid.NewGuid();
+
+        // Act
+        var product = Product.Create(
+            name, description, sku, price, stockQuantity, categoryId);
+
+        // Assert
+        product.Should().NotBeNull();
+        product.Id.Should().NotBeEmpty();
+        product.Name.Should().Be(name);
+        product.Description.Should().Be(description);
+        product.SKU.Should().Be(sku);
+        product.Price.Should().Be(price);
+        product.StockQuantity.Should().Be(stockQuantity);
+        product.CategoryId.Should().Be(categoryId);
+        product.IsActive.Should().BeTrue();
+        product.IsDeleted.Should().BeFalse();
+        product.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Create_InvalidName_ShouldThrowArgumentException(string? invalidName)
+    {
+        // Arrange
+        var sku = SKU.Create("TEST-001");
+        var price = Money.Create(99.99m, "TRY");
+
+        // Act
+        var act = () => Product.Create(
+            invalidName!, "Description", sku, price, 100, Guid.NewGuid());
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("name");
+    }
+
+    [Fact]
+    public void Create_NullSKU_ShouldThrowArgumentNullException()
+    {
+        // Arrange
+        var price = Money.Create(99.99m, "TRY");
+
+        // Act
+        var act = () => Product.Create(
+            "Name", "Description", null!, price, 100, Guid.NewGuid());
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("sku");
+    }
+
+    [Fact]
+    public void Create_NegativeStock_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var sku = SKU.Create("TEST-001");
+        var price = Money.Create(99.99m, "TRY");
+
+        // Act
+        var act = () => Product.Create(
+            "Name", "Description", sku, price, -1, Guid.NewGuid());
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*stock*");
+    }
+
+    [Fact]
+    public void Create_ShouldRaiseProductCreatedEvent()
+    {
+        // Arrange
+        var sku = SKU.Create("TEST-001");
+        var price = Money.Create(99.99m, "TRY");
+
+        // Act
+        var product = Product.Create(
+            "Name", "Description", sku, price, 100, Guid.NewGuid());
+
+        // Assert
+        product.DomainEvents.Should().ContainSingle()
+            .Which.Should().BeOfType<ProductCreatedEvent>()
+            .Which.Should().Match<ProductCreatedEvent>(e =>
+                e.ProductId == product.Id &&
+                e.ProductName == product.Name);
+    }
+
+    #endregion
+
+    #region Domain Method Tests
+
+    [Fact]
+    public void SetPrice_ValidPrice_ShouldUpdatePrice()
+    {
+        // Arrange
+        var product = CreateTestProduct();
+        var newPrice = Money.Create(149.99m, "TRY");
+
+        // Act
+        product.SetPrice(newPrice);
+
+        // Assert
+        product.Price.Should().Be(newPrice);
+        product.DomainEvents.Should().Contain(e => e is ProductPriceChangedEvent);
+    }
+
+    [Fact]
+    public void SetPrice_SamePrice_ShouldNotRaiseEvent()
+    {
+        // Arrange
+        var price = Money.Create(99.99m, "TRY");
+        var product = CreateTestProduct(price: price);
+        product.ClearDomainEvents();
+
+        // Act
+        product.SetPrice(price);
+
+        // Assert
+        product.DomainEvents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ReduceStock_SufficientStock_ShouldReduceAndRaiseEvent()
+    {
+        // Arrange
+        var product = CreateTestProduct(stockQuantity: 100);
+        product.ClearDomainEvents();
+
+        // Act
+        product.ReduceStock(30);
+
+        // Assert
+        product.StockQuantity.Should().Be(70);
+        product.DomainEvents.Should().ContainSingle()
+            .Which.Should().BeOfType<ProductStockReducedEvent>()
+            .Which.QuantityReduced.Should().Be(30);
+    }
+
+    [Fact]
+    public void ReduceStock_InsufficientStock_ShouldThrowInsufficientStockException()
+    {
+        // Arrange
+        var product = CreateTestProduct(stockQuantity: 10);
+
+        // Act
+        var act = () => product.ReduceStock(20);
+
+        // Assert
+        act.Should().Throw<InsufficientStockException>()
+            .Which.Should().Match<InsufficientStockException>(ex =>
+                ex.ProductId == product.Id &&
+                ex.RequestedQuantity == 20 &&
+                ex.AvailableStock == 10);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void ReduceStock_InvalidQuantity_ShouldThrowArgumentException(int invalidQuantity)
+    {
+        // Arrange
+        var product = CreateTestProduct();
+
+        // Act
+        var act = () => product.ReduceStock(invalidQuantity);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*positive*");
+    }
+
+    [Fact]
+    public void AddStock_ValidQuantity_ShouldIncreaseStock()
+    {
+        // Arrange
+        var product = CreateTestProduct(stockQuantity: 50);
+
+        // Act
+        product.AddStock(25);
+
+        // Assert
+        product.StockQuantity.Should().Be(75);
+    }
+
+    [Fact]
+    public void Deactivate_ActiveProduct_ShouldDeactivate()
+    {
+        // Arrange
+        var product = CreateTestProduct();
+        product.ClearDomainEvents();
+
+        // Act
+        product.Deactivate();
+
+        // Assert
+        product.IsActive.Should().BeFalse();
+        product.DomainEvents.Should().ContainSingle()
+            .Which.Should().BeOfType<ProductDeactivatedEvent>();
+    }
+
+    [Fact]
+    public void Deactivate_AlreadyInactive_ShouldNotRaiseEvent()
+    {
+        // Arrange
+        var product = CreateTestProduct();
+        product.Deactivate();
+        product.ClearDomainEvents();
+
+        // Act
+        product.Deactivate();
+
+        // Assert
+        product.IsActive.Should().BeFalse();
+        product.DomainEvents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void SoftDelete_ShouldMarkAsDeleted()
+    {
+        // Arrange
+        var product = CreateTestProduct();
+        var deletedBy = Guid.NewGuid();
+
+        // Act
+        product.SoftDelete(deletedBy);
+
+        // Assert
+        product.IsDeleted.Should().BeTrue();
+        product.DeletedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        product.DeletedBy.Should().Be(deletedBy);
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    private Product CreateTestProduct(
+        string? name = null,
+        Money? price = null,
+        int stockQuantity = 100)
+    {
+        return Product.Create(
+            name ?? _faker.Commerce.ProductName(),
+            _faker.Commerce.ProductDescription(),
+            SKU.Create($"TEST-{Guid.NewGuid():N}"[..15]),
+            price ?? Money.Create(99.99m, "TRY"),
+            stockQuantity,
+            Guid.NewGuid());
+    }
+
+    #endregion
+}
+```
+
+---
+
+## 5. VALUE OBJECT TESTS
+
+### 5.1 Money Value Object Tests
+
+```csharp
+/// <summary>
+/// Money value object test'leri.
+/// Immutability, equality, validation test edilir.
+/// </summary>
+public class MoneyTests
+{
+    #region Creation Tests
+
+    [Theory]
+    [InlineData(0, "TRY")]
+    [InlineData(100, "TRY")]
+    [InlineData(999999.99, "USD")]
+    [InlineData(0.01, "EUR")]
+    public void Create_ValidAmount_ShouldSucceed(decimal amount, string currency)
+    {
+        // Act
+        var money = Money.Create(amount, currency);
+
+        // Assert
+        money.Amount.Should().Be(amount);
+        money.Currency.Should().Be(currency);
+    }
+
+    [Fact]
+    public void Create_NegativeAmount_ShouldThrowArgumentException()
+    {
+        // Act
+        var act = () => Money.Create(-1m, "TRY");
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*negative*");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("INVALID")]
+    [InlineData("TR")]
+    [InlineData("TRYL")]
+    public void Create_InvalidCurrency_ShouldThrowArgumentException(string invalidCurrency)
+    {
+        // Act
+        var act = () => Money.Create(100m, invalidCurrency);
+
+        // Assert
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Create_NullCurrency_ShouldThrowArgumentNullException()
+    {
+        // Act
+        var act = () => Money.Create(100m, null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    #endregion
+
+    #region Equality Tests
+
+    [Fact]
+    public void Equals_SameAmountAndCurrency_ShouldBeEqual()
+    {
+        // Arrange
+        var money1 = Money.Create(100m, "TRY");
+        var money2 = Money.Create(100m, "TRY");
+
+        // Assert
+        money1.Should().Be(money2);
+        (money1 == money2).Should().BeTrue();
+        money1.GetHashCode().Should().Be(money2.GetHashCode());
+    }
+
+    [Fact]
+    public void Equals_DifferentAmount_ShouldNotBeEqual()
+    {
+        // Arrange
+        var money1 = Money.Create(100m, "TRY");
+        var money2 = Money.Create(200m, "TRY");
+
+        // Assert
+        money1.Should().NotBe(money2);
+        (money1 != money2).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Equals_DifferentCurrency_ShouldNotBeEqual()
+    {
+        // Arrange
+        var money1 = Money.Create(100m, "TRY");
+        var money2 = Money.Create(100m, "USD");
+
+        // Assert
+        money1.Should().NotBe(money2);
+    }
+
+    #endregion
+
+    #region Arithmetic Tests
+
+    [Fact]
+    public void Add_SameCurrency_ShouldReturnSum()
+    {
+        // Arrange
+        var money1 = Money.Create(100m, "TRY");
+        var money2 = Money.Create(50m, "TRY");
+
+        // Act
+        var result = money1.Add(money2);
+
+        // Assert
+        result.Amount.Should().Be(150m);
+        result.Currency.Should().Be("TRY");
+    }
+
+    [Fact]
+    public void Add_DifferentCurrency_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        var money1 = Money.Create(100m, "TRY");
+        var money2 = Money.Create(50m, "USD");
+
+        // Act
+        var act = () => money1.Add(money2);
+
+        // Assert
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*currency*");
+    }
+
+    [Fact]
+    public void Subtract_SameCurrency_ShouldReturnDifference()
+    {
+        // Arrange
+        var money1 = Money.Create(100m, "TRY");
+        var money2 = Money.Create(30m, "TRY");
+
+        // Act
+        var result = money1.Subtract(money2);
+
+        // Assert
+        result.Amount.Should().Be(70m);
+    }
+
+    [Fact]
+    public void Subtract_ResultNegative_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        var money1 = Money.Create(30m, "TRY");
+        var money2 = Money.Create(50m, "TRY");
+
+        // Act
+        var act = () => money1.Subtract(money2);
+
+        // Assert
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*negative*");
+    }
+
+    [Fact]
+    public void Multiply_ValidMultiplier_ShouldReturnProduct()
+    {
+        // Arrange
+        var money = Money.Create(100m, "TRY");
+
+        // Act
+        var result = money.Multiply(3);
+
+        // Assert
+        result.Amount.Should().Be(300m);
+    }
+
+    [Fact]
+    public void MultiplyByDecimal_ShouldRoundCorrectly()
+    {
+        // Arrange
+        var money = Money.Create(100m, "TRY");
+
+        // Act
+        var result = money.Multiply(0.333m);
+
+        // Assert
+        result.Amount.Should().Be(33.30m); // Rounded to 2 decimal places
+    }
+
+    #endregion
+
+    #region Formatting Tests
+
+    [Theory]
+    [InlineData(1234.56, "TRY", "₺1.234,56")]
+    [InlineData(1234.56, "USD", "$1,234.56")]
+    [InlineData(1234.56, "EUR", "€1.234,56")]
+    public void ToString_ShouldFormatCorrectly(decimal amount, string currency, string expected)
+    {
+        // Arrange
+        var money = Money.Create(amount, currency);
+
+        // Act
+        var result = money.ToString();
+
+        // Assert
+        result.Should().Be(expected);
+    }
+
+    #endregion
+}
+```
+
+### 5.2 Email Value Object Tests
+
+```csharp
+/// <summary>
+/// Email value object test'leri.
+/// </summary>
+public class EmailTests
+{
+    [Theory]
+    [InlineData("test@example.com")]
+    [InlineData("user.name@domain.co.uk")]
+    [InlineData("user+tag@gmail.com")]
+    [InlineData("a@b.co")]
+    public void Create_ValidEmail_ShouldSucceed(string validEmail)
+    {
+        // Act
+        var email = Email.Create(validEmail);
+
+        // Assert
+        email.Value.Should().Be(validEmail.ToLowerInvariant());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("invalid")]
+    [InlineData("invalid@")]
+    [InlineData("@domain.com")]
+    [InlineData("user@.com")]
+    [InlineData("user@domain")]
+    [InlineData("user name@domain.com")]
+    public void Create_InvalidEmail_ShouldThrowArgumentException(string invalidEmail)
+    {
+        // Act
+        var act = () => Email.Create(invalidEmail);
+
+        // Assert
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Create_NullEmail_ShouldThrowArgumentNullException()
+    {
+        // Act
+        var act = () => Email.Create(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Create_ShouldNormalizeToLowercase()
+    {
+        // Arrange
+        var input = "Test@EXAMPLE.COM";
+
+        // Act
+        var email = Email.Create(input);
+
+        // Assert
+        email.Value.Should().Be("test@example.com");
+    }
+
+    [Fact]
+    public void Equals_SameEmail_ShouldBeEqual()
+    {
+        // Arrange
+        var email1 = Email.Create("test@example.com");
+        var email2 = Email.Create("TEST@EXAMPLE.COM");
+
+        // Assert
+        email1.Should().Be(email2);
+    }
+
+    [Fact]
+    public void GetDomain_ShouldReturnDomain()
+    {
+        // Arrange
+        var email = Email.Create("user@example.com");
+
+        // Act
+        var domain = email.Domain;
+
+        // Assert
+        domain.Should().Be("example.com");
+    }
+
+    [Fact]
+    public void GetLocalPart_ShouldReturnLocalPart()
+    {
+        // Arrange
+        var email = Email.Create("user@example.com");
+
+        // Act
+        var localPart = email.LocalPart;
+
+        // Assert
+        localPart.Should().Be("user");
+    }
+}
+```
+
+---
+
+## 6. COMMAND HANDLER TESTS
+
+### 6.1 Create Command Handler Test
+
+```csharp
+/// <summary>
+/// CreateProductCommandHandler test'leri.
+/// </summary>
+public class CreateProductCommandHandlerTests
+{
+    private readonly Mock<IRepository<Product>> _repositoryMock;
+    private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+    private readonly Mock<IMapper> _mapperMock;
+    private readonly Mock<ILogger<CreateProductCommandHandler>> _loggerMock;
+    private readonly CreateProductCommandHandler _sut;
+    private readonly Faker _faker;
+
+    public CreateProductCommandHandlerTests()
+    {
+        _repositoryMock = new Mock<IRepository<Product>>();
+        _unitOfWorkMock = new Mock<IUnitOfWork>();
+        _mapperMock = new Mock<IMapper>();
+        _loggerMock = new Mock<ILogger<CreateProductCommandHandler>>();
+        _faker = new Faker("tr");
+
+        _sut = new CreateProductCommandHandler(
+            _repositoryMock.Object,
+            _unitOfWorkMock.Object,
+            _mapperMock.Object,
+            _loggerMock.Object);
+    }
+
+    [Fact]
+    public async Task Handle_ValidCommand_ShouldCreateProductAndReturnDto()
+    {
+        // Arrange
+        var command = CreateValidCommand();
+        var expectedDto = new ProductDto { Id = Guid.NewGuid(), Name = command.Name };
+
+        _repositoryMock
+            .Setup(r => r.AddAsync(It.IsAny<Product>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Product p, CancellationToken _) => p);
+
+        _unitOfWorkMock
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+
+        _mapperMock
+            .Setup(m => m.Map<ProductDto>(It.IsAny<Product>()))
+            .Returns(expectedDto);
+
+        // Act
+        var result = await _sut.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Should().Be(expectedDto);
+
+        _repositoryMock.Verify(
+            r => r.AddAsync(
+                It.Is<Product>(p =>
+                    p.Name == command.Name &&
+                    p.SKU.Value == command.SKU &&
+                    p.Price.Amount == command.Price),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        _unitOfWorkMock.Verify(
+            u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_RepositoryThrows_ShouldPropagateException()
+    {
+        // Arrange
+        var command = CreateValidCommand();
+
+        _repositoryMock
+            .Setup(r => r.AddAsync(It.IsAny<Product>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateException("Database error"));
+
+        // Act
+        var act = () => _sut.Handle(command, CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<DbUpdateException>()
+            .WithMessage("*Database error*");
+
+        _unitOfWorkMock.Verify(
+            u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldPassCancellationToken()
+    {
+        // Arrange
+        var command = CreateValidCommand();
+        using var cts = new CancellationTokenSource();
+        var token = cts.Token;
+
+        _mapperMock
+            .Setup(m => m.Map<ProductDto>(It.IsAny<Product>()))
+            .Returns(new ProductDto());
+
+        _unitOfWorkMock
+            .Setup(u => u.SaveChangesAsync(token))
+            .ReturnsAsync(1);
+
+        // Act
+        await _sut.Handle(command, token);
+
+        // Assert
+        _repositoryMock.Verify(
+            r => r.AddAsync(It.IsAny<Product>(), token),
+            Times.Once);
+
+        _unitOfWorkMock.Verify(
+            u => u.SaveChangesAsync(token),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_CancellationRequested_ShouldThrowOperationCanceledException()
+    {
+        // Arrange
+        var command = CreateValidCommand();
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        _repositoryMock
+            .Setup(r => r.AddAsync(It.IsAny<Product>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        // Act
+        var act = () => _sut.Handle(command, cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    private CreateProductCommand CreateValidCommand()
+    {
+        return new CreateProductCommand(
+            Name: _faker.Commerce.ProductName(),
+            Description: _faker.Commerce.ProductDescription(),
+            SKU: $"SKU-{Guid.NewGuid():N}"[..15].ToUpper(),
+            Price: decimal.Parse(_faker.Commerce.Price(10, 1000)),
+            Currency: "TRY",
+            StockQuantity: _faker.Random.Int(0, 1000),
+            CategoryId: Guid.NewGuid());
+    }
+}
+```
+
+### 6.2 Update Command Handler Test
+
+```csharp
+/// <summary>
+/// UpdateProductCommandHandler test'leri.
+/// </summary>
+public class UpdateProductCommandHandlerTests
+{
+    private readonly Mock<IRepository<Product>> _repositoryMock;
+    private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+    private readonly Mock<IMapper> _mapperMock;
+    private readonly UpdateProductCommandHandler _sut;
+
+    public UpdateProductCommandHandlerTests()
+    {
+        _repositoryMock = new Mock<IRepository<Product>>();
+        _unitOfWorkMock = new Mock<IUnitOfWork>();
+        _mapperMock = new Mock<IMapper>();
+
+        _sut = new UpdateProductCommandHandler(
+            _repositoryMock.Object,
+            _unitOfWorkMock.Object,
+            _mapperMock.Object);
+    }
+
+    [Fact]
+    public async Task Handle_ExistingProduct_ShouldUpdateAndReturn()
+    {
+        // Arrange
+        var productId = Guid.NewGuid();
+        var existingProduct = CreateTestProduct(productId);
+
+        var command = new UpdateProductCommand(
+            Id: productId,
+            Name: "Updated Name",
+            Description: "Updated Description",
+            Price: 199.99m,
+            StockQuantity: 50);
+
+        _repositoryMock
+            .Setup(r => r.GetByIdAsync(productId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingProduct);
+
+        _unitOfWorkMock
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+
+        var expectedDto = new ProductDto
+        {
+            Id = productId,
+            Name = command.Name,
+            Price = command.Price
+        };
+
+        _mapperMock
+            .Setup(m => m.Map<ProductDto>(It.IsAny<Product>()))
+            .Returns(expectedDto);
+
+        // Act
+        var result = await _sut.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Should().Be(expectedDto);
+
+        _repositoryMock.Verify(
+            r => r.Update(It.Is<Product>(p =>
+                p.Name == command.Name)),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_NonExistentProduct_ShouldThrowNotFoundException()
+    {
+        // Arrange
+        var command = new UpdateProductCommand(
+            Id: Guid.NewGuid(),
+            Name: "Name",
+            Description: "Desc",
+            Price: 100m,
+            StockQuantity: 10);
+
+        _repositoryMock
+            .Setup(r => r.GetByIdAsync(command.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Product?)null);
+
+        // Act
+        var act = () => _sut.Handle(command, CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<NotFoundException>()
+            .WithMessage($"*{command.Id}*");
+
+        _unitOfWorkMock.Verify(
+            u => u.SaveChangesAsync(It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    private Product CreateTestProduct(Guid? id = null)
+    {
+        var product = Product.Create(
+            "Original Name",
+            "Original Description",
+            SKU.Create("TEST-001"),
+            Money.Create(99.99m, "TRY"),
+            100,
+            Guid.NewGuid());
+
+        if (id.HasValue)
+        {
+            // Reflection ile Id set et (test için)
+            typeof(Product)
+                .GetProperty(nameof(Product.Id))!
+                .SetValue(product, id.Value);
+        }
+
+        return product;
+    }
+}
+```
+
+---
+
+## 7. QUERY HANDLER TESTS
+
+### 7.1 GetById Query Handler Test
+
+```csharp
+/// <summary>
+/// GetProductByIdQueryHandler test'leri.
+/// </summary>
+public class GetProductByIdQueryHandlerTests
+{
+    private readonly Mock<IReadRepository<Product>> _repositoryMock;
+    private readonly Mock<IMapper> _mapperMock;
+    private readonly Mock<ICacheService> _cacheMock;
+    private readonly GetProductByIdQueryHandler _sut;
+
+    public GetProductByIdQueryHandlerTests()
+    {
+        _repositoryMock = new Mock<IReadRepository<Product>>();
+        _mapperMock = new Mock<IMapper>();
+        _cacheMock = new Mock<ICacheService>();
+
+        _sut = new GetProductByIdQueryHandler(
+            _repositoryMock.Object,
+            _mapperMock.Object,
+            _cacheMock.Object);
+    }
+
+    [Fact]
+    public async Task Handle_ExistingProduct_ShouldReturnDto()
+    {
+        // Arrange
+        var productId = Guid.NewGuid();
+        var product = CreateTestProduct(productId);
+        var expectedDto = new ProductDto { Id = productId, Name = product.Name };
+
+        _cacheMock
+            .Setup(c => c.GetAsync<ProductDto>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ProductDto?)null);
+
+        _repositoryMock
+            .Setup(r => r.GetByIdAsync(productId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(product);
+
+        _mapperMock
+            .Setup(m => m.Map<ProductDto>(product))
+            .Returns(expectedDto);
+
+        var query = new GetProductByIdQuery(productId);
+
+        // Act
+        var result = await _sut.Handle(query, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Should().Be(expectedDto);
+    }
+
+    [Fact]
+    public async Task Handle_CachedProduct_ShouldReturnFromCache()
+    {
+        // Arrange
+        var productId = Guid.NewGuid();
+        var cachedDto = new ProductDto { Id = productId, Name = "Cached Product" };
+
+        _cacheMock
+            .Setup(c => c.GetAsync<ProductDto>($"product:{productId}", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(cachedDto);
+
+        var query = new GetProductByIdQuery(productId);
+
+        // Act
+        var result = await _sut.Handle(query, CancellationToken.None);
+
+        // Assert
+        result.Should().Be(cachedDto);
+
+        // Repository should NOT be called
+        _repositoryMock.Verify(
+            r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_NonExistentProduct_ShouldReturnNull()
+    {
+        // Arrange
+        var productId = Guid.NewGuid();
+
+        _cacheMock
+            .Setup(c => c.GetAsync<ProductDto>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ProductDto?)null);
+
+        _repositoryMock
+            .Setup(r => r.GetByIdAsync(productId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Product?)null);
+
+        var query = new GetProductByIdQuery(productId);
+
+        // Act
+        var result = await _sut.Handle(query, CancellationToken.None);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_ShouldCacheResult()
+    {
+        // Arrange
+        var productId = Guid.NewGuid();
+        var product = CreateTestProduct(productId);
+        var dto = new ProductDto { Id = productId };
+
+        _cacheMock
+            .Setup(c => c.GetAsync<ProductDto>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ProductDto?)null);
+
+        _repositoryMock
+            .Setup(r => r.GetByIdAsync(productId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(product);
+
+        _mapperMock
+            .Setup(m => m.Map<ProductDto>(product))
+            .Returns(dto);
+
+        var query = new GetProductByIdQuery(productId);
+
+        // Act
+        await _sut.Handle(query, CancellationToken.None);
+
+        // Assert
+        _cacheMock.Verify(
+            c => c.SetAsync(
+                $"product:{productId}",
+                dto,
+                It.IsAny<TimeSpan>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    private Product CreateTestProduct(Guid id)
+    {
+        var product = Product.Create(
+            "Test Product",
+            "Description",
+            SKU.Create("TEST-001"),
+            Money.Create(99.99m, "TRY"),
+            100,
+            Guid.NewGuid());
+
+        typeof(Product)
+            .GetProperty(nameof(Product.Id))!
+            .SetValue(product, id);
+
+        return product;
+    }
+}
+```
+
+---
+
+## 8. VALIDATOR TESTS
+
+### 8.1 Command Validator Tests
+
+```csharp
+/// <summary>
+/// CreateProductCommandValidator test'leri.
+/// </summary>
+public class CreateProductCommandValidatorTests
+{
+    private readonly Mock<IProductRepository> _productRepositoryMock;
+    private readonly Mock<ICategoryRepository> _categoryRepositoryMock;
+    private readonly CreateProductCommandValidator _sut;
+    private readonly Faker _faker;
+
+    public CreateProductCommandValidatorTests()
+    {
+        _productRepositoryMock = new Mock<IProductRepository>();
+        _categoryRepositoryMock = new Mock<ICategoryRepository>();
+        _faker = new Faker("tr");
+
+        _sut = new CreateProductCommandValidator(
+            _productRepositoryMock.Object,
+            _categoryRepositoryMock.Object);
+    }
+
+    #region Name Validation
+
+    [Fact]
+    public async Task Validate_EmptyName_ShouldHaveError()
+    {
+        // Arrange
+        var command = CreateValidCommand() with { Name = "" };
+
+        // Act
+        var result = await _sut.ValidateAsync(command);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e =>
+            e.PropertyName == "Name" &&
+            e.ErrorMessage.Contains("required"));
+    }
+
+    [Fact]
+    public async Task Validate_NameTooLong_ShouldHaveError()
+    {
+        // Arrange
+        var command = CreateValidCommand() with { Name = new string('a', 201) };
+
+        // Act
+        var result = await _sut.ValidateAsync(command);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e =>
+            e.PropertyName == "Name" &&
+            e.ErrorMessage.Contains("200"));
+    }
+
+    [Fact]
+    public async Task Validate_ValidName_ShouldNotHaveError()
+    {
+        // Arrange
+        var command = CreateValidCommand();
+        SetupValidationMocks();
+
+        // Act
+        var result = await _sut.ValidateAsync(command);
+
+        // Assert
+        result.Errors.Should().NotContain(e => e.PropertyName == "Name");
+    }
+
+    #endregion
+
+    #region SKU Validation
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Validate_EmptySKU_ShouldHaveError(string invalidSku)
+    {
+        // Arrange
+        var command = CreateValidCommand() with { SKU = invalidSku };
+
+        // Act
+        var result = await _sut.ValidateAsync(command);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == "SKU");
+    }
+
+    [Theory]
+    [InlineData("abc-123")]      // lowercase
+    [InlineData("ABC 123")]      // space
+    [InlineData("ABC_123")]      // underscore
+    [InlineData("ABC.123")]      // dot
+    public async Task Validate_InvalidSKUFormat_ShouldHaveError(string invalidSku)
+    {
+        // Arrange
+        var command = CreateValidCommand() with { SKU = invalidSku };
+
+        // Act
+        var result = await _sut.ValidateAsync(command);
+
+        // Assert
+        result.Errors.Should().Contain(e =>
+            e.PropertyName == "SKU" &&
+            e.ErrorMessage.Contains("format"));
+    }
+
+    [Fact]
+    public async Task Validate_DuplicateSKU_ShouldHaveError()
+    {
+        // Arrange
+        var command = CreateValidCommand();
+
+        _productRepositoryMock
+            .Setup(r => r.ExistsBySkuAsync(command.SKU, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        _categoryRepositoryMock
+            .Setup(r => r.ExistsAsync(command.CategoryId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        // Act
+        var result = await _sut.ValidateAsync(command);
+
+        // Assert
+        result.Errors.Should().Contain(e =>
+            e.PropertyName == "SKU" &&
+            e.ErrorMessage.Contains("exists"));
+    }
+
+    #endregion
+
+    #region Price Validation
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(-100)]
+    public async Task Validate_InvalidPrice_ShouldHaveError(decimal invalidPrice)
+    {
+        // Arrange
+        var command = CreateValidCommand() with { Price = invalidPrice };
+
+        // Act
+        var result = await _sut.ValidateAsync(command);
+
+        // Assert
+        result.Errors.Should().Contain(e =>
+            e.PropertyName == "Price" &&
+            e.ErrorMessage.Contains("positive"));
+    }
+
+    [Fact]
+    public async Task Validate_PriceTooHigh_ShouldHaveError()
+    {
+        // Arrange
+        var command = CreateValidCommand() with { Price = 10_000_001m };
+
+        // Act
+        var result = await _sut.ValidateAsync(command);
+
+        // Assert
+        result.Errors.Should().Contain(e =>
+            e.PropertyName == "Price" &&
+            e.ErrorMessage.Contains("10,000,000"));
+    }
+
+    #endregion
+
+    #region Currency Validation
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("TR")]
+    [InlineData("TRYY")]
+    [InlineData("INVALID")]
+    public async Task Validate_InvalidCurrency_ShouldHaveError(string invalidCurrency)
+    {
+        // Arrange
+        var command = CreateValidCommand() with { Currency = invalidCurrency };
+
+        // Act
+        var result = await _sut.ValidateAsync(command);
+
+        // Assert
+        result.Errors.Should().Contain(e => e.PropertyName == "Currency");
+    }
+
+    [Theory]
+    [InlineData("TRY")]
+    [InlineData("USD")]
+    [InlineData("EUR")]
+    public async Task Validate_ValidCurrency_ShouldNotHaveError(string validCurrency)
+    {
+        // Arrange
+        var command = CreateValidCommand() with { Currency = validCurrency };
+        SetupValidationMocks();
+
+        // Act
+        var result = await _sut.ValidateAsync(command);
+
+        // Assert
+        result.Errors.Should().NotContain(e => e.PropertyName == "Currency");
+    }
+
+    #endregion
+
+    #region CategoryId Validation
+
+    [Fact]
+    public async Task Validate_EmptyCategoryId_ShouldHaveError()
+    {
+        // Arrange
+        var command = CreateValidCommand() with { CategoryId = Guid.Empty };
+
+        // Act
+        var result = await _sut.ValidateAsync(command);
+
+        // Assert
+        result.Errors.Should().Contain(e => e.PropertyName == "CategoryId");
+    }
+
+    [Fact]
+    public async Task Validate_NonExistentCategory_ShouldHaveError()
+    {
+        // Arrange
+        var command = CreateValidCommand();
+
+        _productRepositoryMock
+            .Setup(r => r.ExistsBySkuAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        _categoryRepositoryMock
+            .Setup(r => r.ExistsAsync(command.CategoryId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        // Act
+        var result = await _sut.ValidateAsync(command);
+
+        // Assert
+        result.Errors.Should().Contain(e =>
+            e.PropertyName == "CategoryId" &&
+            e.ErrorMessage.Contains("not found"));
+    }
+
+    #endregion
+
+    #region Full Validation
+
+    [Fact]
+    public async Task Validate_ValidCommand_ShouldBeValid()
+    {
+        // Arrange
+        var command = CreateValidCommand();
+        SetupValidationMocks();
+
+        // Act
+        var result = await _sut.ValidateAsync(command);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        result.Errors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Validate_MultipleErrors_ShouldReturnAllErrors()
+    {
+        // Arrange
+        var command = new CreateProductCommand(
+            Name: "",
+            Description: null!,
+            SKU: "",
+            Price: -1m,
+            Currency: "",
+            StockQuantity: -1,
+            CategoryId: Guid.Empty);
+
+        // Act
+        var result = await _sut.ValidateAsync(command);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().HaveCountGreaterOrEqualTo(4);
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    private CreateProductCommand CreateValidCommand()
+    {
+        return new CreateProductCommand(
+            Name: _faker.Commerce.ProductName(),
+            Description: _faker.Commerce.ProductDescription(),
+            SKU: $"SKU-{Guid.NewGuid():N}"[..12].ToUpper(),
+            Price: decimal.Parse(_faker.Commerce.Price(10, 1000)),
+            Currency: "TRY",
+            StockQuantity: _faker.Random.Int(0, 1000),
+            CategoryId: Guid.NewGuid());
+    }
+
+    private void SetupValidationMocks()
+    {
+        _productRepositoryMock
+            .Setup(r => r.ExistsBySkuAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        _categoryRepositoryMock
+            .Setup(r => r.ExistsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+    }
+
+    #endregion
+}
+```
+
+---
+
+## 9. INTEGRATION TESTS
+
+### 9.1 Test Container Setup
+
+```csharp
+/// <summary>
+/// PostgreSQL test container fixture.
+/// Tüm integration test'ler için paylaşılır.
+/// </summary>
+public class PostgresTestContainerFixture : IAsyncLifetime
+{
+    private readonly PostgreSqlContainer _container;
+
+    public string ConnectionString => _container.GetConnectionString();
+    public ApplicationDbContext Context { get; private set; } = null!;
+
+    public PostgresTestContainerFixture()
+    {
+        _container = new PostgreSqlBuilder()
+            .WithImage("postgres:16-alpine")
+            .WithDatabase("merge_test")
+            .WithUsername("test_user")
+            .WithPassword("test_password")
+            .WithCleanUp(true)
+            .Build();
+    }
+
+    public async Task InitializeAsync()
+    {
+        await _container.StartAsync();
+
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(ConnectionString)
+            .Options;
+
+        Context = new ApplicationDbContext(options);
+        await Context.Database.MigrateAsync();
+    }
+
+    public async Task DisposeAsync()
+    {
+        await Context.DisposeAsync();
+        await _container.DisposeAsync();
+    }
+}
+
+[CollectionDefinition("Database")]
+public class DatabaseCollection : ICollectionFixture<PostgresTestContainerFixture>
+{
+}
+```
+
+### 9.2 Integration Test Base
+
+```csharp
+/// <summary>
+/// Integration test base class.
+/// Her test için database cleanup yapar.
+/// </summary>
+[Collection("Database")]
+public abstract class IntegrationTestBase : IAsyncLifetime
+{
+    protected readonly PostgresTestContainerFixture Fixture;
+    protected ApplicationDbContext Context = null!;
+    protected IServiceProvider ServiceProvider = null!;
+    private Respawner _respawner = null!;
+
+    protected IntegrationTestBase(PostgresTestContainerFixture fixture)
+    {
+        Fixture = fixture;
+    }
+
+    public async Task InitializeAsync()
+    {
+        // Create new context for this test
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(Fixture.ConnectionString)
+            .Options;
+
+        Context = new ApplicationDbContext(options);
+
+        // Setup Respawner for fast cleanup
+        using var connection = new NpgsqlConnection(Fixture.ConnectionString);
+        await connection.OpenAsync();
+
+        _respawner = await Respawner.CreateAsync(connection, new RespawnerOptions
+        {
+            DbAdapter = DbAdapter.Postgres,
+            TablesToIgnore = ["__EFMigrationsHistory"],
+            SchemasToInclude = ["public", "catalog", "ordering", "identity"]
+        });
+
+        await _respawner.ResetAsync(connection);
+
+        // Setup DI container
+        var services = new ServiceCollection();
+        ConfigureServices(services);
+        ServiceProvider = services.BuildServiceProvider();
+    }
+
+    protected virtual void ConfigureServices(IServiceCollection services)
+    {
+        services.AddSingleton(Context);
+        services.AddLogging(builder => builder.AddConsole());
+        // Add other services as needed
+    }
+
+    public async Task DisposeAsync()
+    {
+        await Context.DisposeAsync();
+    }
+
+    protected async Task<T> CreateAsync<T>(T entity) where T : class
+    {
+        await Context.Set<T>().AddAsync(entity);
+        await Context.SaveChangesAsync();
+        return entity;
+    }
+
+    protected async Task<List<T>> CreateManyAsync<T>(IEnumerable<T> entities) where T : class
+    {
+        var list = entities.ToList();
+        await Context.Set<T>().AddRangeAsync(list);
+        await Context.SaveChangesAsync();
+        return list;
+    }
+}
+```
+
+---
+
+## 10. API CONTROLLER TESTS
+
+### 10.1 WebApplicationFactory Setup
+
+```csharp
+/// <summary>
+/// API integration test için WebApplicationFactory.
+/// </summary>
+public class MergeApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
+{
+    private readonly PostgreSqlContainer _dbContainer = new PostgreSqlBuilder()
+        .WithImage("postgres:16-alpine")
+        .WithDatabase("merge_api_test")
+        .Build();
+
+    public async Task InitializeAsync()
+    {
+        await _dbContainer.StartAsync();
+    }
+
+    public new async Task DisposeAsync()
+    {
+        await _dbContainer.DisposeAsync();
+        await base.DisposeAsync();
+    }
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.ConfigureTestServices(services =>
+        {
+            // Remove real DbContext
+            var descriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
+
+            if (descriptor != null)
+                services.Remove(descriptor);
+
+            // Add test DbContext
+            services.AddDbContext<ApplicationDbContext>(options =>
+                options.UseNpgsql(_dbContainer.GetConnectionString()));
+
+            // Replace external services with mocks
+            services.RemoveAll<IEmailService>();
+            services.AddSingleton<IEmailService>(Mock.Of<IEmailService>());
+
+            services.RemoveAll<IPaymentGateway>();
+            services.AddSingleton<IPaymentGateway>(Mock.Of<IPaymentGateway>());
+
+            // Add test authentication
+            services.AddAuthentication(TestAuthHandler.SchemeName)
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                    TestAuthHandler.SchemeName, _ => { });
+        });
+
+        builder.UseEnvironment("Testing");
+    }
+
+    public HttpClient CreateAuthenticatedClient(
+        Guid? userId = null,
+        string[] roles = null!)
+    {
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                TestAuthHandler.SchemeName,
+                TestAuthHandler.CreateToken(userId ?? Guid.NewGuid(), roles ?? ["User"]));
+        return client;
+    }
+}
+```
+
+### 10.2 Test Authentication Handler
+
+```csharp
+/// <summary>
+/// Test için authentication handler.
+/// JWT validation'ı bypass eder.
+/// </summary>
+public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+{
+    public const string SchemeName = "TestAuth";
+
+    public TestAuthHandler(
+        IOptionsMonitor<AuthenticationSchemeOptions> options,
+        ILoggerFactory logger,
+        UrlEncoder encoder)
+        : base(options, logger, encoder)
+    {
+    }
+
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        if (!Request.Headers.TryGetValue("Authorization", out var authHeader))
+        {
+            return Task.FromResult(AuthenticateResult.NoResult());
+        }
+
+        var token = authHeader.ToString().Replace($"{SchemeName} ", "");
+
+        try
+        {
+            var (userId, roles) = ParseToken(token);
+
+            var claims = new List<Claim>
+            {
+                new(ClaimTypes.NameIdentifier, userId.ToString()),
+                new(ClaimTypes.Name, "Test User")
+            };
+
+            claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
+
+            var identity = new ClaimsIdentity(claims, SchemeName);
+            var principal = new ClaimsPrincipal(identity);
+            var ticket = new AuthenticationTicket(principal, SchemeName);
+
+            return Task.FromResult(AuthenticateResult.Success(ticket));
+        }
+        catch
+        {
+            return Task.FromResult(AuthenticateResult.Fail("Invalid test token"));
+        }
+    }
+
+    public static string CreateToken(Guid userId, string[] roles)
+    {
+        var data = $"{userId}|{string.Join(",", roles)}";
+        return Convert.ToBase64String(Encoding.UTF8.GetBytes(data));
+    }
+
+    private static (Guid UserId, string[] Roles) ParseToken(string token)
+    {
+        var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(token));
+        var parts = decoded.Split('|');
+        return (Guid.Parse(parts[0]), parts[1].Split(','));
+    }
+}
+```
+
+### 10.3 Controller Test Örneği
+
+```csharp
+/// <summary>
+/// ProductsController integration test'leri.
+/// </summary>
+public class ProductsControllerTests : IClassFixture<MergeApiFactory>, IAsyncLifetime
+{
+    private readonly MergeApiFactory _factory;
+    private readonly HttpClient _client;
+    private readonly HttpClient _adminClient;
+    private ApplicationDbContext _context = null!;
+
+    public ProductsControllerTests(MergeApiFactory factory)
+    {
+        _factory = factory;
+        _client = factory.CreateClient();
+        _adminClient = factory.CreateAuthenticatedClient(roles: ["Admin"]);
+    }
+
+    public async Task InitializeAsync()
+    {
+        using var scope = _factory.Services.CreateScope();
+        _context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await _context.Database.EnsureCreatedAsync();
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
+
+    #region GET Tests
+
+    [Fact]
+    public async Task GetAll_ShouldReturnPagedResult()
+    {
+        // Arrange
+        await SeedProductsAsync(25);
+
+        // Act
+        var response = await _client.GetAsync("/api/v1/products?page=1&pageSize=10");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var result = await response.Content.ReadFromJsonAsync<PagedResult<ProductDto>>();
+
+        result.Should().NotBeNull();
+        result!.Items.Should().HaveCount(10);
+        result.TotalCount.Should().Be(25);
+        result.Page.Should().Be(1);
+        result.TotalPages.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task GetById_ExistingProduct_ShouldReturnProduct()
+    {
+        // Arrange
+        var product = await SeedProductAsync();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/products/{product.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var result = await response.Content.ReadFromJsonAsync<ProductDto>();
+
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(product.Id);
+        result.Name.Should().Be(product.Name);
+    }
+
+    [Fact]
+    public async Task GetById_NonExistentProduct_ShouldReturn404()
+    {
+        // Act
+        var response = await _client.GetAsync($"/api/v1/products/{Guid.NewGuid()}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    #endregion
+
+    #region POST Tests
+
+    [Fact]
+    public async Task Create_ValidProduct_ShouldReturn201()
+    {
+        // Arrange
+        var category = await SeedCategoryAsync();
+        var command = new CreateProductCommand(
+            Name: "New Product",
+            Description: "Description",
+            SKU: "NEW-001",
+            Price: 99.99m,
+            Currency: "TRY",
+            StockQuantity: 100,
+            CategoryId: category.Id);
+
+        // Act
+        var response = await _adminClient.PostAsJsonAsync("/api/v1/products", command);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().NotBeNull();
+
+        var result = await response.Content.ReadFromJsonAsync<ProductDto>();
+        result.Should().NotBeNull();
+        result!.Name.Should().Be(command.Name);
+    }
+
+    [Fact]
+    public async Task Create_InvalidProduct_ShouldReturn400()
+    {
+        // Arrange
+        var command = new CreateProductCommand(
+            Name: "",  // Invalid
+            Description: "Desc",
+            SKU: "",   // Invalid
+            Price: -1, // Invalid
+            Currency: "TRY",
+            StockQuantity: 0,
+            CategoryId: Guid.Empty);  // Invalid
+
+        // Act
+        var response = await _adminClient.PostAsJsonAsync("/api/v1/products", command);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var problemDetails = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+        problemDetails.Should().NotBeNull();
+        problemDetails!.Errors.Should().ContainKey("Name");
+        problemDetails.Errors.Should().ContainKey("SKU");
+        problemDetails.Errors.Should().ContainKey("Price");
+    }
+
+    [Fact]
+    public async Task Create_Unauthorized_ShouldReturn401()
+    {
+        // Arrange - Using unauthenticated client
+        var command = new CreateProductCommand(
+            Name: "Product",
+            Description: "Desc",
+            SKU: "SKU-001",
+            Price: 99.99m,
+            Currency: "TRY",
+            StockQuantity: 100,
+            CategoryId: Guid.NewGuid());
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/v1/products", command);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Create_DuplicateSKU_ShouldReturn409()
+    {
+        // Arrange
+        var existingProduct = await SeedProductAsync();
+        var category = await SeedCategoryAsync();
+
+        var command = new CreateProductCommand(
+            Name: "New Product",
+            Description: "Desc",
+            SKU: existingProduct.SKU.Value,  // Duplicate
+            Price: 99.99m,
+            Currency: "TRY",
+            StockQuantity: 100,
+            CategoryId: category.Id);
+
+        // Act
+        var response = await _adminClient.PostAsJsonAsync("/api/v1/products", command);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    #endregion
+
+    #region PUT Tests
+
+    [Fact]
+    public async Task Update_ExistingProduct_ShouldReturn200()
+    {
+        // Arrange
+        var product = await SeedProductAsync();
+        var command = new UpdateProductCommand(
+            Id: product.Id,
+            Name: "Updated Name",
+            Description: "Updated Description",
+            Price: 149.99m,
+            StockQuantity: 50);
+
+        // Act
+        var response = await _adminClient.PutAsJsonAsync(
+            $"/api/v1/products/{product.Id}", command);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var result = await response.Content.ReadFromJsonAsync<ProductDto>();
+        result!.Name.Should().Be("Updated Name");
+        result.Price.Should().Be(149.99m);
+    }
+
+    [Fact]
+    public async Task Update_IdMismatch_ShouldReturn400()
+    {
+        // Arrange
+        var product = await SeedProductAsync();
+        var command = new UpdateProductCommand(
+            Id: Guid.NewGuid(),  // Different ID
+            Name: "Name",
+            Description: "Desc",
+            Price: 99m,
+            StockQuantity: 10);
+
+        // Act
+        var response = await _adminClient.PutAsJsonAsync(
+            $"/api/v1/products/{product.Id}", command);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    #endregion
+
+    #region DELETE Tests
+
+    [Fact]
+    public async Task Delete_ExistingProduct_ShouldReturn204()
+    {
+        // Arrange
+        var product = await SeedProductAsync();
+
+        // Act
+        var response = await _adminClient.DeleteAsync($"/api/v1/products/{product.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // Verify deletion
+        var getResponse = await _client.GetAsync($"/api/v1/products/{product.Id}");
+        getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Delete_NonExistentProduct_ShouldReturn404()
+    {
+        // Act
+        var response = await _adminClient.DeleteAsync($"/api/v1/products/{Guid.NewGuid()}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Delete_AsNonAdmin_ShouldReturn403()
+    {
+        // Arrange
+        var product = await SeedProductAsync();
+        var userClient = _factory.CreateAuthenticatedClient(roles: ["User"]);
+
+        // Act
+        var response = await userClient.DeleteAsync($"/api/v1/products/{product.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    private async Task<Product> SeedProductAsync()
+    {
+        var category = await SeedCategoryAsync();
+        var product = Product.Create(
+            "Test Product",
+            "Description",
+            SKU.Create($"SKU-{Guid.NewGuid():N}"[..12].ToUpper()),
+            Money.Create(99.99m, "TRY"),
+            100,
+            category.Id);
+
+        _context.Products.Add(product);
+        await _context.SaveChangesAsync();
+
+        return product;
+    }
+
+    private async Task<List<Product>> SeedProductsAsync(int count)
+    {
+        var category = await SeedCategoryAsync();
+        var products = Enumerable.Range(1, count)
+            .Select(i => Product.Create(
+                $"Product {i}",
+                $"Description {i}",
+                SKU.Create($"SKU-{i:D5}"),
+                Money.Create(99.99m + i, "TRY"),
+                100,
+                category.Id))
+            .ToList();
+
+        _context.Products.AddRange(products);
+        await _context.SaveChangesAsync();
+
+        return products;
+    }
+
+    private async Task<Category> SeedCategoryAsync()
+    {
+        var category = Category.Create("Test Category", "test-category", null);
+        _context.Categories.Add(category);
+        await _context.SaveChangesAsync();
+        return category;
+    }
+
+    #endregion
+}
+```
+
+---
+
+## 11. REPOSITORY TESTS
+
+```csharp
+/// <summary>
+/// ProductRepository integration test'leri.
+/// Gerçek PostgreSQL kullanır.
+/// </summary>
+[Collection("Database")]
+public class ProductRepositoryIntegrationTests : IntegrationTestBase
+{
+    private readonly ProductRepository _sut;
+
+    public ProductRepositoryIntegrationTests(PostgresTestContainerFixture fixture)
+        : base(fixture)
+    {
+        _sut = new ProductRepository(Context);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_ExistingProduct_ShouldReturnProduct()
+    {
+        // Arrange
+        var product = await CreateProductAsync();
+
+        // Act
+        var result = await _sut.GetByIdAsync(product.Id);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(product.Id);
+        result.Name.Should().Be(product.Name);
+    }
+
+    [Fact]
+    public async Task GetBySkuAsync_ExistingSku_ShouldReturnProduct()
+    {
+        // Arrange
+        var product = await CreateProductAsync();
+
+        // Act
+        var result = await _sut.GetBySkuAsync(product.SKU.Value);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.SKU.Should().Be(product.SKU);
+    }
+
+    [Fact]
+    public async Task ListAsync_WithSpecification_ShouldFilterCorrectly()
+    {
+        // Arrange
+        var category = await CreateCategoryAsync();
+        await CreateProductAsync(categoryId: category.Id, isActive: true);
+        await CreateProductAsync(categoryId: category.Id, isActive: true);
+        await CreateProductAsync(categoryId: category.Id, isActive: false);
+
+        var spec = new ActiveProductsByCategorySpec(category.Id);
+
+        // Act
+        var result = await _sut.ListAsync(spec);
+
+        // Assert
+        result.Should().HaveCount(2);
+        result.Should().OnlyContain(p => p.IsActive && p.CategoryId == category.Id);
+    }
+
+    [Fact]
+    public async Task AddAsync_ValidProduct_ShouldPersist()
+    {
+        // Arrange
+        var category = await CreateCategoryAsync();
+        var product = Product.Create(
+            "New Product",
+            "Description",
+            SKU.Create("NEW-001"),
+            Money.Create(99.99m, "TRY"),
+            100,
+            category.Id);
+
+        // Act
+        await _sut.AddAsync(product);
+        await Context.SaveChangesAsync();
+
+        // Assert
+        var persisted = await Context.Products.FindAsync(product.Id);
+        persisted.Should().NotBeNull();
+        persisted!.Name.Should().Be("New Product");
+    }
+
+    [Fact]
+    public async Task Update_ModifiedProduct_ShouldPersist()
+    {
+        // Arrange
+        var product = await CreateProductAsync();
+        var newPrice = Money.Create(199.99m, "TRY");
+
+        // Act
+        product.SetPrice(newPrice);
+        _sut.Update(product);
+        await Context.SaveChangesAsync();
+
+        // Assert - Fetch from fresh context
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(Fixture.ConnectionString)
+            .Options;
+
+        await using var verifyContext = new ApplicationDbContext(options);
+        var updated = await verifyContext.Products.FindAsync(product.Id);
+
+        updated!.Price.Should().Be(newPrice);
+    }
+
+    private async Task<Product> CreateProductAsync(
+        Guid? categoryId = null,
+        bool isActive = true)
+    {
+        categoryId ??= (await CreateCategoryAsync()).Id;
+
+        var product = Product.Create(
+            $"Product-{Guid.NewGuid():N}"[..20],
+            "Description",
+            SKU.Create($"SKU-{Guid.NewGuid():N}"[..12].ToUpper()),
+            Money.Create(99.99m, "TRY"),
+            100,
+            categoryId.Value);
+
+        if (!isActive)
+            product.Deactivate();
+
+        Context.Products.Add(product);
+        await Context.SaveChangesAsync();
+
+        return product;
+    }
+
+    private async Task<Category> CreateCategoryAsync()
+    {
+        var category = Category.Create(
+            $"Category-{Guid.NewGuid():N}"[..20],
+            $"slug-{Guid.NewGuid():N}"[..15],
+            null);
+
+        Context.Categories.Add(category);
+        await Context.SaveChangesAsync();
+
+        return category;
+    }
+}
+```
+
+---
+
+## 12. MOCKING BEST PRACTICES
+
+### 12.1 Mock Setup Patterns
+
+```csharp
+/// <summary>
+/// Mocking best practices ve patterns.
+/// </summary>
+public class MockingExamples
+{
+    #region Moq Patterns
+
+    // Basic setup
+    var mock = new Mock<IRepository<Product>>();
+    mock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+        .ReturnsAsync(product);
+
+    // Setup with matching
+    mock.Setup(r => r.GetByIdAsync(
+            It.Is<Guid>(id => id == expectedId),
+            It.IsAny<CancellationToken>()))
+        .ReturnsAsync(product);
+
+    // Setup returning based on input
+    mock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+        .ReturnsAsync((Guid id, CancellationToken _) =>
+            products.FirstOrDefault(p => p.Id == id));
+
+    // Setup throwing exception
+    mock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+        .ThrowsAsync(new DbUpdateException("Database error"));
+
+    // Setup sequence
+    mock.SetupSequence(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+        .ReturnsAsync(product1)
+        .ReturnsAsync(product2)
+        .ThrowsAsync(new Exception());
+
+    // Verify
+    mock.Verify(r => r.AddAsync(
+        It.Is<Product>(p => p.Name == expectedName),
+        It.IsAny<CancellationToken>()),
+        Times.Once);
+
+    mock.Verify(r => r.Update(It.IsAny<Product>()), Times.Never);
+
+    #endregion
+
+    #region NSubstitute Patterns
+
+    // Basic setup
+    var sub = Substitute.For<IRepository<Product>>();
+    sub.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+        .Returns(product);
+
+    // Setup with matching
+    sub.GetByIdAsync(Arg.Is<Guid>(id => id == expectedId), Arg.Any<CancellationToken>())
+        .Returns(product);
+
+    // Setup returning based on input
+    sub.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+        .Returns(callInfo => products.FirstOrDefault(p =>
+            p.Id == callInfo.Arg<Guid>()));
+
+    // Setup throwing exception
+    sub.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+        .Throws(new DbUpdateException());
+
+    // Verify
+    await sub.Received(1).AddAsync(
+        Arg.Is<Product>(p => p.Name == expectedName),
+        Arg.Any<CancellationToken>());
+
+    sub.DidNotReceive().Update(Arg.Any<Product>());
+
+    #endregion
+}
+```
+
+### 12.2 Test Double Types
+
+```csharp
+/// <summary>
+/// Test double tipleri ve kullanım alanları.
+/// </summary>
+
+// DUMMY - Hiç kullanılmayan, sadece parametre doldurmak için
+var dummyLogger = Mock.Of<ILogger<ProductService>>();
+
+// STUB - Sabit değer dönen
+var stubRepository = new Mock<IRepository<Product>>();
+stubRepository.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+    .ReturnsAsync(new Product(...));
+
+// SPY - Gerçek implementasyonu sarıp çağrıları kaydeden
+var spy = new Mock<ProductService>(repository, logger) { CallBase = true };
+// Use spy...
+spy.Verify(s => s.CreateAsync(It.IsAny<CreateProductCommand>(), It.IsAny<CancellationToken>()));
+
+// MOCK - Davranışı programlanan ve verify edilen
+var mockRepository = new Mock<IRepository<Product>>(MockBehavior.Strict);
+mockRepository.Setup(r => r.AddAsync(It.IsAny<Product>(), It.IsAny<CancellationToken>()))
+    .ReturnsAsync((Product p, CancellationToken _) => p);
+// Must verify all setups were called
+
+// FAKE - Basitleştirilmiş gerçek implementasyon
+public class FakeRepository<T> : IRepository<T> where T : class
+{
+    private readonly List<T> _items = new();
+
+    public Task<T> AddAsync(T entity, CancellationToken ct = default)
+    {
+        _items.Add(entity);
+        return Task.FromResult(entity);
+    }
+
+    public Task<T?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        return Task.FromResult(_items.FirstOrDefault(/* find by id */));
+    }
+
+    // ... other methods
+}
+```
+
+---
+
+## 13. TEST DATA BUILDERS
+
+### 13.1 Builder Pattern
+
+```csharp
+/// <summary>
+/// Product entity builder.
+/// Fluent API ile test verisi oluşturur.
+/// </summary>
+public class ProductBuilder
+{
+    private string _name = "Default Product";
+    private string _description = "Default Description";
+    private string _sku = "DEFAULT-001";
+    private decimal _price = 99.99m;
+    private string _currency = "TRY";
+    private int _stockQuantity = 100;
+    private Guid _categoryId = Guid.NewGuid();
+    private bool _isActive = true;
+    private bool _isFeatured = false;
+
+    public ProductBuilder WithName(string name)
+    {
+        _name = name;
+        return this;
+    }
+
+    public ProductBuilder WithDescription(string description)
+    {
+        _description = description;
+        return this;
+    }
+
+    public ProductBuilder WithSKU(string sku)
+    {
+        _sku = sku;
+        return this;
+    }
+
+    public ProductBuilder WithPrice(decimal price, string currency = "TRY")
+    {
+        _price = price;
+        _currency = currency;
+        return this;
+    }
+
+    public ProductBuilder WithStock(int quantity)
+    {
+        _stockQuantity = quantity;
+        return this;
+    }
+
+    public ProductBuilder WithCategory(Guid categoryId)
+    {
+        _categoryId = categoryId;
+        return this;
+    }
+
+    public ProductBuilder AsInactive()
+    {
+        _isActive = false;
+        return this;
+    }
+
+    public ProductBuilder AsFeatured()
+    {
+        _isFeatured = true;
+        return this;
+    }
+
+    public ProductBuilder WithRandomData()
+    {
+        var faker = new Faker("tr");
+        _name = faker.Commerce.ProductName();
+        _description = faker.Commerce.ProductDescription();
+        _sku = $"SKU-{Guid.NewGuid():N}"[..12].ToUpper();
+        _price = decimal.Parse(faker.Commerce.Price(10, 1000));
+        _stockQuantity = faker.Random.Int(0, 500);
+        return this;
+    }
+
+    public Product Build()
+    {
+        var product = Product.Create(
+            _name,
+            _description,
+            SKU.Create(_sku),
+            Money.Create(_price, _currency),
+            _stockQuantity,
+            _categoryId);
+
+        if (!_isActive)
+            product.Deactivate();
+
+        if (_isFeatured)
+            product.MarkAsFeatured();
+
+        product.ClearDomainEvents(); // Clear creation event for cleaner tests
+
+        return product;
+    }
+
+    // Static factory
+    public static ProductBuilder Default() => new();
+    public static ProductBuilder Random() => new ProductBuilder().WithRandomData();
+}
+
+// Kullanım
+var product = ProductBuilder.Default()
+    .WithName("Test Product")
+    .WithPrice(149.99m)
+    .WithStock(50)
+    .AsFeatured()
+    .Build();
+
+var randomProduct = ProductBuilder.Random().Build();
+```
+
+### 13.2 Bogus Faker
+
+```csharp
+/// <summary>
+/// Bogus ile fake data generation.
+/// </summary>
+public class ProductFaker : Faker<Product>
+{
+    public ProductFaker()
+    {
+        CustomInstantiator(f =>
+        {
+            var product = Product.Create(
+                f.Commerce.ProductName(),
+                f.Commerce.ProductDescription(),
+                SKU.Create($"SKU-{f.Random.AlphaNumeric(8).ToUpper()}"),
+                Money.Create(
+                    f.Finance.Amount(10, 10000),
+                    f.PickRandom("TRY", "USD", "EUR")),
+                f.Random.Int(0, 1000),
+                Guid.NewGuid());
+
+            product.ClearDomainEvents();
+            return product;
+        });
+    }
+}
+
+// Özel faker'lar
+public static class TestFakers
+{
+    public static Faker<CreateProductCommand> CreateProductCommand { get; } = new Faker<CreateProductCommand>()
+        .CustomInstantiator(f => new CreateProductCommand(
+            Name: f.Commerce.ProductName(),
+            Description: f.Commerce.ProductDescription(),
+            SKU: $"SKU-{f.Random.AlphaNumeric(8).ToUpper()}",
+            Price: f.Finance.Amount(10, 10000),
+            Currency: f.PickRandom("TRY", "USD", "EUR"),
+            StockQuantity: f.Random.Int(0, 1000),
+            CategoryId: Guid.NewGuid()));
+
+    public static Faker<User> User { get; } = new Faker<User>("tr")
+        .CustomInstantiator(f =>
+        {
+            var firstName = f.Name.FirstName();
+            var lastName = f.Name.LastName();
+            return Domain.Entities.User.Create(
+                Email.Create(f.Internet.Email(firstName, lastName)),
+                firstName,
+                lastName);
+        });
+
+    public static Faker<Address> Address { get; } = new Faker<Address>("tr")
+        .CustomInstantiator(f => Domain.ValueObjects.Address.Create(
+            f.Address.StreetAddress(),
+            f.Address.SecondaryAddress(),
+            f.Address.City(),
+            "Türkiye",
+            f.Address.ZipCode(),
+            f.Phone.PhoneNumber()));
+}
+
+// Kullanım
+var products = new ProductFaker().Generate(100);
+var commands = TestFakers.CreateProductCommand.Generate(10);
+var users = TestFakers.User.Generate(5);
+```
+
+---
+
+## 14. TEST FIXTURES
+
+### 14.1 Collection Fixtures
+
+```csharp
+/// <summary>
+/// Test collection ile paylaşılan fixture.
+/// </summary>
+
+// Fixture definition
+public class SharedDatabaseFixture : IAsyncLifetime
+{
+    public ApplicationDbContext Context { get; private set; } = null!;
+
+    public async Task InitializeAsync()
+    {
+        // Setup shared resources
+    }
+
+    public async Task DisposeAsync()
+    {
+        // Cleanup
+    }
+}
+
+// Collection definition
+[CollectionDefinition("SharedDatabase")]
+public class SharedDatabaseCollection : ICollectionFixture<SharedDatabaseFixture>
+{
+}
+
+// Test class using collection
+[Collection("SharedDatabase")]
+public class ProductServiceTests
+{
+    private readonly SharedDatabaseFixture _fixture;
+
+    public ProductServiceTests(SharedDatabaseFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    [Fact]
+    public async Task Test1()
+    {
+        // Use _fixture.Context
+    }
+}
+```
+
+### 14.2 Class Fixtures
+
+```csharp
+/// <summary>
+/// Test class ile paylaşılan fixture.
+/// </summary>
+public class ProductTestsFixture : IDisposable
+{
+    public ApplicationDbContext Context { get; }
+    public IMapper Mapper { get; }
+    public IMediator Mediator { get; }
+
+    public ProductTestsFixture()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        Context = new ApplicationDbContext(options);
+
+        var config = new MapperConfiguration(cfg =>
+            cfg.AddProfile<ProductMappingProfile>());
+        Mapper = config.CreateMapper();
+
+        // Setup Mediator mock or real instance
+    }
+
+    public void Dispose()
+    {
+        Context.Dispose();
+        GC.SuppressFinalize(this);
+    }
+}
+
+public class ProductServiceTests : IClassFixture<ProductTestsFixture>
+{
+    private readonly ProductTestsFixture _fixture;
+
+    public ProductServiceTests(ProductTestsFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    [Fact]
+    public void TestUsingFixture()
+    {
+        // Use _fixture.Context, _fixture.Mapper
+    }
+}
+```
+
+---
+
+## 15. PERFORMANCE TESTS
+
+### 15.1 Load Tests with NBomber
+
+```csharp
+/// <summary>
+/// NBomber ile load testing.
+/// </summary>
+public class ProductApiLoadTests
+{
+    [Fact(Skip = "Run manually for load testing")]
+    public async Task GetProducts_LoadTest()
+    {
+        using var httpClient = new HttpClient
+        {
+            BaseAddress = new Uri("https://localhost:5001")
+        };
+
+        var scenario = Scenario.Create("get_products", async context =>
+        {
+            var response = await httpClient.GetAsync("/api/v1/products?page=1&pageSize=20");
+
+            return response.IsSuccessStatusCode
+                ? Response.Ok()
+                : Response.Fail();
+        })
+        .WithLoadSimulations(
+            Simulation.Inject(
+                rate: 100,
+                interval: TimeSpan.FromSeconds(1),
+                during: TimeSpan.FromMinutes(1)),
+            Simulation.KeepConstant(
+                copies: 50,
+                during: TimeSpan.FromMinutes(2)));
+
+        var stats = NBomberRunner
+            .RegisterScenarios(scenario)
+            .WithReportFormats(ReportFormat.Html, ReportFormat.Md)
+            .Run();
+
+        // Assertions
+        var scnStats = stats.ScenarioStats[0];
+        scnStats.Ok.Request.RPS.Should().BeGreaterThan(50);
+        scnStats.Ok.Latency.Percent99.Should().BeLessThan(1000);
+        scnStats.Fail.Request.Percent.Should().BeLessThan(1);
+    }
+}
+```
+
+### 15.2 Benchmark Tests
+
+```csharp
+/// <summary>
+/// BenchmarkDotNet ile micro-benchmarks.
+/// </summary>
+[MemoryDiagnoser]
+[SimpleJob(RuntimeMoniker.Net80)]
+public class ProductBenchmarks
+{
+    private Product _product = null!;
+    private Money _price = null!;
+
+    [GlobalSetup]
+    public void Setup()
+    {
+        _product = ProductBuilder.Default().Build();
+        _price = Money.Create(199.99m, "TRY");
+    }
+
+    [Benchmark]
+    public void CreateProduct()
+    {
+        _ = Product.Create(
+            "Test Product",
+            "Description",
+            SKU.Create("TEST-001"),
+            Money.Create(99.99m, "TRY"),
+            100,
+            Guid.NewGuid());
+    }
+
+    [Benchmark]
+    public void CreateMoney()
+    {
+        _ = Money.Create(99.99m, "TRY");
+    }
+
+    [Benchmark]
+    public void SetPrice()
+    {
+        _product.SetPrice(_price);
+    }
+}
+```
+
+---
+
+## 16. COVERAGE HEDEFLERİ
+
+### 16.1 Coverage Targets
+
+| Category | Target | Priority |
+|----------|--------|----------|
+| Domain Entities | 90%+ | CRITICAL |
+| Value Objects | 95%+ | CRITICAL |
+| Domain Events | 80%+ | HIGH |
+| Command Handlers | 85%+ | CRITICAL |
+| Query Handlers | 75%+ | HIGH |
+| Validators | 90%+ | HIGH |
+| Controllers | 70%+ | MEDIUM |
+| Repositories | 80%+ | HIGH |
+| Services | 75%+ | MEDIUM |
+| **OVERALL** | **60%+** | **MANDATORY** |
+
+### 16.2 Coverage Commands
+
+```bash
+# Run tests with coverage
+dotnet test /p:CollectCoverage=true \
+    /p:CoverletOutputFormat=cobertura \
+    /p:CoverletOutput=./coverage/ \
+    /p:Exclude="[*]*.Migrations.*" \
+    /p:ExcludeByFile="**/Program.cs"
+
+# Generate HTML report
+reportgenerator \
+    -reports:coverage/coverage.cobertura.xml \
+    -targetdir:coverage/report \
+    -reporttypes:Html
+
+# Check coverage threshold
+dotnet test /p:CollectCoverage=true \
+    /p:Threshold=60 \
+    /p:ThresholdType=line \
+    /p:ThresholdStat=total
+```
+
+---
+
+## 17. CI/CD INTEGRATION
+
+### 17.1 GitHub Actions Workflow
+
+```yaml
+# .github/workflows/test.yml
+name: Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: merge_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore
+
+      - name: Run tests
+        run: |
+          dotnet test --no-build --verbosity normal \
+            /p:CollectCoverage=true \
+            /p:CoverletOutputFormat=cobertura \
+            /p:CoverletOutput=./coverage/
+        env:
+          ConnectionStrings__DefaultConnection: "Host=localhost;Database=merge_test;Username=test;Password=test"
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/coverage.cobertura.xml
+          fail_ci_if_error: true
+
+      - name: Check coverage threshold
+        run: |
+          dotnet test --no-build \
+            /p:CollectCoverage=true \
+            /p:Threshold=60 \
+            /p:ThresholdType=line
+```
+
+---
+
+## 18. ANTI-PATTERNS
+
+### 18.1 Kaçınılması Gereken Hatalar
+
+```csharp
+// ❌ YANLIŞ 1: Test'te gerçek external service kullanmak
+[Fact]
+public async Task Should_Send_Email()
+{
+    var emailService = new SmtpEmailService(); // YANLIŞ - gerçek servis
+    await emailService.SendAsync(...);
+}
+
+// ✅ DOĞRU: Mock kullan
+[Fact]
+public async Task Should_Send_Email()
+{
+    var emailServiceMock = new Mock<IEmailService>();
+    emailServiceMock.Setup(e => e.SendAsync(...)).ReturnsAsync(true);
+}
+
+
+// ❌ YANLIŞ 2: Test'ler arası bağımlılık
+private static Product _sharedProduct; // YANLIŞ - shared state
+
+[Fact]
+public void Test1_CreateProduct()
+{
+    _sharedProduct = CreateProduct();
+}
+
+[Fact]
+public void Test2_UseProduct() // Test1'e bağımlı
+{
+    _sharedProduct.SetPrice(...);
+}
+
+// ✅ DOĞRU: Her test bağımsız
+[Fact]
+public void Test1()
+{
+    var product = CreateProduct();
+    // ...
+}
+
+
+// ❌ YANLIŞ 3: Implementation detayı test etmek
+[Fact]
+public void Should_Use_Repository()
+{
+    // YANLIŞ - internal implementation'ı test ediyor
+    _repositoryMock.Verify(r => r.AddAsync(
+        It.Is<Product>(p =>
+            p.GetType().GetField("_somePrivateField")!.GetValue(p) != null),
+        It.IsAny<CancellationToken>()));
+}
+
+// ✅ DOĞRU: Behavior test et
+[Fact]
+public void Should_Create_Product_With_Correct_Name()
+{
+    // Act
+    var result = await _sut.Handle(command);
+
+    // Assert behavior/output
+    result.Name.Should().Be(command.Name);
+}
+
+
+// ❌ YANLIŞ 4: Assert yok
+[Fact]
+public async Task TestSomething()
+{
+    var result = await _sut.Handle(command);
+    // Assert YOK! Bu test her zaman pass olur
+}
+
+// ✅ DOĞRU: Her test en az bir assert içermeli
+[Fact]
+public async Task TestSomething()
+{
+    var result = await _sut.Handle(command);
+    result.Should().NotBeNull();
+    result.Name.Should().Be(expected);
+}
+
+
+// ❌ YANLIŞ 5: Çok fazla mock setup
+[Fact]
+public async Task Test_With_Too_Many_Mocks()
+{
+    // 10+ mock setup = kod çok bağımlı, refactor gerekli
+    var mock1 = new Mock<IService1>();
+    var mock2 = new Mock<IService2>();
+    // ... mock10
+}
+
+
+// ❌ YANLIŞ 6: Sleep/Delay kullanmak
+[Fact]
+public async Task Test_With_Delay()
+{
+    await _sut.StartBackgroundJob();
+    await Task.Delay(5000); // YANLIŞ - flaky test
+    // Assert
+}
+
+
+// ❌ YANLIŞ 7: Magic number/string
+[Fact]
+public void Test_With_Magic_Numbers()
+{
+    var result = Calculate(100, 0.18, 5); // Ne anlama geliyor?
+    result.Should().Be(590); // Neden 590?
+}
+
+// ✅ DOĞRU: Açıklayıcı değişkenler
+[Fact]
+public void Test_With_Clear_Values()
+{
+    // Arrange
+    const decimal price = 100m;
+    const decimal taxRate = 0.18m;
+    const int quantity = 5;
+    const decimal expectedTotal = 590m; // price * (1 + taxRate) * quantity
+
+    // Act
+    var result = Calculate(price, taxRate, quantity);
+
+    // Assert
+    result.Should().Be(expectedTotal);
+}
+```
+
+---
+
+## CHECKLIST
+
+### Test Yazarken
+- [ ] AAA pattern kullanılıyor
+- [ ] Test adı convention'a uygun
+- [ ] Her test bağımsız
+- [ ] Mock'lar doğru kullanılıyor
+- [ ] Assert'ler anlamlı
+- [ ] Edge case'ler test ediliyor
+
+### Coverage
+- [ ] Domain entities: 90%+
+- [ ] Command handlers: 85%+
+- [ ] Validators: 90%+
+- [ ] Overall: 60%+
+
+### Integration Tests
+- [ ] API endpoint'leri test ediliyor
+- [ ] Database işlemleri test ediliyor
+- [ ] Authentication/Authorization test ediliyor
+- [ ] Error handling test ediliyor
+
+---
+
+*Bu kural dosyası, Merge E-Commerce Backend projesi için test yazım standartlarını belirler.*

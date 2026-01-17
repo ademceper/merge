@@ -1,0 +1,248 @@
+---
+description: Domain-Driven Design rules - Entities, Value Objects, Aggregates, Domain Events
+globs:
+  - "Merge.Domain/**/*.cs"
+  - "**/Entities/**/*.cs"
+  - "**/ValueObjects/**/*.cs"
+alwaysApply: false
+---
+
+# DOMAIN-DRIVEN DESIGN RULES
+
+## AGGREGATE ROOT STRUCTURE
+
+```csharp
+public class Product : BaseAggregateRoot
+{
+    // ============================================
+    // PRIVATE SETTERS (encapsulation)
+    // ============================================
+    public string Name { get; private set; } = null!;
+    public Money Price { get; private set; } = null!;
+    public int StockQuantity { get; private set; }
+    public bool IsActive { get; private set; }
+
+    // ============================================
+    // COLLECTIONS (private backing field)
+    // ============================================
+    private readonly List<ProductImage> _images = [];
+    public IReadOnlyCollection<ProductImage> Images => _images.AsReadOnly();
+
+    // ============================================
+    // PRIVATE CONSTRUCTOR (EF Core)
+    // ============================================
+    private Product() { }
+
+    // ============================================
+    // FACTORY METHOD (ONLY way to create)
+    // ============================================
+    public static Product Create(
+        string name,
+        Money price,
+        Guid categoryId)
+    {
+        Guard.AgainstNullOrEmpty(name, nameof(name));
+        Guard.AgainstNull(price, nameof(price));
+
+        var product = new Product
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            Price = price,
+            CategoryId = categoryId,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        product.AddDomainEvent(new ProductCreatedEvent(product.Id, product.Name));
+        return product;
+    }
+
+    // ============================================
+    // DOMAIN METHODS (business behavior)
+    // ============================================
+    public void SetPrice(Money newPrice)
+    {
+        Guard.AgainstNull(newPrice, nameof(newPrice));
+        if (Price.Equals(newPrice)) return;
+
+        var oldPrice = Price;
+        Price = newPrice;
+        MarkAsUpdated();
+
+        AddDomainEvent(new ProductPriceChangedEvent(Id, oldPrice.Amount, newPrice.Amount));
+    }
+
+    public void ReduceStock(int quantity)
+    {
+        Guard.AgainstNegativeOrZero(quantity, nameof(quantity));
+
+        if (StockQuantity < quantity)
+            throw new InsufficientStockException(Id, StockQuantity, quantity);
+
+        StockQuantity -= quantity;
+        MarkAsUpdated();
+
+        if (StockQuantity == 0)
+            AddDomainEvent(new ProductOutOfStockEvent(Id));
+    }
+}
+```
+
+## VALUE OBJECT
+
+```csharp
+public sealed record Money : IComparable<Money>
+{
+    public decimal Amount { get; }
+    public string Currency { get; }
+
+    private Money(decimal amount, string currency)
+    {
+        Amount = amount;
+        Currency = currency;
+    }
+
+    public static Money Create(decimal amount, string currency)
+    {
+        Guard.AgainstNegative(amount, nameof(amount));
+        Guard.AgainstNullOrEmpty(currency, nameof(currency));
+
+        if (currency.Length != 3)
+            throw new DomainException("Currency must be 3 characters");
+
+        return new Money(Math.Round(amount, 2), currency.ToUpperInvariant());
+    }
+
+    public Money Add(Money other)
+    {
+        if (Currency != other.Currency)
+            throw new CurrencyMismatchException(Currency, other.Currency);
+
+        return Create(Amount + other.Amount, Currency);
+    }
+
+    public Money Multiply(decimal factor) =>
+        Create(Amount * factor, Currency);
+
+    public int CompareTo(Money? other)
+    {
+        if (other is null) return 1;
+        if (Currency != other.Currency)
+            throw new CurrencyMismatchException(Currency, other.Currency);
+        return Amount.CompareTo(other.Amount);
+    }
+
+    public override string ToString() => $"{Amount:N2} {Currency}";
+}
+```
+
+## GUARD CLAUSES
+
+```csharp
+public static class Guard
+{
+    public static void AgainstNull<T>(T? value, string parameterName) where T : class
+    {
+        if (value is null)
+            throw new ArgumentNullException(parameterName);
+    }
+
+    public static void AgainstNullOrEmpty(string? value, string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException($"{parameterName} cannot be empty", parameterName);
+    }
+
+    public static void AgainstNegative(int value, string parameterName)
+    {
+        if (value < 0)
+            throw new ArgumentException($"{parameterName} cannot be negative", parameterName);
+    }
+
+    public static void AgainstNegative(decimal value, string parameterName)
+    {
+        if (value < 0)
+            throw new ArgumentException($"{parameterName} cannot be negative", parameterName);
+    }
+
+    public static void AgainstNegativeOrZero(int value, string parameterName)
+    {
+        if (value <= 0)
+            throw new ArgumentException($"{parameterName} must be positive", parameterName);
+    }
+
+    public static void AgainstDefault<T>(T value, string parameterName)
+    {
+        if (EqualityComparer<T>.Default.Equals(value, default))
+            throw new ArgumentException($"{parameterName} cannot be default", parameterName);
+    }
+
+    public static void AgainstLength(string? value, int maxLength, string parameterName)
+    {
+        if (value is not null && value.Length > maxLength)
+            throw new ArgumentException($"{parameterName} exceeds {maxLength} chars", parameterName);
+    }
+}
+```
+
+## DOMAIN EVENTS
+
+```csharp
+// Base event
+public abstract record DomainEvent : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+    public Guid EventId { get; } = Guid.NewGuid();
+}
+
+// Product events
+public record ProductCreatedEvent(Guid ProductId, string Name) : DomainEvent;
+
+public record ProductPriceChangedEvent(
+    Guid ProductId,
+    decimal OldPrice,
+    decimal NewPrice) : DomainEvent;
+
+public record ProductOutOfStockEvent(Guid ProductId) : DomainEvent;
+
+// Order events
+public record OrderCreatedEvent(Guid OrderId, Guid UserId, decimal Total) : DomainEvent;
+public record OrderShippedEvent(Guid OrderId, string TrackingNumber) : DomainEvent;
+```
+
+## DDD RULES
+
+### Entity Rules
+1. **Private setters** - ASLA property dışarıdan set edilmez
+2. **Factory methods** - SADECE `Create()` ile entity oluştur
+3. **Guard clauses** - Tüm invariant'ları valide et
+4. **Domain events** - State değişikliğinde event raise et
+5. **Rich behavior** - Business logic entity içinde
+
+### Aggregate Rules
+1. **Single transaction** - Bir aggregate = bir transaction
+2. **Reference by ID** - Diğer aggregate'lere ID ile referans
+3. **Consistency boundary** - Aggregate içinde tutarlılık
+
+### Value Object Rules
+1. **Immutable** - Oluşturulduktan sonra DEĞİŞMEZ
+2. **Self-validating** - Factory'de valide et
+3. **No identity** - Equality tüm property'lerle
+
+## CHECKLIST
+
+### Entity Checklist
+- [ ] Private constructor (EF Core için)
+- [ ] Static factory method (Create)
+- [ ] Tüm setter'lar private
+- [ ] Guard clauses kullanılıyor
+- [ ] Domain events raise ediliyor
+- [ ] Business logic entity içinde
+
+### Value Object Checklist
+- [ ] Record type kullanılmış
+- [ ] Private constructor
+- [ ] Static Create factory method
+- [ ] Immutable (get-only properties)
+- [ ] Self-validating

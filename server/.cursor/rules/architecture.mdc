@@ -1,0 +1,177 @@
+---
+description: Core architecture rules - Clean Architecture + DDD + CQRS dependency flow and layer responsibilities
+globs: "**/*.cs"
+alwaysApply: true
+---
+
+# CLEAN ARCHITECTURE RULES
+
+> Merge E-Commerce Backend için mimari kuralları.
+> Bu kurallara MUTLAKA uy! Mimari ihlalleri kod review'da REDDEDILIR.
+
+## PROJECT OVERVIEW
+
+| Property | Value |
+|----------|-------|
+| **Project** | Merge E-Commerce Backend |
+| **Framework** | .NET 9.0 / C# 12 |
+| **Database** | PostgreSQL 16 |
+| **Cache** | Redis |
+| **Architecture** | Clean Architecture + DDD + CQRS |
+
+## DEPENDENCY FLOW (CRITICAL!)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         API Layer                            │
+│              (Controllers, Middleware, Filters)              │
+│                    Merge.API                                 │
+└─────────────────────────┬───────────────────────────────────┘
+                          │ depends on
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Application Layer                         │
+│         (Commands, Queries, Handlers, Services, DTOs)        │
+│                 Merge.Application                            │
+└─────────────────────────┬───────────────────────────────────┘
+                          │ depends on
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      Domain Layer                            │
+│      (Entities, Value Objects, Events, Specifications)       │
+│                    Merge.Domain                              │
+│              *** NO EXTERNAL DEPENDENCIES ***                │
+└─────────────────────────────────────────────────────────────┘
+                          ▲
+                          │ implements interfaces from
+┌─────────────────────────┴───────────────────────────────────┐
+│                  Infrastructure Layer                        │
+│        (DbContexts, Repositories, External Services)         │
+│                Merge.Infrastructure                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## ❌ FORBIDDEN Dependencies
+
+```csharp
+// ❌ Domain → Infrastructure (KESİNLİKLE YASAK)
+using Microsoft.EntityFrameworkCore;        // YASAK!
+using Merge.Infrastructure.Data;            // YASAK!
+using Npgsql;                               // YASAK!
+
+// ❌ Domain → Application (YASAK)
+using Merge.Application.Services;           // YASAK!
+using Merge.Application.DTOs;               // YASAK!
+using AutoMapper;                           // YASAK!
+using FluentValidation;                     // YASAK!
+
+// ❌ Application → API (YASAK)
+using Microsoft.AspNetCore.Mvc;             // YASAK!
+
+// ❌ Application → Infrastructure concrete (YASAK)
+using Merge.Infrastructure.Data.Contexts;   // YASAK!
+```
+
+## ✅ ALLOWED Dependencies
+
+```csharp
+// ✅ Domain Layer - SADECE
+using System;
+using System.Collections.Generic;
+using MediatR;  // Sadece INotification için
+
+// ✅ Application Layer
+using Merge.Domain.*;
+using MediatR;
+using AutoMapper;
+using FluentValidation;
+
+// ✅ Infrastructure Layer
+using Merge.Domain.*;
+using Merge.Application.Common.Interfaces;
+using Microsoft.EntityFrameworkCore;
+
+// ✅ API Layer
+using Merge.Application.*;
+using Microsoft.AspNetCore.Mvc;
+```
+
+## LAYER RESPONSIBILITIES
+
+### Domain Layer (Merge.Domain)
+- Aggregate Roots, Entities, Value Objects
+- Domain Events, Specifications
+- Guard Clauses, Domain Exceptions
+- **NO external dependencies**
+
+### Application Layer (Merge.Application)
+- Commands & Queries (CQRS)
+- Handlers, Validators, DTOs
+- Interfaces (IRepository, IUnitOfWork)
+- **Depends only on Domain**
+
+### Infrastructure Layer (Merge.Infrastructure)
+- DbContexts, Repositories
+- External Services (Payment, Email)
+- Cache, Outbox implementations
+- **Implements Domain/Application interfaces**
+
+### API Layer (Merge.API)
+- Controllers (thin - just MediatR calls)
+- Middleware, Filters
+- **Entry point, depends on all layers**
+
+## KEY PATTERNS
+
+### Thin Controllers
+```csharp
+// ✅ CORRECT
+[HttpPost]
+public async Task<ActionResult<ProductDto>> Create(
+    [FromBody] CreateProductCommand command,
+    CancellationToken ct)
+{
+    var result = await mediator.Send(command, ct);
+    return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+}
+
+// ❌ WRONG - Business logic in controller
+[HttpPost]
+public async Task<ActionResult> Create(CreateProductRequest request)
+{
+    if (string.IsNullOrEmpty(request.Name)) return BadRequest();
+    var product = new Product { Name = request.Name };
+    await _context.Products.AddAsync(product);
+    await _context.SaveChangesAsync();
+    return Ok(product);
+}
+```
+
+### Factory Methods
+```csharp
+// ✅ CORRECT - Factory method
+var product = Product.Create(name, price, categoryId);
+
+// ❌ WRONG - Direct instantiation
+var product = new Product { Name = name, Price = price };
+```
+
+### Domain Methods
+```csharp
+// ✅ CORRECT - Domain method
+product.SetPrice(newPrice);
+product.ReduceStock(quantity);
+
+// ❌ WRONG - Direct property set
+product.Price = newPrice;
+product.Stock -= quantity;
+```
+
+## CHECKLIST
+
+- [ ] Domain layer'da infrastructure import yok
+- [ ] Controller'lar thin (sadece MediatR)
+- [ ] Entity factory method ile oluşturuluyor
+- [ ] State değişikliği domain method ile
+- [ ] API'dan DTO dönüyor (entity değil)
+- [ ] Repository'de SaveChanges yok

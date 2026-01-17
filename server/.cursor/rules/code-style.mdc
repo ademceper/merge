@@ -1,0 +1,206 @@
+---
+description: C# 12 and .NET 9.0 code style rules - modern syntax, naming conventions, async patterns
+globs: "**/*.cs"
+alwaysApply: true
+---
+
+# C# 12 & .NET 9.0 CODE STYLE RULES
+
+## 1. PRIMARY CONSTRUCTORS (ZORUNLU)
+
+```csharp
+// ✅ DOĞRU: Primary constructor - TÜM sınıflarda kullan
+public class ProductService(
+    IRepository<Product> repository,
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    ILogger<ProductService> logger)
+{
+    public async Task<ProductDto> GetByIdAsync(Guid id, CancellationToken ct)
+    {
+        var product = await repository.GetByIdAsync(id, ct);
+        return mapper.Map<ProductDto>(product);
+    }
+}
+
+// ❌ YANLIŞ: Eski constructor pattern
+public class ProductService
+{
+    private readonly IRepository<Product> _repository;
+    public ProductService(IRepository<Product> repository)
+    {
+        _repository = repository;
+    }
+}
+```
+
+**Kurallar:**
+- Handler, Service, Controller sınıflarında ZORUNLU
+- Domain entity'lerde KULLANMA (private constructor gerekli)
+- Field'a atama YAPILMAZ
+
+## 2. COLLECTION EXPRESSIONS (C# 12)
+
+```csharp
+// ✅ DOĞRU
+List<string> items = [];
+int[] numbers = [1, 2, 3, 4, 5];
+int[] combined = [..firstArray, ..secondArray, 99];
+
+// ❌ YANLIŞ
+var items = new List<string>();
+var numbers = new int[] { 1, 2, 3 };
+```
+
+## 3. RECORD TYPES
+
+```csharp
+// ✅ DTOs için record
+public record ProductDto(
+    Guid Id,
+    string Name,
+    decimal Price,
+    DateTime CreatedAt);
+
+// ✅ Commands için record
+public record CreateProductCommand(
+    string Name,
+    decimal Price,
+    Guid CategoryId) : IRequest<ProductDto>;
+
+// ✅ Domain Events için record
+public record ProductCreatedEvent(
+    Guid ProductId,
+    string Name) : DomainEvent;
+
+// ❌ YANLIŞ: DTO için class
+public class ProductDto { public Guid Id { get; set; } }
+```
+
+## 4. PATTERN MATCHING
+
+```csharp
+// ✅ Property pattern
+if (order is { Status: OrderStatus.Pending, Items.Count: > 0 })
+{
+    order.Submit();
+}
+
+// ✅ Switch expression
+public decimal CalculateDiscount(object customer) => customer switch
+{
+    PremiumCustomer { YearsActive: > 5 } => 0.25m,
+    PremiumCustomer => 0.10m,
+    RegularCustomer { OrderCount: > 100 } => 0.05m,
+    _ => 0m
+};
+
+// ✅ is not pattern
+if (product is not null)
+if (status is not (OrderStatus.Cancelled or OrderStatus.Refunded))
+```
+
+## 5. NULL CHECKING
+
+```csharp
+// ✅ DOĞRU
+ArgumentNullException.ThrowIfNull(order);
+ArgumentException.ThrowIfNullOrEmpty(name);
+_cache ??= new ConcurrentDictionary<string, object>();
+
+// ❌ YANLIŞ
+if (order == null) throw new ArgumentNullException(nameof(order));
+```
+
+## 6. FILE-SCOPED NAMESPACES (ZORUNLU)
+
+```csharp
+// ✅ DOĞRU
+namespace Merge.Application.Product.Commands.CreateProduct;
+
+public record CreateProductCommand(...) : IRequest<ProductDto>;
+
+// ❌ YANLIŞ
+namespace Merge.Application.Product.Commands.CreateProduct
+{
+    public record CreateProductCommand(...) : IRequest<ProductDto>;
+}
+```
+
+## 7. NAMING CONVENTIONS
+
+| Element | Convention | Example |
+|---------|------------|---------|
+| Class | PascalCase | `ProductService` |
+| Interface | IPascalCase | `IProductService` |
+| Async Method | *Async suffix | `GetProductAsync` |
+| Private Field | _camelCase | `_repository` |
+| Command | [Action][Entity]Command | `CreateProductCommand` |
+| Query | Get[Entity]Query | `GetProductByIdQuery` |
+| Handler | [Name]Handler | `CreateProductCommandHandler` |
+| DTO | [Entity]Dto | `ProductDto` |
+| Event | [Entity][Action]Event | `ProductCreatedEvent` |
+
+## 8. ASYNC/AWAIT
+
+```csharp
+// ✅ CancellationToken ZORUNLU
+public async Task<ProductDto> GetAsync(Guid id, CancellationToken ct)
+{
+    var product = await repository.GetByIdAsync(id, ct);
+    return mapper.Map<ProductDto>(product);
+}
+
+// ❌ CancellationToken yok
+public async Task<ProductDto> GetAsync(Guid id)
+{
+    await repository.GetByIdAsync(id, default); // YANLIŞ!
+}
+```
+
+## 9. LOGGING
+
+```csharp
+// ✅ Structured logging
+logger.LogInformation(
+    "Product created: {ProductId}, Name: {ProductName}",
+    product.Id, product.Name);
+
+// ❌ String interpolation
+logger.LogInformation($"Product created: {product.Id}");
+
+// ❌ PII loglama - YASAK!
+logger.LogInformation("User email: {Email}", user.Email);
+```
+
+## 10. EARLY RETURN
+
+```csharp
+// ✅ DOĞRU
+public async Task<ProductDto?> GetAsync(Guid id, CancellationToken ct)
+{
+    if (id == Guid.Empty) return null;
+
+    var cached = await cache.GetAsync<ProductDto>(key, ct);
+    if (cached is not null) return cached;
+
+    var product = await repository.GetByIdAsync(id, ct);
+    if (product is null) return null;
+
+    return mapper.Map<ProductDto>(product);
+}
+
+// ❌ YANLIŞ: Nested conditions
+if (id != Guid.Empty) { if (cached is null) { if (product is not null) { ... } } }
+```
+
+## CHECKLIST
+
+- [ ] Primary constructors kullanılmış
+- [ ] Collection expressions kullanılmış
+- [ ] Record types DTOs/Commands için
+- [ ] File-scoped namespaces
+- [ ] CancellationToken tüm async'lerde
+- [ ] Structured logging (no interpolation)
+- [ ] PII loglanmamış
+- [ ] Early return pattern
