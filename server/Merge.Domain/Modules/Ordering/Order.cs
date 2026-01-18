@@ -110,7 +110,7 @@ public class Order : BaseEntity, IAggregateRoot
     // Service layer'dan event eklenebilmesi için public yapıldı (Team entity'sinde de aynı pattern kullanılıyor)
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         // BaseEntity'deki protected AddDomainEvent'i çağır
@@ -121,7 +121,7 @@ public class Order : BaseEntity, IAggregateRoot
     // Service layer'dan event kaldırılabilmesi için public yapıldı
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         // BaseEntity'deki protected RemoveDomainEvent'i çağır
@@ -220,7 +220,7 @@ public class Order : BaseEntity, IAggregateRoot
             throw new DomainException("Bekleyen olmayan siparişten ürün çıkarılamaz");
 
         var item = _orderItems.FirstOrDefault(i => i.Id == orderItemId);
-        if (item == null)
+        if (item is null)
             throw new DomainException("Sipariş öğesi bulunamadı");
 
         var productId = item.ProductId;
@@ -240,7 +240,7 @@ public class Order : BaseEntity, IAggregateRoot
             throw new DomainException("Bekleyen olmayan siparişte ürün miktarı değiştirilemez");
 
         var item = _orderItems.FirstOrDefault(i => i.Id == orderItemId);
-        if (item == null)
+        if (item is null)
             throw new DomainException("Sipariş öğesi bulunamadı");
 
         // Stock check would require product lookup - handled in service layer

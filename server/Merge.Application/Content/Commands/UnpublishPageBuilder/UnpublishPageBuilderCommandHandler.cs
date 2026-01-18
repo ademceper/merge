@@ -30,7 +30,7 @@ public class UnpublishPageBuilderCommandHandler(
         try
         {
             var pageBuilder = await pageBuilderRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (pageBuilder == null)
+            if (pageBuilder is null)
             {
                 logger.LogWarning("Page builder not found for unpublishing. PageBuilderId: {PageBuilderId}", request.Id);
                 return false;

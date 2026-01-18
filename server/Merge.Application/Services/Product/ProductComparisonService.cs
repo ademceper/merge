@@ -91,7 +91,7 @@ public class ProductComparisonService(IDbContext context, IUnitOfWork unitOfWork
                     .ThenInclude(p => p.Category)
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
-        return comparison != null ? await MapToDto(comparison, cancellationToken) : null;
+        return comparison is not null ? await MapToDto(comparison, cancellationToken) : null;
     }
 
     public async Task<ProductComparisonDto?> GetUserComparisonAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -106,7 +106,7 @@ public class ProductComparisonService(IDbContext context, IUnitOfWork unitOfWork
             .OrderByDescending(c => c.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (comparison == null)
+        if (comparison is null)
         {
             // Create a new temporary comparison
             comparison = ProductComparison.Create(
@@ -173,7 +173,7 @@ public class ProductComparisonService(IDbContext context, IUnitOfWork unitOfWork
                     .ThenInclude(p => p.Category)
             .FirstOrDefaultAsync(c => c.ShareCode == shareCode, cancellationToken);
 
-        return comparison != null ? await MapToDto(comparison, cancellationToken) : null;
+        return comparison is not null ? await MapToDto(comparison, cancellationToken) : null;
     }
 
     public async Task<ProductComparisonDto> AddProductToComparisonAsync(Guid userId, Guid productId, CancellationToken cancellationToken = default)
@@ -184,7 +184,7 @@ public class ProductComparisonService(IDbContext context, IUnitOfWork unitOfWork
             .OrderByDescending(c => c.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (comparison == null)
+        if (comparison is null)
         {
             comparison = ProductComparison.Create(
                 userId: userId,
@@ -201,7 +201,7 @@ public class ProductComparisonService(IDbContext context, IUnitOfWork unitOfWork
         }
 
         var existingItem = comparison.Items.FirstOrDefault(i => i.ProductId == productId);
-        if (existingItem != null)
+        if (existingItem is not null)
         {
             throw new BusinessException("Ürün zaten karşılaştırmada.");
         }
@@ -210,7 +210,7 @@ public class ProductComparisonService(IDbContext context, IUnitOfWork unitOfWork
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
-        if (product == null)
+        if (product is null)
         {
             throw new NotFoundException("Ürün", productId);
         }
@@ -242,10 +242,10 @@ public class ProductComparisonService(IDbContext context, IUnitOfWork unitOfWork
             .OrderByDescending(c => c.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (comparison == null) return false;
+        if (comparison is null) return false;
 
         var item = comparison.Items.FirstOrDefault(i => i.ProductId == productId);
-        if (item == null) return false;
+        if (item is null) return false;
 
         item.MarkAsDeleted();
 
@@ -271,7 +271,7 @@ public class ProductComparisonService(IDbContext context, IUnitOfWork unitOfWork
             .OrderByDescending(c => c.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (comparison == null) return false;
+        if (comparison is null) return false;
 
         comparison.Save(name);
 
@@ -285,7 +285,7 @@ public class ProductComparisonService(IDbContext context, IUnitOfWork unitOfWork
         var comparison = await context.Set<ProductComparison>()
             .FirstOrDefaultAsync(c => c.Id == comparisonId, cancellationToken);
 
-        if (comparison == null)
+        if (comparison is null)
         {
             throw new NotFoundException("Karşılaştırma", comparisonId);
         }
@@ -311,7 +311,7 @@ public class ProductComparisonService(IDbContext context, IUnitOfWork unitOfWork
             .OrderByDescending(c => c.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (comparison == null) return false;
+        if (comparison is null) return false;
 
         foreach (var item in comparison.Items)
         {
@@ -328,7 +328,7 @@ public class ProductComparisonService(IDbContext context, IUnitOfWork unitOfWork
         var comparison = await context.Set<ProductComparison>()
             .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId, cancellationToken);
 
-        if (comparison == null) return false;
+        if (comparison is null) return false;
 
         comparison.MarkAsDeleted();
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -346,7 +346,7 @@ public class ProductComparisonService(IDbContext context, IUnitOfWork unitOfWork
                     .ThenInclude(p => p.Category)
             .FirstOrDefaultAsync(c => c.Id == comparisonId, cancellationToken);
 
-        if (comparison == null)
+        if (comparison is null)
         {
             throw new NotFoundException("Karşılaştırma", comparisonId);
         }
@@ -396,7 +396,7 @@ public class ProductComparisonService(IDbContext context, IUnitOfWork unitOfWork
 
             var compProduct = mapper.Map<ComparisonProductDto>(product) with
             {
-                Rating = reviewStats != null ? (decimal?)reviewStats.Rating : null,
+                Rating = reviewStats is not null ? (decimal?)reviewStats.Rating : null,
                 ReviewCount = reviewStats?.Count ?? 0,
                 Specifications = new Dictionary<string, string>(), // TODO: Map from product specifications
                 Features = [] // TODO: Map from product features

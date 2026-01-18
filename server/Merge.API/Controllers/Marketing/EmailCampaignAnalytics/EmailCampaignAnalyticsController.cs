@@ -7,6 +7,7 @@ using Merge.Application.Marketing.Queries.GetCampaignAnalytics;
 using Merge.Application.Marketing.Queries.GetCampaignStats;
 using Merge.Application.Marketing.Commands.RecordEmailOpen;
 using Merge.Application.Marketing.Commands.RecordEmailClick;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Marketing.EmailCampaignAnalytics;
 
@@ -34,12 +35,8 @@ public class EmailCampaignAnalyticsController(IMediator mediator) : BaseControll
         CancellationToken cancellationToken = default)
     {
         var query = new GetCampaignAnalyticsQuery(campaignId);
-        var analytics = await mediator.Send(query, cancellationToken);
-
-        if (analytics == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var analytics = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("EmailCampaignAnalytics", campaignId);
 
         return Ok(analytics);
     }

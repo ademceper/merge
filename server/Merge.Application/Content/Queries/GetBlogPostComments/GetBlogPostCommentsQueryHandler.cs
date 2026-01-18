@@ -70,7 +70,7 @@ public class GetBlogPostCommentsQueryHandler(
                 foreach (var comment in comments)
                 {
                     var commentDto = mapper.Map<BlogCommentDto>(comment);
-                    if (comment.Replies != null && comment.Replies.Any())
+                    if (comment.Replies is not null && comment.Replies.Any())
                     {
                         var replies = comment.Replies
                             .Where(r => !request.IsApproved.HasValue || r.IsApproved == request.IsApproved.Value)

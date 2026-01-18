@@ -23,7 +23,7 @@ public class UpdateCreditTermCommandHandler(
         var creditTerm = await context.Set<CreditTerm>()
             .FirstOrDefaultAsync(ct => ct.Id == request.Id, cancellationToken);
 
-        if (creditTerm == null)
+        if (creditTerm is null)
         {
             logger.LogWarning("Credit term not found with Id: {CreditTermId}", request.Id);
             return false;

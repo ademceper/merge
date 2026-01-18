@@ -57,7 +57,7 @@ public class UserPreference : BaseEntity, IAggregateRoot
 
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         base.AddDomainEvent(domainEvent);
@@ -65,7 +65,7 @@ public class UserPreference : BaseEntity, IAggregateRoot
 
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         base.RemoveDomainEvent(domainEvent);
@@ -121,13 +121,13 @@ public class UserPreference : BaseEntity, IAggregateRoot
 
         if (theme.HasValue) Theme = theme.Value;
         
-        if (defaultLanguage != null)
+        if (defaultLanguage is not null)
         {
             Guard.AgainstLength(defaultLanguage, 10, nameof(defaultLanguage));
             DefaultLanguage = defaultLanguage;
         }
         
-        if (defaultCurrency != null)
+        if (defaultCurrency is not null)
         {
             Guard.AgainstLength(defaultCurrency, 10, nameof(defaultCurrency));
             DefaultCurrency = defaultCurrency;
@@ -135,7 +135,7 @@ public class UserPreference : BaseEntity, IAggregateRoot
         
         if (itemsPerPage.HasValue) ItemsPerPage = itemsPerPage.Value;
         
-        if (dateFormat != null)
+        if (dateFormat is not null)
         {
             Guard.AgainstLength(dateFormat, 50, nameof(dateFormat));
             DateFormat = dateFormat;
@@ -159,13 +159,13 @@ public class UserPreference : BaseEntity, IAggregateRoot
         if (allowDataCollection.HasValue) AllowDataCollection = allowDataCollection.Value;
         if (allowThirdPartySharing.HasValue) AllowThirdPartySharing = allowThirdPartySharing.Value;
 
-        if (defaultShippingAddress != null)
+        if (defaultShippingAddress is not null)
         {
             Guard.AgainstLength(defaultShippingAddress, 50, nameof(defaultShippingAddress));
             DefaultShippingAddress = defaultShippingAddress;
         }
         
-        if (defaultPaymentMethod != null)
+        if (defaultPaymentMethod is not null)
         {
             Guard.AgainstLength(defaultPaymentMethod, 50, nameof(defaultPaymentMethod));
             DefaultPaymentMethod = defaultPaymentMethod;

@@ -36,7 +36,7 @@ public class CreateTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWo
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
-        if (user == null)
+        if (user is null)
         {
             logger.LogWarning("User {UserId} not found while creating support ticket", request.UserId);
             throw new NotFoundException("Kullanıcı", request.UserId);
@@ -97,7 +97,7 @@ public class CreateTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWo
             .FirstOrDefaultAsync(cancellationToken);
 
         int nextNumber = 1;
-        if (lastTicket != null && lastTicket.TicketNumber.StartsWith(supportConfig.TicketNumberPrefix))
+        if (lastTicket is not null && lastTicket.TicketNumber.StartsWith(supportConfig.TicketNumberPrefix))
         {
             var numberPart = lastTicket.TicketNumber.Substring(supportConfig.TicketNumberPrefix.Length);
             if (int.TryParse(numberPart, out int lastNumber))
@@ -114,7 +114,7 @@ public class CreateTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWo
         var dto = mapper.Map<SupportTicketDto>(ticket);
 
         IReadOnlyList<TicketMessageDto> messages;
-        if (ticket.Messages == null || ticket.Messages.Count == 0)
+        if (ticket.Messages is null || ticket.Messages.Count == 0)
         {
             var messageList = await context.Set<TicketMessage>()
                 .AsNoTracking()
@@ -131,7 +131,7 @@ public class CreateTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWo
         }
 
         IReadOnlyList<TicketAttachmentDto> attachments;
-        if (ticket.Attachments == null || ticket.Attachments.Count == 0)
+        if (ticket.Attachments is null || ticket.Attachments.Count == 0)
         {
             var attachmentList = await context.Set<TicketAttachment>()
                 .AsNoTracking()

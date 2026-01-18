@@ -83,7 +83,7 @@ public class NotificationsController(
         var userId = GetUserId();
         var notificationQuery = new GetNotificationByIdQuery(notificationId);
         var notification = await mediator.Send(notificationQuery, cancellationToken);
-        if (notification == null)
+        if (notification is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -127,7 +127,7 @@ public class NotificationsController(
         var userId = GetUserId();
         var notificationQuery = new GetNotificationByIdQuery(notificationId);
         var notification = await mediator.Send(notificationQuery, cancellationToken);
-        if (notification == null)
+        if (notification is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }

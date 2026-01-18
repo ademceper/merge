@@ -30,7 +30,7 @@ public class ReviewHelpfulnessService(IDbContext context, IUnitOfWork unitOfWork
         var review = await context.Set<ReviewEntity>()
             .FirstOrDefaultAsync(r => r.Id == dto.ReviewId, cancellationToken);
 
-        if (review == null)
+        if (review is null)
         {
             throw new NotFoundException("Değerlendirme", dto.ReviewId);
         }
@@ -38,7 +38,7 @@ public class ReviewHelpfulnessService(IDbContext context, IUnitOfWork unitOfWork
         var existingVote = await context.Set<ReviewHelpfulness>()
             .FirstOrDefaultAsync(rh => rh.ReviewId == dto.ReviewId && rh.UserId == userId, cancellationToken);
 
-        if (existingVote != null)
+        if (existingVote is not null)
         {
             // Update existing vote
             if (existingVote.IsHelpful != dto.IsHelpful)
@@ -87,12 +87,12 @@ public class ReviewHelpfulnessService(IDbContext context, IUnitOfWork unitOfWork
         var vote = await context.Set<ReviewHelpfulness>()
             .FirstOrDefaultAsync(rh => rh.ReviewId == reviewId && rh.UserId == userId, cancellationToken);
 
-        if (vote == null) return;
+        if (vote is null) return;
 
         var review = await context.Set<ReviewEntity>()
             .FirstOrDefaultAsync(r => r.Id == reviewId, cancellationToken);
 
-        if (review != null)
+        if (review is not null)
         {
             // Decrement count
             if (vote.IsHelpful)
@@ -115,7 +115,7 @@ public class ReviewHelpfulnessService(IDbContext context, IUnitOfWork unitOfWork
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == reviewId, cancellationToken);
 
-        if (review == null)
+        if (review is null)
         {
             throw new NotFoundException("Değerlendirme", reviewId);
         }
@@ -127,7 +127,7 @@ public class ReviewHelpfulnessService(IDbContext context, IUnitOfWork unitOfWork
                 .AsNoTracking()
                 .FirstOrDefaultAsync(rh => rh.ReviewId == reviewId && rh.UserId == userId.Value, cancellationToken);
 
-            if (vote != null)
+            if (vote is not null)
             {
                 userVote = vote.IsHelpful;
             }

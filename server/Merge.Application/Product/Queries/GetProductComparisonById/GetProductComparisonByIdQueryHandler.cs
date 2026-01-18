@@ -48,7 +48,7 @@ public class GetProductComparisonByIdQueryHandler(
                             .ThenInclude(p => p.Category)
                     .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-                if (comparison == null)
+                if (comparison is null)
                 {
                     return null;
                 }

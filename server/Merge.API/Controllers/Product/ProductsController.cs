@@ -17,6 +17,7 @@ using Merge.Application.Product.Commands.DeleteProduct;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
 using Merge.API.Extensions;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Product;
 
@@ -79,11 +80,8 @@ public class ProductsController(
     public async Task<ActionResult<ProductDto>> GetById(Guid id, CancellationToken cancellationToken = default)
     {
         var query = new GetProductByIdQuery(id);
-        var product = await mediator.Send(query, cancellationToken);
-        if (product == null)
-        {
-            return Problem("Product not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var product = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Product", id);
 
         // Generate ETag from product data (in real scenario, use RowVersion or LastModified)
         var productJson = System.Text.Json.JsonSerializer.Serialize(product);
@@ -168,7 +166,7 @@ public class ProductsController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
@@ -206,14 +204,14 @@ public class ProductsController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
         var getQuery = new GetProductByIdQuery(id);
         var existingProduct = await mediator.Send(getQuery, cancellationToken);
-        if (existingProduct == null)
+        if (existingProduct is null)
         {
             return Problem("Product not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -252,14 +250,14 @@ public class ProductsController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
         var getQuery = new GetProductByIdQuery(id);
         var existingProduct = await mediator.Send(getQuery, cancellationToken);
-        if (existingProduct == null)
+        if (existingProduct is null)
         {
             return Problem("Product not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -296,7 +294,7 @@ public class ProductsController(
         }
         var getQuery = new GetProductByIdQuery(id);
         var existingProduct = await mediator.Send(getQuery, cancellationToken);
-        if (existingProduct == null)
+        if (existingProduct is null)
         {
             return Problem("Product not found", "Not Found", StatusCodes.Status404NotFound);
         }

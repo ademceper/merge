@@ -19,7 +19,7 @@ public class CompleteReturnRequestCommandHandler(IDbContext context, IUnitOfWork
         var returnRequest = await context.Set<ReturnRequest>()
             .FirstOrDefaultAsync(r => r.Id == request.ReturnRequestId, cancellationToken);
 
-        if (returnRequest == null)
+        if (returnRequest is null)
         {
             return false;
         }

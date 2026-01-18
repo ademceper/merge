@@ -25,7 +25,7 @@ public class CloseTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWor
             .Include(t => t.User)
             .FirstOrDefaultAsync(t => t.Id == request.TicketId, cancellationToken);
 
-        if (ticket == null)
+        if (ticket is null)
         {
             logger.LogWarning("Ticket {TicketId} not found for closure", request.TicketId);
             throw new NotFoundException("Destek bileti", request.TicketId);

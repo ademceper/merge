@@ -64,7 +64,7 @@ public class OrderVerificationsController(IMediator mediator, IOptions<Paginatio
     {
         var query = new GetVerificationByOrderIdQuery(orderId);
         var verification = await mediator.Send(query, cancellationToken);
-        if (verification == null)
+        if (verification is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }

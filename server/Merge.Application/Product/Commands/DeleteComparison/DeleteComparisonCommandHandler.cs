@@ -31,7 +31,7 @@ public class DeleteComparisonCommandHandler(IDbContext context, IUnitOfWork unit
             var comparison = await context.Set<ProductComparison>()
                 .FirstOrDefaultAsync(c => c.Id == request.Id && c.UserId == request.UserId, cancellationToken);
 
-            if (comparison == null)
+            if (comparison is null)
             {
                 return false;
             }

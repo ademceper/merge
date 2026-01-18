@@ -22,7 +22,7 @@ public class SuspendStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWo
         var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == request.StoreId, cancellationToken);
 
-        if (store == null)
+        if (store is null)
         {
             logger.LogWarning("Store not found. StoreId: {StoreId}", request.StoreId);
             return false;

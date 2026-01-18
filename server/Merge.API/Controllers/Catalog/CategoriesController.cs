@@ -109,7 +109,7 @@ public class CategoriesController(
         var query = new GetCategoryByIdQuery(id);
         var category = await mediator.Send(query, cancellationToken);
         
-        if (category == null)
+        if (category is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -142,7 +142,7 @@ public class CategoriesController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var category = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = category.Id }, category);
@@ -178,7 +178,7 @@ public class CategoriesController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var updateCommand = command with { Id = id };
         var category = await mediator.Send(updateCommand, cancellationToken);
@@ -204,7 +204,7 @@ public class CategoriesController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new PatchCategoryCommand(id, patchDto);
         var category = await mediator.Send(command, cancellationToken);

@@ -32,7 +32,7 @@ public class DeleteBannerCommandHandler(
         try
         {
             var banner = await bannerRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (banner == null)
+            if (banner is null)
             {
                 logger.LogWarning("Banner not found. BannerId: {BannerId}", request.Id);
                 return false;

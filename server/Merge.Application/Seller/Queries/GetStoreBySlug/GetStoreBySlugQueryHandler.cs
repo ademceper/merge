@@ -28,7 +28,7 @@ public class GetStoreBySlugQueryHandler(IDbContext context, IMapper mapper, ILog
             .Include(s => s.Seller)
             .FirstOrDefaultAsync(s => s.Slug == request.Slug && s.Status == EntityStatus.Active, cancellationToken);
 
-        if (store == null) return null;
+        if (store is null) return null;
         
         var dto = mapper.Map<StoreDto>(store);
         

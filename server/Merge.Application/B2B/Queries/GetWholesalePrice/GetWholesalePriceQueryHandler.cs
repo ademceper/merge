@@ -32,7 +32,7 @@ public class GetWholesalePriceQueryHandler(
                 .OrderByDescending(wp => wp.MinQuantity)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (orgPrice != null)
+            if (orgPrice is not null)
             {
                 return orgPrice.Price;
             }

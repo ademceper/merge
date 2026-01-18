@@ -19,7 +19,7 @@ public class BulkUpdatePreferencesCommandHandler(IDbContext context, IUnitOfWork
 
     public async Task<bool> Handle(BulkUpdatePreferencesCommand request, CancellationToken cancellationToken)
     {
-        if (request.Dto.Preferences == null || request.Dto.Preferences.Count == 0)
+        if (request.Dto.Preferences is null || request.Dto.Preferences.Count == 0)
         {
             return true;
         }
@@ -45,7 +45,7 @@ public class BulkUpdatePreferencesCommandHandler(IDbContext context, IUnitOfWork
             {
                 existing.Update(
                     prefDto.IsEnabled,
-                    prefDto.CustomSettings != null ? JsonSerializer.Serialize(prefDto.CustomSettings) : null);
+                    prefDto.CustomSettings is not null ? JsonSerializer.Serialize(prefDto.CustomSettings) : null);
             }
             else
             {
@@ -54,7 +54,7 @@ public class BulkUpdatePreferencesCommandHandler(IDbContext context, IUnitOfWork
                     prefDto.NotificationType,
                     prefDto.Channel,
                     prefDto.IsEnabled,
-                    prefDto.CustomSettings != null ? JsonSerializer.Serialize(prefDto.CustomSettings) : null);
+                    prefDto.CustomSettings is not null ? JsonSerializer.Serialize(prefDto.CustomSettings) : null);
                 preferencesToAdd.Add(preference);
             }
         }

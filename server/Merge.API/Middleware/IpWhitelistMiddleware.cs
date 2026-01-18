@@ -4,18 +4,18 @@ namespace Merge.API.Middleware;
 
 public class IpWhitelistMiddleware(RequestDelegate next, ILogger<IpWhitelistMiddleware> logger, IConfiguration configuration)
 {
-    private readonly List<string> allowedIPs = configuration.GetSection("IpWhitelist:AllowedIPs").Get<List<string>>() ?? new List<string>();
+    private readonly List<string> allowedIPs = configuration.GetSection("IpWhitelist:AllowedIPs").Get<List<string>>() ?? [];
 
     public async Task InvokeAsync(HttpContext context)
     {
         var endpoint = context.GetEndpoint();
         var ipWhitelistAttribute = endpoint?.Metadata.GetMetadata<IpWhitelistAttribute>();
 
-        if (ipWhitelistAttribute != null)
+        if (ipWhitelistAttribute is not null)
         {
             var remoteIp = context.Connection.RemoteIpAddress;
 
-            if (remoteIp == null || !IsIpAllowed(remoteIp))
+            if (remoteIp is null || !IsIpAllowed(remoteIp))
             {
                 logger.LogWarning("Forbidden request from IP {RemoteIp}. Endpoint: {Endpoint}",
                     remoteIp, context.Request.Path);

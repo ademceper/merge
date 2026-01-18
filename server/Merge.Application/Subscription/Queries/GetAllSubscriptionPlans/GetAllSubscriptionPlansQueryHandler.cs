@@ -31,9 +31,9 @@ public class GetAllSubscriptionPlansQueryHandler(IDbContext context, IMapper map
             .ThenBy(p => p.Price)
             .ToListAsync(cancellationToken);
 
-        if (!plans.Any())
+        if (plans.Count == 0)
         {
-            return Enumerable.Empty<SubscriptionPlanDto>();
+            return [];
         }
 
         var planIdsSubquery = from p in query select p.Id;

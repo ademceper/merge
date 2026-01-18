@@ -25,7 +25,7 @@ public class Disable2FACommandHandler(
         var twoFactorAuth = await context.Set<TwoFactorAuth>()
             .FirstOrDefaultAsync(t => t.UserId == request.UserId, cancellationToken);
 
-        if (twoFactorAuth == null || !twoFactorAuth.IsEnabled)
+        if (twoFactorAuth is null || !twoFactorAuth.IsEnabled)
         {
             logger.LogWarning("2FA disable failed - not enabled. UserId: {UserId}", request.UserId);
             throw new BusinessException("2FA etkin değil.");

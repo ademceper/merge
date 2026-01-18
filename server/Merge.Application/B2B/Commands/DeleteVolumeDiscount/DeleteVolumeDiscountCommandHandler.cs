@@ -23,7 +23,7 @@ public class DeleteVolumeDiscountCommandHandler(
         var discount = await context.Set<VolumeDiscount>()
             .FirstOrDefaultAsync(vd => vd.Id == request.Id, cancellationToken);
 
-        if (discount == null)
+        if (discount is null)
         {
             logger.LogWarning("Volume discount not found with Id: {VolumeDiscountId}", request.Id);
             return false;

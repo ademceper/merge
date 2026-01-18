@@ -15,7 +15,7 @@ public class SearchActivitiesQueryValidator(IOptions<PaginationSettings> paginat
             .NotNull()
             .WithMessage("Filtre bilgisi zorunludur.");
 
-        When(x => x.Filter != null, () =>
+        When(x => x.Filter is not null, () =>
         {
             RuleFor(x => x.Filter!.PageNumber)
                 .GreaterThanOrEqualTo(1)

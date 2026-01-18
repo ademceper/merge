@@ -24,7 +24,7 @@ public class ResetUserPreferenceCommandHandler(IDbContext context, IUnitOfWork u
             .Where(up => up.UserId == request.UserId && !up.IsDeleted)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (preferences == null)
+        if (preferences is null)
         {
             logger.LogInformation("No preferences found for user: {UserId}, creating default preferences", request.UserId);
             preferences = UserPreference.Create(request.UserId);

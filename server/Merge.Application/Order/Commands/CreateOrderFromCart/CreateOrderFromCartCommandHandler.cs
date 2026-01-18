@@ -45,7 +45,7 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
                     .ThenInclude(ci => ci.Product)
                 .FirstOrDefaultAsync(c => c.UserId == request.UserId, cancellationToken);
 
-            if (cart == null || cart.CartItems.Count == 0)
+            if (cart is null || cart.CartItems.Count == 0)
             {
                 throw new BusinessException("Sepet boş.");
             }
@@ -54,7 +54,7 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
                 .AsNoTracking()
                 .FirstOrDefaultAsync(a => a.Id == request.AddressId && a.UserId == request.UserId, cancellationToken);
 
-            if (address == null)
+            if (address is null)
             {
                 throw new NotFoundException("Adres", request.AddressId);
             }
@@ -82,7 +82,7 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
             // Order.Create'te event oluşturulurken TotalAmount 0 idi, şimdi gerçek değerle güncelle
             // Event'ler immutable olduğu için yeni event oluşturup eskisini kaldır
             var existingEvent = order.DomainEvents.OfType<OrderCreatedEvent>().FirstOrDefault();
-            if (existingEvent != null)
+            if (existingEvent is not null)
             {
                 order.RemoveDomainEvent(existingEvent);
                 order.AddDomainEvent(new OrderCreatedEvent(order.Id, order.UserId, order.TotalAmount));
@@ -110,7 +110,7 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
                 .Include(o => o.User)
                 .FirstOrDefaultAsync(o => o.Id == order.Id, cancellationToken);
 
-            if (order == null)
+            if (order is null)
             {
                 logger.LogError("Order not found after creation. OrderId: {OrderId}", order?.Id);
                 throw new InvalidOperationException("Order could not be retrieved after creation");
@@ -151,13 +151,13 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
                 var getCouponQuery = new GetCouponByCodeQuery(couponCode);
                 var couponDto = await mediator.Send(getCouponQuery, cancellationToken);
                 
-                if (couponDto != null)
+                if (couponDto is not null)
                 {
                     var coupon = await context.Set<Coupon>()
                         .AsNoTracking()
                         .FirstOrDefaultAsync(c => c.Id == couponDto.Id, cancellationToken);
 
-                    if (coupon != null)
+                    if (coupon is not null)
                     {
                         var discountMoney = new Money(couponDiscount);
                         order.ApplyCoupon(coupon, discountMoney);
@@ -176,7 +176,7 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
         var getCouponQuery = new GetCouponByCodeQuery(couponCode);
         var couponDto = await mediator.Send(getCouponQuery, cancellationToken);
         
-        if (couponDto != null && order.CouponDiscount.HasValue)
+        if (couponDto is not null && order.CouponDiscount.HasValue)
         {
             var couponUsage = CouponUsage.Create(
                 couponDto.Id,
@@ -188,7 +188,7 @@ public class CreateOrderFromCartCommandHandler(IDbContext context, IUnitOfWork u
             var couponEntity = await context.Set<Coupon>()
                 .FirstOrDefaultAsync(c => c.Id == couponDto.Id, cancellationToken);
 
-            if (couponEntity != null)
+            if (couponEntity is not null)
             {
                 couponEntity.IncrementUsage();
             }

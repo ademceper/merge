@@ -18,7 +18,7 @@ public class TakeActionCommandHandler(IDbContext context, IUnitOfWork unitOfWork
         var securityEvent = await context.Set<AccountSecurityEvent>()
             .FirstOrDefaultAsync(e => e.Id == request.EventId, cancellationToken);
 
-        if (securityEvent == null) return false;
+        if (securityEvent is null) return false;
 
         securityEvent.TakeAction(request.ActionTakenByUserId, request.Action, request.Notes);
         await unitOfWork.SaveChangesAsync(cancellationToken);

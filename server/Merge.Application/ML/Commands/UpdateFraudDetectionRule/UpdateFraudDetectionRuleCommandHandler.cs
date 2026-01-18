@@ -24,7 +24,7 @@ public class UpdateFraudDetectionRuleCommandHandler(IDbContext context, IUnitOfW
         var rule = await context.Set<FraudDetectionRule>()
             .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken);
 
-        if (rule == null)
+        if (rule is null)
         {
             logger.LogWarning("Fraud detection rule not found. RuleId: {RuleId}", request.Id);
             return false;
@@ -36,7 +36,7 @@ public class UpdateFraudDetectionRuleCommandHandler(IDbContext context, IUnitOfW
         if (!string.IsNullOrEmpty(request.RuleType) && Enum.TryParse<FraudRuleType>(request.RuleType, true, out var ruleType))
             rule.UpdateRuleType(ruleType);
         
-        if (request.Conditions != null)
+        if (request.Conditions is not null)
             rule.UpdateConditions(JsonSerializer.Serialize(request.Conditions));
         
         rule.UpdateRiskScore(request.RiskScore);

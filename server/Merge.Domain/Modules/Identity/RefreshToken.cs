@@ -32,7 +32,7 @@ public class RefreshToken : BaseEntity, IAggregateRoot
 
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         base.AddDomainEvent(domainEvent);
@@ -40,7 +40,7 @@ public class RefreshToken : BaseEntity, IAggregateRoot
 
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         base.RemoveDomainEvent(domainEvent);

@@ -26,7 +26,7 @@ public class RemoveSizeGuideFromProductCommandHandler(IDbContext context, IUnitO
             var productSizeGuide = await context.Set<ProductSizeGuide>()
                 .FirstOrDefaultAsync(psg => psg.ProductId == request.ProductId, cancellationToken);
 
-            if (productSizeGuide == null)
+            if (productSizeGuide is null)
             {
                 return false;
             }

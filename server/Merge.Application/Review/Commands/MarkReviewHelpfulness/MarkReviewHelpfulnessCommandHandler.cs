@@ -24,7 +24,7 @@ public class MarkReviewHelpfulnessCommandHandler(IDbContext context, IUnitOfWork
         var review = await context.Set<ReviewEntity>()
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
 
-        if (review == null)
+        if (review is null)
         {
             throw new NotFoundException("Değerlendirme", request.ReviewId);
         }
@@ -32,7 +32,7 @@ public class MarkReviewHelpfulnessCommandHandler(IDbContext context, IUnitOfWork
         var existingVote = await context.Set<ReviewHelpfulness>()
             .FirstOrDefaultAsync(rh => rh.ReviewId == request.ReviewId && rh.UserId == request.UserId, cancellationToken);
 
-        if (existingVote != null)
+        if (existingVote is not null)
         {
             if (existingVote.IsHelpful != request.IsHelpful)
             {

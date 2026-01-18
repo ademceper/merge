@@ -27,7 +27,7 @@ public class GetProductBundleByIdQueryHandler(IDbContext context, IMapper mapper
 
         var cacheKey = $"{CACHE_KEY_BUNDLE_BY_ID}{request.Id}";
         var cachedBundle = await cache.GetAsync<ProductBundleDto>(cacheKey, cancellationToken);
-        if (cachedBundle != null)
+        if (cachedBundle is not null)
         {
             logger.LogInformation("Product bundle retrieved from cache. BundleId: {BundleId}", request.Id);
             return cachedBundle;
@@ -39,7 +39,7 @@ public class GetProductBundleByIdQueryHandler(IDbContext context, IMapper mapper
                 .ThenInclude(bi => bi.Product)
             .FirstOrDefaultAsync(b => b.Id == request.Id, cancellationToken);
 
-        if (bundle == null)
+        if (bundle is null)
         {
             logger.LogWarning("Product bundle not found. BundleId: {BundleId}", request.Id);
             return null;

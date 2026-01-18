@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
 using Merge.Application.DTOs.Logistics;
+using Merge.Application.Exceptions;
 using Merge.API.Middleware;
 using Merge.Application.Logistics.Queries.GetUserShippingAddresses;
 using Merge.Application.Logistics.Queries.GetDefaultShippingAddress;
@@ -50,11 +51,8 @@ public class ShippingAddressesController(IMediator mediator) : BaseController
     {
         var userId = GetUserId();
         var query = new GetDefaultShippingAddressQuery(userId);
-        var address = await mediator.Send(query, cancellationToken);
-        if (address == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var address = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("ShippingAddress", userId);
         return Ok(address);
     }
 
@@ -71,11 +69,8 @@ public class ShippingAddressesController(IMediator mediator) : BaseController
     {
         var userId = GetUserId();
         var query = new GetShippingAddressByIdQuery(id);
-        var address = await mediator.Send(query, cancellationToken);
-        if (address == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var address = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("ShippingAddress", id);
 
         if (address.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -96,7 +91,7 @@ public class ShippingAddressesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var userId = GetUserId();
         var command = new CreateShippingAddressCommand(
@@ -131,15 +126,12 @@ public class ShippingAddressesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var userId = GetUserId();
         var addressQuery = new GetShippingAddressByIdQuery(id);
-        var address = await mediator.Send(addressQuery, cancellationToken);
-        if (address == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var address = await mediator.Send(addressQuery, cancellationToken)
+            ?? throw new NotFoundException("ShippingAddress", id);
 
         if (address.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -183,15 +175,13 @@ public class ShippingAddressesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var userId = GetUserId();
         var addressQuery = new GetShippingAddressByIdQuery(id);
-        var address = await mediator.Send(addressQuery, cancellationToken);
-        if (address == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var address = await mediator.Send(addressQuery, cancellationToken)
+            ?? throw new NotFoundException("ShippingAddress", id);
+
         if (address.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             return Forbid();
@@ -229,11 +219,8 @@ public class ShippingAddressesController(IMediator mediator) : BaseController
     {
         var userId = GetUserId();
         var addressQuery = new GetShippingAddressByIdQuery(id);
-        var address = await mediator.Send(addressQuery, cancellationToken);
-        if (address == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var address = await mediator.Send(addressQuery, cancellationToken)
+            ?? throw new NotFoundException("ShippingAddress", id);
 
         if (address.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {

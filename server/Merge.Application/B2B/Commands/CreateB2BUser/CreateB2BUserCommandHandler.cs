@@ -32,7 +32,7 @@ public class CreateB2BUserCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
-        if (user == null)
+        if (user is null)
         {
             logger.LogWarning("User not found with Id: {UserId}", request.UserId);
             throw new NotFoundException("Kullanıcı", request.UserId);
@@ -42,7 +42,7 @@ public class CreateB2BUserCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == request.OrganizationId, cancellationToken);
 
-        if (organization == null)
+        if (organization is null)
         {
             logger.LogWarning("Organization not found with Id: {OrganizationId}", request.OrganizationId);
             throw new NotFoundException("Organizasyon", Guid.Empty);
@@ -53,7 +53,7 @@ public class CreateB2BUserCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(b => b.UserId == request.UserId && b.OrganizationId == request.OrganizationId, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             logger.LogWarning("User {UserId} is already a B2B user for organization {OrganizationId}",
                 request.UserId, request.OrganizationId);
@@ -69,7 +69,7 @@ public class CreateB2BUserCommandHandler(
             request.JobTitle,
             request.CreditLimit);
 
-        if (request.Settings != null)
+        if (request.Settings is not null)
         {
             b2bUser.UpdateSettings(JsonSerializer.Serialize(request.Settings, JsonOptions));
         }

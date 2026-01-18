@@ -21,6 +21,6 @@ public class GetTemplateQueryHandler(IDbContext context, IMapper mapper) : IRequ
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
 
-        return template != null ? mapper.Map<NotificationTemplateDto>(template) : null;
+        return template is not null ? mapper.Map<NotificationTemplateDto>(template) : null;
     }
 }

@@ -63,12 +63,12 @@ public class CreateCouponCommandHandler(
             maximumDiscountAmount,
             request.IsForNewUsersOnly);
 
-        if (request.ApplicableCategoryIds != null && request.ApplicableCategoryIds.Any())
+        if (request.ApplicableCategoryIds is not null && request.ApplicableCategoryIds.Any())
         {
             coupon.SetApplicableCategoryIds(request.ApplicableCategoryIds);
         }
 
-        if (request.ApplicableProductIds != null && request.ApplicableProductIds.Any())
+        if (request.ApplicableProductIds is not null && request.ApplicableProductIds.Any())
         {
             coupon.SetApplicableProductIds(request.ApplicableProductIds);
         }
@@ -82,7 +82,7 @@ public class CreateCouponCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == coupon.Id, cancellationToken);
 
-        if (createdCoupon == null)
+        if (createdCoupon is null)
         {
             logger.LogWarning("Coupon not found after creation. CouponId: {CouponId}", coupon.Id);
             throw new NotFoundException("Kupon", coupon.Id);

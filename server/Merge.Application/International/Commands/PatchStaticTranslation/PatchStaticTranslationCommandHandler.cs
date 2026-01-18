@@ -25,7 +25,7 @@ public class PatchStaticTranslationCommandHandler(
         var translation = await context.Set<StaticTranslation>()
             .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
 
-        if (translation == null)
+        if (translation is null)
         {
             logger.LogWarning("Static translation not found. TranslationId: {TranslationId}", request.Id);
             throw new NotFoundException("Statik Çeviri", request.Id);

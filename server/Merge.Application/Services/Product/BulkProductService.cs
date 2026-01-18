@@ -252,7 +252,7 @@ public class BulkProductService(
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.SKU == dto.SKU, cancellationToken);
 
-        if (existingProduct != null)
+        if (existingProduct is not null)
         {
             throw new BusinessException($"Bu SKU ile ürün zaten mevcut: '{dto.SKU}'");
         }
@@ -262,7 +262,7 @@ public class BulkProductService(
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Name == dto.CategoryName, cancellationToken);
 
-        if (category == null)
+        if (category is null)
         {
             throw new NotFoundException("Kategori", Guid.Empty);
         }

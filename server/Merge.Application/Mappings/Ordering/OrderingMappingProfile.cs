@@ -624,7 +624,7 @@ public class OrderingMappingProfile : Profile
         i.PickedAt,
         i.PackedAt,
         i.Location
-        )).ToList().AsReadOnly() : new List<PickPackItemDto>().AsReadOnly(),
+        )).ToList().AsReadOnly() : Array.Empty<PickPackItemDto>().AsReadOnly(),
         src.CreatedAt
         ));
         CreateMap<CreatePickPackDto, PickPack>();

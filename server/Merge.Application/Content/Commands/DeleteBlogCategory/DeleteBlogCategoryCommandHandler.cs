@@ -31,7 +31,7 @@ public class DeleteBlogCategoryCommandHandler(
         try
         {
             var category = await categoryRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (category == null)
+            if (category is null)
             {
                 logger.LogWarning("Blog category not found for deletion. CategoryId: {CategoryId}", request.Id);
                 return false;

@@ -105,13 +105,13 @@ public class ProductSizeGuide : BaseEntity
             SizeGuideId = sizeGuideId.Value;
         }
         
-        if (customNotes != null)
+        if (customNotes is not null)
         {
             Guard.AgainstLength(customNotes, ValidationConstants.MaxCustomNotesLength, nameof(customNotes));
             CustomNotes = customNotes;
         }
         if (fitType.HasValue) FitType = fitType.Value;
-        if (fitDescription != null) FitDescription = fitDescription;
+        if (fitDescription is not null) FitDescription = fitDescription;
         
         UpdatedAt = DateTime.UtcNow;
         

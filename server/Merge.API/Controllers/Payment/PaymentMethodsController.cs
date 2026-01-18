@@ -65,7 +65,7 @@ public class PaymentMethodsController(IMediator mediator) : BaseController
     {
         var query = new GetPaymentMethodByIdQuery(id);
         var method = await mediator.Send(query, cancellationToken);
-        if (method == null)
+        if (method is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -82,7 +82,7 @@ public class PaymentMethodsController(IMediator mediator) : BaseController
     {
         var query = new GetPaymentMethodByCodeQuery(code);
         var method = await mediator.Send(query, cancellationToken);
-        if (method == null)
+        if (method is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }

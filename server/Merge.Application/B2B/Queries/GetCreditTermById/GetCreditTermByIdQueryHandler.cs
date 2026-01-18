@@ -26,7 +26,7 @@ public class GetCreditTermByIdQueryHandler(
             .Include(ct => ct.Organization)
             .FirstOrDefaultAsync(ct => ct.Id == request.Id, cancellationToken);
 
-        return creditTerm != null ? mapper.Map<CreditTermDto>(creditTerm) : null;
+        return creditTerm is not null ? mapper.Map<CreditTermDto>(creditTerm) : null;
     }
 }
 

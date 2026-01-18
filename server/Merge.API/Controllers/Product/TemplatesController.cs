@@ -12,6 +12,7 @@ using Merge.Application.Product.Queries.GetAllProductTemplates;
 using Merge.Application.Product.Queries.GetPopularProductTemplates;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Product;
 
@@ -65,11 +66,9 @@ public class ProductTemplatesController(IMediator mediator) : BaseController
     public async Task<ActionResult<ProductTemplateDto>> GetTemplate(Guid id, CancellationToken cancellationToken = default)
     {
         var query = new GetProductTemplateQuery(id);
-        var template = await mediator.Send(query, cancellationToken);
-        if (template == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var template = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("ProductTemplate", id);
+
         return Ok(template);
     }
 
@@ -86,7 +85,7 @@ public class ProductTemplatesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new CreateProductTemplateCommand(
             dto.Name,
             dto.Description,
@@ -118,7 +117,7 @@ public class ProductTemplatesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new UpdateProductTemplateCommand(
             id,
             dto.Name,
@@ -133,10 +132,10 @@ public class ProductTemplatesController(IMediator mediator) : BaseController
             dto.Attributes?.ToDictionary(kv => kv.Key, kv => kv.Value),
             dto.IsActive);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("ProductTemplate", id);
+
         return NoContent();
     }
 
@@ -159,7 +158,7 @@ public class ProductTemplatesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new UpdateProductTemplateCommand(
             id,
             patchDto.Name,
@@ -174,10 +173,10 @@ public class ProductTemplatesController(IMediator mediator) : BaseController
             patchDto.Attributes,
             patchDto.IsActive);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("ProductTemplate", id);
+
         return NoContent();
     }
 
@@ -193,10 +192,10 @@ public class ProductTemplatesController(IMediator mediator) : BaseController
     {
         var command = new DeleteProductTemplateCommand(id);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("ProductTemplate", id);
+
         return NoContent();
     }
 
@@ -213,7 +212,7 @@ public class ProductTemplatesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();

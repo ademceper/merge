@@ -35,7 +35,7 @@ public class GetAgentDashboardQueryHandler(IDbContext context, IMapper mapper, I
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.AgentId, cancellationToken);
 
-        if (agent == null)
+        if (agent is null)
         {
             logger.LogWarning("Agent {AgentId} not found", request.AgentId);
             throw new NotFoundException("Ajan", request.AgentId);

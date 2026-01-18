@@ -30,7 +30,7 @@ public class DeleteProductCommandHandler(IRepository productRepository, IDbConte
         try
         {
             var product = await productRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (product == null)
+            if (product is null)
             {
                 logger.LogWarning("Product not found for deletion. ProductId: {ProductId}", request.Id);
                 return false;

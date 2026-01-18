@@ -248,7 +248,7 @@ public static class HateoasHelper
         string version = "1.0")
     {
         // Merge routeValues with version
-        var mergedValues = routeValues != null
+        var mergedValues = routeValues is not null
             ? new Dictionary<string, object?> { ["version"] = version }
                 .Concat(routeValues.GetType().GetProperties()
                     .ToDictionary(p => p.Name, p => p.GetValue(routeValues)))
@@ -287,7 +287,7 @@ public static class HateoasHelper
             var dict = new Dictionary<string, object?> { ["version"] = version, ["pageSize"] = pageSize };
             if (pageValue.HasValue) dict["page"] = pageValue.Value;
             
-            if (routeValues != null)
+            if (routeValues is not null)
             {
                 foreach (var prop in routeValues.GetType().GetProperties())
                 {

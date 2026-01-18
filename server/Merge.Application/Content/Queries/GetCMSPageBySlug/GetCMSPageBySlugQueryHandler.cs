@@ -30,7 +30,7 @@ public class GetCMSPageBySlugQueryHandler(
         var cacheKey = $"{CACHE_KEY_CMS_PAGE_BY_SLUG}{request.Slug}";
 
         var cachedPage = await cache.GetAsync<CMSPageDto>(cacheKey, cancellationToken);
-        if (cachedPage != null)
+        if (cachedPage is not null)
         {
             logger.LogInformation("Cache hit for CMS page by slug. Slug: {Slug}", request.Slug);
             return cachedPage;
@@ -44,7 +44,7 @@ public class GetCMSPageBySlugQueryHandler(
             .Include(p => p.ParentPage)
             .FirstOrDefaultAsync(p => p.Slug == request.Slug && p.Status == ContentStatus.Published, cancellationToken);
 
-        if (page == null)
+        if (page is null)
         {
             logger.LogWarning("CMS page not found with Slug: {Slug}", request.Slug);
             return null;

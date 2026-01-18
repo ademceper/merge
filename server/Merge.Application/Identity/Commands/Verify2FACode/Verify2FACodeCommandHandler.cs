@@ -33,7 +33,7 @@ public class Verify2FACodeCommandHandler(
         var twoFactorAuth = await context.Set<TwoFactorAuth>()
             .FirstOrDefaultAsync(t => t.UserId == request.UserId, cancellationToken);
 
-        if (twoFactorAuth == null || !twoFactorAuth.IsEnabled)
+        if (twoFactorAuth is null || !twoFactorAuth.IsEnabled)
         {
             logger.LogWarning("2FA verification failed - not enabled. UserId: {UserId}", request.UserId);
             return false;
@@ -61,7 +61,7 @@ public class Verify2FACodeCommandHandler(
                     !c.IsUsed &&
                     c.ExpiresAt > DateTime.UtcNow, cancellationToken);
 
-            if (twoFactorCode != null)
+            if (twoFactorCode is not null)
             {
                 twoFactorCode.MarkAsUsed();
                 await codeRepository.UpdateAsync(twoFactorCode);

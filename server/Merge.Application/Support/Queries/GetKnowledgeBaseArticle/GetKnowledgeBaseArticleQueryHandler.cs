@@ -24,6 +24,6 @@ public class GetKnowledgeBaseArticleQueryHandler(IDbContext context, IMapper map
             .Include(a => a.Author)
             .FirstOrDefaultAsync(a => a.Id == request.ArticleId, cancellationToken);
 
-        return article != null ? mapper.Map<KnowledgeBaseArticleDto>(article) : null;
+        return article is not null ? mapper.Map<KnowledgeBaseArticleDto>(article) : null;
     }
 }

@@ -34,7 +34,7 @@ public class UpdateBlogPostCommandHandler(
         try
         {
             var post = await postRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (post == null)
+            if (post is null)
             {
                 logger.LogWarning("Blog post not found. PostId: {PostId}", request.Id);
                 return false;
@@ -52,7 +52,7 @@ public class UpdateBlogPostCommandHandler(
                 // Category validation
                 var category = await context.Set<BlogCategory>()
                     .FirstOrDefaultAsync(c => c.Id == request.CategoryId.Value && c.IsActive, cancellationToken);
-                if (category == null)
+                if (category is null)
                 {
                     throw new NotFoundException("Kategori", request.CategoryId.Value);
                 }
@@ -69,7 +69,7 @@ public class UpdateBlogPostCommandHandler(
                 post.UpdateContent(request.Content);
                 post.UpdateReadingTime(CalculateReadingTime(request.Content));
             }
-            if (request.FeaturedImageUrl != null)
+            if (request.FeaturedImageUrl is not null)
                 post.UpdateFeaturedImage(request.FeaturedImageUrl);
             if (!string.IsNullOrEmpty(request.Status))
             {
@@ -78,7 +78,7 @@ public class UpdateBlogPostCommandHandler(
                     post.UpdateStatus(newStatus);
                 }
             }
-            if (request.Tags != null)
+            if (request.Tags is not null)
             {
                 var tags = string.Join(",", request.Tags);
                 post.UpdateTags(tags);
@@ -92,7 +92,7 @@ public class UpdateBlogPostCommandHandler(
             }
             if (request.AllowComments.HasValue)
                 post.UpdateAllowComments(request.AllowComments.Value);
-            if (request.MetaTitle != null || request.MetaDescription != null || request.MetaKeywords != null || request.OgImageUrl != null)
+            if (request.MetaTitle is not null || request.MetaDescription is not null || request.MetaKeywords is not null || request.OgImageUrl is not null)
                 post.UpdateMetaInformation(request.MetaTitle, request.MetaDescription, request.MetaKeywords, request.OgImageUrl);
 
             await postRepository.UpdateAsync(post, cancellationToken);

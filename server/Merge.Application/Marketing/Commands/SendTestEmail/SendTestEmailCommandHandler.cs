@@ -27,7 +27,7 @@ public class SendTestEmailCommandHandler(
             .Include(c => c.Template)
             .FirstOrDefaultAsync(c => c.Id == request.CampaignId, cancellationToken);
 
-        if (campaign == null)
+        if (campaign is null)
         {
             throw new NotFoundException("Kampanya", request.CampaignId);
         }

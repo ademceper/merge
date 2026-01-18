@@ -63,7 +63,7 @@ public class PurchaseGiftCardCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(gc => gc.Id == giftCard.Id, cancellationToken);
 
-        if (createdGiftCard == null)
+        if (createdGiftCard is null)
         {
             logger.LogWarning("GiftCard not found after creation. GiftCardId: {GiftCardId}", giftCard.Id);
             throw new NotFoundException("Hediye kartı", giftCard.Id);

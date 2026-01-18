@@ -26,6 +26,6 @@ public class GetLiveStreamQueryHandler(
                 .ThenInclude(p => p.Product)
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 
-        return stream != null ? mapper.Map<LiveStreamDto>(stream) : null;
+        return stream is not null ? mapper.Map<LiveStreamDto>(stream) : null;
     }
 }

@@ -36,7 +36,7 @@ public class ProcessPaymentCommandHandler(IDbContext context, IUnitOfWork unitOf
             var payment = await context.Set<PaymentEntity>()
                 .FirstOrDefaultAsync(p => p.Id == request.PaymentId, cancellationToken);
 
-            if (payment == null)
+            if (payment is null)
             {
                 logger.LogWarning("Payment not found with ID: {PaymentId}", request.PaymentId);
                 throw new NotFoundException("Odeme kaydi", request.PaymentId);
@@ -53,7 +53,7 @@ public class ProcessPaymentCommandHandler(IDbContext context, IUnitOfWork unitOf
             payment.Process();
             payment.Complete(request.TransactionId, request.PaymentReference);
 
-            if (request.Metadata != null)
+            if (request.Metadata is not null)
             {
                 payment.SetMetadata(JsonSerializer.Serialize(request.Metadata));
             }
@@ -65,7 +65,7 @@ public class ProcessPaymentCommandHandler(IDbContext context, IUnitOfWork unitOf
             var order = await context.Set<OrderEntity>()
                 .FirstOrDefaultAsync(o => o.Id == payment.OrderId, cancellationToken);
 
-            if (order != null)
+            if (order is not null)
             {
                 order.SetPaymentStatus(PaymentStatus.Completed);
                 await unitOfWork.SaveChangesAsync(cancellationToken);

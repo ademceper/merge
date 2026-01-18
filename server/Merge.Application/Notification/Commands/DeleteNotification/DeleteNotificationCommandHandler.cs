@@ -20,7 +20,7 @@ public class DeleteNotificationCommandHandler(IDbContext context, IUnitOfWork un
         var notification = await context.Set<NotificationEntity>()
             .FirstOrDefaultAsync(n => n.Id == request.NotificationId && n.UserId == request.UserId, cancellationToken);
 
-        if (notification == null)
+        if (notification is null)
         {
             logger.LogWarning(
                 "Notification bulunamadı. NotificationId: {NotificationId}, UserId: {UserId}",

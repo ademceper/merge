@@ -46,7 +46,7 @@ public class CreateProductFromTemplateCommandHandler(
                 .Include(t => t.Category)
                 .FirstOrDefaultAsync(t => t.Id == request.TemplateId && t.IsActive, cancellationToken);
 
-            if (template == null)
+            if (template is null)
             {
                 throw new NotFoundException("Şablon", request.TemplateId);
             }
@@ -78,7 +78,7 @@ public class CreateProductFromTemplateCommandHandler(
             {
                 product.UpdateImages(template.DefaultImageUrl, request.ImageUrls ?? []);
             }
-            else if (request.ImageUrls != null && request.ImageUrls.Any())
+            else if (request.ImageUrls is not null && request.ImageUrls.Any())
             {
                 product.UpdateImages(request.ImageUrls.First(), request.ImageUrls);
             }
@@ -90,7 +90,7 @@ public class CreateProductFromTemplateCommandHandler(
             var templateToUpdate = await context.Set<ProductTemplate>()
                 .FirstOrDefaultAsync(t => t.Id == request.TemplateId, cancellationToken);
 
-            if (templateToUpdate != null)
+            if (templateToUpdate is not null)
             {
                 templateToUpdate.IncrementUsageCount();
                 await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -103,7 +103,7 @@ public class CreateProductFromTemplateCommandHandler(
                 .Include(p => p.Category)
                 .FirstOrDefaultAsync(p => p.Id == product.Id, cancellationToken);
 
-            if (product == null)
+            if (product is null)
             {
                 logger.LogError("Product not found after creation. ProductId: {ProductId}", product?.Id);
                 throw new InvalidOperationException("Product could not be retrieved after creation");

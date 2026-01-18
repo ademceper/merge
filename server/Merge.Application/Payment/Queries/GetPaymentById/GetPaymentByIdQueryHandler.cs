@@ -27,7 +27,7 @@ public class GetPaymentByIdQueryHandler(IDbContext context, IMapper mapper, ILog
             .Include(p => p.Order)
             .FirstOrDefaultAsync(p => p.Id == request.PaymentId, cancellationToken);
 
-        if (payment == null)
+        if (payment is null)
         {
             logger.LogWarning("Payment not found with ID: {PaymentId}", request.PaymentId);
             return null;

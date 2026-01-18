@@ -36,29 +36,29 @@ public class PatchCategoryCommandHandler(
         try
         {
             var category = await categoryRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (category == null)
+            if (category is null)
             {
                 throw new NotFoundException("Kategori", request.Id);
             }
 
             // Apply partial updates - only update fields that are provided
-            if (request.PatchDto.Name != null)
+            if (request.PatchDto.Name is not null)
             {
                 category.UpdateName(request.PatchDto.Name);
             }
 
-            if (request.PatchDto.Description != null)
+            if (request.PatchDto.Description is not null)
             {
                 category.UpdateDescription(request.PatchDto.Description);
             }
 
-            if (request.PatchDto.Slug != null)
+            if (request.PatchDto.Slug is not null)
             {
                 var slug = new Slug(request.PatchDto.Slug);
                 category.UpdateSlug(slug);
             }
 
-            if (request.PatchDto.ImageUrl != null)
+            if (request.PatchDto.ImageUrl is not null)
             {
                 category.UpdateImageUrl(request.PatchDto.ImageUrl);
             }
@@ -67,7 +67,7 @@ public class PatchCategoryCommandHandler(
             {
                 category.SetParentCategory(request.PatchDto.ParentCategoryId);
             }
-            else if (request.PatchDto.ParentCategoryId == null && category.ParentCategoryId.HasValue)
+            else if (request.PatchDto.ParentCategoryId is null && category.ParentCategoryId.HasValue)
             {
                 // Explicit null means remove parent
                 category.SetParentCategory(null);
@@ -84,7 +84,7 @@ public class PatchCategoryCommandHandler(
                 .Include(c => c.SubCategories)
                 .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-            if (reloadedCategory == null)
+            if (reloadedCategory is null)
             {
                 logger.LogWarning("Category {CategoryId} not found after patch", request.Id);
                 throw new NotFoundException("Kategori", request.Id);

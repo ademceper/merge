@@ -27,7 +27,7 @@ public class UnmarkAnswerHelpfulCommandHandler(IDbContext context, IUnitOfWork u
             var helpfulness = await context.Set<AnswerHelpfulness>()
                 .FirstOrDefaultAsync(ah => ah.AnswerId == request.AnswerId && ah.UserId == request.UserId, cancellationToken);
 
-            if (helpfulness == null)
+            if (helpfulness is null)
             {
                 return; // Not marked
             }
@@ -37,7 +37,7 @@ public class UnmarkAnswerHelpfulCommandHandler(IDbContext context, IUnitOfWork u
             var answer = await context.Set<ProductAnswer>()
                 .FirstOrDefaultAsync(a => a.Id == request.AnswerId, cancellationToken);
 
-            if (answer != null)
+            if (answer is not null)
             {
                 answer.DecrementHelpfulCount();
             }
@@ -45,7 +45,7 @@ public class UnmarkAnswerHelpfulCommandHandler(IDbContext context, IUnitOfWork u
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            if (answer != null)
+            if (answer is not null)
             {
                 await cache.RemoveAsync($"{CACHE_KEY_ANSWERS_BY_QUESTION}{answer.QuestionId}", cancellationToken);
             }

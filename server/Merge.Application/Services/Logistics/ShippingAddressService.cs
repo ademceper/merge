@@ -27,7 +27,7 @@ public class ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, 
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
-            if (user == null)
+            if (user is null)
             {
                 throw new NotFoundException("Kullanıcı", userId);
             }
@@ -81,7 +81,7 @@ public class ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, 
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
-        return address != null ? mapper.Map<ShippingAddressDto>(address) : null;
+        return address is not null ? mapper.Map<ShippingAddressDto>(address) : null;
     }
 
     public async Task<IEnumerable<ShippingAddressDto>> GetUserShippingAddressesAsync(Guid userId, bool? isActive = null, CancellationToken cancellationToken = default)
@@ -109,7 +109,7 @@ public class ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, 
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.UserId == userId && a.IsDefault && a.IsActive, cancellationToken);
 
-        return address != null ? mapper.Map<ShippingAddressDto>(address) : null;
+        return address is not null ? mapper.Map<ShippingAddressDto>(address) : null;
     }
 
     public async Task<bool> UpdateShippingAddressAsync(Guid id, UpdateShippingAddressDto dto, CancellationToken cancellationToken = default)
@@ -117,7 +117,7 @@ public class ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, 
         var address = await context.Set<ShippingAddress>()
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
-        if (address == null) return false;
+        if (address is null) return false;
 
         // Domain method kullan - mevcut değerleri kullan, sadece değişenleri güncelle
         address.UpdateDetails(
@@ -170,7 +170,7 @@ public class ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, 
         var address = await context.Set<ShippingAddress>()
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
-        if (address == null) return false;
+        if (address is null) return false;
 
         // Check if address is used in any orders
         var hasOrders = await context.Set<OrderEntity>()
@@ -198,7 +198,7 @@ public class ShippingAddressService(IDbContext context, IUnitOfWork unitOfWork, 
         var address = await context.Set<ShippingAddress>()
             .FirstOrDefaultAsync(a => a.Id == addressId && a.UserId == userId, cancellationToken);
 
-        if (address == null) return false;
+        if (address is null) return false;
 
         // Unset other default addresses
         var existingDefault = await context.Set<ShippingAddress>()

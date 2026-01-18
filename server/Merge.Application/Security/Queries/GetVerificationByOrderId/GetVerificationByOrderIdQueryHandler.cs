@@ -25,7 +25,7 @@ public class GetVerificationByOrderIdQueryHandler(IDbContext context, IMapper ma
             .Include(v => v.VerifiedBy)
             .FirstOrDefaultAsync(v => v.OrderId == request.OrderId, cancellationToken);
 
-        if (verification == null)
+        if (verification is null)
         {
             logger.LogWarning("Order verification bulunamadı. OrderId: {OrderId}", request.OrderId);
             return null;

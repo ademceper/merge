@@ -80,7 +80,7 @@ public class CreateCMSPageCommandHandler(
                 .Include(p => p.ParentPage)
                 .FirstOrDefaultAsync(p => p.Id == page.Id, cancellationToken);
 
-            if (reloadedPage == null)
+            if (reloadedPage is null)
             {
                 logger.LogWarning("CMS page not found after creation. PageId: {PageId}", page.Id);
                 throw new NotFoundException("CMS Sayfası", page.Id);

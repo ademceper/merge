@@ -22,7 +22,7 @@ public class UpdateUserSubscriptionCommandHandler(IDbContext context, IUnitOfWor
         var subscription = await context.Set<UserSubscription>()
             .FirstOrDefaultAsync(us => us.Id == request.Id, cancellationToken);
 
-        if (subscription == null)
+        if (subscription is null)
         {
             throw new NotFoundException("Abonelik", request.Id);
         }

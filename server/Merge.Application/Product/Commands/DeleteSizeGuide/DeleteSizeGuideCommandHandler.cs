@@ -28,7 +28,7 @@ public class DeleteSizeGuideCommandHandler(IDbContext context, IUnitOfWork unitO
             var sizeGuide = await context.Set<SizeGuide>()
                 .FirstOrDefaultAsync(sg => sg.Id == request.Id, cancellationToken);
 
-            if (sizeGuide == null)
+            if (sizeGuide is null)
             {
                 return false;
             }

@@ -71,7 +71,7 @@ public class GetPendingPoliciesQueryHandler(
             CACHE_EXPIRATION,
             cancellationToken);
 
-        return cachedPolicies ?? Enumerable.Empty<PolicyDto>();
+        return cachedPolicies ?? [];
     }
 }
 

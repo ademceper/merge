@@ -81,7 +81,7 @@ public class ReturnRequestsController(
         var userId = GetUserId();
         var query = new GetReturnRequestByIdQuery(id);
         var returnRequest = await mediator.Send(query, cancellationToken);
-        if (returnRequest == null)
+        if (returnRequest is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -103,7 +103,7 @@ public class ReturnRequestsController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var userId = GetUserId();
         dto.UserId = userId;
         var command = new CreateReturnRequestCommand(dto);
@@ -145,7 +145,7 @@ public class ReturnRequestsController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new RejectReturnRequestCommand(id, dto.Reason);
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
@@ -170,7 +170,7 @@ public class ReturnRequestsController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new CompleteReturnRequestCommand(id, dto.TrackingNumber);
         var result = await mediator.Send(command, cancellationToken);
         if (!result)

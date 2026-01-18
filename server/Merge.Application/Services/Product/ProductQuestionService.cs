@@ -34,7 +34,7 @@ public class ProductQuestionService(IDbContext context, IUnitOfWork unitOfWork, 
         var product = await context.Set<ProductEntity>()
             .FirstOrDefaultAsync(p => p.Id == dto.ProductId, cancellationToken);
 
-        if (product == null)
+        if (product is null)
         {
             throw new NotFoundException("Ürün", dto.ProductId);
         }
@@ -73,7 +73,7 @@ public class ProductQuestionService(IDbContext context, IUnitOfWork unitOfWork, 
                 .ThenInclude(a => a.User)
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
-        if (question == null) return null;
+        if (question is null) return null;
 
         var hasUserVoted = userId.HasValue
             ? await context.Set<QuestionHelpfulness>()
@@ -184,7 +184,7 @@ public class ProductQuestionService(IDbContext context, IUnitOfWork unitOfWork, 
         var question = await context.Set<ProductQuestion>()
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
-        if (question == null) return false;
+        if (question is null) return false;
 
         question.Approve();
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -197,7 +197,7 @@ public class ProductQuestionService(IDbContext context, IUnitOfWork unitOfWork, 
         var question = await context.Set<ProductQuestion>()
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
-        if (question == null) return false;
+        if (question is null) return false;
 
         question.MarkAsDeleted();
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -211,14 +211,14 @@ public class ProductQuestionService(IDbContext context, IUnitOfWork unitOfWork, 
             .Include(q => q.Product)
             .FirstOrDefaultAsync(q => q.Id == dto.QuestionId, cancellationToken);
 
-        if (question == null)
+        if (question is null)
         {
             throw new NotFoundException("Soru", dto.QuestionId);
         }
 
         // Check if user is seller of the product
         var product = question.Product;
-        var isSellerAnswer = product != null && product.SellerId.HasValue && product.SellerId.Value == userId;
+        var isSellerAnswer = product is not null && product.SellerId.HasValue && product.SellerId.Value == userId;
 
         // Check if user has purchased this product
         var hasOrder = await context.Set<OrderItem>()
@@ -289,7 +289,7 @@ public class ProductQuestionService(IDbContext context, IUnitOfWork unitOfWork, 
         var answer = await context.Set<ProductAnswer>()
             .FirstOrDefaultAsync(a => a.Id == answerId, cancellationToken);
 
-        if (answer == null) return false;
+        if (answer is null) return false;
 
         answer.Approve();
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -303,12 +303,12 @@ public class ProductQuestionService(IDbContext context, IUnitOfWork unitOfWork, 
             .Include(a => a.Question)
             .FirstOrDefaultAsync(a => a.Id == answerId, cancellationToken);
 
-        if (answer == null) return false;
+        if (answer is null) return false;
 
         answer.MarkAsDeleted();
 
         // Update question stats
-        if (answer.Question != null)
+        if (answer.Question is not null)
         {
             // Check if there are other seller answers
             var hasOtherSellerAnswer = answer.IsSellerAnswer
@@ -334,7 +334,7 @@ public class ProductQuestionService(IDbContext context, IUnitOfWork unitOfWork, 
         var existing = await context.Set<QuestionHelpfulness>()
             .FirstOrDefaultAsync(qh => qh.QuestionId == questionId && qh.UserId == userId, cancellationToken);
 
-        if (existing != null) return; // Already marked
+        if (existing is not null) return; // Already marked
 
         var vote = QuestionHelpfulness.Create(questionId, userId);
 
@@ -343,7 +343,7 @@ public class ProductQuestionService(IDbContext context, IUnitOfWork unitOfWork, 
         var question = await context.Set<ProductQuestion>()
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
-        if (question != null)
+        if (question is not null)
         {
             question.IncrementHelpfulCount();
         }
@@ -356,14 +356,14 @@ public class ProductQuestionService(IDbContext context, IUnitOfWork unitOfWork, 
         var vote = await context.Set<QuestionHelpfulness>()
             .FirstOrDefaultAsync(qh => qh.QuestionId == questionId && qh.UserId == userId, cancellationToken);
 
-        if (vote == null) return;
+        if (vote is null) return;
 
         vote.MarkAsDeleted();
 
         var question = await context.Set<ProductQuestion>()
             .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 
-        if (question != null)
+        if (question is not null)
         {
             question.DecrementHelpfulCount();
         }
@@ -376,7 +376,7 @@ public class ProductQuestionService(IDbContext context, IUnitOfWork unitOfWork, 
         var existing = await context.Set<AnswerHelpfulness>()
             .FirstOrDefaultAsync(ah => ah.AnswerId == answerId && ah.UserId == userId, cancellationToken);
 
-        if (existing != null) return; // Already marked
+        if (existing is not null) return; // Already marked
 
         var vote = AnswerHelpfulness.Create(answerId, userId);
 
@@ -385,7 +385,7 @@ public class ProductQuestionService(IDbContext context, IUnitOfWork unitOfWork, 
         var answer = await context.Set<ProductAnswer>()
             .FirstOrDefaultAsync(a => a.Id == answerId, cancellationToken);
 
-        if (answer != null)
+        if (answer is not null)
         {
             answer.IncrementHelpfulCount();
         }
@@ -398,14 +398,14 @@ public class ProductQuestionService(IDbContext context, IUnitOfWork unitOfWork, 
         var vote = await context.Set<AnswerHelpfulness>()
             .FirstOrDefaultAsync(ah => ah.AnswerId == answerId && ah.UserId == userId, cancellationToken);
 
-        if (vote == null) return;
+        if (vote is null) return;
 
         vote.MarkAsDeleted();
 
         var answer = await context.Set<ProductAnswer>()
             .FirstOrDefaultAsync(a => a.Id == answerId, cancellationToken);
 
-        if (answer != null)
+        if (answer is not null)
         {
             answer.DecrementHelpfulCount();
         }

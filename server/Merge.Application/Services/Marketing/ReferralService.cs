@@ -34,7 +34,7 @@ public class ReferralService(IDbContext context, IUnitOfWork unitOfWork, IMediat
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
 
-        if (code == null)
+        if (code is null)
         {
             return await CreateReferralCodeAsync(userId, cancellationToken);
         }
@@ -119,7 +119,7 @@ public class ReferralService(IDbContext context, IUnitOfWork unitOfWork, IMediat
         var referralCode = await context.Set<ReferralCode>()
             .FirstOrDefaultAsync(c => c.Code == code && c.IsActive, cancellationToken);
 
-        if (referralCode == null || referralCode.UserId == newUserId)
+        if (referralCode is null || referralCode.UserId == newUserId)
             return false;
 
         var exists = await context.Set<Referral>()
@@ -148,7 +148,7 @@ public class ReferralService(IDbContext context, IUnitOfWork unitOfWork, IMediat
             .Include(r => r.ReferralCodeEntity)
             .FirstOrDefaultAsync(r => r.ReferredUserId == referredUserId && r.Status == ReferralStatus.Pending, cancellationToken);
 
-        if (referral == null)
+        if (referral is null)
             return;
 
         referral.Complete(orderId, referral.ReferralCodeEntity.PointsReward);

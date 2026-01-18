@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
 using Merge.Application.DTOs.LiveCommerce;
+using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.API.Middleware;
 using Merge.Application.LiveCommerce.Commands.CreateLiveStream;
@@ -88,11 +89,8 @@ public class LiveCommerceController(IMediator mediator) : BaseController
             return Unauthorized();
         }
         var streamQuery = new GetLiveStreamQuery(id);
-        var existingStream = await mediator.Send(streamQuery, cancellationToken);
-        if (existingStream == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var existingStream = await mediator.Send(streamQuery, cancellationToken)
+            ?? throw new NotFoundException("LiveStream", id);
         if (!TryGetUserRole(out var role) || (role != "Admin" && existingStream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizi güncelleyebilirsiniz.");
@@ -134,11 +132,8 @@ public class LiveCommerceController(IMediator mediator) : BaseController
             return Unauthorized();
         }
         var streamQuery = new GetLiveStreamQuery(id);
-        var existingStream = await mediator.Send(streamQuery, cancellationToken);
-        if (existingStream == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var existingStream = await mediator.Send(streamQuery, cancellationToken)
+            ?? throw new NotFoundException("LiveStream", id);
         if (existingStream.SellerId != userId && !User.IsInRole("Admin"))
         {
             return Forbid();
@@ -165,11 +160,8 @@ public class LiveCommerceController(IMediator mediator) : BaseController
             return Unauthorized();
         }
         var streamQuery = new GetLiveStreamQuery(id);
-        var stream = await mediator.Send(streamQuery, cancellationToken);
-        if (stream == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var stream = await mediator.Send(streamQuery, cancellationToken)
+            ?? throw new NotFoundException("LiveStream", id);
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizi silebilirsiniz.");
@@ -190,11 +182,8 @@ public class LiveCommerceController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetLiveStreamQuery(id);
-        var stream = await mediator.Send(query, cancellationToken);
-        if (stream == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var stream = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("LiveStream", id);
         return Ok(stream);
     }
 
@@ -246,11 +235,8 @@ public class LiveCommerceController(IMediator mediator) : BaseController
             return Unauthorized();
         }
         var streamQuery = new GetLiveStreamQuery(id);
-        var stream = await mediator.Send(streamQuery, cancellationToken);
-        if (stream == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var stream = await mediator.Send(streamQuery, cancellationToken)
+            ?? throw new NotFoundException("LiveStream", id);
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizi başlatabilirsiniz.");
@@ -277,11 +263,8 @@ public class LiveCommerceController(IMediator mediator) : BaseController
             return Unauthorized();
         }
         var streamQuery = new GetLiveStreamQuery(id);
-        var stream = await mediator.Send(streamQuery, cancellationToken);
-        if (stream == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var stream = await mediator.Send(streamQuery, cancellationToken)
+            ?? throw new NotFoundException("LiveStream", id);
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizi sonlandırabilirsiniz.");
@@ -308,11 +291,8 @@ public class LiveCommerceController(IMediator mediator) : BaseController
             return Unauthorized();
         }
         var streamQuery = new GetLiveStreamQuery(id);
-        var stream = await mediator.Send(streamQuery, cancellationToken);
-        if (stream == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var stream = await mediator.Send(streamQuery, cancellationToken)
+            ?? throw new NotFoundException("LiveStream", id);
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizi duraklatabilirsiniz.");
@@ -339,11 +319,8 @@ public class LiveCommerceController(IMediator mediator) : BaseController
             return Unauthorized();
         }
         var streamQuery = new GetLiveStreamQuery(id);
-        var stream = await mediator.Send(streamQuery, cancellationToken);
-        if (stream == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var stream = await mediator.Send(streamQuery, cancellationToken)
+            ?? throw new NotFoundException("LiveStream", id);
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizi devam ettirebilirsiniz.");
@@ -370,11 +347,8 @@ public class LiveCommerceController(IMediator mediator) : BaseController
             return Unauthorized();
         }
         var streamQuery = new GetLiveStreamQuery(id);
-        var stream = await mediator.Send(streamQuery, cancellationToken);
-        if (stream == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var stream = await mediator.Send(streamQuery, cancellationToken)
+            ?? throw new NotFoundException("LiveStream", id);
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizi iptal edebilirsiniz.");
@@ -404,11 +378,8 @@ public class LiveCommerceController(IMediator mediator) : BaseController
             return Unauthorized();
         }
         var streamQuery = new GetLiveStreamQuery(streamId);
-        var stream = await mediator.Send(streamQuery, cancellationToken);
-        if (stream == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var stream = await mediator.Send(streamQuery, cancellationToken)
+            ?? throw new NotFoundException("LiveStream", streamId);
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inize ürün ekleyebilirsiniz.");
@@ -441,11 +412,8 @@ public class LiveCommerceController(IMediator mediator) : BaseController
             return Unauthorized();
         }
         var streamQuery = new GetLiveStreamQuery(streamId);
-        var stream = await mediator.Send(streamQuery, cancellationToken);
-        if (stream == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var stream = await mediator.Send(streamQuery, cancellationToken)
+            ?? throw new NotFoundException("LiveStream", streamId);
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream'inizde ürün vitrine çıkarabilirsiniz.");
@@ -524,11 +492,8 @@ public class LiveCommerceController(IMediator mediator) : BaseController
             return Unauthorized();
         }
         var streamQuery = new GetLiveStreamQuery(id);
-        var stream = await mediator.Send(streamQuery, cancellationToken);
-        if (stream == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var stream = await mediator.Send(streamQuery, cancellationToken)
+            ?? throw new NotFoundException("LiveStream", id);
         if (!TryGetUserRole(out var role) || (role != "Admin" && stream.SellerId != userId))
         {
             return Forbid("Sadece kendi stream istatistiklerinizi görebilirsiniz.");

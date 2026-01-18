@@ -21,7 +21,7 @@ public class DeleteLiveStreamCommandHandler(
         var stream = await context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == request.StreamId, cancellationToken);
 
-        if (stream == null)
+        if (stream is null)
         {
             logger.LogWarning("Stream not found for deletion. StreamId: {StreamId}", request.StreamId);
             throw new NotFoundException("Canlı yayın", request.StreamId);

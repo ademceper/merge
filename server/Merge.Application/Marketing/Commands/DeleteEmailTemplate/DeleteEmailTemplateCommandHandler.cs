@@ -21,7 +21,7 @@ public class DeleteEmailTemplateCommandHandler(
         var template = await context.Set<EmailTemplate>()
             .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
 
-        if (template == null)
+        if (template is null)
         {
             return false;
         }

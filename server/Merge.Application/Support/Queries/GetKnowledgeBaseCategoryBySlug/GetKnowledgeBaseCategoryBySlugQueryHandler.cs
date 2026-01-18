@@ -24,6 +24,6 @@ public class GetKnowledgeBaseCategoryBySlugQueryHandler(IDbContext context, IMap
             .Include(c => c.SubCategories)
             .FirstOrDefaultAsync(c => c.Slug == request.Slug && c.IsActive, cancellationToken);
 
-        return category != null ? mapper.Map<KnowledgeBaseCategoryDto>(category) : null;
+        return category is not null ? mapper.Map<KnowledgeBaseCategoryDto>(category) : null;
     }
 }

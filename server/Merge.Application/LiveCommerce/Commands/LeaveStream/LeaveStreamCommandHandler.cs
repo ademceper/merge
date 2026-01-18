@@ -24,7 +24,7 @@ public class LeaveStreamCommandHandler(
                 (request.UserId.HasValue ? v.UserId == request.UserId : v.GuestId == request.GuestId) &&
                 v.IsActive, cancellationToken);
 
-        if (viewer == null)
+        if (viewer is null)
         {
             logger.LogWarning("Viewer not found in stream. StreamId: {StreamId}, UserId: {UserId}, GuestId: {GuestId}", 
                 request.StreamId, request.UserId, request.GuestId);
@@ -34,7 +34,7 @@ public class LeaveStreamCommandHandler(
         var stream = await context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == request.StreamId, cancellationToken);
 
-        if (stream == null)
+        if (stream is null)
         {
             logger.LogWarning("Stream not found. StreamId: {StreamId}", request.StreamId);
             throw new NotFoundException("Canlı yayın", request.StreamId);

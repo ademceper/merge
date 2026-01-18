@@ -20,7 +20,7 @@ public class VerifyStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
         var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == request.StoreId, cancellationToken);
 
-        if (store == null)
+        if (store is null)
         {
             logger.LogWarning("Store not found. StoreId: {StoreId}", request.StoreId);
             return false;

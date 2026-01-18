@@ -63,14 +63,14 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         if (!string.IsNullOrEmpty(pageType))
             Guard.AgainstLength(pageType, 50, nameof(pageType));
         // Configuration değerleri: MaxTemplateNameLength=100, MaxMetaTitleLength=60, MaxMetaDescriptionLength=160
-        if (template != null)
+        if (template is not null)
             Guard.AgainstLength(template, 100, nameof(template));
-        if (metaTitle != null)
+        if (metaTitle is not null)
             Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
-        if (metaDescription != null)
+        if (metaDescription is not null)
             Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
 
-        var finalSlug = slug != null ? Slug.FromString(slug) : Slug.FromString(name);
+        var finalSlug = slug is not null ? Slug.FromString(slug) : Slug.FromString(name);
 
         if (!string.IsNullOrEmpty(ogImageUrl) && !IsValidUrl(ogImageUrl))
         {
@@ -148,7 +148,7 @@ public class PageBuilder : BaseEntity, IAggregateRoot
     public void UpdateTemplate(string? template)
     {
         // Configuration değeri: MaxTemplateNameLength=100
-        if (template != null)
+        if (template is not null)
             Guard.AgainstLength(template, 100, nameof(template));
         Template = template;
         UpdatedAt = DateTime.UtcNow;
@@ -204,9 +204,9 @@ public class PageBuilder : BaseEntity, IAggregateRoot
         }
         
         // Configuration değerleri: MaxMetaTitleLength=60, MaxMetaDescriptionLength=160
-        if (metaTitle != null)
+        if (metaTitle is not null)
             Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
-        if (metaDescription != null)
+        if (metaDescription is not null)
             Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
         
         MetaTitle = metaTitle;

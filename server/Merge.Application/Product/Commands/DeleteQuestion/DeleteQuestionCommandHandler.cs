@@ -33,7 +33,7 @@ public class DeleteQuestionCommandHandler(IDbContext context, IUnitOfWork unitOf
             var question = await context.Set<ProductQuestion>()
                 .FirstOrDefaultAsync(q => q.Id == request.QuestionId, cancellationToken);
 
-            if (question == null)
+            if (question is null)
             {
                 return false;
             }

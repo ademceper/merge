@@ -32,7 +32,7 @@ public class CreateShippingAddressCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
-        if (user == null)
+        if (user is null)
         {
             logger.LogWarning("User not found. UserId: {UserId}", request.UserId);
             throw new NotFoundException("Kullanıcı", request.UserId);

@@ -25,7 +25,7 @@ public class VerifyBackupCodeCommandHandler(
         var twoFactorAuth = await context.Set<TwoFactorAuth>()
             .FirstOrDefaultAsync(t => t.UserId == request.UserId, cancellationToken);
 
-        if (twoFactorAuth == null || !twoFactorAuth.IsEnabled || twoFactorAuth.BackupCodes == null)
+        if (twoFactorAuth is null || !twoFactorAuth.IsEnabled || twoFactorAuth.BackupCodes is null)
         {
             logger.LogWarning("Backup code verification failed - 2FA not enabled or no backup codes. UserId: {UserId}", request.UserId);
             return false;
@@ -40,7 +40,7 @@ public class VerifyBackupCodeCommandHandler(
         var matchingIndex = Array.IndexOf(normalizedBackupCodes, normalizedCode);
         string? matchingCode = matchingIndex >= 0 ? twoFactorAuth.BackupCodes[matchingIndex] : null;
         
-        if (matchingCode != null)
+        if (matchingCode is not null)
         {
             twoFactorAuth.RemoveBackupCode(matchingCode);
 

@@ -32,7 +32,7 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
         var existing = await context.Set<PaymentMethod>()
             .FirstOrDefaultAsync(pm => pm.Code == dto.Code, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             throw new BusinessException($"Bu kod ile ödeme yöntemi zaten mevcut: '{dto.Code}'");
         }
@@ -50,7 +50,7 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
             }
         }
 
-        var settingsJson = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null;
+        var settingsJson = dto.Settings is not null ? JsonSerializer.Serialize(dto.Settings) : null;
         
         var paymentMethod = PaymentMethod.Create(
             dto.Name,
@@ -84,7 +84,7 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
             .AsNoTracking()
             .FirstOrDefaultAsync(pm => pm.Id == id, cancellationToken);
 
-        return paymentMethod != null ? mapper.Map<PaymentMethodDto>(paymentMethod) : null;
+        return paymentMethod is not null ? mapper.Map<PaymentMethodDto>(paymentMethod) : null;
     }
 
     public async Task<PaymentMethodDto?> GetPaymentMethodByCodeAsync(string code, CancellationToken cancellationToken = default)
@@ -93,7 +93,7 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
             .AsNoTracking()
             .FirstOrDefaultAsync(pm => pm.Code == code && pm.IsActive, cancellationToken);
 
-        return paymentMethod != null ? mapper.Map<PaymentMethodDto>(paymentMethod) : null;
+        return paymentMethod is not null ? mapper.Map<PaymentMethodDto>(paymentMethod) : null;
     }
 
     public async Task<IEnumerable<PaymentMethodDto>> GetAllPaymentMethodsAsync(bool? isActive = null, CancellationToken cancellationToken = default)
@@ -134,9 +134,9 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
         var paymentMethod = await context.Set<PaymentMethod>()
             .FirstOrDefaultAsync(pm => pm.Id == id, cancellationToken);
 
-        if (paymentMethod == null) return false;
+        if (paymentMethod is null) return false;
 
-        var settingsJson = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null;
+        var settingsJson = dto.Settings is not null ? JsonSerializer.Serialize(dto.Settings) : null;
         
         paymentMethod.Update(
             dto.Name,
@@ -180,7 +180,7 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
         var paymentMethod = await context.Set<PaymentMethod>()
             .FirstOrDefaultAsync(pm => pm.Id == id, cancellationToken);
 
-        if (paymentMethod == null) return false;
+        if (paymentMethod is null) return false;
 
         // Check if method is used in any orders
         var hasOrders = await context.Set<OrderEntity>()
@@ -207,7 +207,7 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
         var paymentMethod = await context.Set<PaymentMethod>()
             .FirstOrDefaultAsync(pm => pm.Id == id, cancellationToken);
 
-        if (paymentMethod == null) return false;
+        if (paymentMethod is null) return false;
 
         // Unset other default methods
         var existingDefault = await context.Set<PaymentMethod>()
@@ -232,7 +232,7 @@ public class PaymentMethodService(IDbContext context, IUnitOfWork unitOfWork, IM
             .AsNoTracking()
             .FirstOrDefaultAsync(pm => pm.Id == paymentMethodId && pm.IsActive, cancellationToken);
 
-        if (paymentMethod == null)
+        if (paymentMethod is null)
         {
             throw new NotFoundException("Ödeme yöntemi", paymentMethodId);
         }

@@ -32,7 +32,7 @@ public class UpdateProductCommandHandler(IRepository productRepository, IDbConte
         try
         {
             var product = await productRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (product == null)
+            if (product is null)
             {
                 throw new NotFoundException("Ürün", request.Id);
             }
@@ -86,7 +86,7 @@ public class UpdateProductCommandHandler(IRepository productRepository, IDbConte
                 .Include(p => p.Category)
                 .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
 
-            if (reloadedProduct == null)
+            if (reloadedProduct is null)
             {
                 logger.LogWarning("Product {ProductId} not found after update", request.Id);
                 throw new NotFoundException("Ürün", request.Id);

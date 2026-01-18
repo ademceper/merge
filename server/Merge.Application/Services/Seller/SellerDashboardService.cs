@@ -42,7 +42,7 @@ public class SellerDashboardService(ISellerProfileRepository sellerProfileReposi
             .AsNoTracking()
             .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
 
-        if (sellerProfile == null)
+        if (sellerProfile is null)
         {
             throw new NotFoundException("Satıcı profili", sellerId);
         }

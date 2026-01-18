@@ -18,6 +18,7 @@ using Merge.Application.Content.Queries.SearchBlogPosts;
 using Merge.Application.Content.Queries.GetBlogPostById;
 using Merge.Application.Content.Queries.GetBlogPostBySlug;
 using Merge.Application.Content.Queries.GetBlogAnalytics;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Content.BlogPosts;
 
@@ -86,11 +87,9 @@ public class BlogPostsController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetBlogPostByIdQuery(id, trackView);
-        var post = await mediator.Send(query, cancellationToken);
-        if (post == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var post = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("BlogPost", id);
+
         return Ok(post);
     }
 
@@ -116,11 +115,9 @@ public class BlogPostsController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetBlogPostBySlugQuery(slug, trackView);
-        var post = await mediator.Send(query, cancellationToken);
-        if (post == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var post = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("BlogPost", slug);
+
         return Ok(post);
     }
 
@@ -261,11 +258,10 @@ public class BlogPostsController(
         var performedBy = User.IsInRole("Admin") || User.IsInRole("Manager") ? (Guid?)null : userId;
         var updateCommand = command with { Id = id, PerformedBy = performedBy };
         var result = await mediator.Send(updateCommand, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("BlogPost", id);
+
         return NoContent();
     }
 
@@ -307,11 +303,10 @@ public class BlogPostsController(
             OgImageUrl: patchDto.OgImageUrl,
             PerformedBy: performedBy);
         var result = await mediator.Send(command, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("BlogPost", id);
+
         return NoContent();
     }
 
@@ -345,11 +340,10 @@ public class BlogPostsController(
         var performedBy = User.IsInRole("Admin") ? (Guid?)null : userId;
         var command = new DeleteBlogPostCommand(id, performedBy);
         var result = await mediator.Send(command, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("BlogPost", id);
+
         return NoContent();
     }
 
@@ -383,11 +377,10 @@ public class BlogPostsController(
         var performedBy = User.IsInRole("Admin") ? (Guid?)null : userId;
         var command = new PublishBlogPostCommand(id, performedBy);
         var result = await mediator.Send(command, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("BlogPost", id);
+
         return NoContent();
     }
 

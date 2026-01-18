@@ -31,7 +31,7 @@ public class GetSizeGuidesByCategoryQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_SIZE_GUIDES_BY_CATEGORY}{request.CategoryId}";
         var cachedSizeGuides = await cache.GetAsync<IEnumerable<SizeGuideDto>>(cacheKey, cancellationToken);
-        if (cachedSizeGuides != null)
+        if (cachedSizeGuides is not null)
         {
             logger.LogInformation("Size guides retrieved from cache. CategoryId: {CategoryId}", request.CategoryId);
             return cachedSizeGuides;

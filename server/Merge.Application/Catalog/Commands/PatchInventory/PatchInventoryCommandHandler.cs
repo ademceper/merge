@@ -43,7 +43,7 @@ public class PatchInventoryCommandHandler(
                 .Include(i => i.Product)
                 .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
 
-            if (inventory == null)
+            if (inventory is null)
             {
                 logger.LogWarning("Inventory not found with Id: {InventoryId}", request.Id);
                 throw new NotFoundException("Envanter", request.Id);
@@ -76,7 +76,7 @@ public class PatchInventoryCommandHandler(
                 .Include(i => i.Warehouse)
                 .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
 
-            if (reloadedInventory == null)
+            if (reloadedInventory is null)
             {
                 logger.LogWarning("Inventory not found after patch. InventoryId: {InventoryId}", request.Id);
                 throw new NotFoundException("Envanter", request.Id);

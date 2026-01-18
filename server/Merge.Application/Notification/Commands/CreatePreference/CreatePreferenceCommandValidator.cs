@@ -17,7 +17,7 @@ public class CreatePreferenceCommandValidator : AbstractValidator<CreatePreferen
             .NotNull()
             .WithMessage("Tercih bilgileri zorunludur.");
 
-        When(x => x.Dto != null, () =>
+        When(x => x.Dto is not null, () =>
         {
             RuleFor(x => x.Dto.NotificationType)
                 .IsInEnum()

@@ -21,7 +21,7 @@ public class SendInvoiceCommandHandler(IDbContext context, IUnitOfWork unitOfWor
         var invoice = await context.Set<SellerInvoice>()
             .FirstOrDefaultAsync(i => i.Id == request.InvoiceId, cancellationToken);
 
-        if (invoice == null)
+        if (invoice is null)
         {
             logger.LogWarning("Seller invoice not found. InvoiceId: {InvoiceId}", request.InvoiceId);
             throw new NotFoundException("Fatura", request.InvoiceId);

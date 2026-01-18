@@ -25,6 +25,6 @@ public class GetCurrencyByIdQueryHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-        return currency != null ? mapper.Map<CurrencyDto>(currency) : null;
+        return currency is not null ? mapper.Map<CurrencyDto>(currency) : null;
     }
 }

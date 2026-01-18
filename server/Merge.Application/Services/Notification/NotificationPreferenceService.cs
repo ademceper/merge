@@ -31,11 +31,11 @@ public class NotificationPreferenceService(IDbContext context, IUnitOfWork unitO
                                   np.NotificationType == dto.NotificationType && 
                                   np.Channel == dto.Channel, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             existing.Update(
                 dto.IsEnabled,
-                dto.CustomSettings != null ? JsonSerializer.Serialize(dto.CustomSettings) : null);
+                dto.CustomSettings is not null ? JsonSerializer.Serialize(dto.CustomSettings) : null);
         }
         else
         {
@@ -44,7 +44,7 @@ public class NotificationPreferenceService(IDbContext context, IUnitOfWork unitO
                 dto.NotificationType,
                 dto.Channel,
                 dto.IsEnabled,
-                dto.CustomSettings != null ? JsonSerializer.Serialize(dto.CustomSettings) : null);
+                dto.CustomSettings is not null ? JsonSerializer.Serialize(dto.CustomSettings) : null);
 
             await context.Set<NotificationPreference>().AddAsync(preference, cancellationToken);
         }
@@ -57,7 +57,7 @@ public class NotificationPreferenceService(IDbContext context, IUnitOfWork unitO
                                       np.NotificationType == dto.NotificationType && 
                                       np.Channel == dto.Channel, cancellationToken);
 
-        if (createdPreference == null)
+        if (createdPreference is null)
         {
             throw new BusinessException("Tercih oluşturulamadı.");
         }
@@ -83,7 +83,7 @@ public class NotificationPreferenceService(IDbContext context, IUnitOfWork unitO
                                   np.NotificationType == notificationTypeEnum && 
                                   np.Channel == channelEnum, cancellationToken);
 
-        return preference != null ? mapper.Map<NotificationPreferenceDto>(preference) : null;
+        return preference is not null ? mapper.Map<NotificationPreferenceDto>(preference) : null;
     }
 
     public async Task<IEnumerable<NotificationPreferenceDto>> GetUserPreferencesAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -148,14 +148,14 @@ public class NotificationPreferenceService(IDbContext context, IUnitOfWork unitO
                                   np.NotificationType == notificationTypeEnum && 
                                   np.Channel == channelEnum, cancellationToken);
 
-        if (preference == null)
+        if (preference is null)
         {
             throw new NotFoundException("Tercih", Guid.Empty);
         }
 
         preference.Update(
             dto.IsEnabled ?? preference.IsEnabled,
-            dto.CustomSettings != null ? JsonSerializer.Serialize(dto.CustomSettings) : null);
+            dto.CustomSettings is not null ? JsonSerializer.Serialize(dto.CustomSettings) : null);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return mapper.Map<NotificationPreferenceDto>(preference);
@@ -174,7 +174,7 @@ public class NotificationPreferenceService(IDbContext context, IUnitOfWork unitO
                                   np.NotificationType == notificationTypeEnum && 
                                   np.Channel == channelEnum, cancellationToken);
 
-        if (preference == null) return false;
+        if (preference is null) return false;
 
         preference.Delete();
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -184,7 +184,7 @@ public class NotificationPreferenceService(IDbContext context, IUnitOfWork unitO
 
     public async Task<bool> BulkUpdatePreferencesAsync(Guid userId, BulkUpdateNotificationPreferencesDto dto, CancellationToken cancellationToken = default)
     {
-        if (dto.Preferences == null || dto.Preferences.Count == 0)
+        if (dto.Preferences is null || dto.Preferences.Count == 0)
         {
             return true;
         }
@@ -212,7 +212,7 @@ public class NotificationPreferenceService(IDbContext context, IUnitOfWork unitO
             {
                 existing.Update(
                     prefDto.IsEnabled,
-                    prefDto.CustomSettings != null ? JsonSerializer.Serialize(prefDto.CustomSettings) : null);
+                    prefDto.CustomSettings is not null ? JsonSerializer.Serialize(prefDto.CustomSettings) : null);
                 preferencesToUpdate.Add(existing);
             }
             else
@@ -222,7 +222,7 @@ public class NotificationPreferenceService(IDbContext context, IUnitOfWork unitO
                     prefDto.NotificationType,
                     prefDto.Channel,
                     prefDto.IsEnabled,
-                    prefDto.CustomSettings != null ? JsonSerializer.Serialize(prefDto.CustomSettings) : null);
+                    prefDto.CustomSettings is not null ? JsonSerializer.Serialize(prefDto.CustomSettings) : null);
                 preferencesToAdd.Add(preference);
             }
         }
@@ -259,7 +259,7 @@ public class NotificationPreferenceService(IDbContext context, IUnitOfWork unitO
     {
         if (!Enum.TryParse<Merge.Domain.Enums.NotificationType>(notificationType, true, out var notificationTypeEnum))
         {
-            return Enumerable.Empty<string>();
+            return [];
         }
 
         var preferences = await context.Set<NotificationPreference>()

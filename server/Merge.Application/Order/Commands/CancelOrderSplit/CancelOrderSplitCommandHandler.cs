@@ -23,7 +23,7 @@ public class CancelOrderSplitCommandHandler(IDbContext context, IUnitOfWork unit
             .Include(s => s.OriginalOrder)
             .FirstOrDefaultAsync(s => s.Id == request.SplitId, cancellationToken);
 
-        if (split == null) return false;
+        if (split is null) return false;
 
         if (split.SplitOrder.Status != OrderStatus.Pending)
         {

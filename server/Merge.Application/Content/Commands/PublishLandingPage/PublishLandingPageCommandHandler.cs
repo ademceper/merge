@@ -30,7 +30,7 @@ public class PublishLandingPageCommandHandler(
         try
         {
             var landingPage = await landingPageRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (landingPage == null)
+            if (landingPage is null)
             {
                 logger.LogWarning("Landing page not found for publishing. LandingPageId: {LandingPageId}", request.Id);
                 return false;

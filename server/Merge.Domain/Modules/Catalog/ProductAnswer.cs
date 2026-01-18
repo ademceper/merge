@@ -151,7 +151,7 @@ public class ProductAnswer : BaseEntity, IAggregateRoot
     {
         Guard.AgainstDefault(voteId, nameof(voteId));
         var vote = _helpfulnessVotes.FirstOrDefault(v => v.Id == voteId);
-        if (vote == null)
+        if (vote is null)
         {
             throw new DomainException("Vote bulunamadı");
         }

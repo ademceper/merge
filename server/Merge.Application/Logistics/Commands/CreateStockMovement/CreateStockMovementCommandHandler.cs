@@ -36,7 +36,7 @@ public class CreateStockMovementCommandHandler(
                 .FirstOrDefaultAsync(i => i.ProductId == request.ProductId &&
                                         i.WarehouseId == request.WarehouseId, cancellationToken);
 
-            if (inventory == null)
+            if (inventory is null)
             {
                 logger.LogWarning("Inventory not found. ProductId: {ProductId}, WarehouseId: {WarehouseId}", request.ProductId, request.WarehouseId);
                 throw new NotFoundException("Envanter", Guid.Empty);
@@ -85,7 +85,7 @@ public class CreateStockMovementCommandHandler(
                 .Include(sm => sm.ToWarehouse)
                 .FirstOrDefaultAsync(sm => sm.Id == stockMovement.Id, cancellationToken);
 
-            if (createdMovement == null)
+            if (createdMovement is null)
             {
                 logger.LogWarning("Stock movement not found after creation. StockMovementId: {StockMovementId}", stockMovement.Id);
                 throw new NotFoundException("Stok hareketi", stockMovement.Id);

@@ -21,7 +21,7 @@ public class CancelCommissionCommandHandler(IDbContext context, IUnitOfWork unit
         var commission = await context.Set<SellerCommission>()
             .FirstOrDefaultAsync(sc => sc.Id == request.CommissionId, cancellationToken);
 
-        if (commission == null)
+        if (commission is null)
         {
             logger.LogWarning("Commission not found. CommissionId: {CommissionId}", request.CommissionId);
             return false;

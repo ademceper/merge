@@ -22,13 +22,13 @@ public class RenewSubscriptionCommandHandler(IDbContext context, IUnitOfWork uni
             .Include(us => us.SubscriptionPlan)
             .FirstOrDefaultAsync(us => us.Id == request.SubscriptionId, cancellationToken);
 
-        if (subscription == null)
+        if (subscription is null)
         {
             throw new NotFoundException("Abonelik", request.SubscriptionId);
         }
 
         var plan = subscription.SubscriptionPlan;
-        if (plan == null)
+        if (plan is null)
         {
             throw new NotFoundException("Abonelik planı", subscription.SubscriptionPlanId);
         }

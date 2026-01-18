@@ -58,7 +58,7 @@ public class CreateBlogCategoryCommandHandler(
                 .Include(c => c.ParentCategory)
                 .FirstOrDefaultAsync(c => c.Id == category.Id, cancellationToken);
 
-            if (reloadedCategory == null)
+            if (reloadedCategory is null)
             {
                 logger.LogWarning("Blog category {CategoryId} not found after creation", category.Id);
                 throw new NotFoundException("Blog Kategorisi", category.Id);

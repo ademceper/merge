@@ -33,7 +33,7 @@ public class Team : BaseEntity, IAggregateRoot
     // Service layer'dan event eklenebilmesi için public yapıldı (User entity'sinde de aynı pattern kullanılıyor)
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         // BaseEntity'deki protected AddDomainEvent'i çağır
@@ -42,7 +42,7 @@ public class Team : BaseEntity, IAggregateRoot
 
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         base.RemoveDomainEvent(domainEvent);
@@ -99,7 +99,7 @@ public class Team : BaseEntity, IAggregateRoot
 
         List<string> changedFields = [];
 
-        if (name != null && name != Name)
+        if (name is not null && name != Name)
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new DomainException("Takım adı boş olamaz");
@@ -109,7 +109,7 @@ public class Team : BaseEntity, IAggregateRoot
             changedFields.Add(nameof(Name));
         }
 
-        if (description != null && description != Description)
+        if (description is not null && description != Description)
         {
             if (string.IsNullOrEmpty(description))
             {
@@ -129,13 +129,13 @@ public class Team : BaseEntity, IAggregateRoot
             TeamLeadId = teamLeadId;
             changedFields.Add(nameof(TeamLeadId));
         }
-        else if (teamLeadId == null && TeamLeadId != null)
+        else if (teamLeadId is null && TeamLeadId is not null)
         {
             TeamLeadId = null;
             changedFields.Add(nameof(TeamLeadId));
         }
 
-        if (settings != null && settings != Settings)
+        if (settings is not null && settings != Settings)
         {
             Guard.AgainstLength(settings, 2000, nameof(settings));
             

@@ -36,7 +36,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
             dto.Description ?? string.Empty,
             dto.IconUrl ?? string.Empty,
             dto.BadgeType,
-            dto.Criteria != null ? JsonSerializer.Serialize(dto.Criteria) : string.Empty,
+            dto.Criteria is not null ? JsonSerializer.Serialize(dto.Criteria) : string.Empty,
             dto.DisplayOrder,
             dto.Color);
 
@@ -56,7 +56,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
             .AsNoTracking()
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
 
-        return badge != null ? mapper.Map<TrustBadgeDto>(badge) : null;
+        return badge is not null ? mapper.Map<TrustBadgeDto>(badge) : null;
     }
 
     public async Task<IEnumerable<TrustBadgeDto>> GetBadgesAsync(string? badgeType = null, CancellationToken cancellationToken = default)
@@ -83,7 +83,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
         var badge = await context.Set<TrustBadge>()
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
 
-        if (badge == null)
+        if (badge is null)
         {
             throw new NotFoundException("Rozet", id);
         }
@@ -96,7 +96,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
             badge.UpdateIconUrl(dto.IconUrl);
         if (!string.IsNullOrEmpty(dto.BadgeType))
             badge.UpdateBadgeType(dto.BadgeType);
-        if (dto.Criteria != null)
+        if (dto.Criteria is not null)
             badge.UpdateCriteria(JsonSerializer.Serialize(dto.Criteria));
         if (dto.IsActive.HasValue)
         {
@@ -107,7 +107,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
         }
         if (dto.DisplayOrder.HasValue)
             badge.UpdateDisplayOrder(dto.DisplayOrder.Value);
-        if (dto.Color != null)
+        if (dto.Color is not null)
             badge.UpdateColor(dto.Color);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -120,7 +120,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
         var badge = await context.Set<TrustBadge>()
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
 
-        if (badge == null) return false;
+        if (badge is null) return false;
 
         badge.MarkAsDeleted();
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -133,7 +133,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
         var existing = await context.Set<SellerTrustBadge>()
             .FirstOrDefaultAsync(stb => stb.SellerId == sellerId && stb.TrustBadgeId == dto.BadgeId, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             existing.Activate();
             existing.UpdateExpiryDate(dto.ExpiresAt);
@@ -175,7 +175,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
         var badge = await context.Set<SellerTrustBadge>()
             .FirstOrDefaultAsync(stb => stb.SellerId == sellerId && stb.TrustBadgeId == badgeId, cancellationToken);
 
-        if (badge == null) return false;
+        if (badge is null) return false;
 
         badge.Deactivate();
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -188,7 +188,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
         var existing = await context.Set<ProductTrustBadge>()
             .FirstOrDefaultAsync(ptb => ptb.ProductId == productId && ptb.TrustBadgeId == dto.BadgeId, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             existing.Activate();
             existing.UpdateExpiryDate(dto.ExpiresAt);
@@ -230,7 +230,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
         var badge = await context.Set<ProductTrustBadge>()
             .FirstOrDefaultAsync(ptb => ptb.ProductId == productId && ptb.TrustBadgeId == badgeId, cancellationToken);
 
-        if (badge == null) return false;
+        if (badge is null) return false;
 
         badge.Deactivate();
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -270,7 +270,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
             .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
 
-        if (seller == null) return;
+        if (seller is null) return;
 
         // Get seller metrics
         var totalOrders = await context.Set<OrderEntity>()
@@ -297,7 +297,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
             if (string.IsNullOrEmpty(badge.Criteria)) continue;
 
             var criteria = JsonSerializer.Deserialize<Dictionary<string, object>>(badge.Criteria);
-            if (criteria == null) continue;
+            if (criteria is null) continue;
 
             bool qualifies = true;
 
@@ -318,7 +318,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
                 var existing = await context.Set<SellerTrustBadge>()
                     .FirstOrDefaultAsync(stb => stb.SellerId == sellerId && stb.TrustBadgeId == badge.Id, cancellationToken);
 
-                if (existing == null)
+                if (existing is null)
                 {
                     await AwardSellerBadgeAsync(sellerId, new AwardBadgeDto
                     {
@@ -341,7 +341,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
-        if (product == null) return;
+        if (product is null) return;
 
         // Get product metrics
         var totalSales = await context.Set<OrderItem>()
@@ -361,7 +361,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
             if (string.IsNullOrEmpty(badge.Criteria)) continue;
 
             var criteria = JsonSerializer.Deserialize<Dictionary<string, object>>(badge.Criteria);
-            if (criteria == null) continue;
+            if (criteria is null) continue;
 
             bool qualifies = true;
 
@@ -382,7 +382,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
                 var existing = await context.Set<ProductTrustBadge>()
                     .FirstOrDefaultAsync(ptb => ptb.ProductId == productId && ptb.TrustBadgeId == badge.Id, cancellationToken);
 
-                if (existing == null)
+                if (existing is null)
                 {
                     await AwardProductBadgeAsync(productId, new AwardBadgeDto
                     {
@@ -402,7 +402,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
             .Include(stb => stb.Seller)
             .FirstOrDefaultAsync(stb => stb.SellerId == sellerId && stb.TrustBadgeId == badgeId, cancellationToken);
 
-        if (sellerBadge == null)
+        if (sellerBadge is null)
             throw new NotFoundException("Satıcı rozeti", badgeId);
 
         return mapper.Map<SellerTrustBadgeDto>(sellerBadge);
@@ -416,7 +416,7 @@ public class TrustBadgeService(IDbContext context, IUnitOfWork unitOfWork, IMapp
             .Include(ptb => ptb.Product)
             .FirstOrDefaultAsync(ptb => ptb.ProductId == productId && ptb.TrustBadgeId == badgeId, cancellationToken);
 
-        if (productBadge == null)
+        if (productBadge is null)
             throw new NotFoundException("Ürün rozeti", badgeId);
 
         return mapper.Map<ProductTrustBadgeDto>(productBadge);

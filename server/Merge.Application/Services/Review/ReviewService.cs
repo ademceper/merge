@@ -36,7 +36,7 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
-        if (review == null) return null;
+        if (review is null) return null;
 
         // Not: UserName ve ProductName AutoMapper'da map edilmeli
         return mapper.Map<ReviewDto>(review);
@@ -155,7 +155,7 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == review.Id, cancellationToken);
 
-        if (review == null)
+        if (review is null)
         {
             logger.LogError("Review not found after creation. ReviewId: {ReviewId}", review?.Id);
             throw new InvalidOperationException("Review could not be retrieved after creation");
@@ -179,7 +179,7 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
         }
 
         var review = await reviewRepository.GetByIdAsync(id);
-        if (review == null)
+        if (review is null)
         {
             throw new NotFoundException("Değerlendirme", id);
         }
@@ -221,7 +221,7 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var review = await reviewRepository.GetByIdAsync(id);
-        if (review == null)
+        if (review is null)
         {
             return false;
         }
@@ -241,7 +241,7 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
     public async Task<bool> ApproveReviewAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var review = await reviewRepository.GetByIdAsync(id);
-        if (review == null)
+        if (review is null)
         {
             return false;
         }
@@ -262,7 +262,7 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
     public async Task<bool> RejectReviewAsync(Guid id, string reason, CancellationToken cancellationToken = default)
     {
         var review = await reviewRepository.GetByIdAsync(id);
-        if (review == null)
+        if (review is null)
         {
             return false;
         }
@@ -288,10 +288,10 @@ public class ReviewService(IReviewRepository reviewRepository, IProductRepositor
             })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (reviewStats != null)
+        if (reviewStats is not null)
         {
             var product = await productRepository.GetByIdAsync(productId);
-            if (product != null)
+            if (product is not null)
             {
                 product.UpdateRating(reviewStats.AverageRating, reviewStats.Count);
                 await productRepository.UpdateAsync(product);

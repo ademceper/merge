@@ -32,7 +32,7 @@ public class DeleteBlogPostCommandHandler(
         try
         {
             var post = await postRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (post == null)
+            if (post is null)
             {
                 logger.LogWarning("Blog post not found for deletion. PostId: {PostId}", request.Id);
                 return false;

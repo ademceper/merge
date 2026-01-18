@@ -30,7 +30,7 @@ public class DeletePolicyCommandHandler(
             var policy = await context.Set<Policy>()
                 .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
 
-            if (policy == null)
+            if (policy is null)
             {
                 logger.LogWarning("Policy not found for deletion. PolicyId: {PolicyId}", request.Id);
                 return false;

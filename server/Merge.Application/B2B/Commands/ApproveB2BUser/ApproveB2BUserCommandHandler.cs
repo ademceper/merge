@@ -25,7 +25,7 @@ public class ApproveB2BUserCommandHandler(
         var b2bUser = await context.Set<B2BUser>()
             .FirstOrDefaultAsync(b => b.Id == request.Id, cancellationToken);
 
-        if (b2bUser == null)
+        if (b2bUser is null)
         {
             logger.LogWarning("B2B user not found with Id: {B2BUserId}", request.Id);
             return false;

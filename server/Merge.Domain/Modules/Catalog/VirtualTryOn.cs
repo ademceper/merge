@@ -39,7 +39,7 @@ public class VirtualTryOn : BaseEntity
         get => _previewImageUrl; 
         private set 
         {
-            if (value != null && value.Length > 2000)
+            if (value is not null && value.Length > 2000)
             {
                 throw new DomainException("Preview image URL en fazla 2000 karakter olabilir");
             }
@@ -69,7 +69,7 @@ public class VirtualTryOn : BaseEntity
         get => _configuration; 
         private set 
         {
-            if (value != null && value.Length > 10000)
+            if (value is not null && value.Length > 10000)
             {
                 throw new DomainException("Configuration en fazla 10000 karakter olabilir");
             }
@@ -223,7 +223,7 @@ public class VirtualTryOn : BaseEntity
     
     public void UpdatePreviewImageUrl(string? newPreviewImageUrl)
     {
-        if (newPreviewImageUrl != null && newPreviewImageUrl.Length > 2000)
+        if (newPreviewImageUrl is not null && newPreviewImageUrl.Length > 2000)
         {
             throw new DomainException("Preview image URL en fazla 2000 karakter olabilir");
         }
@@ -249,7 +249,7 @@ public class VirtualTryOn : BaseEntity
     
     public void UpdateConfiguration(string? newConfiguration)
     {
-        if (newConfiguration != null && newConfiguration.Length > 10000)
+        if (newConfiguration is not null && newConfiguration.Length > 10000)
         {
             throw new DomainException("Configuration en fazla 10000 karakter olabilir");
         }

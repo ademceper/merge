@@ -98,7 +98,7 @@ public class EmailCampaignRecipient : BaseEntity, IAggregateRoot
 
     public void RecordEmailOpened()
     {
-        var isFirstOpen = OpenedAt == null;
+        var isFirstOpen = OpenedAt is null;
         
         if (isFirstOpen)
         {
@@ -117,7 +117,7 @@ public class EmailCampaignRecipient : BaseEntity, IAggregateRoot
 
     public void RecordEmailClicked()
     {
-        var isFirstClick = ClickedAt == null;
+        var isFirstClick = ClickedAt is null;
         
         if (isFirstClick)
         {

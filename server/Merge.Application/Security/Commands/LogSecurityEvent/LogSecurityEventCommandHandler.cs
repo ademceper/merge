@@ -27,7 +27,7 @@ public class LogSecurityEventCommandHandler(IDbContext context, IUnitOfWork unit
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
-        if (user == null)
+        if (user is null)
         {
             throw new NotFoundException("Kullanıcı", request.UserId);
         }
@@ -50,7 +50,7 @@ public class LogSecurityEventCommandHandler(IDbContext context, IUnitOfWork unit
             location: request.Location,
             deviceFingerprint: request.DeviceFingerprint,
             isSuspicious: request.IsSuspicious,
-            details: request.Details != null ? JsonSerializer.Serialize(request.Details) : null,
+            details: request.Details is not null ? JsonSerializer.Serialize(request.Details) : null,
             requiresAction: request.RequiresAction);
 
         await context.Set<AccountSecurityEvent>().AddAsync(securityEvent, cancellationToken);
@@ -68,7 +68,7 @@ public class LogSecurityEventCommandHandler(IDbContext context, IUnitOfWork unit
                 description: $"Security event: {request.EventType} for user ID: {request.UserId}",
                 severity: alertSeverity,
                 userId: request.UserId,
-                metadata: request.Details != null ? JsonSerializer.Serialize(request.Details) : null);
+                metadata: request.Details is not null ? JsonSerializer.Serialize(request.Details) : null);
             await context.Set<SecurityAlert>().AddAsync(alert, cancellationToken);
         }
 

@@ -31,7 +31,7 @@ public class ClearComparisonCommandHandler(IDbContext context, IUnitOfWork unitO
                 .OrderByDescending(c => c.CreatedAt)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (comparison == null)
+            if (comparison is null)
             {
                 return false;
             }

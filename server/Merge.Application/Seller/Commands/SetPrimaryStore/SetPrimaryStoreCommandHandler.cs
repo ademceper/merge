@@ -21,7 +21,7 @@ public class SetPrimaryStoreCommandHandler(IDbContext context, IUnitOfWork unitO
         var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == request.StoreId && s.SellerId == request.SellerId, cancellationToken);
 
-        if (store == null)
+        if (store is null)
         {
             logger.LogWarning("Store not found. StoreId: {StoreId}, SellerId: {SellerId}",
                 request.StoreId, request.SellerId);

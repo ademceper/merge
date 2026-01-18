@@ -22,6 +22,6 @@ public class GetFlashSaleByIdQueryHandler(IDbContext context, IMapper mapper) : 
                 .ThenInclude(fsp => fsp.Product)
             .FirstOrDefaultAsync(fs => fs.Id == request.Id, cancellationToken);
 
-        return flashSale == null ? null : mapper.Map<FlashSaleDto>(flashSale);
+        return flashSale is null ? null : mapper.Map<FlashSaleDto>(flashSale);
     }
 }

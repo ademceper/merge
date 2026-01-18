@@ -28,7 +28,7 @@ public class GetBannerByIdQueryHandler(
         var cacheKey = $"{CACHE_KEY_BANNER_BY_ID}{request.Id}";
 
         var cachedBanner = await cache.GetAsync<BannerDto>(cacheKey, cancellationToken);
-        if (cachedBanner != null)
+        if (cachedBanner is not null)
         {
             logger.LogInformation("Cache hit for banner. BannerId: {BannerId}", request.Id);
             return cachedBanner;
@@ -40,7 +40,7 @@ public class GetBannerByIdQueryHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(b => b.Id == request.Id, cancellationToken);
 
-        if (banner == null)
+        if (banner is null)
         {
             logger.LogWarning("Banner not found with Id: {BannerId}", request.Id);
             return null;

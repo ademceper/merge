@@ -22,7 +22,7 @@ public class ProcessPayoutCommandHandler(IDbContext context, IUnitOfWork unitOfW
         var payout = await context.Set<CommissionPayout>()
             .FirstOrDefaultAsync(p => p.Id == request.PayoutId, cancellationToken);
 
-        if (payout == null)
+        if (payout is null)
         {
             logger.LogWarning("Payout not found. PayoutId: {PayoutId}", request.PayoutId);
             return false;

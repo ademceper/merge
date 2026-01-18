@@ -23,6 +23,6 @@ public class GetReturnRequestByIdQueryHandler(IDbContext context, IMapper mapper
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.Id == request.ReturnRequestId, cancellationToken);
 
-        return returnRequest != null ? mapper.Map<ReturnRequestDto>(returnRequest) : null;
+        return returnRequest is not null ? mapper.Map<ReturnRequestDto>(returnRequest) : null;
     }
 }

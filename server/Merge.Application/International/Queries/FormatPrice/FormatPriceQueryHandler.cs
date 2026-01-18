@@ -23,7 +23,7 @@ public class FormatPriceQueryHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(c => EF.Functions.ILike(c.Code, request.CurrencyCode), cancellationToken);
 
-        if (currency == null)
+        if (currency is null)
         {
             logger.LogWarning("Currency not found. CurrencyCode: {CurrencyCode}", request.CurrencyCode);
             return request.Amount.ToString("N2");

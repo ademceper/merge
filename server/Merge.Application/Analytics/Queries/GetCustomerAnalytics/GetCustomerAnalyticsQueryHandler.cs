@@ -33,20 +33,20 @@ public class GetCustomerAnalyticsQueryHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Name == "Customer", cancellationToken);
         
-        var customerUserIdsSubquery = customerRole != null
+        var customerUserIdsSubquery = customerRole is not null
             ? from ur in context.UserRoles.AsNoTracking()
               where ur.RoleId == customerRole.Id
               select ur.UserId
             : context.UserRoles.AsNoTracking().Where(ur => false).Select(ur => ur.UserId);
         
-        var totalCustomers = customerRole != null
+        var totalCustomers = customerRole is not null
             ? await context.Users
                 .AsNoTracking()
                 .Where(u => customerUserIdsSubquery.Contains(u.Id))
                 .CountAsync(cancellationToken)
             : 0;
 
-        var newCustomers = customerRole != null
+        var newCustomers = customerRole is not null
             ? await context.Users
                 .AsNoTracking()
                 .Where(u => customerUserIdsSubquery.Contains(u.Id) && u.CreatedAt >= request.StartDate && u.CreatedAt <= request.EndDate)

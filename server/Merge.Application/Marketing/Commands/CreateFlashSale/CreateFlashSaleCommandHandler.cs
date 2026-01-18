@@ -43,7 +43,7 @@ public class CreateFlashSaleCommandHandler(
                 .ThenInclude(fsp => fsp.Product)
             .FirstOrDefaultAsync(fs => fs.Id == flashSale.Id, cancellationToken);
 
-        if (createdFlashSale == null)
+        if (createdFlashSale is null)
         {
             logger.LogWarning("FlashSale not found after creation. FlashSaleId: {FlashSaleId}", flashSale.Id);
             throw new NotFoundException("Flash Sale", flashSale.Id);

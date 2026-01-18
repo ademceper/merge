@@ -9,6 +9,7 @@ using Merge.Application.Logistics.Queries.GetDeliveryTimeEstimationById;
 using Merge.Application.Logistics.Commands.CreateDeliveryTimeEstimation;
 using Merge.Application.Logistics.Commands.UpdateDeliveryTimeEstimation;
 using Merge.Application.Logistics.Commands.DeleteDeliveryTimeEstimation;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Logistics;
 
@@ -72,11 +73,9 @@ public class DeliveryTimeEstimationsController(IMediator mediator) : BaseControl
         CancellationToken cancellationToken = default)
     {
         var query = new GetDeliveryTimeEstimationByIdQuery(id);
-        var estimation = await mediator.Send(query, cancellationToken);
-        if (estimation == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var estimation = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("DeliveryTimeEstimation", id);
+
         return Ok(estimation);
     }
 
@@ -94,7 +93,7 @@ public class DeliveryTimeEstimationsController(IMediator mediator) : BaseControl
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new CreateDeliveryTimeEstimationCommand(
             dto.ProductId,
@@ -128,7 +127,7 @@ public class DeliveryTimeEstimationsController(IMediator mediator) : BaseControl
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new UpdateDeliveryTimeEstimationCommand(
             id,
@@ -161,7 +160,7 @@ public class DeliveryTimeEstimationsController(IMediator mediator) : BaseControl
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new UpdateDeliveryTimeEstimationCommand(
             id,

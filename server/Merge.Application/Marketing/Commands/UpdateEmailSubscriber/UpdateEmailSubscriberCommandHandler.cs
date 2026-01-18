@@ -22,7 +22,7 @@ public class UpdateEmailSubscriberCommandHandler(
         var subscriber = await context.Set<EmailSubscriber>()
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 
-        if (subscriber == null)
+        if (subscriber is null)
         {
             throw new NotFoundException("Email abonesi", request.Id);
         }
@@ -31,8 +31,8 @@ public class UpdateEmailSubscriberCommandHandler(
             firstName: request.FirstName,
             lastName: request.LastName,
             source: request.Source,
-            tags: request.Tags != null ? JsonSerializer.Serialize(request.Tags) : null,
-            customFields: request.CustomFields != null ? JsonSerializer.Serialize(request.CustomFields) : null);
+            tags: request.Tags is not null ? JsonSerializer.Serialize(request.Tags) : null,
+            customFields: request.CustomFields is not null ? JsonSerializer.Serialize(request.CustomFields) : null);
 
         if (request.IsSubscribed.HasValue)
         {

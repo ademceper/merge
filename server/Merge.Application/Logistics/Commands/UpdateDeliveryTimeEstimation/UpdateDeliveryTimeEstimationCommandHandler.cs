@@ -26,7 +26,7 @@ public class UpdateDeliveryTimeEstimationCommandHandler(
         var estimation = await context.Set<DeliveryTimeEstimation>()
             .FirstOrDefaultAsync(e => e.Id == request.Id, cancellationToken);
 
-        if (estimation == null)
+        if (estimation is null)
         {
             logger.LogWarning("Delivery time estimation not found. EstimationId: {EstimationId}", request.Id);
             throw new NotFoundException("Teslimat süresi tahmini", request.Id);
@@ -40,7 +40,7 @@ public class UpdateDeliveryTimeEstimationCommandHandler(
             estimation.UpdateDays(minDays, maxDays, averageDays);
         }
 
-        if (request.Conditions != null)
+        if (request.Conditions is not null)
         {
             var conditionsJson = JsonSerializer.Serialize(request.Conditions, JsonOptions);
             estimation.UpdateConditions(conditionsJson);

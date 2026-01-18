@@ -43,14 +43,14 @@ public class EstimateDeliveryTimeQueryHandler(
                       (string.IsNullOrEmpty(request.Country) || e.Country == request.Country))
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (estimation != null)
+            if (estimation is not null)
             {
                 source = "Product";
             }
         }
 
         // 2. Category-specific estimation
-        if (estimation == null && request.CategoryId.HasValue)
+        if (estimation is null && request.CategoryId.HasValue)
         {
             estimation = await context.Set<DeliveryTimeEstimation>()
                 .AsNoTracking()
@@ -61,14 +61,14 @@ public class EstimateDeliveryTimeQueryHandler(
                       (string.IsNullOrEmpty(request.Country) || e.Country == request.Country))
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (estimation != null)
+            if (estimation is not null)
             {
                 source = "Category";
             }
         }
 
         // 3. Warehouse-specific estimation
-        if (estimation == null && request.WarehouseId.HasValue)
+        if (estimation is null && request.WarehouseId.HasValue)
         {
             estimation = await context.Set<DeliveryTimeEstimation>()
                 .AsNoTracking()
@@ -78,14 +78,14 @@ public class EstimateDeliveryTimeQueryHandler(
                       (string.IsNullOrEmpty(request.Country) || e.Country == request.Country))
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (estimation != null)
+            if (estimation is not null)
             {
                 source = "Warehouse";
             }
         }
 
         // 4. Default estimation (no specific match)
-        if (estimation == null)
+        if (estimation is null)
         {
             estimation = await context.Set<DeliveryTimeEstimation>()
                 .AsNoTracking()
@@ -97,14 +97,14 @@ public class EstimateDeliveryTimeQueryHandler(
                       (string.IsNullOrEmpty(request.Country) || e.Country == request.Country))
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (estimation != null)
+            if (estimation is not null)
             {
                 source = "Default";
             }
         }
 
         // If no estimation found, use default values from configuration
-        if (estimation == null)
+        if (estimation is null)
         {
             // Default değerler ShippingSettings'ten alınır
             var defaultMinDays = _shippingSettings.DefaultDeliveryTime.MinDays;

@@ -31,7 +31,7 @@ public class CreateCreditTermCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == request.Dto.OrganizationId, cancellationToken);
 
-        if (organization == null)
+        if (organization is null)
         {
             throw new NotFoundException("Organizasyon", Guid.Empty);
         }

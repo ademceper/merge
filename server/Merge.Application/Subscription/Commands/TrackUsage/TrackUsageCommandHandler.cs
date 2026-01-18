@@ -24,7 +24,7 @@ public class TrackUsageCommandHandler(IDbContext context, IUnitOfWork unitOfWork
         var subscription = await context.Set<UserSubscription>()
             .FirstOrDefaultAsync(us => us.Id == request.UserSubscriptionId, cancellationToken);
 
-        if (subscription == null)
+        if (subscription is null)
         {
             throw new NotFoundException("Abonelik", request.UserSubscriptionId);
         }
@@ -38,7 +38,7 @@ public class TrackUsageCommandHandler(IDbContext context, IUnitOfWork unitOfWork
                                      u.Feature == request.Feature &&
                                      u.PeriodStart == periodStart, cancellationToken);
 
-        if (usage == null)
+        if (usage is null)
         {
             usage = SubscriptionUsage.Create(
                 subscription: subscription,

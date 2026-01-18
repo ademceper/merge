@@ -43,7 +43,7 @@ public class TransferStockCommandHandler(
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
-            if (product == null)
+            if (product is null)
             {
                 throw new NotFoundException("Ürün", request.ProductId);
             }
@@ -60,7 +60,7 @@ public class TransferStockCommandHandler(
                 .FirstOrDefaultAsync(i => i.ProductId == request.ProductId &&
                                         i.WarehouseId == request.FromWarehouseId, cancellationToken);
 
-            if (sourceInventory == null)
+            if (sourceInventory is null)
             {
                 logger.LogWarning("Source inventory not found. ProductId: {ProductId}, WarehouseId: {WarehouseId}",
                     request.ProductId, request.FromWarehouseId);
@@ -79,7 +79,7 @@ public class TransferStockCommandHandler(
                 .FirstOrDefaultAsync(i => i.ProductId == request.ProductId &&
                                         i.WarehouseId == request.ToWarehouseId, cancellationToken);
 
-            if (destInventory == null)
+            if (destInventory is null)
             {
                 destInventory = Inventory.Create(
                     request.ProductId,

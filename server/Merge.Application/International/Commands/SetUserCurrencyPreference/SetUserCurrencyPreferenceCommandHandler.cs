@@ -25,7 +25,7 @@ public class SetUserCurrencyPreferenceCommandHandler(
         var currency = await context.Set<Currency>()
             .FirstOrDefaultAsync(c => EF.Functions.ILike(c.Code, request.CurrencyCode) && c.IsActive, cancellationToken);
 
-        if (currency == null)
+        if (currency is null)
         {
             logger.LogWarning("Currency not found. CurrencyCode: {CurrencyCode}", request.CurrencyCode);
             throw new NotFoundException("Para birimi", Guid.Empty);
@@ -34,7 +34,7 @@ public class SetUserCurrencyPreferenceCommandHandler(
         var preference = await context.Set<UserCurrencyPreference>()
             .FirstOrDefaultAsync(p => p.UserId == request.UserId, cancellationToken);
 
-        if (preference == null)
+        if (preference is null)
         {
             preference = UserCurrencyPreference.Create(
                 request.UserId,

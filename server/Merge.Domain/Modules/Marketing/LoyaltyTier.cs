@@ -157,19 +157,19 @@ public class LoyaltyTier : BaseEntity, IAggregateRoot
         if (minimumPoints.HasValue)
             MinimumPoints = minimumPoints.Value;
 
-        if (discountPercentage != null)
+        if (discountPercentage is not null)
             DiscountPercentage = discountPercentage.Value;
 
         if (pointsMultiplier.HasValue)
             PointsMultiplier = pointsMultiplier.Value;
 
-        if (benefits != null)
+        if (benefits is not null)
             Benefits = benefits;
 
-        if (color != null)
+        if (color is not null)
             Color = color;
 
-        if (iconUrl != null)
+        if (iconUrl is not null)
             IconUrl = iconUrl;
 
         UpdatedAt = DateTime.UtcNow;

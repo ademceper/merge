@@ -34,7 +34,7 @@ public class SharedWishlistItem : BaseEntity
         get => _note; 
         private set 
         {
-            if (value != null && value.Length > 500)
+            if (value is not null && value.Length > 500)
             {
                 throw new DomainException("Not en fazla 500 karakter olabilir");
             }
@@ -66,7 +66,7 @@ public class SharedWishlistItem : BaseEntity
         Guard.AgainstDefault(productId, nameof(productId));
         Guard.AgainstOutOfRange(priority, 0, 3, nameof(priority));
         
-        if (note != null && note.Length > 500)
+        if (note is not null && note.Length > 500)
         {
             throw new DomainException("Not en fazla 500 karakter olabilir");
         }
@@ -100,7 +100,7 @@ public class SharedWishlistItem : BaseEntity
     
     public void UpdateNote(string newNote)
     {
-        if (newNote != null && newNote.Length > 500)
+        if (newNote is not null && newNote.Length > 500)
         {
             throw new DomainException("Not en fazla 500 karakter olabilir");
         }

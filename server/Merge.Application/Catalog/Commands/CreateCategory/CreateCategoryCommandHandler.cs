@@ -54,7 +54,7 @@ public class CreateCategoryCommandHandler(
                 .Include(c => c.SubCategories)
                 .FirstOrDefaultAsync(c => c.Id == category.Id, cancellationToken);
 
-            if (reloadedCategory == null)
+            if (reloadedCategory is null)
             {
                 logger.LogWarning("Category {CategoryId} not found after creation", category.Id);
                 throw new NotFoundException("Kategori", category.Id);

@@ -32,7 +32,7 @@ public class CalculateVolumeDiscountQueryHandler(
                 .OrderByDescending(vd => vd.MinQuantity)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (orgDiscount != null)
+            if (orgDiscount is not null)
             {
                 return orgDiscount.DiscountPercentage;
             }

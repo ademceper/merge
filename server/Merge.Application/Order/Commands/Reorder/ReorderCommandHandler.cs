@@ -28,7 +28,7 @@ public class ReorderCommandHandler(IDbContext context, IMediator mediator, ILogg
             .Include(o => o.Address)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId && o.UserId == request.UserId, cancellationToken);
 
-        if (originalOrder == null)
+        if (originalOrder is null)
         {
             throw new NotFoundException("Sipariş", request.OrderId);
         }

@@ -80,14 +80,14 @@ public class BlogPost : BaseEntity, IAggregateRoot
         Guard.AgainstLength(excerpt, 500, nameof(excerpt));
         Guard.AgainstLength(content, 50000, nameof(content));
         // Configuration değerleri: MaxMetaTitleLength=60, MaxMetaDescriptionLength=160, MaxMetaKeywordsLength=255
-        if (metaTitle != null)
+        if (metaTitle is not null)
             Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
-        if (metaDescription != null)
+        if (metaDescription is not null)
             Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
-        if (metaKeywords != null)
+        if (metaKeywords is not null)
             Guard.AgainstLength(metaKeywords, 255, nameof(metaKeywords));
 
-        var finalSlug = slug != null ? Slug.FromString(slug) : Slug.FromString(title);
+        var finalSlug = slug is not null ? Slug.FromString(slug) : Slug.FromString(title);
 
         if (!string.IsNullOrEmpty(featuredImageUrl) && !IsValidUrl(featuredImageUrl))
         {
@@ -278,11 +278,11 @@ public class BlogPost : BaseEntity, IAggregateRoot
         }
         
         // Configuration değerleri: MaxMetaTitleLength=60, MaxMetaDescriptionLength=160, MaxMetaKeywordsLength=255
-        if (metaTitle != null)
+        if (metaTitle is not null)
             Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
-        if (metaDescription != null)
+        if (metaDescription is not null)
             Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
-        if (metaKeywords != null)
+        if (metaKeywords is not null)
             Guard.AgainstLength(metaKeywords, 255, nameof(metaKeywords));
         
         MetaTitle = metaTitle;

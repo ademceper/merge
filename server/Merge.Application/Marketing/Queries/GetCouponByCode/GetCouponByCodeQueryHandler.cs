@@ -19,6 +19,6 @@ public class GetCouponByCodeQueryHandler(IDbContext context, IMapper mapper) : I
             .AsNoTracking()
             .FirstOrDefaultAsync(c => EF.Functions.ILike(c.Code, request.Code), cancellationToken);
 
-        return coupon == null ? null : mapper.Map<CouponDto>(coupon);
+        return coupon is null ? null : mapper.Map<CouponDto>(coupon);
     }
 }

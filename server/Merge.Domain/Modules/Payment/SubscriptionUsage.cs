@@ -81,7 +81,7 @@ public class SubscriptionUsage : BaseEntity, IAggregateRoot
         UsageCount += count;
         UpdatedAt = DateTime.UtcNow;
 
-        if (Limit.HasValue && !wasLimitReached && IsLimitReached() && UserSubscription != null)
+        if (Limit.HasValue && !wasLimitReached && IsLimitReached() && UserSubscription is not null)
         {
             AddDomainEvent(new SubscriptionUsageLimitReachedEvent(
                 Id,

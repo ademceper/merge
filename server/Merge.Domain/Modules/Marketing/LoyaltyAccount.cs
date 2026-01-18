@@ -112,7 +112,7 @@ public class LoyaltyAccount : BaseEntity, IAggregateRoot
 
     public void ClearTier()
     {
-        if (TierId == null) return;
+        if (TierId is null) return;
 
         var oldTierId = TierId;
         TierId = null;

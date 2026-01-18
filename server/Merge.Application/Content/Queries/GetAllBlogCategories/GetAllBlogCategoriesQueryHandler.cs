@@ -30,7 +30,7 @@ public class GetAllBlogCategoriesQueryHandler(
         var cacheKey = request.IsActive == true ? CACHE_KEY_ACTIVE_CATEGORIES : CACHE_KEY_ALL_CATEGORIES;
 
         var cachedCategories = await cache.GetAsync<List<BlogCategoryDto>>(cacheKey, cancellationToken);
-        if (cachedCategories != null)
+        if (cachedCategories is not null)
         {
             logger.LogInformation("Cache hit for all blog categories. IsActive: {IsActive}", request.IsActive);
             return cachedCategories;

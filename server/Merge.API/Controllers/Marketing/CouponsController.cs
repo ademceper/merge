@@ -15,6 +15,7 @@ using Merge.Application.Marketing.Commands.DeleteCoupon;
 using Merge.Application.Marketing.Commands.ValidateCoupon;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Marketing;
 
@@ -60,13 +61,9 @@ public class CouponsController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetCouponByCodeQuery(code);
-        var coupon = await mediator.Send(query, cancellationToken);
-        
-        if (coupon == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
-        
+        var coupon = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Coupon", code);
+
         return Ok(coupon);
     }
 
@@ -81,13 +78,9 @@ public class CouponsController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetCouponByIdQuery(id);
-        var coupon = await mediator.Send(query, cancellationToken);
-        
-        if (coupon == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
-        
+        var coupon = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Coupon", id);
+
         return Ok(coupon);
     }
 
@@ -222,12 +215,10 @@ public class CouponsController(
     {
         var command = new DeleteCouponCommand(id);
         var result = await mediator.Send(command, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
-        
+            throw new NotFoundException("Coupon", id);
+
         return NoContent();
     }
 }

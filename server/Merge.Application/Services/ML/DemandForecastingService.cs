@@ -30,7 +30,7 @@ public class DemandForecastingService(IDbContext context, ILogger<DemandForecast
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
-        if (product == null)
+        if (product is null)
         {
             throw new NotFoundException("Ürün", productId);
         }

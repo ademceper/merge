@@ -26,7 +26,7 @@ public class GetPrimaryStoreQueryHandler(IDbContext context, IMapper mapper, ILo
             .Include(s => s.Seller)
             .FirstOrDefaultAsync(s => s.SellerId == request.SellerId && s.IsPrimary, cancellationToken);
 
-        if (store == null) return null;
+        if (store is null) return null;
         
         var dto = mapper.Map<StoreDto>(store);
         

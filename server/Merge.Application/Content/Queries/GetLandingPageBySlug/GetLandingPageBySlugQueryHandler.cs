@@ -33,7 +33,7 @@ public class GetLandingPageBySlugQueryHandler(
         var cacheKey = $"{CACHE_KEY_PAGE_BY_SLUG}{request.Slug}";
 
         var cachedPage = await cache.GetAsync<LandingPageDto>(cacheKey, cancellationToken);
-        if (cachedPage != null && !request.TrackView)
+        if (cachedPage is not null && !request.TrackView)
         {
             logger.LogInformation("Cache hit for landing page. Slug: {Slug}", request.Slug);
             return cachedPage;
@@ -52,20 +52,20 @@ public class GetLandingPageBySlugQueryHandler(
                 .Include(lp => lp.VariantOf)
                 .FirstOrDefaultAsync(lp => lp.Slug == request.Slug && lp.Status == ContentStatus.Published && lp.IsActive, cancellationToken);
 
-        if (landingPage == null)
+        if (landingPage is null)
         {
             logger.LogWarning("Landing page not found with Slug: {Slug}", request.Slug);
             return null;
         }
 
-        if (landingPage.EnableABTesting && landingPage.Variants != null && landingPage.Variants.Any())
+        if (landingPage.EnableABTesting && landingPage.Variants is not null && landingPage.Variants.Any())
         {
             var variants = landingPage.Variants.Where(v => v.IsActive).ToList();
             if (variants.Any())
             {
                 var random = Random.Shared;
                 var selectedVariant = variants.OrderBy(v => random.Next()).FirstOrDefault();
-                if (selectedVariant != null)
+                if (selectedVariant is not null)
                 {
                     landingPage = selectedVariant;
                 }

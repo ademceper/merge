@@ -36,7 +36,7 @@ public class UpdateCategoryCommandHandler(
         try
         {
             var category = await categoryRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (category == null)
+            if (category is null)
             {
                 throw new NotFoundException("Kategori", request.Id);
             }
@@ -62,7 +62,7 @@ public class UpdateCategoryCommandHandler(
                 .Include(c => c.SubCategories)
                 .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-            if (reloadedCategory == null)
+            if (reloadedCategory is null)
             {
                 logger.LogWarning("Category {CategoryId} not found after update", request.Id);
                 throw new NotFoundException("Kategori", request.Id);

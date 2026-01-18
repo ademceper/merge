@@ -32,7 +32,7 @@ public class ReviewHelpfulnessController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var userId = GetUserId();
         var command = new MarkReviewHelpfulnessCommand(userId, dto.ReviewId, dto.IsHelpful);
         await mediator.Send(command, cancellationToken);

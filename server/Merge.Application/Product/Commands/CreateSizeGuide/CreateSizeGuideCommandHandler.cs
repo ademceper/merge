@@ -59,7 +59,7 @@ public class CreateSizeGuideCommandHandler(
                     entryDto.Width,
                     entryDto.Height,
                     entryDto.Weight,
-                    entryDto.AdditionalMeasurements != null ? JsonSerializer.Serialize(entryDto.AdditionalMeasurements) : null,
+                    entryDto.AdditionalMeasurements is not null ? JsonSerializer.Serialize(entryDto.AdditionalMeasurements) : null,
                     entryDto.DisplayOrder);
 
                 sizeGuide.AddEntry(entry);

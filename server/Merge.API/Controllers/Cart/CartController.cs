@@ -15,6 +15,7 @@ using Merge.Application.Cart.Commands.ClearCart;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
 using Merge.API.Extensions;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Cart;
 
@@ -121,12 +122,8 @@ public class CartController(
         var userId = GetUserId();
         
         var cartQuery = new GetCartByCartItemIdQuery(cartItemId);
-        var cart = await mediator.Send(cartQuery, cancellationToken);
-        
-        if (cart is null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var cart = await mediator.Send(cartQuery, cancellationToken)
+            ?? throw new NotFoundException("CartItem", cartItemId);
 
         if (cart.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -135,11 +132,10 @@ public class CartController(
 
         var command = new UpdateCartItemCommand(cartItemId, dto.Quantity);
         var result = await mediator.Send(command, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("CartItem", cartItemId);
+
         return NoContent();
     }
 
@@ -162,17 +158,13 @@ public class CartController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var userId = GetUserId();
 
         var cartQuery = new GetCartByCartItemIdQuery(cartItemId);
-        var cart = await mediator.Send(cartQuery, cancellationToken);
-
-        if (cart is null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var cart = await mediator.Send(cartQuery, cancellationToken)
+            ?? throw new NotFoundException("CartItem", cartItemId);
 
         if (cart.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -183,9 +175,8 @@ public class CartController(
         var result = await mediator.Send(command, cancellationToken);
 
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("CartItem", cartItemId);
+
         return NoContent();
     }
 
@@ -212,12 +203,8 @@ public class CartController(
         var userId = GetUserId();
         
         var cartQuery = new GetCartByCartItemIdQuery(cartItemId);
-        var cart = await mediator.Send(cartQuery, cancellationToken);
-        
-        if (cart is null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var cart = await mediator.Send(cartQuery, cancellationToken)
+            ?? throw new NotFoundException("CartItem", cartItemId);
 
         if (cart.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -226,11 +213,10 @@ public class CartController(
 
         var command = new RemoveCartItemCommand(cartItemId);
         var result = await mediator.Send(command, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("CartItem", cartItemId);
+
         return NoContent();
     }
 
@@ -254,11 +240,10 @@ public class CartController(
         var userId = GetUserId();
         var command = new ClearCartCommand(userId);
         var result = await mediator.Send(command, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Cart", userId);
+
         return NoContent();
     }
 }

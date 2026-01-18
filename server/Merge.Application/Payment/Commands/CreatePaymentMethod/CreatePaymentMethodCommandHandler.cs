@@ -35,7 +35,7 @@ public class CreatePaymentMethodCommandHandler(IDbContext context, IUnitOfWork u
                 .AsNoTracking()
                 .FirstOrDefaultAsync(pm => pm.Code == request.Code, cancellationToken);
 
-            if (existing != null)
+            if (existing is not null)
             {
                 logger.LogWarning("Payment method with code {Code} already exists", request.Code);
                 throw new BusinessException($"Bu kod ile ödeme yöntemi zaten mevcut: '{request.Code}'");
@@ -54,7 +54,7 @@ public class CreatePaymentMethodCommandHandler(IDbContext context, IUnitOfWork u
                 }
             }
 
-            var settingsJson = request.Settings != null ? JsonSerializer.Serialize(request.Settings) : null;
+            var settingsJson = request.Settings is not null ? JsonSerializer.Serialize(request.Settings) : null;
             var paymentMethod = PaymentMethod.Create(
                 request.Name,
                 request.Code,

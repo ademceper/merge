@@ -136,7 +136,7 @@ public class LoyaltyRule : BaseEntity, IAggregateRoot
         if (pointsAwarded.HasValue)
             PointsAwarded = pointsAwarded.Value;
 
-        if (minimumPurchaseAmount != null)
+        if (minimumPurchaseAmount is not null)
             MinimumPurchaseAmount = minimumPurchaseAmount.Amount;
 
         if (expiryDays.HasValue)

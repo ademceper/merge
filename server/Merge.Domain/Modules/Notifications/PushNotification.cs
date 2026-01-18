@@ -49,7 +49,7 @@ public class PushNotification : BaseEntity, IAggregateRoot
         get => _imageUrl; 
         private set 
         {
-            if (value != null)
+            if (value is not null)
             {
                 Guard.AgainstLength(value, 500, nameof(ImageUrl));
             }
@@ -72,7 +72,7 @@ public class PushNotification : BaseEntity, IAggregateRoot
         get => _errorMessage; 
         private set 
         {
-            if (value != null)
+            if (value is not null)
             {
                 Guard.AgainstLength(value, 500, nameof(ErrorMessage));
             }
@@ -102,7 +102,7 @@ public class PushNotification : BaseEntity, IAggregateRoot
         Guard.AgainstLength(title, 200, nameof(title));
         Guard.AgainstNullOrEmpty(body, nameof(body));
         Guard.AgainstLength(body, 1000, nameof(body));
-        if (imageUrl != null)
+        if (imageUrl is not null)
         {
             Guard.AgainstLength(imageUrl, 500, nameof(imageUrl));
         }

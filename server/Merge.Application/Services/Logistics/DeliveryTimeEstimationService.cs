@@ -22,7 +22,7 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
     public async Task<DeliveryTimeEstimationDto> CreateEstimationAsync(CreateDeliveryTimeEstimationDto dto, CancellationToken cancellationToken = default)
     {
         // Factory method kullan
-        var conditionsJson = dto.Conditions != null ? JsonSerializer.Serialize(dto.Conditions) : null;
+        var conditionsJson = dto.Conditions is not null ? JsonSerializer.Serialize(dto.Conditions) : null;
         var estimation = DeliveryTimeEstimation.Create(
             dto.MinDays,
             dto.MaxDays,
@@ -60,7 +60,7 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
             .Include(e => e.Warehouse)
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
-        return estimation != null ? mapper.Map<DeliveryTimeEstimationDto>(estimation) : null;
+        return estimation is not null ? mapper.Map<DeliveryTimeEstimationDto>(estimation) : null;
     }
 
     public async Task<IEnumerable<DeliveryTimeEstimationDto>> GetAllEstimationsAsync(Guid? productId = null, Guid? categoryId = null, Guid? warehouseId = null, bool? isActive = null, CancellationToken cancellationToken = default)
@@ -104,7 +104,7 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
         var estimation = await context.Set<DeliveryTimeEstimation>()
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
-        if (estimation == null) return false;
+        if (estimation is null) return false;
 
         // Domain method kullan
         if (dto.MinDays.HasValue || dto.MaxDays.HasValue || dto.AverageDays.HasValue)
@@ -115,7 +115,7 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
                 dto.AverageDays ?? estimation.AverageDays);
         }
 
-        if (dto.Conditions != null)
+        if (dto.Conditions is not null)
         {
             estimation.UpdateConditions(JsonSerializer.Serialize(dto.Conditions));
         }
@@ -138,7 +138,7 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
         var estimation = await context.Set<DeliveryTimeEstimation>()
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
-        if (estimation == null) return false;
+        if (estimation is null) return false;
 
         estimation.MarkAsDeleted();
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -164,14 +164,14 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
                       (string.IsNullOrEmpty(dto.Country) || e.Country == dto.Country))
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (estimation != null)
+            if (estimation is not null)
             {
                 source = "Product";
             }
         }
 
         // 2. Category-specific estimation
-        if (estimation == null && dto.CategoryId.HasValue)
+        if (estimation is null && dto.CategoryId.HasValue)
         {
             estimation = await context.Set<DeliveryTimeEstimation>()
                 .AsNoTracking()
@@ -182,14 +182,14 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
                       (string.IsNullOrEmpty(dto.Country) || e.Country == dto.Country))
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (estimation != null)
+            if (estimation is not null)
             {
                 source = "Category";
             }
         }
 
         // 3. Warehouse-specific estimation
-        if (estimation == null && dto.WarehouseId.HasValue)
+        if (estimation is null && dto.WarehouseId.HasValue)
         {
             estimation = await context.Set<DeliveryTimeEstimation>()
                 .AsNoTracking()
@@ -199,14 +199,14 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
                       (string.IsNullOrEmpty(dto.Country) || e.Country == dto.Country))
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (estimation != null)
+            if (estimation is not null)
             {
                 source = "Warehouse";
             }
         }
 
         // 4. Default estimation (no specific match)
-        if (estimation == null)
+        if (estimation is null)
         {
             estimation = await context.Set<DeliveryTimeEstimation>()
                 .AsNoTracking()
@@ -218,14 +218,14 @@ public class DeliveryTimeEstimationService(IDbContext context, IUnitOfWork unitO
                       (string.IsNullOrEmpty(dto.Country) || e.Country == dto.Country))
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (estimation != null)
+            if (estimation is not null)
             {
                 source = "Default";
             }
         }
 
         // If no estimation found, use default values
-        if (estimation == null)
+        if (estimation is null)
         {
             return new DeliveryTimeEstimateResultDto(
                 MinDays: 3,

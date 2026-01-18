@@ -26,7 +26,7 @@ public class GetStoreQueryHandler(IDbContext context, IMapper mapper, ILogger<Ge
             .Include(s => s.Seller)
             .FirstOrDefaultAsync(s => s.Id == request.StoreId, cancellationToken);
 
-        if (store == null) return null;
+        if (store is null) return null;
         
         var dto = mapper.Map<StoreDto>(store);
         

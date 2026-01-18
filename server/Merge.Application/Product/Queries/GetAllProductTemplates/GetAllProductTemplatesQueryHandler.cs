@@ -47,7 +47,7 @@ public class GetAllProductTemplatesQueryHandler(
         }
 
         var cachedTemplates = await cache.GetAsync<IEnumerable<ProductTemplateDto>>(cacheKey, cancellationToken);
-        if (cachedTemplates != null)
+        if (cachedTemplates is not null)
         {
             logger.LogInformation("Product templates retrieved from cache. CategoryId: {CategoryId}, IsActive: {IsActive}",
                 request.CategoryId, request.IsActive);

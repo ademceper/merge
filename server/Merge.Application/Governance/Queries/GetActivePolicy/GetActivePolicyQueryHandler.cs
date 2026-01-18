@@ -46,7 +46,7 @@ public class GetActivePolicyQueryHandler(
                     .OrderByDescending(p => p.Version)
                     .FirstOrDefaultAsync(cancellationToken);
 
-                if (policy == null)
+                if (policy is null)
                 {
                     logger.LogWarning("Active policy not found. PolicyType: {PolicyType}, Language: {Language}",
                         request.PolicyType, request.Language);

@@ -57,17 +57,17 @@ public class SEOSettings : BaseEntity, IAggregateRoot
         Guard.AgainstOutOfRange(priority, 0m, 1m, nameof(priority));
         Guard.AgainstLength(pageType, 50, nameof(pageType));
         // Configuration değerleri: MaxMetaTitleLength=60, MaxMetaDescriptionLength=160, MaxMetaKeywordsLength=255, MaxOgTitleLength=60, MaxOgDescriptionLength=160, MaxTwitterCardLength=30
-        if (metaTitle != null)
+        if (metaTitle is not null)
             Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
-        if (metaDescription != null)
+        if (metaDescription is not null)
             Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
-        if (metaKeywords != null)
+        if (metaKeywords is not null)
             Guard.AgainstLength(metaKeywords, 255, nameof(metaKeywords));
-        if (ogTitle != null)
+        if (ogTitle is not null)
             Guard.AgainstLength(ogTitle, 60, nameof(ogTitle));
-        if (ogDescription != null)
+        if (ogDescription is not null)
             Guard.AgainstLength(ogDescription, 160, nameof(ogDescription));
-        if (twitterCard != null)
+        if (twitterCard is not null)
             Guard.AgainstLength(twitterCard, 30, nameof(twitterCard));
 
         var validChangeFrequencies = new[] { "always", "hourly", "daily", "weekly", "monthly", "yearly", "never" };
@@ -125,11 +125,11 @@ public class SEOSettings : BaseEntity, IAggregateRoot
         }
         
         // Configuration değerleri: MaxMetaTitleLength=60, MaxMetaDescriptionLength=160, MaxMetaKeywordsLength=255
-        if (metaTitle != null)
+        if (metaTitle is not null)
             Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
-        if (metaDescription != null)
+        if (metaDescription is not null)
             Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
-        if (metaKeywords != null)
+        if (metaKeywords is not null)
             Guard.AgainstLength(metaKeywords, 255, nameof(metaKeywords));
         
         MetaTitle = metaTitle;
@@ -153,11 +153,11 @@ public class SEOSettings : BaseEntity, IAggregateRoot
         }
         
         // Configuration değerleri: MaxOgTitleLength=60, MaxOgDescriptionLength=160, MaxTwitterCardLength=30
-        if (ogTitle != null)
+        if (ogTitle is not null)
             Guard.AgainstLength(ogTitle, 60, nameof(ogTitle));
-        if (ogDescription != null)
+        if (ogDescription is not null)
             Guard.AgainstLength(ogDescription, 160, nameof(ogDescription));
-        if (twitterCard != null)
+        if (twitterCard is not null)
             Guard.AgainstLength(twitterCard, 30, nameof(twitterCard));
         
         OgTitle = ogTitle;

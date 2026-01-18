@@ -26,7 +26,7 @@ public class GetWarehouseByIdQueryHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == request.Id, cancellationToken);
 
-        return warehouse != null ? mapper.Map<WarehouseDto>(warehouse) : null;
+        return warehouse is not null ? mapper.Map<WarehouseDto>(warehouse) : null;
     }
 }
 

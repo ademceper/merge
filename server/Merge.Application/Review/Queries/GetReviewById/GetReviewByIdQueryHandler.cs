@@ -27,7 +27,7 @@ public class GetReviewByIdQueryHandler(IDbContext context, IMapper mapper, ILogg
             .Include(r => r.Product)
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
 
-        if (review == null)
+        if (review is null)
         {
             logger.LogWarning("Review not found with Id: {ReviewId}", request.ReviewId);
             return null;

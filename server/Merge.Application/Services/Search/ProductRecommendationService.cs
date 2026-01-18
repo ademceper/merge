@@ -29,9 +29,9 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
-        if (product == null)
+        if (product is null)
         {
-            return Enumerable.Empty<ProductRecommendationDto>();
+            return [];
         }
 
         // Find products in same category with similar price range
@@ -185,7 +185,7 @@ public class ProductRecommendationService(IDbContext context, IMapper mapper, IL
 
         if (recentlyViewed.Count == 0)
         {
-            return Enumerable.Empty<ProductRecommendationDto>();
+            return [];
         }
 
         // Ancak category'ler için subquery kullanıyoruz (ISSUE #3.1 fix)

@@ -21,7 +21,7 @@ public class ChangeUserRoleCommandHandler(
         
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
-        if (user == null)
+        if (user is null)
         {
             logger.LogWarning("User not found for role change. UserId: {UserId}", request.UserId);
             return false;
@@ -37,7 +37,7 @@ public class ChangeUserRoleCommandHandler(
         var roleEntity = await context.Roles
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Name == request.Role, cancellationToken);
-        if (roleEntity != null)
+        if (roleEntity is not null)
         {
             await context.UserRoles.AddAsync(new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>
             {

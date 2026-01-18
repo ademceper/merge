@@ -27,7 +27,7 @@ public class GenerateShareCodeCommandHandler(IDbContext context, IUnitOfWork uni
             var comparison = await context.Set<ProductComparison>()
                 .FirstOrDefaultAsync(c => c.Id == request.ComparisonId, cancellationToken);
 
-            if (comparison == null)
+            if (comparison is null)
             {
                 throw new NotFoundException("Karşılaştırma", request.ComparisonId);
             }

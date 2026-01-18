@@ -5,6 +5,7 @@ using MediatR;
 using Merge.Application.Configuration;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.Common;
+using Merge.Application.Exceptions;
 using Merge.API.Middleware;
 using Merge.Application.Analytics.Queries.GetReportSchedules;
 using Merge.Application.Analytics.Commands.CreateReportSchedule;
@@ -115,9 +116,7 @@ public class ReportSchedulingAnalyticsController(
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("ReportSchedule", id);
 
         return NoContent();
     }
@@ -145,9 +144,7 @@ public class ReportSchedulingAnalyticsController(
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("ReportSchedule", id);
 
         return Ok();
     }

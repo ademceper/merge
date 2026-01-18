@@ -30,11 +30,11 @@ public class CreatePreferenceCommandHandler(IDbContext context, IUnitOfWork unit
                                       np.Channel == request.Dto.Channel, cancellationToken);
 
         NotificationPreference preference;
-        if (existing != null)
+        if (existing is not null)
         {
             existing.Update(
                 request.Dto.IsEnabled,
-                request.Dto.CustomSettings != null ? JsonSerializer.Serialize(request.Dto.CustomSettings) : null);
+                request.Dto.CustomSettings is not null ? JsonSerializer.Serialize(request.Dto.CustomSettings) : null);
             preference = existing;
         }
         else
@@ -44,7 +44,7 @@ public class CreatePreferenceCommandHandler(IDbContext context, IUnitOfWork unit
                 request.Dto.NotificationType,
                 request.Dto.Channel,
                 request.Dto.IsEnabled,
-                request.Dto.CustomSettings != null ? JsonSerializer.Serialize(request.Dto.CustomSettings) : null);
+                request.Dto.CustomSettings is not null ? JsonSerializer.Serialize(request.Dto.CustomSettings) : null);
 
             await context.Set<NotificationPreference>().AddAsync(preference, cancellationToken);
         }
@@ -57,7 +57,7 @@ public class CreatePreferenceCommandHandler(IDbContext context, IUnitOfWork unit
                                       np.NotificationType == request.Dto.NotificationType && 
                                       np.Channel == request.Dto.Channel, cancellationToken);
 
-        if (createdPreference == null)
+        if (createdPreference is null)
         {
             throw new Application.Exceptions.BusinessException("Tercih oluşturulamadı.");
         }

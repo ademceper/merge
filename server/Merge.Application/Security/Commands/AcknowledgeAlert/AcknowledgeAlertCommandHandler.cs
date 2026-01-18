@@ -18,7 +18,7 @@ public class AcknowledgeAlertCommandHandler(IDbContext context, IUnitOfWork unit
         var alert = await context.Set<SecurityAlert>()
             .FirstOrDefaultAsync(a => a.Id == request.AlertId, cancellationToken);
 
-        if (alert == null) return false;
+        if (alert is null) return false;
 
         alert.Acknowledge(request.AcknowledgedByUserId);
         await unitOfWork.SaveChangesAsync(cancellationToken);

@@ -25,6 +25,6 @@ public class GetLanguageByCodeQueryHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(l => EF.Functions.ILike(l.Code, request.Code), cancellationToken);
 
-        return language != null ? mapper.Map<LanguageDto>(language) : null;
+        return language is not null ? mapper.Map<LanguageDto>(language) : null;
     }
 }

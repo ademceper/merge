@@ -10,7 +10,7 @@ public class GenerateInvoiceCommandValidator : AbstractValidator<GenerateInvoice
         RuleFor(x => x.Dto)
             .NotNull().WithMessage("Invoice data is required.");
 
-        When(x => x.Dto != null, () =>
+        When(x => x.Dto is not null, () =>
         {
             RuleFor(x => x.Dto!.SellerId)
                 .NotEmpty().WithMessage("Seller ID is required.");

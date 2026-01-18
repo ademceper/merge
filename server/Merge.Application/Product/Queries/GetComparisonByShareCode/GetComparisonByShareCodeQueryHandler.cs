@@ -46,7 +46,7 @@ public class GetComparisonByShareCodeQueryHandler(
                             .ThenInclude(p => p.Category)
                     .FirstOrDefaultAsync(c => c.ShareCode == request.ShareCode, cancellationToken);
 
-                if (comparison == null)
+                if (comparison is null)
                 {
                     return null;
                 }

@@ -17,6 +17,7 @@ using Merge.Application.Content.Queries.GetLandingPageBySlug;
 using Merge.Application.Content.Queries.GetAllLandingPages;
 using Merge.Application.Content.Queries.GetLandingPageAnalytics;
 using Merge.API.Middleware;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Content;
 
@@ -86,11 +87,9 @@ public class LandingPagesController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetLandingPageByIdQuery(id, trackView);
-        var landingPage = await mediator.Send(query, cancellationToken);
-        if (landingPage == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var landingPage = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("LandingPage", id);
+
         return Ok(landingPage);
     }
 
@@ -116,11 +115,9 @@ public class LandingPagesController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetLandingPageBySlugQuery(slug, trackView);
-        var landingPage = await mediator.Send(query, cancellationToken);
-        if (landingPage == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var landingPage = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("LandingPage", slug);
+
         return Ok(landingPage);
     }
 
@@ -190,10 +187,10 @@ public class LandingPagesController(
 
         var updateCommand = command with { Id = id, PerformedBy = userId };
         var result = await mediator.Send(updateCommand, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("LandingPage", id);
+
         return NoContent();
     }
 
@@ -237,10 +234,10 @@ public class LandingPagesController(
             patchDto.TrafficSplit,
             performedBy);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("LandingPage", id);
+
         return NoContent();
     }
 
@@ -276,10 +273,10 @@ public class LandingPagesController(
 
         var command = new DeleteLandingPageCommand(id, userId);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("LandingPage", id);
+
         return NoContent();
     }
 
@@ -315,10 +312,10 @@ public class LandingPagesController(
 
         var command = new PublishLandingPageCommand(id, userId);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("LandingPage", id);
+
         return NoContent();
     }
 
@@ -345,10 +342,10 @@ public class LandingPagesController(
     {
         var command = new TrackLandingPageConversionCommand(id);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("LandingPage", id);
+
         return NoContent();
     }
 

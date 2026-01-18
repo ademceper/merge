@@ -35,7 +35,7 @@ public class UpdatePolicyCommandHandler(
                 .Include(p => p.CreatedBy)
                 .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
 
-            if (policy == null)
+            if (policy is null)
             {
                 logger.LogWarning("Policy not found. PolicyId: {PolicyId}", request.Id);
                 throw new NotFoundException("Policy", request.Id);
@@ -60,7 +60,7 @@ public class UpdatePolicyCommandHandler(
                 policy.UpdateEffectiveDate(request.EffectiveDate.Value);
             if (request.ExpiryDate.HasValue)
                 policy.UpdateExpiryDate(request.ExpiryDate.Value);
-            if (request.ChangeLog != null)
+            if (request.ChangeLog is not null)
                 policy.UpdateChangeLog(request.ChangeLog);
 
             policy.UpdateCreatedByUserId(request.UpdatedByUserId);
@@ -73,7 +73,7 @@ public class UpdatePolicyCommandHandler(
                 .Include(p => p.CreatedBy)
                 .FirstOrDefaultAsync(p => p.Id == policy.Id, cancellationToken);
 
-            if (reloadedPolicy == null)
+            if (reloadedPolicy is null)
             {
                 logger.LogWarning("Policy {PolicyId} not found after update", policy.Id);
                 throw new NotFoundException("Policy", policy.Id);

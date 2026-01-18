@@ -72,7 +72,7 @@ public class SearchSuggestionsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var userId = User.Identity?.IsAuthenticated == true
             ? GetUserIdOrNull()
             : null;
@@ -99,7 +99,7 @@ public class SearchSuggestionsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new RecordClickCommand(clickDto.SearchHistoryId, clickDto.ProductId);
         await mediator.Send(command, cancellationToken);
         return NoContent();

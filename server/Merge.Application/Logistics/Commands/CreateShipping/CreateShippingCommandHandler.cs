@@ -30,7 +30,7 @@ public class CreateShippingCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
-        if (order == null)
+        if (order is null)
         {
             logger.LogWarning("Order not found. OrderId: {OrderId}", request.OrderId);
             throw new NotFoundException("Sipariş", request.OrderId);
@@ -61,7 +61,7 @@ public class CreateShippingCommandHandler(
             .Include(s => s.Order)
             .FirstOrDefaultAsync(s => s.Id == shipping.Id, cancellationToken);
 
-        if (createdShipping == null)
+        if (createdShipping is null)
         {
             logger.LogWarning("Shipping not found after creation. ShippingId: {ShippingId}", shipping.Id);
             throw new NotFoundException("Kargo", shipping.Id);

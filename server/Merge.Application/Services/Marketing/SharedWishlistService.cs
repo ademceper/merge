@@ -41,7 +41,7 @@ public class SharedWishlistService(IDbContext context, IUnitOfWork unitOfWork, I
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
         var created = await GetSharedWishlistByCodeAsync(wishlist.ShareCode, cancellationToken);
-        if (created == null)
+        if (created is null)
         {
             var items = mapper.Map<List<SharedWishlistItemDto>>(dto.ProductIds.Select(id => new { ProductId = id }));
             return new SharedWishlistDto(
@@ -65,7 +65,7 @@ public class SharedWishlistService(IDbContext context, IUnitOfWork unitOfWork, I
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.ShareCode == shareCode, cancellationToken);
 
-        if (wishlist == null) return null;
+        if (wishlist is null) return null;
 
         var items = await context.Set<SharedWishlistItem>()
             .AsNoTracking()
@@ -122,7 +122,7 @@ public class SharedWishlistService(IDbContext context, IUnitOfWork unitOfWork, I
     {
         var wishlist = await context.Set<SharedWishlist>()
             .FirstOrDefaultAsync(w => w.Id == wishlistId, cancellationToken);
-        if (wishlist != null)
+        if (wishlist is not null)
         {
             wishlist.MarkAsDeleted();
             await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -136,7 +136,7 @@ public class SharedWishlistService(IDbContext context, IUnitOfWork unitOfWork, I
     {
         var item = await context.Set<SharedWishlistItem>()
             .FirstOrDefaultAsync(i => i.Id == itemId, cancellationToken);
-        if (item != null)
+        if (item is not null)
         {
             item.MarkAsPurchased(purchasedBy);
             await unitOfWork.SaveChangesAsync(cancellationToken);

@@ -22,7 +22,7 @@ public class MarkInvoiceAsPaidCommandHandler(IDbContext context, IUnitOfWork uni
         var invoice = await context.Set<SellerInvoice>()
             .FirstOrDefaultAsync(i => i.Id == request.InvoiceId, cancellationToken);
 
-        if (invoice == null)
+        if (invoice is null)
         {
             logger.LogWarning("Invoice not found. InvoiceId: {InvoiceId}", request.InvoiceId);
             return false;

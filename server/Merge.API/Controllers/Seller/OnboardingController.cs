@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.DTOs.Seller;
+using Merge.Application.Exceptions;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
 using Merge.Application.Common;
@@ -40,7 +41,7 @@ public class OnboardingController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var userId = GetUserId();
         var command = new SubmitSellerApplicationCommand(userId, applicationDto);
@@ -60,12 +61,8 @@ public class OnboardingController(IMediator mediator) : BaseController
     {
         var userId = GetUserId();
         var query = new GetUserSellerApplicationQuery(userId);
-        var application = await mediator.Send(query, cancellationToken);
-
-        if (application == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var application = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("SellerApplication", userId);
         return Ok(application);
     }
 
@@ -82,12 +79,8 @@ public class OnboardingController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetSellerApplicationQuery(id);
-        var application = await mediator.Send(query, cancellationToken);
-
-        if (application == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var application = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("SellerApplication", id);
         return Ok(application);
     }
 
@@ -124,7 +117,7 @@ public class OnboardingController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var reviewerId = GetUserId();
         var command = new ReviewSellerApplicationCommand(
@@ -133,12 +126,8 @@ public class OnboardingController(IMediator mediator) : BaseController
             reviewDto.RejectionReason,
             reviewDto.AdditionalNotes,
             reviewerId);
-        var application = await mediator.Send(command, cancellationToken);
-
-        if (application == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var application = await mediator.Send(command, cancellationToken)
+            ?? throw new NotFoundException("SellerApplication", id);
         return Ok(application);
     }
 
@@ -157,11 +146,8 @@ public class OnboardingController(IMediator mediator) : BaseController
         var reviewerId = GetUserId();
         var command = new ApproveSellerApplicationCommand(id, reviewerId);
         var result = await mediator.Send(command, cancellationToken);
-
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SellerApplication", id);
         return NoContent();
     }
 
@@ -180,16 +166,13 @@ public class OnboardingController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var reviewerId = GetUserId();
         var command = new RejectSellerApplicationCommand(id, rejectDto.Reason, reviewerId);
         var result = await mediator.Send(command, cancellationToken);
-
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SellerApplication", id);
         return NoContent();
     }
 

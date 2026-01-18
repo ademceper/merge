@@ -30,7 +30,7 @@ public class ValidateCouponCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(c => EF.Functions.ILike(c.Code, request.Code), cancellationToken);
 
-        if (coupon == null)
+        if (coupon is null)
         {
             logger.LogWarning("Coupon not found. Code: {Code}", request.Code);
             throw new NotFoundException("Kupon", Guid.Empty);
@@ -60,9 +60,9 @@ public class ValidateCouponCommandHandler(
         }
 
         // Kategori/Ürün kontrolü
-        if (request.ProductIds != null && request.ProductIds.Any())
+        if (request.ProductIds is not null && request.ProductIds.Any())
         {
-            if (coupon.ApplicableProductIds != null && coupon.ApplicableProductIds.Any())
+            if (coupon.ApplicableProductIds is not null && coupon.ApplicableProductIds.Any())
             {
                 var hasApplicableProduct = request.ProductIds.Any(id => coupon.ApplicableProductIds.Contains(id));
                 if (!hasApplicableProduct)

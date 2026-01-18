@@ -36,7 +36,7 @@ public class Enable2FACommandHandler(
         var twoFactorAuth = await context.Set<TwoFactorAuth>()
             .FirstOrDefaultAsync(t => t.UserId == request.UserId, cancellationToken);
 
-        if (twoFactorAuth == null)
+        if (twoFactorAuth is null)
         {
             logger.LogWarning("2FA enable failed - setup not found. UserId: {UserId}", request.UserId);
             throw new BusinessException("2FA kurulumu yapılmamış. Önce 2FA kurulumunu yapın.");
@@ -64,7 +64,7 @@ public class Enable2FACommandHandler(
                     !c.IsUsed &&
                     c.ExpiresAt > DateTime.UtcNow, cancellationToken);
 
-            if (code != null)
+            if (code is not null)
             {
                 code.MarkAsUsed();
                 await codeRepository.UpdateAsync(code);

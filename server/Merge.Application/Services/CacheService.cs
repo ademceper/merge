@@ -75,7 +75,7 @@ public class CacheService(IDistributedCache distributedCache, ILogger<CacheServi
     public async Task<T?> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, TimeSpan? expiration = null, CancellationToken cancellationToken = default) where T : class
     {
         var cached = await GetAsync<T>(key, cancellationToken).ConfigureAwait(false);
-        if (cached != null)
+        if (cached is not null)
         {
             return cached;
         }
@@ -88,14 +88,14 @@ public class CacheService(IDistributedCache distributedCache, ILogger<CacheServi
         {
             // Double-check: Another request might have populated the cache while we were waiting
             cached = await GetAsync<T>(key, cancellationToken).ConfigureAwait(false);
-            if (cached != null)
+            if (cached is not null)
             {
                 return cached;
             }
 
             // Execute factory - only one request per key reaches here
             var value = await factory().ConfigureAwait(false);
-            if (value != null)
+            if (value is not null)
             {
                 await SetAsync(key, value, expiration, cancellationToken).ConfigureAwait(false);
             }
@@ -116,7 +116,7 @@ public class CacheService(IDistributedCache distributedCache, ILogger<CacheServi
     public async Task<T?> GetOrCreateNullableAsync<T>(string key, Func<Task<T?>> factory, TimeSpan? expiration = null, CancellationToken cancellationToken = default) where T : class
     {
         var cached = await GetAsync<T>(key, cancellationToken).ConfigureAwait(false);
-        if (cached != null)
+        if (cached is not null)
         {
             return cached;
         }
@@ -128,14 +128,14 @@ public class CacheService(IDistributedCache distributedCache, ILogger<CacheServi
         {
             // Double-check: Another request might have populated the cache while we were waiting
             cached = await GetAsync<T>(key, cancellationToken).ConfigureAwait(false);
-            if (cached != null)
+            if (cached is not null)
             {
                 return cached;
             }
 
             // Execute factory - only one request per key reaches here
             var value = await factory().ConfigureAwait(false);
-            if (value != null)
+            if (value is not null)
             {
                 await SetAsync(key, value, expiration, cancellationToken).ConfigureAwait(false);
             }

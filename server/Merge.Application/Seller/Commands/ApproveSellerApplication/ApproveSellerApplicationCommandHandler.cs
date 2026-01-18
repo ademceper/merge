@@ -35,7 +35,7 @@ public class ApproveSellerApplicationCommandHandler(IRepository applicationRepos
             await unitOfWork.BeginTransactionAsync(cancellationToken);
 
             var application = await applicationRepository.GetByIdAsync(request.ApplicationId);
-            if (application == null)
+            if (application is null)
             {
                 logger.LogWarning("Application approval failed - Application {ApplicationId} not found", request.ApplicationId);
                 return false;
@@ -48,7 +48,7 @@ public class ApproveSellerApplicationCommandHandler(IRepository applicationRepos
 
             // Send approval email
             var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
-            if (user != null)
+            if (user is not null)
             {
                 await emailService.SendEmailAsync(
                     user.Email ?? string.Empty,
@@ -89,7 +89,7 @@ public class ApproveSellerApplicationCommandHandler(IRepository applicationRepos
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == application.UserId, cancellationToken);
 
-        if (existingProfile != null)
+        if (existingProfile is not null)
         {
             logger.LogInformation("Seller profile already exists for user {UserId}", application.UserId);
             return;

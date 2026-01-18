@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
 using Merge.Application.DTOs.Security;
+using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Application.Governance.Commands.CreateAuditLog;
 using Merge.Application.Governance.Commands.DeleteOldAuditLogs;
@@ -43,7 +44,7 @@ public class AuditLogsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
         var userAgent = Request.Headers["User-Agent"].ToString();
@@ -96,13 +97,8 @@ public class AuditLogsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetAuditLogByIdQuery(id);
-        var audit = await mediator.Send(query, cancellationToken);
-
-        if (audit == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
-
+        var audit = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("AuditLog", id);
         return Ok(audit);
     }
 
@@ -121,7 +117,7 @@ public class AuditLogsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var query = new SearchAuditLogsQuery(
             filter.UserId,
@@ -158,13 +154,8 @@ public class AuditLogsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetEntityHistoryQuery(entityType, entityId);
-        var history = await mediator.Send(query, cancellationToken);
-
-        if (history == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
-
+        var history = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("EntityHistory", entityId);
         return Ok(history);
     }
 

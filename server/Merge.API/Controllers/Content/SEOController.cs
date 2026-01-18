@@ -18,6 +18,7 @@ using Merge.Application.Content.Commands.DeleteSitemapEntry;
 using Merge.Application.Content.Queries.GetSitemapEntries;
 using Merge.Application.Content.Queries.GetSitemapXml;
 using Merge.Application.Content.Queries.GetRobotsTxt;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Content;
 
@@ -85,11 +86,9 @@ public class SEOController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetSEOSettingsQuery(pageType, entityId);
-        var settings = await mediator.Send(query, cancellationToken);
-        if (settings == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var settings = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("SEOSettings", pageType);
+
         return Ok(settings);
     }
 
@@ -121,10 +120,10 @@ public class SEOController(
     {
         var command = new DeleteSEOSettingsCommand(pageType, entityId);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SEOSettings", entityId);
+
         return NoContent();
     }
 
@@ -301,10 +300,10 @@ public class SEOController(
     {
         var updateCommand = command with { Id = id };
         var result = await mediator.Send(updateCommand, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SitemapEntry", id);
+
         return NoContent();
     }
 
@@ -328,17 +327,17 @@ public class SEOController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new UpdateSitemapEntryCommand(
             id,
             patchDto.Url,
             patchDto.ChangeFrequency,
             patchDto.Priority);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SitemapEntry", id);
+
         return NoContent();
     }
 
@@ -368,10 +367,10 @@ public class SEOController(
     {
         var command = new DeleteSitemapEntryCommand(id);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SitemapEntry", id);
+
         return NoContent();
     }
 

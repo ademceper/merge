@@ -38,7 +38,7 @@ public class GetPopularProductTemplatesQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_POPULAR_TEMPLATES}{limit}";
         var cachedTemplates = await cache.GetAsync<IEnumerable<ProductTemplateDto>>(cacheKey, cancellationToken);
-        if (cachedTemplates != null)
+        if (cachedTemplates is not null)
         {
             logger.LogInformation("Popular product templates retrieved from cache. Limit: {Limit}", limit);
             return cachedTemplates;

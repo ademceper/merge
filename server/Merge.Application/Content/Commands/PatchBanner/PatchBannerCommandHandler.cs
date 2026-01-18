@@ -34,7 +34,7 @@ public class PatchBannerCommandHandler(
         try
         {
             var banner = await bannerRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (banner == null)
+            if (banner is null)
             {
                 logger.LogWarning("Banner not found. BannerId: {BannerId}", request.Id);
                 throw new NotFoundException("Banner", request.Id);
@@ -43,15 +43,15 @@ public class PatchBannerCommandHandler(
             var oldPosition = banner.Position;
 
             // Apply partial updates
-            if (request.PatchDto.Title != null)
+            if (request.PatchDto.Title is not null)
                 banner.UpdateTitle(request.PatchDto.Title);
-            if (request.PatchDto.Description != null)
+            if (request.PatchDto.Description is not null)
                 banner.UpdateDescription(request.PatchDto.Description);
-            if (request.PatchDto.ImageUrl != null)
+            if (request.PatchDto.ImageUrl is not null)
                 banner.UpdateImageUrl(request.PatchDto.ImageUrl);
-            if (request.PatchDto.LinkUrl != null)
+            if (request.PatchDto.LinkUrl is not null)
                 banner.UpdateLinkUrl(request.PatchDto.LinkUrl);
-            if (request.PatchDto.Position != null)
+            if (request.PatchDto.Position is not null)
                 banner.UpdatePosition(request.PatchDto.Position);
             if (request.PatchDto.SortOrder.HasValue)
                 banner.UpdateSortOrder(request.PatchDto.SortOrder.Value);

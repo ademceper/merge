@@ -40,7 +40,7 @@ public class CreateEmailCampaignCommandHandler(
             request.TargetSegment,
             request.ScheduledAt,
             request.TemplateId,
-            request.Tags != null ? JsonSerializer.Serialize(request.Tags) : null);
+            request.Tags is not null ? JsonSerializer.Serialize(request.Tags) : null);
 
         await context.Set<EmailCampaign>().AddAsync(campaign, cancellationToken);
         

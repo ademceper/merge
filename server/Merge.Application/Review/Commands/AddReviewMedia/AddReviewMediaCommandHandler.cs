@@ -29,7 +29,7 @@ public class AddReviewMediaCommandHandler(IDbContext context, IUnitOfWork unitOf
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
 
-        if (review == null)
+        if (review is null)
         {
             throw new NotFoundException("Değerlendirme", request.ReviewId);
         }

@@ -31,13 +31,13 @@ public class AddProductToBundleCommandHandler(IBundleRepository bundleRepository
         try
         {
             var bundle = await bundleRepository.GetByIdAsync(request.BundleId, cancellationToken);
-            if (bundle == null)
+            if (bundle is null)
             {
                 throw new NotFoundException("Paket", request.BundleId);
             }
 
             var product = await productRepository.GetByIdAsync(request.ProductId, cancellationToken);
-            if (product == null || !product.IsActive)
+            if (product is null || !product.IsActive)
             {
                 throw new NotFoundException("Ürün", request.ProductId);
             }

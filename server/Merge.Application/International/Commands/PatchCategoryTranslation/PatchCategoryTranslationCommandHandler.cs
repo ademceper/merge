@@ -28,7 +28,7 @@ public class PatchCategoryTranslationCommandHandler(
         var translation = await context.Set<CategoryTranslation>()
             .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
 
-        if (translation == null)
+        if (translation is null)
         {
             logger.LogWarning("Category translation not found. TranslationId: {TranslationId}", request.Id);
             throw new NotFoundException("Kategori Çevirisi", request.Id);

@@ -39,7 +39,7 @@ public class ReviewSellerApplicationCommandHandler(IRepository applicationReposi
             await unitOfWork.BeginTransactionAsync(cancellationToken);
 
             var application = await applicationRepository.GetByIdAsync(request.ApplicationId);
-            if (application == null)
+            if (application is null)
             {
                 logger.LogWarning("Application review failed - Application {ApplicationId} not found", request.ApplicationId);
                 throw new NotFoundException("Başvuru", request.ApplicationId);
@@ -69,7 +69,7 @@ public class ReviewSellerApplicationCommandHandler(IRepository applicationReposi
 
             // Send notification email
             var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
-            if (user != null)
+            if (user is not null)
             {
                 var subject = request.Status == SellerApplicationStatus.Approved
                     ? "Seller Application Approved!"
@@ -106,7 +106,7 @@ public class ReviewSellerApplicationCommandHandler(IRepository applicationReposi
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == application.UserId, cancellationToken);
 
-        if (existingProfile != null)
+        if (existingProfile is not null)
         {
             logger.LogInformation("Seller profile already exists for user {UserId}", application.UserId);
             return;

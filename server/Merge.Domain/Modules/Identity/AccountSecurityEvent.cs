@@ -38,7 +38,7 @@ public class AccountSecurityEvent : BaseEntity, IAggregateRoot
 
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         base.AddDomainEvent(domainEvent);
@@ -46,7 +46,7 @@ public class AccountSecurityEvent : BaseEntity, IAggregateRoot
 
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         base.RemoveDomainEvent(domainEvent);
@@ -131,7 +131,7 @@ public class AccountSecurityEvent : BaseEntity, IAggregateRoot
             Guard.AgainstLength(notes, 1000, nameof(notes));
         }
 
-        if (ActionTaken != null)
+        if (ActionTaken is not null)
             throw new DomainException("Action has already been taken for this event");
 
         ActionTaken = action;

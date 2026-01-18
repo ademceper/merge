@@ -14,6 +14,7 @@ using Merge.Application.Logistics.Queries.GetFilteredStockMovements;
 using Merge.Application.Logistics.Commands.CreateStockMovement;
 using Merge.Application.Product.Queries.GetProductById;
 using Merge.Application.Catalog.Queries.GetInventoryById;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Logistics;
 
@@ -49,18 +50,12 @@ public class StockMovementsController(
         }
 
         var query = new GetStockMovementByIdQuery(id);
-        var movement = await mediator.Send(query, cancellationToken);
-        if (movement == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var movement = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("StockMovement", id);
 
         var productQuery = new GetProductByIdQuery(movement.ProductId);
-        var product = await mediator.Send(productQuery, cancellationToken);
-        if (product == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var product = await mediator.Send(productQuery, cancellationToken)
+            ?? throw new NotFoundException("Product", movement.ProductId);
 
         if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
         {
@@ -87,18 +82,12 @@ public class StockMovementsController(
         }
 
         var inventoryQuery = new GetInventoryByIdQuery(inventoryId);
-        var inventory = await mediator.Send(inventoryQuery, cancellationToken);
-        if (inventory == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var inventory = await mediator.Send(inventoryQuery, cancellationToken)
+            ?? throw new NotFoundException("Inventory", inventoryId);
 
         var productQuery = new GetProductByIdQuery(inventory.ProductId);
-        var product = await mediator.Send(productQuery, cancellationToken);
-        if (product == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var product = await mediator.Send(productQuery, cancellationToken)
+            ?? throw new NotFoundException("Product", inventory.ProductId);
 
         if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
         {
@@ -129,11 +118,8 @@ public class StockMovementsController(
         }
 
         var productQuery = new GetProductByIdQuery(productId);
-        var product = await mediator.Send(productQuery, cancellationToken);
-        if (product == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var product = await mediator.Send(productQuery, cancellationToken)
+            ?? throw new NotFoundException("Product", productId);
 
         if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
         {
@@ -181,7 +167,7 @@ public class StockMovementsController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {
@@ -192,11 +178,8 @@ public class StockMovementsController(
         if (filter.ProductId.HasValue)
         {
             var productQuery = new GetProductByIdQuery(filter.ProductId.Value);
-            var product = await mediator.Send(productQuery, cancellationToken);
-            if (product == null)
-            {
-                return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-            }
+            var product = await mediator.Send(productQuery, cancellationToken)
+                ?? throw new NotFoundException("Product", filter.ProductId.Value);
 
             if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
             {
@@ -230,7 +213,7 @@ public class StockMovementsController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {
@@ -238,11 +221,8 @@ public class StockMovementsController(
         }
 
         var productQuery = new GetProductByIdQuery(createDto.ProductId);
-        var product = await mediator.Send(productQuery, cancellationToken);
-        if (product == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var product = await mediator.Send(productQuery, cancellationToken)
+            ?? throw new NotFoundException("Product", createDto.ProductId);
 
         if (product.SellerId.HasValue && product.SellerId.Value != userId && !User.IsInRole("Admin"))
         {

@@ -11,6 +11,7 @@ using Merge.Application.Product.Commands.AddProductToBundle;
 using Merge.Application.Product.Commands.RemoveProductFromBundle;
 using Merge.Application.Product.Queries.GetProductBundleById;
 using Merge.Application.Product.Queries.GetAllProductBundles;
+using Merge.Application.Exceptions;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
 
@@ -59,11 +60,9 @@ public class BundlesController(IMediator mediator) : BaseController
     public async Task<ActionResult<ProductBundleDto>> GetById(Guid id, CancellationToken cancellationToken = default)
     {
         var query = new GetProductBundleByIdQuery(id);
-        var bundle = await mediator.Send(query, cancellationToken);
-        if (bundle == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var bundle = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("ProductBundle", id);
+
         return Ok(bundle);
     }
 
@@ -80,7 +79,7 @@ public class BundlesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var bundle = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = bundle.Id }, bundle);
     }
@@ -100,7 +99,7 @@ public class BundlesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var updatedCommand = command with { Id = id };
         var bundle = await mediator.Send(updatedCommand, cancellationToken);
         return Ok(bundle);
@@ -125,7 +124,7 @@ public class BundlesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new PatchProductBundleCommand(id, patchDto);
         var bundle = await mediator.Send(command, cancellationToken);
         return Ok(bundle);
@@ -142,11 +141,11 @@ public class BundlesController(IMediator mediator) : BaseController
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken = default)
     {
         var command = new DeleteProductBundleCommand(id);
-        var result = await mediator.Send(command, cancellationToken);
-        if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var success = await mediator.Send(command, cancellationToken);
+
+        if (!success)
+            throw new NotFoundException("ProductBundle", id);
+
         return NoContent();
     }
 
@@ -164,13 +163,13 @@ public class BundlesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new AddProductToBundleCommand(bundleId, dto.ProductId, dto.Quantity, dto.SortOrder);
-        var result = await mediator.Send(command, cancellationToken);
-        if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var success = await mediator.Send(command, cancellationToken);
+
+        if (!success)
+            throw new NotFoundException("ProductBundle", bundleId);
+
         return NoContent();
     }
 
@@ -188,11 +187,11 @@ public class BundlesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var command = new RemoveProductFromBundleCommand(bundleId, productId);
-        var result = await mediator.Send(command, cancellationToken);
-        if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var success = await mediator.Send(command, cancellationToken);
+
+        if (!success)
+            throw new NotFoundException("ProductBundle", bundleId);
+
         return NoContent();
     }
 }

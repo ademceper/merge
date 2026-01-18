@@ -24,7 +24,7 @@ public class CreateTrustBadgeCommandHandler(IDbContext context, IUnitOfWork unit
             "Creating trust badge. Name: {Name}, BadgeType: {BadgeType}",
             request.Name, request.BadgeType);
 
-        var criteriaJson = request.Criteria != null ? JsonSerializer.Serialize(request.Criteria) : string.Empty;
+        var criteriaJson = request.Criteria is not null ? JsonSerializer.Serialize(request.Criteria) : string.Empty;
         var badge = TrustBadge.Create(
             request.Name,
             request.Description,

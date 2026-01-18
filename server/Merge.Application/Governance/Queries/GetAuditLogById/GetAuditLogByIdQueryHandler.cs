@@ -27,7 +27,7 @@ public class GetAuditLogByIdQueryHandler(
             .Include(a => a.User)
             .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
 
-        if (audit == null)
+        if (audit is null)
         {
             logger.LogWarning("Audit log not found. AuditLogId: {AuditLogId}", request.Id);
             return null;

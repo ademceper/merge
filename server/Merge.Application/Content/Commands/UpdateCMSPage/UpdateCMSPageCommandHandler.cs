@@ -37,7 +37,7 @@ public class UpdateCMSPageCommandHandler(
         try
         {
             var page = await cmsPageRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (page == null)
+            if (page is null)
             {
                 logger.LogWarning("CMS page not found. PageId: {PageId}", request.Id);
                 return false;
@@ -62,7 +62,7 @@ public class UpdateCMSPageCommandHandler(
             }
             if (!string.IsNullOrEmpty(request.Content))
                 page.UpdateContent(request.Content);
-            if (request.Excerpt != null)
+            if (request.Excerpt is not null)
                 page.UpdateExcerpt(request.Excerpt);
             if (!string.IsNullOrEmpty(request.PageType))
                 page.UpdatePageType(request.PageType);
@@ -73,9 +73,9 @@ public class UpdateCMSPageCommandHandler(
                     page.UpdateStatus(newStatus);
                 }
             }
-            if (request.Template != null)
+            if (request.Template is not null)
                 page.UpdateTemplate(request.Template);
-            if (request.MetaTitle != null || request.MetaDescription != null || request.MetaKeywords != null)
+            if (request.MetaTitle is not null || request.MetaDescription is not null || request.MetaKeywords is not null)
                 page.UpdateMetaInformation(request.MetaTitle, request.MetaDescription, request.MetaKeywords);
             if (request.IsHomePage.HasValue && request.IsHomePage.Value)
             {
@@ -94,7 +94,7 @@ public class UpdateCMSPageCommandHandler(
                 page.UpdateDisplayOrder(request.DisplayOrder.Value);
             if (request.ShowInMenu.HasValue)
                 page.UpdateShowInMenu(request.ShowInMenu.Value);
-            if (request.MenuTitle != null)
+            if (request.MenuTitle is not null)
                 page.UpdateMenuTitle(request.MenuTitle);
             if (request.ParentPageId.HasValue)
                 page.UpdateParentPage(request.ParentPageId);

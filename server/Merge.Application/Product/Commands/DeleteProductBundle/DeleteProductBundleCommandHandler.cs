@@ -27,7 +27,7 @@ public class DeleteProductBundleCommandHandler(IRepository bundleRepository, IUn
         try
         {
             var bundle = await bundleRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (bundle == null)
+            if (bundle is null)
             {
                 logger.LogWarning("Product bundle not found for deletion. BundleId: {BundleId}", request.Id);
                 return false;

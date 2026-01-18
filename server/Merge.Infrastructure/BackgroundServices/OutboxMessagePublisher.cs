@@ -65,7 +65,7 @@ public class OutboxMessagePublisher(IServiceScopeFactory scopeFactory, ILogger<O
             try
             {
                 var domainEvent = DeserializeDomainEvent(message);
-                if (domainEvent != null)
+                if (domainEvent is not null)
                 {
                     await mediator.Publish(domainEvent, cancellationToken);
 
@@ -102,7 +102,7 @@ public class OutboxMessagePublisher(IServiceScopeFactory scopeFactory, ILogger<O
         try
         {
             var type = Type.GetType(message.Type);
-            if (type == null)
+            if (type is null)
             {
                 logger.LogWarning("Could not find type {Type} for outbox message {MessageId}",
                     message.Type, message.Id);

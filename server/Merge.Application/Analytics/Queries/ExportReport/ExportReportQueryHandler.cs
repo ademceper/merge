@@ -25,7 +25,7 @@ public class ExportReportQueryHandler(
             .Include(r => r.GeneratedByUser)
             .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken);
 
-        if (report == null)
+        if (report is null)
         {
             logger.LogWarning("Report not found for export. ReportId: {ReportId}", request.Id);
             throw new NotFoundException("Rapor", request.Id);

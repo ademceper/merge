@@ -18,7 +18,7 @@ public class RecordClickCommandHandler(IDbContext context, IUnitOfWork unitOfWor
         var searchHistory = await context.Set<SearchHistory>()
             .FirstOrDefaultAsync(sh => sh.Id == request.SearchHistoryId, cancellationToken);
 
-        if (searchHistory == null)
+        if (searchHistory is null)
         {
             return;
         }
@@ -28,7 +28,7 @@ public class RecordClickCommandHandler(IDbContext context, IUnitOfWork unitOfWor
         var popularSearch = await context.Set<PopularSearch>()
             .FirstOrDefaultAsync(ps => EF.Functions.ILike(ps.SearchTerm, searchHistory.SearchTerm), cancellationToken);
 
-        if (popularSearch != null)
+        if (popularSearch is not null)
         {
             popularSearch.IncrementClickThroughCount();
         }

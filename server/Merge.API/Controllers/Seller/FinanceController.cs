@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.DTOs.Seller;
+using Merge.Application.Exceptions;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
 using Merge.Application.Common;
@@ -147,10 +148,9 @@ public class FinanceController(IMediator mediator) : BaseController
         var query = new GetTransactionQuery(id);
         var transaction = await mediator.Send(query, cancellationToken);
 
-        if (transaction == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        if (transaction is null)
+            throw new NotFoundException("SellerTransaction", id);
+
         if (transaction.SellerId != sellerId && !User.IsInRole("Admin"))
         {
             return Forbid();
@@ -191,10 +191,9 @@ public class FinanceController(IMediator mediator) : BaseController
         var query = new GetInvoiceQuery(id);
         var invoice = await mediator.Send(query, cancellationToken);
 
-        if (invoice == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        if (invoice is null)
+            throw new NotFoundException("SellerInvoice", id);
+
         if (invoice.SellerId != sellerId && !User.IsInRole("Admin"))
         {
             return Forbid();
@@ -236,9 +235,8 @@ public class FinanceController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SellerInvoice", id);
+
         return NoContent();
     }
 
@@ -258,9 +256,8 @@ public class FinanceController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SellerInvoice", id);
+
         return Ok();
     }
 }

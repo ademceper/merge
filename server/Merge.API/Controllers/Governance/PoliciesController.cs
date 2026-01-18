@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MediatR;
 using Microsoft.Extensions.Options;
 using Merge.Application.DTOs.Governance;
+using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.Application.Configuration;
 using Merge.Application.Governance.Commands.CreatePolicy;
@@ -52,11 +53,9 @@ public class PoliciesController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetActivePolicyQuery(policyType, language);
-        var policy = await mediator.Send(query, cancellationToken);
-        if (policy == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var policy = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Policy", policyType);
+
         return Ok(policy);
     }
 
@@ -96,11 +95,9 @@ public class PoliciesController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetPolicyByIdQuery(id);
-        var policy = await mediator.Send(query, cancellationToken);
-        if (policy == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var policy = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Policy", id);
+
         return Ok(policy);
     }
 
@@ -120,7 +117,7 @@ public class PoliciesController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {
@@ -200,10 +197,10 @@ public class PoliciesController(
 
         var command = new RevokeAcceptanceCommand(userId, policyId);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("PolicyAcceptance", policyId);
+
         return NoContent();
     }
 
@@ -224,7 +221,7 @@ public class PoliciesController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {
@@ -265,7 +262,7 @@ public class PoliciesController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {
@@ -307,7 +304,7 @@ public class PoliciesController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {
@@ -345,10 +342,10 @@ public class PoliciesController(
     {
         var command = new DeletePolicyCommand(id);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Policy", id);
+
         return NoContent();
     }
 
@@ -369,10 +366,10 @@ public class PoliciesController(
     {
         var command = new ActivatePolicyCommand(id);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Policy", id);
+
         return NoContent();
     }
 
@@ -393,10 +390,10 @@ public class PoliciesController(
     {
         var command = new DeactivatePolicyCommand(id);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Policy", id);
+
         return NoContent();
     }
 

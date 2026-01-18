@@ -43,7 +43,7 @@ public class CreateLiveStreamCommandHandler(
                 .ThenInclude(p => p.Product)
             .FirstOrDefaultAsync(s => s.Id == stream.Id, cancellationToken);
 
-        if (createdStream == null)
+        if (createdStream is null)
         {
             logger.LogWarning("Live stream not found after creation. StreamId: {StreamId}", stream.Id);
             throw new NotFoundException("Canlı yayın", stream.Id);

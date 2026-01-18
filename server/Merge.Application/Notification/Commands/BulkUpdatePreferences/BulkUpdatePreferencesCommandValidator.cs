@@ -17,7 +17,7 @@ public class BulkUpdatePreferencesCommandValidator : AbstractValidator<BulkUpdat
             .NotNull()
             .WithMessage("Toplu güncelleme bilgileri zorunludur.");
 
-        When(x => x.Dto != null, () =>
+        When(x => x.Dto is not null, () =>
         {
             RuleFor(x => x.Dto.Preferences)
                 .NotNull()

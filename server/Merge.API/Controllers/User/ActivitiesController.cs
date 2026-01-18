@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
 using Merge.Application.DTOs.User;
+using Merge.Application.Exceptions;
 using Merge.Application.User.Commands.DeleteOldActivities;
 using Merge.Application.User.Commands.LogActivity;
 using Merge.Application.User.Queries.GetActivityById;
@@ -80,11 +81,8 @@ public class ActivitiesController(IMediator mediator, IOptions<UserSettings> use
         CancellationToken cancellationToken = default)
     {
         var query = new GetActivityByIdQuery(id);
-        var activity = await mediator.Send(query, cancellationToken);
-        if (activity == null)
-        {
-            return Problem("Activity not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var activity = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Activity", id);
         return Ok(activity);
     }
 

@@ -32,7 +32,7 @@ public class SubmitSellerApplicationCommandHandler(IRepository applicationReposi
 
         // Check if user exists
         var user = await userManager.FindByIdAsync(request.UserId.ToString());
-        if (user == null)
+        if (user is null)
         {
             logger.LogWarning("Seller application failed - User {UserId} not found", request.UserId);
             throw new NotFoundException("Kullanıcı", request.UserId);
@@ -43,7 +43,7 @@ public class SubmitSellerApplicationCommandHandler(IRepository applicationReposi
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.UserId == request.UserId, cancellationToken);
 
-        if (existingApplication != null && existingApplication.Status != SellerApplicationStatus.Rejected)
+        if (existingApplication is not null && existingApplication.Status != SellerApplicationStatus.Rejected)
         {
             logger.LogWarning("Seller application failed - User {UserId} already has a pending/approved application", request.UserId);
             throw new BusinessException("Zaten bekleyen veya onaylanmış bir başvurunuz var.");

@@ -42,7 +42,7 @@ public class ReleaseStockCommandHandler(
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
-            if (product == null)
+            if (product is null)
             {
                 throw new NotFoundException("Ürün", request.ProductId);
             }
@@ -58,7 +58,7 @@ public class ReleaseStockCommandHandler(
                 .FirstOrDefaultAsync(i => i.ProductId == request.ProductId &&
                                         i.WarehouseId == request.WarehouseId, cancellationToken);
 
-            if (inventory == null)
+            if (inventory is null)
             {
                 throw new NotFoundException("Envanter", Guid.Empty);
             }

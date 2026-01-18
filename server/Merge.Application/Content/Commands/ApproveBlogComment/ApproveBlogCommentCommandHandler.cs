@@ -28,7 +28,7 @@ public class ApproveBlogCommentCommandHandler(
         try
         {
             var comment = await commentRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (comment == null)
+            if (comment is null)
             {
                 logger.LogWarning("Blog comment not found. CommentId: {CommentId}", request.Id);
                 return false;

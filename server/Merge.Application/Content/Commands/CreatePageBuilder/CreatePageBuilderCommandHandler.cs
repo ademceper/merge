@@ -65,7 +65,7 @@ public class CreatePageBuilderCommandHandler(
                 .Include(pb => pb.Author)
                 .FirstOrDefaultAsync(pb => pb.Id == pageBuilder.Id, cancellationToken);
 
-            if (reloadedPage == null)
+            if (reloadedPage is null)
             {
                 logger.LogWarning("Page builder {PageBuilderId} not found after creation", pageBuilder.Id);
                 throw new NotFoundException("Page Builder", pageBuilder.Id);

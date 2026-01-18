@@ -43,7 +43,7 @@ public class ImportProductsFromJsonCommandHandler(
         {
             var products = await JsonSerializer.DeserializeAsync<List<BulkProductImportDto>>(request.FileStream, cancellationToken: cancellationToken);
 
-            if (products == null || products.Count == 0)
+            if (products is null || products.Count == 0)
             {
                 errors.Add("No products found in JSON file");
                 return new BulkProductImportResultDto(
@@ -64,7 +64,7 @@ public class ImportProductsFromJsonCommandHandler(
                 try
                 {
                     var product = await ImportSingleProductAsync(productDto, cancellationToken);
-                    if (product != null)
+                    if (product is not null)
                     {
                         successCount++;
                         var importedProductDto = mapper.Map<ProductDto>(product);
@@ -118,7 +118,7 @@ public class ImportProductsFromJsonCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.SKU == dto.SKU, cancellationToken);
 
-        if (existingProduct != null)
+        if (existingProduct is not null)
         {
             logger.LogWarning("SKU already exists: {SKU}", dto.SKU);
             return null;
@@ -128,7 +128,7 @@ public class ImportProductsFromJsonCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Name == dto.CategoryName, cancellationToken);
 
-        if (category == null)
+        if (category is null)
         {
             logger.LogWarning("Category not found: {CategoryName}", dto.CategoryName);
             return null;

@@ -47,7 +47,7 @@ public class RequestPayoutCommandHandler(IDbContext context, IUnitOfWork unitOfW
             .Where(sc => request.CommissionIds.Contains(sc.Id) && sc.SellerId == request.SellerId && sc.Status == CommissionStatus.Approved)
             .SumAsync(c => c.NetAmount, cancellationToken);
 
-        if (settings != null && totalAmount < settings.MinimumPayoutAmount)
+        if (settings is not null && totalAmount < settings.MinimumPayoutAmount)
         {
             logger.LogWarning("Payout amount below minimum. SellerId: {SellerId}, Amount: {Amount}, Minimum: {Minimum}",
                 request.SellerId, totalAmount, settings.MinimumPayoutAmount);
@@ -101,7 +101,7 @@ public class RequestPayoutCommandHandler(IDbContext context, IUnitOfWork unitOfW
             .FirstOrDefaultAsync(cancellationToken);
 
         int nextNumber = 1;
-        if (lastPayout != null && lastPayout.PayoutNumber.StartsWith("PAY-"))
+        if (lastPayout is not null && lastPayout.PayoutNumber.StartsWith("PAY-"))
         {
             var numberPart = lastPayout.PayoutNumber.Substring(4);
             if (int.TryParse(numberPart, out int lastNumber))

@@ -27,7 +27,7 @@ public class GetHomePageCMSPageQueryHandler(
         logger.LogInformation("Retrieving home page CMS page");
 
         var cachedPage = await cache.GetAsync<CMSPageDto>(CACHE_KEY_HOME_PAGE, cancellationToken);
-        if (cachedPage != null)
+        if (cachedPage is not null)
         {
             logger.LogInformation("Cache hit for home page");
             return cachedPage;
@@ -40,7 +40,7 @@ public class GetHomePageCMSPageQueryHandler(
             .Include(p => p.Author)
             .FirstOrDefaultAsync(p => p.IsHomePage && p.Status == ContentStatus.Published, cancellationToken);
 
-        if (page == null)
+        if (page is null)
         {
             logger.LogWarning("Home page not found");
             return null;

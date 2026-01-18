@@ -16,6 +16,7 @@ using Merge.Application.Marketing.Commands.AddProductToFlashSale;
 using Merge.Application.Marketing.Commands.RemoveProductFromFlashSale;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Marketing;
 
@@ -80,13 +81,9 @@ public class FlashSalesController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetFlashSaleByIdQuery(id);
-        var sale = await mediator.Send(query, cancellationToken);
-        
-        if (sale == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
-        
+        var sale = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("FlashSale", id);
+
         return Ok(sale);
     }
 
@@ -177,12 +174,10 @@ public class FlashSalesController(
     {
         var command = new DeleteFlashSaleCommand(id);
         var result = await mediator.Send(command, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
-        
+            throw new NotFoundException("FlashSale", id);
+
         return NoContent();
     }
 
@@ -226,12 +221,10 @@ public class FlashSalesController(
     {
         var command = new RemoveProductFromFlashSaleCommand(flashSaleId, productId);
         var result = await mediator.Send(command, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
-        
+            throw new NotFoundException("FlashSaleProduct", $"{flashSaleId}/{productId}");
+
         return NoContent();
     }
 }

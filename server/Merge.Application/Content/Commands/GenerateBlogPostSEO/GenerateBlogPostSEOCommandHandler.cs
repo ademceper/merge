@@ -32,7 +32,7 @@ public class GenerateBlogPostSEOCommandHandler(
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == request.PostId, cancellationToken);
 
-        if (post == null)
+        if (post is null)
         {
             logger.LogWarning("Blog post not found. PostId: {PostId}", request.PostId);
             throw new NotFoundException("Blog yazısı", request.PostId);

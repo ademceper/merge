@@ -35,7 +35,7 @@ public class SellerProfile : BaseEntity, IAggregateRoot
 
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         base.AddDomainEvent(domainEvent);
@@ -85,19 +85,19 @@ public class SellerProfile : BaseEntity, IAggregateRoot
         string? logoUrl = null,
         string? bannerUrl = null)
     {
-        if (storeName != null)
+        if (storeName is not null)
         {
             Guard.AgainstNullOrEmpty(storeName, nameof(storeName));
             StoreName = storeName;
         }
 
-        if (storeDescription != null)
+        if (storeDescription is not null)
             StoreDescription = storeDescription;
 
-        if (logoUrl != null)
+        if (logoUrl is not null)
             LogoUrl = logoUrl;
 
-        if (bannerUrl != null)
+        if (bannerUrl is not null)
             BannerUrl = bannerUrl;
 
         UpdatedAt = DateTime.UtcNow;

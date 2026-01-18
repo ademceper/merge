@@ -32,7 +32,7 @@ public class UpdateLandingPageCommandHandler(
         try
         {
             var landingPage = await landingPageRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (landingPage == null)
+            if (landingPage is null)
             {
                 logger.LogWarning("Landing page not found. LandingPageId: {LandingPageId}", request.Id);
                 return false;
@@ -60,7 +60,7 @@ public class UpdateLandingPageCommandHandler(
             {
                 landingPage.UpdateContent(request.Content);
             }
-            if (request.Template != null)
+            if (request.Template is not null)
             {
                 landingPage.UpdateTemplate(request.Template);
             }
@@ -75,7 +75,7 @@ public class UpdateLandingPageCommandHandler(
             {
                 landingPage.UpdateSchedule(request.StartDate, request.EndDate);
             }
-            if (request.MetaTitle != null || request.MetaDescription != null || request.OgImageUrl != null)
+            if (request.MetaTitle is not null || request.MetaDescription is not null || request.OgImageUrl is not null)
             {
                 landingPage.UpdateMetaInformation(request.MetaTitle, request.MetaDescription, request.OgImageUrl);
             }

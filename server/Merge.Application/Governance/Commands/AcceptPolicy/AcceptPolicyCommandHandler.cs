@@ -33,7 +33,7 @@ public class AcceptPolicyCommandHandler(
             var policy = await context.Set<Policy>()
                 .FirstOrDefaultAsync(p => p.Id == request.PolicyId && p.IsActive, cancellationToken);
 
-            if (policy == null)
+            if (policy is null)
             {
                 logger.LogWarning("Policy not found or not active. PolicyId: {PolicyId}", request.PolicyId);
                 throw new NotFoundException("Policy", request.PolicyId);
@@ -47,7 +47,7 @@ public class AcceptPolicyCommandHandler(
                                       pa.AcceptedVersion == policy.Version &&
                                       pa.IsActive, cancellationToken);
 
-            if (existingAcceptance != null && existingAcceptance.IsActive)
+            if (existingAcceptance is not null && existingAcceptance.IsActive)
             {
                 logger.LogInformation("Policy already accepted. AcceptanceId: {AcceptanceId}, UserId: {UserId}, PolicyId: {PolicyId}",
                     existingAcceptance.Id, request.UserId, request.PolicyId);
@@ -83,7 +83,7 @@ public class AcceptPolicyCommandHandler(
                 .Include(pa => pa.User)
                 .FirstOrDefaultAsync(pa => pa.Id == acceptance.Id, cancellationToken);
 
-            if (reloadedAcceptance == null)
+            if (reloadedAcceptance is null)
             {
                 logger.LogWarning("Policy acceptance {AcceptanceId} not found after creation", acceptance.Id);
                 throw new NotFoundException("Policy acceptance", acceptance.Id);

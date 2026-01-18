@@ -31,6 +31,7 @@ using Merge.Application.International.Commands.BulkCreateStaticTranslations;
 using Merge.Application.International.Commands.SetUserLanguagePreference;
 using Merge.Application.International.Queries.GetUserLanguagePreference;
 using Merge.Application.International.Queries.GetTranslationStats;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.International;
 
@@ -91,12 +92,8 @@ public class LanguagesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetLanguageByIdQuery(id);
-        var language = await mediator.Send(query, cancellationToken);
-
-        if (language == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var language = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Language", id);
 
         return Ok(language);
     }
@@ -115,12 +112,8 @@ public class LanguagesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetLanguageByCodeQuery(code);
-        var language = await mediator.Send(query, cancellationToken);
-
-        if (language == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var language = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Language", code);
 
         return Ok(language);
     }
@@ -284,12 +277,8 @@ public class LanguagesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetProductTranslationQuery(productId, languageCode);
-        var translation = await mediator.Send(query, cancellationToken);
-
-        if (translation == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var translation = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("ProductTranslation", $"{productId}/{languageCode}");
 
         return Ok(translation);
     }
@@ -342,7 +331,7 @@ public class LanguagesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new PatchProductTranslationCommand(id, patchDto);
         var translation = await mediator.Send(command, cancellationToken);
@@ -452,7 +441,7 @@ public class LanguagesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new PatchCategoryTranslationCommand(id, patchDto);
         var translation = await mediator.Send(command, cancellationToken);
@@ -565,7 +554,7 @@ public class LanguagesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new PatchStaticTranslationCommand(id, patchDto);
         var translation = await mediator.Send(command, cancellationToken);

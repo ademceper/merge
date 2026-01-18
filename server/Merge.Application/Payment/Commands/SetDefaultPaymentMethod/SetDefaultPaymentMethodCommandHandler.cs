@@ -27,7 +27,7 @@ public class SetDefaultPaymentMethodCommandHandler(IDbContext context, IUnitOfWo
             var paymentMethod = await context.Set<PaymentMethod>()
                 .FirstOrDefaultAsync(pm => pm.Id == request.PaymentMethodId, cancellationToken);
 
-            if (paymentMethod == null)
+            if (paymentMethod is null)
             {
                 logger.LogWarning("Payment method not found. PaymentMethodId: {PaymentMethodId}", request.PaymentMethodId);
                 return false;

@@ -82,7 +82,7 @@ public class CreateProductBundleCommandHandler(IBundleRepository bundleRepositor
                     .ThenInclude(bi => bi.Product)
                 .FirstOrDefaultAsync(b => b.Id == bundle.Id, cancellationToken);
 
-            if (reloadedBundle == null)
+            if (reloadedBundle is null)
             {
                 logger.LogWarning("Product bundle {BundleId} not found after creation", bundle.Id);
                 throw new NotFoundException("Paket", bundle.Id);

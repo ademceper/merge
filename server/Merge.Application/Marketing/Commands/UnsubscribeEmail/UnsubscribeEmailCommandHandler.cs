@@ -22,7 +22,7 @@ public class UnsubscribeEmailCommandHandler(
         var subscriber = await context.Set<EmailSubscriber>()
             .FirstOrDefaultAsync(s => EF.Functions.ILike(s.Email, request.Email), cancellationToken);
 
-        if (subscriber == null)
+        if (subscriber is null)
         {
             return false;
         }

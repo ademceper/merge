@@ -27,7 +27,7 @@ public class SendLiveChatMessageCommandHandler(IDbContext context, IUnitOfWork u
         var session = await context.Set<LiveChatSession>()
             .FirstOrDefaultAsync(s => s.Id == request.SessionId, cancellationToken);
 
-        if (session == null)
+        if (session is null)
         {
             logger.LogWarning("Live chat session {SessionId} not found while sending message", request.SessionId);
             throw new NotFoundException("Oturum", request.SessionId);
@@ -40,7 +40,7 @@ public class SendLiveChatMessageCommandHandler(IDbContext context, IUnitOfWork u
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == request.SenderId.Value, cancellationToken);
 
-            if (user != null)
+            if (user is not null)
             {
                 var isAgent = await context.UserRoles
                     .AsNoTracking()

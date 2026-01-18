@@ -49,7 +49,7 @@ public class BlogCategory : BaseEntity, IAggregateRoot
         Guard.AgainstNegative(displayOrder, nameof(displayOrder));
         // Configuration değerleri: MaxCategoryNameLength=100, MaxCategoryDescriptionLength=1000
         Guard.AgainstLength(name, 100, nameof(name));
-        if (description != null)
+        if (description is not null)
             Guard.AgainstLength(description, 1000, nameof(description));
 
         if (parentCategoryId.HasValue && parentCategoryId.Value == Guid.Empty)
@@ -57,7 +57,7 @@ public class BlogCategory : BaseEntity, IAggregateRoot
             throw new DomainException("Geçersiz parent category ID.");
         }
 
-        var finalSlug = slug != null ? Slug.FromString(slug) : Slug.FromString(name);
+        var finalSlug = slug is not null ? Slug.FromString(slug) : Slug.FromString(name);
 
         if (!string.IsNullOrEmpty(imageUrl) && !IsValidUrl(imageUrl))
         {
@@ -107,7 +107,7 @@ public class BlogCategory : BaseEntity, IAggregateRoot
     public void UpdateDescription(string? newDescription)
     {
         // Configuration değeri: MaxCategoryDescriptionLength=1000
-        if (newDescription != null)
+        if (newDescription is not null)
             Guard.AgainstLength(newDescription, 1000, nameof(newDescription));
         Description = newDescription;
         UpdatedAt = DateTime.UtcNow;

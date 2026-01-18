@@ -26,7 +26,7 @@ public class GetShippingAddressByIdQueryHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
 
-        return address != null ? mapper.Map<ShippingAddressDto>(address) : null;
+        return address is not null ? mapper.Map<ShippingAddressDto>(address) : null;
     }
 }
 

@@ -23,12 +23,12 @@ public class RemoveReviewHelpfulnessCommandHandler(IDbContext context, IUnitOfWo
         var vote = await context.Set<ReviewHelpfulness>()
             .FirstOrDefaultAsync(rh => rh.ReviewId == request.ReviewId && rh.UserId == request.UserId, cancellationToken);
 
-        if (vote == null) return;
+        if (vote is null) return;
 
         var review = await context.Set<ReviewEntity>()
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
 
-        if (review != null)
+        if (review is not null)
         {
             if (vote.IsHelpful)
                 review.UnmarkAsHelpful();

@@ -25,20 +25,20 @@ public class UpdateTrustBadgeCommandHandler(IDbContext context, IUnitOfWork unit
         var badge = await context.Set<TrustBadge>()
             .FirstOrDefaultAsync(b => b.Id == request.BadgeId, cancellationToken);
 
-        if (badge == null)
+        if (badge is null)
         {
             throw new NotFoundException("Rozet", request.BadgeId);
         }
 
         if (!string.IsNullOrEmpty(request.Name))
             badge.UpdateName(request.Name);
-        if (request.Description != null)
+        if (request.Description is not null)
             badge.UpdateDescription(request.Description);
-        if (request.IconUrl != null)
+        if (request.IconUrl is not null)
             badge.UpdateIconUrl(request.IconUrl);
         if (!string.IsNullOrEmpty(request.BadgeType))
             badge.UpdateBadgeType(request.BadgeType);
-        if (request.Criteria != null)
+        if (request.Criteria is not null)
         {
             var criteriaJson = JsonSerializer.Serialize(request.Criteria);
             badge.UpdateCriteria(criteriaJson);
@@ -52,7 +52,7 @@ public class UpdateTrustBadgeCommandHandler(IDbContext context, IUnitOfWork unit
         }
         if (request.DisplayOrder.HasValue)
             badge.UpdateDisplayOrder(request.DisplayOrder.Value);
-        if (request.Color != null)
+        if (request.Color is not null)
             badge.UpdateColor(request.Color);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

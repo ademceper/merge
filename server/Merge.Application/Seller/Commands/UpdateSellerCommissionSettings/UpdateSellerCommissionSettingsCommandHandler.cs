@@ -26,7 +26,7 @@ public class UpdateSellerCommissionSettingsCommandHandler(IDbContext context, IU
         var settings = await context.Set<SellerCommissionSettings>()
             .FirstOrDefaultAsync(s => s.SellerId == request.SellerId, cancellationToken);
 
-        if (settings == null)
+        if (settings is null)
         {
             settings = SellerCommissionSettings.Create(
                 sellerId: request.SellerId,
@@ -46,7 +46,7 @@ public class UpdateSellerCommissionSettingsCommandHandler(IDbContext context, IU
             settings.UpdateMinimumPayoutAmount(request.MinimumPayoutAmount.Value);
         }
 
-        if (request.PaymentMethod != null || request.PaymentDetails != null)
+        if (request.PaymentMethod is not null || request.PaymentDetails is not null)
         {
             settings.UpdatePaymentMethod(
                 paymentMethod: request.PaymentMethod,

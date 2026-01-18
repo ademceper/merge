@@ -39,7 +39,7 @@ public class CreatePaymentCommandHandler(IDbContext context, IUnitOfWork unitOfW
                 .AsNoTracking()
                 .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
-            if (order == null)
+            if (order is null)
             {
                 logger.LogWarning("Order not found with ID: {OrderId}", request.OrderId);
                 throw new NotFoundException("Siparis", request.OrderId);
@@ -56,7 +56,7 @@ public class CreatePaymentCommandHandler(IDbContext context, IUnitOfWork unitOfW
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.OrderId == request.OrderId, cancellationToken);
 
-            if (existingPayment != null)
+            if (existingPayment is not null)
             {
                 logger.LogWarning("Payment already exists for order ID: {OrderId}", request.OrderId);
                 throw new BusinessException("Bu siparis icin zaten bir odeme kaydi var.");

@@ -31,7 +31,7 @@ public class RevokeAcceptanceCommandHandler(
                                       pa.PolicyId == request.PolicyId && 
                                       pa.IsActive, cancellationToken);
 
-            if (acceptance == null)
+            if (acceptance is null)
             {
                 logger.LogWarning("Policy acceptance not found. UserId: {UserId}, PolicyId: {PolicyId}",
                     request.UserId, request.PolicyId);

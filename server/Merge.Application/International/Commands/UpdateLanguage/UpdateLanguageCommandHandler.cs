@@ -26,7 +26,7 @@ public class UpdateLanguageCommandHandler(
         var language = await context.Set<Language>()
             .FirstOrDefaultAsync(l => l.Id == request.Id, cancellationToken);
 
-        if (language == null)
+        if (language is null)
         {
             logger.LogWarning("Language not found. LanguageId: {LanguageId}", request.Id);
             throw new NotFoundException("Dil", request.Id);

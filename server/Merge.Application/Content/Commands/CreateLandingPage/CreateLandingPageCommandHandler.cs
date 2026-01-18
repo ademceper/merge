@@ -41,7 +41,7 @@ public class CreateLandingPageCommandHandler(
                 var original = await context.Set<LandingPage>()
                     .FirstOrDefaultAsync(lp => lp.Id == request.VariantOfId.Value, cancellationToken);
 
-                if (original == null)
+                if (original is null)
                 {
                     logger.LogWarning("Landing page variant creation failed: Original not found. VariantOfId: {VariantOfId}", request.VariantOfId);
                     throw new NotFoundException("Orijinal landing page", request.VariantOfId.Value);
@@ -73,7 +73,7 @@ public class CreateLandingPageCommandHandler(
                 var original = await context.Set<LandingPage>()
                     .FirstOrDefaultAsync(lp => lp.Id == request.VariantOfId.Value, cancellationToken);
 
-                if (original == null)
+                if (original is null)
                 {
                     throw new NotFoundException("Orijinal landing page", request.VariantOfId.Value);
                 }
@@ -121,7 +121,7 @@ public class CreateLandingPageCommandHandler(
                 .Include(lp => lp.VariantOf)
                 .FirstOrDefaultAsync(lp => lp.Id == landingPage.Id, cancellationToken);
 
-            if (reloadedPage == null)
+            if (reloadedPage is null)
             {
                 logger.LogWarning("Landing page {LandingPageId} not found after creation", landingPage.Id);
                 throw new NotFoundException("Landing Page", landingPage.Id);

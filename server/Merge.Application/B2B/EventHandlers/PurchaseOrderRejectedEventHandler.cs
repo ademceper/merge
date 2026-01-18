@@ -22,11 +22,11 @@ public class PurchaseOrderRejectedEventHandler(
         try
         {
             // Email bildirimi gönder (B2B kullanıcıya)
-            if (notificationService != null)
+            if (notificationService is not null)
             {
                 // TODO: B2B user ID'den user ID'yi al ve notification gönder
                 // var b2bUser = await _b2bService.GetB2BUserByIdAsync(notification.B2BUserId, cancellationToken);
-                // if (b2bUser != null)
+                // if (b2bUser is not null)
                 // {
                 //     var createDto = new CreateNotificationDto(
                 //         b2bUser.UserId,

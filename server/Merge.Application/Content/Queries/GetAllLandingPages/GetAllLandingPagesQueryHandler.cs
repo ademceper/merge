@@ -83,7 +83,7 @@ public class GetAllLandingPagesQueryHandler(
             CACHE_EXPIRATION,
             cancellationToken);
 
-        if (cachedResult == null)
+        if (cachedResult is null)
         {
             return new PagedResult<LandingPageDto>
             {

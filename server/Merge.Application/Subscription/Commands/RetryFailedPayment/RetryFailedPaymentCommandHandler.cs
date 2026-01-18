@@ -22,7 +22,7 @@ public class RetryFailedPaymentCommandHandler(IDbContext context, IUnitOfWork un
         var payment = await context.Set<SubscriptionPayment>()
             .FirstOrDefaultAsync(p => p.Id == request.PaymentId && p.PaymentStatus == PaymentStatus.Failed, cancellationToken);
 
-        if (payment == null)
+        if (payment is null)
         {
             throw new NotFoundException("Başarısız ödeme", request.PaymentId);
         }

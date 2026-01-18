@@ -14,6 +14,7 @@ using Merge.Application.DTOs.Logistics;
 using Merge.Application.Notification.Commands.CreateNotification;
 using CreateNotificationCommand = Merge.Application.Notification.Commands.CreateNotification.CreateNotificationCommand;
 using Microsoft.Extensions.Logging;
+using Merge.Application.Common;
 using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Notifications;
@@ -43,7 +44,7 @@ public class ShippingService(
             .Include(s => s.Order)
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
-        if (shipping == null) return null;
+        if (shipping is null) return null;
 
         return mapper.Map<ShippingDto>(shipping);
     }
@@ -55,14 +56,14 @@ public class ShippingService(
             .Include(s => s.Order)
             .FirstOrDefaultAsync(s => s.OrderId == orderId, cancellationToken);
 
-        if (shipping == null) return null;
+        if (shipping is null) return null;
 
         return mapper.Map<ShippingDto>(shipping);
     }
 
     public async Task<ShippingDto> CreateShippingAsync(CreateShippingDto dto, CancellationToken cancellationToken = default)
     {
-        if (dto == null)
+        if (dto is null)
         {
             throw new ArgumentNullException(nameof(dto));
         }
@@ -73,7 +74,7 @@ public class ShippingService(
         }
 
         var order = await orderRepository.GetByIdAsync(dto.OrderId);
-        if (order == null)
+        if (order is null)
         {
             throw new NotFoundException("Sipariş", dto.OrderId);
         }
@@ -82,7 +83,7 @@ public class ShippingService(
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.OrderId == dto.OrderId);
 
-        if (existingShipping != null)
+        if (existingShipping is not null)
         {
             throw new BusinessException("Bu sipariş için zaten bir kargo kaydı var.");
         }
@@ -121,7 +122,7 @@ public class ShippingService(
         try
         {
             var shipping = await shippingRepository.GetByIdAsync(shippingId);
-            if (shipping == null)
+            if (shipping is null)
             {
                 throw new NotFoundException("Kargo kaydı", shippingId);
             }
@@ -133,7 +134,7 @@ public class ShippingService(
 
             // Order status'unu güncelle
             var order = await orderRepository.GetByIdAsync(shipping.OrderId);
-            if (order != null)
+            if (order is not null)
             {
                 order.Ship();
                 await orderRepository.UpdateAsync(order);
@@ -142,7 +143,7 @@ public class ShippingService(
                 await unitOfWork.CommitTransactionAsync();
 
                 logger.LogInformation("Shipping tracking updated for order {OrderId}. Tracking: {TrackingNumber}",
-                    shipping.OrderId, trackingNumber);
+                    shipping.OrderId, LogMasking.MaskTrackingNumber(trackingNumber));
 
                 await mediator.Send(new CreateNotificationCommand(
                     order.UserId,
@@ -152,12 +153,12 @@ public class ShippingService(
                     $"/orders/{order.Id}"), cancellationToken);
 
                 // Email gönder (after commit)
-                if (emailService != null)
+                if (emailService is not null)
                 {
                     var user = await context.Users
                         .AsNoTracking()
                         .FirstOrDefaultAsync(u => u.Id == order.UserId);
-                    if (user != null && !string.IsNullOrEmpty(user.Email))
+                    if (user is not null && !string.IsNullOrEmpty(user.Email))
                     {
                         await emailService.SendOrderShippedAsync(user.Email, order.OrderNumber, trackingNumber);
                     }
@@ -190,7 +191,7 @@ public class ShippingService(
         try
         {
             var shipping = await shippingRepository.GetByIdAsync(shippingId);
-            if (shipping == null)
+            if (shipping is null)
             {
                 throw new NotFoundException("Kargo kaydı", shippingId);
             }
@@ -201,7 +202,7 @@ public class ShippingService(
             {
                 // Order status'unu güncelle
                 var order = await orderRepository.GetByIdAsync(shipping.OrderId);
-                if (order != null)
+                if (order is not null)
                 {
                     order.Deliver();
                     await orderRepository.UpdateAsync(order);
@@ -241,7 +242,7 @@ public class ShippingService(
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
 
-        if (order == null)
+        if (order is null)
         {
             throw new NotFoundException("Sipariş", orderId);
         }

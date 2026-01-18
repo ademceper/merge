@@ -28,7 +28,7 @@ public class GetBlogCategoryByIdQueryHandler(
         var cacheKey = $"{CACHE_KEY_CATEGORY_BY_ID}{request.Id}";
 
         var cachedCategory = await cache.GetAsync<BlogCategoryDto>(cacheKey, cancellationToken);
-        if (cachedCategory != null)
+        if (cachedCategory is not null)
         {
             logger.LogInformation("Cache hit for blog category. CategoryId: {CategoryId}", request.Id);
             return cachedCategory;
@@ -41,7 +41,7 @@ public class GetBlogCategoryByIdQueryHandler(
             .Include(c => c.ParentCategory)
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-        if (category == null)
+        if (category is null)
         {
             logger.LogWarning("Blog category not found with Id: {CategoryId}", request.Id);
             return null;

@@ -29,7 +29,7 @@ public class PatchFraudDetectionRuleCommandHandler(
         var rule = await context.Set<FraudDetectionRule>()
             .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken);
 
-        if (rule == null)
+        if (rule is null)
         {
             logger.LogWarning("Fraud detection rule not found. RuleId: {RuleId}", request.Id);
             throw new NotFoundException("Fraud detection rule", request.Id);
@@ -42,7 +42,7 @@ public class PatchFraudDetectionRuleCommandHandler(
         if (!string.IsNullOrEmpty(request.PatchDto.RuleType) && Enum.TryParse<FraudRuleType>(request.PatchDto.RuleType, true, out var ruleType))
             rule.UpdateRuleType(ruleType);
         
-        if (request.PatchDto.Conditions != null)
+        if (request.PatchDto.Conditions is not null)
             rule.UpdateConditions(JsonSerializer.Serialize(request.PatchDto.Conditions));
         
         if (request.PatchDto.RiskScore.HasValue)
@@ -54,7 +54,7 @@ public class PatchFraudDetectionRuleCommandHandler(
         if (request.PatchDto.Priority.HasValue)
             rule.UpdatePriority(request.PatchDto.Priority.Value);
         
-        if (request.PatchDto.Description != null)
+        if (request.PatchDto.Description is not null)
             rule.UpdateDescription(request.PatchDto.Description);
 
         if (request.PatchDto.IsActive.HasValue)

@@ -24,7 +24,7 @@ public class ActivateWarehouseCommandHandler(
         var warehouse = await context.Set<Warehouse>()
             .FirstOrDefaultAsync(w => w.Id == request.Id, cancellationToken);
 
-        if (warehouse == null)
+        if (warehouse is null)
         {
             logger.LogWarning("Warehouse not found. WarehouseId: {WarehouseId}", request.Id);
             throw new NotFoundException("Depo", request.Id);

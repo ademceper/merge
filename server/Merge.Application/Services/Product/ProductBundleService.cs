@@ -35,7 +35,7 @@ public class ProductBundleService(IBundleRepository bundleRepository, IBundleIte
                 .ThenInclude(bi => bi.Product)
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
 
-        if (bundle == null) return null;
+        if (bundle is null) return null;
 
         logger.LogInformation("Retrieved product bundle. BundleId: {BundleId}", id);
         return MapToDto(bundle);
@@ -144,7 +144,7 @@ public class ProductBundleService(IBundleRepository bundleRepository, IBundleIte
     public async Task<ProductBundleDto> UpdateAsync(Guid id, UpdateProductBundleDto dto, CancellationToken cancellationToken = default)
     {
         var bundle = await bundleRepository.GetByIdAsync(id);
-        if (bundle == null)
+        if (bundle is null)
         {
             throw new NotFoundException("Paket", id);
         }
@@ -181,7 +181,7 @@ public class ProductBundleService(IBundleRepository bundleRepository, IBundleIte
                 .ThenInclude(bi => bi.Product)
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
 
-        if (reloadedBundle == null)
+        if (reloadedBundle is null)
         {
             logger.LogWarning("Product bundle {BundleId} not found after update", id);
             throw new NotFoundException("Product bundle", id);
@@ -194,7 +194,7 @@ public class ProductBundleService(IBundleRepository bundleRepository, IBundleIte
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var bundle = await bundleRepository.GetByIdAsync(id);
-        if (bundle == null)
+        if (bundle is null)
         {
             return false;
         }
@@ -209,13 +209,13 @@ public class ProductBundleService(IBundleRepository bundleRepository, IBundleIte
     public async Task<bool> AddProductToBundleAsync(Guid bundleId, AddProductToBundleDto dto, CancellationToken cancellationToken = default)
     {
         var bundle = await bundleRepository.GetByIdAsync(bundleId);
-        if (bundle == null)
+        if (bundle is null)
         {
             throw new NotFoundException("Paket", bundleId);
         }
 
         var product = await productRepository.GetByIdAsync(dto.ProductId);
-        if (product == null || !product.IsActive)
+        if (product is null || !product.IsActive)
         {
             throw new NotFoundException("Ürün", dto.ProductId);
         }
@@ -225,7 +225,7 @@ public class ProductBundleService(IBundleRepository bundleRepository, IBundleIte
             .FirstOrDefaultAsync(bi => bi.BundleId == bundleId &&
                                  bi.ProductId == dto.ProductId, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             throw new BusinessException("Bu ürün zaten pakette.");
         }
@@ -258,7 +258,7 @@ public class ProductBundleService(IBundleRepository bundleRepository, IBundleIte
             .FirstOrDefaultAsync(bi => bi.BundleId == bundleId &&
                                  bi.ProductId == productId, cancellationToken);
 
-        if (bundleItem == null)
+        if (bundleItem is null)
         {
             return false;
         }
@@ -267,7 +267,7 @@ public class ProductBundleService(IBundleRepository bundleRepository, IBundleIte
 
         // Orijinal toplam fiyatı güncelle
         var bundle = await bundleRepository.GetByIdAsync(bundleId);
-        if (bundle != null)
+        if (bundle is not null)
         {
             var newTotal = await context.Set<BundleItem>()
                 .AsNoTracking()

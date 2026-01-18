@@ -25,7 +25,7 @@ public class GetStreamStatsQueryHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == request.StreamId, cancellationToken);
 
-        if (stream == null)
+        if (stream is null)
         {
             logger.LogWarning("Stream not found. StreamId: {StreamId}", request.StreamId);
             throw new NotFoundException("Canlı yayın", request.StreamId);

@@ -32,7 +32,7 @@ public class RemoveProductFromBundleCommandHandler(IBundleRepository bundleRepos
                 .FirstOrDefaultAsync(bi => bi.BundleId == request.BundleId &&
                                      bi.ProductId == request.ProductId, cancellationToken);
 
-            if (bundleItem == null)
+            if (bundleItem is null)
             {
                 logger.LogWarning("Bundle item not found. BundleId: {BundleId}, ProductId: {ProductId}",
                     request.BundleId, request.ProductId);
@@ -40,7 +40,7 @@ public class RemoveProductFromBundleCommandHandler(IBundleRepository bundleRepos
             }
 
             var bundle = await bundleRepository.GetByIdAsync(request.BundleId, cancellationToken);
-            if (bundle == null)
+            if (bundle is null)
             {
                 logger.LogWarning("Bundle not found. BundleId: {BundleId}", request.BundleId);
                 return false;

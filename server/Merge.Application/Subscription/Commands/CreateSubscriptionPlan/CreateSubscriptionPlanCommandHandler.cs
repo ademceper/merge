@@ -34,7 +34,7 @@ public class CreateSubscriptionPlanCommandHandler(IDbContext context, IUnitOfWor
             trialDays: request.TrialDays,
             setupFee: request.SetupFee,
             currency: request.Currency,
-            features: request.Features != null ? JsonSerializer.Serialize(request.Features) : null,
+            features: request.Features is not null ? JsonSerializer.Serialize(request.Features) : null,
             isActive: request.IsActive,
             displayOrder: request.DisplayOrder);
 

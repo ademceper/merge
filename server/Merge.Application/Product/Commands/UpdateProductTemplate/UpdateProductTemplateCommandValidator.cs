@@ -18,15 +18,15 @@ public class UpdateProductTemplateCommandValidator : AbstractValidator<UpdatePro
             .WithMessage("Şablon adı en fazla 200 karakter olmalıdır.");
 
         RuleFor(x => x.Description)
-            .MaximumLength(2000).When(x => x.Description != null)
+            .MaximumLength(2000).When(x => x.Description is not null)
             .WithMessage("Açıklama en fazla 2000 karakter olabilir.");
 
         RuleFor(x => x.Brand)
-            .MaximumLength(100).When(x => x.Brand != null)
+            .MaximumLength(100).When(x => x.Brand is not null)
             .WithMessage("Marka en fazla 100 karakter olabilir.");
 
         RuleFor(x => x.DefaultSKUPrefix)
-            .MaximumLength(50).When(x => x.DefaultSKUPrefix != null)
+            .MaximumLength(50).When(x => x.DefaultSKUPrefix is not null)
             .WithMessage("SKU öneki en fazla 50 karakter olabilir.");
 
         RuleFor(x => x.DefaultPrice)

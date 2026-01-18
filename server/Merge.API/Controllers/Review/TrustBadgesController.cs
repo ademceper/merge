@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
+using Merge.Application.Exceptions;
 using Merge.Application.Review.Commands.CreateTrustBadge;
 using Merge.Application.Review.Commands.UpdateTrustBadge;
 using Merge.Application.Review.Commands.DeleteTrustBadge;
@@ -43,7 +44,7 @@ public class TrustBadgesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new CreateTrustBadgeCommand(
             dto.Name,
             dto.Description,
@@ -65,11 +66,8 @@ public class TrustBadgesController(IMediator mediator) : BaseController
     public async Task<ActionResult<TrustBadgeDto>> GetBadge(Guid id, CancellationToken cancellationToken = default)
     {
         var query = new GetTrustBadgeByIdQuery(id);
-        var badge = await mediator.Send(query, cancellationToken);
-        if (badge == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var badge = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("TrustBadge", id);
         return Ok(badge);
     }
 
@@ -101,7 +99,7 @@ public class TrustBadgesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new UpdateTrustBadgeCommand(
             id,
             dto.Name,
@@ -135,7 +133,7 @@ public class TrustBadgesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new UpdateTrustBadgeCommand(
             id,
             patchDto.Name,
@@ -162,10 +160,10 @@ public class TrustBadgesController(IMediator mediator) : BaseController
     {
         var command = new DeleteTrustBadgeCommand(id);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("TrustBadge", id);
+
         return NoContent();
     }
 
@@ -183,7 +181,7 @@ public class TrustBadgesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new AwardSellerBadgeCommand(sellerId, dto.BadgeId, dto.ExpiresAt, dto.AwardReason);
         var badge = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetSellerBadges), new { sellerId = sellerId }, badge);
@@ -217,10 +215,10 @@ public class TrustBadgesController(IMediator mediator) : BaseController
     {
         var command = new RevokeSellerBadgeCommand(sellerId, badgeId);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SellerTrustBadge", badgeId);
+
         return NoContent();
     }
 
@@ -238,7 +236,7 @@ public class TrustBadgesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new AwardProductBadgeCommand(productId, dto.BadgeId, dto.ExpiresAt, dto.AwardReason);
         var badge = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetProductBadges), new { productId = productId }, badge);
@@ -272,10 +270,10 @@ public class TrustBadgesController(IMediator mediator) : BaseController
     {
         var command = new RevokeProductBadgeCommand(productId, badgeId);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("ProductTrustBadge", badgeId);
+
         return NoContent();
     }
 

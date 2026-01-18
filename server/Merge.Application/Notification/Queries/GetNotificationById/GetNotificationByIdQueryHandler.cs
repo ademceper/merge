@@ -22,7 +22,7 @@ public class GetNotificationByIdQueryHandler(IDbContext context, IMapper mapper)
             .AsNoTracking()
             .FirstOrDefaultAsync(n => n.Id == request.NotificationId, cancellationToken);
 
-        if (notification == null)
+        if (notification is null)
         {
             return null;
         }

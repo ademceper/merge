@@ -73,7 +73,7 @@ public class FraudDetectionHelper(IDbContext context, ILogger<FraudDetectionHelp
         {
             // Typed DTO kullanılıyor
             var conditions = JsonSerializer.Deserialize<FraudRuleConditionsDto>(rule.Conditions);
-            if (conditions == null)
+            if (conditions is null)
             {
                 return false;
             }
@@ -88,7 +88,7 @@ public class FraudDetectionHelper(IDbContext context, ILogger<FraudDetectionHelp
                     .Include(o => o.OrderItems)
                     .FirstOrDefaultAsync(o => o.Id == entityId.Value, cancellationToken);
 
-                if (order != null)
+                if (order is not null)
                 {
                     // Example: Check for high-value orders
                     if (conditions.MaxTransactionAmount.HasValue && order.TotalAmount > conditions.MaxTransactionAmount.Value)
@@ -110,7 +110,7 @@ public class FraudDetectionHelper(IDbContext context, ILogger<FraudDetectionHelp
                     .AsNoTracking()
                     .FirstOrDefaultAsync(p => p.Id == entityId.Value, cancellationToken);
 
-                if (payment != null)
+                if (payment is not null)
                 {
                     // Example: Check for high-value payments
                     if (conditions.MaxTransactionAmount.HasValue && payment.Amount > conditions.MaxTransactionAmount.Value)
@@ -127,7 +127,7 @@ public class FraudDetectionHelper(IDbContext context, ILogger<FraudDetectionHelp
                     .Include(u => u.Orders)
                     .FirstOrDefaultAsync(u => u.Id == userId.Value, cancellationToken);
 
-                if (user != null)
+                if (user is not null)
                 {
                     // Example: Check for new account with many orders
                     if (conditions.NewAccountDays.HasValue)

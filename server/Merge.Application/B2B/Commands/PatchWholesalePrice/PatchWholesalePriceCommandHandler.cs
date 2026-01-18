@@ -27,7 +27,7 @@ public class PatchWholesalePriceCommandHandler(
         var wholesalePrice = await context.Set<WholesalePrice>()
             .FirstOrDefaultAsync(wp => wp.Id == request.Id, cancellationToken);
 
-        if (wholesalePrice == null)
+        if (wholesalePrice is null)
         {
             logger.LogWarning("Wholesale price not found. WholesalePriceId: {WholesalePriceId}", request.Id);
             return false;

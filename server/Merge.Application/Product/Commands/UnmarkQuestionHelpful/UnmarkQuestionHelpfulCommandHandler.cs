@@ -27,7 +27,7 @@ public class UnmarkQuestionHelpfulCommandHandler(IDbContext context, IUnitOfWork
             var helpfulness = await context.Set<QuestionHelpfulness>()
                 .FirstOrDefaultAsync(qh => qh.QuestionId == request.QuestionId && qh.UserId == request.UserId, cancellationToken);
 
-            if (helpfulness == null)
+            if (helpfulness is null)
             {
                 return; // Not marked
             }
@@ -37,7 +37,7 @@ public class UnmarkQuestionHelpfulCommandHandler(IDbContext context, IUnitOfWork
             var question = await context.Set<ProductQuestion>()
                 .FirstOrDefaultAsync(q => q.Id == request.QuestionId, cancellationToken);
 
-            if (question != null)
+            if (question is not null)
             {
                 question.DecrementHelpfulCount();
             }

@@ -20,7 +20,7 @@ public class RateLimitingMiddleware(RequestDelegate next, ILogger<RateLimitingMi
         var endpoint = context.GetEndpoint();
         var rateLimitAttribute = endpoint?.Metadata.GetMetadata<RateLimitAttribute>();
 
-        if (rateLimitAttribute != null)
+        if (rateLimitAttribute is not null)
         {
             var clientId = GetClientIdentifier(context);
             var requestInfo = _clientRequests.GetOrAdd(clientId, _ => new ClientRequestInfo());

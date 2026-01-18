@@ -49,7 +49,7 @@ public class ReviewMediaService(IDbContext context, IUnitOfWork unitOfWork, IMap
     {
         var media = await context.Set<ReviewMedia>()
             .FirstOrDefaultAsync(m => m.Id == mediaId, cancellationToken);
-        if (media != null)
+        if (media is not null)
         {
             media.MarkAsDeleted();
             await unitOfWork.SaveChangesAsync(cancellationToken);

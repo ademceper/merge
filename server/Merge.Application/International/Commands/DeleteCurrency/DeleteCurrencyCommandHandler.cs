@@ -23,7 +23,7 @@ public class DeleteCurrencyCommandHandler(
         var currency = await context.Set<Currency>()
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-        if (currency == null)
+        if (currency is null)
         {
             logger.LogWarning("Currency not found. CurrencyId: {CurrencyId}", request.Id);
             throw new NotFoundException("Para birimi", request.Id);

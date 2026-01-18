@@ -150,7 +150,7 @@ public class Category : BaseEntity, IAggregateRoot
     {
         Guard.AgainstDefault(subCategoryId, nameof(subCategoryId));
         var subCategory = _subCategories.FirstOrDefault(c => c.Id == subCategoryId);
-        if (subCategory == null)
+        if (subCategory is null)
         {
             throw new DomainException("Alt kategori bulunamadı");
         }

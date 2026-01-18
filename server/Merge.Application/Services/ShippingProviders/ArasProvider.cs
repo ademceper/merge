@@ -15,7 +15,7 @@ public class ArasProvider(IConfiguration configuration, ILogger<ArasProvider> lo
 
     public async Task<ShippingProviderResponseDto> CreateShipmentAsync(ShippingProviderRequestDto request)
     {
-        if (request == null)
+        if (request is null)
         {
             throw new ArgumentNullException(nameof(request));
         }
@@ -126,7 +126,7 @@ public class ArasProvider(IConfiguration configuration, ILogger<ArasProvider> lo
 
     public async Task<decimal> CalculateShippingCostAsync(ShippingCostRequestDto request)
     {
-        if (request == null)
+        if (request is null)
         {
             throw new ArgumentNullException(nameof(request));
         }

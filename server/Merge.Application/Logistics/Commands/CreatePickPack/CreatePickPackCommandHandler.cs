@@ -32,7 +32,7 @@ public class CreatePickPackCommandHandler(
                 .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
-        if (order == null)
+        if (order is null)
         {
             logger.LogWarning("Order not found. OrderId: {OrderId}", request.OrderId);
             throw new NotFoundException("Sipariş", request.OrderId);
@@ -42,7 +42,7 @@ public class CreatePickPackCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == request.WarehouseId && w.IsActive, cancellationToken);
 
-        if (warehouse == null)
+        if (warehouse is null)
         {
             logger.LogWarning("Warehouse not found or inactive. WarehouseId: {WarehouseId}", request.WarehouseId);
             throw new NotFoundException("Depo", request.WarehouseId);
@@ -52,7 +52,7 @@ public class CreatePickPackCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(pp => pp.OrderId == request.OrderId, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             logger.LogWarning("Pick pack already exists for order. OrderId: {OrderId}", request.OrderId);
             throw new BusinessException("Bu sipariş için zaten bir pick pack kaydı var.");
@@ -94,7 +94,7 @@ public class CreatePickPackCommandHandler(
                     .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(pp => pp.Id == pickPack.Id, cancellationToken);
 
-        if (createdPickPack == null)
+        if (createdPickPack is null)
         {
             logger.LogWarning("Pick pack not found after creation. PickPackId: {PickPackId}", pickPack.Id);
             throw new NotFoundException("Pick-pack", pickPack.Id);

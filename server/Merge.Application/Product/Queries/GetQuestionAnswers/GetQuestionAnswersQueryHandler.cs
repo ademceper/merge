@@ -35,7 +35,7 @@ public class GetQuestionAnswersQueryHandler(
         var cacheKey = $"{CACHE_KEY_ANSWERS_BY_QUESTION}{request.QuestionId}";
         // Note: UserId-specific data (HasUserVoted) is not cached, only answer data
         var cachedAnswers = await cache.GetAsync<IEnumerable<ProductAnswerDto>>(cacheKey, cancellationToken);
-        if (cachedAnswers != null && !request.UserId.HasValue)
+        if (cachedAnswers is not null && !request.UserId.HasValue)
         {
             logger.LogInformation("Answers retrieved from cache. QuestionId: {QuestionId}", request.QuestionId);
             return cachedAnswers;

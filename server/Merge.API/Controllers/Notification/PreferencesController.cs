@@ -86,7 +86,7 @@ public class NotificationPreferencesController(
         var userId = GetUserId();
         var query = new GetPreferenceQuery(userId, notificationTypeEnum, channelEnum);
         var preference = await mediator.Send(query, cancellationToken);
-        if (preference == null)
+        if (preference is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }

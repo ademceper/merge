@@ -55,7 +55,7 @@ public class CreateLoyaltyAccountCommandHandler(
             .Include(a => a.Tier)
             .FirstOrDefaultAsync(a => a.Id == account.Id, cancellationToken);
 
-        if (createdAccount == null)
+        if (createdAccount is null)
         {
             logger.LogWarning("LoyaltyAccount not found after creation. AccountId: {AccountId}", account.Id);
             throw new NotFoundException("Sadakat hesabı", account.Id);

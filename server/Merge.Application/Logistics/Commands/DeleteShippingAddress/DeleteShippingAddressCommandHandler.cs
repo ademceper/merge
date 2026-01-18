@@ -25,7 +25,7 @@ public class DeleteShippingAddressCommandHandler(
         var address = await context.Set<ShippingAddress>()
             .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
 
-        if (address == null)
+        if (address is null)
         {
             logger.LogWarning("Shipping address not found for deletion. AddressId: {AddressId}", request.Id);
             throw new NotFoundException("Kargo adresi", request.Id);

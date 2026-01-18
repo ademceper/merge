@@ -37,7 +37,7 @@ public class DeleteInventoryCommandHandler(
                 .Include(i => i.Product)
                 .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
 
-            if (inventory == null)
+            if (inventory is null)
             {
                 logger.LogWarning("Inventory not found for deletion with Id: {InventoryId}", request.Id);
                 return false;

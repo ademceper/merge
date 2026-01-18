@@ -68,7 +68,7 @@ public class OrdersController(
         var userId = GetUserId();
         var query = new GetOrderByIdQuery(id);
         var order = await mediator.Send(query, cancellationToken);
-        if (order == null)
+        if (order is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -102,7 +102,7 @@ public class OrdersController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var userId = GetUserId();
         var command = new CreateOrderFromCartCommand(userId, dto.ShippingAddressId, dto.CouponCode);
         var order = await mediator.Send(command, cancellationToken);
@@ -124,7 +124,7 @@ public class OrdersController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var statusEnum = Enum.Parse<OrderStatus>(dto.Status);
         var command = new UpdateOrderStatusCommand(id, statusEnum);
         var order = await mediator.Send(command, cancellationToken);
@@ -150,7 +150,7 @@ public class OrdersController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         if (!patchDto.Status.HasValue)
         {
             return BadRequest("Status güncellenmelidir.");
@@ -172,7 +172,7 @@ public class OrdersController(
         var userId = GetUserId();
         var getOrderQuery = new GetOrderByIdQuery(id);
         var order = await mediator.Send(getOrderQuery, cancellationToken);
-        if (order == null)
+        if (order is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -201,7 +201,7 @@ public class OrdersController(
         var userId = GetUserId();
         var getOrderQuery = new GetOrderByIdQuery(id);
         var originalOrder = await mediator.Send(getOrderQuery, cancellationToken);
-        if (originalOrder == null)
+        if (originalOrder is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -225,7 +225,7 @@ public class OrdersController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         if (filter.PageSize > _orderSettings.MaxPageSize) filter.PageSize = _orderSettings.MaxPageSize;
         if (filter.Page < 1) filter.Page = 1;
         var userId = GetUserId();
@@ -276,7 +276,7 @@ public class OrdersController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new ExportOrdersCommand(
             exportDto.StartDate,
             exportDto.EndDate,
@@ -303,7 +303,7 @@ public class OrdersController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new ExportOrdersCommand(
             exportDto.StartDate,
             exportDto.EndDate,
@@ -330,7 +330,7 @@ public class OrdersController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new ExportOrdersCommand(
             exportDto.StartDate,
             exportDto.EndDate,

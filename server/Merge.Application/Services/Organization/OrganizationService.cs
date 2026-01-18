@@ -47,7 +47,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
             dto.State,
             dto.PostalCode,
             dto.Country,
-            dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null);
+            dto.Settings is not null ? JsonSerializer.Serialize(dto.Settings) : null);
 
         await context.Set<OrganizationEntity>().AddAsync(organization, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -69,7 +69,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
-        if (organization == null) return null;
+        if (organization is null) return null;
 
         var userCount = await context.Users
             .AsNoTracking()
@@ -155,7 +155,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
         var organization = await context.Set<OrganizationEntity>()
             .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
-        if (organization == null) return false;
+        if (organization is null) return false;
 
         organization.Update(
             dto.Name,
@@ -171,7 +171,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
             dto.State,
             dto.PostalCode,
             dto.Country,
-            dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null);
+            dto.Settings is not null ? JsonSerializer.Serialize(dto.Settings) : null);
 
         // Status update (separate domain method)
         if (!string.IsNullOrEmpty(dto.Status))
@@ -195,7 +195,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
         var organization = await context.Set<OrganizationEntity>()
             .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
-        if (organization == null) return false;
+        if (organization is null) return false;
 
         organization.Delete();
 
@@ -209,7 +209,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
         var organization = await context.Set<OrganizationEntity>()
             .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
-        if (organization == null) return false;
+        if (organization is null) return false;
 
         organization.Verify();
 
@@ -223,7 +223,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
         var organization = await context.Set<OrganizationEntity>()
             .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
-        if (organization == null) return false;
+        if (organization is null) return false;
 
         organization.Suspend();
 
@@ -241,7 +241,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
         var organization = await context.Set<OrganizationEntity>()
             .FirstOrDefaultAsync(o => o.Id == dto.OrganizationId, cancellationToken);
 
-        if (organization == null)
+        if (organization is null)
         {
             throw new NotFoundException("Organizasyon", dto.OrganizationId);
         }
@@ -251,7 +251,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
             dto.Name,
             dto.Description,
             dto.TeamLeadId,
-            dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null);
+            dto.Settings is not null ? JsonSerializer.Serialize(dto.Settings) : null);
 
         await context.Set<Team>().AddAsync(team, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -262,7 +262,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
             .Include(t => t.TeamLead)
             .FirstOrDefaultAsync(t => t.Id == team.Id, cancellationToken);
 
-        if (team == null)
+        if (team is null)
         {
             logger.LogWarning("Team not found after creation");
             throw new NotFoundException("Team", Guid.Empty);
@@ -291,7 +291,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
             .Include(t => t.TeamLead)
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
-        if (team == null) return null;
+        if (team is null) return null;
 
         var memberCount = await context.Set<TeamMember>()
             .AsNoTracking()
@@ -362,13 +362,13 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
         var team = await context.Set<Team>()
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
-        if (team == null) return false;
+        if (team is null) return false;
 
         team.Update(
             dto.Name,
             dto.Description,
             dto.TeamLeadId,
-            dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null);
+            dto.Settings is not null ? JsonSerializer.Serialize(dto.Settings) : null);
 
         // IsActive update (separate domain method)
         if (dto.IsActive.HasValue)
@@ -389,7 +389,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
         var team = await context.Set<Team>()
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
-        if (team == null) return false;
+        if (team is null) return false;
 
         team.Delete();
 
@@ -407,7 +407,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
         var team = await context.Set<Team>()
             .FirstOrDefaultAsync(t => t.Id == teamId, cancellationToken);
 
-        if (team == null)
+        if (team is null)
         {
             throw new NotFoundException("Takım", teamId);
         }
@@ -415,7 +415,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == dto.UserId, cancellationToken);
 
-        if (user == null)
+        if (user is null)
         {
             throw new NotFoundException("Kullanıcı", dto.UserId);
         }
@@ -424,7 +424,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
         var existing = await context.Set<TeamMember>()
             .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == dto.UserId, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             throw new BusinessException("Kullanıcı zaten bu takımın üyesi.");
         }
@@ -462,7 +462,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
             .Include(tm => tm.Team)
             .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId, cancellationToken);
 
-        if (teamMember == null) return false;
+        if (teamMember is null) return false;
 
         if (teamMember.Team is Team team)
         {
@@ -482,7 +482,7 @@ public class OrganizationService(IDbContext context, IUnitOfWork unitOfWork, IMa
             .Include(tm => tm.Team)
             .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId, cancellationToken);
 
-        if (teamMember == null) return false;
+        if (teamMember is null) return false;
 
         if (!string.IsNullOrEmpty(dto.Role))
         {

@@ -31,8 +31,8 @@ public class CreateTemplateCommandHandler(IDbContext context, IUnitOfWork unitOf
             request.Dto.Description,
             request.Dto.LinkTemplate,
             request.Dto.IsActive,
-            request.Dto.Variables != null ? JsonSerializer.Serialize(request.Dto.Variables) : null,
-            request.Dto.DefaultData != null ? JsonSerializer.Serialize(request.Dto.DefaultData) : null);
+            request.Dto.Variables is not null ? JsonSerializer.Serialize(request.Dto.Variables) : null,
+            request.Dto.DefaultData is not null ? JsonSerializer.Serialize(request.Dto.DefaultData) : null);
 
         await context.Set<NotificationTemplate>().AddAsync(template, cancellationToken);
         

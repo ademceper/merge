@@ -31,7 +31,7 @@ public class GetProductTemplateQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_TEMPLATE_BY_ID}{request.TemplateId}";
         var cachedTemplate = await cache.GetAsync<ProductTemplateDto>(cacheKey, cancellationToken);
-        if (cachedTemplate != null)
+        if (cachedTemplate is not null)
         {
             logger.LogInformation("Product template retrieved from cache. TemplateId: {TemplateId}", request.TemplateId);
             return cachedTemplate;
@@ -44,7 +44,7 @@ public class GetProductTemplateQueryHandler(
             .Include(t => t.Category)
             .FirstOrDefaultAsync(t => t.Id == request.TemplateId, cancellationToken);
 
-        if (template == null)
+        if (template is null)
         {
             logger.LogWarning("Product template not found with Id: {TemplateId}", request.TemplateId);
             return null;

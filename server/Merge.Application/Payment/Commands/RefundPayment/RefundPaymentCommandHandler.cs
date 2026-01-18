@@ -36,7 +36,7 @@ public class RefundPaymentCommandHandler(IDbContext context, IUnitOfWork unitOfW
             var payment = await context.Set<PaymentEntity>()
                 .FirstOrDefaultAsync(p => p.Id == request.PaymentId, cancellationToken);
 
-            if (payment == null)
+            if (payment is null)
             {
                 logger.LogWarning("Payment not found with ID: {PaymentId}", request.PaymentId);
                 throw new NotFoundException("Odeme kaydi", request.PaymentId);
@@ -81,7 +81,7 @@ public class RefundPaymentCommandHandler(IDbContext context, IUnitOfWork unitOfW
             var order = await context.Set<OrderEntity>()
                 .FirstOrDefaultAsync(o => o.Id == payment.OrderId, cancellationToken);
 
-            if (order != null)
+            if (order is not null)
             {
                 order.SetPaymentStatus(isFullRefund ? PaymentStatus.Refunded : PaymentStatus.PartiallyRefunded);
                 await unitOfWork.SaveChangesAsync(cancellationToken);

@@ -39,14 +39,14 @@ public class OrderSplitsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
         var getOrderQuery = new GetOrderByIdQuery(orderId);
         var order = await mediator.Send(getOrderQuery, cancellationToken);
-        if (order == null)
+        if (order is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -74,13 +74,13 @@ public class OrderSplitsController(IMediator mediator) : BaseController
         }
         var getSplitQuery = new GetOrderSplitQuery(id);
         var split = await mediator.Send(getSplitQuery, cancellationToken);
-        if (split == null)
+        if (split is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         var getOrderQuery = new GetOrderByIdQuery(split.OriginalOrderId);
         var order = await mediator.Send(getOrderQuery, cancellationToken);
-        if (order == null)
+        if (order is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -108,7 +108,7 @@ public class OrderSplitsController(IMediator mediator) : BaseController
         }
         var getOrderQuery = new GetOrderByIdQuery(orderId);
         var order = await mediator.Send(getOrderQuery, cancellationToken);
-        if (order == null)
+        if (order is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -138,7 +138,7 @@ public class OrderSplitsController(IMediator mediator) : BaseController
         }
         var getOrderQuery = new GetOrderByIdQuery(splitOrderId);
         var splitOrder = await mediator.Send(getOrderQuery, cancellationToken);
-        if (splitOrder == null)
+        if (splitOrder is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -166,13 +166,13 @@ public class OrderSplitsController(IMediator mediator) : BaseController
         }
         var getSplitQuery = new GetOrderSplitQuery(id);
         var split = await mediator.Send(getSplitQuery, cancellationToken);
-        if (split == null)
+        if (split is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         var getOrderQuery = new GetOrderByIdQuery(split.OriginalOrderId);
         var order = await mediator.Send(getOrderQuery, cancellationToken);
-        if (order == null)
+        if (order is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -204,13 +204,13 @@ public class OrderSplitsController(IMediator mediator) : BaseController
         }
         var getSplitQuery = new GetOrderSplitQuery(id);
         var split = await mediator.Send(getSplitQuery, cancellationToken);
-        if (split == null)
+        if (split is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         var getOrderQuery = new GetOrderByIdQuery(split.OriginalOrderId);
         var order = await mediator.Send(getOrderQuery, cancellationToken);
-        if (order == null)
+        if (order is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }

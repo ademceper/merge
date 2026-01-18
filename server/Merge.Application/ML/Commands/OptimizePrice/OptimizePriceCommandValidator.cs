@@ -10,7 +10,7 @@ public class OptimizePriceCommandValidator : AbstractValidator<OptimizePriceComm
         RuleFor(x => x.ProductId)
             .NotEmpty().WithMessage("Product ID is required.");
 
-        When(x => x.Request != null, () =>
+        When(x => x.Request is not null, () =>
         {
             RuleFor(x => x.Request!.MinPrice)
                 .GreaterThanOrEqualTo(0).WithMessage("Minimum price must be greater than or equal to 0.")

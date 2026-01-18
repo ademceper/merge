@@ -11,7 +11,7 @@ public class NetgsmProvider(IConfiguration configuration, ILogger<NetgsmProvider
 
     public async Task<SmsSendResult> SendSmsAsync(SmsMessage message)
     {
-        if (message == null)
+        if (message is null)
         {
             throw new ArgumentNullException(nameof(message));
         }

@@ -23,7 +23,7 @@ public class GetFraudDetectionRuleByIdQueryHandler(IDbContext context, IMapper m
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken);
 
-        if (rule == null)
+        if (rule is null)
         {
             logger.LogWarning("Fraud detection rule not found. RuleId: {RuleId}", request.Id);
             return null;

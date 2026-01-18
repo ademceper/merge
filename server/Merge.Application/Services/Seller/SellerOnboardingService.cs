@@ -41,7 +41,7 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
 
         // Check if user exists
         var user = await userManager.FindByIdAsync(userId.ToString());
-        if (user == null)
+        if (user is null)
         {
             logger.LogWarning("Seller application failed - User {UserId} not found", userId);
             throw new NotFoundException("Kullanıcı", userId);
@@ -52,7 +52,7 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.UserId == userId, cancellationToken);
 
-        if (existingApplication != null && existingApplication.Status != SellerApplicationStatus.Rejected)
+        if (existingApplication is not null && existingApplication.Status != SellerApplicationStatus.Rejected)
         {
             logger.LogWarning("Seller application failed - User {UserId} already has a pending/approved application", userId);
             throw new BusinessException("Zaten bekleyen veya onaylanmış bir başvurunuz var.");
@@ -117,7 +117,7 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
             .Include(a => a.Reviewer)
             .FirstOrDefaultAsync(a => a.Id == applicationId, cancellationToken);
 
-        return application == null ? null : mapper.Map<SellerApplicationDto>(application);
+        return application is null ? null : mapper.Map<SellerApplicationDto>(application);
     }
 
     public async Task<SellerApplicationDto?> GetUserApplicationAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -131,7 +131,7 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
             .OrderByDescending(a => a.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
-        return application == null ? null : mapper.Map<SellerApplicationDto>(application);
+        return application is null ? null : mapper.Map<SellerApplicationDto>(application);
     }
 
     public async Task<PagedResult<SellerApplicationDto>> GetAllApplicationsAsync(
@@ -185,7 +185,7 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
             await unitOfWork.BeginTransactionAsync(cancellationToken);
 
             var application = await applicationRepository.GetByIdAsync(applicationId);
-            if (application == null)
+            if (application is null)
             {
                 logger.LogWarning("Application review failed - Application {ApplicationId} not found", applicationId);
                 throw new NotFoundException("Başvuru", applicationId);
@@ -215,7 +215,7 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
 
             // Send notification email
             var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
-            if (user != null)
+            if (user is not null)
             {
                 var subject = reviewDto.Status == SellerApplicationStatus.Approved
                     ? "Seller Application Approved!"
@@ -256,7 +256,7 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
             await unitOfWork.BeginTransactionAsync(cancellationToken);
 
             var application = await applicationRepository.GetByIdAsync(applicationId);
-            if (application == null)
+            if (application is null)
             {
                 logger.LogWarning("Application approval failed - Application {ApplicationId} not found", applicationId);
                 return false;
@@ -269,7 +269,7 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
 
             // Send approval email
             var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
-            if (user != null)
+            if (user is not null)
             {
                 await emailService.SendEmailAsync(
                     user.Email ?? string.Empty,
@@ -309,7 +309,7 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
             applicationId, reviewerId, reason);
 
         var application = await applicationRepository.GetByIdAsync(applicationId);
-        if (application == null)
+        if (application is null)
         {
             logger.LogWarning("Application rejection failed - Application {ApplicationId} not found", applicationId);
             return false;
@@ -322,7 +322,7 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
 
         // Send rejection email
         var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
-        if (user != null)
+        if (user is not null)
         {
             await emailService.SendEmailAsync(
                 user.Email ?? string.Empty,
@@ -381,7 +381,7 @@ public class SellerOnboardingService(IRepository applicationRepository, UserMana
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == application.UserId, cancellationToken);
 
-        if (existingProfile != null)
+        if (existingProfile is not null)
         {
             logger.LogInformation("Seller profile already exists for user {UserId}", application.UserId);
             return;

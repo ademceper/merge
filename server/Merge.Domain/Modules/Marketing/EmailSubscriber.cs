@@ -148,19 +148,19 @@ public class EmailSubscriber : BaseEntity, IAggregateRoot
         string? tags = null,
         string? customFields = null)
     {
-        if (firstName != null)
+        if (firstName is not null)
             FirstName = firstName;
 
-        if (lastName != null)
+        if (lastName is not null)
             LastName = lastName;
 
-        if (source != null)
+        if (source is not null)
             Source = source;
 
-        if (tags != null)
+        if (tags is not null)
             Tags = tags;
 
-        if (customFields != null)
+        if (customFields is not null)
             CustomFields = customFields;
 
         AddDomainEvent(new EmailSubscriberUpdatedEvent(Id, Email));

@@ -30,7 +30,7 @@ public class UpdateProductBundleCommandHandler(IRepository bundleRepository, IDb
         try
         {
             var bundle = await bundleRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (bundle == null)
+            if (bundle is null)
             {
                 throw new NotFoundException("Paket", request.Id);
             }
@@ -63,7 +63,7 @@ public class UpdateProductBundleCommandHandler(IRepository bundleRepository, IDb
                     .ThenInclude(bi => bi.Product)
                 .FirstOrDefaultAsync(b => b.Id == request.Id, cancellationToken);
 
-            if (reloadedBundle == null)
+            if (reloadedBundle is null)
             {
                 logger.LogWarning("Product bundle {BundleId} not found after update", request.Id);
                 throw new NotFoundException("Paket", request.Id);

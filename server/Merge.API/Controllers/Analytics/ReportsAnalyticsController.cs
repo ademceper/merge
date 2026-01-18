@@ -5,6 +5,7 @@ using MediatR;
 using Merge.Application.Configuration;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.Common;
+using Merge.Application.Exceptions;
 using Merge.API.Middleware;
 using Merge.Application.Analytics.Queries.GetReport;
 using Merge.Application.Analytics.Queries.GetReports;
@@ -81,12 +82,8 @@ public class ReportsAnalyticsController(
         }
 
         var query = new GetReportQuery(id, userId);
-        var report = await mediator.Send(query, cancellationToken);
-
-        if (report == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var report = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Report", id);
 
         if (report.GeneratedByUserId != userId && !User.IsInRole("Admin"))
         {
@@ -151,11 +148,8 @@ public class ReportsAnalyticsController(
         }
 
         var reportQuery = new GetReportQuery(id, userId);
-        var report = await mediator.Send(reportQuery, cancellationToken);
-        if (report == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var report = await mediator.Send(reportQuery, cancellationToken)
+            ?? throw new NotFoundException("Report", id);
 
         if (report.GeneratedByUserId != userId && !User.IsInRole("Admin"))
         {
@@ -163,13 +157,9 @@ public class ReportsAnalyticsController(
         }
 
         var query = new ExportReportQuery(id, userId);
-        var data = await mediator.Send(query, cancellationToken);
-        
-        if (data == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
-        
+        var data = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Report", id);
+
         return File(data, "application/json", $"report_{id}.json");
     }
 
@@ -193,11 +183,8 @@ public class ReportsAnalyticsController(
         }
 
         var reportQuery = new GetReportQuery(id, userId);
-        var report = await mediator.Send(reportQuery, cancellationToken);
-        if (report == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var report = await mediator.Send(reportQuery, cancellationToken)
+            ?? throw new NotFoundException("Report", id);
 
         if (report.GeneratedByUserId != userId && !User.IsInRole("Admin"))
         {
@@ -208,9 +195,7 @@ public class ReportsAnalyticsController(
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Report", id);
 
         return Ok();
     }

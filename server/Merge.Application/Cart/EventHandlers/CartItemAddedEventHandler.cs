@@ -19,7 +19,7 @@ public class CartItemAddedEventHandler(
 
         try
         {
-            if (cacheService != null)
+            if (cacheService is not null)
             {
                 await cacheService.RemoveAsync($"cart_{notification.CartId}", cancellationToken);
                 // User cart cache'i de temizle (cart user ID'den bulunabilir)

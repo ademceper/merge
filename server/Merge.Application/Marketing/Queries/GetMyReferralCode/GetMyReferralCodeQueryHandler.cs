@@ -18,7 +18,7 @@ public class GetMyReferralCodeQueryHandler(IDbContext context, IMapper mapper) :
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.UserId == request.UserId, cancellationToken);
 
-        if (code == null)
+        if (code is null)
         {
             return null;
         }

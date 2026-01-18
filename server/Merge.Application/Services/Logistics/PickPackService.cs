@@ -35,7 +35,7 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
                     .ThenInclude(oi => oi.Product)
                 .FirstOrDefaultAsync(o => o.Id == dto.OrderId, cancellationToken);
 
-            if (order == null)
+            if (order is null)
             {
                 throw new NotFoundException("Sipariş", dto.OrderId);
             }
@@ -44,7 +44,7 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
                 .AsNoTracking()
                 .FirstOrDefaultAsync(w => w.Id == dto.WarehouseId && w.IsActive, cancellationToken);
 
-            if (warehouse == null)
+            if (warehouse is null)
             {
                 throw new NotFoundException("Depo", dto.WarehouseId);
             }
@@ -54,7 +54,7 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
                 .AsNoTracking()
                 .FirstOrDefaultAsync(pp => pp.OrderId == dto.OrderId, cancellationToken);
 
-            if (existing != null)
+            if (existing is not null)
             {
                 logger.LogWarning("Bu siparis icin zaten bir pick pack kaydi var. OrderId: {OrderId}", dto.OrderId);
                 throw new BusinessException("Bu sipariş için zaten bir pick pack kaydı var.");
@@ -124,7 +124,7 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
                     .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
-        return pickPack != null ? mapper.Map<PickPackDto>(pickPack) : null;
+        return pickPack is not null ? mapper.Map<PickPackDto>(pickPack) : null;
     }
 
     public async Task<PickPackDto?> GetPickPackByPackNumberAsync(string packNumber, CancellationToken cancellationToken = default)
@@ -141,7 +141,7 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
                     .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(pp => pp.PackNumber == packNumber, cancellationToken);
 
-        return pickPack != null ? mapper.Map<PickPackDto>(pickPack) : null;
+        return pickPack is not null ? mapper.Map<PickPackDto>(pickPack) : null;
     }
 
     public async Task<IEnumerable<PickPackDto>> GetPickPacksByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default)
@@ -218,7 +218,7 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
-        if (pickPack == null) return false;
+        if (pickPack is null) return false;
 
         if (!Enum.TryParse<PickPackStatus>(dto.Status, out var statusEnum))
         {
@@ -241,7 +241,7 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
-        if (pickPack == null) return false;
+        if (pickPack is null) return false;
 
         // Domain method kullan
         pickPack.StartPicking(userId);
@@ -255,7 +255,7 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
-        if (pickPack == null || pickPack.Status != PickPackStatus.Picking) return false;
+        if (pickPack is null || pickPack.Status != PickPackStatus.Picking) return false;
 
         // Check if all items are picked
         var totalItems = await context.Set<PickPackItem>()
@@ -283,7 +283,7 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
-        if (pickPack == null) return false;
+        if (pickPack is null) return false;
 
         // Domain method kullan
         pickPack.StartPacking(userId);
@@ -297,7 +297,7 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
-        if (pickPack == null || pickPack.Status != PickPackStatus.Packing) return false;
+        if (pickPack is null || pickPack.Status != PickPackStatus.Packing) return false;
 
         // Check if all items are packed
         var totalItems = await context.Set<PickPackItem>()
@@ -326,7 +326,7 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
 
-        if (pickPack == null) return false;
+        if (pickPack is null) return false;
 
         // Domain method kullan
         pickPack.Ship();
@@ -340,7 +340,7 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
         var item = await context.Set<PickPackItem>()
             .FirstOrDefaultAsync(i => i.Id == itemId, cancellationToken);
 
-        if (item == null) return false;
+        if (item is null) return false;
 
         if (dto.IsPicked && !item.IsPicked)
         {
@@ -352,7 +352,7 @@ public class PickPackService(IDbContext context, IUnitOfWork unitOfWork, IMapper
             item.MarkAsPacked();
         }
 
-        if (dto.Location != null)
+        if (dto.Location is not null)
         {
             item.UpdateLocation(dto.Location);
         }

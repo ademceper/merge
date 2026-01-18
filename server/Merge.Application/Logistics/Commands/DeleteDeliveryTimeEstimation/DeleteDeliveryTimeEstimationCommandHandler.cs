@@ -24,7 +24,7 @@ public class DeleteDeliveryTimeEstimationCommandHandler(
         var estimation = await context.Set<DeliveryTimeEstimation>()
             .FirstOrDefaultAsync(e => e.Id == request.Id, cancellationToken);
 
-        if (estimation == null)
+        if (estimation is null)
         {
             logger.LogWarning("Delivery time estimation not found for deletion. EstimationId: {EstimationId}", request.Id);
             throw new NotFoundException("Teslimat süresi tahmini", request.Id);

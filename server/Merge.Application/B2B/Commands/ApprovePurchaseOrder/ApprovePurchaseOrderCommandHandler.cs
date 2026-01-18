@@ -31,7 +31,7 @@ public class ApprovePurchaseOrderCommandHandler(
             var po = await context.Set<PurchaseOrder>()
                 .FirstOrDefaultAsync(po => po.Id == request.Id, cancellationToken);
 
-            if (po == null)
+            if (po is null)
             {
                 logger.LogWarning("Purchase order not found with Id: {PurchaseOrderId}", request.Id);
                 await unitOfWork.RollbackTransactionAsync(cancellationToken);
@@ -44,7 +44,7 @@ public class ApprovePurchaseOrderCommandHandler(
                 var creditTerm = await context.Set<CreditTerm>()
                     .FirstOrDefaultAsync(ct => ct.Id == po.CreditTermId.Value, cancellationToken);
 
-                if (creditTerm != null && creditTerm.CreditLimit.HasValue)
+                if (creditTerm is not null && creditTerm.CreditLimit.HasValue)
                 {
                     // Entity method içinde zaten credit limit kontrolü var
                     creditTerm.UseCredit(po.TotalAmount);

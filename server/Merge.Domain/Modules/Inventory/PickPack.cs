@@ -174,7 +174,7 @@ public class PickPack : BaseEntity, IAggregateRoot
 
         var oldStatus = Status;
         Status = PickPackStatus.Cancelled;
-        Notes = reason != null ? $"{Notes}\nİptal nedeni: {reason}".Trim() : Notes;
+        Notes = reason is not null ? $"{Notes}\nİptal nedeni: {reason}".Trim() : Notes;
         UpdatedAt = DateTime.UtcNow;
 
         AddDomainEvent(new PickPackStatusChangedEvent(Id, OrderId, oldStatus, Status));

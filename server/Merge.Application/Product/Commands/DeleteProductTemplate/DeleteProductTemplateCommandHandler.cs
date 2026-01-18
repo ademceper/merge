@@ -33,7 +33,7 @@ public class DeleteProductTemplateCommandHandler(IDbContext context, IUnitOfWork
             var template = await context.Set<ProductTemplate>()
                 .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
 
-            if (template == null)
+            if (template is null)
             {
                 return false;
             }

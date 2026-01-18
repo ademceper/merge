@@ -31,7 +31,7 @@ public class GetDeliveryTimeEstimationByIdQueryHandler(
             .Include(e => e.Warehouse)
             .FirstOrDefaultAsync(e => e.Id == request.Id, cancellationToken);
 
-        return estimation != null ? mapper.Map<DeliveryTimeEstimationDto>(estimation) : null;
+        return estimation is not null ? mapper.Map<DeliveryTimeEstimationDto>(estimation) : null;
     }
 }
 

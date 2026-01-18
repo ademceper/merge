@@ -43,6 +43,7 @@ using Merge.Application.B2B.Queries.CalculateVolumeDiscount;
 using Merge.Application.B2B.Commands.UpdateCreditUsage;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.B2B;
 
@@ -107,10 +108,8 @@ public class B2BController(
         var query = new GetB2BUserByIdQuery(id);
         var b2bUser = await mediator.Send(query, cancellationToken);
         
-        if (b2bUser == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        if (b2bUser is null)
+            throw new NotFoundException("B2BUser", id);
 
         var userId = GetUserId();
         if (b2bUser.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
@@ -134,13 +133,9 @@ public class B2BController(
     {
         var userId = GetUserId();
         var query = new GetB2BUserByUserIdQuery(userId);
-        var b2bUser = await mediator.Send(query, cancellationToken);
-        
-        if (b2bUser == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
-        
+        var b2bUser = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("B2BUser", userId);
+
         return Ok(b2bUser);
     }
 
@@ -188,10 +183,8 @@ public class B2BController(
         var b2bUserQuery = new GetB2BUserByIdQuery(id);
         var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
-        if (b2bUser == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        if (b2bUser is null)
+            throw new NotFoundException("B2BUser", id);
 
         // Admin/Manager rolü varsa tüm B2B kullanıcıları güncelleyebilir
         // Normal kullanıcı sadece kendi B2B profilini güncelleyebilir
@@ -202,11 +195,10 @@ public class B2BController(
 
         var command = new UpdateB2BUserCommand(id, dto);
         var success = await mediator.Send(command, cancellationToken);
-        
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("B2BUser", id);
+
         return NoContent();
     }
 
@@ -226,11 +218,10 @@ public class B2BController(
         var approvedBy = GetUserId();
         var command = new ApproveB2BUserCommand(id, approvedBy);
         var success = await mediator.Send(command, cancellationToken);
-        
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("B2BUser", id);
+
         return NoContent();
     }
 
@@ -327,11 +318,10 @@ public class B2BController(
     {
         var command = new UpdateWholesalePriceCommand(id, dto);
         var success = await mediator.Send(command, cancellationToken);
-        
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("WholesalePrice", id);
+
         return NoContent();
     }
 
@@ -354,15 +344,14 @@ public class B2BController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new PatchWholesalePriceCommand(id, patchDto);
         var success = await mediator.Send(command, cancellationToken);
-        
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("WholesalePrice", id);
+
         return NoContent();
     }
 
@@ -381,11 +370,10 @@ public class B2BController(
     {
         var command = new DeleteWholesalePriceCommand(id);
         var success = await mediator.Send(command, cancellationToken);
-        
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("WholesalePrice", id);
+
         return NoContent();
     }
 
@@ -434,7 +422,7 @@ public class B2BController(
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
         var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
-        if (b2bUser == null || (b2bUser.OrganizationId != organizationId && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
+        if (b2bUser is null || (b2bUser.OrganizationId != organizationId && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
         {
             return Forbid();
         }
@@ -458,16 +446,14 @@ public class B2BController(
         var query = new GetCreditTermByIdQuery(id);
         var creditTerm = await mediator.Send(query, cancellationToken);
         
-        if (creditTerm == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        if (creditTerm is null)
+            throw new NotFoundException("CreditTerm", id);
 
         var userId = GetUserId();
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
         var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
-        
-        if (b2bUser == null || (creditTerm.OrganizationId != b2bUser.OrganizationId && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
+
+        if (b2bUser is null || (creditTerm.OrganizationId != b2bUser.OrganizationId && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
         {
             return Forbid();
         }
@@ -494,11 +480,10 @@ public class B2BController(
     {
         var command = new UpdateCreditTermCommand(id, dto);
         var success = await mediator.Send(command, cancellationToken);
-        
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("CreditTerm", id);
+
         return NoContent();
     }
 
@@ -521,15 +506,14 @@ public class B2BController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new PatchCreditTermCommand(id, patchDto);
         var success = await mediator.Send(command, cancellationToken);
-        
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("CreditTerm", id);
+
         return NoContent();
     }
 
@@ -548,11 +532,10 @@ public class B2BController(
     {
         var command = new DeleteCreditTermCommand(id);
         var success = await mediator.Send(command, cancellationToken);
-        
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("CreditTerm", id);
+
         return NoContent();
     }
 
@@ -573,7 +556,7 @@ public class B2BController(
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
         var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
-        if (b2bUser == null)
+        if (b2bUser is null)
         {
             return BadRequest("B2B kullanıcı profili bulunamadı.");
         }
@@ -600,15 +583,13 @@ public class B2BController(
         var poQuery = new GetPurchaseOrderByIdQuery(id);
         var po = await mediator.Send(poQuery, cancellationToken);
         
-        if (po == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        if (po is null)
+            throw new NotFoundException("PurchaseOrder", id);
 
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
         var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
-        
-        if (b2bUser == null || (po.B2BUserId != b2bUser.Id && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
+
+        if (b2bUser is null || (po.B2BUserId != b2bUser.Id && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
         {
             return Forbid();
         }
@@ -630,17 +611,13 @@ public class B2BController(
     {
         var userId = GetUserId();
         var poQuery = new GetPurchaseOrderByPONumberQuery(poNumber);
-        var po = await mediator.Send(poQuery, cancellationToken);
-        
-        if (po == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var po = await mediator.Send(poQuery, cancellationToken)
+            ?? throw new NotFoundException("PurchaseOrder", poNumber);
 
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
         var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
-        
-        if (b2bUser == null || (po.B2BUserId != b2bUser.Id && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
+
+        if (b2bUser is null || (po.B2BUserId != b2bUser.Id && !User.IsInRole("Admin") && !User.IsInRole("Manager")))
         {
             return Forbid();
         }
@@ -697,7 +674,7 @@ public class B2BController(
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
         var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
-        if (b2bUser == null)
+        if (b2bUser is null)
         {
             return Problem("Invalid request", "Bad Request", StatusCodes.Status400BadRequest);
         }
@@ -724,22 +701,20 @@ public class B2BController(
         var poQuery = new GetPurchaseOrderByIdQuery(id);
         var po = await mediator.Send(poQuery, cancellationToken);
         
-        if (po == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        if (po is null)
+            throw new NotFoundException("PurchaseOrder", id);
 
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
         var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
-        
-        if (b2bUser == null || po.B2BUserId != b2bUser.Id)
+
+        if (b2bUser is null || po.B2BUserId != b2bUser.Id)
         {
             return Forbid();
         }
 
         var command = new SubmitPurchaseOrderCommand(id);
         var success = await mediator.Send(command, cancellationToken);
-        
+
         if (!success)
         {
             return BadRequest("Sipariş gönderilemedi.");
@@ -812,22 +787,20 @@ public class B2BController(
         var poQuery = new GetPurchaseOrderByIdQuery(id);
         var po = await mediator.Send(poQuery, cancellationToken);
         
-        if (po == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        if (po is null)
+            throw new NotFoundException("PurchaseOrder", id);
 
         var b2bUserQuery = new GetB2BUserByUserIdQuery(userId);
         var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
-        
-        if (b2bUser == null || po.B2BUserId != b2bUser.Id)
+
+        if (b2bUser is null || po.B2BUserId != b2bUser.Id)
         {
             return Forbid();
         }
 
         var command = new CancelPurchaseOrderCommand(id);
         var success = await mediator.Send(command, cancellationToken);
-        
+
         if (!success)
         {
             return BadRequest("Sipariş iptal edilemedi.");
@@ -900,11 +873,10 @@ public class B2BController(
     {
         var command = new UpdateVolumeDiscountCommand(id, dto);
         var success = await mediator.Send(command, cancellationToken);
-        
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("VolumeDiscount", id);
+
         return NoContent();
     }
 
@@ -927,15 +899,14 @@ public class B2BController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new PatchVolumeDiscountCommand(id, patchDto);
         var success = await mediator.Send(command, cancellationToken);
-        
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("VolumeDiscount", id);
+
         return NoContent();
     }
 
@@ -956,9 +927,8 @@ public class B2BController(
         var success = await mediator.Send(command, cancellationToken);
         
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("VolumeDiscount", id);
+
         return NoContent();
     }
 
@@ -981,11 +951,9 @@ public class B2BController(
         var b2bUserQuery = new GetB2BUserByIdQuery(id);
         var b2bUser = await mediator.Send(b2bUserQuery, cancellationToken);
         
-        if (b2bUser == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
-        
+        if (b2bUser is null)
+            throw new NotFoundException("B2BUser", id);
+
         if (!User.IsInRole("Admin") && !User.IsInRole("Manager") && b2bUser.UserId != userId)
         {
             return Forbid();
@@ -1002,9 +970,8 @@ public class B2BController(
         });
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("B2BUser", id);
+
         return NoContent();
     }
 
@@ -1023,11 +990,10 @@ public class B2BController(
     {
         var command = new DeleteB2BUserCommand(id);
         var success = await mediator.Send(command, cancellationToken);
-        
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("B2BUser", id);
+
         return NoContent();
     }
 
@@ -1071,11 +1037,10 @@ public class B2BController(
     {
         var command = new UpdateCreditUsageCommand(id, dto.Amount);
         var success = await mediator.Send(command, cancellationToken);
-        
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("CreditTerm", id);
+
         return NoContent();
     }
 
@@ -1098,7 +1063,7 @@ public class B2BController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!patchDto.Amount.HasValue)
         {
@@ -1107,11 +1072,10 @@ public class B2BController(
 
         var command = new PatchCreditUsageCommand(id, patchDto);
         var success = await mediator.Send(command, cancellationToken);
-        
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("CreditTerm", id);
+
         return NoContent();
     }
 }

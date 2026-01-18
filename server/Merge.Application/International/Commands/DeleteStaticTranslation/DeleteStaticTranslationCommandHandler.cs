@@ -24,7 +24,7 @@ public class DeleteStaticTranslationCommandHandler(
         var translation = await context.Set<StaticTranslation>()
             .FirstOrDefaultAsync(st => st.Id == request.Id, cancellationToken);
 
-        if (translation == null)
+        if (translation is null)
         {
             logger.LogWarning("Static translation not found for deletion. TranslationId: {TranslationId}", request.Id);
             throw new NotFoundException("Statik çeviri", request.Id);

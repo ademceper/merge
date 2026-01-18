@@ -36,7 +36,7 @@ public class SellerFinanceService(IDbContext context, IUnitOfWork unitOfWork, IM
             .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
 
-        if (seller == null)
+        if (seller is null)
         {
             throw new NotFoundException("Satıcı", sellerId);
         }
@@ -91,7 +91,7 @@ public class SellerFinanceService(IDbContext context, IUnitOfWork unitOfWork, IM
         var seller = await context.Set<SellerProfile>()
             .FirstOrDefaultAsync(sp => sp.UserId == sellerId, cancellationToken);
 
-        if (seller == null)
+        if (seller is null)
         {
             throw new NotFoundException("Satıcı", sellerId);
         }
@@ -139,7 +139,7 @@ public class SellerFinanceService(IDbContext context, IUnitOfWork unitOfWork, IM
             .Include(t => t.Seller)
             .FirstOrDefaultAsync(t => t.Id == transactionId, cancellationToken);
 
-        if (transaction == null) return null;
+        if (transaction is null) return null;
 
         return mapper.Map<SellerTransactionDto>(transaction);
     }
@@ -194,7 +194,7 @@ public class SellerFinanceService(IDbContext context, IUnitOfWork unitOfWork, IM
             .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.UserId == dto.SellerId, cancellationToken);
 
-        if (seller == null)
+        if (seller is null)
         {
             throw new NotFoundException("Satıcı", dto.SellerId);
         }
@@ -293,7 +293,7 @@ public class SellerFinanceService(IDbContext context, IUnitOfWork unitOfWork, IM
             .Include(i => i.Seller)
             .FirstOrDefaultAsync(i => i.Id == invoiceId, cancellationToken);
 
-        if (invoice == null) return null;
+        if (invoice is null) return null;
 
         return mapper.Map<SellerInvoiceDto>(invoice);
     }
@@ -337,7 +337,7 @@ public class SellerFinanceService(IDbContext context, IUnitOfWork unitOfWork, IM
         var invoice = await context.Set<SellerInvoice>()
             .FirstOrDefaultAsync(i => i.Id == invoiceId, cancellationToken);
 
-        if (invoice == null) return false;
+        if (invoice is null) return false;
 
         invoice.MarkAsPaid();
         

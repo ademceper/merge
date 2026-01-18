@@ -25,7 +25,7 @@ public class ApproveAnswerCommandHandler(IDbContext context, IUnitOfWork unitOfW
             var answer = await context.Set<ProductAnswer>()
                 .FirstOrDefaultAsync(a => a.Id == request.AnswerId, cancellationToken);
 
-            if (answer == null)
+            if (answer is null)
             {
                 return false;
             }

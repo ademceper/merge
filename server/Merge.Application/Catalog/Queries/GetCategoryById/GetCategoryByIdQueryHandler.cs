@@ -28,7 +28,7 @@ public class GetCategoryByIdQueryHandler(
         var cacheKey = $"{CACHE_KEY_CATEGORY_BY_ID}{request.Id}";
 
         var cachedCategory = await cache.GetAsync<CategoryDto>(cacheKey, cancellationToken);
-        if (cachedCategory != null)
+        if (cachedCategory is not null)
         {
             logger.LogInformation("Cache hit for category. CategoryId: {CategoryId}", request.Id);
             return cachedCategory;
@@ -42,7 +42,7 @@ public class GetCategoryByIdQueryHandler(
             .Include(c => c.SubCategories)
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-        if (category == null)
+        if (category is null)
         {
             logger.LogWarning("Category not found with Id: {CategoryId}", request.Id);
             return null;

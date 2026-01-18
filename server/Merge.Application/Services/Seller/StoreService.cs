@@ -46,7 +46,7 @@ public class StoreService(IDbContext context, IUnitOfWork unitOfWork, IMapper ma
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == sellerId, cancellationToken);
 
-        if (seller == null)
+        if (seller is null)
         {
             throw new NotFoundException("Satıcı", sellerId);
         }
@@ -57,7 +57,7 @@ public class StoreService(IDbContext context, IUnitOfWork unitOfWork, IMapper ma
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Slug == slug, cancellationToken);
 
-        if (existingStore != null)
+        if (existingStore is not null)
         {
             slug = $"{slug}-{DateTime.UtcNow.Ticks.ToString().Substring(10)}";
         }
@@ -75,7 +75,7 @@ public class StoreService(IDbContext context, IUnitOfWork unitOfWork, IMapper ma
             }
         }
 
-        var settingsJson = dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null;
+        var settingsJson = dto.Settings is not null ? JsonSerializer.Serialize(dto.Settings) : null;
 
         var store = Store.Create(
             sellerId: sellerId,
@@ -106,7 +106,7 @@ public class StoreService(IDbContext context, IUnitOfWork unitOfWork, IMapper ma
             .Include(s => s.Seller)
             .FirstOrDefaultAsync(s => s.Id == store.Id, cancellationToken);
 
-        if (reloadedStore == null)
+        if (reloadedStore is null)
         {
             logger.LogWarning("Store {StoreId} not found after creation", store.Id);
             return mapper.Map<StoreDto>(store);
@@ -128,7 +128,7 @@ public class StoreService(IDbContext context, IUnitOfWork unitOfWork, IMapper ma
             .Include(s => s.Seller)
             .FirstOrDefaultAsync(s => s.Id == storeId, cancellationToken);
 
-        if (store == null) return null;
+        if (store is null) return null;
         
         var dto = mapper.Map<StoreDto>(store);
         
@@ -146,7 +146,7 @@ public class StoreService(IDbContext context, IUnitOfWork unitOfWork, IMapper ma
             .Include(s => s.Seller)
             .FirstOrDefaultAsync(s => s.Slug == slug && s.Status == EntityStatus.Active, cancellationToken);
 
-        if (store == null) return null;
+        if (store is null) return null;
         
         var dto = mapper.Map<StoreDto>(store);
         
@@ -223,7 +223,7 @@ public class StoreService(IDbContext context, IUnitOfWork unitOfWork, IMapper ma
             .Include(s => s.Seller)
             .FirstOrDefaultAsync(s => s.SellerId == sellerId && s.IsPrimary, cancellationToken);
 
-        if (store == null) return null;
+        if (store is null) return null;
         
         var dto = mapper.Map<StoreDto>(store);
         
@@ -241,7 +241,7 @@ public class StoreService(IDbContext context, IUnitOfWork unitOfWork, IMapper ma
         var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == storeId, cancellationToken);
 
-        if (store == null) return false;
+        if (store is null) return false;
 
         store.UpdateDetails(
             storeName: !string.IsNullOrEmpty(dto.StoreName) ? dto.StoreName : null,
@@ -254,7 +254,7 @@ public class StoreService(IDbContext context, IUnitOfWork unitOfWork, IMapper ma
             city: dto.City,
             country: dto.Country,
             postalCode: dto.PostalCode,
-            settings: dto.Settings != null ? JsonSerializer.Serialize(dto.Settings) : null
+            settings: dto.Settings is not null ? JsonSerializer.Serialize(dto.Settings) : null
         );
 
         if (dto.Status.HasValue)
@@ -298,7 +298,7 @@ public class StoreService(IDbContext context, IUnitOfWork unitOfWork, IMapper ma
         var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == storeId, cancellationToken);
 
-        if (store == null) return false;
+        if (store is null) return false;
 
         // Check if store has products
         var hasProducts = await context.Set<ProductEntity>()
@@ -321,7 +321,7 @@ public class StoreService(IDbContext context, IUnitOfWork unitOfWork, IMapper ma
         var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == storeId && s.SellerId == sellerId, cancellationToken);
 
-        if (store == null) return false;
+        if (store is null) return false;
 
         // Unset other primary stores
         var existingPrimary = await context.Set<Store>()
@@ -344,7 +344,7 @@ public class StoreService(IDbContext context, IUnitOfWork unitOfWork, IMapper ma
         var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == storeId, cancellationToken);
 
-        if (store == null) return false;
+        if (store is null) return false;
 
         store.Verify();
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -357,7 +357,7 @@ public class StoreService(IDbContext context, IUnitOfWork unitOfWork, IMapper ma
         var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == storeId, cancellationToken);
 
-        if (store == null) return false;
+        if (store is null) return false;
 
         store.Suspend();
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -371,7 +371,7 @@ public class StoreService(IDbContext context, IUnitOfWork unitOfWork, IMapper ma
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == storeId, cancellationToken);
 
-        if (store == null)
+        if (store is null)
         {
             throw new NotFoundException("Mağaza", storeId);
         }

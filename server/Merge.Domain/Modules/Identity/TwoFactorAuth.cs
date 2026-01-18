@@ -37,7 +37,7 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         // BaseEntity'deki protected AddDomainEvent'i çağır
@@ -46,7 +46,7 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
 
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         base.RemoveDomainEvent(domainEvent);
@@ -86,7 +86,7 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
         }
         
         // Validate backup codes if provided
-        if (backupCodes != null && backupCodes.Length > 0)
+        if (backupCodes is not null && backupCodes.Length > 0)
         {
             foreach (var code in backupCodes)
             {
@@ -175,7 +175,7 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
         }
         
         // Validate backup codes if provided
-        if (backupCodes != null && backupCodes.Length > 0)
+        if (backupCodes is not null && backupCodes.Length > 0)
         {
             foreach (var code in backupCodes)
             {
@@ -190,7 +190,7 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
         Secret = secret;
         PhoneNumber = phoneNumber;
         Email = email;
-        if (backupCodes != null)
+        if (backupCodes is not null)
         {
             BackupCodes = backupCodes;
         }
@@ -269,7 +269,7 @@ public class TwoFactorAuth : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(backupCode, nameof(backupCode));
         Guard.AgainstLength(backupCode, 20, nameof(backupCode));
 
-        if (BackupCodes == null || BackupCodes.Length == 0)
+        if (BackupCodes is null || BackupCodes.Length == 0)
             throw new DomainException("No backup codes available");
 
         // Normalize backup code for comparison

@@ -46,7 +46,7 @@ public class ReferralsController(
         var query = new GetMyReferralCodeQuery(userId);
         var code = await mediator.Send(query, cancellationToken);
         
-        if (code == null)
+        if (code is null)
         {
             var createCommand = new CreateReferralCodeCommand(userId);
             code = await mediator.Send(createCommand, cancellationToken);

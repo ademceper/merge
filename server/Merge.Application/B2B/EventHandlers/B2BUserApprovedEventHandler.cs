@@ -23,7 +23,7 @@ public class B2BUserApprovedEventHandler(
         try
         {
             // Email bildirimi gönder
-            if (notificationService != null)
+            if (notificationService is not null)
             {
                 var createDto = new CreateNotificationDto(
                     notification.UserId,

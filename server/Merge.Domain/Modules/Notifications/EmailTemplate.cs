@@ -63,7 +63,7 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
         get => _thumbnail; 
         private set 
         {
-            if (value != null)
+            if (value is not null)
             {
                 Guard.AgainstLength(value, 500, nameof(Thumbnail));
             }
@@ -129,7 +129,7 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
             _name = name;
         }
 
-        if (description != null)
+        if (description is not null)
             Description = description;
 
         if (!string.IsNullOrEmpty(subject))
@@ -141,16 +141,16 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
         if (!string.IsNullOrEmpty(htmlContent))
             _htmlContent = htmlContent;
 
-        if (textContent != null)
+        if (textContent is not null)
             TextContent = textContent;
 
         if (type.HasValue)
             Type = type.Value;
 
-        if (variables != null)
+        if (variables is not null)
             Variables = variables;
 
-        if (thumbnail != null)
+        if (thumbnail is not null)
             _thumbnail = thumbnail;
 
         UpdatedAt = DateTime.UtcNow;

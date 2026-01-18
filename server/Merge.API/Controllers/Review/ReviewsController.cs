@@ -13,6 +13,7 @@ using Merge.Application.Review.Queries.GetReviewsByUserId;
 using Merge.Application.DTOs.Review;
 using Merge.Application.Common;
 using Merge.API.Middleware;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Review;
 
@@ -71,7 +72,7 @@ public class ReviewsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var userId = GetUserId();
         var command = new CreateReviewCommand(
             userId,
@@ -98,18 +99,17 @@ public class ReviewsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var userId = GetUserId();
         var existingReviewQuery = new GetReviewByIdQuery(id);
-        var existingReview = await mediator.Send(existingReviewQuery, cancellationToken);
-        if (existingReview == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var existingReview = await mediator.Send(existingReviewQuery, cancellationToken)
+            ?? throw new NotFoundException("Review", id);
+
         if (existingReview.UserId != userId && !User.IsInRole("Admin"))
         {
             return Forbid();
         }
+
         var command = new UpdateReviewCommand(id, userId, dto.Rating, dto.Title, dto.Comment);
         var review = await mediator.Send(command, cancellationToken);
         return Ok(review);
@@ -134,18 +134,17 @@ public class ReviewsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var userId = GetUserId();
         var existingReviewQuery = new GetReviewByIdQuery(id);
-        var existingReview = await mediator.Send(existingReviewQuery, cancellationToken);
-        if (existingReview == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var existingReview = await mediator.Send(existingReviewQuery, cancellationToken)
+            ?? throw new NotFoundException("Review", id);
+
         if (existingReview.UserId != userId && !User.IsInRole("Admin"))
         {
             return Forbid();
         }
+
         var command = new PatchReviewCommand(id, userId, patchDto);
         var review = await mediator.Send(command, cancellationToken);
         return Ok(review);
@@ -163,21 +162,20 @@ public class ReviewsController(IMediator mediator) : BaseController
     {
         var userId = GetUserId();
         var existingReviewQuery = new GetReviewByIdQuery(id);
-        var existingReview = await mediator.Send(existingReviewQuery, cancellationToken);
-        if (existingReview == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var existingReview = await mediator.Send(existingReviewQuery, cancellationToken)
+            ?? throw new NotFoundException("Review", id);
+
         if (existingReview.UserId != userId && !User.IsInRole("Admin"))
         {
             return Forbid();
         }
+
         var command = new DeleteReviewCommand(id, userId);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Review", id);
+
         return NoContent();
     }
 
@@ -194,10 +192,10 @@ public class ReviewsController(IMediator mediator) : BaseController
         var approvedByUserId = GetUserId();
         var command = new ApproveReviewCommand(id, approvedByUserId);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Review", id);
+
         return NoContent();
     }
 
@@ -216,14 +214,14 @@ public class ReviewsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var rejectedByUserId = GetUserId();
         var command = new RejectReviewCommand(id, rejectedByUserId, dto.Reason);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Review", id);
+
         return NoContent();
     }
 

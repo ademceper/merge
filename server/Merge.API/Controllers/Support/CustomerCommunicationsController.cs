@@ -5,6 +5,7 @@ using MediatR;
 using Merge.Application.DTOs.Support;
 using Merge.Application.Common;
 using Merge.Application.Configuration;
+using Merge.Application.Exceptions;
 using Merge.Application.Support.Commands.CreateCustomerCommunication;
 using Merge.Application.Support.Commands.UpdateCustomerCommunicationStatus;
 using Merge.Application.Support.Queries.GetCustomerCommunication;
@@ -98,11 +99,8 @@ public class CustomerCommunicationsController(IMediator mediator, IOptions<Suppo
         var userId = !isAdmin ? GetUserIdOrNull() : null;
 
                 var query = new GetCustomerCommunicationQuery(id, userId);
-        var communication = await mediator.Send(query, cancellationToken);
-        if (communication == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var communication = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("CustomerCommunication", id);
 
                 if (!isAdmin && communication.UserId != userId)
         {
@@ -129,7 +127,7 @@ public class CustomerCommunicationsController(IMediator mediator, IOptions<Suppo
         CancellationToken cancellationToken = default)
     {
                 var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var sentByUserId = GetUserIdOrNull();
                 var command = new CreateCustomerCommunicationCommand(
@@ -235,7 +233,7 @@ public class CustomerCommunicationsController(IMediator mediator, IOptions<Suppo
         CancellationToken cancellationToken = default)
     {
                 var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
                 var command = new UpdateCustomerCommunicationStatusCommand(
             id,
@@ -243,10 +241,10 @@ public class CustomerCommunicationsController(IMediator mediator, IOptions<Suppo
             dto.DeliveredAt,
             dto.ReadAt);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("CustomerCommunication", id);
+
         return NoContent();
     }
 
@@ -269,7 +267,7 @@ public class CustomerCommunicationsController(IMediator mediator, IOptions<Suppo
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         // Status is required for UpdateCustomerCommunicationStatusCommand, but we can make it optional for PATCH
         // If status is not provided, we'll skip the update
@@ -284,10 +282,10 @@ public class CustomerCommunicationsController(IMediator mediator, IOptions<Suppo
             patchDto.DeliveredAt,
             patchDto.ReadAt);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("CustomerCommunication", id);
+
         return NoContent();
     }
 

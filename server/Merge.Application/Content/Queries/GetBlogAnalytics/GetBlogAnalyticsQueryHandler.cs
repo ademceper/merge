@@ -32,7 +32,7 @@ public class GetBlogAnalyticsQueryHandler(
         var cacheKey = $"{CACHE_KEY_BLOG_ANALYTICS}{start:yyyy-MM-dd}_{end:yyyy-MM-dd}";
 
         var cachedAnalytics = await cache.GetAsync<BlogAnalyticsDto>(cacheKey, cancellationToken);
-        if (cachedAnalytics != null)
+        if (cachedAnalytics is not null)
         {
             logger.LogInformation("Cache hit for blog analytics. StartDate: {StartDate}, EndDate: {EndDate}",
                 request.StartDate, request.EndDate);

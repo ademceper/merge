@@ -74,11 +74,11 @@ public class LandingPage : BaseEntity, IAggregateRoot
         Guard.AgainstLength(title, 200, nameof(title));
         Guard.AgainstLength(content, 50000, nameof(content));
         // Configuration değerleri: MaxTemplateNameLength=100, MaxMetaTitleLength=60, MaxMetaDescriptionLength=160
-        if (template != null)
+        if (template is not null)
             Guard.AgainstLength(template, 100, nameof(template));
-        if (metaTitle != null)
+        if (metaTitle is not null)
             Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
-        if (metaDescription != null)
+        if (metaDescription is not null)
             Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
 
         if (startDate.HasValue && endDate.HasValue && startDate.Value >= endDate.Value)
@@ -86,7 +86,7 @@ public class LandingPage : BaseEntity, IAggregateRoot
             throw new DomainException("Start date must be before end date");
         }
 
-        var finalSlug = slug != null ? Slug.FromString(slug) : Slug.FromString(name);
+        var finalSlug = slug is not null ? Slug.FromString(slug) : Slug.FromString(name);
 
         if (!string.IsNullOrEmpty(ogImageUrl) && !IsValidUrl(ogImageUrl))
         {
@@ -168,7 +168,7 @@ public class LandingPage : BaseEntity, IAggregateRoot
     public void UpdateTemplate(string? template)
     {
         // Configuration değeri: MaxTemplateNameLength=100
-        if (template != null)
+        if (template is not null)
             Guard.AgainstLength(template, 100, nameof(template));
         Template = template;
         UpdatedAt = DateTime.UtcNow;
@@ -214,9 +214,9 @@ public class LandingPage : BaseEntity, IAggregateRoot
         }
         
         // Configuration değerleri: MaxMetaTitleLength=60, MaxMetaDescriptionLength=160
-        if (metaTitle != null)
+        if (metaTitle is not null)
             Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
-        if (metaDescription != null)
+        if (metaDescription is not null)
             Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
         
         MetaTitle = metaTitle;

@@ -42,7 +42,7 @@ public class Store : BaseEntity, IAggregateRoot
 
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         base.AddDomainEvent(domainEvent);
@@ -142,29 +142,29 @@ public class Store : BaseEntity, IAggregateRoot
         if (Status == EntityStatus.Deleted)
             throw new DomainException("Silinmiş mağaza güncellenemez");
 
-        if (storeName != null)
+        if (storeName is not null)
         {
             Guard.AgainstNullOrEmpty(storeName, nameof(storeName));
             StoreName = storeName;
             Slug = GenerateSlug(storeName);
         }
 
-        if (description != null)
+        if (description is not null)
             Description = description;
 
-        if (logoUrl != null)
+        if (logoUrl is not null)
             LogoUrl = logoUrl;
 
-        if (bannerUrl != null)
+        if (bannerUrl is not null)
             BannerUrl = bannerUrl;
 
-        if (contactEmail != null)
+        if (contactEmail is not null)
         {
             var emailValueObject = new Email(contactEmail);
             ContactEmail = emailValueObject.Value;
         }
 
-        if (contactPhone != null)
+        if (contactPhone is not null)
         {
             var phoneValueObject = new PhoneNumber(contactPhone);
             ContactPhone = phoneValueObject.Value;
@@ -184,17 +184,17 @@ public class Store : BaseEntity, IAggregateRoot
         else
         {
             // Partial address bilgileri - sadece string olarak kaydet
-            if (address != null)
+            if (address is not null)
                 Address = address;
-            if (city != null)
+            if (city is not null)
                 City = city;
-            if (country != null)
+            if (country is not null)
                 Country = country;
-            if (postalCode != null)
+            if (postalCode is not null)
                 PostalCode = postalCode;
         }
 
-        if (settings != null)
+        if (settings is not null)
             Settings = settings;
 
         UpdatedAt = DateTime.UtcNow;

@@ -78,7 +78,7 @@ public class ImportProductsFromCsvCommandHandler(
                     );
 
                     var product = await ImportSingleProductAsync(productDto, cancellationToken);
-                    if (product != null)
+                    if (product is not null)
                     {
                         successCount++;
                         var importedProductDto = mapper.Map<ProductDto>(product);
@@ -132,7 +132,7 @@ public class ImportProductsFromCsvCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.SKU == dto.SKU, cancellationToken);
 
-        if (existingProduct != null)
+        if (existingProduct is not null)
         {
             logger.LogWarning("SKU already exists: {SKU}", dto.SKU);
             return null;
@@ -142,7 +142,7 @@ public class ImportProductsFromCsvCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Name == dto.CategoryName, cancellationToken);
 
-        if (category == null)
+        if (category is null)
         {
             logger.LogWarning("Category not found: {CategoryName}", dto.CategoryName);
             return null;

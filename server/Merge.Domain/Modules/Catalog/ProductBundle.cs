@@ -215,10 +215,10 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         }
         
         Name = name;
-        if (description != null) Description = description;
+        if (description is not null) Description = description;
         if (bundlePrice.HasValue) BundlePrice = bundlePrice.Value;
         if (originalTotalPrice.HasValue) OriginalTotalPrice = originalTotalPrice.Value;
-        if (imageUrl != null) ImageUrl = imageUrl;
+        if (imageUrl is not null) ImageUrl = imageUrl;
         if (startDate.HasValue) StartDate = startDate;
         if (endDate.HasValue) EndDate = endDate;
         
@@ -262,7 +262,7 @@ public class ProductBundle : BaseEntity, IAggregateRoot
         Guard.AgainstDefault(productId, nameof(productId));
         
         var item = _bundleItems.FirstOrDefault(bi => bi.ProductId == productId);
-        if (item == null)
+        if (item is null)
         {
             throw new DomainException("Bu ürün pakette bulunamadı");
         }

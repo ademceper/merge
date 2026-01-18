@@ -30,7 +30,7 @@ public class DeletePageBuilderCommandHandler(
         try
         {
             var pageBuilder = await pageBuilderRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (pageBuilder == null)
+            if (pageBuilder is null)
             {
                 logger.LogWarning("Page builder not found for deletion. PageBuilderId: {PageBuilderId}", request.Id);
                 return false;

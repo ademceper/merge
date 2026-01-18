@@ -28,7 +28,7 @@ public class CreateOrderFromStreamCommandHandler(
         var order = await context.Set<OrderEntity>()
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
-        if (order == null)
+        if (order is null)
         {
             logger.LogWarning("Order not found. OrderId: {OrderId}", request.OrderId);
             throw new NotFoundException("Sipariş", request.OrderId);
@@ -37,7 +37,7 @@ public class CreateOrderFromStreamCommandHandler(
         var stream = await context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == request.StreamId, cancellationToken);
 
-        if (stream == null)
+        if (stream is null)
         {
             logger.LogWarning("Stream not found. StreamId: {StreamId}", request.StreamId);
             throw new NotFoundException("Canlı yayın", request.StreamId);
@@ -60,7 +60,7 @@ public class CreateOrderFromStreamCommandHandler(
             var streamProduct = await context.Set<LiveStreamProduct>()
                 .FirstOrDefaultAsync(p => p.LiveStreamId == request.StreamId && p.ProductId == request.ProductId.Value, cancellationToken);
 
-            if (streamProduct != null)
+            if (streamProduct is not null)
             {
                 streamProduct.IncrementOrderCount();
             }

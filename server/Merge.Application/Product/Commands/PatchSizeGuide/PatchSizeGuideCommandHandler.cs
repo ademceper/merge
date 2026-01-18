@@ -38,7 +38,7 @@ public class PatchSizeGuideCommandHandler(
                 .Include(sg => sg.Entries)
                 .FirstOrDefaultAsync(sg => sg.Id == request.Id, cancellationToken);
 
-            if (sizeGuide == null)
+            if (sizeGuide is null)
             {
                 return false;
             }
@@ -49,13 +49,13 @@ public class PatchSizeGuideCommandHandler(
             var name = request.PatchDto.Name ?? sizeGuide.Name;
             var description = request.PatchDto.Description ?? sizeGuide.Description;
             var categoryId = request.PatchDto.CategoryId ?? sizeGuide.CategoryId;
-            var type = request.PatchDto.Type != null ? Enum.Parse<SizeGuideType>(request.PatchDto.Type, true) : sizeGuide.Type;
+            var type = request.PatchDto.Type is not null ? Enum.Parse<SizeGuideType>(request.PatchDto.Type, true) : sizeGuide.Type;
             var brand = request.PatchDto.Brand ?? sizeGuide.Brand;
             var measurementUnit = request.PatchDto.MeasurementUnit ?? sizeGuide.MeasurementUnit;
 
             sizeGuide.Update(name, description, categoryId, type, brand, measurementUnit);
 
-            if (request.PatchDto.Entries != null)
+            if (request.PatchDto.Entries is not null)
             {
                 var entryIds = sizeGuide.Entries.Select(e => e.Id).ToList();
                 foreach (var entryId in entryIds)
@@ -78,7 +78,7 @@ public class PatchSizeGuideCommandHandler(
                         entryDto.Width,
                         entryDto.Height,
                         entryDto.Weight,
-                        entryDto.AdditionalMeasurements != null ? JsonSerializer.Serialize(entryDto.AdditionalMeasurements) : null,
+                        entryDto.AdditionalMeasurements is not null ? JsonSerializer.Serialize(entryDto.AdditionalMeasurements) : null,
                         entryDto.DisplayOrder);
 
                     sizeGuide.AddEntry(entry);

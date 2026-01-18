@@ -26,7 +26,7 @@ public class AwardSellerBadgeCommandHandler(IDbContext context, IUnitOfWork unit
         var existing = await context.Set<SellerTrustBadge>()
             .FirstOrDefaultAsync(stb => stb.SellerId == request.SellerId && stb.TrustBadgeId == request.BadgeId, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             existing.Activate();
             existing.UpdateAwardedAt(DateTime.UtcNow);
@@ -59,7 +59,7 @@ public class AwardSellerBadgeCommandHandler(IDbContext context, IUnitOfWork unit
             .Include(stb => stb.Seller)
             .FirstOrDefaultAsync(stb => stb.SellerId == sellerId && stb.TrustBadgeId == badgeId, cancellationToken);
 
-        if (sellerBadge == null)
+        if (sellerBadge is null)
             throw new NotFoundException("Satıcı rozeti", badgeId);
 
         return mapper.Map<SellerTrustBadgeDto>(sellerBadge);

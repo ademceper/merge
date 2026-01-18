@@ -20,6 +20,7 @@ using Merge.Application.Product.Queries.GetUserQuestions;
 using Merge.Application.Product.Queries.GetQuestionAnswers;
 using Merge.Application.Product.Queries.GetQAStats;
 using Merge.Application.Product.Queries.GetUnansweredQuestions;
+using Merge.Application.Exceptions;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
 
@@ -47,7 +48,7 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
@@ -66,12 +67,9 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
     {
         var userId = GetUserIdOrNull();
         var query = new GetQuestionQuery(id, userId);
-        var question = await mediator.Send(query, cancellationToken);
+        var question = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("ProductQuestion", id);
 
-        if (question == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
         return Ok(question);
     }
 
@@ -125,9 +123,8 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("ProductQuestion", id);
+
         return NoContent();
     }
 
@@ -149,9 +146,8 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("ProductQuestion", id);
+
         return NoContent();
     }
 
@@ -167,7 +163,7 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
@@ -205,9 +201,8 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("ProductAnswer", id);
+
         return NoContent();
     }
 
@@ -229,9 +224,8 @@ public class ProductQuestionsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("ProductAnswer", id);
+
         return NoContent();
     }
 

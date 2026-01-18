@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
 using Merge.Application.DTOs.Logistics;
+using Merge.Application.Exceptions;
 using Merge.API.Middleware;
 using Merge.Application.Logistics.Queries.GetAllWarehouses;
 using Merge.Application.Logistics.Queries.GetActiveWarehouses;
@@ -68,11 +69,8 @@ public class WarehousesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetWarehouseByIdQuery(id);
-        var warehouse = await mediator.Send(query, cancellationToken);
-        if (warehouse == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var warehouse = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Warehouse", id);
         return Ok(warehouse);
     }
 
@@ -88,11 +86,8 @@ public class WarehousesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetWarehouseByCodeQuery(code);
-        var warehouse = await mediator.Send(query, cancellationToken);
-        if (warehouse == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var warehouse = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Warehouse", code);
         return Ok(warehouse);
     }
 
@@ -109,7 +104,7 @@ public class WarehousesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new CreateWarehouseCommand(
             createDto.Name,
@@ -141,15 +136,12 @@ public class WarehousesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         // Mevcut warehouse'u çek
         var existingQuery = new GetWarehouseByIdQuery(id);
-        var existingWarehouse = await mediator.Send(existingQuery, cancellationToken);
-        if (existingWarehouse == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var existingWarehouse = await mediator.Send(existingQuery, cancellationToken)
+            ?? throw new NotFoundException("Warehouse", id);
 
         var command = new UpdateWarehouseCommand(
             id,
@@ -186,14 +178,11 @@ public class WarehousesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var existingQuery = new GetWarehouseByIdQuery(id);
-        var existingWarehouse = await mediator.Send(existingQuery, cancellationToken);
-        if (existingWarehouse == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var existingWarehouse = await mediator.Send(existingQuery, cancellationToken)
+            ?? throw new NotFoundException("Warehouse", id);
 
         var command = new PatchWarehouseCommand(id, patchDto);
         var warehouse = await mediator.Send(command, cancellationToken);

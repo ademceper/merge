@@ -42,7 +42,7 @@ public class RegisterCommandHandler(
         logger.LogInformation("Registration attempt. Email: {MaskedEmail}", MaskEmail(request.Email));
 
         var existingUser = await userManager.FindByEmailAsync(request.Email);
-        if (existingUser != null)
+        if (existingUser is not null)
         {
             logger.LogWarning("Registration failed - email already exists. Email: {MaskedEmail}", MaskEmail(request.Email));
             throw new BusinessException("Bu email adresi zaten kullanılıyor.");

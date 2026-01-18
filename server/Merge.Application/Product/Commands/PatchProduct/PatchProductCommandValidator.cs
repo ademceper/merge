@@ -20,7 +20,7 @@ public class PatchProductCommandValidator : AbstractValidator<PatchProductComman
             .WithMessage("Güncelleme verisi zorunludur.");
 
         // Conditional validation - only validate fields that are provided
-        When(x => x.PatchDto.Name != null, () =>
+        When(x => x.PatchDto.Name is not null, () =>
         {
             RuleFor(x => x.PatchDto!.Name)
                 .NotEmpty()
@@ -31,7 +31,7 @@ public class PatchProductCommandValidator : AbstractValidator<PatchProductComman
                 .WithMessage("Ürün adı en az 2 karakter olmalıdır.");
         });
 
-        When(x => x.PatchDto.Description != null, () =>
+        When(x => x.PatchDto.Description is not null, () =>
         {
             RuleFor(x => x.PatchDto!.Description)
                 .NotEmpty()
@@ -40,7 +40,7 @@ public class PatchProductCommandValidator : AbstractValidator<PatchProductComman
                 .WithMessage("Ürün açıklaması en fazla 5000 karakter olabilir.");
         });
 
-        When(x => x.PatchDto.SKU != null, () =>
+        When(x => x.PatchDto.SKU is not null, () =>
         {
             RuleFor(x => x.PatchDto!.SKU)
                 .NotEmpty()
@@ -70,7 +70,7 @@ public class PatchProductCommandValidator : AbstractValidator<PatchProductComman
                 .WithMessage("Stok miktarı negatif olamaz.");
         });
 
-        When(x => x.PatchDto.Brand != null, () =>
+        When(x => x.PatchDto.Brand is not null, () =>
         {
             RuleFor(x => x.PatchDto!.Brand)
                 .NotEmpty()

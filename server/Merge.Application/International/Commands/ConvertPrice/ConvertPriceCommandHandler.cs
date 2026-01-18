@@ -30,7 +30,7 @@ public class ConvertPriceCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(c => EF.Functions.ILike(c.Code, request.ToCurrency) && c.IsActive, cancellationToken);
 
-        if (from == null || to == null)
+        if (from is null || to is null)
         {
             logger.LogWarning("Invalid currency code. From: {FromCurrency}, To: {ToCurrency}", 
                 request.FromCurrency, request.ToCurrency);

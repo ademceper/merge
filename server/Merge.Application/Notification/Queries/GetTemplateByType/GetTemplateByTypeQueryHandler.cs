@@ -21,6 +21,6 @@ public class GetTemplateByTypeQueryHandler(IDbContext context, IMapper mapper) :
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Type == request.Type && t.IsActive, cancellationToken);
 
-        return template != null ? mapper.Map<NotificationTemplateDto>(template) : null;
+        return template is not null ? mapper.Map<NotificationTemplateDto>(template) : null;
     }
 }

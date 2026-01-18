@@ -29,7 +29,7 @@ public class CreateDeliveryTimeEstimationCommandHandler(
         logger.LogInformation("Creating delivery time estimation. ProductId: {ProductId}, CategoryId: {CategoryId}, WarehouseId: {WarehouseId}",
             request.ProductId, request.CategoryId, request.WarehouseId);
 
-        var conditionsJson = request.Conditions != null
+        var conditionsJson = request.Conditions is not null
             ? JsonSerializer.Serialize(request.Conditions, JsonOptions)
             : null;
 
@@ -58,7 +58,7 @@ public class CreateDeliveryTimeEstimationCommandHandler(
             .Include(e => e.Warehouse)
             .FirstOrDefaultAsync(e => e.Id == estimation.Id, cancellationToken);
 
-        if (createdEstimation == null)
+        if (createdEstimation is null)
         {
             logger.LogWarning("Delivery time estimation not found after creation. EstimationId: {EstimationId}", estimation.Id);
             throw new NotFoundException("Teslimat süresi tahmini", estimation.Id);

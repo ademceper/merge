@@ -24,7 +24,7 @@ public class UpdateOrderStatusCommandHandler(
         var order = await context.Set<OrderEntity>()
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
-        if (order == null)
+        if (order is null)
         {
             throw new NotFoundException("Sipariş", request.OrderId);
         }

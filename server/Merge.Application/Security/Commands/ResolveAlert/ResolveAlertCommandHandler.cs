@@ -18,7 +18,7 @@ public class ResolveAlertCommandHandler(IDbContext context, IUnitOfWork unitOfWo
         var alert = await context.Set<SecurityAlert>()
             .FirstOrDefaultAsync(a => a.Id == request.AlertId, cancellationToken);
 
-        if (alert == null) return false;
+        if (alert is null) return false;
 
         alert.Resolve(request.ResolvedByUserId, request.ResolutionNotes);
         await unitOfWork.SaveChangesAsync(cancellationToken);

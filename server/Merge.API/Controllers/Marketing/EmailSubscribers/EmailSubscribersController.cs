@@ -13,6 +13,7 @@ using Merge.Application.Marketing.Commands.UpdateEmailSubscriber;
 using Merge.Application.Marketing.Commands.BulkImportEmailSubscribers;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Marketing.EmailSubscribers;
 
@@ -68,9 +69,7 @@ public class EmailSubscribersController(
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("EmailSubscriber", email);
 
         return NoContent();
     }
@@ -88,12 +87,8 @@ public class EmailSubscribersController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetEmailSubscriberByIdQuery(id);
-        var subscriber = await mediator.Send(query, cancellationToken);
-
-        if (subscriber == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var subscriber = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("EmailSubscriber", id);
 
         return Ok(subscriber);
     }
@@ -111,12 +106,8 @@ public class EmailSubscribersController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetEmailSubscriberByEmailQuery(email);
-        var subscriber = await mediator.Send(query, cancellationToken);
-
-        if (subscriber == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var subscriber = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("EmailSubscriber", email);
 
         return Ok(subscriber);
     }

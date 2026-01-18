@@ -116,10 +116,10 @@ public class PaymentMethod : BaseEntity, IAggregateRoot
         if (!string.IsNullOrEmpty(name))
             Name = name;
 
-        if (description != null)
+        if (description is not null)
             Description = description;
 
-        if (iconUrl != null)
+        if (iconUrl is not null)
             IconUrl = iconUrl;
 
         if (isActive.HasValue)
@@ -162,7 +162,7 @@ public class PaymentMethod : BaseEntity, IAggregateRoot
             ProcessingFeePercentage = processingFeePercentage;
         }
 
-        if (settings != null)
+        if (settings is not null)
             Settings = settings;
 
         if (displayOrder.HasValue)

@@ -18,7 +18,7 @@ public class UnblockPaymentCommandHandler(IDbContext context, IUnitOfWork unitOf
         var check = await context.Set<PaymentFraudPrevention>()
             .FirstOrDefaultAsync(c => c.Id == request.CheckId, cancellationToken);
 
-        if (check == null) return false;
+        if (check is null) return false;
 
         check.Unblock();
         await unitOfWork.SaveChangesAsync(cancellationToken);

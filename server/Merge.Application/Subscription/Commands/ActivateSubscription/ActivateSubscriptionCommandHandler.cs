@@ -21,7 +21,7 @@ public class ActivateSubscriptionCommandHandler(IDbContext context, IUnitOfWork 
         var subscription = await context.Set<UserSubscription>()
             .FirstOrDefaultAsync(us => us.Id == request.SubscriptionId, cancellationToken);
 
-        if (subscription == null)
+        if (subscription is null)
         {
             throw new NotFoundException("Abonelik", request.SubscriptionId);
         }

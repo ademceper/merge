@@ -34,7 +34,7 @@ public class CreateEmailAutomationCommandHandler(
             type: typeEnum,
             templateId: request.TemplateId,
             delayHours: request.DelayHours,
-            triggerConditions: request.TriggerConditions != null ? JsonSerializer.Serialize(request.TriggerConditions) : null);
+            triggerConditions: request.TriggerConditions is not null ? JsonSerializer.Serialize(request.TriggerConditions) : null);
 
         await context.Set<EmailAutomation>().AddAsync(automation, cancellationToken);
         

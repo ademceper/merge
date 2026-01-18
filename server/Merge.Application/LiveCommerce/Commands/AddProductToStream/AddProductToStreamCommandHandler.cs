@@ -26,7 +26,7 @@ public class AddProductToStreamCommandHandler(
         var stream = await context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == request.StreamId, cancellationToken);
 
-        if (stream == null)
+        if (stream is null)
         {
             logger.LogWarning("Stream not found. StreamId: {StreamId}", request.StreamId);
             throw new NotFoundException("Canlı yayın", request.StreamId);
@@ -35,7 +35,7 @@ public class AddProductToStreamCommandHandler(
         var existing = await context.Set<LiveStreamProduct>()
             .FirstOrDefaultAsync(p => p.LiveStreamId == request.StreamId && p.ProductId == request.ProductId, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             logger.LogWarning("Product already added to stream. StreamId: {StreamId}, ProductId: {ProductId}", 
                 request.StreamId, request.ProductId);
@@ -61,7 +61,7 @@ public class AddProductToStreamCommandHandler(
                 .ThenInclude(p => p.Product)
             .FirstOrDefaultAsync(s => s.Id == request.StreamId, cancellationToken);
 
-        if (updatedStream == null)
+        if (updatedStream is null)
         {
             logger.LogWarning("Stream not found after adding product. StreamId: {StreamId}", request.StreamId);
             throw new NotFoundException("Canlı yayın", request.StreamId);

@@ -33,7 +33,7 @@ public class UpdateShippingTrackingCommandHandler(
         var shipping = await context.Set<Shipping>()
             .FirstOrDefaultAsync(s => s.Id == request.ShippingId, cancellationToken);
 
-        if (shipping == null)
+        if (shipping is null)
         {
             logger.LogWarning("Shipping not found. ShippingId: {ShippingId}", request.ShippingId);
             throw new NotFoundException("Kargo kaydı", request.ShippingId);
@@ -48,7 +48,7 @@ public class UpdateShippingTrackingCommandHandler(
         var order = await context.Set<OrderEntity>()
             .FirstOrDefaultAsync(o => o.Id == shipping.OrderId, cancellationToken);
 
-        if (order != null)
+        if (order is not null)
         {
             order.Ship();
         }
@@ -61,7 +61,7 @@ public class UpdateShippingTrackingCommandHandler(
             .Include(s => s.Order)
             .FirstOrDefaultAsync(s => s.Id == request.ShippingId, cancellationToken);
 
-        if (updatedShipping == null)
+        if (updatedShipping is null)
         {
             logger.LogWarning("Shipping not found after update. ShippingId: {ShippingId}", request.ShippingId);
             throw new NotFoundException("Kargo", request.ShippingId);

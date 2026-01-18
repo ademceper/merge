@@ -28,7 +28,7 @@ public class AddressService(
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
-        if (address == null)
+        if (address is null)
         {
             logger.LogWarning("Address not found with ID: {AddressId}", id);
             return null;
@@ -55,7 +55,7 @@ public class AddressService(
 
     public async Task<AddressDto> CreateAsync(CreateAddressDto dto, CancellationToken cancellationToken = default)
     {
-        if (dto == null)
+        if (dto is null)
         {
             throw new ArgumentNullException(nameof(dto));
         }
@@ -114,7 +114,7 @@ public class AddressService(
 
     public async Task<AddressDto> UpdateAsync(Guid id, UpdateAddressDto dto, CancellationToken cancellationToken = default)
     {
-        if (dto == null)
+        if (dto is null)
         {
             throw new ArgumentNullException(nameof(dto));
         }
@@ -132,7 +132,7 @@ public class AddressService(
         logger.LogInformation("Updating address with ID: {AddressId}", id);
 
         var address = await addressRepository.GetByIdAsync(id, cancellationToken);
-        if (address == null)
+        if (address is null)
         {
             logger.LogWarning("Address not found for update with ID: {AddressId}", id);
             throw new NotFoundException("Adres", id);
@@ -190,7 +190,7 @@ public class AddressService(
         logger.LogInformation("Deleting address with ID: {AddressId}", id);
 
         var address = await addressRepository.GetByIdAsync(id, cancellationToken);
-        if (address == null)
+        if (address is null)
         {
             logger.LogWarning("Address not found for deletion with ID: {AddressId}", id);
             return false;
@@ -211,7 +211,7 @@ public class AddressService(
         var address = await context.Set<AddressEntity>()
             .FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId, cancellationToken);
 
-        if (address == null)
+        if (address is null)
         {
             logger.LogWarning("Address not found with ID: {AddressId} for user: {UserId}", id, userId);
             return false;

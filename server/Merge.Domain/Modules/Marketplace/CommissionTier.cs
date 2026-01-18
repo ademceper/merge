@@ -67,7 +67,7 @@ public class CommissionTier : BaseEntity
         decimal? platformFeeRate = null,
         int? priority = null)
     {
-        if (name != null)
+        if (name is not null)
         {
             Guard.AgainstNullOrEmpty(name, nameof(name));
             Name = name;

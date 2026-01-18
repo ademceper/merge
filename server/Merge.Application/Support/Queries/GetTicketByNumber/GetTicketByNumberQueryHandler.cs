@@ -38,7 +38,7 @@ public class GetTicketByNumberQueryHandler(IDbContext context, IMapper mapper) :
 
         var ticket = await query.FirstOrDefaultAsync(cancellationToken);
 
-        if (ticket == null) return null;
+        if (ticket is null) return null;
 
         var dto = mapper.Map<SupportTicketDto>(ticket);
         

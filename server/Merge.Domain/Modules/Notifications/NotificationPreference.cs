@@ -30,7 +30,7 @@ public class NotificationPreference : BaseEntity, IAggregateRoot
         get => _customSettings; 
         private set 
         {
-            if (value != null)
+            if (value is not null)
             {
                 Guard.AgainstLength(value, 5000, nameof(CustomSettings));
             }
@@ -54,7 +54,7 @@ public class NotificationPreference : BaseEntity, IAggregateRoot
         string? customSettings = null)
     {
         Guard.AgainstDefault(userId, nameof(userId));
-        if (customSettings != null)
+        if (customSettings is not null)
         {
             Guard.AgainstLength(customSettings, 5000, nameof(customSettings));
         }
@@ -82,7 +82,7 @@ public class NotificationPreference : BaseEntity, IAggregateRoot
 
     public void Update(bool isEnabled, string? customSettings = null)
     {
-        if (customSettings != null)
+        if (customSettings is not null)
         {
             Guard.AgainstLength(customSettings, 5000, nameof(customSettings));
         }

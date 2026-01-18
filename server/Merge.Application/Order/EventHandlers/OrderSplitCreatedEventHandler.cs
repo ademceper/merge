@@ -21,7 +21,7 @@ public class OrderSplitCreatedEventHandler(ILogger<OrderSplitCreatedEventHandler
         {
             // Email bildirimi gönder (order owner'a)
             // Note: UserId'yi almak için order'ı query etmek gerekebilir, şimdilik log'lanıyor
-            // if (_notificationService != null)
+            // if (_notificationService is not null)
             // {
             //     await _notificationService.CreateNotificationAsync(
             //         userId,

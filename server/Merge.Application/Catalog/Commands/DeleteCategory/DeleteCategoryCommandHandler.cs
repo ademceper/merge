@@ -33,7 +33,7 @@ public class DeleteCategoryCommandHandler(
         try
         {
             var category = await categoryRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (category == null)
+            if (category is null)
             {
                 logger.LogWarning("Category not found with Id: {CategoryId}", request.Id);
                 return false;

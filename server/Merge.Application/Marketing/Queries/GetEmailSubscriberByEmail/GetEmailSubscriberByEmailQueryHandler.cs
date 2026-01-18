@@ -20,6 +20,6 @@ public class GetEmailSubscriberByEmailQueryHandler(IDbContext context, IMapper m
             .AsNoTracking()
             .FirstOrDefaultAsync(s => EF.Functions.ILike(s.Email, request.Email), cancellationToken);
 
-        return subscriber != null ? mapper.Map<EmailSubscriberDto>(subscriber) : null;
+        return subscriber is not null ? mapper.Map<EmailSubscriberDto>(subscriber) : null;
     }
 }

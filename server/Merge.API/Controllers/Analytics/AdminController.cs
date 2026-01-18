@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using MediatR;
 using Merge.Application.Configuration;
+using Merge.Application.Exceptions;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Order;
 using Merge.Application.DTOs.Product;
@@ -243,10 +244,10 @@ public class AdminController(
     {
         var command = new ActivateUserCommand(userId);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("User", userId);
+
         return Ok();
     }
 
@@ -266,10 +267,10 @@ public class AdminController(
     {
         var command = new DeactivateUserCommand(userId);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("User not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("User", userId);
+
         return NoContent();
     }
 
@@ -291,10 +292,10 @@ public class AdminController(
     {
         var command = new ChangeUserRoleCommand(userId, roleDto.Role);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("User", userId);
+
         return NoContent();
     }
 
@@ -314,10 +315,10 @@ public class AdminController(
     {
         var command = new DeleteUserCommand(userId);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("User", userId);
+
         return Ok();
     }
 

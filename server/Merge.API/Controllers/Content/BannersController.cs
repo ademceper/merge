@@ -14,6 +14,7 @@ using Merge.Application.Content.Commands.UpdateBanner;
 using Merge.Application.Content.Commands.PatchBanner;
 using Merge.Application.Content.Commands.DeleteBanner;
 using Merge.API.Middleware;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Content;
 
@@ -112,12 +113,9 @@ public class BannersController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetBannerByIdQuery(id);
-        var banner = await mediator.Send(query, cancellationToken);
-        
-        if (banner == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var banner = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Banner", id);
+
         return Ok(banner);
     }
 
@@ -147,7 +145,7 @@ public class BannersController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var banner = await mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = banner.Id }, banner);
@@ -183,7 +181,7 @@ public class BannersController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var updateCommand = command with { Id = id };
         var banner = await mediator.Send(updateCommand, cancellationToken);
@@ -210,7 +208,7 @@ public class BannersController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new PatchBannerCommand(id, patchDto);
         var banner = await mediator.Send(command, cancellationToken);
         return Ok(banner);
@@ -243,11 +241,10 @@ public class BannersController(
     {
         var command = new DeleteBannerCommand(id);
         var result = await mediator.Send(command, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Banner", id);
+
         return NoContent();
     }
 }

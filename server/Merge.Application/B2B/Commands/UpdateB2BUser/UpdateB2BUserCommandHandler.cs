@@ -27,7 +27,7 @@ public class UpdateB2BUserCommandHandler(
         var b2bUser = await context.Set<B2BUser>()
             .FirstOrDefaultAsync(b => b.Id == request.Id, cancellationToken);
 
-        if (b2bUser == null)
+        if (b2bUser is null)
         {
             logger.LogWarning("B2B user not found with Id: {B2BUserId}", request.Id);
             return false;
@@ -48,7 +48,7 @@ public class UpdateB2BUserCommandHandler(
             b2bUser.UpdateCreditLimit(request.Dto.CreditLimit.Value);
         }
         
-        if (request.Dto.Settings != null)
+        if (request.Dto.Settings is not null)
         {
             b2bUser.UpdateSettings(JsonSerializer.Serialize(request.Dto.Settings, JsonOptions));
         }

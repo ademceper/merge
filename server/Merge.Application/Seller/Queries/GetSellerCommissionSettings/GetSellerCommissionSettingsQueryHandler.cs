@@ -23,6 +23,6 @@ public class GetSellerCommissionSettingsQueryHandler(IDbContext context, IMapper
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.SellerId == request.SellerId, cancellationToken);
 
-        return settings != null ? mapper.Map<SellerCommissionSettingsDto>(settings) : null;
+        return settings is not null ? mapper.Map<SellerCommissionSettingsDto>(settings) : null;
     }
 }

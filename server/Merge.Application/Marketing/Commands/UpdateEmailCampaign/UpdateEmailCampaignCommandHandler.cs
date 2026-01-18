@@ -26,7 +26,7 @@ public class UpdateEmailCampaignCommandHandler(
         var campaign = await context.Set<EmailCampaign>()
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-        if (campaign == null)
+        if (campaign is null)
         {
             throw new NotFoundException("Kampanya", request.Id);
         }

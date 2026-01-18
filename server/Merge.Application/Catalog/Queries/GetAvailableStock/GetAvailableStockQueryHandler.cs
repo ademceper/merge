@@ -30,7 +30,7 @@ public class GetAvailableStockQueryHandler(
         var cacheKey = $"{CACHE_KEY_AVAILABLE_STOCK}{request.ProductId}_{request.WarehouseId ?? Guid.Empty}";
 
         var cachedAvailableStock = await cache.GetAsync<AvailableStockDto>(cacheKey, cancellationToken);
-        if (cachedAvailableStock != null)
+        if (cachedAvailableStock is not null)
         {
             logger.LogInformation("Cache hit for available stock. ProductId: {ProductId}, WarehouseId: {WarehouseId}",
                 request.ProductId, request.WarehouseId);
@@ -46,7 +46,7 @@ public class GetAvailableStockQueryHandler(
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
-            if (product == null)
+            if (product is null)
             {
                 logger.LogWarning("Product not found with Id: {ProductId}", request.ProductId);
                 throw new NotFoundException("Ürün", request.ProductId);

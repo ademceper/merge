@@ -19,6 +19,6 @@ public class GetGiftCardByCodeQueryHandler(IDbContext context, IMapper mapper) :
             .AsNoTracking()
             .FirstOrDefaultAsync(gc => gc.Code == request.Code, cancellationToken);
 
-        return giftCard == null ? null : mapper.Map<GiftCardDto>(giftCard);
+        return giftCard is null ? null : mapper.Map<GiftCardDto>(giftCard);
     }
 }

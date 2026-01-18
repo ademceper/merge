@@ -25,7 +25,7 @@ public class ApplyReferralCodeCommandHandler(
         var referralCode = await context.Set<ReferralCode>()
             .FirstOrDefaultAsync(c => c.Code == request.Code && c.IsActive, cancellationToken);
 
-        if (referralCode == null)
+        if (referralCode is null)
         {
             logger.LogWarning("ReferralCode not found or inactive. Code: {Code}", request.Code);
             return false;

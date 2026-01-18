@@ -28,6 +28,6 @@ public class GetUserSellerApplicationQueryHandler(IDbContext context, IMapper ma
             .OrderByDescending(a => a.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
-        return application == null ? null : mapper.Map<SellerApplicationDto>(application);
+        return application is null ? null : mapper.Map<SellerApplicationDto>(application);
     }
 }

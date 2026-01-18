@@ -24,6 +24,6 @@ public class GetTransactionQueryHandler(IDbContext context, IMapper mapper, ILog
             .Include(t => t.Seller)
             .FirstOrDefaultAsync(t => t.Id == request.TransactionId, cancellationToken);
 
-        return transaction != null ? mapper.Map<SellerTransactionDto>(transaction) : null;
+        return transaction is not null ? mapper.Map<SellerTransactionDto>(transaction) : null;
     }
 }

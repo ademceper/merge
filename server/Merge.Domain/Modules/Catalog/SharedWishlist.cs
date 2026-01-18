@@ -224,7 +224,7 @@ public class SharedWishlist : BaseEntity, IAggregateRoot
     {
         Guard.AgainstDefault(itemId, nameof(itemId));
         var item = _items.FirstOrDefault(i => i.Id == itemId);
-        if (item == null)
+        if (item is null)
         {
             throw new DomainException("Item bulunamadı");
         }

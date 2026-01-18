@@ -27,7 +27,7 @@ public class UpdateCouponCommandHandler(
         var coupon = await context.Set<Coupon>()
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-        if (coupon == null)
+        if (coupon is null)
         {
             logger.LogWarning("Coupon not found. CouponId: {CouponId}", request.Id);
             throw new NotFoundException("Kupon", request.Id);
@@ -107,7 +107,7 @@ public class UpdateCouponCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == coupon.Id, cancellationToken);
 
-        if (updatedCoupon == null)
+        if (updatedCoupon is null)
         {
             logger.LogWarning("Coupon not found after update. CouponId: {CouponId}", coupon.Id);
             throw new NotFoundException("Kupon", coupon.Id);

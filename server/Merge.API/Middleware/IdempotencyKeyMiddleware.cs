@@ -56,7 +56,7 @@ public class IdempotencyKeyMiddleware(RequestDelegate next, ILogger<IdempotencyK
             
             // Return cached response
             var cachedData = JsonSerializer.Deserialize<IdempotencyResponse>(cachedResponse);
-            if (cachedData != null)
+            if (cachedData is not null)
             {
                 context.Response.StatusCode = cachedData.StatusCode;
                 context.Response.ContentType = cachedData.ContentType;

@@ -15,6 +15,7 @@ using Merge.Application.Support.Queries.GetAgentLiveChatSessions;
 using Merge.Application.Support.Queries.GetWaitingLiveChatSessions;
 using Merge.Application.Support.Queries.GetLiveChatSessionMessages;
 using Merge.Application.Support.Queries.GetLiveChatStats;
+using Merge.Application.Exceptions;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
 
@@ -40,10 +41,10 @@ public class LiveChatController(IMediator mediator) : BaseController
         [FromBody] CreateLiveChatSessionDto? dto = null,
         CancellationToken cancellationToken = default)
     {
-                if (dto != null)
+                if (dto is not null)
         {
             var validationResult = ValidateModelState();
-            if (validationResult != null) return validationResult;
+            if (validationResult is not null) return validationResult;
         }
 
         var userId = GetUserIdOrNull();
@@ -78,11 +79,8 @@ public class LiveChatController(IMediator mediator) : BaseController
         }
 
                 var query = new GetLiveChatSessionQuery(id);
-        var session = await mediator.Send(query, cancellationToken);
-        if (session == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var session = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("LiveChatSession", id);
 
                 var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
         if (!isAgent && session.UserId != userId)
@@ -114,11 +112,8 @@ public class LiveChatController(IMediator mediator) : BaseController
         }
 
                 var query = new GetLiveChatSessionBySessionIdQuery(sessionId);
-        var session = await mediator.Send(query, cancellationToken);
-        if (session == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var session = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("LiveChatSession", sessionId);
 
                 var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
         if (!isAgent && session.UserId != userId)
@@ -215,14 +210,14 @@ public class LiveChatController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
                 var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
                 var command = new AssignAgentToSessionCommand(sessionId, dto.AgentId);
-        var result = await mediator.Send(command, cancellationToken);
-        if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var success = await mediator.Send(command, cancellationToken);
+
+        if (!success)
+            throw new NotFoundException("LiveChatSession", sessionId);
+
         return NoContent();
     }
 
@@ -243,11 +238,8 @@ public class LiveChatController(IMediator mediator) : BaseController
         }
 
                         var sessionQuery = new GetLiveChatSessionQuery(sessionId);
-        var session = await mediator.Send(sessionQuery, cancellationToken);
-        if (session == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var session = await mediator.Send(sessionQuery, cancellationToken)
+            ?? throw new NotFoundException("LiveChatSession", sessionId);
 
         var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
         if (!isAgent && session.UserId != userId)
@@ -256,11 +248,11 @@ public class LiveChatController(IMediator mediator) : BaseController
         }
 
         var command = new CloseLiveChatSessionCommand(sessionId);
-        var result = await mediator.Send(command, cancellationToken);
-        if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var success = await mediator.Send(command, cancellationToken);
+
+        if (!success)
+            throw new NotFoundException("LiveChatSession", sessionId);
+
         return NoContent();
     }
 
@@ -277,7 +269,7 @@ public class LiveChatController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
                 var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var senderId))
         {
@@ -285,11 +277,8 @@ public class LiveChatController(IMediator mediator) : BaseController
         }
 
                         var sessionQuery = new GetLiveChatSessionQuery(sessionId);
-        var session = await mediator.Send(sessionQuery, cancellationToken);
-        if (session == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var session = await mediator.Send(sessionQuery, cancellationToken)
+            ?? throw new NotFoundException("LiveChatSession", sessionId);
 
         var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
         if (!isAgent && session.UserId != senderId)
@@ -327,11 +316,8 @@ public class LiveChatController(IMediator mediator) : BaseController
         }
 
                         var sessionQuery = new GetLiveChatSessionQuery(sessionId);
-        var session = await mediator.Send(sessionQuery, cancellationToken);
-        if (session == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var session = await mediator.Send(sessionQuery, cancellationToken)
+            ?? throw new NotFoundException("LiveChatSession", sessionId);
 
         var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
         if (!isAgent && session.UserId != userId)
@@ -361,11 +347,8 @@ public class LiveChatController(IMediator mediator) : BaseController
         }
 
                         var sessionQuery = new GetLiveChatSessionQuery(sessionId);
-        var session = await mediator.Send(sessionQuery, cancellationToken);
-        if (session == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var session = await mediator.Send(sessionQuery, cancellationToken)
+            ?? throw new NotFoundException("LiveChatSession", sessionId);
 
         var isAgent = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Support");
         if (!isAgent && session.UserId != userId)
@@ -374,11 +357,11 @@ public class LiveChatController(IMediator mediator) : BaseController
         }
 
         var command = new MarkMessagesAsReadCommand(sessionId, userId);
-        var result = await mediator.Send(command, cancellationToken);
-        if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var success = await mediator.Send(command, cancellationToken);
+
+        if (!success)
+            throw new NotFoundException("LiveChatSession", sessionId);
+
         return NoContent();
     }
 

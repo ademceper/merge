@@ -31,7 +31,7 @@ public class EvaluatePaymentCommandHandler(IDbContext context, IUnitOfWork unitO
                 .ThenInclude(o => o.User)
             .FirstOrDefaultAsync(p => p.Id == request.PaymentId, cancellationToken);
 
-        if (payment == null)
+        if (payment is null)
         {
             logger.LogWarning("Payment not found. PaymentId: {PaymentId}", request.PaymentId);
             throw new NotFoundException("Ödeme", request.PaymentId);

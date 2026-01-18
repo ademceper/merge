@@ -26,14 +26,14 @@ public class UpdatePreferenceCommandHandler(IDbContext context, IUnitOfWork unit
                                       np.NotificationType == request.NotificationType && 
                                       np.Channel == request.Channel, cancellationToken);
 
-        if (preference == null)
+        if (preference is null)
         {
             throw new NotFoundException("Tercih", Guid.Empty);
         }
 
         preference.Update(
             request.Dto.IsEnabled ?? preference.IsEnabled,
-            request.Dto.CustomSettings != null ? JsonSerializer.Serialize(request.Dto.CustomSettings) : preference.CustomSettings);
+            request.Dto.CustomSettings is not null ? JsonSerializer.Serialize(request.Dto.CustomSettings) : preference.CustomSettings);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

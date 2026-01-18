@@ -22,7 +22,7 @@ public class DeleteEmailAutomationCommandHandler(
         var automation = await context.Set<EmailAutomation>()
             .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
 
-        if (automation == null)
+        if (automation is null)
         {
             return false;
         }

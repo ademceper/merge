@@ -21,7 +21,7 @@ public class OptimizePricesForCategoryQueryValidator(IOptions<PaginationSettings
             .GreaterThan(0).WithMessage("Page size must be greater than 0.")
             .LessThanOrEqualTo(config.MaxPageSize).WithMessage($"Page size cannot exceed {config.MaxPageSize}.");
 
-        When(x => x.Request != null, () =>
+        When(x => x.Request is not null, () =>
         {
             RuleFor(x => x.Request!.MinPrice)
                 .GreaterThanOrEqualTo(0).WithMessage("Minimum price must be greater than or equal to 0.")

@@ -21,6 +21,7 @@ using Merge.Application.Logistics.Commands.MarkPickPackAsShipped;
 using Merge.Application.Logistics.Commands.UpdatePickPackItemStatus;
 using Merge.Application.Order.Queries.GetOrderById;
 using Merge.Domain.Enums;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Logistics;
 
@@ -53,7 +54,7 @@ public class PickPacksController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new CreatePickPackCommand(dto.OrderId, dto.WarehouseId, dto.Notes);
         var pickPack = await mediator.Send(command, cancellationToken);
@@ -77,18 +78,12 @@ public class PickPacksController(
         }
 
         var query = new GetPickPackByIdQuery(id);
-        var pickPack = await mediator.Send(query, cancellationToken);
-        if (pickPack == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var pickPack = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("PickPack", id);
 
         var orderQuery = new GetOrderByIdQuery(pickPack.OrderId);
-        var order = await mediator.Send(orderQuery, cancellationToken);
-        if (order == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var order = await mediator.Send(orderQuery, cancellationToken)
+            ?? throw new NotFoundException("Order", pickPack.OrderId);
 
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager") && !User.IsInRole("Warehouse"))
         {
@@ -115,18 +110,12 @@ public class PickPacksController(
         }
 
         var query = new GetPickPackByPackNumberQuery(packNumber);
-        var pickPack = await mediator.Send(query, cancellationToken);
-        if (pickPack == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var pickPack = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("PickPack", packNumber);
 
         var orderQuery = new GetOrderByIdQuery(pickPack.OrderId);
-        var order = await mediator.Send(orderQuery, cancellationToken);
-        if (order == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var order = await mediator.Send(orderQuery, cancellationToken)
+            ?? throw new NotFoundException("Order", pickPack.OrderId);
 
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager") && !User.IsInRole("Warehouse"))
         {
@@ -153,11 +142,8 @@ public class PickPacksController(
         }
 
         var orderQuery = new GetOrderByIdQuery(orderId);
-        var order = await mediator.Send(orderQuery, cancellationToken);
-        if (order == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var order = await mediator.Send(orderQuery, cancellationToken)
+            ?? throw new NotFoundException("Order", orderId);
 
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager") && !User.IsInRole("Warehouse"))
         {
@@ -210,7 +196,7 @@ public class PickPacksController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         // Bu endpoint sadece details (notes, weight, dimensions, packageCount) update için kullanılır
         var command = new UpdatePickPackDetailsCommand(id, dto.Notes, dto.Weight, dto.Dimensions, dto.PackageCount);
@@ -236,7 +222,7 @@ public class PickPacksController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new UpdatePickPackDetailsCommand(id, patchDto.Notes, patchDto.Weight, patchDto.Dimensions, patchDto.PackageCount);
         await mediator.Send(command, cancellationToken);
@@ -314,7 +300,7 @@ public class PickPacksController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new CompletePackingCommand(id, dto.Weight, dto.Dimensions, dto.PackageCount);
         await mediator.Send(command, cancellationToken);
@@ -353,7 +339,7 @@ public class PickPacksController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new UpdatePickPackItemStatusCommand(itemId, dto.IsPicked, dto.IsPacked, dto.Location);
         await mediator.Send(command, cancellationToken);
@@ -378,7 +364,7 @@ public class PickPacksController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new UpdatePickPackItemStatusCommand(itemId, patchDto.IsPicked, patchDto.IsPacked, patchDto.Location);
         await mediator.Send(command, cancellationToken);

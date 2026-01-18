@@ -31,7 +31,7 @@ public static class HttpResponseExtensions
     /// </summary>
     public static void SetETag(this HttpResponse response, byte[]? rowVersion)
     {
-        if (rowVersion == null || rowVersion.Length == 0)
+        if (rowVersion is null || rowVersion.Length == 0)
         {
             return;
         }
@@ -86,7 +86,7 @@ public static class HttpResponseExtensions
     /// </summary>
     public static bool IsNotModified(this HttpRequest request, byte[]? rowVersion)
     {
-        if (rowVersion == null || rowVersion.Length == 0)
+        if (rowVersion is null || rowVersion.Length == 0)
         {
             return false;
         }

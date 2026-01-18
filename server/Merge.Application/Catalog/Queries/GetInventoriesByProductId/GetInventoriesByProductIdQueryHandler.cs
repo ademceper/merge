@@ -31,7 +31,7 @@ public class GetInventoriesByProductIdQueryHandler(
         var cacheKey = $"{CACHE_KEY_INVENTORIES_BY_PRODUCT}{request.ProductId}";
 
         var cachedInventories = await cache.GetAsync<IEnumerable<InventoryDto>>(cacheKey, cancellationToken);
-        if (cachedInventories != null)
+        if (cachedInventories is not null)
         {
             logger.LogInformation("Cache hit for inventories by product. ProductId: {ProductId}", request.ProductId);
             return cachedInventories;
@@ -45,10 +45,10 @@ public class GetInventoriesByProductIdQueryHandler(
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
-            if (product == null)
+            if (product is null)
             {
                 logger.LogWarning("Product not found with Id: {ProductId}", request.ProductId);
-                return Enumerable.Empty<InventoryDto>();
+                return [];
             }
 
             if (product.SellerId != request.PerformedBy.Value)

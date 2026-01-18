@@ -126,12 +126,12 @@ public class SupportTicket : BaseEntity, IAggregateRoot
         Status = newStatus;
         UpdatedAt = DateTime.UtcNow;
 
-        if (newStatus == TicketStatus.Resolved && ResolvedAt == null)
+        if (newStatus == TicketStatus.Resolved && ResolvedAt is null)
         {
             ResolvedAt = DateTime.UtcNow;
             AddDomainEvent(new SupportTicketResolvedEvent(Id, TicketNumber, UserId, ResolvedAt.Value));
         }
-        else if (newStatus == TicketStatus.Closed && ClosedAt == null)
+        else if (newStatus == TicketStatus.Closed && ClosedAt is null)
         {
             ClosedAt = DateTime.UtcNow;
             AddDomainEvent(new SupportTicketClosedEvent(Id, TicketNumber, UserId, ClosedAt.Value));

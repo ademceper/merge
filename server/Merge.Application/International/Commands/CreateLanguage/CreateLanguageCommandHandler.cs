@@ -37,7 +37,7 @@ public class CreateLanguageCommandHandler(
             var currentDefault = await context.Set<Language>()
                 .FirstOrDefaultAsync(l => l.IsDefault, cancellationToken);
 
-            if (currentDefault != null)
+            if (currentDefault is not null)
             {
                 currentDefault.RemoveDefaultStatus();
             }

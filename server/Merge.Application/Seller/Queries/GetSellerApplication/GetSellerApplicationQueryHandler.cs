@@ -26,6 +26,6 @@ public class GetSellerApplicationQueryHandler(IDbContext context, IMapper mapper
             .Include(a => a.Reviewer)
             .FirstOrDefaultAsync(a => a.Id == request.ApplicationId, cancellationToken);
 
-        return application == null ? null : mapper.Map<SellerApplicationDto>(application);
+        return application is null ? null : mapper.Map<SellerApplicationDto>(application);
     }
 }

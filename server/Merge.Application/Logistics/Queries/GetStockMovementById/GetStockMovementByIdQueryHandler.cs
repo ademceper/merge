@@ -33,7 +33,7 @@ public class GetStockMovementByIdQueryHandler(
             .Include(sm => sm.ToWarehouse)
             .FirstOrDefaultAsync(sm => sm.Id == request.Id, cancellationToken);
 
-        return movement != null ? mapper.Map<StockMovementDto>(movement) : null;
+        return movement is not null ? mapper.Map<StockMovementDto>(movement) : null;
     }
 }
 

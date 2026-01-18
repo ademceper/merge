@@ -32,7 +32,7 @@ public class GetDashboardStatsQueryHandler(IDbContext context, ILogger<GetDashbo
             .AsNoTracking()
             .FirstOrDefaultAsync(sp => sp.UserId == request.SellerId, cancellationToken);
 
-        if (sellerProfile == null)
+        if (sellerProfile is null)
         {
             logger.LogWarning("Seller profile not found. SellerId: {SellerId}", request.SellerId);
             throw new NotFoundException("Satıcı profili", request.SellerId);

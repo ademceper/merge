@@ -31,7 +31,7 @@ public class DeleteBlogCommentCommandHandler(
         try
         {
             var comment = await commentRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (comment == null)
+            if (comment is null)
             {
                 logger.LogWarning("Blog comment not found for deletion. CommentId: {CommentId}", request.Id);
                 return false;
@@ -44,7 +44,7 @@ public class DeleteBlogCommentCommandHandler(
             await commentRepository.UpdateAsync(comment, cancellationToken);
 
             var post = await postRepository.GetByIdAsync(blogPostId, cancellationToken);
-            if (post != null)
+            if (post is not null)
             {
                 post.DecrementCommentCount();
                 await postRepository.UpdateAsync(post, cancellationToken);

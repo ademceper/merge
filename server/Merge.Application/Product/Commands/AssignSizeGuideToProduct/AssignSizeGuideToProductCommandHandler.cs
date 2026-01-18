@@ -28,7 +28,7 @@ public class AssignSizeGuideToProductCommandHandler(IDbContext context, IUnitOfW
             var existing = await context.Set<ProductSizeGuide>()
                 .FirstOrDefaultAsync(psg => psg.ProductId == request.ProductId, cancellationToken);
 
-            if (existing != null)
+            if (existing is not null)
             {
                 existing.Update(
                     request.SizeGuideId,

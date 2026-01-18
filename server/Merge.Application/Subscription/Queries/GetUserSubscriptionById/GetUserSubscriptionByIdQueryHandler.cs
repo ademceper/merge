@@ -24,7 +24,7 @@ public class GetUserSubscriptionByIdQueryHandler(IDbContext context, IMapper map
             .Include(us => us.SubscriptionPlan)
             .FirstOrDefaultAsync(us => us.Id == request.Id, cancellationToken);
 
-        if (subscription == null)
+        if (subscription is null)
         {
             logger.LogWarning("User subscription not found. SubscriptionId: {SubscriptionId}", request.Id);
             return null;

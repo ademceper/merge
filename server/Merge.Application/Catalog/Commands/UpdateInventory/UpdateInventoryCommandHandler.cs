@@ -39,7 +39,7 @@ public class UpdateInventoryCommandHandler(
                 .Include(i => i.Product)
                 .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
 
-            if (inventory == null)
+            if (inventory is null)
             {
                 logger.LogWarning("Inventory not found with Id: {InventoryId}", request.Id);
                 throw new NotFoundException("Envanter", request.Id);
@@ -70,7 +70,7 @@ public class UpdateInventoryCommandHandler(
             logger.LogInformation("Successfully updated inventory Id: {InventoryId}", request.Id);
 
             await cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_ID}{request.Id}", cancellationToken);
-            if (inventory != null)
+            if (inventory is not null)
             {
                 await cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_PRODUCT_WAREHOUSE}{inventory.ProductId}_{inventory.WarehouseId}", cancellationToken);
                 await cache.RemoveAsync($"inventories_by_product_{inventory.ProductId}", cancellationToken); // Invalidate product inventories list cache

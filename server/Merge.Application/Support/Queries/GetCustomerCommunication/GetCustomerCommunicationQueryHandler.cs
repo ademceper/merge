@@ -31,6 +31,6 @@ public class GetCustomerCommunicationQueryHandler(IDbContext context, IMapper ma
 
         var communication = await query.FirstOrDefaultAsync(cancellationToken);
 
-        return communication != null ? mapper.Map<CustomerCommunicationDto>(communication) : null;
+        return communication is not null ? mapper.Map<CustomerCommunicationDto>(communication) : null;
     }
 }

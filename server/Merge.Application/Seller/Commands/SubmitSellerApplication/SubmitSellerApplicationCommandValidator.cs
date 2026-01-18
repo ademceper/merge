@@ -15,7 +15,7 @@ public class SubmitSellerApplicationCommandValidator : AbstractValidator<SubmitS
         RuleFor(x => x.ApplicationDto)
             .NotNull().WithMessage("Application data is required.");
 
-        When(x => x.ApplicationDto != null, () =>
+        When(x => x.ApplicationDto is not null, () =>
         {
             RuleFor(x => x.ApplicationDto!.BusinessName)
                 .NotEmpty().WithMessage("Business name is required.")

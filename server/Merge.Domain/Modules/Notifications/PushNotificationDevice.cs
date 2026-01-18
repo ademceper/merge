@@ -44,7 +44,7 @@ public class PushNotificationDevice : BaseEntity
         get => _deviceId; 
         private set 
         {
-            if (value != null)
+            if (value is not null)
             {
                 Guard.AgainstLength(value, 200, nameof(DeviceId));
             }
@@ -58,7 +58,7 @@ public class PushNotificationDevice : BaseEntity
         get => _deviceModel; 
         private set 
         {
-            if (value != null)
+            if (value is not null)
             {
                 Guard.AgainstLength(value, 100, nameof(DeviceModel));
             }
@@ -72,7 +72,7 @@ public class PushNotificationDevice : BaseEntity
         get => _appVersion; 
         private set 
         {
-            if (value != null)
+            if (value is not null)
             {
                 Guard.AgainstLength(value, 50, nameof(AppVersion));
             }
@@ -104,15 +104,15 @@ public class PushNotificationDevice : BaseEntity
         Guard.AgainstLength(deviceToken, 500, nameof(deviceToken));
         Guard.AgainstNullOrEmpty(platform, nameof(platform));
         Guard.AgainstLength(platform, 50, nameof(platform));
-        if (deviceId != null)
+        if (deviceId is not null)
         {
             Guard.AgainstLength(deviceId, 200, nameof(deviceId));
         }
-        if (deviceModel != null)
+        if (deviceModel is not null)
         {
             Guard.AgainstLength(deviceModel, 100, nameof(deviceModel));
         }
-        if (appVersion != null)
+        if (appVersion is not null)
         {
             Guard.AgainstLength(appVersion, 50, nameof(appVersion));
         }
@@ -142,12 +142,12 @@ public class PushNotificationDevice : BaseEntity
 
     public void UpdateDeviceInfo(string? deviceModel = null, string? appVersion = null)
     {
-        if (deviceModel != null)
+        if (deviceModel is not null)
         {
             Guard.AgainstLength(deviceModel, 100, nameof(deviceModel));
             _deviceModel = deviceModel;
         }
-        if (appVersion != null)
+        if (appVersion is not null)
         {
             Guard.AgainstLength(appVersion, 50, nameof(appVersion));
             _appVersion = appVersion;

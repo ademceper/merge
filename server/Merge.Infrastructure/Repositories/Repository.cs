@@ -95,7 +95,7 @@ public class Repository<T>(ApplicationDbContext context) : IRepository<T> where 
         var query = _dbSet
             .AsNoTracking()
             .AsQueryable();
-        if (predicate != null)
+        if (predicate is not null)
         {
             query = query.Where(predicate);
         }
@@ -128,7 +128,7 @@ public class Repository<T>(ApplicationDbContext context) : IRepository<T> where 
         }
 
         // Apply criteria (Where clause)
-        if (spec.Criteria != null)
+        if (spec.Criteria is not null)
         {
             query = query.Where(spec.Criteria);
         }
@@ -148,11 +148,11 @@ public class Repository<T>(ApplicationDbContext context) : IRepository<T> where 
             .Aggregate(query, (current, include) => current.Include(include));
 
         // Apply ordering
-        if (spec.OrderBy != null)
+        if (spec.OrderBy is not null)
         {
             query = query.OrderBy(spec.OrderBy);
         }
-        else if (spec.OrderByDescending != null)
+        else if (spec.OrderByDescending is not null)
         {
             query = query.OrderByDescending(spec.OrderByDescending);
         }

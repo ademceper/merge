@@ -40,7 +40,7 @@ public class AnswerQuestionCommandHandler(
                 .Include(q => q.Product)
                 .FirstOrDefaultAsync(q => q.Id == request.QuestionId, cancellationToken);
 
-            if (question == null)
+            if (question is null)
             {
                 throw new NotFoundException("Soru", request.QuestionId);
             }

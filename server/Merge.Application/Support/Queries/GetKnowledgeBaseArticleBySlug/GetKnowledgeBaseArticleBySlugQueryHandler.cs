@@ -26,6 +26,6 @@ public class GetKnowledgeBaseArticleBySlugQueryHandler(IDbContext context, IMapp
             .Include(a => a.Author)
             .FirstOrDefaultAsync(a => a.Slug == request.Slug && a.Status == ContentStatus.Published, cancellationToken);
 
-        return article != null ? mapper.Map<KnowledgeBaseArticleDto>(article) : null;
+        return article is not null ? mapper.Map<KnowledgeBaseArticleDto>(article) : null;
     }
 }

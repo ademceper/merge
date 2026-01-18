@@ -24,7 +24,7 @@ public class CompletePickingCommandHandler(
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == request.PickPackId, cancellationToken);
 
-        if (pickPack == null)
+        if (pickPack is null)
         {
             logger.LogWarning("Pick pack not found. PickPackId: {PickPackId}", request.PickPackId);
             throw new NotFoundException("Pick-pack", request.PickPackId);
@@ -41,7 +41,7 @@ public class CompletePickingCommandHandler(
             })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (itemCounts == null || itemCounts.TotalItems == 0 || itemCounts.PickedItems < itemCounts.TotalItems)
+        if (itemCounts is null || itemCounts.TotalItems == 0 || itemCounts.PickedItems < itemCounts.TotalItems)
         {
             logger.LogWarning("Not all items are picked. PickPackId: {PickPackId}, TotalItems: {TotalItems}, PickedItems: {PickedItems}",
                 request.PickPackId, itemCounts?.TotalItems ?? 0, itemCounts?.PickedItems ?? 0);

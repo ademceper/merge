@@ -27,6 +27,6 @@ public class GetCommissionQueryHandler(IDbContext context, IMapper mapper, ILogg
             .Include(sc => sc.OrderItem)
             .FirstOrDefaultAsync(sc => sc.Id == request.CommissionId, cancellationToken);
 
-        return commission != null ? mapper.Map<SellerCommissionDto>(commission) : null;
+        return commission is not null ? mapper.Map<SellerCommissionDto>(commission) : null;
     }
 }

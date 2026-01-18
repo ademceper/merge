@@ -27,7 +27,7 @@ public class PatchVolumeDiscountCommandHandler(
         var volumeDiscount = await context.Set<VolumeDiscount>()
             .FirstOrDefaultAsync(vd => vd.Id == request.Id, cancellationToken);
 
-        if (volumeDiscount == null)
+        if (volumeDiscount is null)
         {
             logger.LogWarning("Volume discount not found. VolumeDiscountId: {VolumeDiscountId}", request.Id);
             return false;

@@ -32,7 +32,7 @@ public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitO
             .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.UserId == request.Dto.SellerId, cancellationToken);
 
-        if (seller == null)
+        if (seller is null)
         {
             logger.LogWarning("Seller not found. SellerId: {SellerId}", request.Dto.SellerId);
             throw new NotFoundException("Satıcı", request.Dto.SellerId);
@@ -143,7 +143,7 @@ public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitO
             .FirstOrDefaultAsync(cancellationToken);
 
         int nextNumber = 1;
-        if (lastInvoice != null)
+        if (lastInvoice is not null)
         {
             var numberPart = lastInvoice.InvoiceNumber.Substring(prefix.Length + 1);
             if (int.TryParse(numberPart, out int lastNumber))

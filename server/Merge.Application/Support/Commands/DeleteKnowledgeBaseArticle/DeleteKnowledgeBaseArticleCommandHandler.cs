@@ -21,7 +21,7 @@ public class DeleteKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitO
         var article = await context.Set<KnowledgeBaseArticle>()
             .FirstOrDefaultAsync(a => a.Id == request.ArticleId, cancellationToken);
 
-        if (article == null)
+        if (article is null)
         {
             logger.LogWarning("Knowledge base article {ArticleId} not found for deletion", request.ArticleId);
             throw new NotFoundException("Bilgi bankası makalesi", request.ArticleId);

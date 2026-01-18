@@ -24,7 +24,7 @@ public class SetDefaultShippingAddressCommandHandler(
         var address = await context.Set<ShippingAddress>()
             .FirstOrDefaultAsync(a => a.Id == request.AddressId && a.UserId == request.UserId, cancellationToken);
 
-        if (address == null)
+        if (address is null)
         {
             logger.LogWarning("Shipping address not found. UserId: {UserId}, AddressId: {AddressId}", request.UserId, request.AddressId);
             throw new NotFoundException("Kargo adresi", request.AddressId);

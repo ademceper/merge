@@ -49,7 +49,7 @@ public class OrderSplitService(IDbContext context, IUnitOfWork unitOfWork, IMapp
         }
 
         // Validate split items
-        if (dto.Items == null || !dto.Items.Any())
+        if (dto.Items is null || !dto.Items.Any())
         {
             throw new ValidationException("En az bir sipariş kalemi belirtilmelidir.");
         }
@@ -58,7 +58,7 @@ public class OrderSplitService(IDbContext context, IUnitOfWork unitOfWork, IMapp
         foreach (var item in dto.Items)
         {
             var orderItem = originalOrder.OrderItems.FirstOrDefault(oi => oi.Id == item.OrderItemId);
-            if (orderItem == null)
+            if (orderItem is null)
             {
                 throw new NotFoundException("Sipariş kalemi", item.OrderItemId);
             }
@@ -83,7 +83,7 @@ public class OrderSplitService(IDbContext context, IUnitOfWork unitOfWork, IMapp
             var address = await context.Set<AddressEntity>()
                 .FirstOrDefaultAsync(a => a.Id == addressId, cancellationToken);
             
-            if (address == null)
+            if (address is null)
             {
                 throw new NotFoundException("Adres", addressId);
             }
@@ -107,7 +107,7 @@ public class OrderSplitService(IDbContext context, IUnitOfWork unitOfWork, IMapp
                 var product = await context.Set<ProductEntity>()
                     .FirstOrDefaultAsync(p => p.Id == originalItem.ProductId, cancellationToken);
                 
-                if (product == null)
+                if (product is null)
                 {
                     throw new NotFoundException("Ürün", originalItem.ProductId);
                 }
@@ -217,7 +217,7 @@ public class OrderSplitService(IDbContext context, IUnitOfWork unitOfWork, IMapp
                 .ThenInclude(si => si.SplitOrderItem)
             .FirstOrDefaultAsync(s => s.Id == splitId, cancellationToken);
 
-        return split != null ? mapper.Map<OrderSplitDto>(split) : null;
+        return split is not null ? mapper.Map<OrderSplitDto>(split) : null;
     }
 
     public async Task<IEnumerable<OrderSplitDto>> GetOrderSplitsAsync(Guid orderId, CancellationToken cancellationToken = default)
@@ -266,7 +266,7 @@ public class OrderSplitService(IDbContext context, IUnitOfWork unitOfWork, IMapp
             .Include(s => s.OriginalOrder)
             .FirstOrDefaultAsync(s => s.Id == splitId, cancellationToken);
 
-        if (split == null) return false;
+        if (split is null) return false;
 
         if (split.SplitOrder.Status != OrderStatus.Pending)
         {
@@ -307,7 +307,7 @@ public class OrderSplitService(IDbContext context, IUnitOfWork unitOfWork, IMapp
         var split = await context.Set<OrderSplit>()
             .FirstOrDefaultAsync(s => s.Id == splitId, cancellationToken);
 
-        if (split == null) return false;
+        if (split is null) return false;
 
         split.Complete();
         await unitOfWork.SaveChangesAsync(cancellationToken);

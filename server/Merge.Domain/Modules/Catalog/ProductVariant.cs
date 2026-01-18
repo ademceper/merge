@@ -83,7 +83,7 @@ public class ProductVariant : BaseEntity
     public byte[]? RowVersion { get; set; }
     
     [NotMapped]
-    public SKU? SKUValueObject => _sku != null ? new SKU(_sku) : null;
+    public SKU? SKUValueObject => _sku is not null ? new SKU(_sku) : null;
     
     [NotMapped]
     public Money? PriceMoney => _price.HasValue ? new Money(_price.Value) : null;
@@ -231,7 +231,7 @@ public class ProductVariant : BaseEntity
             }
         }
 
-        if (_sku != null)
+        if (_sku is not null)
         {
             try
             {

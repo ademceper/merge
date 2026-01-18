@@ -27,7 +27,7 @@ public class GetPriceRecommendationQueryHandler(IDbContext context, ILogger<GetP
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
-        if (product == null)
+        if (product is null)
         {
             logger.LogWarning("Product not found. ProductId: {ProductId}", request.ProductId);
             throw new NotFoundException("Ürün", request.ProductId);

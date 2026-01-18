@@ -32,7 +32,7 @@ public class GetStockReportByProductQueryHandler(
         var cacheKey = $"{CACHE_KEY_STOCK_REPORT_BY_PRODUCT}{request.ProductId}";
 
         var cachedReport = await cache.GetAsync<StockReportDto>(cacheKey, cancellationToken);
-        if (cachedReport != null)
+        if (cachedReport is not null)
         {
             logger.LogInformation("Cache hit for stock report. ProductId: {ProductId}", request.ProductId);
             return cachedReport;
@@ -44,7 +44,7 @@ public class GetStockReportByProductQueryHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
-        if (product == null)
+        if (product is null)
         {
             logger.LogWarning("Product not found with Id: {ProductId}", request.ProductId);
             return null;

@@ -29,7 +29,7 @@ public class GenerateInvoicePdfCommandHandler(IDbContext context, IUnitOfWork un
             var invoice = await context.Set<Invoice>()
                 .FirstOrDefaultAsync(i => i.Id == request.InvoiceId, cancellationToken);
 
-            if (invoice == null)
+            if (invoice is null)
             {
                 logger.LogWarning("Invoice not found. InvoiceId: {InvoiceId}", request.InvoiceId);
                 throw new NotFoundException("Fatura", request.InvoiceId);

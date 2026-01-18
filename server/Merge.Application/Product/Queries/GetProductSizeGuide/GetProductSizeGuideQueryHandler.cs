@@ -31,7 +31,7 @@ public class GetProductSizeGuideQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_PRODUCT_SIZE_GUIDE}{request.ProductId}";
         var cachedProductSizeGuide = await cache.GetAsync<ProductSizeGuideDto>(cacheKey, cancellationToken);
-        if (cachedProductSizeGuide != null)
+        if (cachedProductSizeGuide is not null)
         {
             logger.LogInformation("Product size guide retrieved from cache. ProductId: {ProductId}", request.ProductId);
             return cachedProductSizeGuide;
@@ -48,7 +48,7 @@ public class GetProductSizeGuideQueryHandler(
                 .ThenInclude(sg => sg.Entries)
             .FirstOrDefaultAsync(psg => psg.ProductId == request.ProductId, cancellationToken);
 
-        if (productSizeGuide == null)
+        if (productSizeGuide is null)
         {
             logger.LogWarning("Product size guide not found. ProductId: {ProductId}", request.ProductId);
             return null;

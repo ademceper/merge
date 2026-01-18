@@ -26,7 +26,7 @@ public class UserPreferenceService(IDbContext context, IUnitOfWork unitOfWork, I
             .AsNoTracking()
             .FirstOrDefaultAsync(up => up.UserId == userId, cancellationToken);
 
-        if (preferences == null)
+        if (preferences is null)
         {
             logger.LogInformation("No preferences found for user: {UserId}, creating default preferences", userId);
 
@@ -47,7 +47,7 @@ public class UserPreferenceService(IDbContext context, IUnitOfWork unitOfWork, I
         var preferences = await context.Set<UserPreference>()
             .FirstOrDefaultAsync(up => up.UserId == userId, cancellationToken);
 
-        if (preferences == null)
+        if (preferences is null)
         {
             preferences = UserPreference.Create(userId);
             await context.Set<UserPreference>().AddAsync(preferences, cancellationToken);
@@ -100,7 +100,7 @@ public class UserPreferenceService(IDbContext context, IUnitOfWork unitOfWork, I
         var preferences = await context.Set<UserPreference>()
             .FirstOrDefaultAsync(up => up.UserId == userId, cancellationToken);
 
-        if (preferences == null)
+        if (preferences is null)
         {
             preferences = UserPreference.Create(userId);
             await context.Set<UserPreference>().AddAsync(preferences, cancellationToken);

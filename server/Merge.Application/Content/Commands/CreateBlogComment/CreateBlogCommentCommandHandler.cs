@@ -38,7 +38,7 @@ public class CreateBlogCommentCommandHandler(
             var post = await context.Set<BlogPost>()
                 .FirstOrDefaultAsync(p => p.Id == request.BlogPostId && p.AllowComments, cancellationToken);
 
-            if (post == null)
+            if (post is null)
             {
                 logger.LogWarning("Blog post not found or comments not allowed. BlogPostId: {BlogPostId}", request.BlogPostId);
                 throw new NotFoundException("Blog yazısı", request.BlogPostId);
@@ -68,7 +68,7 @@ public class CreateBlogCommentCommandHandler(
                 .Include(c => c.ParentComment)
                 .FirstOrDefaultAsync(c => c.Id == comment.Id, cancellationToken);
 
-            if (reloadedComment == null)
+            if (reloadedComment is null)
             {
                 logger.LogWarning("Blog comment {CommentId} not found after creation", comment.Id);
                 throw new NotFoundException("Blog Yorumu", comment.Id);

@@ -40,7 +40,7 @@ public class GetUnansweredQuestionsQueryHandler(
 
         var cacheKey = $"{CACHE_KEY_UNANSWERED_QUESTIONS}{request.ProductId ?? Guid.Empty}_{limit}";
         var cachedQuestions = await cache.GetAsync<IEnumerable<ProductQuestionDto>>(cacheKey, cancellationToken);
-        if (cachedQuestions != null)
+        if (cachedQuestions is not null)
         {
             logger.LogInformation("Unanswered questions retrieved from cache. ProductId: {ProductId}, Limit: {Limit}",
                 request.ProductId, limit);

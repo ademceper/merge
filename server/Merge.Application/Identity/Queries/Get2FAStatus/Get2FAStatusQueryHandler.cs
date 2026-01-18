@@ -28,7 +28,7 @@ public class Get2FAStatusQueryHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.UserId == request.UserId, cancellationToken);
 
-        if (twoFactorAuth == null)
+        if (twoFactorAuth is null)
         {
             return new TwoFactorStatusDto(
                 IsEnabled: false,
@@ -42,8 +42,8 @@ public class Get2FAStatusQueryHandler(
         return new TwoFactorStatusDto(
             IsEnabled: dto.IsEnabled,
             Method: dto.Method,
-            PhoneNumber: twoFactorAuth.PhoneNumber != null ? MaskPhoneNumber(twoFactorAuth.PhoneNumber) : null,
-            Email: twoFactorAuth.Email != null ? MaskEmail(twoFactorAuth.Email) : null,
+            PhoneNumber: twoFactorAuth.PhoneNumber is not null ? MaskPhoneNumber(twoFactorAuth.PhoneNumber) : null,
+            Email: twoFactorAuth.Email is not null ? MaskEmail(twoFactorAuth.Email) : null,
             BackupCodesRemaining: twoFactorAuth.BackupCodes?.Length ?? 0);
     }
 

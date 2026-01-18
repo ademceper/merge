@@ -26,7 +26,7 @@ public class CreateNotificationFromTemplateCommandHandler(IDbContext context, IM
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Type == request.TemplateType && t.IsActive, cancellationToken);
 
-        if (template == null)
+        if (template is null)
         {
             throw new NotFoundException("Şablon", Guid.Empty);
         }
@@ -36,38 +36,38 @@ public class CreateNotificationFromTemplateCommandHandler(IDbContext context, IM
         if (!string.IsNullOrEmpty(template.DefaultData))
         {
             var defaultData = JsonSerializer.Deserialize<NotificationTemplateSettingsDto>(template.DefaultData);
-            if (defaultData != null)
+            if (defaultData is not null)
             {
-                if (defaultData.DefaultLanguage != null) allVariables[nameof(defaultData.DefaultLanguage)] = defaultData.DefaultLanguage;
-                if (defaultData.DefaultSubject != null) allVariables[nameof(defaultData.DefaultSubject)] = defaultData.DefaultSubject;
-                if (defaultData.SenderName != null) allVariables[nameof(defaultData.SenderName)] = defaultData.SenderName;
-                if (defaultData.SenderEmail != null) allVariables[nameof(defaultData.SenderEmail)] = defaultData.SenderEmail;
-                if (defaultData.ReplyToEmail != null) allVariables[nameof(defaultData.ReplyToEmail)] = defaultData.ReplyToEmail;
+                if (defaultData.DefaultLanguage is not null) allVariables[nameof(defaultData.DefaultLanguage)] = defaultData.DefaultLanguage;
+                if (defaultData.DefaultSubject is not null) allVariables[nameof(defaultData.DefaultSubject)] = defaultData.DefaultSubject;
+                if (defaultData.SenderName is not null) allVariables[nameof(defaultData.SenderName)] = defaultData.SenderName;
+                if (defaultData.SenderEmail is not null) allVariables[nameof(defaultData.SenderEmail)] = defaultData.SenderEmail;
+                if (defaultData.ReplyToEmail is not null) allVariables[nameof(defaultData.ReplyToEmail)] = defaultData.ReplyToEmail;
                 allVariables[nameof(defaultData.UseHtmlFormat)] = defaultData.UseHtmlFormat;
                 allVariables[nameof(defaultData.TrackingEnabled)] = defaultData.TrackingEnabled;
                 allVariables[nameof(defaultData.MaxRetries)] = defaultData.MaxRetries;
                 allVariables[nameof(defaultData.RetryIntervalMinutes)] = defaultData.RetryIntervalMinutes;
             }
         }
-        if (request.Variables != null)
+        if (request.Variables is not null)
         {
-            if (request.Variables.CustomerName != null) allVariables[nameof(request.Variables.CustomerName)] = request.Variables.CustomerName;
-            if (request.Variables.CustomerEmail != null) allVariables[nameof(request.Variables.CustomerEmail)] = request.Variables.CustomerEmail;
-            if (request.Variables.OrderNumber != null) allVariables[nameof(request.Variables.OrderNumber)] = request.Variables.OrderNumber;
-            if (request.Variables.ActionUrl != null) allVariables[nameof(request.Variables.ActionUrl)] = request.Variables.ActionUrl;
-            if (request.Variables.CompanyName != null) allVariables[nameof(request.Variables.CompanyName)] = request.Variables.CompanyName;
-            if (request.Variables.LogoUrl != null) allVariables[nameof(request.Variables.LogoUrl)] = request.Variables.LogoUrl;
+            if (request.Variables.CustomerName is not null) allVariables[nameof(request.Variables.CustomerName)] = request.Variables.CustomerName;
+            if (request.Variables.CustomerEmail is not null) allVariables[nameof(request.Variables.CustomerEmail)] = request.Variables.CustomerEmail;
+            if (request.Variables.OrderNumber is not null) allVariables[nameof(request.Variables.OrderNumber)] = request.Variables.OrderNumber;
+            if (request.Variables.ActionUrl is not null) allVariables[nameof(request.Variables.ActionUrl)] = request.Variables.ActionUrl;
+            if (request.Variables.CompanyName is not null) allVariables[nameof(request.Variables.CompanyName)] = request.Variables.CompanyName;
+            if (request.Variables.LogoUrl is not null) allVariables[nameof(request.Variables.LogoUrl)] = request.Variables.LogoUrl;
             if (request.Variables.Amount.HasValue) allVariables[nameof(request.Variables.Amount)] = request.Variables.Amount.Value;
-            if (request.Variables.Currency != null) allVariables[nameof(request.Variables.Currency)] = request.Variables.Currency;
+            if (request.Variables.Currency is not null) allVariables[nameof(request.Variables.Currency)] = request.Variables.Currency;
             if (request.Variables.ExpirationDate.HasValue) allVariables[nameof(request.Variables.ExpirationDate)] = request.Variables.ExpirationDate.Value;
-            if (request.Variables.ProductName != null) allVariables[nameof(request.Variables.ProductName)] = request.Variables.ProductName;
-            if (request.Variables.CustomMessage != null) allVariables[nameof(request.Variables.CustomMessage)] = request.Variables.CustomMessage;
+            if (request.Variables.ProductName is not null) allVariables[nameof(request.Variables.ProductName)] = request.Variables.ProductName;
+            if (request.Variables.CustomMessage is not null) allVariables[nameof(request.Variables.CustomMessage)] = request.Variables.CustomMessage;
         }
 
         // Replace variables in templates
         var title = ReplaceVariables(template.TitleTemplate, allVariables);
         var message = ReplaceVariables(template.MessageTemplate, allVariables);
-        var link = template.LinkTemplate != null 
+        var link = template.LinkTemplate is not null 
             ? ReplaceVariables(template.LinkTemplate, allVariables) 
             : null;
 

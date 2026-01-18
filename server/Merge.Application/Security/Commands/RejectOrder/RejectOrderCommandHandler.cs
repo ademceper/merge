@@ -18,7 +18,7 @@ public class RejectOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWor
         var verification = await context.Set<OrderVerification>()
             .FirstOrDefaultAsync(v => v.Id == request.VerificationId, cancellationToken);
 
-        if (verification == null) return false;
+        if (verification is null) return false;
 
         verification.Reject(request.VerifiedByUserId, request.Reason);
         await unitOfWork.SaveChangesAsync(cancellationToken);

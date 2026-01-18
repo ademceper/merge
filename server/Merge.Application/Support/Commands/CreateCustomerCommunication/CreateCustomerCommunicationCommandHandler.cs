@@ -36,7 +36,7 @@ public class CreateCustomerCommunicationCommandHandler(IDbContext context, IUnit
             request.SentByUserId,
             request.RecipientEmail,
             request.RecipientPhone,
-            request.Metadata != null ? JsonSerializer.Serialize(request.Metadata) : null);
+            request.Metadata is not null ? JsonSerializer.Serialize(request.Metadata) : null);
 
         await context.Set<CustomerCommunication>().AddAsync(communication, cancellationToken);
         

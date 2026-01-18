@@ -120,11 +120,11 @@ public class SizeGuide : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(name, nameof(name));
         
         Name = name;
-        if (description != null) Description = description;
+        if (description is not null) Description = description;
         if (categoryId.HasValue) CategoryId = categoryId.Value;
         if (type.HasValue) Type = type.Value;
-        if (brand != null) Brand = brand;
-        if (measurementUnit != null) MeasurementUnit = measurementUnit;
+        if (brand is not null) Brand = brand;
+        if (measurementUnit is not null) MeasurementUnit = measurementUnit;
         
         UpdatedAt = DateTime.UtcNow;
         
@@ -157,7 +157,7 @@ public class SizeGuide : BaseEntity, IAggregateRoot
         Guard.AgainstDefault(entryId, nameof(entryId));
         
         var entry = _entries.FirstOrDefault(e => e.Id == entryId);
-        if (entry == null)
+        if (entry is null)
         {
             throw new DomainException("Beden girişi bulunamadı");
         }
@@ -218,7 +218,7 @@ public class SizeGuide : BaseEntity, IAggregateRoot
     {
         Guard.AgainstDefault(productSizeGuideId, nameof(productSizeGuideId));
         var productSizeGuide = _productSizeGuides.FirstOrDefault(psg => psg.Id == productSizeGuideId);
-        if (productSizeGuide == null)
+        if (productSizeGuide is null)
         {
             throw new DomainException("Product size guide bulunamadı");
         }

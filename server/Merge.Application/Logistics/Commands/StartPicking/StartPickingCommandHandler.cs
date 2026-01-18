@@ -24,7 +24,7 @@ public class StartPickingCommandHandler(
         var pickPack = await context.Set<PickPack>()
             .FirstOrDefaultAsync(pp => pp.Id == request.PickPackId, cancellationToken);
 
-        if (pickPack == null)
+        if (pickPack is null)
         {
             logger.LogWarning("Pick pack not found. PickPackId: {PickPackId}", request.PickPackId);
             throw new NotFoundException("Pick-pack", request.PickPackId);

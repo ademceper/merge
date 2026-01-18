@@ -118,7 +118,7 @@ public class EmailAutomation : BaseEntity, IAggregateRoot
             _name = name;
         }
 
-        if (description != null)
+        if (description is not null)
             Description = description;
 
         if (type.HasValue)
@@ -133,7 +133,7 @@ public class EmailAutomation : BaseEntity, IAggregateRoot
         if (delayHours.HasValue)
             DelayHours = delayHours.Value;
 
-        if (triggerConditions != null)
+        if (triggerConditions is not null)
             TriggerConditions = triggerConditions;
 
         UpdatedAt = DateTime.UtcNow;

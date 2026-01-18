@@ -35,7 +35,7 @@ public class GetPurchaseOrderByPONumberQueryHandler(
                 .ThenInclude(i => i.Product)
             .FirstOrDefaultAsync(po => po.PONumber == request.PONumber, cancellationToken);
 
-        return po != null ? mapper.Map<PurchaseOrderDto>(po) : null;
+        return po is not null ? mapper.Map<PurchaseOrderDto>(po) : null;
     }
 }
 

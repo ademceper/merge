@@ -71,19 +71,19 @@ public class CMSPage : BaseEntity, IAggregateRoot
         Guard.AgainstLength(title, 200, nameof(title));
         Guard.AgainstLength(content, 50000, nameof(content));
         Guard.AgainstLength(pageType, 50, nameof(pageType));
-        if (excerpt != null)
+        if (excerpt is not null)
             Guard.AgainstLength(excerpt, 500, nameof(excerpt));
         // Configuration değerleri: MaxTemplateNameLength=100, MaxMenuTitleLength=200
-        if (template != null)
+        if (template is not null)
             Guard.AgainstLength(template, 100, nameof(template));
-        if (menuTitle != null)
+        if (menuTitle is not null)
             Guard.AgainstLength(menuTitle, 200, nameof(menuTitle));
         // Configuration değerleri: MaxMetaTitleLength=60, MaxMetaDescriptionLength=160, MaxMetaKeywordsLength=255
-        if (metaTitle != null)
+        if (metaTitle is not null)
             Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
-        if (metaDescription != null)
+        if (metaDescription is not null)
             Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
-        if (metaKeywords != null)
+        if (metaKeywords is not null)
             Guard.AgainstLength(metaKeywords, 255, nameof(metaKeywords));
 
         if (parentPageId.HasValue && parentPageId.Value == Guid.Empty)
@@ -157,7 +157,7 @@ public class CMSPage : BaseEntity, IAggregateRoot
     public void UpdateExcerpt(string? newExcerpt)
     {
         // Configuration değeri: MaxCMSPageExcerptLength=500
-        if (newExcerpt != null)
+        if (newExcerpt is not null)
             Guard.AgainstLength(newExcerpt, 500, nameof(newExcerpt));
         Excerpt = newExcerpt;
         UpdatedAt = DateTime.UtcNow;
@@ -218,7 +218,7 @@ public class CMSPage : BaseEntity, IAggregateRoot
     public void UpdateTemplate(string? newTemplate)
     {
         // Configuration değeri: MaxTemplateNameLength=100
-        if (newTemplate != null)
+        if (newTemplate is not null)
             Guard.AgainstLength(newTemplate, 100, nameof(newTemplate));
         Template = newTemplate;
         UpdatedAt = DateTime.UtcNow;
@@ -229,11 +229,11 @@ public class CMSPage : BaseEntity, IAggregateRoot
     public void UpdateMetaInformation(string? metaTitle, string? metaDescription, string? metaKeywords)
     {
         // Configuration değerleri: MaxMetaTitleLength=60, MaxMetaDescriptionLength=160, MaxMetaKeywordsLength=255
-        if (metaTitle != null)
+        if (metaTitle is not null)
             Guard.AgainstLength(metaTitle, 60, nameof(metaTitle));
-        if (metaDescription != null)
+        if (metaDescription is not null)
             Guard.AgainstLength(metaDescription, 160, nameof(metaDescription));
-        if (metaKeywords != null)
+        if (metaKeywords is not null)
             Guard.AgainstLength(metaKeywords, 255, nameof(metaKeywords));
         
         MetaTitle = metaTitle;
@@ -286,7 +286,7 @@ public class CMSPage : BaseEntity, IAggregateRoot
     public void UpdateMenuTitle(string? newMenuTitle)
     {
         // Configuration değeri: MaxMenuTitleLength=200
-        if (newMenuTitle != null)
+        if (newMenuTitle is not null)
             Guard.AgainstLength(newMenuTitle, 200, nameof(newMenuTitle));
         MenuTitle = newMenuTitle;
         UpdatedAt = DateTime.UtcNow;

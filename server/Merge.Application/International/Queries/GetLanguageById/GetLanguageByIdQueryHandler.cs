@@ -25,6 +25,6 @@ public class GetLanguageByIdQueryHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(l => l.Id == request.Id, cancellationToken);
 
-        return language != null ? mapper.Map<LanguageDto>(language) : null;
+        return language is not null ? mapper.Map<LanguageDto>(language) : null;
     }
 }

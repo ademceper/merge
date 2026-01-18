@@ -5,6 +5,7 @@ using MediatR;
 using Merge.Application.DTOs.Support;
 using Merge.Application.Common;
 using Merge.Application.Configuration;
+using Merge.Application.Exceptions;
 using Merge.Application.Support.Commands.CreateTicket;
 using Merge.Application.Support.Commands.UpdateTicket;
 using Merge.Application.Support.Commands.AssignTicket;
@@ -52,7 +53,7 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
         CancellationToken cancellationToken = default)
     {
                 var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {
@@ -91,11 +92,8 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
         var userId = !isAdmin ? GetUserIdOrNull() : null;
 
                 var query = new GetTicketQuery(id, userId);
-        var ticket = await mediator.Send(query, cancellationToken);
-        if (ticket == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var ticket = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("SupportTicket", id);
 
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
         var links = HateoasHelper.CreateSupportTicketLinks(Url, ticket.Id, version);
@@ -119,11 +117,8 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
         var userId = !isAdmin ? GetUserIdOrNull() : null;
 
                 var query = new GetTicketByNumberQuery(ticketNumber, userId);
-        var ticket = await mediator.Send(query, cancellationToken);
-        if (ticket == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var ticket = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("SupportTicket", ticketNumber);
 
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
         var links = HateoasHelper.CreateSupportTicketLinks(Url, ticket.Id, version);
@@ -234,7 +229,7 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
         CancellationToken cancellationToken = default)
     {
                 var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
                 var command = new UpdateTicketCommand(
             id,
@@ -247,9 +242,7 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SupportTicket", id);
 
         return NoContent();
     }
@@ -273,7 +266,7 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new UpdateTicketCommand(
             id,
@@ -286,9 +279,7 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SupportTicket", id);
 
         return NoContent();
     }
@@ -307,15 +298,13 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
         CancellationToken cancellationToken = default)
     {
                 var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
                 var command = new AssignTicketCommand(id, dto.AssignedToId);
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SupportTicket", id);
 
         return NoContent();
     }
@@ -335,9 +324,7 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SupportTicket", id);
 
         return NoContent();
     }
@@ -356,9 +343,7 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SupportTicket", id);
 
         return NoContent();
     }
@@ -374,7 +359,7 @@ public class SupportTicketsController(IMediator mediator, IOptions<SupportSettin
         CancellationToken cancellationToken = default)
     {
                 var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {

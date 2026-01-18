@@ -50,7 +50,7 @@ public class SearchHistory : BaseEntity, IAggregateRoot
         get => _userAgent; 
         private set 
         {
-            if (value != null)
+            if (value is not null)
             {
                 Guard.AgainstLength(value, 500, nameof(UserAgent));
             }
@@ -64,7 +64,7 @@ public class SearchHistory : BaseEntity, IAggregateRoot
         get => _ipAddress; 
         private set 
         {
-            if (value != null)
+            if (value is not null)
             {
                 Guard.AgainstLength(value, 50, nameof(IpAddress));
             }
@@ -141,10 +141,10 @@ public class SearchHistory : BaseEntity, IAggregateRoot
         if (_resultCount < 0)
             throw new DomainException("Sonuç sayısı negatif olamaz");
 
-        if (_userAgent != null && _userAgent.Length > 500)
+        if (_userAgent is not null && _userAgent.Length > 500)
             throw new DomainException("User agent en fazla 500 karakter olabilir");
 
-        if (_ipAddress != null && _ipAddress.Length > 50)
+        if (_ipAddress is not null && _ipAddress.Length > 50)
             throw new DomainException("IP adresi en fazla 50 karakter olabilir");
     }
 }

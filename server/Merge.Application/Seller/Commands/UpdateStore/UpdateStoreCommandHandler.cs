@@ -21,7 +21,7 @@ public class UpdateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
     {
         logger.LogInformation("Updating store. StoreId: {StoreId}", request.StoreId);
 
-        if (request.Dto == null)
+        if (request.Dto is null)
         {
             throw new ArgumentNullException(nameof(request.Dto));
         }
@@ -29,7 +29,7 @@ public class UpdateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
         var store = await context.Set<Store>()
             .FirstOrDefaultAsync(s => s.Id == request.StoreId, cancellationToken);
 
-        if (store == null)
+        if (store is null)
         {
             logger.LogWarning("Store not found. StoreId: {StoreId}", request.StoreId);
             return false;
@@ -46,7 +46,7 @@ public class UpdateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
             city: request.Dto.City,
             country: request.Dto.Country,
             postalCode: request.Dto.PostalCode,
-            settings: request.Dto.Settings != null ? JsonSerializer.Serialize(request.Dto.Settings) : null);
+            settings: request.Dto.Settings is not null ? JsonSerializer.Serialize(request.Dto.Settings) : null);
 
         if (request.Dto.Status.HasValue)
         {

@@ -42,7 +42,7 @@ public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitO
                     .ThenInclude(oi => oi.Product)
                 .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
-            if (order == null)
+            if (order is null)
             {
                 logger.LogWarning("Order not found. OrderId: {OrderId}", request.OrderId);
                 throw new NotFoundException("Sipariş", request.OrderId);
@@ -60,7 +60,7 @@ public class GenerateInvoiceCommandHandler(IDbContext context, IUnitOfWork unitO
                 .AsNoTracking()
                 .FirstOrDefaultAsync(i => i.OrderId == request.OrderId, cancellationToken);
 
-            if (existingInvoice != null)
+            if (existingInvoice is not null)
             {
                 logger.LogInformation("Invoice already exists. InvoiceId: {InvoiceId}, OrderId: {OrderId}",
                     existingInvoice.Id, request.OrderId);

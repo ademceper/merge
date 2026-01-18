@@ -19,7 +19,7 @@ public class CartItemQuantityUpdatedEventHandler(
 
         try
         {
-            if (cacheService != null)
+            if (cacheService is not null)
             {
                 await cacheService.RemoveAsync($"cart_{notification.CartId}", cancellationToken);
             }

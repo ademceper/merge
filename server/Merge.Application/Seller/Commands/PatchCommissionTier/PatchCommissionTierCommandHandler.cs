@@ -26,7 +26,7 @@ public class PatchCommissionTierCommandHandler(
         var tier = await context.Set<CommissionTier>()
             .FirstOrDefaultAsync(t => t.Id == request.TierId, cancellationToken);
 
-        if (tier == null)
+        if (tier is null)
         {
             logger.LogWarning("Commission tier not found. TierId: {TierId}", request.TierId);
             return false;

@@ -42,7 +42,7 @@ public class GenerateReportCommandHandler(
                 request.UserId,
                 request.StartDate,
                 request.EndDate,
-                request.Filters != null ? JsonSerializer.Serialize(request.Filters, JsonOptions) : null,
+                request.Filters is not null ? JsonSerializer.Serialize(request.Filters, JsonOptions) : null,
                 Enum.Parse<ReportFormat>(request.Format, true));
 
             await context.Set<Report>().AddAsync(report, cancellationToken);

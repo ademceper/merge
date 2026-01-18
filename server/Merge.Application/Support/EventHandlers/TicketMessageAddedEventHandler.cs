@@ -23,7 +23,7 @@ public class TicketMessageAddedEventHandler(
         try
         {
             // Eğer staff response ise kullanıcıya, değilse staff'a bildirim gönder
-            if (notificationService != null)
+            if (notificationService is not null)
             {
                 var createDto = new CreateNotificationDto(
                     notification.UserId,

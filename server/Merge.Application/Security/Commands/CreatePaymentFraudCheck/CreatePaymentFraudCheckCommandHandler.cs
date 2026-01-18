@@ -32,7 +32,7 @@ public class CreatePaymentFraudCheckCommandHandler(IDbContext context, IUnitOfWo
         var payment = await context.Set<PaymentEntity>()
             .FirstOrDefaultAsync(p => p.Id == request.PaymentId, cancellationToken);
 
-        if (payment == null)
+        if (payment is null)
         {
             throw new NotFoundException("Ödeme", request.PaymentId);
         }
@@ -41,7 +41,7 @@ public class CreatePaymentFraudCheckCommandHandler(IDbContext context, IUnitOfWo
         var existing = await context.Set<PaymentFraudPrevention>()
             .FirstOrDefaultAsync(c => c.PaymentId == request.PaymentId, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             existing = await context.Set<PaymentFraudPrevention>()
                 .AsNoTracking()
@@ -110,7 +110,7 @@ public class CreatePaymentFraudCheckCommandHandler(IDbContext context, IUnitOfWo
                 .ThenInclude(o => o.User)
             .FirstOrDefaultAsync(p => p.Id == request.PaymentId, cancellationToken);
 
-        if (payment == null) return 0;
+        if (payment is null) return 0;
 
         int riskScore = 0;
 

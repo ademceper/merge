@@ -9,7 +9,7 @@ public class DomainEventDispatcher(ILogger<DomainEventDispatcher> logger) : IDom
 
     public async Task DispatchDomainEventsAsync(IEnumerable<IDomainEvent> domainEvents, CancellationToken cancellationToken = default)
     {
-        if (domainEvents == null || !domainEvents.Any())
+        if (domainEvents is null || !domainEvents.Any())
             return;
 
         logger.LogInformation("Publishing {Count} domain events", domainEvents.Count());

@@ -36,7 +36,7 @@ public class CreateEmailTemplateCommandHandler(
             htmlContent: request.HtmlContent,
             textContent: request.TextContent,
             type: typeEnum,
-            variables: request.Variables != null ? JsonSerializer.Serialize(request.Variables) : null,
+            variables: request.Variables is not null ? JsonSerializer.Serialize(request.Variables) : null,
             thumbnail: request.Thumbnail);
 
         await context.Set<EmailTemplate>().AddAsync(template, cancellationToken);

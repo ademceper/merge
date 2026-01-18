@@ -34,7 +34,7 @@ public class GetQuestionQueryHandler(
         var cacheKey = $"{CACHE_KEY_QUESTION_BY_ID}{request.QuestionId}";
         // Note: UserId-specific data (HasUserVoted) is not cached, only question data
         var cachedQuestion = await cache.GetAsync<ProductQuestionDto>(cacheKey, cancellationToken);
-        if (cachedQuestion != null && !request.UserId.HasValue)
+        if (cachedQuestion is not null && !request.UserId.HasValue)
         {
             logger.LogInformation("Question retrieved from cache. QuestionId: {QuestionId}", request.QuestionId);
             return cachedQuestion;
@@ -50,7 +50,7 @@ public class GetQuestionQueryHandler(
                 .ThenInclude(a => a.User)
             .FirstOrDefaultAsync(q => q.Id == request.QuestionId, cancellationToken);
 
-        if (question == null)
+        if (question is null)
         {
             logger.LogWarning("Question not found with Id: {QuestionId}", request.QuestionId);
             return null;

@@ -16,6 +16,7 @@ using Merge.Application.Product.Queries.GetProductSizeGuide;
 using Merge.Application.Product.Queries.GetSizeRecommendation;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Product;
 
@@ -42,7 +43,7 @@ public class SizeGuidesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new CreateSizeGuideCommand(
             dto.Name,
             dto.Description,
@@ -63,12 +64,9 @@ public class SizeGuidesController(IMediator mediator) : BaseController
     public async Task<ActionResult<SizeGuideDto>> GetSizeGuide(Guid id, CancellationToken cancellationToken = default)
     {
         var query = new GetSizeGuideQuery(id);
-        var sizeGuide = await mediator.Send(query, cancellationToken);
+        var sizeGuide = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("SizeGuide", id);
 
-        if (sizeGuide == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
         return Ok(sizeGuide);
     }
 
@@ -111,7 +109,7 @@ public class SizeGuidesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new UpdateSizeGuideCommand(
             id,
             dto.Name,
@@ -124,9 +122,8 @@ public class SizeGuidesController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SizeGuide", id);
+
         return NoContent();
     }
 
@@ -149,13 +146,13 @@ public class SizeGuidesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new PatchSizeGuideCommand(id, patchDto);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SizeGuide", id);
+
         return NoContent();
     }
 
@@ -173,9 +170,8 @@ public class SizeGuidesController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SizeGuide", id);
+
         return NoContent();
     }
 
@@ -192,7 +188,7 @@ public class SizeGuidesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new AssignSizeGuideToProductCommand(
             dto.ProductId,
             dto.SizeGuideId,
@@ -213,12 +209,9 @@ public class SizeGuidesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetProductSizeGuideQuery(productId);
-        var productSizeGuide = await mediator.Send(query, cancellationToken);
+        var productSizeGuide = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("ProductSizeGuide", productId);
 
-        if (productSizeGuide == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
         return Ok(productSizeGuide);
     }
 
@@ -238,9 +231,8 @@ public class SizeGuidesController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("ProductSizeGuide", productId);
+
         return NoContent();
     }
 
@@ -254,7 +246,7 @@ public class SizeGuidesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var query = new GetSizeRecommendationQuery(
             dto.ProductId,
             dto.Height,

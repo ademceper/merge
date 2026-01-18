@@ -238,7 +238,7 @@ public class Review : BaseEntity, IAggregateRoot
     {
         Guard.AgainstDefault(voteId, nameof(voteId));
         var vote = _helpfulnessVotes.FirstOrDefault(v => v.Id == voteId);
-        if (vote == null)
+        if (vote is null)
         {
             throw new DomainException("Vote bulunamadı");
         }
@@ -269,7 +269,7 @@ public class Review : BaseEntity, IAggregateRoot
     {
         Guard.AgainstDefault(mediaId, nameof(mediaId));
         var media = _media.FirstOrDefault(m => m.Id == mediaId);
-        if (media == null)
+        if (media is null)
         {
             throw new DomainException("Media bulunamadı");
         }

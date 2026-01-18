@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
 using Merge.Application.DTOs.Logistics;
+using Merge.Application.Exceptions;
 using Merge.Domain.Enums;
 using Merge.API.Middleware;
 using Merge.Application.Logistics.Queries.GetShippingById;
@@ -58,19 +59,13 @@ public class ShippingsController(IMediator mediator) : BaseController
         }
 
         var query = new GetShippingByIdQuery(id);
-        var shipping = await mediator.Send(query, cancellationToken);
-        if (shipping == null)
-        {
-            return Problem("Shipping not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var shipping = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Shipping", id);
 
         // Order ownership kontrolü
         var orderQuery = new GetOrderByIdQuery(shipping.OrderId);
-        var order = await mediator.Send(orderQuery, cancellationToken);
-        if (order == null)
-        {
-            return Problem("Order not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var order = await mediator.Send(orderQuery, cancellationToken)
+            ?? throw new NotFoundException("Order", shipping.OrderId);
 
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -97,11 +92,8 @@ public class ShippingsController(IMediator mediator) : BaseController
         }
 
         var orderQuery = new GetOrderByIdQuery(orderId);
-        var order = await mediator.Send(orderQuery, cancellationToken);
-        if (order == null)
-        {
-            return Problem("Order not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var order = await mediator.Send(orderQuery, cancellationToken)
+            ?? throw new NotFoundException("Order", orderId);
 
         if (order.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -109,11 +101,8 @@ public class ShippingsController(IMediator mediator) : BaseController
         }
 
         var query = new GetShippingByOrderIdQuery(orderId);
-        var shipping = await mediator.Send(query, cancellationToken);
-        if (shipping == null)
-        {
-            return Problem("Shipping not found for this order", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var shipping = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Shipping", orderId);
 
         return Ok(shipping);
     }
@@ -141,7 +130,7 @@ public class ShippingsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var query = new CalculateShippingCostQuery(dto.OrderId, dto.Provider);
         var cost = await mediator.Send(query, cancellationToken);
@@ -163,7 +152,7 @@ public class ShippingsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new CreateShippingCommand(dto.OrderId, dto.ShippingProvider, dto.ShippingCost);
         var shipping = await mediator.Send(command, cancellationToken);
@@ -185,7 +174,7 @@ public class ShippingsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new UpdateShippingTrackingCommand(shippingId, dto.TrackingNumber);
         var shipping = await mediator.Send(command, cancellationToken);
@@ -208,7 +197,7 @@ public class ShippingsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!Enum.TryParse<ShippingStatus>(dto.Status, out var statusEnum))
         {
@@ -239,7 +228,7 @@ public class ShippingsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new PatchShippingTrackingCommand(shippingId, patchDto);
         var shipping = await mediator.Send(command, cancellationToken);
@@ -266,7 +255,7 @@ public class ShippingsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new PatchShippingStatusCommand(shippingId, patchDto);
         var shipping = await mediator.Send(command, cancellationToken);

@@ -45,7 +45,7 @@ public class CreateInventoryCommandHandler(
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
-            if (product == null)
+            if (product is null)
             {
                 throw new NotFoundException("Ürün", request.ProductId);
             }
@@ -115,7 +115,7 @@ public class CreateInventoryCommandHandler(
                 .Include(i => i.Warehouse)
                 .FirstOrDefaultAsync(i => i.Id == inventory.Id, cancellationToken);
 
-            if (reloadedInventory == null)
+            if (reloadedInventory is null)
             {
                 logger.LogWarning("Inventory {InventoryId} not found after creation", inventory.Id);
                 return mapper.Map<InventoryDto>(inventory);

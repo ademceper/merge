@@ -29,7 +29,7 @@ public class DeleteAnswerCommandHandler(IDbContext context, IUnitOfWork unitOfWo
             var answer = await context.Set<ProductAnswer>()
                 .FirstOrDefaultAsync(a => a.Id == request.AnswerId, cancellationToken);
 
-            if (answer == null)
+            if (answer is null)
             {
                 return false;
             }
@@ -55,7 +55,7 @@ public class DeleteAnswerCommandHandler(IDbContext context, IUnitOfWork unitOfWo
             var question = await context.Set<ProductQuestion>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
-            if (question != null)
+            if (question is not null)
             {
                 await cache.RemoveAsync($"{CACHE_KEY_QA_STATS}{question.ProductId}", cancellationToken);
             }

@@ -25,7 +25,7 @@ public class SetUserLanguagePreferenceCommandHandler(
         var language = await context.Set<Language>()
             .FirstOrDefaultAsync(l => EF.Functions.ILike(l.Code, request.LanguageCode) && l.IsActive, cancellationToken);
 
-        if (language == null)
+        if (language is null)
         {
             logger.LogWarning("Language not found. LanguageCode: {LanguageCode}", request.LanguageCode);
             throw new NotFoundException("Dil", Guid.Empty);
@@ -34,7 +34,7 @@ public class SetUserLanguagePreferenceCommandHandler(
         var preference = await context.Set<UserLanguagePreference>()
             .FirstOrDefaultAsync(p => p.UserId == request.UserId, cancellationToken);
 
-        if (preference == null)
+        if (preference is null)
         {
             preference = UserLanguagePreference.Create(
                 request.UserId,

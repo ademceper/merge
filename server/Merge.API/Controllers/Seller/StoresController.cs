@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.DTOs.Seller;
+using Merge.Application.Exceptions;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
 using Merge.Application.Common;
@@ -42,12 +43,9 @@ public class StoresController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetStoreQuery(id);
-        var store = await mediator.Send(query, cancellationToken);
+        var store = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Store", id);
 
-        if (store == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
         return Ok(store);
     }
 
@@ -62,12 +60,9 @@ public class StoresController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetStoreBySlugQuery(slug);
-        var store = await mediator.Send(query, cancellationToken);
+        var store = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Store", slug);
 
-        if (store == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
         return Ok(store);
     }
 
@@ -99,12 +94,9 @@ public class StoresController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetPrimaryStoreQuery(sellerId);
-        var store = await mediator.Send(query, cancellationToken);
+        var store = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Store", sellerId);
 
-        if (store == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
         return Ok(store);
     }
 
@@ -138,7 +130,7 @@ public class StoresController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var sellerId = GetUserId();
         var command = new CreateStoreCommand(sellerId, dto);
@@ -181,27 +173,24 @@ public class StoresController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var sellerId = GetUserId();
         var getQuery = new GetStoreQuery(id);
-        var store = await mediator.Send(getQuery, cancellationToken);
+        var store = await mediator.Send(getQuery, cancellationToken)
+            ?? throw new NotFoundException("Store", id);
 
-        if (store == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
         if (store.SellerId != sellerId && !User.IsInRole("Admin"))
         {
             return Forbid();
         }
+
         var command = new UpdateStoreCommand(id, dto);
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Store", id);
+
         return NoContent();
     }
 
@@ -224,20 +213,18 @@ public class StoresController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var sellerId = GetUserId();
         var getQuery = new GetStoreQuery(id);
-        var store = await mediator.Send(getQuery, cancellationToken);
+        var store = await mediator.Send(getQuery, cancellationToken)
+            ?? throw new NotFoundException("Store", id);
 
-        if (store == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
         if (store.SellerId != sellerId && !User.IsInRole("Admin"))
         {
             return Forbid();
         }
+
         var command = new UpdateStoreCommand(id, new UpdateStoreDto
         {
             StoreName = patchDto.StoreName,
@@ -257,9 +244,8 @@ public class StoresController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Store", id);
+
         return NoContent();
     }
 
@@ -277,23 +263,20 @@ public class StoresController(IMediator mediator) : BaseController
     {
         var sellerId = GetUserId();
         var getQuery = new GetStoreQuery(id);
-        var store = await mediator.Send(getQuery, cancellationToken);
+        var store = await mediator.Send(getQuery, cancellationToken)
+            ?? throw new NotFoundException("Store", id);
 
-        if (store == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
         if (store.SellerId != sellerId && !User.IsInRole("Admin"))
         {
             return Forbid();
         }
+
         var command = new DeleteStoreCommand(id);
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Store", id);
+
         return NoContent();
     }
 
@@ -311,23 +294,20 @@ public class StoresController(IMediator mediator) : BaseController
     {
         var sellerId = GetUserId();
         var getQuery = new GetStoreQuery(id);
-        var store = await mediator.Send(getQuery, cancellationToken);
+        var store = await mediator.Send(getQuery, cancellationToken)
+            ?? throw new NotFoundException("Store", id);
 
-        if (store == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
         if (store.SellerId != sellerId && !User.IsInRole("Admin"))
         {
             return Forbid();
         }
+
         var command = new SetPrimaryStoreCommand(sellerId, id);
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Store", id);
+
         return NoContent();
     }
 
@@ -347,9 +327,8 @@ public class StoresController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Store", id);
+
         return NoContent();
     }
 
@@ -368,14 +347,14 @@ public class StoresController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
+
         var command = new SuspendStoreCommand(id, dto.Reason);
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Store", id);
+
         return NoContent();
     }
 }

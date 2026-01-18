@@ -26,7 +26,7 @@ public class RejectSellerApplicationCommandHandler(IRepository applicationReposi
             request.ApplicationId, request.ReviewerId, request.Reason);
 
         var application = await applicationRepository.GetByIdAsync(request.ApplicationId);
-        if (application == null)
+        if (application is null)
         {
             logger.LogWarning("Application rejection failed - Application {ApplicationId} not found", request.ApplicationId);
             return false;
@@ -39,7 +39,7 @@ public class RejectSellerApplicationCommandHandler(IRepository applicationReposi
 
         // Send rejection email
         var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == application.UserId, cancellationToken);
-        if (user != null)
+        if (user is not null)
         {
             await emailService.SendEmailAsync(
                 user.Email ?? string.Empty,

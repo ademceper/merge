@@ -21,6 +21,7 @@ using Merge.Application.Subscription.Queries.GetSubscriptionPayments;
 using Merge.Application.Subscription.Queries.GetAllUsage;
 using Merge.Application.Subscription.Queries.GetSubscriptionAnalytics;
 using Merge.Application.Subscription.Queries.GetSubscriptionTrends;
+using Merge.Application.Exceptions;
 using Merge.API.Middleware;
 using Merge.Application.Common;
 using Merge.Domain.Enums;
@@ -64,11 +65,9 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetSubscriptionPlanByIdQuery(id);
-        var plan = await mediator.Send(query, cancellationToken);
-        if (plan == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var plan = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("SubscriptionPlan", id);
+
         return Ok(plan);
     }
 
@@ -85,7 +84,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new CreateSubscriptionPlanCommand(
             dto.Name,
             dto.Description,
@@ -119,7 +118,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new UpdateSubscriptionPlanCommand(
             id,
             dto.Name,
@@ -135,10 +134,10 @@ public class SubscriptionsController(IMediator mediator) : BaseController
             dto.SetupFee,
             dto.Currency);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SubscriptionPlan", id);
+
         return NoContent();
     }
 
@@ -161,7 +160,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new UpdateSubscriptionPlanCommand(
             id,
             patchDto.Name,
@@ -177,10 +176,10 @@ public class SubscriptionsController(IMediator mediator) : BaseController
             patchDto.SetupFee,
             patchDto.Currency);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SubscriptionPlan", id);
+
         return NoContent();
     }
 
@@ -198,10 +197,10 @@ public class SubscriptionsController(IMediator mediator) : BaseController
     {
         var command = new DeleteSubscriptionPlanCommand(id);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SubscriptionPlan", id);
+
         return NoContent();
     }
 
@@ -217,7 +216,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var userId = GetUserId();
         var command = new CreateUserSubscriptionCommand(userId, dto.SubscriptionPlanId, dto.AutoRenew, dto.PaymentMethodId);
         var subscription = await mediator.Send(command, cancellationToken);
@@ -235,11 +234,9 @@ public class SubscriptionsController(IMediator mediator) : BaseController
     {
         var userId = GetUserId();
         var query = new GetUserActiveSubscriptionQuery(userId);
-        var subscription = await mediator.Send(query, cancellationToken);
-        if (subscription == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var subscription = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("UserSubscription", userId);
+
         return Ok(subscription);
     }
 
@@ -282,24 +279,23 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var userId = GetUserId();
         var getQuery = new GetUserSubscriptionByIdQuery(id);
-        var subscription = await mediator.Send(getQuery, cancellationToken);
-        if (subscription == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var subscription = await mediator.Send(getQuery, cancellationToken)
+            ?? throw new NotFoundException("UserSubscription", id);
+
         if (subscription.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             return Forbid();
         }
+
         var command = new UpdateUserSubscriptionCommand(id, dto.AutoRenew, dto.PaymentMethodId);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("UserSubscription", id);
+
         return NoContent();
     }
 
@@ -321,24 +317,23 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var userId = GetUserId();
         var getQuery = new GetUserSubscriptionByIdQuery(id);
-        var subscription = await mediator.Send(getQuery, cancellationToken);
-        if (subscription == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var subscription = await mediator.Send(getQuery, cancellationToken)
+            ?? throw new NotFoundException("UserSubscription", id);
+
         if (subscription.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             return Forbid();
         }
+
         var command = new UpdateUserSubscriptionCommand(id, patchDto.AutoRenew, patchDto.PaymentMethodId);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("UserSubscription", id);
+
         return NoContent();
     }
 
@@ -355,22 +350,21 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         [FromBody] CancelSubscriptionDto? dto = null,
         CancellationToken cancellationToken = default)
     {
-        if (dto != null)
+        if (dto is not null)
         {
             var validationResult = ValidateModelState();
-            if (validationResult != null) return validationResult;
+            if (validationResult is not null) return validationResult;
         }
         var userId = GetUserId();
         var getQuery = new GetUserSubscriptionByIdQuery(id);
-        var subscription = await mediator.Send(getQuery, cancellationToken);
-        if (subscription == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var subscription = await mediator.Send(getQuery, cancellationToken)
+            ?? throw new NotFoundException("UserSubscription", id);
+
         if (subscription.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             return Forbid();
         }
+
         var command = new CancelUserSubscriptionCommand(id, dto?.Reason);
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
@@ -415,15 +409,14 @@ public class SubscriptionsController(IMediator mediator) : BaseController
     {
         var userId = GetUserId();
         var getQuery = new GetUserSubscriptionByIdQuery(id);
-        var subscription = await mediator.Send(getQuery, cancellationToken);
-        if (subscription == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var subscription = await mediator.Send(getQuery, cancellationToken)
+            ?? throw new NotFoundException("UserSubscription", id);
+
         if (subscription.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             return Forbid();
         }
+
         var paymentsQuery = new GetSubscriptionPaymentsQuery(id);
         var payments = await mediator.Send(paymentsQuery, cancellationToken);
         return Ok(payments);
@@ -443,7 +436,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new ProcessPaymentCommand(id, dto.TransactionId);
         var success = await mediator.Send(command, cancellationToken);
         if (!success)
@@ -486,11 +479,11 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var userId = GetUserId();
         var getQuery = new GetUserActiveSubscriptionQuery(userId);
         var subscription = await mediator.Send(getQuery, cancellationToken);
-        if (subscription == null)
+        if (subscription is null)
         {
             return BadRequest("Aktif abonelik bulunamadı.");
         }
@@ -516,7 +509,7 @@ public class SubscriptionsController(IMediator mediator) : BaseController
         var userId = GetUserId();
         var getQuery = new GetUserActiveSubscriptionQuery(userId);
         var subscription = await mediator.Send(getQuery, cancellationToken);
-        if (subscription == null)
+        if (subscription is null)
         {
             return BadRequest("Aktif abonelik bulunamadı.");
         }

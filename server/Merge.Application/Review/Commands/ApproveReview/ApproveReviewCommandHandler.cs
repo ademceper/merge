@@ -23,7 +23,7 @@ public class ApproveReviewCommandHandler(IDbContext context, IUnitOfWork unitOfW
         var review = await context.Set<ReviewEntity>()
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
 
-        if (review == null)
+        if (review is null)
         {
             return false;
         }
@@ -53,11 +53,11 @@ public class ApproveReviewCommandHandler(IDbContext context, IUnitOfWork unitOfW
             })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (reviewStats != null)
+        if (reviewStats is not null)
         {
             var product = await context.Set<ProductEntity>()
                 .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
-            if (product != null)
+            if (product is not null)
             {
                 product.UpdateRating(reviewStats.AverageRating, reviewStats.Count);
             }

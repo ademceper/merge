@@ -11,7 +11,6 @@ using Merge.Domain.SharedKernel.DomainEvents;
 
 namespace Merge.Application.Subscription.EventHandlers;
 
-
 public class UserSubscriptionSuspendedEventHandler(ILogger<UserSubscriptionSuspendedEventHandler> logger, INotificationService? notificationService) : INotificationHandler<UserSubscriptionSuspendedEvent>
 {
     public async Task Handle(UserSubscriptionSuspendedEvent notification, CancellationToken cancellationToken)

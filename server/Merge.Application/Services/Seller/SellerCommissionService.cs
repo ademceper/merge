@@ -42,7 +42,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
             .Include(oi => oi.Product)
             .FirstOrDefaultAsync(oi => oi.Id == orderItemId && oi.OrderId == orderId, cancellationToken);
 
-        if (orderItem == null)
+        if (orderItem is null)
         {
             throw new NotFoundException("Sipariş kalemi", orderItemId);
         }
@@ -62,7 +62,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
             .Include(sc => sc.OrderItem)
             .FirstOrDefaultAsync(sc => sc.OrderItemId == orderItemId, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             return mapper.Map<SellerCommissionDto>(existing);
         }
@@ -75,7 +75,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
         decimal commissionRate;
         decimal platformFeeRate = 0;
 
-        if (settings != null && settings.UseCustomRate)
+        if (settings is not null && settings.UseCustomRate)
         {
             commissionRate = settings.CustomCommissionRate;
         }
@@ -87,7 +87,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
                 .SumAsync(o => o.TotalAmount, cancellationToken);
 
             var tier = await GetTierForSalesAsync(totalSales, cancellationToken);
-            if (tier != null)
+            if (tier is not null)
             {
                 commissionRate = tier.CommissionRate;
                 platformFeeRate = tier.PlatformFeeRate;
@@ -136,7 +136,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
             .Include(sc => sc.OrderItem)
             .FirstOrDefaultAsync(sc => sc.Id == commissionId, cancellationToken);
 
-        return commission != null ? mapper.Map<SellerCommissionDto>(commission) : null;
+        return commission is not null ? mapper.Map<SellerCommissionDto>(commission) : null;
     }
 
     public async Task<IEnumerable<SellerCommissionDto>> GetSellerCommissionsAsync(Guid sellerId, CommissionStatus? status = null, CancellationToken cancellationToken = default)
@@ -202,7 +202,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
         var commission = await context.Set<SellerCommission>()
             .FirstOrDefaultAsync(sc => sc.Id == commissionId, cancellationToken);
 
-        if (commission == null) return false;
+        if (commission is null) return false;
 
         commission.Approve();
 
@@ -216,7 +216,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
         var commission = await context.Set<SellerCommission>()
             .FirstOrDefaultAsync(sc => sc.Id == commissionId, cancellationToken);
 
-        if (commission == null) return false;
+        if (commission is null) return false;
 
         commission.Cancel();
 
@@ -260,7 +260,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
             .OrderBy(t => t.Priority)
             .FirstOrDefaultAsync(cancellationToken);
 
-        return tier != null ? mapper.Map<CommissionTierDto>(tier) : null;
+        return tier is not null ? mapper.Map<CommissionTierDto>(tier) : null;
     }
 
     public async Task<bool> UpdateTierAsync(Guid tierId, CreateCommissionTierDto dto, CancellationToken cancellationToken = default)
@@ -268,7 +268,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
         var tier = await context.Set<CommissionTier>()
             .FirstOrDefaultAsync(t => t.Id == tierId, cancellationToken);
 
-        if (tier == null) return false;
+        if (tier is null) return false;
 
         tier.UpdateDetails(
             name: dto.Name,
@@ -288,7 +288,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
         var tier = await context.Set<CommissionTier>()
             .FirstOrDefaultAsync(t => t.Id == tierId, cancellationToken);
 
-        if (tier == null) return false;
+        if (tier is null) return false;
 
         tier.Delete();
 
@@ -303,7 +303,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.SellerId == sellerId, cancellationToken);
 
-        return settings != null ? mapper.Map<SellerCommissionSettingsDto>(settings) : null;
+        return settings is not null ? mapper.Map<SellerCommissionSettingsDto>(settings) : null;
     }
 
     public async Task<SellerCommissionSettingsDto> UpdateSellerSettingsAsync(Guid sellerId, UpdateCommissionSettingsDto dto, CancellationToken cancellationToken = default)
@@ -311,7 +311,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
         var settings = await context.Set<SellerCommissionSettings>()
             .FirstOrDefaultAsync(s => s.SellerId == sellerId, cancellationToken);
 
-        if (settings == null)
+        if (settings is null)
         {
             settings = SellerCommissionSettings.Create(
                 sellerId: sellerId,
@@ -331,7 +331,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
             settings.UpdateMinimumPayoutAmount(dto.MinimumPayoutAmount.Value);
         }
 
-        if (dto.PaymentMethod != null || dto.PaymentDetails != null)
+        if (dto.PaymentMethod is not null || dto.PaymentDetails is not null)
         {
             settings.UpdatePaymentMethod(
                 paymentMethod: dto.PaymentMethod,
@@ -365,7 +365,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
             .Where(sc => dto.CommissionIds.Contains(sc.Id) && sc.SellerId == sellerId && sc.Status == CommissionStatus.Approved)
             .SumAsync(c => c.NetAmount, cancellationToken);
 
-        if (settings != null && totalAmount < settings.MinimumPayoutAmount)
+        if (settings is not null && totalAmount < settings.MinimumPayoutAmount)
         {
             throw new ValidationException($"Minimum ödeme tutarı {settings.MinimumPayoutAmount}.");
         }
@@ -418,7 +418,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
                     .ThenInclude(c => c.Order)
             .FirstOrDefaultAsync(p => p.Id == payoutId, cancellationToken);
 
-        return payout != null ? mapper.Map<CommissionPayoutDto>(payout) : null;
+        return payout is not null ? mapper.Map<CommissionPayoutDto>(payout) : null;
     }
 
     public async Task<IEnumerable<CommissionPayoutDto>> GetSellerPayoutsAsync(Guid sellerId, CancellationToken cancellationToken = default)
@@ -479,7 +479,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
         var payout = await context.Set<CommissionPayout>()
             .FirstOrDefaultAsync(p => p.Id == payoutId, cancellationToken);
 
-        if (payout == null) return false;
+        if (payout is null) return false;
 
         payout.Process(transactionReference);
 
@@ -494,7 +494,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
             .Include(p => p.Seller)
             .FirstOrDefaultAsync(p => p.Id == payoutId, cancellationToken);
 
-        if (payout == null) return false;
+        if (payout is null) return false;
 
         payout.Complete();
 
@@ -520,14 +520,14 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
                 .ThenInclude(i => i.Commission)
             .FirstOrDefaultAsync(p => p.Id == payoutId, cancellationToken);
 
-        if (payout == null) return false;
+        if (payout is null) return false;
 
         payout.Fail(reason);
 
         // Revert commissions back to approved
         foreach (var item in payout.Items)
         {
-            if (item.Commission != null)
+            if (item.Commission is not null)
             {
                 item.Commission.RevertToApproved();
             }
@@ -594,7 +594,7 @@ public class SellerCommissionService(IDbContext context, IUnitOfWork unitOfWork,
             .FirstOrDefaultAsync(cancellationToken);
 
         int nextNumber = 1;
-        if (lastPayout != null && lastPayout.PayoutNumber.StartsWith("PAY-"))
+        if (lastPayout is not null && lastPayout.PayoutNumber.StartsWith("PAY-"))
         {
             var numberPart = lastPayout.PayoutNumber.Substring(4);
             if (int.TryParse(numberPart, out int lastNumber))

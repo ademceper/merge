@@ -31,14 +31,14 @@ public class PatchCurrencyCommandHandler(
         var currency = await context.Set<Currency>()
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-        if (currency == null)
+        if (currency is null)
         {
             logger.LogWarning("Currency not found. CurrencyId: {CurrencyId}", request.Id);
             throw new NotFoundException("Para birimi", request.Id);
         }
 
         // Apply partial updates
-        if (request.PatchDto.Name != null || request.PatchDto.Symbol != null || request.PatchDto.DecimalPlaces.HasValue || request.PatchDto.Format != null)
+        if (request.PatchDto.Name is not null || request.PatchDto.Symbol is not null || request.PatchDto.DecimalPlaces.HasValue || request.PatchDto.Format is not null)
         {
             var name = request.PatchDto.Name ?? currency.Name;
             var symbol = request.PatchDto.Symbol ?? currency.Symbol;

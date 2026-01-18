@@ -26,7 +26,7 @@ public class UpdateEmailTemplateCommandHandler(
         var template = await context.Set<EmailTemplate>()
             .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
 
-        if (template == null)
+        if (template is null)
         {
             throw new NotFoundException("Şablon", request.Id);
         }
@@ -42,7 +42,7 @@ public class UpdateEmailTemplateCommandHandler(
             htmlContent: request.HtmlContent,
             textContent: request.TextContent,
             type: typeEnum,
-            variables: request.Variables != null ? JsonSerializer.Serialize(request.Variables) : null,
+            variables: request.Variables is not null ? JsonSerializer.Serialize(request.Variables) : null,
             thumbnail: request.Thumbnail);
 
         if (request.IsActive.HasValue)

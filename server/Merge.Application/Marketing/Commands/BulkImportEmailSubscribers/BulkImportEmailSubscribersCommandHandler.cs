@@ -22,7 +22,7 @@ public class BulkImportEmailSubscribersCommandHandler(
 
     public async Task<int> Handle(BulkImportEmailSubscribersCommand request, CancellationToken cancellationToken)
     {
-        if (request.Subscribers == null || !request.Subscribers.Any())
+        if (request.Subscribers is null || !request.Subscribers.Any())
         {
             return 0;
         }
@@ -56,8 +56,8 @@ public class BulkImportEmailSubscribersCommandHandler(
                     firstName: subscriberDto.FirstName,
                     lastName: subscriberDto.LastName,
                     source: subscriberDto.Source,
-                    tags: subscriberDto.Tags != null ? JsonSerializer.Serialize(subscriberDto.Tags) : null,
-                    customFields: subscriberDto.CustomFields != null ? JsonSerializer.Serialize(subscriberDto.CustomFields) : null);
+                    tags: subscriberDto.Tags is not null ? JsonSerializer.Serialize(subscriberDto.Tags) : null,
+                    customFields: subscriberDto.CustomFields is not null ? JsonSerializer.Serialize(subscriberDto.CustomFields) : null);
                 
                 updatedSubscribers.Add(existing);
             }
@@ -70,8 +70,8 @@ public class BulkImportEmailSubscribersCommandHandler(
                     lastName: subscriberDto.LastName,
                     userId: null,
                     source: subscriberDto.Source,
-                    tags: subscriberDto.Tags != null ? JsonSerializer.Serialize(subscriberDto.Tags) : null,
-                    customFields: subscriberDto.CustomFields != null ? JsonSerializer.Serialize(subscriberDto.CustomFields) : null);
+                    tags: subscriberDto.Tags is not null ? JsonSerializer.Serialize(subscriberDto.Tags) : null,
+                    customFields: subscriberDto.CustomFields is not null ? JsonSerializer.Serialize(subscriberDto.CustomFields) : null);
                 
                 subscriber.Subscribe();
                 

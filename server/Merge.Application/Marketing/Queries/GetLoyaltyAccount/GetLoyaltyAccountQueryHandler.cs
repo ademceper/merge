@@ -20,6 +20,6 @@ public class GetLoyaltyAccountQueryHandler(IDbContext context, IMapper mapper) :
             .Include(a => a.Tier)
             .FirstOrDefaultAsync(a => a.UserId == request.UserId, cancellationToken);
 
-        return account == null ? null : mapper.Map<LoyaltyAccountDto>(account);
+        return account is null ? null : mapper.Map<LoyaltyAccountDto>(account);
     }
 }

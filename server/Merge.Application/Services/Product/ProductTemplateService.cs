@@ -32,13 +32,13 @@ public class ProductTemplateService(IDbContext context, IUnitOfWork unitOfWork, 
         var category = await context.Set<Category>()
             .FirstOrDefaultAsync(c => c.Id == dto.CategoryId, cancellationToken);
 
-        if (category == null)
+        if (category is null)
         {
             throw new NotFoundException("Kategori", dto.CategoryId);
         }
 
-        var specificationsJson = dto.Specifications != null ? JsonSerializer.Serialize(dto.Specifications) : null;
-        var attributesJson = dto.Attributes != null ? JsonSerializer.Serialize(dto.Attributes) : null;
+        var specificationsJson = dto.Specifications is not null ? JsonSerializer.Serialize(dto.Specifications) : null;
+        var attributesJson = dto.Attributes is not null ? JsonSerializer.Serialize(dto.Attributes) : null;
         
         var template = ProductTemplate.Create(
             dto.Name,
@@ -75,7 +75,7 @@ public class ProductTemplateService(IDbContext context, IUnitOfWork unitOfWork, 
             .Include(t => t.Category)
             .FirstOrDefaultAsync(t => t.Id == templateId, cancellationToken);
 
-        if (template == null) return null;
+        if (template is null) return null;
 
         return mapper.Map<ProductTemplateDto>(template);
     }
@@ -109,10 +109,10 @@ public class ProductTemplateService(IDbContext context, IUnitOfWork unitOfWork, 
         var template = await context.Set<ProductTemplate>()
             .FirstOrDefaultAsync(t => t.Id == templateId, cancellationToken);
 
-        if (template == null) return false;
+        if (template is null) return false;
 
-        var specificationsJson = dto.Specifications != null ? JsonSerializer.Serialize(dto.Specifications) : null;
-        var attributesJson = dto.Attributes != null ? JsonSerializer.Serialize(dto.Attributes) : null;
+        var specificationsJson = dto.Specifications is not null ? JsonSerializer.Serialize(dto.Specifications) : null;
+        var attributesJson = dto.Attributes is not null ? JsonSerializer.Serialize(dto.Attributes) : null;
         
         template.Update(
             dto.Name,
@@ -136,7 +136,7 @@ public class ProductTemplateService(IDbContext context, IUnitOfWork unitOfWork, 
         var template = await context.Set<ProductTemplate>()
             .FirstOrDefaultAsync(t => t.Id == templateId, cancellationToken);
 
-        if (template == null) return false;
+        if (template is null) return false;
 
         template.MarkAsDeleted();
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -155,7 +155,7 @@ public class ProductTemplateService(IDbContext context, IUnitOfWork unitOfWork, 
             .Include(t => t.Category)
             .FirstOrDefaultAsync(t => t.Id == dto.TemplateId && t.IsActive, cancellationToken);
 
-        if (template == null)
+        if (template is null)
         {
             throw new NotFoundException("Şablon", dto.TemplateId);
         }
@@ -165,7 +165,7 @@ public class ProductTemplateService(IDbContext context, IUnitOfWork unitOfWork, 
             ? JsonSerializer.Deserialize<Dictionary<string, string>>(template.Specifications) ?? new Dictionary<string, string>()
             : new Dictionary<string, string>();
 
-        if (dto.AdditionalSpecifications != null)
+        if (dto.AdditionalSpecifications is not null)
         {
             foreach (var spec in dto.AdditionalSpecifications)
             {
@@ -207,7 +207,7 @@ public class ProductTemplateService(IDbContext context, IUnitOfWork unitOfWork, 
             product.SetImageUrl(template.DefaultImageUrl);
         }
 
-        if (dto.ImageUrls != null && dto.ImageUrls.Any())
+        if (dto.ImageUrls is not null && dto.ImageUrls.Any())
         {
             product.UpdateImages(product.ImageUrl, dto.ImageUrls.ToList());
         }
@@ -223,7 +223,7 @@ public class ProductTemplateService(IDbContext context, IUnitOfWork unitOfWork, 
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == product.Id, cancellationToken);
 
-        if (product == null)
+        if (product is null)
         {
             logger.LogError("Product not found after creation. ProductId: {ProductId}", product?.Id);
             throw new InvalidOperationException("Product could not be retrieved after creation");

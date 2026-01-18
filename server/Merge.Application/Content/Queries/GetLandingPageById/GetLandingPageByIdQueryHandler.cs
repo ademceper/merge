@@ -32,7 +32,7 @@ public class GetLandingPageByIdQueryHandler(
         var cacheKey = $"{CACHE_KEY_PAGE_BY_ID}{request.Id}";
 
         var cachedPage = await cache.GetAsync<LandingPageDto>(cacheKey, cancellationToken);
-        if (cachedPage != null && !request.TrackView)
+        if (cachedPage is not null && !request.TrackView)
         {
             logger.LogInformation("Cache hit for landing page. LandingPageId: {LandingPageId}", request.Id);
             return cachedPage;
@@ -51,7 +51,7 @@ public class GetLandingPageByIdQueryHandler(
                 .Include(lp => lp.VariantOf)
                 .FirstOrDefaultAsync(lp => lp.Id == request.Id, cancellationToken);
 
-        if (landingPage == null)
+        if (landingPage is null)
         {
             logger.LogWarning("Landing page not found with Id: {LandingPageId}", request.Id);
             return null;

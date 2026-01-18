@@ -56,7 +56,7 @@ public class Banner : BaseEntity, IAggregateRoot
         // Configuration değerleri: MaxBannerTitleLength=200, MaxBannerDescriptionLength=1000, MaxBannerPositionLength=50
         Guard.AgainstLength(title, 200, nameof(title));
         Guard.AgainstLength(position, 50, nameof(position));
-        if (description != null)
+        if (description is not null)
             Guard.AgainstLength(description, 1000, nameof(description));
 
         if (!string.IsNullOrEmpty(imageUrl) && !IsValidUrl(imageUrl))
@@ -111,7 +111,7 @@ public class Banner : BaseEntity, IAggregateRoot
     public void UpdateDescription(string? newDescription)
     {
         // Configuration değeri: MaxBannerDescriptionLength=1000
-        if (newDescription != null)
+        if (newDescription is not null)
             Guard.AgainstLength(newDescription, 1000, nameof(newDescription));
         Description = newDescription;
         UpdatedAt = DateTime.UtcNow;

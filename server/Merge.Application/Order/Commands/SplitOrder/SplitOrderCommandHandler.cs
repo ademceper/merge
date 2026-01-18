@@ -25,7 +25,7 @@ public class SplitOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork
 
     public async Task<OrderSplitDto> Handle(SplitOrderCommand request, CancellationToken cancellationToken)
     {
-        if (request.Dto == null)
+        if (request.Dto is null)
         {
             throw new ArgumentNullException(nameof(request.Dto));
         }
@@ -40,7 +40,7 @@ public class SplitOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork
             .Include(o => o.Address)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
-        if (originalOrder == null)
+        if (originalOrder is null)
         {
             throw new NotFoundException("Sipariş", request.OrderId);
         }
@@ -50,7 +50,7 @@ public class SplitOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork
             throw new BusinessException("Sipariş sadece Beklemede veya İşleniyor durumundayken bölünebilir.");
         }
 
-        if (request.Dto.Items == null || request.Dto.Items.Count == 0)
+        if (request.Dto.Items is null || request.Dto.Items.Count == 0)
         {
             throw new ValidationException("En az bir sipariş kalemi belirtilmelidir.");
         }
@@ -59,7 +59,7 @@ public class SplitOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork
         foreach (var item in request.Dto.Items)
         {
             var orderItem = originalOrder.OrderItems.FirstOrDefault(oi => oi.Id == item.OrderItemId);
-            if (orderItem == null)
+            if (orderItem is null)
             {
                 throw new NotFoundException("Sipariş kalemi", item.OrderItemId);
             }
@@ -83,7 +83,7 @@ public class SplitOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork
             var address = await context.Set<AddressEntity>()
                 .FirstOrDefaultAsync(a => a.Id == addressId, cancellationToken);
             
-            if (address == null)
+            if (address is null)
             {
                 throw new NotFoundException("Adres", addressId);
             }
@@ -99,7 +99,7 @@ public class SplitOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork
                 var product = await context.Set<ProductEntity>()
                     .FirstOrDefaultAsync(p => p.Id == originalItem.ProductId, cancellationToken);
                 
-                if (product == null)
+                if (product is null)
                 {
                     throw new NotFoundException("Ürün", originalItem.ProductId);
                 }
@@ -121,7 +121,7 @@ public class SplitOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWork
                 var addedItem = splitOrder.OrderItems
                     .Skip(itemCountBefore)
                     .FirstOrDefault();
-                if (addedItem != null)
+                if (addedItem is not null)
                 {
                     splitOrderItems.Add(addedItem);
                 }

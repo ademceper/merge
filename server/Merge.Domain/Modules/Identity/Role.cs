@@ -49,7 +49,7 @@ public class Role : IdentityRole<Guid>, IAggregateRoot
 
     public void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         _domainEvents.Add(domainEvent);
@@ -62,7 +62,7 @@ public class Role : IdentityRole<Guid>, IAggregateRoot
 
     public void RemoveDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         _domainEvents.Remove(domainEvent);

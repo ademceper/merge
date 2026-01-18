@@ -27,7 +27,7 @@ public class WarehouseService(IRepository warehouseRepository, IDbContext contex
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
 
-        return warehouse == null ? null : mapper.Map<WarehouseDto>(warehouse);
+        return warehouse is null ? null : mapper.Map<WarehouseDto>(warehouse);
     }
 
     public async Task<WarehouseDto?> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
@@ -36,7 +36,7 @@ public class WarehouseService(IRepository warehouseRepository, IDbContext contex
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Code == code, cancellationToken);
 
-        return warehouse == null ? null : mapper.Map<WarehouseDto>(warehouse);
+        return warehouse is null ? null : mapper.Map<WarehouseDto>(warehouse);
     }
 
     public async Task<IEnumerable<WarehouseDto>> GetAllAsync(bool includeInactive = false, CancellationToken cancellationToken = default)
@@ -72,7 +72,7 @@ public class WarehouseService(IRepository warehouseRepository, IDbContext contex
 
         try
         {
-            if (createDto == null)
+            if (createDto is null)
             {
                 throw new ArgumentNullException(nameof(createDto));
             }
@@ -128,13 +128,13 @@ public class WarehouseService(IRepository warehouseRepository, IDbContext contex
 
     public async Task<WarehouseDto> UpdateAsync(Guid id, UpdateWarehouseDto updateDto, CancellationToken cancellationToken = default)
     {
-        if (updateDto == null)
+        if (updateDto is null)
         {
             throw new ArgumentNullException(nameof(updateDto));
         }
 
         var warehouse = await warehouseRepository.GetByIdAsync(id, cancellationToken);
-        if (warehouse == null)
+        if (warehouse is null)
         {
             throw new NotFoundException("Depo", id);
         }
@@ -174,7 +174,7 @@ public class WarehouseService(IRepository warehouseRepository, IDbContext contex
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var warehouse = await warehouseRepository.GetByIdAsync(id, cancellationToken);
-        if (warehouse == null)
+        if (warehouse is null)
         {
             return false;
         }
@@ -197,7 +197,7 @@ public class WarehouseService(IRepository warehouseRepository, IDbContext contex
     public async Task<bool> ActivateAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var warehouse = await warehouseRepository.GetByIdAsync(id, cancellationToken);
-        if (warehouse == null)
+        if (warehouse is null)
         {
             return false;
         }
@@ -212,7 +212,7 @@ public class WarehouseService(IRepository warehouseRepository, IDbContext contex
     public async Task<bool> DeactivateAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var warehouse = await warehouseRepository.GetByIdAsync(id, cancellationToken);
-        if (warehouse == null)
+        if (warehouse is null)
         {
             return false;
         }

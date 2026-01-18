@@ -32,7 +32,7 @@ public class SetHomePageCMSPageCommandHandler(
         try
         {
             var page = await cmsPageRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (page == null)
+            if (page is null)
             {
                 logger.LogWarning("CMS page not found. PageId: {PageId}", request.Id);
                 return false;

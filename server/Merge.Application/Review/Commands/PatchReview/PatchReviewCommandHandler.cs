@@ -33,7 +33,7 @@ public class PatchReviewCommandHandler(
         var review = await context.Set<ReviewEntity>()
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
 
-        if (review == null)
+        if (review is null)
         {
             throw new NotFoundException("Değerlendirme", request.ReviewId);
         }
@@ -53,18 +53,18 @@ public class PatchReviewCommandHandler(
                 request.ReviewId, oldRating, request.PatchDto.Rating.Value);
         }
 
-        if (request.PatchDto.Title != null)
+        if (request.PatchDto.Title is not null)
         {
             review.UpdateTitle(request.PatchDto.Title);
         }
 
-        if (request.PatchDto.Comment != null)
+        if (request.PatchDto.Comment is not null)
         {
             review.UpdateComment(request.PatchDto.Comment);
         }
 
         // Güncelleme sonrası tekrar onay gerekli - Reject() ile pending yap
-        if (review.IsApproved && (request.PatchDto.Rating.HasValue || request.PatchDto.Title != null || request.PatchDto.Comment != null))
+        if (review.IsApproved && (request.PatchDto.Rating.HasValue || request.PatchDto.Title is not null || request.PatchDto.Comment is not null))
         {
             review.Reject(Guid.Empty, "Review updated, requires re-approval");
         }
@@ -101,7 +101,7 @@ public class PatchReviewCommandHandler(
         var product = await context.Set<ProductEntity>()
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
-        if (product != null)
+        if (product is not null)
         {
             product.UpdateRating(averageRating, reviews.Count);
             await unitOfWork.SaveChangesAsync(cancellationToken);

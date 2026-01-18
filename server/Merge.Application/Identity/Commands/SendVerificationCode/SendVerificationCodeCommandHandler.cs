@@ -37,7 +37,7 @@ public class SendVerificationCodeCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.UserId == request.UserId, cancellationToken);
 
-        if (twoFactorAuth == null)
+        if (twoFactorAuth is null)
         {
             logger.LogWarning("Send verification code failed - 2FA setup not found. UserId: {UserId}", request.UserId);
             throw new BusinessException("2FA kurulumu yapılmamış.");
@@ -64,7 +64,7 @@ public class SendVerificationCodeCommandHandler(
 
         if (twoFactorAuth.Method == TwoFactorMethod.SMS && !string.IsNullOrEmpty(twoFactorAuth.PhoneNumber))
         {
-            if (smsService == null)
+            if (smsService is null)
             {
                 logger.LogError("SMS service not configured for sending 2FA code. UserId: {UserId}", request.UserId);
                 throw new InvalidOperationException("SMS servisi yapılandırılmamış.");
@@ -73,7 +73,7 @@ public class SendVerificationCodeCommandHandler(
         }
         else if (twoFactorAuth.Method == TwoFactorMethod.Email && !string.IsNullOrEmpty(twoFactorAuth.Email))
         {
-            if (emailService == null)
+            if (emailService is null)
             {
                 logger.LogError("Email service not configured for sending 2FA code. UserId: {UserId}", request.UserId);
                 throw new InvalidOperationException("Email servisi yapılandırılmamış.");

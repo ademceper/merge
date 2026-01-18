@@ -200,7 +200,7 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
     {
         Guard.AgainstDefault(answerId, nameof(answerId));
         var answer = _answers.FirstOrDefault(a => a.Id == answerId);
-        if (answer == null)
+        if (answer is null)
         {
             throw new DomainException("Answer bulunamadı");
         }
@@ -240,7 +240,7 @@ public class ProductQuestion : BaseEntity, IAggregateRoot
     {
         Guard.AgainstDefault(voteId, nameof(voteId));
         var vote = _helpfulnessVotes.FirstOrDefault(v => v.Id == voteId);
-        if (vote == null)
+        if (vote is null)
         {
             throw new DomainException("Vote bulunamadı");
         }

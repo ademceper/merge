@@ -38,22 +38,22 @@ public class RefreshTokenCommandHandler(
 
     public async Task<AuthResponseDto> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Token refresh attempt. RefreshToken: {RefreshToken}", request.RefreshToken);
+        logger.LogInformation("Token refresh attempt. RefreshToken: {RefreshToken}", LogMasking.MaskToken(request.RefreshToken));
 
         var tokenHash = TokenHasher.HashToken(request.RefreshToken);
         var refreshTokenEntity = await context.Set<RefreshTokenEntity>()
             .Include(rt => rt.User)
             .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash, cancellationToken);
 
-        if (refreshTokenEntity == null)
+        if (refreshTokenEntity is null)
         {
-            logger.LogWarning("Token refresh failed - invalid token. RefreshToken: {RefreshToken}", request.RefreshToken);
+            logger.LogWarning("Token refresh failed - invalid token. RefreshToken: {RefreshToken}", LogMasking.MaskToken(request.RefreshToken));
             throw new BusinessException("Geçersiz refresh token.");
         }
 
         if (!refreshTokenEntity.IsActive)
         {
-            logger.LogWarning("Token refresh failed - token expired or revoked. RefreshToken: {RefreshToken}", request.RefreshToken);
+            logger.LogWarning("Token refresh failed - token expired or revoked. RefreshToken: {RefreshToken}", LogMasking.MaskToken(request.RefreshToken));
             throw new BusinessException("Refresh token geçersiz veya süresi dolmuş.");
         }
 
@@ -75,7 +75,7 @@ public class RefreshTokenCommandHandler(
         var expiresAt = DateTime.UtcNow.AddMinutes(jwtSettings.Value.AccessTokenExpirationMinutes);
 
         var userDto = mapper.Map<UserDto>(user);
-        userDto = userDto with { Role = roles.Count > 0 ? roles[0] : securitySettings.Value.DefaultUserRole };
+        userDto = userDto with { Role = roles.FirstOrDefault() ?? securitySettings.Value.DefaultUserRole };
 
         return new AuthResponseDto(
             Token: accessToken,

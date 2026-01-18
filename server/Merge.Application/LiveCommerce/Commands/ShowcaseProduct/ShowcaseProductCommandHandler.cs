@@ -23,7 +23,7 @@ public class ShowcaseProductCommandHandler(
         var streamProduct = await context.Set<LiveStreamProduct>()
             .FirstOrDefaultAsync(p => p.LiveStreamId == request.StreamId && p.ProductId == request.ProductId, cancellationToken);
 
-        if (streamProduct == null)
+        if (streamProduct is null)
         {
             logger.LogWarning("Product not found in stream. StreamId: {StreamId}, ProductId: {ProductId}", 
                 request.StreamId, request.ProductId);

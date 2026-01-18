@@ -53,7 +53,7 @@ public class SellerApplication : BaseEntity, IAggregateRoot
 
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         base.AddDomainEvent(domainEvent);
@@ -206,16 +206,16 @@ public class SellerApplication : BaseEntity, IAggregateRoot
         if (Status != SellerApplicationStatus.Pending && Status != SellerApplicationStatus.Submitted)
             throw new DomainException("Sadece bekleyen veya gönderilmiş başvuruların belgeleri güncellenebilir");
 
-        if (identityDocumentUrl != null)
+        if (identityDocumentUrl is not null)
             IdentityDocumentUrl = identityDocumentUrl;
 
-        if (taxCertificateUrl != null)
+        if (taxCertificateUrl is not null)
             TaxCertificateUrl = taxCertificateUrl;
 
-        if (bankStatementUrl != null)
+        if (bankStatementUrl is not null)
             BankStatementUrl = bankStatementUrl;
 
-        if (businessLicenseUrl != null)
+        if (businessLicenseUrl is not null)
             BusinessLicenseUrl = businessLicenseUrl;
 
         UpdatedAt = DateTime.UtcNow;

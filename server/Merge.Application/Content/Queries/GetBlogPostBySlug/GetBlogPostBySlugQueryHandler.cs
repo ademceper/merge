@@ -34,7 +34,7 @@ public class GetBlogPostBySlugQueryHandler(
         var cacheKey = $"{CACHE_KEY_POST_BY_SLUG}{request.Slug}";
 
         var cachedPost = await cache.GetAsync<BlogPostDto>(cacheKey, cancellationToken);
-        if (cachedPost != null && !request.TrackView)
+        if (cachedPost is not null && !request.TrackView)
         {
             logger.LogInformation("Cache hit for blog post. Slug: {Slug}", request.Slug);
             return cachedPost;
@@ -53,7 +53,7 @@ public class GetBlogPostBySlugQueryHandler(
                 .Include(p => p.Author)
                 .FirstOrDefaultAsync(p => p.Slug == request.Slug && p.Status == ContentStatus.Published, cancellationToken);
 
-        if (post == null)
+        if (post is null)
         {
             logger.LogWarning("Blog post not found with Slug: {Slug}", request.Slug);
             return null;

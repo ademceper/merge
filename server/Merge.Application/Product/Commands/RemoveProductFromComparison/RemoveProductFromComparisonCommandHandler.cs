@@ -32,7 +32,7 @@ public class RemoveProductFromComparisonCommandHandler(IDbContext context, IUnit
                 .OrderByDescending(c => c.CreatedAt)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (comparison == null)
+            if (comparison is null)
             {
                 return false;
             }

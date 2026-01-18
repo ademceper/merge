@@ -11,6 +11,7 @@ using Merge.Application.Cart.Commands.RemoveSavedItem;
 using Merge.Application.Cart.Commands.MoveToCart;
 using Merge.Application.Cart.Commands.ClearSavedItems;
 using Merge.API.Middleware;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Cart;
 
@@ -115,11 +116,10 @@ public class SavedCartController(
         
         var command = new RemoveSavedItemCommand(userId, id);
         var result = await mediator.Send(command, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("SavedCartItem", id);
+
         return NoContent();
     }
 

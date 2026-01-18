@@ -25,21 +25,21 @@ public class PatchFaqCommandHandler(IDbContext context, IUnitOfWork unitOfWork, 
         var faq = await context.Set<FAQ>()
             .FirstOrDefaultAsync(f => f.Id == request.FaqId, cancellationToken);
 
-        if (faq == null)
+        if (faq is null)
         {
             logger.LogWarning("FAQ {FaqId} not found for patch", request.FaqId);
             throw new NotFoundException("FAQ", request.FaqId);
         }
 
         // Apply partial updates - only update fields that are provided
-        if (request.PatchDto.Question != null || request.PatchDto.Answer != null)
+        if (request.PatchDto.Question is not null || request.PatchDto.Answer is not null)
         {
             var question = request.PatchDto.Question ?? faq.Question;
             var answer = request.PatchDto.Answer ?? faq.Answer;
             faq.Update(question, answer);
         }
 
-        if (request.PatchDto.Category != null)
+        if (request.PatchDto.Category is not null)
         {
             faq.UpdateCategory(request.PatchDto.Category);
         }

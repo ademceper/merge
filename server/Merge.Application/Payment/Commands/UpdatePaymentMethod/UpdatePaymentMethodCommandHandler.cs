@@ -29,13 +29,13 @@ public class UpdatePaymentMethodCommandHandler(IDbContext context, IUnitOfWork u
             var paymentMethod = await context.Set<PaymentMethod>()
                 .FirstOrDefaultAsync(pm => pm.Id == request.PaymentMethodId, cancellationToken);
 
-            if (paymentMethod == null)
+            if (paymentMethod is null)
             {
                 logger.LogWarning("Payment method not found. PaymentMethodId: {PaymentMethodId}", request.PaymentMethodId);
                 return false;
             }
 
-            var settingsJson = request.Settings != null ? JsonSerializer.Serialize(request.Settings) : null;
+            var settingsJson = request.Settings is not null ? JsonSerializer.Serialize(request.Settings) : null;
             paymentMethod.Update(
                 request.Name,
                 request.Description,

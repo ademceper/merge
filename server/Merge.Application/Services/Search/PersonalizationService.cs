@@ -34,9 +34,9 @@ public class PersonalizationService(IDbContext context, IMapper mapper, ILogger<
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
-        if (user == null)
+        if (user is null)
         {
-            return Enumerable.Empty<ProductDto>();
+            return [];
         }
 
         // Kullanıcının geçmiş aktivitelerini analiz et
@@ -152,7 +152,7 @@ public class PersonalizationService(IDbContext context, IMapper mapper, ILogger<
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
-            if (product != null)
+            if (product is not null)
             {
                 frequentlyBoughtTogether = await context.Set<ProductEntity>()
                     .AsNoTracking()
@@ -180,7 +180,7 @@ public class PersonalizationService(IDbContext context, IMapper mapper, ILogger<
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
-        if (user == null)
+        if (user is null)
         {
             throw new NotFoundException("Kullanıcı", userId);
         }

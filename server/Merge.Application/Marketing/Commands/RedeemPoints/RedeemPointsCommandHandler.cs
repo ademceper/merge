@@ -29,7 +29,7 @@ public class RedeemPointsCommandHandler(
         var account = await context.Set<LoyaltyAccount>()
             .FirstOrDefaultAsync(a => a.UserId == request.UserId, cancellationToken);
 
-        if (account == null)
+        if (account is null)
         {
             logger.LogWarning("LoyaltyAccount not found. UserId: {UserId}", request.UserId);
             throw new NotFoundException("Sadakat hesabı", request.UserId);

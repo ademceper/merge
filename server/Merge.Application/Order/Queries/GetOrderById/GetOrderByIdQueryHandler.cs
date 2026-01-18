@@ -23,6 +23,6 @@ public class GetOrderByIdQueryHandler(
             .Include(o => o.User)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
-        return order == null ? null : mapper.Map<OrderDto>(order);
+        return order is null ? null : mapper.Map<OrderDto>(order);
     }
 }

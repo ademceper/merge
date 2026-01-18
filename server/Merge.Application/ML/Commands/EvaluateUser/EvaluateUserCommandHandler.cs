@@ -28,7 +28,7 @@ public class EvaluateUserCommandHandler(IDbContext context, IUnitOfWork unitOfWo
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
-        if (user == null)
+        if (user is null)
         {
             logger.LogWarning("User not found. UserId: {UserId}", request.UserId);
             throw new NotFoundException("Kullanıcı", request.UserId);

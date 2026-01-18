@@ -13,7 +13,7 @@ public class CreateStoreCommandValidator : AbstractValidator<CreateStoreCommand>
         RuleFor(x => x.Dto)
             .NotNull().WithMessage("Store data is required.");
 
-        When(x => x.Dto != null, () =>
+        When(x => x.Dto is not null, () =>
         {
             RuleFor(x => x.Dto!.StoreName)
                 .NotEmpty().WithMessage("Store name is required.")

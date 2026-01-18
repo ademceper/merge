@@ -4,12 +4,8 @@ using Microsoft.Extensions.Logging;
 using AutoMapper;
 using Merge.Application.DTOs.Governance;
 using Merge.Application.Interfaces;
-using Merge.Domain.Entities;
-using Merge.Domain.Interfaces;
 using Merge.Domain.Modules.Content;
-using Merge.Domain.Modules.Identity;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
-using IUnitOfWork = Merge.Application.Interfaces.IUnitOfWork;
 
 namespace Merge.Application.Governance.Queries.GetUserAcceptances;
 
@@ -44,7 +40,7 @@ public class GetUserAcceptancesQueryHandler(
                     .Take(500)
                     .ToListAsync(cancellationToken);
 
-                var result = new List<PolicyAcceptanceDto>(acceptances.Count);
+                List<PolicyAcceptanceDto> result = [];
                 foreach (var acceptance in acceptances)
                 {
                     result.Add(mapper.Map<PolicyAcceptanceDto>(acceptance));
@@ -54,7 +50,7 @@ public class GetUserAcceptancesQueryHandler(
             CACHE_EXPIRATION,
             cancellationToken);
 
-        return cachedAcceptances ?? Enumerable.Empty<PolicyAcceptanceDto>();
+        return cachedAcceptances ?? [];
     }
 }
 

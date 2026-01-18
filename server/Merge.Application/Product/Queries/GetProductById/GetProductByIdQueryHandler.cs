@@ -28,7 +28,7 @@ public class GetProductByIdQueryHandler(IDbContext context, IMapper mapper, ILog
         var cacheKey = $"{CACHE_KEY_PRODUCT_BY_ID}{request.ProductId}";
 
         var cachedProduct = await cache.GetAsync<ProductDto>(cacheKey, cancellationToken);
-        if (cachedProduct != null)
+        if (cachedProduct is not null)
         {
             logger.LogInformation("Cache hit for product. ProductId: {ProductId}", request.ProductId);
             return cachedProduct;
@@ -41,7 +41,7 @@ public class GetProductByIdQueryHandler(IDbContext context, IMapper mapper, ILog
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
-        if (product == null)
+        if (product is null)
         {
             logger.LogWarning("Product not found with Id: {ProductId}", request.ProductId);
             return null;

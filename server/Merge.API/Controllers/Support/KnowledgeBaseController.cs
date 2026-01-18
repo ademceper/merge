@@ -5,6 +5,7 @@ using MediatR;
 using Merge.Application.DTOs.Support;
 using Merge.Application.Common;
 using Merge.Application.Configuration;
+using Merge.Application.Exceptions;
 using Merge.Application.Support.Commands.CreateKnowledgeBaseArticle;
 using Merge.Application.Support.Commands.UpdateKnowledgeBaseArticle;
 using Merge.Application.Support.Commands.DeleteKnowledgeBaseArticle;
@@ -89,11 +90,8 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         CancellationToken cancellationToken = default)
     {
                         var query = new GetKnowledgeBaseArticleQuery(id);
-        var article = await mediator.Send(query, cancellationToken);
-        if (article == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var article = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("KnowledgeBaseArticle", id);
         
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
         var links = HateoasHelper.CreateKnowledgeBaseArticleLinks(Url, article.Id, version);
@@ -111,11 +109,8 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         CancellationToken cancellationToken = default)
     {
                         var query = new GetKnowledgeBaseArticleBySlugQuery(slug);
-        var article = await mediator.Send(query, cancellationToken);
-        if (article == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var article = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("KnowledgeBaseArticle", slug);
 
         // Record view
         var userId = GetUserIdOrNull();
@@ -233,16 +228,13 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
             dto.IsFeatured,
             dto.DisplayOrder,
             dto.Tags?.ToList());
-        var article = await mediator.Send(command, cancellationToken);
-        if (article == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
-        
+        var article = await mediator.Send(command, cancellationToken)
+            ?? throw new NotFoundException("KnowledgeBaseArticle", id);
+
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
         var links = HateoasHelper.CreateKnowledgeBaseArticleLinks(Url, article.Id, version);
         article = article with { Links = links.ToDictionary(kvp => kvp.Key, kvp => (object)kvp.Value) };
-        
+
         return Ok(article);
     }
 
@@ -274,11 +266,8 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
             patchDto.IsFeatured,
             patchDto.DisplayOrder,
             patchDto.Tags);
-        var article = await mediator.Send(command, cancellationToken);
-        if (article == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var article = await mediator.Send(command, cancellationToken)
+            ?? throw new NotFoundException("KnowledgeBaseArticle", id);
 
         var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
         var links = HateoasHelper.CreateKnowledgeBaseArticleLinks(Url, article.Id, version);
@@ -300,10 +289,10 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
     {
                         var command = new DeleteKnowledgeBaseArticleCommand(id);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("KnowledgeBaseArticle", id);
+
         return NoContent();
     }
 
@@ -320,10 +309,10 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
     {
                         var command = new PublishKnowledgeBaseArticleCommand(id);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("KnowledgeBaseArticle", id);
+
         return NoContent();
     }
 
@@ -366,11 +355,8 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         CancellationToken cancellationToken = default)
     {
                         var query = new GetKnowledgeBaseCategoryQuery(id);
-        var category = await mediator.Send(query, cancellationToken);
-        if (category == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var category = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("KnowledgeBaseCategory", id);
         
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
         
@@ -400,11 +386,8 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
         CancellationToken cancellationToken = default)
     {
                         var query = new GetKnowledgeBaseCategoryBySlugQuery(slug);
-        var category = await mediator.Send(query, cancellationToken);
-        if (category == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var category = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("KnowledgeBaseCategory", slug);
         
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
         
@@ -474,16 +457,13 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
             dto.DisplayOrder,
             dto.IsActive,
             dto.IconUrl);
-        var category = await mediator.Send(command, cancellationToken);
-        if (category == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
-        
+        var category = await mediator.Send(command, cancellationToken)
+            ?? throw new NotFoundException("KnowledgeBaseCategory", id);
+
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
         var links = HateoasHelper.CreateKnowledgeBaseCategoryLinks(Url, category.Id, version);
         category = category with { Links = links.ToDictionary(kvp => kvp.Key, kvp => (object)kvp.Value) };
-        
+
         return Ok(category);
     }
 
@@ -513,11 +493,8 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
             patchDto.DisplayOrder,
             patchDto.IsActive,
             patchDto.IconUrl);
-        var category = await mediator.Send(command, cancellationToken);
-        if (category == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var category = await mediator.Send(command, cancellationToken)
+            ?? throw new NotFoundException("KnowledgeBaseCategory", id);
 
         var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
         var links = HateoasHelper.CreateKnowledgeBaseCategoryLinks(Url, category.Id, version);
@@ -539,10 +516,10 @@ public class KnowledgeBaseController(IMediator mediator, IOptions<SupportSetting
     {
                         var command = new DeleteKnowledgeBaseCategoryCommand(id);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("KnowledgeBaseCategory", id);
+
         return NoContent();
     }
 

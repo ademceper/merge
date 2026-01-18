@@ -26,7 +26,7 @@ public class GetSellerBalanceQueryHandler(IDbContext context, ILogger<GetSellerB
             .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.UserId == request.SellerId, cancellationToken);
 
-        if (seller == null)
+        if (seller is null)
         {
             logger.LogWarning("Seller not found. SellerId: {SellerId}", request.SellerId);
             throw new NotFoundException("Satıcı", request.SellerId);

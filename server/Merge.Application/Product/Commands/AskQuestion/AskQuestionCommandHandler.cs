@@ -39,7 +39,7 @@ public class AskQuestionCommandHandler(
             var product = await context.Set<ProductEntity>()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
-            if (product == null)
+            if (product is null)
             {
                 throw new NotFoundException("Ürün", request.ProductId);
             }

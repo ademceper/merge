@@ -11,6 +11,7 @@ using Merge.Application.Marketing.Commands.UpdateEmailTemplate;
 using Merge.Application.Marketing.Commands.DeleteEmailTemplate;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Marketing.EmailTemplates;
 
@@ -68,12 +69,8 @@ public class EmailTemplatesController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetEmailTemplateByIdQuery(id);
-        var template = await mediator.Send(query, cancellationToken);
-
-        if (template == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var template = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("EmailTemplate", id);
 
         return Ok(template);
     }
@@ -178,9 +175,7 @@ public class EmailTemplatesController(
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("EmailTemplate", id);
 
         return NoContent();
     }

@@ -10,6 +10,7 @@ using Merge.Application.Marketing.Commands.ToggleEmailAutomation;
 using Merge.Application.Marketing.Commands.DeleteEmailAutomation;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Marketing.EmailAutomations;
 
@@ -89,9 +90,7 @@ public class EmailAutomationsController(
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("EmailAutomation", id);
 
         return NoContent();
     }
@@ -112,9 +111,7 @@ public class EmailAutomationsController(
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("EmailAutomation", id);
 
         return NoContent();
     }

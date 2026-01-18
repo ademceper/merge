@@ -79,7 +79,7 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
             .Include(a => a.User)
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
-        if (activity == null)
+        if (activity is null)
         {
             logger.LogWarning("Activity not found with ID: {ActivityId}", id);
             return null;
@@ -389,7 +389,7 @@ public class UserActivityService(IDbContext context, IUnitOfWork unitOfWork, IMa
 
     private UserSessionDto CreateSessionDto(List<UserActivityLog> activities)
     {
-        if (activities == null || activities.Count == 0)
+        if (activities is null || activities.Count == 0)
         {
             throw new ArgumentException("Activities list cannot be empty", nameof(activities));
         }

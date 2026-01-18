@@ -60,7 +60,7 @@ public class CommissionsController(IMediator mediator) : BaseController
         var query = new GetCommissionQuery(id);
         var commission = await mediator.Send(query, cancellationToken);
 
-        if (commission == null)
+        if (commission is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -314,7 +314,7 @@ public class CommissionsController(IMediator mediator) : BaseController
         var query = new GetSellerCommissionSettingsQuery(sellerId);
         var settings = await mediator.Send(query, cancellationToken);
 
-        if (settings == null)
+        if (settings is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -369,7 +369,7 @@ public class CommissionsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var isSeller = User.IsInRole("Seller");
 
@@ -430,7 +430,7 @@ public class CommissionsController(IMediator mediator) : BaseController
         var query = new GetPayoutQuery(id);
         var payout = await mediator.Send(query, cancellationToken);
 
-        if (payout == null)
+        if (payout is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }

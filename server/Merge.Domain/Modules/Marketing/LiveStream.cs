@@ -205,7 +205,7 @@ public class LiveStream : BaseEntity, IAggregateRoot
     // Service layer'dan event eklenebilmesi için public yapıldı (Organization, Team entity'lerinde de aynı pattern kullanılıyor)
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         // BaseEntity'deki protected AddDomainEvent'i çağır
@@ -214,7 +214,7 @@ public class LiveStream : BaseEntity, IAggregateRoot
 
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         base.RemoveDomainEvent(domainEvent);
@@ -408,7 +408,7 @@ public class LiveStream : BaseEntity, IAggregateRoot
         Guard.AgainstDefault(productId, nameof(productId));
 
         var product = _products.FirstOrDefault(p => p.ProductId == productId && !p.IsDeleted);
-        if (product == null)
+        if (product is null)
             throw new DomainException("Product not found in this stream");
 
         product.MarkAsDeleted();
@@ -438,7 +438,7 @@ public class LiveStream : BaseEntity, IAggregateRoot
         Guard.AgainstDefault(viewerId, nameof(viewerId));
 
         var viewer = _viewers.FirstOrDefault(v => v.Id == viewerId && !v.IsDeleted);
-        if (viewer == null)
+        if (viewer is null)
             throw new DomainException("Viewer not found in this stream");
 
         viewer.Leave();

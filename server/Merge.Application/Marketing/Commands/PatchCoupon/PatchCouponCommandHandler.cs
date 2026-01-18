@@ -29,14 +29,14 @@ public class PatchCouponCommandHandler(
         var coupon = await context.Set<Coupon>()
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-        if (coupon == null)
+        if (coupon is null)
         {
             logger.LogWarning("Coupon not found. CouponId: {CouponId}", request.Id);
             throw new NotFoundException("Kupon", request.Id);
         }
 
         // Apply partial updates - only update fields that are provided
-        if (request.PatchDto.Code != null)
+        if (request.PatchDto.Code is not null)
         {
             if (!string.Equals(coupon.Code, request.PatchDto.Code, StringComparison.OrdinalIgnoreCase))
             {
@@ -53,7 +53,7 @@ public class PatchCouponCommandHandler(
             coupon.UpdateCode(request.PatchDto.Code);
         }
 
-        if (request.PatchDto.Description != null)
+        if (request.PatchDto.Description is not null)
         {
             coupon.UpdateDescription(request.PatchDto.Description);
         }
@@ -74,7 +74,7 @@ public class PatchCouponCommandHandler(
         {
             coupon.SetDiscountPercentage(new Percentage(request.PatchDto.DiscountPercentage.Value));
         }
-        else if (request.PatchDto.DiscountPercentage == null && request.PatchDto.DiscountAmount == null)
+        else if (request.PatchDto.DiscountPercentage is null && request.PatchDto.DiscountAmount is null)
         {
             // Only clear if explicitly set to null and discount amount is not being updated
         }
@@ -101,12 +101,12 @@ public class PatchCouponCommandHandler(
             coupon.SetUsageLimit(request.PatchDto.UsageLimit.Value);
         }
 
-        if (request.PatchDto.ApplicableCategoryIds != null)
+        if (request.PatchDto.ApplicableCategoryIds is not null)
         {
             coupon.SetApplicableCategoryIds(request.PatchDto.ApplicableCategoryIds);
         }
 
-        if (request.PatchDto.ApplicableProductIds != null)
+        if (request.PatchDto.ApplicableProductIds is not null)
         {
             coupon.SetApplicableProductIds(request.PatchDto.ApplicableProductIds);
         }
@@ -134,7 +134,7 @@ public class PatchCouponCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == coupon.Id, cancellationToken);
 
-        if (updatedCoupon == null)
+        if (updatedCoupon is null)
         {
             logger.LogWarning("Coupon not found after patch. CouponId: {CouponId}", coupon.Id);
             throw new NotFoundException("Kupon", coupon.Id);

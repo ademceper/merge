@@ -26,7 +26,7 @@ public class GetB2BUserByIdQueryHandler(
             .Include(b => b.Organization)
             .FirstOrDefaultAsync(b => b.Id == request.Id, cancellationToken);
 
-        return b2bUser != null ? mapper.Map<B2BUserDto>(b2bUser) : null;
+        return b2bUser is not null ? mapper.Map<B2BUserDto>(b2bUser) : null;
     }
 }
 

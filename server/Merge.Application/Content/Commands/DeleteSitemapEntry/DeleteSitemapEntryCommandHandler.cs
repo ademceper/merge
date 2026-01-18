@@ -29,7 +29,7 @@ public class DeleteSitemapEntryCommandHandler(
         try
         {
             var entry = await sitemapEntryRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (entry == null)
+            if (entry is null)
             {
                 logger.LogWarning("Sitemap entry not found for deletion. EntryId: {EntryId}", request.Id);
                 return false;

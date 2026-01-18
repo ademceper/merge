@@ -22,7 +22,7 @@ public class SetDefaultAddressCommandHandler(IDbContext context, IUnitOfWork uni
             .Where(a => a.Id == request.Id && a.UserId == request.UserId && !a.IsDeleted)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (address == null)
+        if (address is null)
         {
             logger.LogWarning("Address not found with ID: {AddressId} for user: {UserId}", request.Id, request.UserId);
             return false;

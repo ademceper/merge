@@ -36,8 +36,8 @@ public class NotificationTemplateService(IDbContext context, IUnitOfWork unitOfW
             dto.Description,
             dto.LinkTemplate,
             dto.IsActive,
-            dto.Variables != null ? JsonSerializer.Serialize(dto.Variables) : null,
-            dto.DefaultData != null ? JsonSerializer.Serialize(dto.DefaultData) : null);
+            dto.Variables is not null ? JsonSerializer.Serialize(dto.Variables) : null,
+            dto.DefaultData is not null ? JsonSerializer.Serialize(dto.DefaultData) : null);
 
         await context.Set<NotificationTemplate>().AddAsync(template, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -55,7 +55,7 @@ public class NotificationTemplateService(IDbContext context, IUnitOfWork unitOfW
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
-        return template != null ? mapper.Map<NotificationTemplateDto>(template) : null;
+        return template is not null ? mapper.Map<NotificationTemplateDto>(template) : null;
     }
 
     public async Task<NotificationTemplateDto?> GetTemplateByTypeAsync(string type, CancellationToken cancellationToken = default)
@@ -69,7 +69,7 @@ public class NotificationTemplateService(IDbContext context, IUnitOfWork unitOfW
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Type == notificationTypeEnum && t.IsActive, cancellationToken);
 
-        return template != null ? mapper.Map<NotificationTemplateDto>(template) : null;
+        return template is not null ? mapper.Map<NotificationTemplateDto>(template) : null;
     }
 
     public async Task<IEnumerable<NotificationTemplateDto>> GetTemplatesAsync(string? type = null, CancellationToken cancellationToken = default)
@@ -97,7 +97,7 @@ public class NotificationTemplateService(IDbContext context, IUnitOfWork unitOfW
         var template = await context.Set<NotificationTemplate>()
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
-        if (template == null)
+        if (template is null)
         {
             throw new NotFoundException("Şablon", id);
         }
@@ -110,8 +110,8 @@ public class NotificationTemplateService(IDbContext context, IUnitOfWork unitOfW
             dto.MessageTemplate,
             dto.LinkTemplate,
             dto.IsActive,
-            dto.Variables != null ? JsonSerializer.Serialize(dto.Variables) : null,
-            dto.DefaultData != null ? JsonSerializer.Serialize(dto.DefaultData) : null);
+            dto.Variables is not null ? JsonSerializer.Serialize(dto.Variables) : null,
+            dto.DefaultData is not null ? JsonSerializer.Serialize(dto.DefaultData) : null);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return mapper.Map<NotificationTemplateDto>(template);
@@ -122,7 +122,7 @@ public class NotificationTemplateService(IDbContext context, IUnitOfWork unitOfW
         var template = await context.Set<NotificationTemplate>()
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
-        if (template == null) return false;
+        if (template is null) return false;
 
         template.Delete();
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -137,27 +137,27 @@ public class NotificationTemplateService(IDbContext context, IUnitOfWork unitOfW
         CancellationToken cancellationToken = default)
     {
         var template = await GetTemplateByTypeAsync(templateType, cancellationToken);
-        if (template == null)
+        if (template is null)
         {
             throw new NotFoundException("Şablon", Guid.Empty);
         }
 
         // Merge default data with provided variables
         Dictionary<string, object> allVariables = [];
-        if (template.DefaultData != null)
+        if (template.DefaultData is not null)
         {
             // Convert NotificationTemplateSettingsDto to Dictionary
             var defaultDataProps = typeof(NotificationTemplateSettingsDto).GetProperties();
             foreach (var prop in defaultDataProps)
             {
                 var value = prop.GetValue(template.DefaultData);
-                if (value != null)
+                if (value is not null)
                 {
                     allVariables[prop.Name] = value;
                 }
             }
         }
-        if (variables != null)
+        if (variables is not null)
         {
             foreach (var kvp in variables)
             {
@@ -168,7 +168,7 @@ public class NotificationTemplateService(IDbContext context, IUnitOfWork unitOfW
         // Replace variables in templates
         var title = ReplaceVariables(template.TitleTemplate, allVariables);
         var message = ReplaceVariables(template.MessageTemplate, allVariables);
-        var link = template.LinkTemplate != null 
+        var link = template.LinkTemplate is not null 
             ? ReplaceVariables(template.LinkTemplate, allVariables) 
             : null;
 

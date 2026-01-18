@@ -26,7 +26,7 @@ public class RedeemGiftCardCommandHandler(
         var giftCard = await context.Set<GiftCard>()
             .FirstOrDefaultAsync(gc => gc.Code == request.Code, cancellationToken);
 
-        if (giftCard == null)
+        if (giftCard is null)
         {
             logger.LogWarning("GiftCard not found. Code: {Code}", request.Code);
             throw new NotFoundException("Hediye kartı", Guid.Empty);
@@ -68,7 +68,7 @@ public class RedeemGiftCardCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(gc => gc.Code == request.Code, cancellationToken);
 
-        if (updatedGiftCard == null)
+        if (updatedGiftCard is null)
         {
             logger.LogWarning("GiftCard not found after redemption. Code: {Code}", request.Code);
             throw new NotFoundException("Hediye kartı", Guid.Empty);

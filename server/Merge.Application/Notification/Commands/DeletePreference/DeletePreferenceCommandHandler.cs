@@ -22,7 +22,7 @@ public class DeletePreferenceCommandHandler(IDbContext context, IUnitOfWork unit
                                       np.NotificationType == request.NotificationType && 
                                       np.Channel == request.Channel, cancellationToken);
 
-        if (preference == null)
+        if (preference is null)
         {
             return false;
         }

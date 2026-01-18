@@ -28,7 +28,7 @@ public class GetCMSPageByIdQueryHandler(
         var cacheKey = $"{CACHE_KEY_CMS_PAGE_BY_ID}{request.Id}";
 
         var cachedPage = await cache.GetAsync<CMSPageDto>(cacheKey, cancellationToken);
-        if (cachedPage != null)
+        if (cachedPage is not null)
         {
             logger.LogInformation("Cache hit for CMS page. PageId: {PageId}", request.Id);
             return cachedPage;
@@ -42,7 +42,7 @@ public class GetCMSPageByIdQueryHandler(
             .Include(p => p.ParentPage)
             .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
 
-        if (page == null)
+        if (page is null)
         {
             logger.LogWarning("CMS page not found with Id: {PageId}", request.Id);
             return null;

@@ -31,7 +31,7 @@ public class CreateOrderVerificationCommandHandler(IDbContext context, IUnitOfWo
         var order = await context.Set<OrderEntity>()
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
-        if (order == null)
+        if (order is null)
         {
             throw new NotFoundException("Sipariş", request.OrderId);
         }
@@ -40,7 +40,7 @@ public class CreateOrderVerificationCommandHandler(IDbContext context, IUnitOfWo
         var existing = await context.Set<OrderVerification>()
             .FirstOrDefaultAsync(v => v.OrderId == request.OrderId, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             throw new BusinessException("Bu sipariş için zaten bir doğrulama kaydı var.");
         }
@@ -84,7 +84,7 @@ public class CreateOrderVerificationCommandHandler(IDbContext context, IUnitOfWo
             .Include(o => o.User)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
 
-        if (order == null) return 0;
+        if (order is null) return 0;
 
         int riskScore = 0;
 

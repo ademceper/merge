@@ -23,7 +23,7 @@ public class UpdateCustomerCommunicationStatusCommandHandler(IDbContext context,
         var communication = await context.Set<CustomerCommunication>()
             .FirstOrDefaultAsync(c => c.Id == request.CommunicationId, cancellationToken);
 
-        if (communication == null)
+        if (communication is null)
         {
             logger.LogWarning("Customer communication {CommunicationId} not found for status update", request.CommunicationId);
             throw new NotFoundException("Müşteri iletişimi", request.CommunicationId);

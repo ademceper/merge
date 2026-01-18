@@ -12,6 +12,7 @@ using Merge.Application.Support.Commands.DeleteFaq;
 using Merge.Application.Support.Commands.IncrementFaqViewCount;
 using Merge.Application.Support.Queries.GetFaq;
 using Merge.Application.Support.Queries.GetPublishedFaqs;
+using Merge.Application.Exceptions;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
 
@@ -148,11 +149,8 @@ public class FaqsController(IMediator mediator, IOptions<SupportSettings> suppor
         CancellationToken cancellationToken = default)
     {
                         var query = new GetFaqQuery(id);
-        var faq = await mediator.Send(query, cancellationToken);
-        if (faq == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var faq = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("FAQ", id);
         
         // Görüntülenme sayısını artır
         var incrementCommand = new IncrementFaqViewCountCommand(id);
@@ -177,7 +175,7 @@ public class FaqsController(IMediator mediator, IOptions<SupportSettings> suppor
         CancellationToken cancellationToken = default)
     {
                 var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
                 var command = new CreateFaqCommand(
             dto.Question,
@@ -208,7 +206,7 @@ public class FaqsController(IMediator mediator, IOptions<SupportSettings> suppor
         CancellationToken cancellationToken = default)
     {
                 var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
                 var command = new UpdateFaqCommand(
             id,
@@ -217,11 +215,8 @@ public class FaqsController(IMediator mediator, IOptions<SupportSettings> suppor
             dto.Category,
             dto.SortOrder,
             dto.IsPublished);
-        var faq = await mediator.Send(command, cancellationToken);
-        if (faq == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var faq = await mediator.Send(command, cancellationToken)
+            ?? throw new NotFoundException("FAQ", id);
         
                 var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
         var links = HateoasHelper.CreateFaqLinks(Url, faq.Id, version);
@@ -249,14 +244,11 @@ public class FaqsController(IMediator mediator, IOptions<SupportSettings> suppor
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var command = new PatchFaqCommand(id, patchDto);
-        var faq = await mediator.Send(command, cancellationToken);
-        if (faq == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var faq = await mediator.Send(command, cancellationToken)
+            ?? throw new NotFoundException("FAQ", id);
 
         var version = HttpContext.GetRouteValue("version")?.ToString() ?? "1.0";
         var links = HateoasHelper.CreateFaqLinks(Url, faq.Id, version);
@@ -277,11 +269,11 @@ public class FaqsController(IMediator mediator, IOptions<SupportSettings> suppor
         CancellationToken cancellationToken = default)
     {
                         var command = new DeleteFaqCommand(id);
-        var result = await mediator.Send(command, cancellationToken);
-        if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var success = await mediator.Send(command, cancellationToken);
+
+        if (!success)
+            throw new NotFoundException("FAQ", id);
+
         return NoContent();
     }
 }

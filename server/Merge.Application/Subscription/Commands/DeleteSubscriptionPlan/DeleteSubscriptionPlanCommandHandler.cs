@@ -22,7 +22,7 @@ public class DeleteSubscriptionPlanCommandHandler(IDbContext context, IUnitOfWor
         var plan = await context.Set<SubscriptionPlan>()
             .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
 
-        if (plan == null)
+        if (plan is null)
         {
             throw new NotFoundException("Abonelik planı", request.Id);
         }

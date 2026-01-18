@@ -50,7 +50,7 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(slug, nameof(slug));
         Guard.AgainstLength(name, 100, nameof(name));
         var slugValueObject = Slug.FromString(slug);
-        if (description != null)
+        if (description is not null)
             Guard.AgainstLength(description, 1000, nameof(description));
         Guard.AgainstNegative(displayOrder, nameof(displayOrder));
 
@@ -118,7 +118,7 @@ public class KnowledgeBaseCategory : BaseEntity, IAggregateRoot
 
     public void UpdateDescription(string? description)
     {
-        if (description != null)
+        if (description is not null)
             Guard.AgainstLength(description, 1000, nameof(description));
 
         Description = description;

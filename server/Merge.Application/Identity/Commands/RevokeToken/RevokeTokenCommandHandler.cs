@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Merge.Application.Interfaces;
 using Merge.Application.Exceptions;
 using Merge.Application.Common;
+using static Merge.Application.Common.LogMasking;
 using Merge.Domain.Entities;
 using RefreshTokenEntity = Merge.Domain.Modules.Identity.RefreshToken;
 using Merge.Domain.Interfaces;
@@ -21,15 +22,15 @@ public class RevokeTokenCommandHandler(
 
     public async Task<Unit> Handle(RevokeTokenCommand request, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Token revoke attempt. RefreshToken: {RefreshToken}", request.RefreshToken);
+        logger.LogInformation("Token revoke attempt. RefreshToken: {RefreshToken}", LogMasking.MaskToken(request.RefreshToken));
 
         var tokenHash = TokenHasher.HashToken(request.RefreshToken);
         var refreshTokenEntity = await context.Set<RefreshTokenEntity>()
             .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash, cancellationToken);
 
-        if (refreshTokenEntity == null)
+        if (refreshTokenEntity is null)
         {
-            logger.LogWarning("Token revoke failed - invalid token. RefreshToken: {RefreshToken}", request.RefreshToken);
+            logger.LogWarning("Token revoke failed - invalid token. RefreshToken: {RefreshToken}", LogMasking.MaskToken(request.RefreshToken));
             throw new BusinessException("Geçersiz refresh token.");
         }
 

@@ -48,7 +48,7 @@ public class CreateKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitO
             Enum.Parse<ContentStatus>(request.Status, true),
             request.IsFeatured,
             request.DisplayOrder,
-            request.Tags != null ? string.Join(",", request.Tags) : null);
+            request.Tags is not null ? string.Join(",", request.Tags) : null);
 
         await context.Set<KnowledgeBaseArticle>().AddAsync(article, cancellationToken);
         

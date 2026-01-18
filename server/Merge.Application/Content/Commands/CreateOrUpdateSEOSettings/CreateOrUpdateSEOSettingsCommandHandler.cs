@@ -37,7 +37,7 @@ public class CreateOrUpdateSEOSettingsCommandHandler(
                                         s.EntityId == request.EntityId, cancellationToken);
 
             SEOSettings settings;
-            if (existing != null)
+            if (existing is not null)
             {
                 logger.LogInformation("Updating existing SEO settings. SEOSettingsId: {SEOSettingsId}", existing.Id);
 
@@ -91,7 +91,7 @@ public class CreateOrUpdateSEOSettingsCommandHandler(
                 .AsNoTracking()
                 .FirstOrDefaultAsync(s => s.Id == settings.Id, cancellationToken);
 
-            if (reloadedSettings == null)
+            if (reloadedSettings is null)
             {
                 logger.LogWarning("SEO settings {SettingsId} not found after creation/update", settings.Id);
                 throw new NotFoundException("SEO Ayarları", settings.Id);

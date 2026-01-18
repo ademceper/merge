@@ -28,7 +28,7 @@ public class GetAddressByIdQueryHandler(
             .Where(a => a.Id == request.Id && !a.IsDeleted)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (address == null)
+        if (address is null)
         {
             logger.LogWarning("Address not found with ID: {AddressId}", request.Id);
             return null;

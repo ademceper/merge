@@ -55,7 +55,7 @@ public class CreateWarehouseCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == warehouse.Id, cancellationToken);
 
-        if (createdWarehouse == null)
+        if (createdWarehouse is null)
         {
             logger.LogWarning("Warehouse not found after creation. WarehouseId: {WarehouseId}", warehouse.Id);
             throw new NotFoundException("Depo", warehouse.Id);

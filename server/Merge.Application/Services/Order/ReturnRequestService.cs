@@ -33,7 +33,7 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
-        if (returnRequest == null) return null;
+        if (returnRequest is null) return null;
 
         // Not: OrderNumber ve UserName AutoMapper'da zaten map ediliyor
         return mapper.Map<ReturnRequestDto>(returnRequest);
@@ -116,7 +116,7 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
 
         ArgumentNullException.ThrowIfNull(dto);
 
-        if (dto.OrderItemIds == null || !dto.OrderItemIds.Any())
+        if (dto.OrderItemIds is null || !dto.OrderItemIds.Any())
         {
             throw new ValidationException("İade edilecek ürün seçilmedi.");
         }
@@ -130,7 +130,7 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.Id == dto.OrderId && o.UserId == dto.UserId, cancellationToken);
 
-        if (order == null)
+        if (order is null)
         {
             throw new NotFoundException("Sipariş", dto.OrderId);
         }
@@ -159,7 +159,7 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
         // Order zaten yukarıda query edildi, tekrar query etme
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == dto.UserId, cancellationToken);
-        if (user == null)
+        if (user is null)
         {
             throw new NotFoundException("Kullanıcı", dto.UserId);
         }
@@ -183,7 +183,7 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.Id == returnRequest.Id, cancellationToken);
 
-        if (reloadedReturnRequest == null)
+        if (reloadedReturnRequest is null)
         {
             logger.LogWarning("Return request {ReturnRequestId} not found after creation", returnRequest.Id);
             return mapper.Map<ReturnRequestDto>(returnRequest);
@@ -205,7 +205,7 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
         }
 
         var returnRequest = await returnRequestRepository.GetByIdAsync(id);
-        if (returnRequest == null)
+        if (returnRequest is null)
         {
             throw new NotFoundException("İade talebi", id);
         }
@@ -240,7 +240,7 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
     public async Task<bool> ApproveAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var returnRequest = await returnRequestRepository.GetByIdAsync(id);
-        if (returnRequest == null)
+        if (returnRequest is null)
         {
             return false;
         }
@@ -257,13 +257,13 @@ public class ReturnRequestService(IReturnRequestRepository returnRequestReposito
 
     public async Task<bool> RejectAsync(Guid id, string reason, CancellationToken cancellationToken = default)
     {
-        return await UpdateStatusAsync(id, "Rejected", reason, cancellationToken) != null;
+        return await UpdateStatusAsync(id, "Rejected", reason, cancellationToken) is not null;
     }
 
     public async Task<bool> CompleteAsync(Guid id, string trackingNumber, CancellationToken cancellationToken = default)
     {
         var returnRequest = await returnRequestRepository.GetByIdAsync(id);
-        if (returnRequest == null)
+        if (returnRequest is null)
         {
             return false;
         }

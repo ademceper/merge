@@ -27,6 +27,6 @@ public class GetProductTranslationQueryHandler(
             .FirstOrDefaultAsync(pt => pt.ProductId == request.ProductId &&
                                       EF.Functions.ILike(pt.LanguageCode, request.LanguageCode), cancellationToken);
 
-        return translation != null ? mapper.Map<ProductTranslationDto>(translation) : null;
+        return translation is not null ? mapper.Map<ProductTranslationDto>(translation) : null;
     }
 }

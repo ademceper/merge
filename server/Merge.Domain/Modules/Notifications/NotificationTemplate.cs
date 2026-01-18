@@ -70,7 +70,7 @@ public class NotificationTemplate : BaseEntity, IAggregateRoot
         get => _linkTemplate; 
         private set 
         {
-            if (value != null)
+            if (value is not null)
             {
                 Guard.AgainstLength(value, 500, nameof(LinkTemplate));
             }
@@ -86,7 +86,7 @@ public class NotificationTemplate : BaseEntity, IAggregateRoot
         get => _variables; 
         private set 
         {
-            if (value != null)
+            if (value is not null)
             {
                 Guard.AgainstLength(value, 2000, nameof(Variables));
             }
@@ -100,7 +100,7 @@ public class NotificationTemplate : BaseEntity, IAggregateRoot
         get => _defaultData; 
         private set 
         {
-            if (value != null)
+            if (value is not null)
             {
                 Guard.AgainstLength(value, 5000, nameof(DefaultData));
             }
@@ -130,19 +130,19 @@ public class NotificationTemplate : BaseEntity, IAggregateRoot
         Guard.AgainstLength(titleTemplate, 200, nameof(titleTemplate));
         Guard.AgainstNullOrEmpty(messageTemplate, nameof(messageTemplate));
         Guard.AgainstLength(messageTemplate, 2000, nameof(messageTemplate));
-        if (description != null)
+        if (description is not null)
         {
             Guard.AgainstLength(description, 500, nameof(description));
         }
-        if (linkTemplate != null)
+        if (linkTemplate is not null)
         {
             Guard.AgainstLength(linkTemplate, 500, nameof(linkTemplate));
         }
-        if (variables != null)
+        if (variables is not null)
         {
             Guard.AgainstLength(variables, 2000, nameof(variables));
         }
-        if (defaultData != null)
+        if (defaultData is not null)
         {
             Guard.AgainstLength(defaultData, 5000, nameof(defaultData));
         }
@@ -178,13 +178,13 @@ public class NotificationTemplate : BaseEntity, IAggregateRoot
         string? variables = null,
         string? defaultData = null)
     {
-        if (name != null)
+        if (name is not null)
         {
             Guard.AgainstNullOrEmpty(name, nameof(name));
             Guard.AgainstLength(name, 100, nameof(name));
             _name = name;
         }
-        if (description != null)
+        if (description is not null)
         {
             Guard.AgainstLength(description, 500, nameof(description));
             _description = description;
@@ -193,19 +193,19 @@ public class NotificationTemplate : BaseEntity, IAggregateRoot
         {
             Type = type.Value;
         }
-        if (titleTemplate != null)
+        if (titleTemplate is not null)
         {
             Guard.AgainstNullOrEmpty(titleTemplate, nameof(titleTemplate));
             Guard.AgainstLength(titleTemplate, 200, nameof(titleTemplate));
             _titleTemplate = titleTemplate;
         }
-        if (messageTemplate != null)
+        if (messageTemplate is not null)
         {
             Guard.AgainstNullOrEmpty(messageTemplate, nameof(messageTemplate));
             Guard.AgainstLength(messageTemplate, 2000, nameof(messageTemplate));
             _messageTemplate = messageTemplate;
         }
-        if (linkTemplate != null)
+        if (linkTemplate is not null)
         {
             Guard.AgainstLength(linkTemplate, 500, nameof(linkTemplate));
             _linkTemplate = linkTemplate;
@@ -214,12 +214,12 @@ public class NotificationTemplate : BaseEntity, IAggregateRoot
         {
             IsActive = isActive.Value;
         }
-        if (variables != null)
+        if (variables is not null)
         {
             Guard.AgainstLength(variables, 2000, nameof(variables));
             _variables = variables;
         }
-        if (defaultData != null)
+        if (defaultData is not null)
         {
             Guard.AgainstLength(defaultData, 5000, nameof(defaultData));
             _defaultData = defaultData;

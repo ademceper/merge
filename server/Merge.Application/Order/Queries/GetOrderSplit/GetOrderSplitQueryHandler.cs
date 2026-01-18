@@ -29,6 +29,6 @@ public class GetOrderSplitQueryHandler(IDbContext context, IMapper mapper) : IRe
                 .ThenInclude(si => si.SplitOrderItem)
             .FirstOrDefaultAsync(s => s.Id == request.SplitId, cancellationToken);
 
-        return split != null ? mapper.Map<OrderSplitDto>(split) : null;
+        return split is not null ? mapper.Map<OrderSplitDto>(split) : null;
     }
 }

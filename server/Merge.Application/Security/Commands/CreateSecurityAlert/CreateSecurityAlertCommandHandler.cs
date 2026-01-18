@@ -39,7 +39,7 @@ public class CreateSecurityAlertCommandHandler(IDbContext context, IUnitOfWork u
             description: request.Description,
             severity: severity,
             userId: request.UserId,
-            metadata: request.Metadata != null ? JsonSerializer.Serialize(request.Metadata) : null);
+            metadata: request.Metadata is not null ? JsonSerializer.Serialize(request.Metadata) : null);
 
         await context.Set<SecurityAlert>().AddAsync(alert, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);

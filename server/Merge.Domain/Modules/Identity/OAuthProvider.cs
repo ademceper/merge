@@ -26,7 +26,7 @@ public class OAuthProvider : BaseEntity, IAggregateRoot
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         // BaseEntity'deki protected AddDomainEvent'i çağır
@@ -35,7 +35,7 @@ public class OAuthProvider : BaseEntity, IAggregateRoot
 
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         base.RemoveDomainEvent(domainEvent);
@@ -112,21 +112,21 @@ public class OAuthProvider : BaseEntity, IAggregateRoot
             Name = name;
         }
 
-        if (clientId != null)
+        if (clientId is not null)
         {
             Guard.AgainstNullOrEmpty(clientId, nameof(clientId));
             Guard.AgainstLength(clientId, 256, nameof(clientId));
             ClientId = clientId;
         }
 
-        if (clientSecret != null)
+        if (clientSecret is not null)
         {
             Guard.AgainstNullOrEmpty(clientSecret, nameof(clientSecret));
             Guard.AgainstLength(clientSecret, 512, nameof(clientSecret));
             ClientSecret = clientSecret;
         }
 
-        if (redirectUri != null)
+        if (redirectUri is not null)
         {
             if (string.IsNullOrEmpty(redirectUri))
             {
@@ -140,13 +140,13 @@ public class OAuthProvider : BaseEntity, IAggregateRoot
             }
         }
 
-        if (scopes != null)
+        if (scopes is not null)
         {
             Guard.AgainstLength(scopes, 500, nameof(scopes));
             Scopes = scopes;
         }
         
-        if (settings != null)
+        if (settings is not null)
         {
             Guard.AgainstLength(settings, 2000, nameof(settings));
             Settings = settings;

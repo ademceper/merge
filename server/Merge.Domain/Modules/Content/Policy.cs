@@ -64,7 +64,7 @@ public class Policy : BaseEntity, IAggregateRoot
         Guard.AgainstLength(version, 20, nameof(version));
         Guard.AgainstLength(language, 10, nameof(language));
         // Configuration değeri: MaxChangeLogLength=2000
-        if (changeLog != null)
+        if (changeLog is not null)
             Guard.AgainstLength(changeLog, 2000, nameof(changeLog));
 
         if (effectiveDate.HasValue && expiryDate.HasValue && effectiveDate.Value >= expiryDate.Value)
@@ -133,7 +133,7 @@ public class Policy : BaseEntity, IAggregateRoot
     public void UpdateChangeLog(string? newChangeLog)
     {
         // Configuration değeri: MaxChangeLogLength=2000
-        if (newChangeLog != null)
+        if (newChangeLog is not null)
             Guard.AgainstLength(newChangeLog, 2000, nameof(newChangeLog));
         ChangeLog = newChangeLog;
         UpdatedAt = DateTime.UtcNow;

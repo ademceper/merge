@@ -35,7 +35,7 @@ public class StockMovementService(IRepository stockMovementRepository, IDbContex
             .Include(sm => sm.ToWarehouse)
             .FirstOrDefaultAsync(sm => sm.Id == id, cancellationToken);
 
-        return movement == null ? null : mapper.Map<StockMovementDto>(movement);
+        return movement is null ? null : mapper.Map<StockMovementDto>(movement);
     }
 
     public async Task<IEnumerable<StockMovementDto>> GetByInventoryIdAsync(Guid inventoryId, CancellationToken cancellationToken = default)
@@ -187,7 +187,7 @@ public class StockMovementService(IRepository stockMovementRepository, IDbContex
                 .FirstOrDefaultAsync(i => i.ProductId == createDto.ProductId &&
                                         i.WarehouseId == createDto.WarehouseId, cancellationToken);
 
-            if (inventory == null)
+            if (inventory is null)
             {
                 throw new NotFoundException("Envanter", Guid.Empty);
             }

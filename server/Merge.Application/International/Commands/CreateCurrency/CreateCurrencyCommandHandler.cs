@@ -37,7 +37,7 @@ public class CreateCurrencyCommandHandler(
             var currentBase = await context.Set<Currency>()
                 .FirstOrDefaultAsync(c => c.IsBaseCurrency, cancellationToken);
 
-            if (currentBase != null)
+            if (currentBase is not null)
             {
                 currentBase.RemoveBaseCurrencyStatus();
             }

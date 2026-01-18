@@ -25,7 +25,7 @@ public class CreateTransactionCommandHandler(IDbContext context, IUnitOfWork uni
         var seller = await context.Set<SellerProfile>()
             .FirstOrDefaultAsync(sp => sp.UserId == request.SellerId, cancellationToken);
 
-        if (seller == null)
+        if (seller is null)
         {
             logger.LogWarning("Seller not found. SellerId: {SellerId}", request.SellerId);
             throw new NotFoundException("Satıcı", request.SellerId);

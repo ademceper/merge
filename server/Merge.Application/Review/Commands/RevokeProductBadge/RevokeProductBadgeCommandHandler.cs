@@ -22,7 +22,7 @@ public class RevokeProductBadgeCommandHandler(IDbContext context, IUnitOfWork un
         var badge = await context.Set<ProductTrustBadge>()
             .FirstOrDefaultAsync(ptb => ptb.ProductId == request.ProductId && ptb.TrustBadgeId == request.BadgeId, cancellationToken);
 
-        if (badge == null) return false;
+        if (badge is null) return false;
 
         badge.Deactivate();
         await unitOfWork.SaveChangesAsync(cancellationToken);

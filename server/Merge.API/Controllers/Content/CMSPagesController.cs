@@ -16,6 +16,7 @@ using Merge.Application.Content.Queries.GetHomePageCMSPage;
 using Merge.Application.Content.Queries.GetAllCMSPages;
 using Merge.Application.Content.Queries.GetMenuCMSPages;
 using Merge.API.Middleware;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Content;
 
@@ -58,7 +59,7 @@ public class CMSPagesController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var authorId = GetUserId();
         var createCommand = command with { AuthorId = authorId };
@@ -86,12 +87,9 @@ public class CMSPagesController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetCMSPageByIdQuery(id);
-        var page = await mediator.Send(query, cancellationToken);
-        
-        if (page == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var page = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("CMSPage", id);
+
         return Ok(page);
     }
 
@@ -115,12 +113,9 @@ public class CMSPagesController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetCMSPageBySlugQuery(slug);
-        var page = await mediator.Send(query, cancellationToken);
-        
-        if (page == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var page = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("CMSPage", slug);
+
         return Ok(page);
     }
 
@@ -142,12 +137,9 @@ public class CMSPagesController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetHomePageCMSPageQuery();
-        var page = await mediator.Send(query, cancellationToken);
-        
-        if (page == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var page = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("CMSPage", "home");
+
         return Ok(page);
     }
 
@@ -235,7 +227,7 @@ public class CMSPagesController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {
@@ -246,11 +238,10 @@ public class CMSPagesController(
         Guid? performedBy = User.IsInRole("Admin") ? null : userId;
         var updateCommand = command with { Id = id, PerformedBy = performedBy };
         var result = await mediator.Send(updateCommand, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("CMSPage", id);
+
         return NoContent();
     }
 
@@ -283,7 +274,7 @@ public class CMSPagesController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {
@@ -308,10 +299,10 @@ public class CMSPagesController(
             patchDto.MenuTitle,
             patchDto.ParentPageId);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("CMSPage", id);
+
         return NoContent();
     }
 
@@ -340,11 +331,10 @@ public class CMSPagesController(
         Guid? performedBy = User.IsInRole("Admin") ? null : userId;
         var command = new DeleteCMSPageCommand(id, performedBy);
         var result = await mediator.Send(command, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("CMSPage", id);
+
         return NoContent();
     }
 
@@ -382,11 +372,10 @@ public class CMSPagesController(
         Guid? performedBy = User.IsInRole("Admin") ? null : userId;
         var command = new PublishCMSPageCommand(id, performedBy);
         var result = await mediator.Send(command, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("CMSPage", id);
+
         return NoContent();
     }
 
@@ -424,11 +413,10 @@ public class CMSPagesController(
         Guid? performedBy = User.IsInRole("Admin") ? null : userId;
         var command = new SetHomePageCMSPageCommand(id, performedBy);
         var result = await mediator.Send(command, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("CMSPage", id);
+
         return NoContent();
     }
 }

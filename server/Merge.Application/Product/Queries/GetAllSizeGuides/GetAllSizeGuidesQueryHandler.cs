@@ -30,7 +30,7 @@ public class GetAllSizeGuidesQueryHandler(
         logger.LogInformation("Fetching all size guides");
 
         var cachedSizeGuides = await cache.GetAsync<IEnumerable<SizeGuideDto>>(CACHE_KEY_ALL_SIZE_GUIDES, cancellationToken);
-        if (cachedSizeGuides != null)
+        if (cachedSizeGuides is not null)
         {
             logger.LogInformation("Size guides retrieved from cache");
             return cachedSizeGuides;

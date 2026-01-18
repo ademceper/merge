@@ -42,7 +42,7 @@ public class CreateProductTemplateCommandHandler(
             var category = await context.Set<Category>()
                 .FirstOrDefaultAsync(c => c.Id == request.CategoryId, cancellationToken);
 
-            if (category == null)
+            if (category is null)
             {
                 throw new NotFoundException("Kategori", request.CategoryId);
             }
@@ -56,8 +56,8 @@ public class CreateProductTemplateCommandHandler(
                 request.DefaultPrice,
                 request.DefaultStockQuantity,
                 request.DefaultImageUrl,
-                request.Specifications != null ? JsonSerializer.Serialize(request.Specifications) : null,
-                request.Attributes != null ? JsonSerializer.Serialize(request.Attributes) : null,
+                request.Specifications is not null ? JsonSerializer.Serialize(request.Specifications) : null,
+                request.Attributes is not null ? JsonSerializer.Serialize(request.Attributes) : null,
                 request.IsActive);
 
             await context.Set<ProductTemplate>().AddAsync(template, cancellationToken);

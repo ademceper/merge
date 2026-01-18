@@ -28,7 +28,7 @@ public class PatchFlashSaleCommandHandler(
         var flashSale = await context.Set<FlashSale>()
             .FirstOrDefaultAsync(fs => fs.Id == request.Id, cancellationToken);
 
-        if (flashSale == null)
+        if (flashSale is null)
         {
             logger.LogWarning("FlashSale not found. FlashSaleId: {FlashSaleId}", request.Id);
             throw new NotFoundException("Flash Sale", request.Id);
@@ -63,7 +63,7 @@ public class PatchFlashSaleCommandHandler(
                 .ThenInclude(fsp => fsp.Product)
             .FirstOrDefaultAsync(fs => fs.Id == flashSale.Id, cancellationToken);
 
-        if (updatedFlashSale == null)
+        if (updatedFlashSale is null)
         {
             logger.LogWarning("FlashSale not found after patch. FlashSaleId: {FlashSaleId}", flashSale.Id);
             throw new NotFoundException("Flash Sale", flashSale.Id);

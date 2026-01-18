@@ -34,7 +34,7 @@ public class EvaluateSellerBadgesCommandHandler(IDbContext context, IMediator me
             .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.UserId == request.SellerId, cancellationToken);
 
-        if (seller == null) return;
+        if (seller is null) return;
 
         // Get seller metrics
         var totalOrders = await context.Set<OrderEntity>()
@@ -61,7 +61,7 @@ public class EvaluateSellerBadgesCommandHandler(IDbContext context, IMediator me
             if (string.IsNullOrEmpty(badge.Criteria)) continue;
 
             var criteria = JsonSerializer.Deserialize<Dictionary<string, object>>(badge.Criteria);
-            if (criteria == null) continue;
+            if (criteria is null) continue;
 
             bool qualifies = true;
 
@@ -82,7 +82,7 @@ public class EvaluateSellerBadgesCommandHandler(IDbContext context, IMediator me
                 var existing = await context.Set<SellerTrustBadge>()
                     .FirstOrDefaultAsync(stb => stb.SellerId == request.SellerId && stb.TrustBadgeId == badge.Id, cancellationToken);
 
-                if (existing == null)
+                if (existing is null)
                 {
                     var awardCommand = new AwardSellerBadgeCommand(
                         request.SellerId,

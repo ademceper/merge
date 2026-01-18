@@ -13,7 +13,7 @@ public class UpdateStoreCommandValidator : AbstractValidator<UpdateStoreCommand>
         RuleFor(x => x.Dto)
             .NotNull().WithMessage("Store data is required.");
 
-        When(x => x.Dto != null, () =>
+        When(x => x.Dto is not null, () =>
         {
             RuleFor(x => x.Dto!.StoreName)
                 .MaximumLength(200).When(x => !string.IsNullOrEmpty(x.Dto!.StoreName))

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
 using Merge.Application.DTOs.International;
+using Merge.Application.Exceptions;
 using Merge.API.Middleware;
 using Merge.Application.International.Queries.GetAllCurrencies;
 using Merge.Application.International.Queries.GetActiveCurrencies;
@@ -78,13 +79,8 @@ public class CurrenciesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetCurrencyByIdQuery(id);
-        var currency = await mediator.Send(query, cancellationToken);
-
-        if (currency == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
-
+        var currency = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Currency", id);
         return Ok(currency);
     }
 
@@ -102,13 +98,8 @@ public class CurrenciesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetCurrencyByCodeQuery(code);
-        var currency = await mediator.Send(query, cancellationToken);
-
-        if (currency == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
-
+        var currency = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Currency", code);
         return Ok(currency);
     }
 
@@ -252,7 +243,7 @@ public class CurrenciesController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!patchDto.NewRate.HasValue)
         {

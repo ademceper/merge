@@ -25,7 +25,7 @@ public class GetUserCommunicationHistoryQueryHandler(IDbContext context, IMapper
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
-        if (user == null)
+        if (user is null)
         {
             throw new NotFoundException("Kullanıcı", request.UserId);
         }

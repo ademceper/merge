@@ -25,7 +25,7 @@ public class ToggleReportScheduleCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 
-        if (schedule == null) return false;
+        if (schedule is null) return false;
 
         if (schedule.OwnerId != request.UserId)
         {
@@ -36,7 +36,7 @@ public class ToggleReportScheduleCommandHandler(
         schedule = await context.Set<ReportSchedule>()
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 
-        if (schedule == null) return false;
+        if (schedule is null) return false;
 
         if (request.IsActive)
             schedule.Activate();

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Merge.Application.Exceptions;
 using Merge.Application.DTOs.Analytics;
 using Merge.Application.DTOs.Content;
 using Merge.Application.DTOs.ML;
@@ -70,11 +71,8 @@ public class FraudDetectionController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetFraudDetectionRuleByIdQuery(id);
-        var rule = await mediator.Send(query, cancellationToken);
-        if (rule == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var rule = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("FraudDetectionRule", id);
         return Ok(rule);
     }
 
@@ -122,10 +120,10 @@ public class FraudDetectionController(IMediator mediator) : BaseController
             dto.Priority,
             dto.Description);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("FraudDetectionRule", id);
+
         return NoContent();
     }
 
@@ -148,13 +146,13 @@ public class FraudDetectionController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var command = new PatchFraudDetectionRuleCommand(id, patchDto);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("FraudDetectionRule", id);
+
         return NoContent();
     }
 
@@ -172,10 +170,10 @@ public class FraudDetectionController(IMediator mediator) : BaseController
     {
         var command = new DeleteFraudDetectionRuleCommand(id);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("FraudDetectionRule", id);
+
         return NoContent();
     }
 
@@ -265,13 +263,13 @@ public class FraudDetectionController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var reviewedByUserId = GetUserId();
-       
+
         var command = new ReviewFraudAlertCommand(alertId, reviewedByUserId, dto.Status, dto.Notes);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("FraudAlert", alertId);
+
         return NoContent();
     }
 

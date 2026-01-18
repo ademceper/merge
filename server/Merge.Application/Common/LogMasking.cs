@@ -62,6 +62,18 @@ public static class LogMasking
     }
 
     /// <summary>
+    /// Kargo takip numarasını maskeler.
+    /// Örnek: "YK1234567890TR" → "YK12...90TR"
+    /// </summary>
+    public static string MaskTrackingNumber(string? trackingNumber)
+    {
+        if (string.IsNullOrEmpty(trackingNumber) || trackingNumber.Length < 8)
+            return "[masked]";
+
+        return trackingNumber[..4] + "..." + trackingNumber[^4..];
+    }
+
+    /// <summary>
     /// IP adresini maskeler (GDPR uyumlu).
     /// Örnek: "192.168.1.1" → "192.168.*.*"
     /// </summary>

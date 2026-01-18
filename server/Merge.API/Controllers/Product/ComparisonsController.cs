@@ -16,6 +16,7 @@ using Merge.Application.Product.Queries.GetUserComparison;
 using Merge.Application.Product.Queries.GetUserComparisons;
 using Merge.Application.Product.Queries.GetComparisonByShareCode;
 using Merge.Application.Product.Queries.GetComparisonMatrix;
+using Merge.Application.Exceptions;
 using Merge.API.Middleware;
 using Merge.API.Helpers;
 
@@ -43,7 +44,7 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var userId = GetUserId();
         var command = new CreateProductComparisonCommand(userId, dto.Name, dto.ProductIds.ToList());
         var comparison = await mediator.Send(command, cancellationToken);
@@ -64,12 +65,9 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
             return Unauthorized();
         }
         var query = new GetProductComparisonByIdQuery(id);
-        var comparison = await mediator.Send(query, cancellationToken);
+        var comparison = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("ProductComparison", id);
 
-        if (comparison == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
         if (string.IsNullOrEmpty(comparison.ShareCode) && comparison.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             return Forbid();
@@ -87,12 +85,9 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
     {
         var userId = GetUserId();
         var query = new GetUserComparisonQuery(userId);
-        var comparison = await mediator.Send(query, cancellationToken);
-        
-        if (comparison == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var comparison = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("ProductComparison", userId);
+
         return Ok(comparison);
     }
 
@@ -124,12 +119,9 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var query = new GetComparisonByShareCodeQuery(shareCode);
-        var comparison = await mediator.Send(query, cancellationToken);
+        var comparison = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("ProductComparison", shareCode);
 
-        if (comparison == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
         return Ok(comparison);
     }
 
@@ -145,7 +137,7 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var userId = GetUserId();
         var command = new AddProductToComparisonCommand(userId, dto.ProductId);
         var comparison = await mediator.Send(command, cancellationToken);
@@ -166,9 +158,8 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("ProductComparison", productId);
+
         return NoContent();
     }
 
@@ -193,9 +184,8 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("ProductComparison", userId);
+
         return NoContent();
     }
 
@@ -225,11 +215,9 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
             return Unauthorized();
         }
         var getQuery = new GetProductComparisonByIdQuery(id);
-        var comparison = await mediator.Send(getQuery, cancellationToken);
-        if (comparison == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var comparison = await mediator.Send(getQuery, cancellationToken)
+            ?? throw new NotFoundException("ProductComparison", id);
+
         if (comparison.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             return Forbid();
@@ -253,9 +241,8 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("ProductComparison", userId);
+
         return NoContent();
     }
 
@@ -273,9 +260,8 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("ProductComparison", id);
+
         return NoContent();
     }
 
@@ -293,11 +279,9 @@ public class ProductComparisonsController(IMediator mediator) : BaseController
             return Unauthorized();
         }
         var getQuery = new GetProductComparisonByIdQuery(id);
-        var comparison = await mediator.Send(getQuery, cancellationToken);
-        if (comparison == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var comparison = await mediator.Send(getQuery, cancellationToken)
+            ?? throw new NotFoundException("ProductComparison", id);
+
         if (string.IsNullOrEmpty(comparison.ShareCode) && comparison.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
             return Forbid();

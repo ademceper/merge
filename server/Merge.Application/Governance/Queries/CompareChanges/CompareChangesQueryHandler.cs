@@ -25,7 +25,7 @@ public class CompareChangesQueryHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == request.AuditLogId, cancellationToken);
 
-        if (audit == null || string.IsNullOrEmpty(audit.OldValues) || string.IsNullOrEmpty(audit.NewValues))
+        if (audit is null || string.IsNullOrEmpty(audit.OldValues) || string.IsNullOrEmpty(audit.NewValues))
         {
             logger.LogWarning("Audit log not found or missing values. AuditLogId: {AuditLogId}", request.AuditLogId);
             return new List<AuditComparisonDto>();
@@ -36,7 +36,7 @@ public class CompareChangesQueryHandler(
             var oldValues = JsonSerializer.Deserialize<Dictionary<string, object>>(audit.OldValues);
             var newValues = JsonSerializer.Deserialize<Dictionary<string, object>>(audit.NewValues);
 
-            if (oldValues == null || newValues == null)
+            if (oldValues is null || newValues is null)
             {
                 logger.LogWarning("Failed to deserialize audit log values. AuditLogId: {AuditLogId}", request.AuditLogId);
                 return new List<AuditComparisonDto>();

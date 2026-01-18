@@ -19,6 +19,6 @@ public class GetEmailTemplateByIdQueryHandler(IDbContext context, IMapper mapper
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
 
-        return template != null ? mapper.Map<EmailTemplateDto>(template) : null;
+        return template is not null ? mapper.Map<EmailTemplateDto>(template) : null;
     }
 }

@@ -19,6 +19,6 @@ public class GetCouponByIdQueryHandler(IDbContext context, IMapper mapper) : IRe
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-        return coupon == null ? null : mapper.Map<CouponDto>(coupon);
+        return coupon is null ? null : mapper.Map<CouponDto>(coupon);
     }
 }

@@ -27,7 +27,7 @@ public class CreateUserSubscriptionCommandHandler(IDbContext context, IUnitOfWor
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
-        if (user == null)
+        if (user is null)
         {
             throw new NotFoundException("Kullanıcı", request.UserId);
         }
@@ -35,7 +35,7 @@ public class CreateUserSubscriptionCommandHandler(IDbContext context, IUnitOfWor
         var plan = await context.Set<SubscriptionPlan>()
             .FirstOrDefaultAsync(p => p.Id == request.SubscriptionPlanId && p.IsActive, cancellationToken);
 
-        if (plan == null)
+        if (plan is null)
         {
             throw new NotFoundException("Abonelik planı", request.SubscriptionPlanId);
         }
@@ -47,7 +47,7 @@ public class CreateUserSubscriptionCommandHandler(IDbContext context, IUnitOfWor
                                     (us.Status == SubscriptionStatus.Active || us.Status == SubscriptionStatus.Trial), 
                                     cancellationToken);
 
-        if (existingActive != null)
+        if (existingActive is not null)
         {
             throw new BusinessException("Kullanıcının zaten aktif bir aboneliği var.");
         }

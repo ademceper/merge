@@ -25,7 +25,7 @@ public class RemoveProductFromFlashSaleCommandHandler(
         var flashSaleProduct = await context.Set<FlashSaleProduct>()
             .FirstOrDefaultAsync(fsp => fsp.FlashSaleId == request.FlashSaleId && fsp.ProductId == request.ProductId, cancellationToken);
 
-        if (flashSaleProduct == null)
+        if (flashSaleProduct is null)
         {
             logger.LogWarning("FlashSaleProduct not found. FlashSaleId: {FlashSaleId}, ProductId: {ProductId}", 
                 request.FlashSaleId, request.ProductId);

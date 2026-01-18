@@ -32,7 +32,7 @@ public class GetPageBuilderByIdQueryHandler(
         var cacheKey = $"{CACHE_KEY_PAGE_BY_ID}{request.Id}";
 
         var cachedPage = await cache.GetAsync<PageBuilderDto>(cacheKey, cancellationToken);
-        if (cachedPage != null && !request.TrackView)
+        if (cachedPage is not null && !request.TrackView)
         {
             logger.LogInformation("Cache hit for page builder. PageBuilderId: {PageBuilderId}", request.Id);
             return cachedPage;
@@ -49,7 +49,7 @@ public class GetPageBuilderByIdQueryHandler(
                 .Include(pb => pb.Author)
                 .FirstOrDefaultAsync(pb => pb.Id == request.Id, cancellationToken);
 
-        if (pageBuilder == null)
+        if (pageBuilder is null)
         {
             logger.LogWarning("Page builder not found with Id: {PageBuilderId}", request.Id);
             return null;

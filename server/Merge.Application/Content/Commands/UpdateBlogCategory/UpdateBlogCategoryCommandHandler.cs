@@ -30,7 +30,7 @@ public class UpdateBlogCategoryCommandHandler(
         try
         {
             var category = await categoryRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (category == null)
+            if (category is null)
             {
                 logger.LogWarning("Blog category not found. CategoryId: {CategoryId}", request.Id);
                 return false;
@@ -40,13 +40,13 @@ public class UpdateBlogCategoryCommandHandler(
             {
                 category.UpdateName(request.Name);
             }
-            if (request.Description != null)
+            if (request.Description is not null)
                 category.UpdateDescription(request.Description);
             if (request.ParentCategoryId.HasValue)
                 category.UpdateParentCategory(request.ParentCategoryId);
-            else if (request.ParentCategoryId == null && category.ParentCategoryId.HasValue)
+            else if (request.ParentCategoryId is null && category.ParentCategoryId.HasValue)
                 category.UpdateParentCategory(null);
-            if (request.ImageUrl != null)
+            if (request.ImageUrl is not null)
                 category.UpdateImageUrl(request.ImageUrl);
             if (request.DisplayOrder.HasValue)
                 category.UpdateDisplayOrder(request.DisplayOrder.Value);

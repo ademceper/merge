@@ -22,7 +22,7 @@ public class RecordKnowledgeBaseArticleViewCommandHandler(IDbContext context, IU
         var article = await context.Set<KnowledgeBaseArticle>()
             .FirstOrDefaultAsync(a => a.Id == request.ArticleId, cancellationToken);
 
-        if (article == null)
+        if (article is null)
         {
             logger.LogWarning("Knowledge base article {ArticleId} not found for view recording", request.ArticleId);
             throw new NotFoundException("Bilgi bankası makalesi", request.ArticleId);

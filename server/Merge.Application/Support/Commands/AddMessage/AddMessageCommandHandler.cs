@@ -32,7 +32,7 @@ public class AddMessageCommandHandler(IDbContext context, IUnitOfWork unitOfWork
             .Include(t => t.User)
             .FirstOrDefaultAsync(t => t.Id == request.TicketId, cancellationToken);
 
-        if (ticket == null)
+        if (ticket is null)
         {
             logger.LogWarning("Ticket {TicketId} not found while adding message", request.TicketId);
             throw new NotFoundException("Destek bileti", request.TicketId);

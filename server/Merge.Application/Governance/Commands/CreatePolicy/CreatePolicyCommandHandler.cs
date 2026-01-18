@@ -67,7 +67,7 @@ public class CreatePolicyCommandHandler(
                 .Include(p => p.CreatedBy)
                 .FirstOrDefaultAsync(p => p.Id == policy.Id, cancellationToken);
 
-            if (reloadedPolicy == null)
+            if (reloadedPolicy is null)
             {
                 logger.LogWarning("Policy {PolicyId} not found after creation", policy.Id);
                 throw new NotFoundException("Policy", policy.Id);

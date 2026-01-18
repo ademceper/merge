@@ -26,7 +26,7 @@ public class CreateFraudDetectionRuleCommandHandler(IDbContext context, IUnitOfW
 
         var ruleType = Enum.TryParse<FraudRuleType>(request.RuleType, true, out var rt) ? rt : FraudRuleType.Order;
         var action = Enum.TryParse<FraudAction>(request.Action, true, out var act) ? act : FraudAction.Flag;
-        var conditions = request.Conditions != null ? JsonSerializer.Serialize(request.Conditions) : string.Empty;
+        var conditions = request.Conditions is not null ? JsonSerializer.Serialize(request.Conditions) : string.Empty;
         
         var rule = FraudDetectionRule.Create(
             name: request.Name,
@@ -51,7 +51,7 @@ public class CreateFraudDetectionRuleCommandHandler(IDbContext context, IUnitOfW
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == rule.Id, cancellationToken);
 
-        if (createdRule == null)
+        if (createdRule is null)
         {
             logger.LogWarning("Fraud detection rule not found after creation. RuleId: {RuleId}", rule.Id);
             throw new NotFoundException("Fraud detection rule", rule.Id);

@@ -14,6 +14,7 @@ using Merge.Application.Content.Queries.GetPageBuilderById;
 using Merge.Application.Content.Queries.GetPageBuilderBySlug;
 using Merge.Application.Content.Queries.GetAllPageBuilders;
 using Merge.API.Middleware;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Content;
 
@@ -85,11 +86,9 @@ public class PageBuildersController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetPageBuilderByIdQuery(id, trackView);
-        var page = await mediator.Send(query, cancellationToken);
-        if (page == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var page = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("PageBuilder", id);
+
         return Ok(page);
     }
 
@@ -116,11 +115,9 @@ public class PageBuildersController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetPageBuilderBySlugQuery(slug, trackView);
-        var page = await mediator.Send(query, cancellationToken);
-        if (page == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var page = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("PageBuilder", slug);
+
         return Ok(page);
     }
 
@@ -192,10 +189,10 @@ public class PageBuildersController(
 
         var updateCommand = command with { Id = id, PerformedBy = userId };
         var result = await mediator.Send(updateCommand, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("PageBuilder", id);
+
         return NoContent();
     }
 
@@ -237,10 +234,10 @@ public class PageBuildersController(
             patchDto.OgImageUrl,
             performedBy);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("PageBuilder", id);
+
         return NoContent();
     }
 
@@ -276,10 +273,10 @@ public class PageBuildersController(
 
         var command = new DeletePageBuilderCommand(id, userId);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("PageBuilder", id);
+
         return NoContent();
     }
 
@@ -315,10 +312,10 @@ public class PageBuildersController(
 
         var command = new PublishPageBuilderCommand(id, userId);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("PageBuilder", id);
+
         return NoContent();
     }
 
@@ -354,10 +351,10 @@ public class PageBuildersController(
 
         var command = new UnpublishPageBuilderCommand(id, userId);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("PageBuilder", id);
+
         return NoContent();
     }
 }

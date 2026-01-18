@@ -21,7 +21,7 @@ public class DeleteTrustBadgeCommandHandler(IDbContext context, IUnitOfWork unit
         var badge = await context.Set<TrustBadge>()
             .FirstOrDefaultAsync(b => b.Id == request.BadgeId, cancellationToken);
 
-        if (badge == null) return false;
+        if (badge is null) return false;
 
         badge.MarkAsDeleted();
         await unitOfWork.SaveChangesAsync(cancellationToken);

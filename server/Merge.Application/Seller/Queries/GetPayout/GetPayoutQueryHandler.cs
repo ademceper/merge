@@ -28,6 +28,6 @@ public class GetPayoutQueryHandler(IDbContext context, IMapper mapper, ILogger<G
                     .ThenInclude(c => c.Order)
             .FirstOrDefaultAsync(p => p.Id == request.PayoutId, cancellationToken);
 
-        return payout != null ? mapper.Map<CommissionPayoutDto>(payout) : null;
+        return payout is not null ? mapper.Map<CommissionPayoutDto>(payout) : null;
     }
 }

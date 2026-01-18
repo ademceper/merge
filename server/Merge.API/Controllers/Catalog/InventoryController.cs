@@ -70,7 +70,7 @@ public class InventoryController(
         var query = new GetInventoryByIdQuery(id, userId);
         var inventory = await mediator.Send(query, cancellationToken);
         
-        if (inventory == null)
+        if (inventory is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -164,7 +164,7 @@ public class InventoryController(
         var query = new GetInventoryByProductAndWarehouseQuery(productId, warehouseId, userId);
         var inventory = await mediator.Send(query, cancellationToken);
         
-        if (inventory == null)
+        if (inventory is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -224,7 +224,7 @@ public class InventoryController(
         var query = new GetStockReportByProductQuery(productId, userId);
         var report = await mediator.Send(query, cancellationToken);
         
-        if (report == null)
+        if (report is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -284,7 +284,7 @@ public class InventoryController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {
@@ -327,7 +327,7 @@ public class InventoryController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {
@@ -360,7 +360,7 @@ public class InventoryController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {
@@ -430,7 +430,7 @@ public class InventoryController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {
@@ -471,7 +471,7 @@ public class InventoryController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {
@@ -512,7 +512,7 @@ public class InventoryController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {
@@ -553,7 +553,7 @@ public class InventoryController(
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         if (!TryGetUserId(out var userId))
         {

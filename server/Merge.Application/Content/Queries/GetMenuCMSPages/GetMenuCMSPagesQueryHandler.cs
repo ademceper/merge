@@ -27,7 +27,7 @@ public class GetMenuCMSPagesQueryHandler(
         logger.LogInformation("Retrieving menu CMS pages");
 
         var cachedPages = await cache.GetAsync<IEnumerable<CMSPageDto>>(CACHE_KEY_MENU_PAGES, cancellationToken);
-        if (cachedPages != null)
+        if (cachedPages is not null)
         {
             logger.LogInformation("Cache hit for menu CMS pages");
             return cachedPages;

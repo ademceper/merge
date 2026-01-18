@@ -27,7 +27,7 @@ public class GetShippingByIdQueryHandler(
             .Include(s => s.Order)
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 
-        return shipping != null ? mapper.Map<ShippingDto>(shipping) : null;
+        return shipping is not null ? mapper.Map<ShippingDto>(shipping) : null;
     }
 }
 

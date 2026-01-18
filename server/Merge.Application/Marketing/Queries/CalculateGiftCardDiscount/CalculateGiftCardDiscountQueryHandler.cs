@@ -20,7 +20,7 @@ public class CalculateGiftCardDiscountQueryHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(gc => gc.Code == request.Code, cancellationToken);
 
-        if (giftCard == null || !giftCard.IsActive || giftCard.IsRedeemed || DateTime.UtcNow > giftCard.ExpiresAt || giftCard.RemainingAmount <= 0)
+        if (giftCard is null || !giftCard.IsActive || giftCard.IsRedeemed || DateTime.UtcNow > giftCard.ExpiresAt || giftCard.RemainingAmount <= 0)
         {
             return 0;
         }

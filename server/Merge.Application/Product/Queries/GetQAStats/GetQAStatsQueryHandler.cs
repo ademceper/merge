@@ -26,7 +26,7 @@ public class GetQAStatsQueryHandler(IDbContext context, ILogger<GetQAStatsQueryH
 
         var cacheKey = $"{CACHE_KEY_QA_STATS}{request.ProductId ?? Guid.Empty}";
         var cachedStats = await cache.GetAsync<QAStatsDto>(cacheKey, cancellationToken);
-        if (cachedStats != null)
+        if (cachedStats is not null)
         {
             logger.LogInformation("QA stats retrieved from cache. ProductId: {ProductId}", request.ProductId);
             return cachedStats;

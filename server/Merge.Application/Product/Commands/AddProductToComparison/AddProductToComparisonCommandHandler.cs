@@ -44,7 +44,7 @@ public class AddProductToComparisonCommandHandler(
                 .OrderByDescending(c => c.CreatedAt)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (comparison == null)
+            if (comparison is null)
             {
                 comparison = ProductComparison.Create(
                     request.UserId,
@@ -58,7 +58,7 @@ public class AddProductToComparisonCommandHandler(
             var product = await context.Set<ProductEntity>()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
-            if (product == null || !product.IsActive)
+            if (product is null || !product.IsActive)
             {
                 throw new NotFoundException("Ürün", request.ProductId);
             }

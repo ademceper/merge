@@ -24,7 +24,7 @@ public class DeleteCouponCommandHandler(
         var coupon = await context.Set<Coupon>()
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-        if (coupon == null)
+        if (coupon is null)
         {
             logger.LogWarning("Coupon not found. CouponId: {CouponId}", request.Id);
             throw new NotFoundException("Kupon", request.Id);

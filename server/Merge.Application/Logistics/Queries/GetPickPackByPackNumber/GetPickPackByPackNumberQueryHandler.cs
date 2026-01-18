@@ -35,7 +35,7 @@ public class GetPickPackByPackNumberQueryHandler(
                     .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(pp => pp.PackNumber == request.PackNumber, cancellationToken);
 
-        return pickPack != null ? mapper.Map<PickPackDto>(pickPack) : null;
+        return pickPack is not null ? mapper.Map<PickPackDto>(pickPack) : null;
     }
 }
 

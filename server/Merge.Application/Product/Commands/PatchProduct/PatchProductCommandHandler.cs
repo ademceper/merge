@@ -30,7 +30,7 @@ public class PatchProductCommandHandler(
         try
         {
             var product = await productRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (product == null)
+            if (product is null)
             {
                 throw new NotFoundException("Ürün", request.Id);
             }
@@ -43,17 +43,17 @@ public class PatchProductCommandHandler(
             }
 
             // Apply partial updates - only update fields that are provided
-            if (request.PatchDto.Name != null)
+            if (request.PatchDto.Name is not null)
             {
                 product.UpdateName(request.PatchDto.Name);
             }
 
-            if (request.PatchDto.Description != null)
+            if (request.PatchDto.Description is not null)
             {
                 product.UpdateDescription(request.PatchDto.Description);
             }
 
-            if (request.PatchDto.SKU != null)
+            if (request.PatchDto.SKU is not null)
             {
                 var sku = new SKU(request.PatchDto.SKU);
                 product.UpdateSKU(sku);
@@ -70,7 +70,7 @@ public class PatchProductCommandHandler(
                 var discountPrice = new Money(request.PatchDto.DiscountPrice.Value);
                 product.SetDiscountPrice(discountPrice);
             }
-            else if (request.PatchDto.DiscountPrice == null && request.PatchDto.Price == null)
+            else if (request.PatchDto.DiscountPrice is null && request.PatchDto.Price is null)
             {
                 // Only clear discount if discount is explicitly set to null and price is not being updated
                 // This allows clearing discount without updating price
@@ -81,12 +81,12 @@ public class PatchProductCommandHandler(
                 product.SetStockQuantity(request.PatchDto.StockQuantity.Value);
             }
 
-            if (request.PatchDto.Brand != null)
+            if (request.PatchDto.Brand is not null)
             {
                 product.UpdateBrand(request.PatchDto.Brand);
             }
 
-            if (request.PatchDto.ImageUrl != null || request.PatchDto.ImageUrls != null)
+            if (request.PatchDto.ImageUrl is not null || request.PatchDto.ImageUrls is not null)
             {
                 var imageUrl = request.PatchDto.ImageUrl ?? product.ImageUrl;
                 var imageUrls = request.PatchDto.ImageUrls?.ToList() ?? product.ImageUrls.ToList();

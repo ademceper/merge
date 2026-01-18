@@ -10,6 +10,7 @@ using Merge.Application.Cart.Queries.IsInWishlist;
 using Merge.Application.Cart.Commands.AddToWishlist;
 using Merge.Application.Cart.Commands.RemoveFromWishlist;
 using Merge.API.Middleware;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Cart;
 
@@ -110,11 +111,10 @@ public class WishlistController(
         var userId = GetUserId();
         var command = new RemoveFromWishlistCommand(userId, productId);
         var result = await mediator.Send(command, cancellationToken);
-        
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("WishlistItem", productId);
+
         return NoContent();
     }
 

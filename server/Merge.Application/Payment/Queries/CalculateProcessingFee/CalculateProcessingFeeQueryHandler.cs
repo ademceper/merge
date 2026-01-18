@@ -25,7 +25,7 @@ public class CalculateProcessingFeeQueryHandler(IDbContext context, ILogger<Calc
             .AsNoTracking()
             .FirstOrDefaultAsync(pm => pm.Id == request.PaymentMethodId && pm.IsActive, cancellationToken);
 
-        if (paymentMethod == null)
+        if (paymentMethod is null)
         {
             logger.LogWarning("Payment method not found. PaymentMethodId: {PaymentMethodId}", request.PaymentMethodId);
             throw new NotFoundException("Ödeme yöntemi", request.PaymentMethodId);

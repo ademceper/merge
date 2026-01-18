@@ -19,7 +19,7 @@ public class GetCampaignAnalyticsQueryHandler(IDbContext context, IMapper mapper
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == request.CampaignId, cancellationToken);
 
-        if (campaign == null)
+        if (campaign is null)
         {
             return null;
         }

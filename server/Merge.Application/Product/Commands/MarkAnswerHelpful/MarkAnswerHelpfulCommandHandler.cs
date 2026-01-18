@@ -27,7 +27,7 @@ public class MarkAnswerHelpfulCommandHandler(IDbContext context, IUnitOfWork uni
             var existing = await context.Set<AnswerHelpfulness>()
                 .FirstOrDefaultAsync(ah => ah.AnswerId == request.AnswerId && ah.UserId == request.UserId, cancellationToken);
 
-            if (existing != null)
+            if (existing is not null)
             {
                 return; // Already marked
             }
@@ -41,7 +41,7 @@ public class MarkAnswerHelpfulCommandHandler(IDbContext context, IUnitOfWork uni
             var answer = await context.Set<ProductAnswer>()
                 .FirstOrDefaultAsync(a => a.Id == request.AnswerId, cancellationToken);
 
-            if (answer != null)
+            if (answer is not null)
             {
                 answer.IncrementHelpfulCount();
             }
@@ -49,7 +49,7 @@ public class MarkAnswerHelpfulCommandHandler(IDbContext context, IUnitOfWork uni
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            if (answer != null)
+            if (answer is not null)
             {
                 await cache.RemoveAsync($"{CACHE_KEY_ANSWERS_BY_QUESTION}{answer.QuestionId}", cancellationToken);
             }

@@ -20,6 +20,6 @@ public class GetFaqQueryHandler(IDbContext context, IMapper mapper) : IRequestHa
             .AsNoTracking()
             .FirstOrDefaultAsync(f => f.Id == request.FaqId, cancellationToken);
         
-        return faq == null ? null : mapper.Map<FaqDto>(faq);
+        return faq is null ? null : mapper.Map<FaqDto>(faq);
     }
 }

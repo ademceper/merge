@@ -36,7 +36,7 @@ public class Setup2FACommandHandler(
         var user = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
-        if (user == null)
+        if (user is null)
         {
             logger.LogWarning("2FA setup failed - user not found. UserId: {UserId}", request.UserId);
             throw new NotFoundException("Kullanıcı", request.UserId);
@@ -46,7 +46,7 @@ public class Setup2FACommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.UserId == request.UserId, cancellationToken);
 
-        if (existing2FA != null && existing2FA.IsEnabled)
+        if (existing2FA is not null && existing2FA.IsEnabled)
         {
             logger.LogWarning("2FA setup failed - already enabled. UserId: {UserId}", request.UserId);
             throw new BusinessException("2FA zaten etkin. Değiştirmek için önce devre dışı bırakın.");
@@ -56,7 +56,7 @@ public class Setup2FACommandHandler(
         var backupCodes = GenerateBackupCodes(twoFactorSettings.Value.BackupCodeCount);
 
         TwoFactorAuth twoFactorAuth;
-        if (existing2FA == null)
+        if (existing2FA is null)
         {
             twoFactorAuth = TwoFactorAuth.Create(
                 request.UserId,

@@ -136,14 +136,14 @@ public class SubscriptionPlan : BaseEntity, IAggregateRoot
         decimal? setupFee = null,
         string? currency = null)
     {
-        if (name != null)
+        if (name is not null)
         {
             Guard.AgainstNullOrEmpty(name, nameof(name));
             Guard.AgainstLength(name, 100, nameof(name));
             Name = name;
         }
 
-        if (description != null)
+        if (description is not null)
         {
             Guard.AgainstLength(description, 1000, nameof(description));
             Description = description;
@@ -168,7 +168,7 @@ public class SubscriptionPlan : BaseEntity, IAggregateRoot
             TrialDays = trialDays;
         }
 
-        if (features != null)
+        if (features is not null)
             Features = features;
 
         if (isActive.HasValue)
@@ -195,7 +195,7 @@ public class SubscriptionPlan : BaseEntity, IAggregateRoot
             _setupFee = setupFee;
         }
 
-        if (currency != null)
+        if (currency is not null)
         {
             if (string.IsNullOrWhiteSpace(currency) || currency.Length != 3)
                 throw new DomainException("Currency must be a 3-letter code");

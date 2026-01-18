@@ -23,7 +23,7 @@ public class UpdateSubscriptionPlanCommandHandler(IDbContext context, IUnitOfWor
         var plan = await context.Set<SubscriptionPlan>()
             .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
 
-        if (plan == null)
+        if (plan is null)
         {
             throw new NotFoundException("Abonelik planı", request.Id);
         }
@@ -36,7 +36,7 @@ public class UpdateSubscriptionPlanCommandHandler(IDbContext context, IUnitOfWor
             price: request.Price,
             durationDays: request.DurationDays,
             trialDays: request.TrialDays,
-            features: request.Features != null ? JsonSerializer.Serialize(request.Features) : null,
+            features: request.Features is not null ? JsonSerializer.Serialize(request.Features) : null,
             isActive: request.IsActive,
             displayOrder: request.DisplayOrder,
             billingCycle: request.BillingCycle,

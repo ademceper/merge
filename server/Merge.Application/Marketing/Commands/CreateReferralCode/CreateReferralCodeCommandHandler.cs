@@ -59,7 +59,7 @@ public class CreateReferralCodeCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == newCode.Id, cancellationToken);
 
-        if (createdCode == null)
+        if (createdCode is null)
         {
             logger.LogWarning("ReferralCode not found after creation. UserId: {UserId}", request.UserId);
             throw new NotFoundException("Referans kodu", newCode.Id);

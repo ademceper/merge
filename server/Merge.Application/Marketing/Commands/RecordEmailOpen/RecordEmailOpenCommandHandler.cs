@@ -29,14 +29,14 @@ public class RecordEmailOpenCommandHandler(
         var recipient = await context.Set<EmailCampaignRecipient>()
             .FirstOrDefaultAsync(r => r.CampaignId == request.CampaignId && r.SubscriberId == request.SubscriberId, cancellationToken);
 
-        if (recipient == null)
+        if (recipient is null)
         {
             logger.LogWarning("EmailCampaignRecipient not found. CampaignId: {CampaignId}, SubscriberId: {SubscriberId}",
                 request.CampaignId, request.SubscriberId);
             return Unit.Value;
         }
 
-        var wasFirstOpen = recipient.OpenedAt == null;
+        var wasFirstOpen = recipient.OpenedAt is null;
 
         recipient.RecordEmailOpened();
 
@@ -45,7 +45,7 @@ public class RecordEmailOpenCommandHandler(
             var campaign = await context.Set<EmailCampaign>()
                 .FirstOrDefaultAsync(c => c.Id == request.CampaignId, cancellationToken);
 
-            if (campaign != null)
+            if (campaign is not null)
             {
                 var newOpenedCount = campaign.OpenedCount + 1;
                 var deliveredCount = campaign.DeliveredCount > 0 ? campaign.DeliveredCount : campaign.SentCount;
@@ -61,7 +61,7 @@ public class RecordEmailOpenCommandHandler(
             var subscriber = await context.Set<EmailSubscriber>()
                 .FirstOrDefaultAsync(s => s.Id == request.SubscriberId, cancellationToken);
 
-            if (subscriber != null)
+            if (subscriber is not null)
             {
                 subscriber.RecordEmailOpened();
             }

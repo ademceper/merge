@@ -57,13 +57,13 @@ public class InvoicesController(IMediator mediator) : BaseController
         }
         var query = new GetInvoiceByIdQuery(id);
         var invoice = await mediator.Send(query, cancellationToken);
-        if (invoice == null)
+        if (invoice is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         var orderQuery = new GetOrderByIdQuery(invoice.OrderId);
         var order = await mediator.Send(orderQuery, cancellationToken);
-        if (order == null)
+        if (order is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -89,7 +89,7 @@ public class InvoicesController(IMediator mediator) : BaseController
         }
         var orderQuery = new GetOrderByIdQuery(orderId);
         var order = await mediator.Send(orderQuery, cancellationToken);
-        if (order == null)
+        if (order is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -99,7 +99,7 @@ public class InvoicesController(IMediator mediator) : BaseController
         }
         var query = new GetInvoiceByOrderIdQuery(orderId);
         var invoice = await mediator.Send(query, cancellationToken);
-        if (invoice == null)
+        if (invoice is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -166,13 +166,13 @@ public class InvoicesController(IMediator mediator) : BaseController
         }
         var query = new GetInvoiceByIdQuery(id);
         var invoice = await mediator.Send(query, cancellationToken);
-        if (invoice == null)
+        if (invoice is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
         var orderQuery = new GetOrderByIdQuery(invoice.OrderId);
         var order = await mediator.Send(orderQuery, cancellationToken);
-        if (order == null)
+        if (order is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }

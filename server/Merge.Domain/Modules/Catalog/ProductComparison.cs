@@ -123,7 +123,7 @@ public class ProductComparison : BaseEntity, IAggregateRoot
         Guard.AgainstDefault(productId, nameof(productId));
         
         var item = _items.FirstOrDefault(i => i.ProductId == productId);
-        if (item == null)
+        if (item is null)
         {
             throw new DomainException("Bu ürün karşılaştırmada bulunamadı");
         }

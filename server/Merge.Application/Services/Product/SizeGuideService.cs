@@ -41,7 +41,7 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
 
         foreach (var entryDto in dto.Entries)
         {
-            var additionalMeasurementsJson = entryDto.AdditionalMeasurements != null 
+            var additionalMeasurementsJson = entryDto.AdditionalMeasurements is not null 
                 ? JsonSerializer.Serialize(entryDto.AdditionalMeasurements) 
                 : null;
 
@@ -89,7 +89,7 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
             .Include(sg => sg.Entries)
             .FirstOrDefaultAsync(sg => sg.Id == id, cancellationToken);
 
-        return sizeGuide != null ? mapper.Map<SizeGuideDto>(sizeGuide) : null;
+        return sizeGuide is not null ? mapper.Map<SizeGuideDto>(sizeGuide) : null;
     }
 
     public async Task<IEnumerable<SizeGuideDto>> GetSizeGuidesByCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default)
@@ -124,7 +124,7 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
             .Include(sg => sg.Entries)
             .FirstOrDefaultAsync(sg => sg.Id == id, cancellationToken);
 
-        if (sizeGuide == null) return false;
+        if (sizeGuide is null) return false;
 
         sizeGuide.Update(
             dto.Name,
@@ -144,7 +144,7 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
         // Add new entries
         foreach (var entryDto in dto.Entries)
         {
-            var additionalMeasurementsJson = entryDto.AdditionalMeasurements != null 
+            var additionalMeasurementsJson = entryDto.AdditionalMeasurements is not null 
                 ? JsonSerializer.Serialize(entryDto.AdditionalMeasurements) 
                 : null;
 
@@ -177,7 +177,7 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
         var sizeGuide = await context.Set<SizeGuide>()
             .FirstOrDefaultAsync(sg => sg.Id == id, cancellationToken);
 
-        if (sizeGuide == null) return false;
+        if (sizeGuide is null) return false;
 
         sizeGuide.MarkAsDeleted();
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -197,7 +197,7 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
                 .ThenInclude(sg => sg.Entries)
             .FirstOrDefaultAsync(psg => psg.ProductId == productId, cancellationToken);
 
-        if (productSizeGuide == null) return null;
+        if (productSizeGuide is null) return null;
 
         var sizeGuideDto = mapper.Map<SizeGuideDto>(productSizeGuide.SizeGuide);
         return new ProductSizeGuideDto(
@@ -213,7 +213,7 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
         var existing = await context.Set<ProductSizeGuide>()
             .FirstOrDefaultAsync(psg => psg.ProductId == dto.ProductId, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             existing.Update(
                 dto.SizeGuideId,
@@ -241,7 +241,7 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
         var productSizeGuide = await context.Set<ProductSizeGuide>()
             .FirstOrDefaultAsync(psg => psg.ProductId == productId, cancellationToken);
 
-        if (productSizeGuide == null) return false;
+        if (productSizeGuide is null) return false;
 
         productSizeGuide.MarkAsDeleted();
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -258,7 +258,7 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
                 .ThenInclude(sg => sg.Entries)
             .FirstOrDefaultAsync(psg => psg.ProductId == productId, cancellationToken);
 
-        if (productSizeGuide == null)
+        if (productSizeGuide is null)
         {
             return new SizeRecommendationDto(
                 RecommendedSize: "N/A",
@@ -316,7 +316,7 @@ public class SizeGuideService(IDbContext context, IUnitOfWork unitOfWork, IMappe
             }
         }
 
-        if (bestMatch != null)
+        if (bestMatch is not null)
         {
             var currentIndex = entries.IndexOf(bestMatch);
             List<string> alternatives = [];

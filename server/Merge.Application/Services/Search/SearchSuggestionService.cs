@@ -122,7 +122,7 @@ public class SearchSuggestionService(IDbContext context, IUnitOfWork unitOfWork,
         var popularSearch = await context.Set<PopularSearch>()
             .FirstOrDefaultAsync(ps => EF.Functions.ILike(ps.SearchTerm, normalizedTerm), cancellationToken);
 
-        if (popularSearch == null)
+        if (popularSearch is null)
         {
             popularSearch = PopularSearch.Create(normalizedTerm);
             await context.Set<PopularSearch>().AddAsync(popularSearch, cancellationToken);
@@ -144,7 +144,7 @@ public class SearchSuggestionService(IDbContext context, IUnitOfWork unitOfWork,
         var searchHistory = await context.Set<SearchHistory>()
             .FirstOrDefaultAsync(sh => sh.Id == searchHistoryId, cancellationToken);
 
-        if (searchHistory == null)
+        if (searchHistory is null)
         {
             return;
         }
@@ -155,7 +155,7 @@ public class SearchSuggestionService(IDbContext context, IUnitOfWork unitOfWork,
         var popularSearch = await context.Set<PopularSearch>()
             .FirstOrDefaultAsync(ps => EF.Functions.ILike(ps.SearchTerm, searchHistory.SearchTerm), cancellationToken);
 
-        if (popularSearch != null)
+        if (popularSearch is not null)
         {
             popularSearch.IncrementClickThroughCount();
         }

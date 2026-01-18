@@ -40,7 +40,7 @@ public class PaymentsController(IMediator mediator) : BaseController
         }
         var orderQuery = new GetOrderByIdQuery(orderId);
         var order = await mediator.Send(orderQuery, cancellationToken);
-        if (order == null)
+        if (order is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -50,7 +50,7 @@ public class PaymentsController(IMediator mediator) : BaseController
         }
         var query = new GetPaymentByOrderIdQuery(orderId);
         var payment = await mediator.Send(query, cancellationToken);
-        if (payment == null)
+        if (payment is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -73,7 +73,7 @@ public class PaymentsController(IMediator mediator) : BaseController
         }
         var orderQuery = new GetOrderByIdQuery(dto.OrderId);
         var order = await mediator.Send(orderQuery, cancellationToken);
-        if (order == null)
+        if (order is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }

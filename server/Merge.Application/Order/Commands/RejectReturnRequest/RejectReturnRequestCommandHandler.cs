@@ -20,7 +20,7 @@ public class RejectReturnRequestCommandHandler(IDbContext context, IUnitOfWork u
         var returnRequest = await context.Set<ReturnRequest>()
             .FirstOrDefaultAsync(r => r.Id == request.ReturnRequestId, cancellationToken);
 
-        if (returnRequest == null)
+        if (returnRequest is null)
         {
             return false;
         }

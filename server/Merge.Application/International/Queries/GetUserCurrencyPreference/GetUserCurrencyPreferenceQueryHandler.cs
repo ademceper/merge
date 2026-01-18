@@ -23,7 +23,7 @@ public class GetUserCurrencyPreferenceQueryHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == request.UserId, cancellationToken);
 
-        if (preference != null)
+        if (preference is not null)
         {
             return preference.CurrencyCode;
         }

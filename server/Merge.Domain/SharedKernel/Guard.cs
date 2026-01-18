@@ -19,7 +19,7 @@ public static class Guard
 
     public static void AgainstNull<T>(T? value, string parameterName) where T : class
     {
-        if (value == null)
+        if (value is null)
             throw new ArgumentNullException(parameterName);
     }
 
@@ -61,7 +61,7 @@ public static class Guard
 
     public static void AgainstLength(string? value, int maxLength, string parameterName)
     {
-        if (value != null && value.Length > maxLength)
+        if (value is not null && value.Length > maxLength)
             throw new ArgumentException($"{parameterName} cannot exceed {maxLength} characters", parameterName);
     }
 }

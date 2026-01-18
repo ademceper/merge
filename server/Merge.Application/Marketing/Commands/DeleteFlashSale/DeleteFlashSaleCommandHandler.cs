@@ -23,7 +23,7 @@ public class DeleteFlashSaleCommandHandler(
         var flashSale = await context.Set<FlashSale>()
             .FirstOrDefaultAsync(fs => fs.Id == request.Id, cancellationToken);
 
-        if (flashSale == null)
+        if (flashSale is null)
         {
             logger.LogWarning("FlashSale not found. FlashSaleId: {FlashSaleId}", request.Id);
             throw new NotFoundException("Flash Sale", request.Id);

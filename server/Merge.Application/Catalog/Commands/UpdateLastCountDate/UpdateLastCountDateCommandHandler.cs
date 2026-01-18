@@ -37,7 +37,7 @@ public class UpdateLastCountDateCommandHandler(
                 .Include(i => i.Product)
                 .FirstOrDefaultAsync(i => i.Id == request.InventoryId, cancellationToken);
             
-            if (inventory == null)
+            if (inventory is null)
             {
                 logger.LogWarning("Inventory not found with Id: {InventoryId}", request.InventoryId);
                 return false;

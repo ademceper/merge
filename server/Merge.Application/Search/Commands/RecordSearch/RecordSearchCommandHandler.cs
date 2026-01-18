@@ -38,7 +38,7 @@ public class RecordSearchCommandHandler(IDbContext context, IUnitOfWork unitOfWo
         var popularSearch = await context.Set<PopularSearch>()
             .FirstOrDefaultAsync(ps => EF.Functions.ILike(ps.SearchTerm, normalizedTerm), cancellationToken);
 
-        if (popularSearch == null)
+        if (popularSearch is null)
         {
             popularSearch = PopularSearch.Create(normalizedTerm);
             await context.Set<PopularSearch>().AddAsync(popularSearch, cancellationToken);

@@ -35,7 +35,7 @@ public class GetInvoiceByOrderIdQueryHandler(IDbContext context, IMapper mapper,
                 .ThenInclude(o => o.User)
             .FirstOrDefaultAsync(i => i.OrderId == request.OrderId, cancellationToken);
 
-        if (invoice == null)
+        if (invoice is null)
         {
             logger.LogWarning("Invoice not found for order ID. OrderId: {OrderId}", request.OrderId);
             return null;

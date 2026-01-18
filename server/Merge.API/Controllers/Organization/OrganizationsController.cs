@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.Interfaces.Organization;
 using Merge.Application.DTOs.Organization;
+using Merge.Application.Exceptions;
 using Merge.Application.Common;
 using Merge.API.Middleware;
 
@@ -43,11 +44,8 @@ public class OrganizationsController(IOrganizationService organizationService) :
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<OrganizationDto>> GetOrganization(Guid id, CancellationToken cancellationToken = default)
     {
-        var organization = await organizationService.GetOrganizationByIdAsync(id, cancellationToken);
-        if (organization == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var organization = await organizationService.GetOrganizationByIdAsync(id, cancellationToken)
+            ?? throw new NotFoundException("Organization", id);
         return Ok(organization);
     }
 
@@ -63,7 +61,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var organization = await organizationService.CreateOrganizationAsync(dto, cancellationToken);
         return CreatedAtAction(nameof(GetOrganization), new { id = organization.Id }, organization);
     }
@@ -82,12 +80,10 @@ public class OrganizationsController(IOrganizationService organizationService) :
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var success = await organizationService.UpdateOrganizationAsync(id, dto, cancellationToken);
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Organization", id);
         return NoContent();
     }
 
@@ -109,7 +105,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var dto = new UpdateOrganizationDto
         {
             Name = patchDto.Name,
@@ -130,9 +126,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         };
         var success = await organizationService.UpdateOrganizationAsync(id, dto, cancellationToken);
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Organization", id);
         return NoContent();
     }
 
@@ -147,9 +141,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
     {
         var success = await organizationService.DeleteOrganizationAsync(id, cancellationToken);
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Organization", id);
         return NoContent();
     }
 
@@ -164,9 +156,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
     {
         var success = await organizationService.VerifyOrganizationAsync(id, cancellationToken);
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Organization", id);
         return NoContent();
     }
 
@@ -181,9 +171,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
     {
         var success = await organizationService.SuspendOrganizationAsync(id, cancellationToken);
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Organization", id);
         return NoContent();
     }
 
@@ -216,7 +204,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var team = await organizationService.CreateTeamAsync(dto, cancellationToken);
         return CreatedAtAction(nameof(GetTeam), new { id = team.Id }, team);
     }
@@ -230,11 +218,8 @@ public class OrganizationsController(IOrganizationService organizationService) :
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<TeamDto>> GetTeam(Guid id, CancellationToken cancellationToken = default)
     {
-        var team = await organizationService.GetTeamByIdAsync(id, cancellationToken);
-        if (team == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var team = await organizationService.GetTeamByIdAsync(id, cancellationToken)
+            ?? throw new NotFoundException("Team", id);
         return Ok(team);
     }
 
@@ -252,12 +237,10 @@ public class OrganizationsController(IOrganizationService organizationService) :
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var success = await organizationService.UpdateTeamAsync(id, dto, cancellationToken);
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Team", id);
         return NoContent();
     }
 
@@ -279,12 +262,10 @@ public class OrganizationsController(IOrganizationService organizationService) :
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var success = await organizationService.UpdateTeamAsync(id, dto, cancellationToken);
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Team", id);
         return NoContent();
     }
 
@@ -299,9 +280,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
     {
         var success = await organizationService.DeleteTeamAsync(id, cancellationToken);
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Team", id);
         return NoContent();
     }
 
@@ -335,7 +314,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var member = await organizationService.AddTeamMemberAsync(teamId, dto, cancellationToken);
         return CreatedAtAction(nameof(GetTeamMembers), new { teamId = teamId }, member);
     }
@@ -354,9 +333,7 @@ public class OrganizationsController(IOrganizationService organizationService) :
     {
         var success = await organizationService.RemoveTeamMemberAsync(teamId, userId, cancellationToken);
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("TeamMember", $"{teamId}/{userId}");
         return NoContent();
     }
 
@@ -375,12 +352,10 @@ public class OrganizationsController(IOrganizationService organizationService) :
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var success = await organizationService.UpdateTeamMemberAsync(teamId, userId, dto, cancellationToken);
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("TeamMember", $"{teamId}/{userId}");
         return NoContent();
     }
 
@@ -403,12 +378,10 @@ public class OrganizationsController(IOrganizationService organizationService) :
         CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
         var success = await organizationService.UpdateTeamMemberAsync(teamId, userId, dto, cancellationToken);
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("TeamMember", $"{teamId}/{userId}");
         return NoContent();
     }
 

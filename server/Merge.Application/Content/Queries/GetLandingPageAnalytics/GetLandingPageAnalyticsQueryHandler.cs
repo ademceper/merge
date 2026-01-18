@@ -30,7 +30,7 @@ public class GetLandingPageAnalyticsQueryHandler(
         var cacheKey = $"{CACHE_KEY_ANALYTICS}{request.Id}_{request.StartDate?.ToString("yyyy-MM-dd") ?? "all"}_{request.EndDate?.ToString("yyyy-MM-dd") ?? "all"}";
 
         var cachedAnalytics = await cache.GetAsync<LandingPageAnalyticsDto>(cacheKey, cancellationToken);
-        if (cachedAnalytics != null)
+        if (cachedAnalytics is not null)
         {
             logger.LogInformation("Cache hit for landing page analytics. LandingPageId: {LandingPageId}", request.Id);
             return cachedAnalytics;
@@ -43,7 +43,7 @@ public class GetLandingPageAnalyticsQueryHandler(
             .Include(lp => lp.Variants.Where(v => v.IsActive))
             .FirstOrDefaultAsync(lp => lp.Id == request.Id, cancellationToken);
 
-        if (landingPage == null)
+        if (landingPage is null)
         {
             logger.LogWarning("Landing page not found for analytics. LandingPageId: {LandingPageId}", request.Id);
             throw new NotFoundException("Landing Page", request.Id);
@@ -52,7 +52,7 @@ public class GetLandingPageAnalyticsQueryHandler(
         var start = request.StartDate ?? DateTime.UtcNow.AddMonths(-1);
         var end = request.EndDate ?? DateTime.UtcNow;
 
-        var variants = landingPage.Variants != null && landingPage.Variants.Any()
+        var variants = landingPage.Variants is not null && landingPage.Variants.Any()
             ? landingPage.Variants.Select(v => mapper.Map<LandingPageVariantDto>(v)).ToList()
             : new List<LandingPageVariantDto>();
 

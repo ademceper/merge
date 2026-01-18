@@ -36,7 +36,7 @@ public class ResendVerificationEmailCommandHandler(
         logger.LogInformation("Resend verification email attempt. UserId: {UserId}", request.UserId);
 
         var user = await userManager.FindByIdAsync(request.UserId.ToString());
-        if (user == null)
+        if (user is null)
         {
             logger.LogWarning("Resend verification email failed - user not found. UserId: {UserId}", request.UserId);
             throw new NotFoundException("Kullanıcı", request.UserId);
@@ -57,7 +57,7 @@ public class ResendVerificationEmailCommandHandler(
     private async Task<string> GenerateVerificationTokenAsync(Guid userId, string email, CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(userId.ToString());
-        if (user == null)
+        if (user is null)
         {
             throw new NotFoundException("Kullanıcı", userId);
         }
@@ -80,7 +80,7 @@ public class ResendVerificationEmailCommandHandler(
         await emailVerificationRepository.AddAsync(verification);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        if (emailService != null)
+        if (emailService is not null)
         {
             var verificationUrl = $"{emailSettings.Value.VerificationUrlPath}?token={token}";
             var emailBody = $@"

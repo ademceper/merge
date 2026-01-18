@@ -49,7 +49,7 @@ public class UnitOfWork(ApplicationDbContext context, IDomainEventDispatcher? do
 
     public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
     {
-        if (_transaction != null)
+        if (_transaction is not null)
         {
             await _transaction.CommitAsync(cancellationToken);
             await _transaction.DisposeAsync();
@@ -59,7 +59,7 @@ public class UnitOfWork(ApplicationDbContext context, IDomainEventDispatcher? do
 
     public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
     {
-        if (_transaction != null)
+        if (_transaction is not null)
         {
             await _transaction.RollbackAsync(cancellationToken);
             await _transaction.DisposeAsync();

@@ -31,7 +31,7 @@ public class EvaluateOrderCommandHandler(IDbContext context, IUnitOfWork unitOfW
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
-        if (order == null)
+        if (order is null)
         {
             logger.LogWarning("Order not found. OrderId: {OrderId}", request.OrderId);
             throw new NotFoundException("Sipariş", request.OrderId);

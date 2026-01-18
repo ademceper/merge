@@ -31,7 +31,7 @@ public class UpdateSizeGuideCommandHandler(IDbContext context, IUnitOfWork unitO
                 .Include(sg => sg.Entries)
                 .FirstOrDefaultAsync(sg => sg.Id == request.Id, cancellationToken);
 
-            if (sizeGuide == null)
+            if (sizeGuide is null)
             {
                 return false;
             }
@@ -70,7 +70,7 @@ public class UpdateSizeGuideCommandHandler(IDbContext context, IUnitOfWork unitO
                     entryDto.Width,
                     entryDto.Height,
                     entryDto.Weight,
-                    entryDto.AdditionalMeasurements != null ? JsonSerializer.Serialize(entryDto.AdditionalMeasurements) : null,
+                    entryDto.AdditionalMeasurements is not null ? JsonSerializer.Serialize(entryDto.AdditionalMeasurements) : null,
                     entryDto.DisplayOrder);
 
                 sizeGuide.AddEntry(entry);

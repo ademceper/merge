@@ -39,7 +39,7 @@ public class PatchCartItemCommandHandler(
         var cartItem = await context.Set<CartItem>()
             .FirstOrDefaultAsync(ci => ci.Id == request.CartItemId, cancellationToken);
 
-        if (cartItem == null)
+        if (cartItem is null)
         {
             logger.LogWarning("Cart item not found. CartItemId: {CartItemId}", request.CartItemId);
             return false;
@@ -49,7 +49,7 @@ public class PatchCartItemCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == cartItem.ProductId, cancellationToken);
 
-        if (product == null)
+        if (product is null)
         {
             logger.LogWarning("Product {ProductId} not found for cart item {CartItemId}", cartItem.ProductId, request.CartItemId);
             throw new NotFoundException("Ürün", cartItem.ProductId);
@@ -70,7 +70,7 @@ public class PatchCartItemCommandHandler(
                 .Include(c => c.CartItems)
                 .FirstOrDefaultAsync(c => c.Id == cartItem.CartId, cancellationToken);
 
-            if (cart == null)
+            if (cart is null)
             {
                 logger.LogWarning("Cart not found for cart item {CartItemId}", request.CartItemId);
                 await unitOfWork.RollbackTransactionAsync(cancellationToken);

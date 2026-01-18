@@ -4,16 +4,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Merge.Application.Common;
 using Merge.Application.DTOs.Cart;
-using Merge.Application.Interfaces;
 using Merge.Application.Configuration;
-using Merge.Domain.Entities;
 using AutoMapper;
-using Merge.Domain.Interfaces;
-using Merge.Domain.Modules.Catalog;
-using Merge.Domain.Modules.Identity;
 using Merge.Domain.Modules.Marketing;
 using Merge.Domain.Modules.Ordering;
-using Merge.Domain.ValueObjects;
 using CartEntity = Merge.Domain.Modules.Ordering.Cart;
 using OrderEntity = Merge.Domain.Modules.Ordering.Order;
 using IDbContext = Merge.Application.Interfaces.IDbContext;
@@ -156,7 +150,7 @@ public class GetAbandonedCartsQueryHandler(
         {
             var items = cartItemsDict.ContainsKey(c.CartId)
                 ? mapper.Map<IEnumerable<CartItemDto>>(cartItemsDict[c.CartId]).ToList().AsReadOnly()
-                : new List<CartItemDto>().AsReadOnly();
+                : Array.Empty<CartItemDto>().AsReadOnly();
             
             var dto = new AbandonedCartDto(
                 c.CartId,

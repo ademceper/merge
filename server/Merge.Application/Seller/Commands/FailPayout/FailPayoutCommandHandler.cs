@@ -24,7 +24,7 @@ public class FailPayoutCommandHandler(IDbContext context, IUnitOfWork unitOfWork
                 .ThenInclude(i => i.Commission)
             .FirstOrDefaultAsync(p => p.Id == request.PayoutId, cancellationToken);
 
-        if (payout == null)
+        if (payout is null)
         {
             logger.LogWarning("Payout not found. PayoutId: {PayoutId}", request.PayoutId);
             return false;
@@ -35,7 +35,7 @@ public class FailPayoutCommandHandler(IDbContext context, IUnitOfWork unitOfWork
         // Revert commissions back to approved using domain method
         foreach (var item in payout.Items)
         {
-            if (item.Commission != null)
+            if (item.Commission is not null)
             {
                 item.Commission.RevertToApproved();
             }

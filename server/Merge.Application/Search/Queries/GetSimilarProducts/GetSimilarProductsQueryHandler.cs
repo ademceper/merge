@@ -30,7 +30,7 @@ public class GetSimilarProductsQueryHandler(IDbContext context, IMapper mapper, 
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
-        if (product == null)
+        if (product is null)
         {
             logger.LogWarning("Product not found. ProductId: {ProductId}", request.ProductId);
             return Array.Empty<ProductRecommendationDto>();

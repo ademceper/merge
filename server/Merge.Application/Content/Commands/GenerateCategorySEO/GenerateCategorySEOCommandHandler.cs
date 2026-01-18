@@ -29,7 +29,7 @@ public class GenerateCategorySEOCommandHandler(
         var category = await context.Set<Category>()
             .FirstOrDefaultAsync(c => c.Id == request.CategoryId, cancellationToken);
 
-        if (category == null)
+        if (category is null)
         {
             logger.LogWarning("Category not found. CategoryId: {CategoryId}", request.CategoryId);
             throw new NotFoundException("Kategori", request.CategoryId);

@@ -36,7 +36,7 @@ public class FraudDetectionService(IDbContext context, IUnitOfWork unitOfWork, I
 
         var ruleType = Enum.TryParse<FraudRuleType>(dto.RuleType, true, out var rt) ? rt : FraudRuleType.Order;
         var action = Enum.TryParse<FraudAction>(dto.Action, true, out var act) ? act : FraudAction.Flag;
-        var conditions = dto.Conditions != null ? JsonSerializer.Serialize(dto.Conditions) : string.Empty;
+        var conditions = dto.Conditions is not null ? JsonSerializer.Serialize(dto.Conditions) : string.Empty;
         
         var rule = FraudDetectionRule.Create(
             name: dto.Name,
@@ -72,7 +72,7 @@ public class FraudDetectionService(IDbContext context, IUnitOfWork unitOfWork, I
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
-        return rule != null ? mapper.Map<FraudDetectionRuleDto>(rule) : null;
+        return rule is not null ? mapper.Map<FraudDetectionRuleDto>(rule) : null;
     }
 
     public async Task<IEnumerable<FraudDetectionRuleDto>> GetAllRulesAsync(string? ruleType = null, bool? isActive = null, CancellationToken cancellationToken = default)
@@ -103,11 +103,11 @@ public class FraudDetectionService(IDbContext context, IUnitOfWork unitOfWork, I
         var rule = await context.Set<FraudDetectionRule>()
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
-        if (rule == null) return false;
+        if (rule is null) return false;
 
         if (!string.IsNullOrEmpty(dto.Name))
             rule.UpdateName(dto.Name);
-        if (dto.Conditions != null)
+        if (dto.Conditions is not null)
             rule.UpdateConditions(JsonSerializer.Serialize(dto.Conditions));
         rule.UpdateRiskScore(dto.RiskScore);
         if (!string.IsNullOrEmpty(dto.Action) && Enum.TryParse<FraudAction>(dto.Action, true, out var action))
@@ -128,7 +128,7 @@ public class FraudDetectionService(IDbContext context, IUnitOfWork unitOfWork, I
         var rule = await context.Set<FraudDetectionRule>()
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
 
-        if (rule == null) return false;
+        if (rule is null) return false;
 
         rule.MarkAsDeleted();
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -145,7 +145,7 @@ public class FraudDetectionService(IDbContext context, IUnitOfWork unitOfWork, I
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
 
-        if (order == null)
+        if (order is null)
         {
             throw new NotFoundException("Sipariş", orderId);
         }
@@ -187,7 +187,7 @@ public class FraudDetectionService(IDbContext context, IUnitOfWork unitOfWork, I
                 .ThenInclude(o => o.User)
             .FirstOrDefaultAsync(p => p.Id == paymentId, cancellationToken);
 
-        if (payment == null)
+        if (payment is null)
         {
             throw new NotFoundException("Ödeme", paymentId);
         }
@@ -224,7 +224,7 @@ public class FraudDetectionService(IDbContext context, IUnitOfWork unitOfWork, I
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
-        if (user == null)
+        if (user is null)
         {
             throw new NotFoundException("Kullanıcı", userId);
         }
@@ -299,7 +299,7 @@ public class FraudDetectionService(IDbContext context, IUnitOfWork unitOfWork, I
         var alert = await context.Set<FraudAlert>()
             .FirstOrDefaultAsync(a => a.Id == alertId, cancellationToken);
 
-        if (alert == null) return false;
+        if (alert is null) return false;
 
         if (Enum.TryParse<FraudAlertStatus>(status, true, out var statusEnum))
         {
@@ -428,7 +428,7 @@ public class FraudDetectionService(IDbContext context, IUnitOfWork unitOfWork, I
         try
         {
             var conditions = JsonSerializer.Deserialize<Dictionary<string, object>>(rule.Conditions);
-            if (conditions == null || !conditions.Any())
+            if (conditions is null || !conditions.Any())
             {
                 return false;
             }
@@ -443,7 +443,7 @@ public class FraudDetectionService(IDbContext context, IUnitOfWork unitOfWork, I
                     .Include(o => o.OrderItems)
                     .FirstOrDefaultAsync(o => o.Id == entityId.Value, cancellationToken);
 
-                if (order != null)
+                if (order is not null)
                 {
                     // Example: Check for high-value orders
                     if (conditions.ContainsKey("max_order_amount"))
@@ -473,7 +473,7 @@ public class FraudDetectionService(IDbContext context, IUnitOfWork unitOfWork, I
                     .AsNoTracking()
                     .FirstOrDefaultAsync(p => p.Id == entityId.Value, cancellationToken);
 
-                if (payment != null)
+                if (payment is not null)
                 {
                     // Example: Check for high-value payments
                     if (conditions.ContainsKey("max_payment_amount"))
@@ -494,7 +494,7 @@ public class FraudDetectionService(IDbContext context, IUnitOfWork unitOfWork, I
                     .Include(u => u.Orders)
                     .FirstOrDefaultAsync(u => u.Id == userId.Value, cancellationToken);
 
-                if (user != null)
+                if (user is not null)
                 {
                     // Example: Check for new account with many orders
                     if (conditions.ContainsKey("max_orders_for_new_account"))

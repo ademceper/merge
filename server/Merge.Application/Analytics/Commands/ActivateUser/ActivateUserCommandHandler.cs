@@ -21,7 +21,7 @@ public class ActivateUserCommandHandler(
         
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
-        if (user == null)
+        if (user is null)
         {
             logger.LogWarning("User not found for activation. UserId: {UserId}", request.UserId);
             return false;

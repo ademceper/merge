@@ -22,7 +22,7 @@ public class JoinStreamCommandHandler(
         var stream = await context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == request.StreamId, cancellationToken);
 
-        if (stream == null)
+        if (stream is null)
         {
             logger.LogWarning("Stream not found. StreamId: {StreamId}", request.StreamId);
             throw new NotFoundException("Canlı yayın", request.StreamId);
@@ -34,7 +34,7 @@ public class JoinStreamCommandHandler(
                 (request.UserId.HasValue ? v.UserId == request.UserId : v.GuestId == request.GuestId) &&
                 v.IsActive, cancellationToken);
 
-        if (existingViewer != null)
+        if (existingViewer is not null)
         {
             logger.LogInformation("Viewer already in stream. StreamId: {StreamId}, UserId: {UserId}, GuestId: {GuestId}", 
                 request.StreamId, request.UserId, request.GuestId);

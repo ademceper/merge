@@ -43,7 +43,7 @@ public class AdjustStockCommandHandler(
                 .Include(i => i.Warehouse)
                 .FirstOrDefaultAsync(i => i.Id == request.InventoryId, cancellationToken);
 
-            if (inventory == null)
+            if (inventory is null)
             {
                 logger.LogWarning("Inventory not found for adjustment with Id: {InventoryId}", request.InventoryId);
                 throw new NotFoundException("Envanter", request.InventoryId);
@@ -93,7 +93,7 @@ public class AdjustStockCommandHandler(
                 .FirstOrDefaultAsync(i => i.Id == request.InventoryId, cancellationToken);
 
             await cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_ID}{request.InventoryId}", cancellationToken);
-            if (inventory != null)
+            if (inventory is not null)
             {
                 await cache.RemoveAsync($"{CACHE_KEY_INVENTORY_BY_PRODUCT_WAREHOUSE}{inventory.ProductId}_{inventory.WarehouseId}", cancellationToken);
                 await cache.RemoveAsync($"inventories_by_product_{inventory.ProductId}", cancellationToken); // Invalidate product inventories list cache

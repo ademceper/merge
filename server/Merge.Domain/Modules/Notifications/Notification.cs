@@ -53,7 +53,7 @@ public class Notification : BaseEntity, IAggregateRoot
         get => _link; 
         private set 
         {
-            if (value != null)
+            if (value is not null)
             {
                 Guard.AgainstLength(value, 500, nameof(Link));
             }
@@ -84,7 +84,7 @@ public class Notification : BaseEntity, IAggregateRoot
         Guard.AgainstLength(title, 200, nameof(title));
         Guard.AgainstNullOrEmpty(message, nameof(message));
         Guard.AgainstLength(message, 2000, nameof(message));
-        if (link != null)
+        if (link is not null)
         {
             Guard.AgainstLength(link, 500, nameof(link));
         }

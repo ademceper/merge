@@ -40,7 +40,7 @@ public class GetUsersQueryHandler(
                 .AsNoTracking()
                 .FirstOrDefaultAsync(r => r.Name == request.Role, cancellationToken);
             
-            if (role != null)
+            if (role is not null)
             {
                 var userIdsWithRole = await context.UserRoles
                     .AsNoTracking()

@@ -20,6 +20,6 @@ public class GetEmailCampaignByIdQueryHandler(IDbContext context, IMapper mapper
             .Include(c => c.Template)
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-        return campaign != null ? mapper.Map<EmailCampaignDto>(campaign) : null;
+        return campaign is not null ? mapper.Map<EmailCampaignDto>(campaign) : null;
     }
 }

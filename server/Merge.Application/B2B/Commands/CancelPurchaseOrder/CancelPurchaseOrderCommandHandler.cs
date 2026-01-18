@@ -24,7 +24,7 @@ public class CancelPurchaseOrderCommandHandler(
         var po = await context.Set<PurchaseOrder>()
             .FirstOrDefaultAsync(po => po.Id == request.Id, cancellationToken);
 
-        if (po == null)
+        if (po is null)
         {
             logger.LogWarning("Purchase order not found with Id: {PurchaseOrderId}", request.Id);
             return false;

@@ -26,7 +26,7 @@ public class GetReviewHelpfulnessStatsQueryHandler(IDbContext context, ILogger<G
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == request.ReviewId, cancellationToken);
 
-        if (review == null)
+        if (review is null)
         {
             logger.LogWarning("Review not found with Id: {ReviewId}", request.ReviewId);
             throw new NotFoundException("Değerlendirme", request.ReviewId);
@@ -39,7 +39,7 @@ public class GetReviewHelpfulnessStatsQueryHandler(IDbContext context, ILogger<G
                 .AsNoTracking()
                 .FirstOrDefaultAsync(rh => rh.ReviewId == request.ReviewId && rh.UserId == request.UserId.Value, cancellationToken);
 
-            if (vote != null)
+            if (vote is not null)
             {
                 userVote = vote.IsHelpful;
             }

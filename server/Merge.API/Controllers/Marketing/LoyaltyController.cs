@@ -49,7 +49,7 @@ public class LoyaltyController(
         var query = new GetLoyaltyAccountQuery(userId);
         var account = await mediator.Send(query, cancellationToken);
 
-        if (account == null)
+        if (account is null)
         {
             var createCommand = new CreateLoyaltyAccountCommand(userId);
             account = await mediator.Send(createCommand, cancellationToken);

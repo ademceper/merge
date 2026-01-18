@@ -25,7 +25,7 @@ public class GetActivityByIdQueryHandler(IDbContext context, IMapper mapper, ILo
             .Include(a => a.User)
             .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
 
-        if (activity == null)
+        if (activity is null)
         {
             logger.LogWarning("Activity not found with ID: {ActivityId}", request.Id);
             return null;

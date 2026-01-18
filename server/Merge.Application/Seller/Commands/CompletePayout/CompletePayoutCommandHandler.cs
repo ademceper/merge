@@ -27,7 +27,7 @@ public class CompletePayoutCommandHandler(IDbContext context, IUnitOfWork unitOf
             .Include(p => p.Seller)
             .FirstOrDefaultAsync(p => p.Id == request.PayoutId, cancellationToken);
 
-        if (payout == null)
+        if (payout is null)
         {
             logger.LogWarning("Payout not found. PayoutId: {PayoutId}", request.PayoutId);
             return false;

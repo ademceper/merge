@@ -24,6 +24,6 @@ public class GetInvoiceQueryHandler(IDbContext context, IMapper mapper, ILogger<
             .Include(i => i.Seller)
             .FirstOrDefaultAsync(i => i.Id == request.InvoiceId, cancellationToken);
 
-        return invoice != null ? mapper.Map<SellerInvoiceDto>(invoice) : null;
+        return invoice is not null ? mapper.Map<SellerInvoiceDto>(invoice) : null;
     }
 }

@@ -33,7 +33,7 @@ public class CreateWholesalePriceCommandHandler(
         var product = await context.Set<ProductEntity>()
             .FirstOrDefaultAsync(p => p.Id == request.Dto.ProductId, cancellationToken);
 
-        if (product == null)
+        if (product is null)
         {
             throw new NotFoundException("Ürün", request.Dto.ProductId);
         }

@@ -22,7 +22,7 @@ public class GetSubscriptionPlanByIdQueryHandler(IDbContext context, IMapper map
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
 
-        if (plan == null)
+        if (plan is null)
         {
             logger.LogWarning("Subscription plan not found. PlanId: {PlanId}", request.Id);
             return null;

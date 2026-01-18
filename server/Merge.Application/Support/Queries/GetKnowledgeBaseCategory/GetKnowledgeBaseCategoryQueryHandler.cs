@@ -23,6 +23,6 @@ public class GetKnowledgeBaseCategoryQueryHandler(IDbContext context, IMapper ma
             .Include(c => c.SubCategories)
             .FirstOrDefaultAsync(c => c.Id == request.CategoryId, cancellationToken);
 
-        return category != null ? mapper.Map<KnowledgeBaseCategoryDto>(category) : null;
+        return category is not null ? mapper.Map<KnowledgeBaseCategoryDto>(category) : null;
     }
 }

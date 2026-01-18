@@ -25,7 +25,7 @@ public class GetPaymentMethodByCodeQueryHandler(IDbContext context, IMapper mapp
             .AsNoTracking()
             .FirstOrDefaultAsync(pm => pm.Code == request.Code && pm.IsActive, cancellationToken);
 
-        if (paymentMethod == null)
+        if (paymentMethod is null)
         {
             logger.LogWarning("Payment method not found. Code: {Code}", request.Code);
             return null;

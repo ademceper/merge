@@ -23,7 +23,7 @@ public class UpdateTemplateCommandHandler(IDbContext context, IUnitOfWork unitOf
         var template = await context.Set<NotificationTemplate>()
             .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
 
-        if (template == null)
+        if (template is null)
         {
             throw new NotFoundException("Şablon", request.Id);
         }
@@ -36,8 +36,8 @@ public class UpdateTemplateCommandHandler(IDbContext context, IUnitOfWork unitOf
             request.Dto.MessageTemplate,
             request.Dto.LinkTemplate,
             request.Dto.IsActive,
-            request.Dto.Variables != null ? JsonSerializer.Serialize(request.Dto.Variables) : null,
-            request.Dto.DefaultData != null ? JsonSerializer.Serialize(request.Dto.DefaultData) : null);
+            request.Dto.Variables is not null ? JsonSerializer.Serialize(request.Dto.Variables) : null,
+            request.Dto.DefaultData is not null ? JsonSerializer.Serialize(request.Dto.DefaultData) : null);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

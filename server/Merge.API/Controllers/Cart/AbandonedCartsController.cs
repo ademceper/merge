@@ -16,6 +16,7 @@ using Merge.Application.Cart.Commands.TrackEmailClick;
 using Merge.Application.Cart.Commands.MarkCartAsRecovered;
 using Merge.Domain.Enums;
 using Merge.API.Middleware;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Cart;
 
@@ -93,12 +94,8 @@ public class AbandonedCartsController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetAbandonedCartByIdQuery(cartId);
-        var cart = await mediator.Send(query, cancellationToken);
-
-        if (cart is null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var cart = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("AbandonedCart", cartId);
 
         return Ok(cart);
     }
@@ -270,12 +267,8 @@ public class AbandonedCartsController(
         }
 
         var cartQuery = new GetAbandonedCartByIdQuery(cartId);
-        var cart = await mediator.Send(cartQuery, cancellationToken);
-        
-        if (cart is null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var cart = await mediator.Send(cartQuery, cancellationToken)
+            ?? throw new NotFoundException("AbandonedCart", cartId);
 
         if (cart.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {

@@ -28,7 +28,7 @@ public class CreateProductTranslationCommandHandler(
         var language = await context.Set<Language>()
             .FirstOrDefaultAsync(l => EF.Functions.ILike(l.Code, request.LanguageCode), cancellationToken);
 
-        if (language == null)
+        if (language is null)
         {
             logger.LogWarning("Language not found. LanguageCode: {LanguageCode}", request.LanguageCode);
             throw new NotFoundException("Dil", Guid.Empty);

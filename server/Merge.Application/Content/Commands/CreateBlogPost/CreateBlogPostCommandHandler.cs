@@ -42,7 +42,7 @@ public class CreateBlogPostCommandHandler(
             var category = await context.Set<BlogCategory>()
                 .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.IsActive, cancellationToken);
 
-            if (category == null)
+            if (category is null)
             {
                 logger.LogWarning("Blog post creation failed: Category not found. CategoryId: {CategoryId}", request.CategoryId);
                 throw new NotFoundException("Kategori", request.CategoryId);
@@ -65,7 +65,7 @@ public class CreateBlogPostCommandHandler(
             }
 
             // Convert tags list to comma-separated string
-            var tags = request.Tags != null ? string.Join(",", request.Tags) : null;
+            var tags = request.Tags is not null ? string.Join(",", request.Tags) : null;
 
             var post = BlogPost.Create(
                 request.CategoryId,
@@ -95,7 +95,7 @@ public class CreateBlogPostCommandHandler(
                 .Include(p => p.Author)
                 .FirstOrDefaultAsync(p => p.Id == post.Id, cancellationToken);
 
-            if (reloadedPost == null)
+            if (reloadedPost is null)
             {
                 logger.LogWarning("Blog post {PostId} not found after creation", post.Id);
                 throw new NotFoundException("Blog Post", post.Id);

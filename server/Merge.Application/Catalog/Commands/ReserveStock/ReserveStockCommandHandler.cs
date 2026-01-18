@@ -43,7 +43,7 @@ public class ReserveStockCommandHandler(
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
-            if (product == null)
+            if (product is null)
             {
                 throw new NotFoundException("Ürün", request.ProductId);
             }
@@ -59,7 +59,7 @@ public class ReserveStockCommandHandler(
                 .FirstOrDefaultAsync(i => i.ProductId == request.ProductId &&
                                         i.WarehouseId == request.WarehouseId, cancellationToken);
 
-            if (inventory == null)
+            if (inventory is null)
             {
                 logger.LogWarning("Inventory not found for reservation. ProductId: {ProductId}, WarehouseId: {WarehouseId}",
                     request.ProductId, request.WarehouseId);

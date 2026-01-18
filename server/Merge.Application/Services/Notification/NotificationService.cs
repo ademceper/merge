@@ -61,7 +61,7 @@ public class NotificationService(IRepository notificationRepository, IDbContext 
             .AsNoTracking()
             .FirstOrDefaultAsync(n => n.Id == notificationId, cancellationToken);
 
-        if (notification == null)
+        if (notification is null)
         {
             return null;
         }
@@ -99,7 +99,7 @@ public class NotificationService(IRepository notificationRepository, IDbContext 
         var notification = await context.Set<NotificationEntity>()
             .FirstOrDefaultAsync(n => n.Id == notificationId && n.UserId == userId, cancellationToken);
 
-        if (notification == null)
+        if (notification is null)
         {
             return false;
         }
@@ -134,7 +134,7 @@ public class NotificationService(IRepository notificationRepository, IDbContext 
         var notification = await context.Set<NotificationEntity>()
             .FirstOrDefaultAsync(n => n.Id == notificationId && n.UserId == userId, cancellationToken);
 
-        if (notification == null)
+        if (notification is null)
         {
             return false;
         }

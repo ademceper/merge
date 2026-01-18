@@ -31,13 +31,13 @@ public class PatchShippingStatusCommandHandler(
         var shipping = await context.Set<Shipping>()
             .FirstOrDefaultAsync(s => s.Id == request.ShippingId, cancellationToken);
 
-        if (shipping == null)
+        if (shipping is null)
         {
             logger.LogWarning("Shipping not found. ShippingId: {ShippingId}", request.ShippingId);
             throw new NotFoundException("Kargo", request.ShippingId);
         }
 
-        if (request.PatchDto.Status != null)
+        if (request.PatchDto.Status is not null)
         {
             if (!Enum.TryParse<ShippingStatus>(request.PatchDto.Status, true, out var statusEnum))
             {

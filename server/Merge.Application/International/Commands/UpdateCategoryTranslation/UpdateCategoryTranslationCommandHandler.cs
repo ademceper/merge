@@ -26,7 +26,7 @@ public class UpdateCategoryTranslationCommandHandler(
         var translation = await context.Set<CategoryTranslation>()
             .FirstOrDefaultAsync(ct => ct.Id == request.Id, cancellationToken);
 
-        if (translation == null)
+        if (translation is null)
         {
             logger.LogWarning("Category translation not found. TranslationId: {TranslationId}", request.Id);
             throw new NotFoundException("Kategori çevirisi", request.Id);

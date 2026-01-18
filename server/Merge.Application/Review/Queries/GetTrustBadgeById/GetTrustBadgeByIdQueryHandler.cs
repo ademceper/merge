@@ -24,7 +24,7 @@ public class GetTrustBadgeByIdQueryHandler(IDbContext context, IMapper mapper, I
             .AsNoTracking()
             .FirstOrDefaultAsync(b => b.Id == request.BadgeId, cancellationToken);
 
-        if (badge == null)
+        if (badge is null)
         {
             logger.LogWarning("Trust badge not found with Id: {BadgeId}", request.BadgeId);
             return null;

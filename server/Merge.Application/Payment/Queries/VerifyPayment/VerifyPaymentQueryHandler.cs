@@ -24,7 +24,7 @@ public class VerifyPaymentQueryHandler(IDbContext context, ILogger<VerifyPayment
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.TransactionId == request.TransactionId, cancellationToken);
 
-        if (payment == null)
+        if (payment is null)
         {
             logger.LogWarning("Payment not found with transaction ID: {TransactionId}", request.TransactionId);
             return false;

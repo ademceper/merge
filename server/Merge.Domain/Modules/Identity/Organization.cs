@@ -128,7 +128,7 @@ public class Organization : BaseEntity, IAggregateRoot
     // Service layer'dan event eklenebilmesi için public yapıldı (User entity'sinde de aynı pattern kullanılıyor)
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         // BaseEntity'deki protected AddDomainEvent'i çağır
@@ -137,7 +137,7 @@ public class Organization : BaseEntity, IAggregateRoot
 
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         base.RemoveDomainEvent(domainEvent);
@@ -294,7 +294,7 @@ public class Organization : BaseEntity, IAggregateRoot
 
         List<string> changedFields = [];
 
-        if (name != null && name != Name)
+        if (name is not null && name != Name)
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new DomainException("Organizasyon adı boş olamaz");
@@ -304,7 +304,7 @@ public class Organization : BaseEntity, IAggregateRoot
             changedFields.Add(nameof(Name));
         }
 
-        if (email != null && email != Email)
+        if (email is not null && email != Email)
         {
             if (string.IsNullOrEmpty(email))
             {
@@ -318,7 +318,7 @@ public class Organization : BaseEntity, IAggregateRoot
             changedFields.Add(nameof(Email));
         }
 
-        if (phone != null && phone != Phone)
+        if (phone is not null && phone != Phone)
         {
             if (string.IsNullOrEmpty(phone))
             {
@@ -332,7 +332,7 @@ public class Organization : BaseEntity, IAggregateRoot
             changedFields.Add(nameof(Phone));
         }
 
-        if (website != null && website != Website)
+        if (website is not null && website != Website)
         {
             if (string.IsNullOrEmpty(website))
             {
@@ -346,7 +346,7 @@ public class Organization : BaseEntity, IAggregateRoot
             changedFields.Add(nameof(Website));
         }
 
-        if (legalName != null && legalName != LegalName)
+        if (legalName is not null && legalName != LegalName)
         {
             if (string.IsNullOrEmpty(legalName))
             {
@@ -360,7 +360,7 @@ public class Organization : BaseEntity, IAggregateRoot
             changedFields.Add(nameof(LegalName));
         }
         
-        if (taxNumber != null && taxNumber != TaxNumber)
+        if (taxNumber is not null && taxNumber != TaxNumber)
         {
             if (string.IsNullOrEmpty(taxNumber))
             {
@@ -374,7 +374,7 @@ public class Organization : BaseEntity, IAggregateRoot
             changedFields.Add(nameof(TaxNumber));
         }
         
-        if (registrationNumber != null && registrationNumber != RegistrationNumber)
+        if (registrationNumber is not null && registrationNumber != RegistrationNumber)
         {
             if (string.IsNullOrEmpty(registrationNumber))
             {
@@ -389,12 +389,12 @@ public class Organization : BaseEntity, IAggregateRoot
         }
         
         // Address Value Object için tüm alanlar zorunlu olduğundan, sadece tüm alanlar doluysa oluşturuyoruz
-        var addressChanged = (address != null && address != Address) ||
-                             (addressLine2 != null && addressLine2 != AddressLine2) ||
-                             (city != null && city != City) ||
-                             (state != null && state != State) ||
-                             (postalCode != null && postalCode != PostalCode) ||
-                             (country != null && country != Country);
+        var addressChanged = (address is not null && address != Address) ||
+                             (addressLine2 is not null && addressLine2 != AddressLine2) ||
+                             (city is not null && city != City) ||
+                             (state is not null && state != State) ||
+                             (postalCode is not null && postalCode != PostalCode) ||
+                             (country is not null && country != Country);
         
         if (addressChanged)
         {
@@ -422,7 +422,7 @@ public class Organization : BaseEntity, IAggregateRoot
             }
             
             // Kısmi adres bilgileri için ayrı ayrı validation ve update
-            if (address != null)
+            if (address is not null)
             {
                 if (string.IsNullOrEmpty(address))
                 {
@@ -436,7 +436,7 @@ public class Organization : BaseEntity, IAggregateRoot
                 changedFields.Add(nameof(Address));
             }
             
-            if (addressLine2 != null)
+            if (addressLine2 is not null)
             {
                 if (string.IsNullOrEmpty(addressLine2))
                 {
@@ -450,7 +450,7 @@ public class Organization : BaseEntity, IAggregateRoot
                 changedFields.Add(nameof(AddressLine2));
             }
             
-            if (city != null)
+            if (city is not null)
             {
                 if (string.IsNullOrEmpty(city))
                 {
@@ -464,7 +464,7 @@ public class Organization : BaseEntity, IAggregateRoot
                 changedFields.Add(nameof(City));
             }
             
-            if (state != null)
+            if (state is not null)
             {
                 if (string.IsNullOrEmpty(state))
                 {
@@ -478,7 +478,7 @@ public class Organization : BaseEntity, IAggregateRoot
                 changedFields.Add(nameof(State));
             }
             
-            if (postalCode != null)
+            if (postalCode is not null)
             {
                 if (string.IsNullOrEmpty(postalCode))
                 {
@@ -492,7 +492,7 @@ public class Organization : BaseEntity, IAggregateRoot
                 changedFields.Add(nameof(PostalCode));
             }
             
-            if (country != null)
+            if (country is not null)
             {
                 if (string.IsNullOrEmpty(country))
                 {
@@ -507,7 +507,7 @@ public class Organization : BaseEntity, IAggregateRoot
             }
         }
         
-        if (settings != null && settings != Settings)
+        if (settings is not null && settings != Settings)
         {
             Guard.AgainstLength(settings, 2000, nameof(settings));
             

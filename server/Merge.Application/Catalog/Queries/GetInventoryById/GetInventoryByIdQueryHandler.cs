@@ -31,7 +31,7 @@ public class GetInventoryByIdQueryHandler(
         var cacheKey = $"{CACHE_KEY_INVENTORY_BY_ID}{request.Id}";
 
         var cachedInventory = await cache.GetAsync<InventoryDto>(cacheKey, cancellationToken);
-        if (cachedInventory != null)
+        if (cachedInventory is not null)
         {
             logger.LogInformation("Cache hit for inventory. InventoryId: {InventoryId}", request.Id);
             return cachedInventory;
@@ -45,13 +45,13 @@ public class GetInventoryByIdQueryHandler(
             .Include(i => i.Warehouse)
             .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
 
-        if (inventory == null)
+        if (inventory is null)
         {
             logger.LogWarning("Inventory not found with Id: {InventoryId}", request.Id);
             return null;
         }
 
-        if (request.PerformedBy.HasValue && inventory.Product != null && inventory.Product.SellerId != request.PerformedBy.Value)
+        if (request.PerformedBy.HasValue && inventory.Product is not null && inventory.Product.SellerId != request.PerformedBy.Value)
         {
             logger.LogWarning("Unauthorized attempt to access inventory {InventoryId} for product {ProductId} by user {UserId}. Product belongs to {SellerId}",
                 request.Id, inventory.ProductId, request.PerformedBy.Value, inventory.Product.SellerId);

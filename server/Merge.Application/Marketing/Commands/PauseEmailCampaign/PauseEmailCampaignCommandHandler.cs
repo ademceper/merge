@@ -24,7 +24,7 @@ public class PauseEmailCampaignCommandHandler(
         var campaign = await context.Set<EmailCampaign>()
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-        if (campaign == null)
+        if (campaign is null)
         {
             logger.LogWarning("Email campaign not found. CampaignId: {CampaignId}", request.Id);
             return false;

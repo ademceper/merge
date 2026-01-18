@@ -28,7 +28,7 @@ public class GetSizeRecommendationQueryHandler(IDbContext context, ILogger<GetSi
         // Note: Cache key includes measurements for accurate caching
         var cacheKey = $"{CACHE_KEY_SIZE_RECOMMENDATION}{request.ProductId}_{request.Height}_{request.Weight}_{request.Chest}_{request.Waist}";
         var cachedRecommendation = await cache.GetAsync<SizeRecommendationDto>(cacheKey, cancellationToken);
-        if (cachedRecommendation != null)
+        if (cachedRecommendation is not null)
         {
             logger.LogInformation("Size recommendation retrieved from cache. ProductId: {ProductId}", request.ProductId);
             return cachedRecommendation;
@@ -42,7 +42,7 @@ public class GetSizeRecommendationQueryHandler(IDbContext context, ILogger<GetSi
                 .ThenInclude(sg => sg.Entries)
             .FirstOrDefaultAsync(psg => psg.ProductId == request.ProductId, cancellationToken);
 
-        if (productSizeGuide == null)
+        if (productSizeGuide is null)
         {
             logger.LogWarning("Product size guide not found. ProductId: {ProductId}", request.ProductId);
             var noGuideResult = new SizeRecommendationDto(
@@ -118,7 +118,7 @@ public class GetSizeRecommendationQueryHandler(IDbContext context, ILogger<GetSi
             .ToList();
 
         SizeRecommendationDto recommendation;
-        if (bestMatch != null)
+        if (bestMatch is not null)
         {
             string confidence = bestScore < recommendationConfig.HighConfidenceScoreThreshold 
                 ? "High" 

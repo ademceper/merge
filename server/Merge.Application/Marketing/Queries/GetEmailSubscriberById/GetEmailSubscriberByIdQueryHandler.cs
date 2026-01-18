@@ -19,6 +19,6 @@ public class GetEmailSubscriberByIdQueryHandler(IDbContext context, IMapper mapp
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 
-        return subscriber != null ? mapper.Map<EmailSubscriberDto>(subscriber) : null;
+        return subscriber is not null ? mapper.Map<EmailSubscriberDto>(subscriber) : null;
     }
 }

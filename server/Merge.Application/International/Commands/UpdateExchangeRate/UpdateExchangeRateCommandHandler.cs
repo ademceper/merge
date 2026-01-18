@@ -25,7 +25,7 @@ public class UpdateExchangeRateCommandHandler(
         var currency = await context.Set<Currency>()
             .FirstOrDefaultAsync(c => EF.Functions.ILike(c.Code, request.CurrencyCode), cancellationToken);
 
-        if (currency == null)
+        if (currency is null)
         {
             logger.LogWarning("Currency not found. CurrencyCode: {CurrencyCode}", request.CurrencyCode);
             throw new NotFoundException("Para birimi", Guid.Empty);

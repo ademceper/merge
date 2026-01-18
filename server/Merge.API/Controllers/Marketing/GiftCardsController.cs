@@ -13,6 +13,7 @@ using Merge.Application.Marketing.Commands.PurchaseGiftCard;
 using Merge.Application.Marketing.Commands.RedeemGiftCard;
 using Microsoft.Extensions.Options;
 using Merge.Application.Configuration;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Marketing;
 
@@ -67,12 +68,8 @@ public class GiftCardsController(
         }
 
         var query = new GetGiftCardByIdQuery(id);
-        var giftCard = await mediator.Send(query, cancellationToken);
-        
-        if (giftCard == null)
-        {
-            return Problem("Gift card not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var giftCard = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("GiftCard", id);
 
         if (giftCard.PurchasedByUserId != userId && giftCard.AssignedToUserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -92,13 +89,9 @@ public class GiftCardsController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetGiftCardByCodeQuery(code);
-        var giftCard = await mediator.Send(query, cancellationToken);
-        
-        if (giftCard == null)
-        {
-            return Problem("Gift card not found", "Not Found", StatusCodes.Status404NotFound);
-        }
-        
+        var giftCard = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("GiftCard", code);
+
         return Ok(giftCard);
     }
 

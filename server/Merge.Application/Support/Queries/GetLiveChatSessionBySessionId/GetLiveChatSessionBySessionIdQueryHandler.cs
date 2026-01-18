@@ -27,11 +27,11 @@ public class GetLiveChatSessionBySessionIdQueryHandler(IDbContext context, IMapp
             .Include(s => s.Messages.OrderByDescending(m => m.CreatedAt).Take(supportConfig.MaxRecentChatMessages))
             .FirstOrDefaultAsync(s => s.SessionId == request.SessionId, cancellationToken);
 
-        if (session == null) return null;
+        if (session is null) return null;
 
         var dto = mapper.Map<LiveChatSessionDto>(session);
 
-        if (session.Messages == null || session.Messages.Count == 0)
+        if (session.Messages is null || session.Messages.Count == 0)
         {
             var recentMessages = await context.Set<LiveChatMessage>()
                 .AsNoTracking()

@@ -29,7 +29,7 @@ public class SubscribeEmailCommandHandler(
         var existing = await context.Set<EmailSubscriber>()
             .FirstOrDefaultAsync(s => EF.Functions.ILike(s.Email, request.Email), cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             if (existing.IsDeleted)
             {
@@ -41,8 +41,8 @@ public class SubscribeEmailCommandHandler(
                 firstName: request.FirstName,
                 lastName: request.LastName,
                 source: request.Source,
-                tags: request.Tags != null ? JsonSerializer.Serialize(request.Tags) : null,
-                customFields: request.CustomFields != null ? JsonSerializer.Serialize(request.CustomFields) : null);
+                tags: request.Tags is not null ? JsonSerializer.Serialize(request.Tags) : null,
+                customFields: request.CustomFields is not null ? JsonSerializer.Serialize(request.CustomFields) : null);
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -63,8 +63,8 @@ public class SubscribeEmailCommandHandler(
             firstName: request.FirstName,
             lastName: request.LastName,
             source: request.Source,
-            tags: request.Tags != null ? JsonSerializer.Serialize(request.Tags) : null,
-            customFields: request.CustomFields != null ? JsonSerializer.Serialize(request.CustomFields) : null);
+            tags: request.Tags is not null ? JsonSerializer.Serialize(request.Tags) : null,
+            customFields: request.CustomFields is not null ? JsonSerializer.Serialize(request.CustomFields) : null);
 
         await context.Set<EmailSubscriber>().AddAsync(subscriber, cancellationToken);
         

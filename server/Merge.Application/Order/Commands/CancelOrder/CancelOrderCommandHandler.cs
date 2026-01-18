@@ -24,7 +24,7 @@ public class CancelOrderCommandHandler(IDbContext context, IUnitOfWork unitOfWor
                 .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
-        if (order == null)
+        if (order is null)
         {
             return false;
         }

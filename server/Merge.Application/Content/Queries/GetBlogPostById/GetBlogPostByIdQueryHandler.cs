@@ -33,7 +33,7 @@ public class GetBlogPostByIdQueryHandler(
         var cacheKey = $"{CACHE_KEY_POST_BY_ID}{request.Id}";
 
         var cachedPost = await cache.GetAsync<BlogPostDto>(cacheKey, cancellationToken);
-        if (cachedPost != null && !request.TrackView) // Don't use cache if tracking view (need to update)
+        if (cachedPost is not null && !request.TrackView) // Don't use cache if tracking view (need to update)
         {
             logger.LogInformation("Cache hit for blog post. PostId: {PostId}", request.Id);
             return cachedPost;
@@ -52,7 +52,7 @@ public class GetBlogPostByIdQueryHandler(
                 .Include(p => p.Author)
                 .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
 
-        if (post == null)
+        if (post is null)
         {
             logger.LogWarning("Blog post not found with Id: {PostId}", request.Id);
             return null;

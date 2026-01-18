@@ -24,7 +24,7 @@ public class GetCheckByPaymentIdQueryHandler(IDbContext context, IMapper mapper,
             .Include(c => c.Payment)
             .FirstOrDefaultAsync(c => c.PaymentId == request.PaymentId, cancellationToken);
 
-        if (check == null)
+        if (check is null)
         {
             logger.LogWarning("Payment fraud check bulunamadı. PaymentId: {PaymentId}", request.PaymentId);
             return null;

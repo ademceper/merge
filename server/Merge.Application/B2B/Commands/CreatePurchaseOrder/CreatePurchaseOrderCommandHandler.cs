@@ -44,7 +44,7 @@ public class CreatePurchaseOrderCommandHandler(
                 .Include(b => b.Organization)
                 .FirstOrDefaultAsync(b => b.Id == request.B2BUserId && b.IsApproved, cancellationToken);
 
-            if (b2bUser == null)
+            if (b2bUser is null)
             {
                 throw new NotFoundException("B2B kullanıcı", Guid.Empty);
             }
@@ -148,9 +148,9 @@ public class CreatePurchaseOrderCommandHandler(
                 {
                     var wholesalePrice = productWholesalePrices
                         .FirstOrDefault(wp => wp.MinQuantity <= itemDto.Quantity &&
-                                            (wp.MaxQuantity == null || wp.MaxQuantity >= itemDto.Quantity));
+                                            (wp.MaxQuantity is null || wp.MaxQuantity >= itemDto.Quantity));
 
-                    if (wholesalePrice != null)
+                    if (wholesalePrice is not null)
                     {
                         unitPrice = wholesalePrice.Price;
                     }
@@ -164,21 +164,21 @@ public class CreatePurchaseOrderCommandHandler(
                 {
                     discount = productDiscounts
                         .FirstOrDefault(vd => vd.MinQuantity <= itemDto.Quantity &&
-                                            (vd.MaxQuantity == null || vd.MaxQuantity >= itemDto.Quantity));
+                                            (vd.MaxQuantity is null || vd.MaxQuantity >= itemDto.Quantity));
                 }
                 
-                if (discount == null)
+                if (discount is null)
                 {
                     var categoryDiscountKey = new { ProductId = (Guid?)null, CategoryId = (Guid?)product.CategoryId };
                     if (volumeDiscountLookup.TryGetValue(categoryDiscountKey, out var categoryDiscounts))
                     {
                         discount = categoryDiscounts
                             .FirstOrDefault(vd => vd.MinQuantity <= itemDto.Quantity &&
-                                                (vd.MaxQuantity == null || vd.MaxQuantity >= itemDto.Quantity));
+                                                (vd.MaxQuantity is null || vd.MaxQuantity >= itemDto.Quantity));
                     }
                 }
 
-                if (discount != null && discount.DiscountPercentage > 0)
+                if (discount is not null && discount.DiscountPercentage > 0)
                 {
                     unitPrice = unitPrice * (1 - discount.DiscountPercentage / 100);
                 }

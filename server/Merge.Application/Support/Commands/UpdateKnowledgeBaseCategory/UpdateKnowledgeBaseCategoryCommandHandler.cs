@@ -26,7 +26,7 @@ public class UpdateKnowledgeBaseCategoryCommandHandler(IDbContext context, IUnit
         var category = await context.Set<KnowledgeBaseCategory>()
             .FirstOrDefaultAsync(c => c.Id == request.CategoryId, cancellationToken);
 
-        if (category == null)
+        if (category is null)
         {
             logger.LogWarning("Knowledge base category {CategoryId} not found for update", request.CategoryId);
             throw new NotFoundException("Bilgi bankası kategorisi", request.CategoryId);
@@ -37,7 +37,7 @@ public class UpdateKnowledgeBaseCategoryCommandHandler(IDbContext context, IUnit
             var newSlug = GenerateSlug(request.Name);
             category.UpdateName(request.Name, newSlug);
         }
-        if (request.Description != null)
+        if (request.Description is not null)
         {
             category.UpdateDescription(request.Description);
         }
@@ -53,7 +53,7 @@ public class UpdateKnowledgeBaseCategoryCommandHandler(IDbContext context, IUnit
         {
             category.SetActive(request.IsActive.Value);
         }
-        if (request.IconUrl != null)
+        if (request.IconUrl is not null)
         {
             category.UpdateIconUrl(request.IconUrl);
         }

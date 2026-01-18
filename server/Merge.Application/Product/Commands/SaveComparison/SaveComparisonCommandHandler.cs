@@ -29,7 +29,7 @@ public class SaveComparisonCommandHandler(IDbContext context, IUnitOfWork unitOf
                 .OrderByDescending(c => c.CreatedAt)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (comparison == null)
+            if (comparison is null)
             {
                 return false;
             }

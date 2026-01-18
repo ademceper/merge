@@ -23,7 +23,7 @@ public class DeleteProductTranslationCommandHandler(
         var translation = await context.Set<ProductTranslation>()
             .FirstOrDefaultAsync(pt => pt.Id == request.Id, cancellationToken);
 
-        if (translation == null)
+        if (translation is null)
         {
             logger.LogWarning("Product translation not found for deletion. TranslationId: {TranslationId}", request.Id);
             throw new NotFoundException("Ürün çevirisi", request.Id);

@@ -35,7 +35,7 @@ public class VerifyEmailCommandHandler(
             .Include(ev => ev.User)
             .FirstOrDefaultAsync(ev => ev.Token == request.Token, cancellationToken);
 
-        if (verification == null)
+        if (verification is null)
         {
             logger.LogWarning("Email verification failed - invalid token. Token: {MaskedToken}", MaskToken(request.Token));
             throw new BusinessException("Geçersiz token.");

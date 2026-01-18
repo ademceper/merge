@@ -34,7 +34,7 @@ public class EvaluateProductBadgesCommandHandler(IDbContext context, IMediator m
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
-        if (product == null) return;
+        if (product is null) return;
 
         // Get product metrics
         var totalSales = await context.Set<OrderItem>()
@@ -54,7 +54,7 @@ public class EvaluateProductBadgesCommandHandler(IDbContext context, IMediator m
             if (string.IsNullOrEmpty(badge.Criteria)) continue;
 
             var criteria = JsonSerializer.Deserialize<Dictionary<string, object>>(badge.Criteria);
-            if (criteria == null) continue;
+            if (criteria is null) continue;
 
             bool qualifies = true;
 
@@ -75,7 +75,7 @@ public class EvaluateProductBadgesCommandHandler(IDbContext context, IMediator m
                 var existing = await context.Set<ProductTrustBadge>()
                     .FirstOrDefaultAsync(ptb => ptb.ProductId == request.ProductId && ptb.TrustBadgeId == badge.Id, cancellationToken);
 
-                if (existing == null)
+                if (existing is null)
                 {
                     var awardCommand = new AwardProductBadgeCommand(
                         request.ProductId,

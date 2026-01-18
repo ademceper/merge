@@ -28,7 +28,7 @@ public class SendEmailCampaignCommandHandler(
             .Include(c => c.Template)
             .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
-        if (campaign == null) return false;
+        if (campaign is null) return false;
 
         if (campaign.Status == EmailCampaignStatus.Sent)
         {

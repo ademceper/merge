@@ -28,7 +28,7 @@ public class UpdateKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitO
         var article = await context.Set<KnowledgeBaseArticle>()
             .FirstOrDefaultAsync(a => a.Id == request.ArticleId, cancellationToken);
 
-        if (article == null)
+        if (article is null)
         {
             logger.LogWarning("Knowledge base article {ArticleId} not found for update", request.ArticleId);
             throw new NotFoundException("Bilgi bankası makalesi", request.ArticleId);
@@ -43,7 +43,7 @@ public class UpdateKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitO
         {
             article.UpdateContent(request.Content, request.Excerpt);
         }
-        else if (request.Excerpt != null)
+        else if (request.Excerpt is not null)
         {
             article.UpdateContent(article.Content, request.Excerpt);
         }
@@ -74,7 +74,7 @@ public class UpdateKnowledgeBaseArticleCommandHandler(IDbContext context, IUnitO
         {
             article.UpdateDisplayOrder(request.DisplayOrder.Value);
         }
-        if (request.Tags != null)
+        if (request.Tags is not null)
         {
             var tagsString = string.Join(",", request.Tags);
             article.UpdateTags(tagsString);

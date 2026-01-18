@@ -38,7 +38,7 @@ public class GetPolicyByIdQueryHandler(
                     .Include(p => p.CreatedBy)
                     .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
 
-                if (policy == null)
+                if (policy is null)
                 {
                     logger.LogWarning("Policy not found. PolicyId: {PolicyId}", request.Id);
                     return null;

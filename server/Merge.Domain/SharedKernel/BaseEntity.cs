@@ -19,7 +19,7 @@ public abstract class BaseEntity
     
     protected void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         _domainEvents.Add(domainEvent);

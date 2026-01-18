@@ -153,7 +153,7 @@ public class Coupon : BaseEntity, IAggregateRoot
         Guard.AgainstNullOrEmpty(code, nameof(code));
         Guard.AgainstNullOrEmpty(description, nameof(description));
 
-        if (discountAmount == null && discountPercentage == null)
+        if (discountAmount is null && discountPercentage is null)
             throw new DomainException("Kupon için indirim tutarı veya yüzdesi belirtilmelidir");
 
         if (startDate >= endDate)

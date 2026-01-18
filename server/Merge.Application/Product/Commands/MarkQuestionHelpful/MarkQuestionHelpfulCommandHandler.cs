@@ -27,7 +27,7 @@ public class MarkQuestionHelpfulCommandHandler(IDbContext context, IUnitOfWork u
             var existing = await context.Set<QuestionHelpfulness>()
                 .FirstOrDefaultAsync(qh => qh.QuestionId == request.QuestionId && qh.UserId == request.UserId, cancellationToken);
 
-            if (existing != null)
+            if (existing is not null)
             {
                 return; // Already marked
             }
@@ -41,7 +41,7 @@ public class MarkQuestionHelpfulCommandHandler(IDbContext context, IUnitOfWork u
             var question = await context.Set<ProductQuestion>()
                 .FirstOrDefaultAsync(q => q.Id == request.QuestionId, cancellationToken);
 
-            if (question != null)
+            if (question is not null)
             {
                 question.IncrementHelpfulCount();
             }

@@ -27,7 +27,7 @@ public class AddProductToFlashSaleCommandHandler(
         var flashSale = await context.Set<FlashSale>()
             .FirstOrDefaultAsync(fs => fs.Id == request.FlashSaleId, cancellationToken);
 
-        if (flashSale == null)
+        if (flashSale is null)
         {
             logger.LogWarning("FlashSale not found. FlashSaleId: {FlashSaleId}", request.FlashSaleId);
             throw new NotFoundException("Flash Sale", request.FlashSaleId);
@@ -37,7 +37,7 @@ public class AddProductToFlashSaleCommandHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken);
 
-        if (product == null)
+        if (product is null)
         {
             logger.LogWarning("Product not found. ProductId: {ProductId}", request.ProductId);
             throw new NotFoundException("Ürün", request.ProductId);

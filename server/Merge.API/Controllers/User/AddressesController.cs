@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Merge.Application.DTOs.User;
+using Merge.Application.Exceptions;
 using Merge.Application.User.Commands.CreateAddress;
 using Merge.Application.User.Commands.DeleteAddress;
 using Merge.Application.User.Commands.SetDefaultAddress;
@@ -49,11 +50,8 @@ public class AddressesController(IMediator mediator) : BaseController
         var isAdminOrManager = User.IsInRole("Admin") || User.IsInRole("Manager");
         
                 var query = new GetAddressByIdQuery(id, userId, isAdminOrManager);
-        var address = await mediator.Send(query, cancellationToken);
-        if (address == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var address = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("Address", id);
         return Ok(address);
     }
 
@@ -65,7 +63,7 @@ public class AddressesController(IMediator mediator) : BaseController
     public async Task<ActionResult<AddressDto>> Create([FromBody] CreateAddressDto dto, CancellationToken cancellationToken = default)
     {
                 var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var userId = GetUserId();
                 var command = new CreateAddressCommand(
@@ -95,7 +93,7 @@ public class AddressesController(IMediator mediator) : BaseController
     public async Task<ActionResult<AddressDto>> Update(Guid id, [FromBody] UpdateAddressDto dto, CancellationToken cancellationToken = default)
     {
                 var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var userId = GetUserId();
         var isAdminOrManager = User.IsInRole("Admin") || User.IsInRole("Manager");
@@ -134,7 +132,7 @@ public class AddressesController(IMediator mediator) : BaseController
     public async Task<ActionResult<AddressDto>> Patch(Guid id, [FromBody] PatchAddressDto patchDto, CancellationToken cancellationToken = default)
     {
         var validationResult = ValidateModelState();
-        if (validationResult != null) return validationResult;
+        if (validationResult is not null) return validationResult;
 
         var userId = GetUserId();
         var isAdminOrManager = User.IsInRole("Admin") || User.IsInRole("Manager");
@@ -158,9 +156,7 @@ public class AddressesController(IMediator mediator) : BaseController
                         var command = new DeleteAddressCommand(id, userId, isAdminOrManager);
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Address", id);
         return NoContent();
     }
 
@@ -177,9 +173,7 @@ public class AddressesController(IMediator mediator) : BaseController
                         var command = new SetDefaultAddressCommand(id, userId);
         var result = await mediator.Send(command, cancellationToken);
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("Address", id);
         return NoContent();
     }
 

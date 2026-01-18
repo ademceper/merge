@@ -16,7 +16,7 @@ public class UpdateTemplateCommandValidator : AbstractValidator<UpdateTemplateCo
             .NotNull()
             .WithMessage("Güncelleme bilgileri zorunludur.");
 
-        When(x => x.Dto != null, () =>
+        When(x => x.Dto is not null, () =>
         {
             RuleFor(x => x.Dto.Name)
                 .MaximumLength(100)

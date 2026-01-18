@@ -49,7 +49,7 @@ public class CreateSitemapEntryCommandHandler(
                 .AsNoTracking()
                 .FirstOrDefaultAsync(e => e.Id == entry.Id, cancellationToken);
 
-            if (reloadedEntry == null)
+            if (reloadedEntry is null)
             {
                 logger.LogWarning("Sitemap entry {EntryId} not found after creation", entry.Id);
                 throw new NotFoundException("Sitemap Entry", entry.Id);

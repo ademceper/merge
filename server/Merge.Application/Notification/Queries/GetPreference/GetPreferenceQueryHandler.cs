@@ -24,6 +24,6 @@ public class GetPreferenceQueryHandler(IDbContext context, IMapper mapper) : IRe
                                       np.NotificationType == request.NotificationType && 
                                       np.Channel == request.Channel, cancellationToken);
 
-        return preference != null ? mapper.Map<NotificationPreferenceDto>(preference) : null;
+        return preference is not null ? mapper.Map<NotificationPreferenceDto>(preference) : null;
     }
 }

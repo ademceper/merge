@@ -155,13 +155,13 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
         bool? isActive = null)
     {
         if (!string.IsNullOrEmpty(name)) Name = name;
-        if (description != null) Description = description;
+        if (description is not null) Description = description;
         if (categoryId.HasValue) CategoryId = categoryId.Value;
-        if (brand != null) Brand = brand;
-        if (defaultSKUPrefix != null) DefaultSKUPrefix = defaultSKUPrefix;
+        if (brand is not null) Brand = brand;
+        if (defaultSKUPrefix is not null) DefaultSKUPrefix = defaultSKUPrefix;
         if (defaultPrice.HasValue) DefaultPrice = defaultPrice;
         if (defaultStockQuantity.HasValue) DefaultStockQuantity = defaultStockQuantity;
-        if (defaultImageUrl != null)
+        if (defaultImageUrl is not null)
         {
             try
             {
@@ -173,8 +173,8 @@ public class ProductTemplate : BaseEntity, IAggregateRoot
             }
             DefaultImageUrl = defaultImageUrl;
         }
-        if (specifications != null) Specifications = specifications;
-        if (attributes != null) Attributes = attributes;
+        if (specifications is not null) Specifications = specifications;
+        if (attributes is not null) Attributes = attributes;
         if (isActive.HasValue) IsActive = isActive.Value;
         
         UpdatedAt = DateTime.UtcNow;

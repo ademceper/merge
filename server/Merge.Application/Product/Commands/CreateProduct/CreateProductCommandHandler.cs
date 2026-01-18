@@ -62,7 +62,7 @@ public class CreateProductCommandHandler(IRepository productRepository, IDbConte
                 .Include(p => p.Category)
                 .FirstOrDefaultAsync(p => p.Id == product.Id, cancellationToken);
 
-            if (reloadedProduct == null)
+            if (reloadedProduct is null)
             {
                 logger.LogWarning("Product {ProductId} not found after creation", product.Id);
                 throw new NotFoundException("Ürün", product.Id);

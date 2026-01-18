@@ -23,7 +23,7 @@ public class DeleteWholesalePriceCommandHandler(
         var price = await context.Set<WholesalePrice>()
             .FirstOrDefaultAsync(wp => wp.Id == request.Id, cancellationToken);
 
-        if (price == null)
+        if (price is null)
         {
             logger.LogWarning("Wholesale price not found with Id: {WholesalePriceId}", request.Id);
             return false;

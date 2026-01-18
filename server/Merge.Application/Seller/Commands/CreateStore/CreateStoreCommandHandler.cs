@@ -26,7 +26,7 @@ public class CreateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
         logger.LogInformation("Creating store for seller {SellerId}, StoreName: {StoreName}",
             request.SellerId, request.Dto.StoreName);
 
-        if (request.Dto == null)
+        if (request.Dto is null)
         {
             throw new ArgumentNullException(nameof(request.Dto));
         }
@@ -40,7 +40,7 @@ public class CreateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == request.SellerId, cancellationToken);
 
-        if (seller == null)
+        if (seller is null)
         {
             logger.LogWarning("Seller not found. SellerId: {SellerId}", request.SellerId);
             throw new NotFoundException("Satıcı", request.SellerId);
@@ -71,7 +71,7 @@ public class CreateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
             city: request.Dto.City,
             country: request.Dto.Country,
             postalCode: request.Dto.PostalCode,
-            settings: request.Dto.Settings != null ? System.Text.Json.JsonSerializer.Serialize(request.Dto.Settings) : null);
+            settings: request.Dto.Settings is not null ? System.Text.Json.JsonSerializer.Serialize(request.Dto.Settings) : null);
 
         // Set as primary if requested
         if (request.Dto.IsPrimary)
@@ -88,7 +88,7 @@ public class CreateStoreCommandHandler(IDbContext context, IUnitOfWork unitOfWor
             .Include(s => s.Seller)
             .FirstOrDefaultAsync(s => s.Id == store.Id, cancellationToken);
 
-        if (reloadedStore == null)
+        if (reloadedStore is null)
         {
             logger.LogWarning("Store {StoreId} not found after creation", store.Id);
             return mapper.Map<StoreDto>(store);

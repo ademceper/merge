@@ -25,7 +25,7 @@ public class UpdatePickPackItemStatusCommandHandler(
         var item = await context.Set<PickPackItem>()
             .FirstOrDefaultAsync(i => i.Id == request.ItemId, cancellationToken);
 
-        if (item == null)
+        if (item is null)
         {
             logger.LogWarning("Pick-pack item not found. ItemId: {ItemId}", request.ItemId);
             throw new NotFoundException("Pick-pack kalemi", request.ItemId);

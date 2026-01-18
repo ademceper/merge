@@ -43,7 +43,7 @@ public class OrderVerificationService(IDbContext context, IUnitOfWork unitOfWork
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == dto.OrderId, cancellationToken);
 
-        if (order == null)
+        if (order is null)
         {
             throw new NotFoundException("Sipariş", dto.OrderId);
         }
@@ -53,7 +53,7 @@ public class OrderVerificationService(IDbContext context, IUnitOfWork unitOfWork
             .AsNoTracking()
             .FirstOrDefaultAsync(v => v.OrderId == dto.OrderId, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             throw new BusinessException("Bu sipariş için zaten bir doğrulama kaydı var.");
         }
@@ -98,7 +98,7 @@ public class OrderVerificationService(IDbContext context, IUnitOfWork unitOfWork
             .Include(v => v.VerifiedBy)
             .FirstOrDefaultAsync(v => v.OrderId == orderId, cancellationToken);
 
-        return verification != null ? mapper.Map<OrderVerificationDto>(verification) : null;
+        return verification is not null ? mapper.Map<OrderVerificationDto>(verification) : null;
     }
 
     public async Task<IEnumerable<OrderVerificationDto>> GetPendingVerificationsAsync(CancellationToken cancellationToken = default)
@@ -121,7 +121,7 @@ public class OrderVerificationService(IDbContext context, IUnitOfWork unitOfWork
         var verification = await context.Set<OrderVerification>()
             .FirstOrDefaultAsync(v => v.Id == verificationId, cancellationToken);
 
-        if (verification == null) return false;
+        if (verification is null) return false;
 
         verification.Verify(verifiedByUserId, notes);
 
@@ -138,7 +138,7 @@ public class OrderVerificationService(IDbContext context, IUnitOfWork unitOfWork
         var verification = await context.Set<OrderVerification>()
             .FirstOrDefaultAsync(v => v.Id == verificationId, cancellationToken);
 
-        if (verification == null) return false;
+        if (verification is null) return false;
 
         verification.Reject(verifiedByUserId, reason);
 
@@ -195,7 +195,7 @@ public class OrderVerificationService(IDbContext context, IUnitOfWork unitOfWork
             .Include(o => o.User)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
 
-        if (order == null) return 0;
+        if (order is null) return 0;
 
         int riskScore = 0;
 
@@ -251,7 +251,7 @@ public class PaymentFraudPreventionService(
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == dto.PaymentId, cancellationToken);
 
-        if (payment == null)
+        if (payment is null)
         {
             throw new NotFoundException("Ödeme", Guid.Empty);
         }
@@ -261,7 +261,7 @@ public class PaymentFraudPreventionService(
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.PaymentId == dto.PaymentId, cancellationToken);
 
-        if (existing != null)
+        if (existing is not null)
         {
             existing = await context.Set<PaymentFraudPrevention>()
                 .AsNoTracking()
@@ -312,7 +312,7 @@ public class PaymentFraudPreventionService(
             .Include(c => c.Payment)
             .FirstOrDefaultAsync(c => c.PaymentId == paymentId, cancellationToken);
 
-        if (check == null) return null;
+        if (check is null) return null;
 
         return mapper.Map<PaymentFraudPreventionDto>(check);
     }
@@ -334,7 +334,7 @@ public class PaymentFraudPreventionService(
         var check = await context.Set<PaymentFraudPrevention>()
             .FirstOrDefaultAsync(c => c.Id == checkId, cancellationToken);
 
-        if (check == null) return false;
+        if (check is null) return false;
 
         check.Block(reason);
 
@@ -350,7 +350,7 @@ public class PaymentFraudPreventionService(
         var check = await context.Set<PaymentFraudPrevention>()
             .FirstOrDefaultAsync(c => c.Id == checkId, cancellationToken);
 
-        if (check == null) return false;
+        if (check is null) return false;
 
         check.Unblock();
 
@@ -410,7 +410,7 @@ public class PaymentFraudPreventionService(
                 .ThenInclude(o => o.User)
             .FirstOrDefaultAsync(p => p.Id == dto.PaymentId, cancellationToken);
 
-        if (payment == null) return 0;
+        if (payment is null) return 0;
 
         int riskScore = 0;
 
@@ -465,7 +465,7 @@ public class AccountSecurityMonitoringService(
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == dto.UserId, cancellationToken);
 
-        if (user == null)
+        if (user is null)
         {
             throw new NotFoundException("Kullanıcı", Guid.Empty);
         }
@@ -487,7 +487,7 @@ public class AccountSecurityMonitoringService(
             location: dto.Location,
             deviceFingerprint: dto.DeviceFingerprint,
             isSuspicious: dto.IsSuspicious,
-            details: dto.Details != null ? JsonSerializer.Serialize(dto.Details) : null,
+            details: dto.Details is not null ? JsonSerializer.Serialize(dto.Details) : null,
             requiresAction: dto.RequiresAction);
 
         await context.Set<AccountSecurityEvent>().AddAsync(securityEvent, cancellationToken);
@@ -505,7 +505,7 @@ public class AccountSecurityMonitoringService(
                 description: $"Security event: {dto.EventType} for user {user.Email}",
                 severity: alertSeverity,
                 userId: dto.UserId,
-                metadata: dto.Details != null ? JsonSerializer.Serialize(dto.Details) : null
+                metadata: dto.Details is not null ? JsonSerializer.Serialize(dto.Details) : null
             );
             await context.Set<SecurityAlert>().AddAsync(alert, cancellationToken);
         }
@@ -601,7 +601,7 @@ public class AccountSecurityMonitoringService(
         var securityEvent = await context.Set<AccountSecurityEvent>()
             .FirstOrDefaultAsync(e => e.Id == eventId, cancellationToken);
 
-        if (securityEvent == null) return false;
+        if (securityEvent is null) return false;
 
         securityEvent.TakeAction(actionTakenByUserId, action, notes);
 
@@ -635,7 +635,7 @@ public class AccountSecurityMonitoringService(
             description: dto.Description,
             severity: severity,
             userId: dto.UserId,
-            metadata: dto.Metadata != null ? JsonSerializer.Serialize(dto.Metadata) : null
+            metadata: dto.Metadata is not null ? JsonSerializer.Serialize(dto.Metadata) : null
         );
 
         await context.Set<SecurityAlert>().AddAsync(alert, cancellationToken);
@@ -710,7 +710,7 @@ public class AccountSecurityMonitoringService(
         var alert = await context.Set<SecurityAlert>()
             .FirstOrDefaultAsync(a => a.Id == alertId, cancellationToken);
 
-        if (alert == null) return false;
+        if (alert is null) return false;
 
         alert.Acknowledge(acknowledgedByUserId);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -726,7 +726,7 @@ public class AccountSecurityMonitoringService(
         var alert = await context.Set<SecurityAlert>()
             .FirstOrDefaultAsync(a => a.Id == alertId, cancellationToken);
 
-        if (alert == null) return false;
+        if (alert is null) return false;
 
         alert.Resolve(resolvedByUserId, resolutionNotes);
 

@@ -12,6 +12,7 @@ using Merge.Application.Content.Commands.DeleteBlogCategory;
 using Merge.Application.Content.Queries.GetAllBlogCategories;
 using Merge.Application.Content.Queries.GetBlogCategoryById;
 using Merge.Application.Content.Queries.GetBlogCategoryBySlug;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Content.BlogCategories;
 
@@ -70,11 +71,9 @@ public class BlogCategoriesController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetBlogCategoryByIdQuery(id);
-        var category = await mediator.Send(query, cancellationToken);
-        if (category == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var category = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("BlogCategory", id);
+
         return Ok(category);
     }
 
@@ -98,11 +97,9 @@ public class BlogCategoriesController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetBlogCategoryBySlugQuery(slug);
-        var category = await mediator.Send(query, cancellationToken);
-        if (category == null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var category = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("BlogCategory", slug);
+
         return Ok(category);
     }
 
@@ -166,10 +163,10 @@ public class BlogCategoriesController(
     {
         var updateCommand = command with { Id = id };
         var result = await mediator.Send(updateCommand, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("BlogCategory", id);
+
         return NoContent();
     }
 
@@ -201,10 +198,10 @@ public class BlogCategoriesController(
             DisplayOrder: patchDto.DisplayOrder,
             IsActive: patchDto.IsActive);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("BlogCategory", id);
+
         return NoContent();
     }
 
@@ -235,10 +232,10 @@ public class BlogCategoriesController(
     {
         var command = new DeleteBlogCategoryCommand(id);
         var result = await mediator.Send(command, cancellationToken);
+
         if (!result)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("BlogCategory", id);
+
         return NoContent();
     }
 }

@@ -90,7 +90,7 @@ public class User : IdentityUser<Guid>, IAggregateRoot
     // NOT: Public yapıldı çünkü command handler'lardan erişilmesi gerekiyor
     public void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         _domainEvents.Add(domainEvent);
@@ -103,7 +103,7 @@ public class User : IdentityUser<Guid>, IAggregateRoot
 
     public void RemoveDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         _domainEvents.Remove(domainEvent);
@@ -118,7 +118,7 @@ public class User : IdentityUser<Guid>, IAggregateRoot
 
         FirstName = firstName;
         LastName = lastName;
-        if (phoneNumber != null)
+        if (phoneNumber is not null)
         {
             PhoneNumber = phoneNumber;
         }

@@ -64,7 +64,7 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
         Guard.AgainstLength(title, 200, nameof(title));
         var slugValueObject = Slug.FromString(slug);
         Guard.AgainstLength(content, 50000, nameof(content));
-        if (excerpt != null)
+        if (excerpt is not null)
             Guard.AgainstLength(excerpt, 500, nameof(excerpt));
         Guard.AgainstNegative(displayOrder, nameof(displayOrder));
 
@@ -165,7 +165,7 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
     {
         Guard.AgainstNullOrEmpty(content, nameof(content));
         Guard.AgainstLength(content, 50000, nameof(content));
-        if (excerpt != null)
+        if (excerpt is not null)
             Guard.AgainstLength(excerpt, 500, nameof(excerpt));
 
         Content = content;
@@ -178,7 +178,7 @@ public class KnowledgeBaseArticle : BaseEntity, IAggregateRoot
     public void UpdateExcerpt(string? excerpt)
     {
         // Configuration değeri: MaxArticleExcerptLength=500
-        if (excerpt != null)
+        if (excerpt is not null)
             Guard.AgainstLength(excerpt, 500, nameof(excerpt));
 
         Excerpt = excerpt;

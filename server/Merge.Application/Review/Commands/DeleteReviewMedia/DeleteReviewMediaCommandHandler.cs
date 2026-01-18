@@ -20,7 +20,7 @@ public class DeleteReviewMediaCommandHandler(IDbContext context, IUnitOfWork uni
         var media = await context.Set<ReviewMedia>()
             .FirstOrDefaultAsync(m => m.Id == request.MediaId, cancellationToken);
 
-        if (media != null)
+        if (media is not null)
         {
             media.MarkAsDeleted();
             await unitOfWork.SaveChangesAsync(cancellationToken);

@@ -30,13 +30,13 @@ public class PatchShippingTrackingCommandHandler(
         var shipping = await context.Set<Shipping>()
             .FirstOrDefaultAsync(s => s.Id == request.ShippingId, cancellationToken);
 
-        if (shipping == null)
+        if (shipping is null)
         {
             logger.LogWarning("Shipping not found. ShippingId: {ShippingId}", request.ShippingId);
             throw new NotFoundException("Kargo", request.ShippingId);
         }
 
-        if (request.PatchDto.TrackingNumber != null)
+        if (request.PatchDto.TrackingNumber is not null)
         {
             shipping.UpdateTrackingNumber(request.PatchDto.TrackingNumber);
         }

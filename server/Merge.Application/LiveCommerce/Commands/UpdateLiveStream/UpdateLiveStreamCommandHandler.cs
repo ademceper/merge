@@ -25,7 +25,7 @@ public class UpdateLiveStreamCommandHandler(
         var stream = await context.Set<LiveStream>()
             .FirstOrDefaultAsync(s => s.Id == request.StreamId, cancellationToken);
 
-        if (stream == null)
+        if (stream is null)
         {
             logger.LogWarning("Stream not found. StreamId: {StreamId}", request.StreamId);
             throw new NotFoundException("Canlı yayın", request.StreamId);
@@ -50,7 +50,7 @@ public class UpdateLiveStreamCommandHandler(
                 .ThenInclude(p => p.Product)
             .FirstOrDefaultAsync(s => s.Id == request.StreamId, cancellationToken);
 
-        if (updatedStream == null)
+        if (updatedStream is null)
         {
             logger.LogWarning("Stream not found after update. StreamId: {StreamId}", request.StreamId);
             throw new NotFoundException("Canlı yayın", request.StreamId);

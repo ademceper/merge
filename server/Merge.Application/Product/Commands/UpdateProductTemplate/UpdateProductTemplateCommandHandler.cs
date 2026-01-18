@@ -34,7 +34,7 @@ public class UpdateProductTemplateCommandHandler(IDbContext context, IUnitOfWork
             var template = await context.Set<ProductTemplate>()
                 .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
 
-            if (template == null)
+            if (template is null)
             {
                 return false;
             }
@@ -51,8 +51,8 @@ public class UpdateProductTemplateCommandHandler(IDbContext context, IUnitOfWork
                 request.DefaultPrice,
                 request.DefaultStockQuantity,
                 request.DefaultImageUrl,
-                request.Specifications != null ? JsonSerializer.Serialize(request.Specifications) : null,
-                request.Attributes != null ? JsonSerializer.Serialize(request.Attributes) : null,
+                request.Specifications is not null ? JsonSerializer.Serialize(request.Specifications) : null,
+                request.Attributes is not null ? JsonSerializer.Serialize(request.Attributes) : null,
                 request.IsActive ?? template.IsActive);
 
             await unitOfWork.SaveChangesAsync(cancellationToken);

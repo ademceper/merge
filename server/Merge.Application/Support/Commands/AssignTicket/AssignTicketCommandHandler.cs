@@ -21,7 +21,7 @@ public class AssignTicketCommandHandler(IDbContext context, IUnitOfWork unitOfWo
         var ticket = await context.Set<SupportTicket>()
             .FirstOrDefaultAsync(t => t.Id == request.TicketId, cancellationToken);
 
-        if (ticket == null)
+        if (ticket is null)
         {
             logger.LogWarning("Ticket {TicketId} not found for assignment", request.TicketId);
             throw new NotFoundException("Destek bileti", request.TicketId);

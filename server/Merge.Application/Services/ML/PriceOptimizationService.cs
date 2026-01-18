@@ -29,7 +29,7 @@ public class PriceOptimizationService(IDbContext context, IUnitOfWork unitOfWork
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
-        if (product == null)
+        if (product is null)
         {
             throw new NotFoundException("Ürün", productId);
         }
@@ -135,7 +135,7 @@ public class PriceOptimizationService(IDbContext context, IUnitOfWork unitOfWork
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
-        if (product == null)
+        if (product is null)
         {
             throw new NotFoundException("Ürün", productId);
         }
@@ -157,7 +157,7 @@ public class PriceOptimizationService(IDbContext context, IUnitOfWork unitOfWork
             .Include(p => p.Category)
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
 
-        if (product == null)
+        if (product is null)
         {
             throw new NotFoundException("Ürün", productId);
         }

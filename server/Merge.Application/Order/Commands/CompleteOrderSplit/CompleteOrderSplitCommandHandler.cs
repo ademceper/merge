@@ -19,7 +19,7 @@ public class CompleteOrderSplitCommandHandler(IDbContext context, IUnitOfWork un
         var split = await context.Set<OrderSplit>()
             .FirstOrDefaultAsync(s => s.Id == request.SplitId, cancellationToken);
 
-        if (split == null) return false;
+        if (split is null) return false;
 
         split.Complete();
 

@@ -61,7 +61,7 @@ public class NotificationTemplatesController(
     {
         var query = new GetTemplateQuery(id);
         var template = await mediator.Send(query, cancellationToken);
-        if (template == null)
+        if (template is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }
@@ -86,7 +86,7 @@ public class NotificationTemplatesController(
 
         var query = new GetTemplateByTypeQuery(notificationTypeEnum);
         var template = await mediator.Send(query, cancellationToken);
-        if (template == null)
+        if (template is null)
         {
             return Problem($"Template not found for type: {type}", "Not Found", StatusCodes.Status404NotFound);
         }

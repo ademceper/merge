@@ -35,12 +35,12 @@ public class CreateReturnRequestCommandHandler(
             "Return request oluşturuluyor. OrderId: {OrderId}, UserId: {UserId}, Reason: {Reason}",
             request.Dto.OrderId, request.Dto.UserId, request.Dto.Reason);
 
-        if (request.Dto == null)
+        if (request.Dto is null)
         {
             throw new ArgumentNullException(nameof(request.Dto));
         }
 
-        if (request.Dto.OrderItemIds == null || request.Dto.OrderItemIds.Count == 0)
+        if (request.Dto.OrderItemIds is null || request.Dto.OrderItemIds.Count == 0)
         {
             throw new ValidationException("İade edilecek ürün seçilmedi.");
         }
@@ -54,7 +54,7 @@ public class CreateReturnRequestCommandHandler(
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.Id == request.Dto.OrderId && o.UserId == request.Dto.UserId, cancellationToken);
 
-        if (order == null)
+        if (order is null)
         {
             throw new NotFoundException("Sipariş", request.Dto.OrderId);
         }
@@ -80,7 +80,7 @@ public class CreateReturnRequestCommandHandler(
 
         var user = await context.Users
             .FirstOrDefaultAsync(u => u.Id == request.Dto.UserId, cancellationToken);
-        if (user == null)
+        if (user is null)
         {
             throw new NotFoundException("Kullanıcı", request.Dto.UserId);
         }
@@ -104,7 +104,7 @@ public class CreateReturnRequestCommandHandler(
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.Id == returnRequest.Id, cancellationToken);
 
-        if (reloadedReturnRequest == null)
+        if (reloadedReturnRequest is null)
         {
             logger.LogWarning("Return request {ReturnRequestId} not found after creation", returnRequest.Id);
             return mapper.Map<ReturnRequestDto>(returnRequest);

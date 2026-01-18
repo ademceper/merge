@@ -34,7 +34,7 @@ public class CreateReportScheduleCommandHandler(
             request.UserId,
             Enum.Parse<ReportFrequency>(request.Frequency, true),
             request.TimeOfDay,
-            request.Filters != null ? JsonSerializer.Serialize(request.Filters, JsonOptions) : null,
+            request.Filters is not null ? JsonSerializer.Serialize(request.Filters, JsonOptions) : null,
             Enum.Parse<ReportFormat>(request.Format, true),
             request.EmailRecipients,
             request.DayOfWeek,

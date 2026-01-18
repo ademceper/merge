@@ -28,7 +28,7 @@ public class PatchProductTranslationCommandHandler(
         var translation = await context.Set<ProductTranslation>()
             .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
 
-        if (translation == null)
+        if (translation is null)
         {
             logger.LogWarning("Product translation not found. TranslationId: {TranslationId}", request.Id);
             throw new NotFoundException("Ürün Çevirisi", request.Id);

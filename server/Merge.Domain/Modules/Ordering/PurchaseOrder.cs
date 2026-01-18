@@ -88,7 +88,7 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         // BaseEntity'deki protected AddDomainEvent'i çağır
@@ -99,7 +99,7 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
     // Service layer'dan event kaldırılabilmesi için public yapıldı
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         // BaseEntity'deki protected RemoveDomainEvent'i çağır
@@ -190,7 +190,7 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
             throw new DomainException("Sadece taslak durumundaki siparişlerden ürün çıkarılabilir");
 
         var item = _items.FirstOrDefault(i => i.Id == purchaseOrderItemId);
-        if (item == null)
+        if (item is null)
             throw new DomainException("Sipariş öğesi bulunamadı");
 
         var productId = item.ProductId;
@@ -211,7 +211,7 @@ public class PurchaseOrder : BaseEntity, IAggregateRoot
             throw new DomainException("Sadece taslak durumundaki siparişlerde ürün miktarı değiştirilebilir");
 
         var item = _items.FirstOrDefault(i => i.Id == purchaseOrderItemId);
-        if (item == null)
+        if (item is null)
             throw new DomainException("Sipariş öğesi bulunamadı");
 
         var oldQuantity = item.Quantity;

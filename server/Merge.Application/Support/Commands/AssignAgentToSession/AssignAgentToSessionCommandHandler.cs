@@ -22,7 +22,7 @@ public class AssignAgentToSessionCommandHandler(IDbContext context, IUnitOfWork 
         var session = await context.Set<LiveChatSession>()
             .FirstOrDefaultAsync(s => s.Id == request.SessionId, cancellationToken);
 
-        if (session == null)
+        if (session is null)
         {
             logger.LogWarning("Live chat session {SessionId} not found for agent assignment", request.SessionId);
             throw new NotFoundException("Canlı sohbet oturumu", request.SessionId);

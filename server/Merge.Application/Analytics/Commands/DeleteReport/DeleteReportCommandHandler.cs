@@ -25,7 +25,7 @@ public class DeleteReportCommandHandler(
             .Include(r => r.GeneratedByUser)
             .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken);
 
-        if (report == null)
+        if (report is null)
         {
             logger.LogWarning("Report not found for deletion. ReportId: {ReportId}", request.Id);
             return false;
@@ -42,7 +42,7 @@ public class DeleteReportCommandHandler(
         report = await context.Set<Report>()
             .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken);
 
-        if (report == null) return false;
+        if (report is null) return false;
 
         report.MarkAsDeleted();
         await unitOfWork.SaveChangesAsync(cancellationToken);

@@ -22,7 +22,7 @@ public class PurchaseOrderSubmittedEventHandler(
         try
         {
             // Email bildirimi gönder (admin'lere)
-            if (notificationService != null)
+            if (notificationService is not null)
             {
                 // TODO: Admin user ID'lerini al ve notification gönder
                 // var adminUsers = await _userService.GetAdminUsersAsync(cancellationToken);

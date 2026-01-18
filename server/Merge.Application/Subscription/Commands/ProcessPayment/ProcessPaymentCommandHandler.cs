@@ -24,7 +24,7 @@ public class ProcessPaymentCommandHandler(IDbContext context, IUnitOfWork unitOf
             .Include(p => p.UserSubscription)
             .FirstOrDefaultAsync(p => p.Id == request.PaymentId, cancellationToken);
 
-        if (payment == null)
+        if (payment is null)
         {
             throw new NotFoundException("Ödeme", request.PaymentId);
         }
@@ -32,7 +32,7 @@ public class ProcessPaymentCommandHandler(IDbContext context, IUnitOfWork unitOf
         payment.MarkAsCompleted(request.TransactionId);
 
         // Update subscription if needed
-        if (payment.UserSubscription != null && payment.UserSubscription.Status == SubscriptionStatus.Trial)
+        if (payment.UserSubscription is not null && payment.UserSubscription.Status == SubscriptionStatus.Trial)
         {
             payment.UserSubscription.Activate();
         }

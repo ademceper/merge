@@ -40,7 +40,7 @@ public class GetSEOSettingsQueryHandler(
                     .FirstOrDefaultAsync(s => s.PageType == request.PageType && 
                                             s.EntityId == request.EntityId, cancellationToken);
 
-                if (settings == null)
+                if (settings is null)
                 {
                     logger.LogWarning("SEO settings not found. PageType: {PageType}, EntityId: {EntityId}",
                         request.PageType, request.EntityId);

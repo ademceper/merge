@@ -118,10 +118,10 @@ public class TaxRule : BaseEntity, IAggregateRoot
             _taxRate = taxRate.Value;
         }
 
-        if (state != null)
+        if (state is not null)
             State = state;
 
-        if (city != null)
+        if (city is not null)
             City = city;
 
         if (isActive.HasValue)
@@ -133,13 +133,13 @@ public class TaxRule : BaseEntity, IAggregateRoot
         if (effectiveTo.HasValue)
             EffectiveTo = effectiveTo;
 
-        if (productCategoryIds != null)
+        if (productCategoryIds is not null)
             ProductCategoryIds = productCategoryIds;
 
         if (isInclusive.HasValue)
             IsInclusive = isInclusive.Value;
 
-        if (notes != null)
+        if (notes is not null)
             Notes = notes;
 
         if (EffectiveFrom.HasValue && EffectiveTo.HasValue && EffectiveTo.Value < EffectiveFrom.Value)

@@ -29,7 +29,7 @@ public class GetUserActiveSubscriptionQueryHandler(IDbContext context, IMapper m
             .OrderByDescending(us => us.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (subscription == null)
+        if (subscription is null)
         {
             return null;
         }

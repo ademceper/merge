@@ -200,7 +200,7 @@ public class Product : BaseEntity, IAggregateRoot
 
     public void SetDiscountPrice(Money? discountPrice)
     {
-        if (discountPrice == null)
+        if (discountPrice is null)
         {
             _discountPrice = null;
             UpdatedAt = DateTime.UtcNow;
@@ -604,7 +604,7 @@ public class Product : BaseEntity, IAggregateRoot
     {
         Guard.AgainstDefault(reviewId, nameof(reviewId));
         var review = _reviews.FirstOrDefault(r => r.Id == reviewId);
-        if (review == null)
+        if (review is null)
         {
             throw new DomainException("Review bulunamadı");
         }
@@ -641,7 +641,7 @@ public class Product : BaseEntity, IAggregateRoot
     {
         Guard.AgainstDefault(variantId, nameof(variantId));
         var variant = _variants.FirstOrDefault(v => v.Id == variantId);
-        if (variant == null)
+        if (variant is null)
         {
             throw new DomainException("Variant bulunamadı");
         }

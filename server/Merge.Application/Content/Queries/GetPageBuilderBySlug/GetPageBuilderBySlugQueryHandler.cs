@@ -33,7 +33,7 @@ public class GetPageBuilderBySlugQueryHandler(
         var cacheKey = $"{CACHE_KEY_PAGE_BY_SLUG}{request.Slug}";
 
         var cachedPage = await cache.GetAsync<PageBuilderDto>(cacheKey, cancellationToken);
-        if (cachedPage != null && !request.TrackView)
+        if (cachedPage is not null && !request.TrackView)
         {
             logger.LogInformation("Cache hit for page builder. Slug: {Slug}", request.Slug);
             return cachedPage;
@@ -50,7 +50,7 @@ public class GetPageBuilderBySlugQueryHandler(
                 .Include(pb => pb.Author)
                 .FirstOrDefaultAsync(pb => pb.Slug == request.Slug && pb.Status == ContentStatus.Published, cancellationToken);
 
-        if (pageBuilder == null)
+        if (pageBuilder is null)
         {
             logger.LogWarning("Page builder not found with Slug: {Slug}", request.Slug);
             return null;

@@ -25,6 +25,6 @@ public class GetCurrencyByCodeQueryHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(c => EF.Functions.ILike(c.Code, request.Code), cancellationToken);
 
-        return currency != null ? mapper.Map<CurrencyDto>(currency) : null;
+        return currency is not null ? mapper.Map<CurrencyDto>(currency) : null;
     }
 }

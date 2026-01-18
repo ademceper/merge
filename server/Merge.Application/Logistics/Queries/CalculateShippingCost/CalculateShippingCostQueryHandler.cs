@@ -31,7 +31,7 @@ public class CalculateShippingCostQueryHandler(
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
-        if (order == null)
+        if (order is null)
         {
             logger.LogWarning("Order not found. OrderId: {OrderId}", request.OrderId);
             throw new NotFoundException("Sipariş", request.OrderId);
@@ -51,7 +51,7 @@ public class CalculateShippingCostQueryHandler(
             // Provider name'e göre de kontrol et (örn: "Yurtiçi Kargo")
             var providerByName = _shippingSettings.Providers.Values
                 .FirstOrDefault(p => p.Name.Equals(request.ShippingProvider, StringComparison.OrdinalIgnoreCase));
-            if (providerByName != null)
+            if (providerByName is not null)
             {
                 baseCost = providerByName.BaseCost;
             }

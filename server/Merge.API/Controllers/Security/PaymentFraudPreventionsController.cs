@@ -71,7 +71,7 @@ public class PaymentFraudPreventionsController(IMediator mediator, IOptions<Pagi
     {
         var query = new GetCheckByPaymentIdQuery(paymentId);
         var check = await mediator.Send(query, cancellationToken);
-        if (check == null)
+        if (check is null)
         {
             return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
         }

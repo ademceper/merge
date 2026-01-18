@@ -21,6 +21,7 @@ using Merge.Application.Cart.Commands.PatchPreOrderCampaign;
 using Merge.Application.Cart.Commands.DeactivatePreOrderCampaign;
 using Merge.Application.Cart.Queries.GetPreOrderStats;
 using Merge.API.Middleware;
+using Merge.Application.Exceptions;
 
 namespace Merge.API.Controllers.Cart;
 
@@ -95,12 +96,8 @@ public class PreOrdersController(
     {
         var userId = GetUserId();
         var query = new GetPreOrderQuery(id);
-        var preOrder = await mediator.Send(query, cancellationToken);
-
-        if (preOrder is null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var preOrder = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("PreOrder", id);
 
         if (preOrder.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -168,11 +165,8 @@ public class PreOrdersController(
         var userId = GetUserId();
         
         var preOrderQuery = new GetPreOrderQuery(id);
-        var preOrder = await mediator.Send(preOrderQuery, cancellationToken);
-        if (preOrder is null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var preOrder = await mediator.Send(preOrderQuery, cancellationToken)
+            ?? throw new NotFoundException("PreOrder", id);
 
         if (preOrder.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -181,10 +175,9 @@ public class PreOrdersController(
 
         var command = new CancelPreOrderCommand(id, userId);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("PreOrder", id);
 
         return NoContent();
     }
@@ -218,11 +211,8 @@ public class PreOrdersController(
         var userId = GetUserId();
         
         var preOrderQuery = new GetPreOrderQuery(dto.PreOrderId);
-        var preOrder = await mediator.Send(preOrderQuery, cancellationToken);
-        if (preOrder is null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var preOrder = await mediator.Send(preOrderQuery, cancellationToken)
+            ?? throw new NotFoundException("PreOrder", dto.PreOrderId);
 
         if (preOrder.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("Manager"))
         {
@@ -231,10 +221,9 @@ public class PreOrdersController(
 
         var command = new PayPreOrderDepositCommand(userId, dto.PreOrderId, dto.Amount);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("PreOrder", dto.PreOrderId);
 
         return NoContent();
     }
@@ -266,10 +255,9 @@ public class PreOrdersController(
     {
         var command = new ConvertPreOrderToOrderCommand(id);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("PreOrder", id);
 
         return NoContent();
     }
@@ -362,12 +350,8 @@ public class PreOrdersController(
         CancellationToken cancellationToken = default)
     {
         var query = new GetPreOrderCampaignQuery(id);
-        var campaign = await mediator.Send(query, cancellationToken);
-
-        if (campaign is null)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+        var campaign = await mediator.Send(query, cancellationToken)
+            ?? throw new NotFoundException("PreOrderCampaign", id);
 
         return Ok(campaign);
     }
@@ -472,9 +456,7 @@ public class PreOrdersController(
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("PreOrderCampaign", id);
 
         return NoContent();
     }
@@ -500,10 +482,10 @@ public class PreOrdersController(
     {
         var command = new PatchPreOrderCampaignCommand(id, patchDto);
         var success = await mediator.Send(command, cancellationToken);
+
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("PreOrderCampaign", id);
+
         return NoContent();
     }
 
@@ -534,9 +516,7 @@ public class PreOrdersController(
         var success = await mediator.Send(command, cancellationToken);
 
         if (!success)
-        {
-            return Problem("Resource not found", "Not Found", StatusCodes.Status404NotFound);
-        }
+            throw new NotFoundException("PreOrderCampaign", id);
 
         return NoContent();
     }

@@ -23,7 +23,7 @@ public class ReviewFraudAlertCommandHandler(IDbContext context, IUnitOfWork unit
         var alert = await context.Set<FraudAlert>()
             .FirstOrDefaultAsync(a => a.Id == request.AlertId, cancellationToken);
 
-        if (alert == null)
+        if (alert is null)
         {
             logger.LogWarning("Fraud alert not found. AlertId: {AlertId}", request.AlertId);
             return false;

@@ -49,7 +49,7 @@ public class Shipping : BaseEntity, IAggregateRoot
     // Service layer'dan event eklenebilmesi için public yapıldı
     public new void AddDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         // BaseEntity'deki protected AddDomainEvent'i çağır
@@ -60,7 +60,7 @@ public class Shipping : BaseEntity, IAggregateRoot
     // Service layer'dan event kaldırılabilmesi için public yapıldı
     public new void RemoveDomainEvent(IDomainEvent domainEvent)
     {
-        if (domainEvent == null)
+        if (domainEvent is null)
             throw new ArgumentNullException(nameof(domainEvent));
         
         // BaseEntity'deki protected RemoveDomainEvent'i çağır

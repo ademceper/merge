@@ -28,7 +28,7 @@ public class GetAllProductBundlesQueryHandler(IDbContext context, IMapper mapper
 
         var cacheKey = request.ActiveOnly ? CACHE_KEY_ACTIVE_BUNDLES : CACHE_KEY_ALL_BUNDLES;
         var cachedBundles = await cache.GetAsync<IEnumerable<ProductBundleDto>>(cacheKey, cancellationToken);
-        if (cachedBundles != null)
+        if (cachedBundles is not null)
         {
             logger.LogInformation("Product bundles retrieved from cache. ActiveOnly: {ActiveOnly}", request.ActiveOnly);
             return cachedBundles;

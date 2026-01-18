@@ -24,7 +24,7 @@ public class UpdateFaqCommandHandler(IDbContext context, IUnitOfWork unitOfWork,
         var faq = await context.Set<FAQ>()
             .FirstOrDefaultAsync(f => f.Id == request.FaqId, cancellationToken);
 
-        if (faq == null)
+        if (faq is null)
         {
             logger.LogWarning("FAQ {FaqId} not found for update", request.FaqId);
             throw new NotFoundException("FAQ", request.FaqId);

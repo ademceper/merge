@@ -21,7 +21,7 @@ public class DeleteKnowledgeBaseCategoryCommandHandler(IDbContext context, IUnit
         var category = await context.Set<KnowledgeBaseCategory>()
             .FirstOrDefaultAsync(c => c.Id == request.CategoryId, cancellationToken);
 
-        if (category == null)
+        if (category is null)
         {
             logger.LogWarning("Knowledge base category {CategoryId} not found for deletion", request.CategoryId);
             throw new NotFoundException("Bilgi bankası kategorisi", request.CategoryId);

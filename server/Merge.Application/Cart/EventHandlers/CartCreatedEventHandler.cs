@@ -19,7 +19,7 @@ public class CartCreatedEventHandler(
 
         try
         {
-            if (cacheService != null)
+            if (cacheService is not null)
             {
                 await cacheService.RemoveAsync($"cart_user_{notification.UserId}", cancellationToken);
                 await cacheService.RemoveAsync($"cart_{notification.CartId}", cancellationToken);

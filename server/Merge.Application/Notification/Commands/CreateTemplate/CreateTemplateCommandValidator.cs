@@ -12,7 +12,7 @@ public class CreateTemplateCommandValidator : AbstractValidator<CreateTemplateCo
             .NotNull()
             .WithMessage("Şablon bilgileri zorunludur.");
 
-        When(x => x.Dto != null, () =>
+        When(x => x.Dto is not null, () =>
         {
             RuleFor(x => x.Dto.Name)
                 .NotEmpty()

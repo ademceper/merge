@@ -31,7 +31,7 @@ public class UpdatePageBuilderCommandHandler(
         try
         {
             var pageBuilder = await pageBuilderRepository.GetByIdAsync(request.Id, cancellationToken);
-            if (pageBuilder == null)
+            if (pageBuilder is null)
             {
                 logger.LogWarning("Page builder not found. PageBuilderId: {PageBuilderId}", request.Id);
                 return false;
@@ -48,10 +48,10 @@ public class UpdatePageBuilderCommandHandler(
             if (!string.IsNullOrEmpty(request.Slug)) pageBuilder.UpdateSlug(request.Slug);
             if (!string.IsNullOrEmpty(request.Title)) pageBuilder.UpdateTitle(request.Title);
             if (!string.IsNullOrEmpty(request.Content)) pageBuilder.UpdateContent(request.Content);
-            if (request.Template != null) pageBuilder.UpdateTemplate(request.Template);
-            if (request.PageType != null) pageBuilder.UpdatePageType(request.PageType);
+            if (request.Template is not null) pageBuilder.UpdateTemplate(request.Template);
+            if (request.PageType is not null) pageBuilder.UpdatePageType(request.PageType);
             if (request.RelatedEntityId.HasValue) pageBuilder.UpdateRelatedEntity(request.RelatedEntityId);
-            if (request.MetaTitle != null || request.MetaDescription != null || request.OgImageUrl != null)
+            if (request.MetaTitle is not null || request.MetaDescription is not null || request.OgImageUrl is not null)
                 pageBuilder.UpdateMetaInformation(request.MetaTitle, request.MetaDescription, request.OgImageUrl);
 
             await pageBuilderRepository.UpdateAsync(pageBuilder, cancellationToken);

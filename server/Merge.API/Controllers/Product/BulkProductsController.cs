@@ -46,7 +46,7 @@ public class BulkProductsController(IMediator mediator) : BaseController
         IFormFile file,
         CancellationToken cancellationToken = default)
     {
-        if (file == null || file.Length == 0)
+        if (file is null || file.Length == 0)
         {
             return Problem("File is required and cannot be empty", "Validation Error", StatusCodes.Status400BadRequest);
         }
@@ -84,7 +84,7 @@ public class BulkProductsController(IMediator mediator) : BaseController
         IFormFile file,
         CancellationToken cancellationToken = default)
     {
-        if (file == null || file.Length == 0)
+        if (file is null || file.Length == 0)
         {
             return Problem("File is required and cannot be empty", "Validation Error", StatusCodes.Status400BadRequest);
         }

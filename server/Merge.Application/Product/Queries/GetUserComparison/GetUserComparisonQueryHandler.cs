@@ -49,7 +49,7 @@ public class GetUserComparisonQueryHandler(
                     .OrderByDescending(c => c.CreatedAt)
                     .FirstOrDefaultAsync(cancellationToken);
 
-                if (comparison == null)
+                if (comparison is null)
                 {
                     comparison = ProductComparison.Create(
                         request.UserId,
